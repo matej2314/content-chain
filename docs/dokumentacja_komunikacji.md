@@ -1,0 +1,291 @@
+# Dokumentacja komunikacji — Content Chain
+
+Normatywny kontrakt I/O v1. Dwie powierzchnie:
+
+1. **HTTP API `apps/api`** — konsumenci: `apps/frontend`, Postman  
+2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
+
+**Poza zakresem v1:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+
+Zmiana względem wcześniejszej wersji tego dokumentu (korelacja): **`ConversationId` jest jeden na run agentowy** (główna oś kroków LLM). **`RequestId`** zawsze z **odpowiedzi** (`apps/api` dla HTTP, gateway dla LLM) — klienci nie generują go z góry. Formaty jak w gateway — patrz `brand_types.md` / `dictionary.md`.
+
+---
+
+## Powierzchnia 1 — HTTP API (`apps/api`)
+
+| Element | Wartość |
+|---------|---------|
+| Prefiks | `/api/v1` |
+| Format | JSON (`application/json`), SSE (`text/event-stream`) |
+| Auth | JWT access + refresh w **httpOnly cookie** (web); role `admin` \| `user` |
+| Korelacja | `requestId` w envelope = ID nadane przez `apps/api` w **odpowiedzi** na to HTTP (klient nie musi go przysyłać). Run agentowy spinany przez `RunId` + `ConversationId`; kroki LLM — `requestId` z odpowiedzi gateway |
+
+### Envelope błędu
+
+```json
+{
+  "code": "CONTEXT_INCOMPLETE",
+  "message": "Company context gate is not satisfied",
+  "requestId": "req_123e4567-e89b-12d3-a456-426614174000",
+  "details": [{ "section": "offer" }]
+}
+```
+
+`requestId` w envelope dotyczy **tego** żądania HTTP do `apps/api` (nie „wszystkich” wywołań LLM w runie).
+
+Wybrane kody domenowe:
+
+| `code` | Typowe HTTP | Znaczenie |
+|--------|-------------|-----------|
+| `UNAUTHORIZED` | 401 | Brak / nieważna sesja |
+| `FORBIDDEN` | 403 | Brak uprawnień (np. user edytuje kontekst) |
+| `VALIDATION_FAILED` | 400 | Błąd walidacji DTO |
+| `CONTEXT_INCOMPLETE` | 409 | Bramka kontekstu — start runu zablokowany |
+| `HITL_REQUIRED` | 409 | Operacja wymaga stanu oczekiwania na wybór / odwrotnie |
+| `RUN_NOT_FOUND` | 404 | Nieznany `runId` |
+| `CONFLICT` | 409 | Niedozwolone przejście statusu runu |
+| `INTERNAL_ERROR` | 500 | Błąd nieobsłużony |
+
+### Kanały odczytu vs live
+
+| Kanał | Zastosowanie |
+|-------|--------------|
+| **SSE** `GET /api/v1/runs/:runId/events` | Live: status, logi przyrostowe, HITL, completed/failed |
+| **GET** logów | Snapshot / historia logów runu (nie zastępuje SSE dla statusu) |
+| **GET** `/api/v1/health` | Liveness „zdrowotny” `apps/api` |
+| **GET** `/metrics` | Metryki Prometheus procesu `apps/api` (ops — nie mylić z logami runu) |
+
+Status runu **na żywo** nie jest osobnym pollingiem GET — tylko SSE (oraz wynik końcowy w zasobach runu po zakończeniu / przy HITL).
+
+### Auth
+
+#### `POST /api/v1/auth/bootstrap-admin`
+
+Jednorazowy bootstrap **pierwszego i jedynego** admina self-host. Działa tylko, gdy w DB nie ma admina — norma: `security.md`.
+
+| Pole | Typ | Wymagane |
+|------|-----|----------|
+| `email` | string | tak |
+| `password` | string | tak (polityka bcrypt — `security.md`) |
+
+**201** — użytkownik `admin`. Kolejne wywołania: `CONFLICT` / `FORBIDDEN`.
+
+
+#### `POST /api/v1/auth/login`
+
+| Pole | Typ | Wymagane |
+|------|-----|----------|
+| `email` | string | tak |
+| `password` | string | tak |
+
+**200** — `{ "accessToken", "expiresIn", "user": { "id", "email", "role" } }` + Set-Cookie refresh (httpOnly).
+
+#### `POST /api/v1/auth/refresh`
+
+Odświeżenie access na podstawie cookie refresh.
+
+#### `POST /api/v1/auth/logout`
+
+Unieważnia refresh / czyści cookie.
+
+#### Users (admin)
+
+| Metoda | Ścieżka | Opis |
+|--------|---------|------|
+| `GET` | `/api/v1/users` | Lista użytkowników |
+| `POST` | `/api/v1/users` | Utworzenie **tylko** `role = user` (`email`, `password`); hasło wg `security.md` |
+| `PATCH` | `/api/v1/users/:id` | Aktualizacja (np. aktywność) — **bez** awansu do `admin` |
+| `DELETE` | `/api/v1/users/:id` | Dezaktywacja / usunięcie wg polityki MVP |
+
+Zmiana względem wcześniejszego zapisu „`role` dowolna”: w MVP jest **co najwyżej jeden** `admin` (bootstrap). Tworzenie / ustawienie kolejnego `admin` → **403** / **400**. Norma: `security.md`.
+
+### Company context
+Bramka kompletności: sekcje z dokumentacji koncepcyjnej (tożsamość, oferta, głos SM, CTA/kanały, odbiorca).
+
+#### `GET /api/v1/company-context`
+
+**200** — aktualny kontekst + flaga / obiekt `completeness` (które sekcje spełnione).
+
+#### `PUT` lub `PATCH /api/v1/company-context` — tylko `admin`
+
+Zapis sekcji kontekstu. **403** dla `user`.
+
+#### `GET /api/v1/company-context/completeness`
+
+**200** — `{ "complete": boolean, "missing": string[] }` — wygodne dla UI bramki.
+
+### Runs / Social
+
+Typy tasków MVP: `post_ideas` \| `post_content` \| `post_ideas_then_content` (dwuetapowy + HITL).  
+Platformy: `linkedin` \| `facebook` \| `instagram`. Język: `pl` \| `en`.
+
+#### `POST /api/v1/runs`
+
+Start async runu. Wymaga kompletnego kontekstu — inaczej **409** `CONTEXT_INCOMPLETE`.
+
+| Pole | Typ | Wymagane | Opis |
+|------|-----|----------|------|
+| `taskType` | enum | tak | patrz wyżej |
+| `platform` | enum | tak | |
+| `language` | enum | tak | |
+| `brief` | object | tak | temat, grupa docelowa, cel, liczba pomysłów itd. |
+| `selectedIdeaIds` | string[] | nie | przy starcie samego `post_content` z już znanym wyborem |
+
+**202** — `{ "runId", "conversationId", "status": "queued" \| "running" }`.
+
+- `runId` — `RunId` (`run_<uuid>`)
+- `conversationId` — `ConversationId` (`conv_<uuid>`), **stały przez cały run agentowy**
+- `requestId` tego HTTP — w **odpowiedzi** `apps/api` (klient nie generuje); nie jest ID hopów LLM (`brand_types.md`)
+
+#### `GET /api/v1/runs/:runId`
+
+Snapshot runu: status, typ, `conversationId`, wynik (ideas/content gdy gotowe), metadane HITL.  
+**Nie** zastępuje SSE dla strumienia zdarzeń.
+
+#### `GET /api/v1/runs/:runId/logs`
+
+Snapshot uporządkowanych, czytelnych wpisów logu (historia).  
+**200** — `{ "items": [ { "at", "level", "message", "step?", "requestId?", "conversationId?" } ] }`.
+
+Każdy krok LLM w historii powinien mieć własny `requestId`; `conversationId` jest wspólny dla runu.
+
+#### `GET /api/v1/runs/:runId/events` — SSE
+
+Auth: ta sama sesja co API (cookie / Authorization Bearer access) — **bez** tokenu w query string.
+
+Zdarzenia (`event:` / `data:` JSON):
+
+| `event` | Kiedy | `data` (skrót) |
+|---------|--------|----------------|
+| `run.status` | Zmiana statusu | `{ runId, status }` |
+| `run.log` | Nowy wpis logu | `{ runId, at, level, message, step?, requestId?, conversationId? }` |
+| `run.hitl` | Oczekiwanie na wybór | `{ runId, options: [...] }` |
+| `run.completed` | Sukces | `{ runId, resultSummary? }` |
+| `run.failed` | Porażka | `{ runId, code?, message }` |
+
+Statusy runu (normatywnie): `queued` → `running` → (`awaiting_hitl` → `running`) → `completed` \| `failed`.
+
+#### `POST /api/v1/runs/:runId/hitl`
+
+Wznowienie po wyborze z listy (task dwuetapowy).
+
+| Pole | Typ | Wymagane |
+|------|-----|----------|
+| `selectedIdeaIds` | string[] | tak (≥1) |
+
+**200** / **202** — run wraca do `running`.  
+**409** `HITL_REQUIRED` / `CONFLICT` gdy run nie jest w `awaiting_hitl`.
+
+To żądanie HTTP dostaje `RequestId` w **odpowiedzi** `apps/api` (jak każde inne). Wznowione agenty LLM dostaną kolejne `requestId` z odpowiedzi gateway; `ConversationId` runu bez zmian.
+
+### Health
+
+#### `GET /api/v1/health`
+
+Liveness `apps/api` — bez wymogu auth (self-host / orchestracja kontenerów).
+
+**200** — `{ "status": "healthy", "timestamp": "<ISO8601>" }` (kształt może dostać pola wersji w implementacji; semantyka = żywy proces).
+
+### Metrics (Prometheus)
+
+#### `GET /metrics`
+
+Endpoint operacyjny procesu **`apps/api`** (główny backend). **To nie są logi runu** — logi domenowe zostają w DB / SSE; tu scrape Prometheus (HTTP, latency, błędy, liczniki runów / statusów, sygnały zależności np. wywołań gateway — zestaw precyzuje implementacja).
+
+| Element | Wartość |
+|---------|---------|
+| Ścieżka | `/metrics` — **poza** prefiksem `/api/v1` (jak typowy eksporter Prometheus; wzorzec jak w `ai-provider-gateway`) |
+| Auth | bez wymogu w MVP (ochrona siecią / reverse proxy w deploy) |
+| Format | `text/plain` — ekspozycja Prometheus |
+| Sukces | **200** — snapshot metryk |
+
+Szczegóły dashboardy / alertów → później `deployment.md`.
+
+---
+
+## Powierzchnia 2 — `apps/api` → `apps/ai-provider-gateway`
+
+Content Chain **nie definiuje** własnego kontraktu LLM. Adapter w `apps/api` woła natywne API gateway’a zgodnie z dokumentacją / OpenAPI projektu **ai-provider-gateway**.
+
+Źródło prawdy upstream: `openapi.json` oraz docs gateway (m.in. lista endpointów, dokumentacja API). Poniżej skrót integracyjny dla MVP Content Chain.
+
+### Założenia integracji
+
+| Element | Wartość |
+|---------|---------|
+| Prefiks gateway | `/api/v1` |
+| Auth | nagłówek **`X-Gateway-Key`** (sekret tylko po stronie `apps/api` / env) |
+| Domyślna ścieżka LLM | **`POST /api/v1/chat`** (odpowiedź pełna JSON, **201**) |
+| Opcjonalnie | `POST /api/v1/chat/stream` (SSE gateway) — gdy krok pipeline’u tego wymaga |
+| Pomocnicze | `GET /api/v1/models`, `GET /api/v1/health`, `GET /api/v1/health/ready` |
+| Poza domyślną ścieżką CC | fasady `/api/v1/openai/...`, `/api/v1/anthropic/...` |
+| `x-request-id` | **Nie ustawiany** przez CC przy chat/stream — gateway generuje `req_<uuid>`; CC zapisuje go z odpowiedzi |
+| `conversationId` w body | **Ten sam** `ConversationId` runu na wszystkich wywołaniach LLM w runie |
+
+### Przykład — natywny czat (non-stream)
+
+`POST {GATEWAY_BASE}/api/v1/chat`  
+Headers: `Content-Type: application/json`, `X-Gateway-Key: …` — **bez** `x-request-id` ze strony Content Chain.
+
+```json
+{
+  "modelAlias": "default",
+  "conversationId": "conv_123e4567-e89b-12d3-a456-426614174000",
+  "messages": [
+    { "role": "user", "content": "…" }
+  ],
+  "params": {
+    "temperature": 0.4,
+    "maxOutputTokens": 2048
+  }
+}
+```
+
+**201** — ciało odpowiedzi gateway (m.in. treść asystenta, `usage`, `finishReason`, echo `conversationId`, **`requestId` nadany przez gateway**, …) wg upstream.  
+CC **musi** przepisać ten `requestId` do `run.log` danego kroku agenta.  
+Rola `system` w `messages[]` jest po stronie gateway **zablokowana** — system prompt składa gateway; Content Chain przekazuje treść użytkownika / turny tool zgodnie z kontraktem upstream.
+
+### Błędy gateway → run Content Chain
+
+Upstream envelope (skrót): `{ statusCode, code, message, requestId, details? }`.
+
+| Kod / sytuacja gateway | Oczekiwane zachowanie w CC |
+|------------------------|----------------------------|
+| `GATEWAY_KEY_MISSING` / `GATEWAY_KEY_INVALID` | Run `failed`; log czytelny (konfiguracja); bez retry user-facing „spróbuj inny prompt” |
+| `MODEL_ALIAS_NOT_FOUND` / `VALIDATION_FAILED` | Run `failed`; log z `code` + `requestId` **tego** wywołania gateway |
+| `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` | Log + retry wg polityki api **albo** `failed` po wyczerpaniu; status widoczny w SSE |
+| `PROVIDER_TIMEOUT` / `PROVIDER_UNAVAILABLE` | j.w. |
+| Sukces częściowy przy stream gateway | Mapowanie na logi kroku; finalizacja węzła grafu dopiero po domknięciu kontraktu streamu |
+
+`apps/api` mapuje błędy gateway na własne logi runu i ewentualnie `run.failed` — **bez** wyciekania `X-Gateway-Key` do frontendu. W logu zawsze da się odnaleźć parę: `conversationId` runu + `requestId` nieudanego hopu.
+
+### Przykład korelacji (norma)
+
+1. Użytkownik: `POST /api/v1/runs` → `RequestId=req_A` (**HTTP api**, generuje CC), odpowiedź: `runId`, `conversationId=conv_X`
+2. Klient: SSE `.../runs/:runId/events`
+3. `IdeationAgent`: `POST gateway/.../chat` **bez** `x-request-id`, body `conversationId: conv_X` → odpowiedź gateway z `requestId=req_B` → `run.log` z `req_B`
+4. `ConsistencyVerifier`: kolejne wywołanie, `conversationId: conv_X` → gateway zwraca `requestId=req_C` → `run.log` z `req_C`
+5. (opcjonalnie HITL HTTP = osobny `RequestId` api; kolejne agenty = kolejne `requestId` **z odpowiedzi** gateway — zawsze ten sam `conv_X`)
+
+Pełny przebieg LLM = `RunId` + `ConversationId` + seria `RequestId` pochodzących z gateway.
+
+---
+
+## Podział odpowiedzialności powierzchni
+
+| Potrzeba | Powierzchnia |
+|----------|--------------|
+| Login, kontekst, runy, HITL, logi UI | HTTP API Content Chain |
+| Live postęp runu | SSE Content Chain |
+| Metryki ops procesu `apps/api` | `GET /metrics` (Prometheus) |
+| Wywołanie modelu | wyłącznie gateway (natywny chat) |
+| Klucze vendorów LLM | tylko gateway / jego env — nigdy `apps/frontend` |
+
+## Poza zakresem tego dokumentu
+
+- Drzewo katalogów → `architektura_katalogi_pliki.md`  
+- Pełne skopiowanie OpenAPI gateway → docs upstream  
+- Data-flow / schematy agentów → `data_flow.md`  
+- Bezpieczeństwo (bootstrap, hasła, ekspozycja) → `security.md`  
+- Metryki i pola logów (ops) → `observability.md`  
+- Widoki UI → `ux_dashboard.md`  
