@@ -76,6 +76,6 @@ Reconnect SSE: UI powinien odtworzyć subskrypcję; status i logi można uzupeł
 - i18n UI (EN)  
 - Pipeline builder, drag-and-drop agentów  
 - Pixel-perfect design system / Figma jako część docs  
-- Automatyczne testy FE (`testy.md` — poza v1)
+- Automatyczne testy FE (`testy.md` — poza MVP)
 
 Implementacja wizualna statusu live należy do frontu; ten dokument ustala **wymaganie zachowania** (live + atrakcyjna animacja statusu), nie konkretną bibliotekę motion.

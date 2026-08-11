@@ -69,7 +69,7 @@ W `production`: zalecany Prometheus (lub agent) scrapujący api; alerty poza MVP
 
 - Plik DB na **nazwanym volume** (compose) lub wskazanej ścieżce (`local`).
 - Backup MVP: spójna kopia pliku SQLite przy zatrzymanym zapisie lub z użyciem bezpiecznej procedury kopiowania (np. `sqlite3 .backup`) — szczegóły w runbooku implementacji.
-- **Bez HA / Postgres jako wymogu MVP**; ewentualny adapter Postgres = później.
+- W **MVP**: wyłącznie SQLite (volume). **PostgreSQL** — obowiązkowo od fazy **V1 — rozbudowa** (kolejne workflowy): nowa historia migracji, pusta baza, ew. osobny import danych — `spec/SPEC-PERSISTENCE.md`.
 - Eksport kontekstu do `.md` / checksum — **nie** w pierwszym dowodzie agentów (tuż po MVP).
 
 ## Kolejność wdrożenia vs produkt
@@ -103,6 +103,6 @@ Compose może od początku definiować wszystkie trzy usługi; „puste” UI do
 ## Poza zakresem MVP
 
 - Kubernetes / multi-region  
-- Managed Postgres jako wymóg  
+- Managed Postgres **w MVP** (Postgres = faza **V1 — rozbudowa**)  
 - Automatyczny certyfikat / pełny ingress guide (można dodać później)  
 - Multi-tenant SaaS

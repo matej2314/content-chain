@@ -44,10 +44,14 @@ Niespełnienie → **400** `VALIDATION_FAILED` z czytelnym komunikatem (bez ujaw
 
 ## Sesje (JWT + cookie)
 
-- Access: JWT (krótki TTL).
-- Refresh: **httpOnly** cookie (Secure + SameSite w `production`).
-- SSE: ta sama sesja co API — **zakaz** tokenu w query string.
-- Wylogowanie unieważnia refresh wg polityki api.
+- Access: JWT w cookie **`cc_access`** (httpOnly; krótki TTL).
+- Refresh: cookie **`cc_refresh`** (httpOnly; hash sesji w DB; rotacja przy refresh).
+- Oba cookie: `Secure` + sensowny `SameSite` w `production`.
+- SSE i HTTP: ta sama sesja cookie — **zakaz** tokenu w query string; **zakaz** `Authorization: Bearer` jako modelu MVP (FE, Postman = cookie jar).
+- Body login/refresh **nie** zwraca tokenów (tylko `user` / `expiresIn` wg kontraktu API).
+- Wylogowanie unieważnia refresh w DB i czyści **oba** cookie.
+
+Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refresh w cookie”: access także wyłącznie w httpOnly cookie.
 
 ## Sekrety i powierzchnie
 
@@ -75,7 +79,7 @@ Niespełnienie → **400** `VALIDATION_FAILED` z czytelnym komunikatem (bez ujaw
 |-------|-----------|
 | Jeden admin z bootstrapu; wielu `user` | Drugi `role = admin` w MVP |
 | bcrypt + polityka haseł jak wyżej | Przechowywanie haseł plaintext / odwracalne |
-| Cookie httpOnly dla refresh | Access/refresh w `localStorage` jako domyślny model |
+| Cookie httpOnly dla **access i refresh** (`cc_access`, `cc_refresh`) | Access/refresh w `localStorage`, memory FE jako store ani Bearer jako model MVP |
 | Wewnętrzny gateway + ograniczony metrics | Publiczny gateway z kluczami vendorów |
 
 ## Poza zakresem MVP

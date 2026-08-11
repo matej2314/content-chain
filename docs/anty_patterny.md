@@ -12,7 +12,7 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 |--------------|--------------|--------------|
 | Logika SM / bramki kontekstu w `apps/frontend` | UI staje się drugim źródłem prawdy; trudny test i self-host | Reguły i graf tylko w `apps/api`; frontend = cienki klient |
 | Domena Content Chain w `apps/ai-provider-gateway` | Miesza produkt z infrastrukturą LLM; psuje reuse gateway | Gateway = routing/providery; CC woła natywny chat |
-| Use-case’y / Prisma w `packages/shared` | Shared przestaje być kontraktem typów | W `shared` tylko typy / brand / enumy kontraktu |
+| Use-case’y / Prisma / **Zod** w `packages/shared` | Shared przestaje być czystym kontraktem typów | W `shared` tylko typy / brand / enumy kontraktu (**bez Zod**) |
 | Rootowy `src/apps/` albo rozjechane ścieżki app | Drift względem docs i DX monorepo | `apps/{api,frontend,ai-provider-gateway}` + `packages/shared` |
 
 ---
@@ -36,7 +36,7 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 |--------------|--------------|--------------|
 | Sekrety LLM / `X-Gateway-Key` w `NEXT_PUBLIC_*` | Wyciek kluczy | Tylko `apps/api` ↔ gateway |
 | Polling statusu runu zamiast SSE | Obciążenie, gorszy UX, rozjazd z kontraktem | SSE `.../events`; GET logów = historia |
-| Duplikacja brand types / DTO poza `packages/shared` | Rozjazd kontraktu FE/BE | Import z shared + walidacja na granicach |
+| Duplikacja brand types / DTO poza `packages/shared` | Rozjazd kontraktu FE/BE | Import z shared + walidacja na granicach (HTTP: class-validator; api application: Zod — nie w shared) |
 | Logika kompletności kontekstu tylko w UI | Da się obejść API | Egzekucja bramki w `apps/api` |
 
 ---
@@ -71,8 +71,9 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | `user` edytuje kontekst firmy | Łamie model ról | Tylko `admin`; user uruchamia flow’y |
 | Multi-tenant „przy okazji” (kontekst per user) | Inny produkt niż self-host jednej firmy | Jeden kontekst na instancję |
 | Drugi `admin` / awans user→admin w MVP | Łamie `security.md` | Tylko bootstrap jednego admina; potem wyłącznie `user` |
-| OAuth w MVP „bo tak się robi” | Opóźnia dowód pipeline’u | JWT + httpOnly cookie, 2 role |
-| Token SSE w query string | Wyciek w logach proxy / historii | Ta sama sesja co API (cookie / Bearer) |
+| OAuth w MVP „bo tak się robi” | Opóźnia dowód pipeline’u | JWT w httpOnly `cc_access` + `cc_refresh`, 2 role |
+| Token SSE w query string | Wyciek w logach proxy / historii | Ta sama sesja co API (cookie httpOnly) |
+| Access JWT w body / localStorage / Bearer jako model web | XSS i niespójność z cookie-only | Wyłącznie `cc_access` + `cc_refresh` (httpOnly); Postman = cookie jar |
 
 ---
 

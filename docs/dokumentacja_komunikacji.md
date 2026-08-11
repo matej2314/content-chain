@@ -1,11 +1,11 @@
 # Dokumentacja komunikacji — Content Chain
 
-Normatywny kontrakt I/O v1. Dwie powierzchnie:
+Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
 
 1. **HTTP API `apps/api`** — konsumenci: `apps/frontend`, Postman  
 2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
 
-**Poza zakresem v1:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+**Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
 
 Zmiana względem wcześniejszej wersji tego dokumentu (korelacja): **`ConversationId` jest jeden na run agentowy** (główna oś kroków LLM). **`RequestId`** zawsze z **odpowiedzi** (`apps/api` dla HTTP, gateway dla LLM) — klienci nie generują go z góry. Formaty jak w gateway — patrz `brand_types.md` / `dictionary.md`.
 
@@ -17,7 +17,7 @@ Zmiana względem wcześniejszej wersji tego dokumentu (korelacja): **`Conversati
 |---------|---------|
 | Prefiks | `/api/v1` |
 | Format | JSON (`application/json`), SSE (`text/event-stream`) |
-| Auth | JWT access + refresh w **httpOnly cookie** (web); role `admin` \| `user` |
+| Auth | Access JWT w cookie **`cc_access`** + refresh w **`cc_refresh`** (oba **httpOnly**); role `admin` \| `user`. MVP: **bez** `Authorization: Bearer` (FE / Postman = cookie). |
 | Korelacja | `requestId` w envelope = ID nadane przez `apps/api` w **odpowiedzi** na to HTTP (klient nie musi go przysyłać). Run agentowy spinany przez `RunId` + `ConversationId`; kroki LLM — `requestId` z odpowiedzi gateway |
 
 ### Envelope błędu
@@ -78,15 +78,17 @@ Jednorazowy bootstrap **pierwszego i jedynego** admina self-host. Działa tylko,
 | `email` | string | tak |
 | `password` | string | tak |
 
-**200** — `{ "accessToken", "expiresIn", "user": { "id", "email", "role" } }` + Set-Cookie refresh (httpOnly).
+**200** — `{ "expiresIn", "user": { "id", "email", "role" } }` + Set-Cookie **`cc_access`** (JWT, httpOnly) oraz **`cc_refresh`** (httpOnly). Body **bez** `accessToken` / `refreshToken`.
+
+Zmiana względem wcześniejszego zapisu „`accessToken` w body + tylko refresh w cookie”: oba tokeny wyłącznie w httpOnly cookie; klienci nie używają Bearer w MVP.
 
 #### `POST /api/v1/auth/refresh`
 
-Odświeżenie access na podstawie cookie refresh.
+Odświeżenie sesji na podstawie cookie `cc_refresh`: rotacja refresh + nowe `cc_access` (httpOnly). Body bez tokenów.
 
 #### `POST /api/v1/auth/logout`
 
-Unieważnia refresh / czyści cookie.
+Unieważnia refresh w DB / czyści cookie **`cc_access`** i **`cc_refresh`**.
 
 #### Users (admin)
 
@@ -151,7 +153,7 @@ Każdy krok LLM w historii powinien mieć własny `requestId`; `conversationId` 
 
 #### `GET /api/v1/runs/:runId/events` — SSE
 
-Auth: ta sama sesja co API (cookie / Authorization Bearer access) — **bez** tokenu w query string.
+Auth: ta sama sesja co API (cookie `cc_access` / `cc_refresh`) — **bez** tokenu w query string i **bez** Bearer w MVP.
 
 Zdarzenia (`event:` / `data:` JSON):
 

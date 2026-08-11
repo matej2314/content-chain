@@ -93,11 +93,12 @@ apps/api/src/runs/
 
 Ten sam szkielet warstw; w `company-context` — reguła bramki kompletności w `domain/`, zapis kanoniczny przez port → Prisma.
 
-### Persistence (Prisma + SQLite)
+### Persistence (Prisma + SQLite w MVP)
 
 - Schema i migracje: `apps/api/prisma/`.
 - Użycie ORM **tylko** w `infrastructure` (adapter); application/domain zależą od **portów**, nie od klienta Prisma bezpośrednio.
-- SQLite jako domyślny provider MVP; ewentualny PostgreSQL później = zmiana providera / adaptera, nie przeniesienie reguł do UI.
+- **SQLite** jako jedyny provider **MVP**.
+- **PostgreSQL** — od fazy **V1 — rozbudowa** (kolejne workflowy): zmiana providera + nowa historia Migrate; nie przenoszenie reguł do UI. Szczegóły: `spec/SPEC-PERSISTENCE.md`.
 
 ### `apps/api/src/shared/`
 
@@ -128,7 +129,7 @@ packages/shared/src/
 └── ...                              # typy request/response, enumy publiczne (role, statusy runu, platformy SM)
 ```
 
-Tylko kontrakt; bez implementacji Nest/Next/Prisma/LangGraph.
+Tylko kontrakt typów/enumów/brand; **bez** Zod, Nest/Next/Prisma/LangGraph, use-case’ów.
 
 ## Zasady lokalizacji (do/don’t)
 
@@ -137,7 +138,7 @@ Tylko kontrakt; bez implementacji Nest/Next/Prisma/LangGraph.
 | Reguły domenowe i pipeline w `apps/api/src/<bc>/` | Logika SM / bramki kontekstu w `apps/frontend` lub gateway |
 | Prisma wyłącznie jako adapter w `infrastructure` (+ `prisma/`) | Import Prisma w `domain/` lub w `packages/shared` |
 | Prompty i graf w `social/infrastructure/` | Prompty i wywołania LLM w controllerze |
-| Typy publiczne w `packages/shared` | Use-case’y i dostęp do DB w `packages/shared` |
+| Typy publiczne w `packages/shared` (**bez Zod**) | Use-case’y, DB, Zod/runtime w `packages/shared` |
 | Aplikacje pod `apps/` | Rootowy katalog `src/` opakowujący wszystkie app |
 
 ## Poza zakresem tego dokumentu

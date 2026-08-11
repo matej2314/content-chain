@@ -1,0 +1,146 @@
+---
+wersja: 2
+data_utworzenia: 2026-08-11
+data_modyfikacji: 2026-08-11
+---
+
+# SPEC — Auth
+
+## Cel / zakres względem dokumentacji
+
+Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina, login/logout/refresh, role `admin` | `user`, CRUD użytkowników (`user` only), polityka haseł i sesji.
+
+Uszczegóławia `docs/security.md` oraz endpointy auth/users z `docs/dokumentacja_komunikacji.md`. Egzekucja uprawnień zawsze w `apps/api`, nie tylko w UI.
+
+## Powiązanie ze stylem z docs
+
+Wiążące (`docs/architektura.md`): klasyczne warstwy Nest — HTTP → application / use-case → domain + porty → adaptery (Prisma). Auth **nie** używa LangGraph.
+
+**Wyjątek względem stylu globalnego:** brak (wyjątek grafu dotyczy wyłącznie Social).
+
+## Role i uprawnienia (norma)
+
+| Akcja | `admin` | `user` |
+|-------|---------|--------|
+| Bootstrap pierwszego admina | jednorazowy endpoint (gdy brak admina) | — |
+| Edycja kontekstu firmy | tak (egzekucja w BC kontekstu) | nie → `FORBIDDEN` |
+| Start runów SM / HITL / odczyt logów | tak | tak |
+| `GET/POST/PATCH/DELETE` użytkowników | tak (tylko tworzenie `role = user`) | nie |
+
+W systemie MVP jest **co najwyżej jeden** `admin` — ten z bootstrapu. Tworzenie / awans kolejnego admina → odrzucenie (`403` / `400`).
+
+## Wymagania (egzekwowalne)
+
+A-1. `POST /api/v1/auth/bootstrap-admin` działa **tylko**, gdy w DB nie ma użytkownika z `role = admin`. Po sukcesie endpoint jest trwale niedostępny (`CONFLICT` / `FORBIDDEN`).
+
+A-2. Login (`POST /api/v1/auth/login`) ustawia **dwa** cookie httpOnly:
+
+| Cookie | Zawartość | TTL (default) |
+|--------|-----------|----------------|
+| `cc_access` | JWT access | 15 min (env) |
+| `cc_refresh` | sekret refresh (rotowany; hash w DB) | 1 dzień (env) |
+
+Body **200**: `{ "expiresIn", "user": { "id", "email", "role" } }` — **bez** `accessToken` / `refreshToken` w JSON.
+
+Zmiana względem wersji 1 tego SPEC (oraz wcześniejszego zapisu docs „accessToken w body + tylko refresh w cookie”): oba tokeny wyłącznie w httpOnly cookie; klienci (FE, Postman) **nie** używają `Authorization: Bearer` w MVP.
+
+A-3. Refresh (`POST /api/v1/auth/refresh`) na podstawie cookie `cc_refresh`: waliduje sesję w DB, **rotuje** refresh (stary wpis unieważniony, nowy hash + nowe `cc_refresh`), wystawia nowy JWT w `cc_access`. Body bez tokenów (ew. `expiresIn` + user — opcjonalnie spójnie z login).
+
+A-4. Logout (`POST /api/v1/auth/logout`) unieważnia refresh w DB i czyści **oba** cookie (`cc_access`, `cc_refresh`).
+
+A-5. Hasła: hash **bcrypt** z **cost (salt rounds) = 12**; plaintext nigdy w logach ani odpowiedziach. Polityka przed hashowaniem (jak `docs/security.md`):
+
+| Reguła | Wymaganie |
+|--------|-----------|
+| Długość | minimum **12** znaków |
+| Cyfra | ≥ 1 |
+| Wielka litera | ≥ 1 |
+| Znak specjalny | ≥ 1 (ASCII jak w security.md) |
+| Górny limit praktyczny | ≤ **72 bajty** (limit bcrypt) |
+
+Niespełnienie → `400` `VALIDATION_FAILED`.
+
+A-6. Chronione trasy API (w tym SSE) wymagają sesji z cookie `cc_access` (`JwtAuthGuard` czytający JWT z cookie); trasy z rolami — dodatkowo `RolesGuard`. Brak / nieważna sesja → `401` `UNAUTHORIZED`; brak roli → `403` `FORBIDDEN`.
+
+A-7. Admin tworzy wyłącznie użytkowników z `role = user`. Próba ustawienia `admin` → odrzucenie.
+
+A-8. TTL: **konfigurowalne env**; domyślnie access **15 minut**, refresh **1 dzień**.
+
+A-9. MVP: **zakaz** transportu access przez `Authorization: Bearer` (web, Postman, integracje) — wyłącznie cookie jar / `credentials: 'include'`.
+
+## Norma implementacji
+
+### Wzorce / struktura
+
+```text
+apps/api/src/auth/
+├── auth.module.ts
+├── auth.controller.ts          # bootstrap, login, refresh, logout
+├── users.controller.ts         # CRUD users (admin) — lub równoważny podział
+├── application/                # use-case’y
+├── domain/                     # reguły ról, polityka haseł, porty
+└── infrastructure/             # Prisma repos, hash bcrypt, JWT, cookie helpers
+```
+
+| Element | Norma |
+|---------|--------|
+| Guardi | `JwtAuthGuard` + `RolesGuard` (Nest + Passport JWT); extractor JWT z cookie `cc_access` |
+| Access | JWT w cookie `cc_access`; krótki TTL; stateless do wygaśnięcia |
+| Refresh | hash w DB + cookie `cc_refresh`; rotacja przy każdym refresh |
+| Cookie (production) | `httpOnly`; `Secure` + sensowny `SameSite` na **obu** cookie |
+| Biblioteki | `@nestjs/jwt`, `@nestjs/passport`, `passport-jwt`, `bcrypt` (lub `bcryptjs`) |
+
+Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentication](https://docs.nestjs.com/security/authentication)). Cost bcrypt = 12 — [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
+
+### Sesja (cookie-only)
+
+1. Login: wydaj JWT → `cc_access`; wygeneruj sekret refresh → hash w DB → `cc_refresh`.
+2. Refresh: waliduj `cc_refresh` vs DB → unieważnij stary → nowy refresh + nowy access w cookie.
+3. Logout / reuse unieważnionego refresh: unieważnij sesję; wyczyść oba cookie.
+4. Access JWT nie zastępuje store’u refresh.
+
+### Wolno
+
+- Port persistence użytkowników i sesji refresh; adapter Prisma w `infrastructure`.
+- Walidacja DTO auth class-validator + reguły haseł w domain/application (Zod — `SPEC-KOMUNIKACJA.md`).
+- Dezaktywacja użytkownika zamiast twardego DELETE, jeśli implementacja tak wybierze.
+
+### Nie wolno
+
+- Drugiego `role = admin` ani awansu `user` → `admin` w MVP.
+- Przechowywania haseł plaintext / odwracalnych.
+- Zwracania access/refresh w body JSON ani trzymania ich w `localStorage` / memory FE jako store.
+- `Authorization: Bearer` jako modelu auth MVP.
+- OAuth / social login / 2FA w MVP.
+- Egzekucji ról wyłącznie po stronie UI.
+- Zmiany własnego hasła przez użytkownika w zakresie MVP.
+- Refresh wyłącznie jako JWT w cookie **bez** wpisu w DB.
+- Wycieku hashów haseł, sekretów JWT ani plaintext refresh do logów / envelope.
+
+### Zatwierdzony stack (obszar)
+
+| Element | Status |
+|---------|--------|
+| NestJS + `@nestjs/jwt` + `@nestjs/passport` + `passport-jwt` | obowiązkowe |
+| bcrypt, **cost = 12** | obowiązkowe |
+| Cookie `cc_access` + `cc_refresh` (httpOnly) + refresh hash w DB + rotacja | obowiązkowe |
+| TTL env: access default 15m, refresh default 1d | obowiązkowe |
+| Bearer access / OAuth / 2FA / self-service change password | poza MVP |
+
+## Kryteria akceptacji
+
+- [ ] Bootstrap tworzy jedynego admina; ponowne wywołanie odrzucone.
+- [ ] Próba utworzenia drugiego admina przez API odrzucona.
+- [ ] Login ustawia `cc_access` i `cc_refresh` (httpOnly); body bez tokenów; chronione trasy działają na cookie.
+- [ ] Refresh rotuje `cc_refresh` i odnawia `cc_access`; logout czyści oba i unieważnia sesję w DB.
+- [ ] Hasło niespełniające polityki → `VALIDATION_FAILED`; spełniające → bcrypt(cost 12).
+- [ ] `user` nie przechodzi tras admin-only (`RolesGuard` → `FORBIDDEN`).
+- [ ] Postman / FE bez Bearer — wyłącznie cookie.
+- [ ] Domyślne TTL: access 15m, refresh 1d (nadpisywalne env).
+
+## Poza zakresem
+
+- Widoki UI użytkowników / konta → `SPEC-FRONTEND.md`.
+- Zmiana własnego hasła, OAuth, SSO, 2FA, recovery „lost admin”.
+- Szczegóły ekspozycji sieciowej gateway/metrics / reverse proxy → `SPEC-BEZPIECZENSTWO.md`.
+- Schema Prisma — `SPEC-PERSISTENCE.md` / implementacja, byle port sesji refresh istniał.

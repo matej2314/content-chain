@@ -27,8 +27,8 @@ sequenceDiagram
 
   FE->>API: POST /api/v1/auth/login
   API->>DB: weryfikacja credentials
-  API-->>FE: accessToken + Set-Cookie refresh + requestId
-  FE->>API: kolejne wywołania (Bearer / cookie)
+  API-->>FE: Set-Cookie cc_access + cc_refresh + body user/expiresIn + requestId
+  FE->>API: kolejne wywołania (credentials / cookie jar)
 ```
 
 Dane: hasła tylko po stronie api (hash w DB); sekrety LLM nigdy we frontendzie.

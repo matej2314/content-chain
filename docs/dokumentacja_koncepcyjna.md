@@ -32,7 +32,7 @@ Content Chain jest świadomie **ograniczony pierwszym slice’em Social** (post 
 - Języki generowanych treści: **PL i EN**.
 - Orchestracja agentów z deterministyczną dekompozycją tasków i szablonami promptów.
 - Weryfikacja wygenerowanej treści względem kontekstu firmy.
-- Persistence: **SQLite** jako domyślny magazyn kanoniczny (port/adapter; opcjonalny PostgreSQL później, poza wymogiem MVP).
+- Persistence: **SQLite wyłącznie w MVP** (port/adapter Prisma). **PostgreSQL** — obowiązkowe przejście w fazie **V1 — rozbudowa** (kolejne workflowy poza pierwszym slice Social); nie jest silnikiem MVP. Cutover: nowa historia migracji Prisma + pusta baza (ew. osobny import danych) — `spec/SPEC-PERSISTENCE.md`.
 - Logi runów: pełna czytelność przebiegu.
 - Bramka kompletności kontekstu w DB (patrz niżej) — do spełnienia warunki flow’y SM są zablokowane.
 
@@ -67,25 +67,25 @@ Zakres produktowy MVP obejmuje auth i dashboard od początku koncepcji. Kolejno�
 
 Sam wynik Postmana **nie** jest ostatecznym publicznym MVP.
 
-## Poza zakresem (v1 / świadomie później)
+## Poza zakresem MVP (oraz później — V1 — rozbudowa / dalsze)
 
 - Rolki (reel ideas / scripts), Web/blog, YouTube.
 - Multi-tenant SaaS / osobne konteksty firm per użytkownik.
 - Pipeline builder / konfiguracyjne YAML-pipeline’y.
 - Eksport kontekstu do `.md` + zgodność checksum jako wymóg pierwszego dowodu agentów (planowane **tuż po** MVP).
-- PostgreSQL (lub inny silnik serwerowy) jako wymóg MVP.
+- **PostgreSQL w MVP** — świadomie nie; silnik MVP = SQLite. PostgreSQL = **V1 — rozbudowa** (kolejne workflowy), nie „opcjonalny gdy zechcemy”.
 - Cichy runtime-fallback kontekstu z plików przy niedostępnej lub niespójnej DB.
-- Marketingowy traffic / „produkt dla agencji” jako cel v1.
+- Marketingowy traffic / „produkt dla agencji” jako cel MVP.
 - Uznanie samego API bez auth i dashboardu za finalne MVP.
 
 ## Główne założenia
 
 1. **Jeden kontekst firmy na instancję** — narzędzie wewnętrzne jednej organizacji; wszyscy użytkownicy korzystają z tego samego kontekstu.
-2. **DB kanoniczna** — SQLite domyślnie; pliki `.md` ewentualnie jako eksport/backup po MVP, bez cichego fallbacku runtime.
+2. **DB kanoniczna** — w **MVP: SQLite**; w **V1 — rozbudowa: PostgreSQL** (obowiązkowy cutover). Pliki `.md` ewentualnie jako eksport/backup po MVP, bez cichego fallbacku runtime.
 3. **Gateway jako granica LLM** — API nie woła vendorów modeli bezpośrednio.
 4. **Backend-first w realizacji**, pełny zakres MVP w produkcie (pipeline + DB + auth + dashboard + gateway).
 5. **Spójność treści i czytelność logów** są kryteriami akceptacji wyniku, nie opcją.
-6. **Modularny monolit** w monorepo z port/adapter tam, gdzie ma sens (LLM, persistence); rozszerzalność o kolejnych agentów — poza MVP.
+6. **Modularny monolit** w monorepo z port/adapter tam, gdzie ma sens (LLM, persistence); rozszerzalność o kolejnych agentów — **V1 — rozbudowa** / później (poza MVP).
 
 ## Kryteria sukcesu MVP
 

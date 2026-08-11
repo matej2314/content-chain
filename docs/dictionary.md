@@ -21,7 +21,8 @@ Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `dokumentacja_komu
 | **HITL** | Human-in-the-loop: pauza runu na wybór z listy, gdy kolejny krok zależy od selekcji (task dwuetapowy). |
 | **Full-auto** | Wykonanie tasku jednoetapowego bez wymuszonej pauzy selekcji. |
 | **Self-host** | Uruchomienie we własnej infrastrukturze operatora; licencja MIT. |
-| **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, post ideas/content, gateway, SQLite, logi, SSE. |
+| **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, post ideas/content, gateway, **SQLite**, logi, SSE. |
+| **V1 — rozbudowa** | Faza **po MVP**: kolejne workflowy / agenci poza pierwszym slice Social; obowiązkowy cutover persistence na **PostgreSQL** (`spec/SPEC-PERSISTENCE.md`). Nie mylić z prefiksem HTTP `/api/v1`. |
 
 ## Role i tenancy
 
@@ -42,8 +43,9 @@ Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `dokumentacja_komu
 | **LangGraph / graf** | Orchestracja pipeline’u Social za fasadą application service (nie w controllerze). |
 | **Async run** | Asynchroniczne wykonanie pipeline’u; klient dostaje `RunId`, postęp przez SSE. |
 | **Gateway** (`ai-provider-gateway`) | Osobna aplikacja — jedyna droga `apps/api` do vendorów LLM; bez domeny Content Chain. |
-| **`packages/shared`** | Współdzielone typy kontraktu API i brand types (bez logiki biznesowej). |
-| **Prisma / SQLite** | Domyślny adapter persistence MVP; ORM tylko w infrastructure. |
+| **`packages/shared`** | Współdzielone typy kontraktu API i brand types (**bez** logiki biznesowej, **bez Zod** / runtime walidatorów). |
+| **Prisma / SQLite** | Adapter persistence **MVP**; ORM tylko w infrastructure. |
+| **PostgreSQL** | Silnik od fazy **V1 — rozbudowa** (nie MVP). |
 | **DB kanoniczna** | Baza jako źródło prawdy dla kontekstu, runów, wyników i logów UI (nie cichy fallback z plików). |
 
 ## Run, statusy, taski
@@ -93,7 +95,7 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 | Pojęcie | Definicja |
 |---------|-----------|
 | **`/api/v1`** | Prefiks publicznego HTTP API Content Chain. |
-| **JWT + httpOnly cookie** | Access token + refresh w cookie dla `apps/frontend`; to samo auth dla SSE. |
+| **JWT + httpOnly cookies** | Access w `cc_access` + refresh w `cc_refresh` (oba httpOnly) dla `apps/frontend` i Postmana; to samo auth dla SSE. Bez Bearer w MVP. |
 | **Envelope błędu CC** | JSON: `{ code, message, requestId, details? }`. |
 | **Health** | `GET /api/v1/health` — liveness procesu `apps/api`. |
 | **Metrics / Prometheus** | `GET /metrics` na `apps/api` — metryki operacyjne procesu; **nie** zamiennik logów runu. |

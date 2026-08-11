@@ -4,14 +4,16 @@ Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na
 
 ## Zasady
 
-1. **Mechanizm:** nominalny `Brand<K, Name>` w TypeScript **oraz** walidacja na granicach HTTP (Zod / równoważne) → branded (opcja C).
-2. **Lokalizacja:** definicje i helpery w **`packages/shared`** (kontrakt współdzielony przez `apps/api` i `apps/frontend`).
-3. **Granica HTTP:** parsowanie wyłącznie przez schemy / `create*`; **zakaz** gołego `as UserId` w controllerach i handlerach UI.
-4. **Formaty z gateway:** `RequestId` i `ConversationId` mają **ten sam format** co w `ai-provider-gateway` (`req_<uuid>`, `conv_<uuid>`), żeby logi CC i logi LLM dało się spiąć po tych samych wartościach.
+1. **Mechanizm:** nominalny `Brand<K, Name>` w TypeScript w `packages/shared` **oraz** walidacja na granicach aplikacji → branded. Na granicy HTTP: **class-validator** (DTO); w warstwie application api: **Zod** — zgodnie ze `spec/SPEC-KOMUNIKACJA.md` / `spec/SPEC-MONOREPO.md`.
+2. **Lokalizacja typów:** definicje brandów, enumów i helperów typów w **`packages/shared`** (kontrakt współdzielony przez `apps/api` i `apps/frontend`).
+3. **`packages/shared` bez Zod (i bez innego runtime walidatora):** wyłącznie typy / enumy / brand types + lekkie helpery typów (`create*` / `is*` oparte o wzorce string, bez zależności Zod). Schemy Zod żyją w `apps/api` (application), nie w shared.
+4. **Granica HTTP:** parsowanie / walidacja wejścia → branded; **zakaz** gołego `as UserId` w controllerach i handlerach UI.
+5. **Formaty z gateway:** `RequestId` i `ConversationId` mają **ten sam format** co w `ai-provider-gateway` (`req_<uuid>`, `conv_<uuid>`), żeby logi CC i logi LLM dało się spiąć po tych samych wartościach.
 
 Zmiana względem wcześniejszych wersji tego dokumentu:
 - **nie** reużywamy jednego `RequestId` na cały run;
-- przy wywołaniach LLM **nie** generujemy ani nie wysyłamy własnego `x-request-id` do gateway — kanoniczny `RequestId` hopu LLM pochodzi z **odpowiedzi** `ai-provider-gateway`.
+- przy wywołaniach LLM **nie** generujemy ani nie wysyłamy własnego `x-request-id` do gateway — kanoniczny `RequestId` hopu LLM pochodzi z **odpowiedzi** `ai-provider-gateway`;
+- **usunięto** dopuszczenie Zod / `src/branded/zod.ts` w `packages/shared` (norma: shared bez runtime walidacji).
 
 ## Infrastruktura (wzorzec)
 
@@ -24,7 +26,7 @@ export const brand = <B>(value: UnBrand<B>): B => value as B;
 export const unbrand = <B>(value: B): UnBrand<B> => value as UnBrand<B>;
 ```
 
-Preferuj `create*` / `is*` (z walidacją) zamiast surowego `brand()` na danych z HTTP.
+Preferuj `create*` / `is*` (z walidacją wzorca) zamiast surowego `brand()` na danych z HTTP. Implementacja `create*` w shared może sprawdzać regex/prefiks **bez** Zod; pełne schemy Zod — tylko w api.
 
 Docelowe pliki (propozycja):
 
@@ -33,9 +35,10 @@ Docelowe pliki (propozycja):
 | `src/branded/brand.ts` | `Brand`, `brand` / `unbrand` |
 | `src/branded/ids.ts` | aliasy ID + wzorce + `create*` / `is*` |
 | `src/branded/enums.ts` | union types / const enums kontraktu |
-| `src/branded/zod.ts` (opcjonalnie) | schemy Zod → branded |
 
-## Katalog typów v1
+**Zakaz:** `src/branded/zod.ts` oraz zależności `zod` w `packages/shared`.
+
+## Katalog typów (MVP)
 
 ### Identyfikatory (string brands)
 
@@ -51,7 +54,7 @@ Docelowe pliki (propozycja):
 
 ### Enumy / unie kontraktu (brand lub string union)
 
-| Typ | Wartości v1 |
+| Typ | Wartości MVP |
 |-----|-------------|
 | `UserRole` | `admin` \| `user` |
 | `RunStatus` | `queued` \| `running` \| `awaiting_hitl` \| `completed` \| `failed` |
@@ -59,7 +62,7 @@ Docelowe pliki (propozycja):
 | `SocialPlatform` | `linkedin` \| `facebook` \| `instagram` |
 | `ContentLanguage` | `pl` \| `en` |
 
-Enumy wolno modelować jako `Brand<string, 'RunStatus'>` z whitelistą w `createRunStatus` **albo** jako wąskie string union + Zod `z.enum` — byle jedna konwencja w `packages/shared` i brak magicznych stringów w feature kodzie.
+Enumy wolno modelować jako `Brand<string, 'RunStatus'>` z whitelistą w `createRunStatus` **albo** jako wąskie string union w shared. Schemy Zod dla tych enumów — w `apps/api` (application), nie w `packages/shared`. Jedna konwencja nazw w shared; brak magicznych stringów w feature kodzie.
 
 ## Przepływ korelacji (norma)
 
@@ -86,14 +89,14 @@ RequestId LLM₃                    ──► z odpowiedzi gateway po kolejnym a
 | `createConversationId` przy starcie runu (po stronie `apps/api`) | Nowy `ConversationId` na każdy agent |
 | `createRequestId` **wyłącznie** jako detal implementacji middleware `apps/api` (serwer nadaje ID w odpowiedzi) | Traktować HTTP-`RequestId` jako oś korelacji całego pipeline’u SM |
 | Jeden `ConversationId` na run agentowy | Generować i wysyłać `x-request-id` do gateway przy chat/stream |
-| Zod na DTO → branded | `as RunId` na `req.params` bez walidacji |
-| Brandów kontraktu w `packages/shared` | Duplikacja `Brand` w `apps/frontend` |
+| class-validator (HTTP) + Zod (application api) → branded | `as RunId` na `req.params` bez walidacji |
+| Brandów / enumów kontraktu w `packages/shared` **bez Zod** | Zod (lub inny runtime walidator) w `packages/shared`; duplikacja `Brand` w `apps/frontend` |
 | Prefiksy `usr_` / `run_` dla ID wyłącznie CC | Mylenie `GatewayModelAlias` z vendor `modelId` |
 
-## Poza zakresem v1 tego dokumentu
+## Poza zakresem MVP tego dokumentu
 
 - Pełny katalog brandów gateway (tokeny, `GatewayKey`, metryki) — docs upstream; CC bierze formaty ID + to, czego potrzebuje do wywołań.
 - Brandowanie każdego pola briefu SM.
 - OpenTelemetry jako wymóg MVP (korelacja ID wystarcza na start).
 
-Szczegóły pojęć: `dictionary.md`. Kontrakt HTTP: `dokumentacja_komunikacji.md`. Przepływy: `data_flow.md`. Bezpieczeństwo ID/sekretów: `security.md`.
+Szczegóły pojęć: `dictionary.md`. Kontrakt HTTP: `dokumentacja_komunikacji.md`. Przepływy: `data_flow.md`. Bezpieczeństwo ID/sekretów: `security.md`. Norma shared: `spec/SPEC-MONOREPO.md`.
