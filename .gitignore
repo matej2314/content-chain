@@ -14,10 +14,9 @@ dist/
 *.db
 *.db-journal
 
-apps/api/prisma/migrations/
-
 .cursor/
 graphify-out/
+
 
 
 .DS_Store

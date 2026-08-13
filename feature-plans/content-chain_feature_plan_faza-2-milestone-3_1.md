@@ -260,7 +260,7 @@ Na końcu `package.json` dodaj:
 
 ### KROK 2 — Persistence MVP (schema, migracja, PrismaModule)
 
-**Status:** `W_TRAKCIE`
+**Status:** `WYKONANY`
 
 **Cel:** Kanoniczna SQLite pod BC z docs (user/sesja, kontekst, runy, logi, wyniki SM) bez logiki biznesowej. Domain/shared **nie** importują Prisma. Major 2.1, `SPEC-PERSISTENCE.md` P-1…P-8, `docs/architektura_katalogi_pliki.md`.
 

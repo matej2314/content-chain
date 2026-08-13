@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { CompanyContextModule } from './company-context/company-context.module';
 import { SocialModule } from './social/social.module';
 import { RunsModule } from './runs/runs.module';
+import { PrismaModule } from './shared/persistence/prisma.module';
 import { EnvModule } from './shared/config/env.module';
 import { validateEnv } from './shared/config/env.schema';
 
@@ -28,6 +29,7 @@ import { validateEnv } from './shared/config/env.schema';
     CompanyContextModule,
     SocialModule,
     RunsModule,
+    PrismaModule,
   ],
 })
 export class AppModule {}
