@@ -25,7 +25,7 @@ content-chain/
 │   │       └── shared/              # cross-cutting tylko w api (nie packages/shared)
 │   ├── frontend/                    # Next.js — cienki klient
 │   │   ├── package.json
-│   │   └── src/                     # App Router, features UI
+│   │   └── src/                     # App Router, moduły UI
 │   └── ai-provider-gateway/         # gateway LLM — bez domeny Content Chain
 │       ├── package.json
 │       └── src/
@@ -47,7 +47,7 @@ content-chain/
 | Port/adapter (persistence, LLM) | Porty w `domain` / `application`; adaptery w `infrastructure` (+ Prisma w `apps/api/prisma`) |
 | Social = LangGraph za fasadą | `apps/api/src/social/infrastructure/graph/` |
 | Prompty przy BC Social | `apps/api/src/social/infrastructure/prompts/` |
-| Cienki frontend | Features UI w `apps/frontend`; brak `domain/` SM |
+| Cienki frontend | Moduły UI w `apps/frontend/src/modules/`; brak `domain/` SM |
 | Gateway bez domeny CC | Tylko kod providerów / routingu w `apps/ai-provider-gateway` |
 | Shared typy kontraktu | `packages/shared` — bez use-case’ów i bez Prisma |
 
@@ -109,12 +109,12 @@ Pomocnicze elementy wyłącznie API (np. konfiguracja, interceptory, mapping bł
 ```text
 apps/frontend/src/
 ├── app/                             # App Router (routes, layouts)
-├── features/                        # np. auth, company-context, social, runs
+├── modules/                         # np. auth, company-context, social, runs
 ├── shared/                          # UI kit / utils frontu (nie domena api)
 └── ...
 ```
 
-- Features wołają `apps/api` przez HTTP; typy z `@content-chain/shared` (lub równoważny alias workspace).
+- Moduły UI wołają `apps/api` przez HTTP; typy z `@content-chain/shared` (lub równoważny alias workspace). Katalog `modules/` zastępuje wcześniejszą nazwę `features/`.
 - Zakaz: sekrety LLM, bezpośredni dostęp do Prisma/gateway vendorów, kopiowanie reguł bramki / pipeline’u.
 
 ## `apps/ai-provider-gateway`

@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-11
+data_modyfikacji: 2026-08-12
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -46,11 +46,11 @@ B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/s
 
 | Obszar | Norma |
 |--------|--------|
-| Konfiguracja | Walidowany obiekt env przy starcie (fail-fast) |
+| Konfiguracja | **`@nestjs/config`** w `apps/api` + walidowany obiekt env przy starcie (fail-fast — B-1; pełne egzekwowanie krytycznych env może dojść w Fazie 2 major, deps/ConfigModule wcześniej) |
 | FE | Tylko bezpieczne `NEXT_PUBLIC_*` (np. URL api) |
 | Auth transport | Cookie-only MVP — `SPEC-AUTH.md` / `SPEC-FRONTEND.md` |
-| Logi vs metrics | Logi runu = DB/SSE; metrics = ops procesu — bez mieszania i bez sekretów |
-| Deploy | Compose: volume SQLite, sekrety z env, HTTPS przed FE/api w production |
+| Logi vs metrics | Logi procesu: **Pino** / `nestjs-pino` (stdout); logi runu = DB/SSE; metrics = ops procesu — bez mieszania i bez sekretów (`docs/observability.md`) |
+| Deploy | Compose: volume SQLite, sekrety z env, HTTPS przed FE/api w production; lokalnie api **PORT=3001** (`docs/deployment.md`) |
 
 ### Wolno
 
@@ -74,11 +74,15 @@ B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/s
 | Element | Status |
 |---------|--------|
 | Fail-fast env + `.env.example` | obowiązkowe |
+| **`@nestjs/config`** (ładowanie env w `apps/api`) | obowiązkowe |
+| **Pino** + **`nestjs-pino`** (logi procesu api) | obowiązkowe |
 | Helmet (lub równoważne) na api | obowiązkowe |
 | CORS z env + credentials | obowiązkowe |
 | Cookie Secure w production | obowiązkowe |
 | Minimalny `/metrics` bez sekretów | obowiązkowe |
 | OAuth / 2FA / WAF / pentest / at-rest SQLite encrypt | poza MVP |
+
+Zmiana względem wersji 1: dopisano `@nestjs/config` oraz Pino/`nestjs-pino` jako zatwierdzony stack logów/konfiguracji procesu (wcześniej tylko ogólne „walidowany obiekt env” i stdout bez wskazania biblioteki — `docs/observability.md` / `docs/architektura.md`).
 
 ## Kryteria akceptacji
 

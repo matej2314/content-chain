@@ -1,14 +1,14 @@
 ---
-wersja: 1
+wersja: 3
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-11
+data_modyfikacji: 2026-08-12
 ---
 
 # SPEC — Frontend
 
 ## Cel / zakres względem dokumentacji
 
-Norma `apps/frontend`: cienki klient self-host (dashboard, flow’y SM, HITL, logi), spójny z `docs/ux_dashboard.md` i kontraktem `SPEC-KOMUNIKACJA.md` / `SPEC-AUTH.md`.
+Norma `apps/frontend`: cienki klient self-host (first-run, login, dashboard, flow’y SM, HITL, logi), spójny z `docs/ux_dashboard.md` i kontraktem `SPEC-KOMUNIKACJA.md` / `SPEC-AUTH.md`.
 
 Bez reguł domenowych pipeline’u, bez bramki kompletności jako jedynej egzekucji, bez sekretów LLM.
 
@@ -16,7 +16,9 @@ Bez reguł domenowych pipeline’u, bez bramki kompletności jako jedynej egzeku
 
 Wiążące (`docs/architektura.md`): Next.js jako UI; pobieranie i mutacje wyłącznie przez `apps/api`; sekrety LLM nigdy w bundlu.
 
-**Wyjątek względem stylu globalnego api:** tak — **bez** ceremonialnej Clean Architecture / warstwy domain SM w Next. Obowiązuje jednak **podział modułowy** kodu FE (features), nie płaski „dump” komponentów.
+**Wyjątek względem stylu globalnego api:** tak — **bez** ceremonialnej Clean Architecture / warstwy domain SM w Next. Obowiązuje jednak **podział modułowy** kodu FE (`modules/`), nie płaski „dump” komponentów.
+
+Zmiana względem wersji 2: katalog modułów UI to `modules/` (wcześniej `features/` w tej sekcji, w drzewie „Wzorce / struktura”, w tabeli „Organizacja” oraz w kryteriach akceptacji). Źródło: `docs/architektura_katalogi_pliki.md`.
 
 ## Wymagania (egzekwowalne)
 
@@ -28,13 +30,24 @@ F-3. Typy request/response / enumy / brand types z **`@content-chain/shared`** n
 
 F-4. Auth web: wyłącznie cookie **`cc_access`** i **`cc_refresh`** (httpOnly) — patrz `SPEC-AUTH.md`. FE **nie** przechowuje JWT w `localStorage`, memory jako store tokenu ani zmiennych `NEXT_PUBLIC_*`. Brak nagłówka `Authorization: Bearer` jako modelu MVP (także Postman — cookie jar).
 
+F-4a. Probe sesji: `GET /api/v1/auth/me` → przy **401** `POST /auth/refresh` → ponownie `GET /auth/me` → przy kolejnym **401**: ekran logowania **albo** first-run, gdy `GET /auth/bootstrap-status` → `available: true`.
+
+Zmiana względem wersji 1: dopisano obowiązkowy flow me → refresh → me oraz first-run (wcześniej: ogólne „login/sesja na cookie” bez probe i bootstrap UI).
+
 F-5. Live status runu: **SSE** `.../runs/:runId/events` (ta sama sesja cookie). Zakaz pollingu statusu jako kanału live. Status wizualnie animowany / czytelny (`docs/ux_dashboard.md`).
 
 F-6. Bramka „Agenci aktywni” i disable CTA startu runu — UX na bazie `GET .../completeness`; **egzekucja** nadal w api (`409` `CONTEXT_INCOMPLETE`).
 
 F-7. Język UI: **polski**. Treści SM: PL/EN wg briefu runu.
 
-F-8. Widoki minimalne wg `docs/ux_dashboard.md`: Kontekst firmy, Runy SM, Run szczegóły (live), Użytkownicy (admin), Konto (logout).
+F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
+
+- First-run (bootstrap), Logowanie;
+- Kontekst firmy, Runy SM (lista instancji + filtry + paginacja 10), Run szczegóły (live) po kliknięciu wiersza;
+- Użytkownicy (admin: **tylko** lista + tworzenie);
+- Konto (**tylko** logout).
+
+Zmiana względem wersji 1: Konto nie obejmuje zmiany hasła; dodano first-run; lista runów = cała instancja z nawigacją lista → szczegóły; admin users bez edycji/dezaktywacji w UI.
 
 ## Norma implementacji
 
@@ -43,10 +56,10 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`: Kontekst firmy, Runy SM, Run sz
 ```text
 apps/frontend/src/
 ├── app/                    # App Router: routes, layouts
-├── features/               # moduły UI: auth, company-context, runs, users, …
-│   └── <feature>/
+├── modules/                # moduły UI: auth, company-context, runs, users, …
+│   └── <module>/
 │       ├── components/
-│       ├── api/            # fetch wrappers do endpointów feature
+│       ├── api/            # fetch wrappers do endpointów modułu
 │       └── …
 ├── shared/                 # UI kit (shadcn), utils — bez domeny api
 └── …
@@ -54,7 +67,7 @@ apps/frontend/src/
 
 | Element | Norma |
 |---------|--------|
-| Organizacja | **Feature modules** pod `features/` + `app/` na routing |
+| Organizacja | **Moduły UI** pod `modules/` + `app/` na routing |
 | Dane | `fetch` → `apps/api`; brak Prisma / gateway / LangGraph w FE |
 | UI | **shadcn** + **Iconify** (`@iconify/react`) tam, gdzie ikony są potrzebne |
 | Env publiczne | wyłącznie bezpieczne (np. `NEXT_PUBLIC_API_BASE_URL`) — bez sekretów |
@@ -64,6 +77,7 @@ apps/frontend/src/
 - Client components dla SSE, formularzy, interaktywnego HITL.
 - Reconnect SSE + uzupełnienie snapshotem GET run/logs.
 - Read-only podgląd kontekstu dla `user`; edycja tylko gdy sesja `admin` (api i tak egzekwuje).
+- First-run na podstawie `bootstrap-status`.
 
 ### Nie wolno
 
@@ -71,8 +85,10 @@ apps/frontend/src/
 - Pollingu statusu runu zamiast SSE.
 - Egzekucji bramki kompletności **tylko** w UI.
 - Logiki pipeline SM / verifiera / promptów w FE.
-- Płaskiego `components/` bez podziału na features przy rozroście ekranów MVP.
+- Płaskiego `components/` bez podziału na moduły (`modules/`) przy rozroście ekranów MVP.
 - Bearer access jako domyślnego transportu auth w MVP.
+- Self-service konta w MVP (zmiana hasła / email / usuwanie siebie).
+- UI soft-delete / edycji użytkowników w MVP (tylko lista + create).
 
 ### Zatwierdzony stack (obszar)
 
@@ -87,11 +103,12 @@ apps/frontend/src/
 
 ## Kryteria akceptacji
 
-- [ ] Ekrany z `ux_dashboard.md` dostępne; UI po polsku.
-- [ ] Login/sesja działa na `cc_access` / `cc_refresh` bez tokenu w JS storage.
-- [ ] Szczegóły runu: SSE live + animowany status; bez pollingu statusu.
+- [ ] First-run, login, ekrany z `ux_dashboard.md` dostępne; UI po polsku.
+- [ ] Flow me → refresh → me; sesja na `cc_access` / `cc_refresh` bez tokenu w JS storage.
+- [ ] Lista runów: instancja, paginacja 10, filtry, klik → szczegóły live (SSE) bez pollingu statusu.
 - [ ] Start runu zablokowany w UI przy niekompletności **i** api zwraca 409 przy obejściu.
-- [ ] Kod FE podzielony na `app/` + `features/`; typy z shared.
+- [ ] Admin: lista + create users; Konto: tylko logout.
+- [ ] Kod FE podzielony na `app/` + `modules/`; typy z shared.
 - [ ] Brak sekretów LLM w bundlu klienta.
 
 ## Poza zakresem
@@ -100,3 +117,4 @@ apps/frontend/src/
 - Pixel-perfect design system / Figma jako część normy.
 - Publikacja postów na API portali (v2).
 - OAuth / social login.
+- Self-service konta; soft-delete users w UI (później / V1).

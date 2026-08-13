@@ -19,6 +19,7 @@ Zmiana względem wcześniejszej wersji tego dokumentu (korelacja): **`Conversati
 | Format | JSON (`application/json`), SSE (`text/event-stream`) |
 | Auth | Access JWT w cookie **`cc_access`** + refresh w **`cc_refresh`** (oba **httpOnly**); role `admin` \| `user`. MVP: **bez** `Authorization: Bearer` (FE / Postman = cookie). |
 | Korelacja | `requestId` w envelope = ID nadane przez `apps/api` w **odpowiedzi** na to HTTP (klient nie musi go przysyłać). Run agentowy spinany przez `RunId` + `ConversationId`; kroki LLM — `requestId` z odpowiedzi gateway |
+| DX OpenAPI (api) | Swagger UI **`GET /docs`** — poza `/api/v1`; **nie** pod `/api` (kolizja z prefiksem produktowym). Port lokalny api: **3001** (`deployment.md`). |
 
 ### Envelope błędu
 
@@ -54,22 +55,28 @@ Wybrane kody domenowe:
 | **GET** logów | Snapshot / historia logów runu (nie zastępuje SSE dla statusu) |
 | **GET** `/api/v1/health` | Liveness „zdrowotny” `apps/api` |
 | **GET** `/metrics` | Metryki Prometheus procesu `apps/api` (ops — nie mylić z logami runu) |
+| **GET** `/docs` | Swagger UI / OpenAPI DX powierzchni `apps/api` (nie część kontraktu produktowego FE) |
 
 Status runu **na żywo** nie jest osobnym pollingiem GET — tylko SSE (oraz wynik końcowy w zasobach runu po zakończeniu / przy HITL).
 
 ### Auth
 
+#### `GET /api/v1/auth/bootstrap-status`
+
+Publiczny (bez sesji) sygnał pod ekran first-run self-host.
+
+**200** — `{ "available": boolean }` — `true`, gdy w DB **nie ma** jeszcze użytkownika `admin` (wolno wywołać bootstrap); `false` po utworzeniu admina.
+
 #### `POST /api/v1/auth/bootstrap-admin`
 
-Jednorazowy bootstrap **pierwszego i jedynego** admina self-host. Działa tylko, gdy w DB nie ma admina — norma: `security.md`.
+Jednorazowy bootstrap **pierwszego i jedynego** admina self-host. Działa tylko, gdy w DB nie ma admina — norma: `security.md`. Po sukcesie api ustawia sesję cookie jak przy loginie (ekran first-run w UI).
 
 | Pole | Typ | Wymagane |
 |------|-----|----------|
 | `email` | string | tak |
 | `password` | string | tak (polityka bcrypt — `security.md`) |
 
-**201** — użytkownik `admin`. Kolejne wywołania: `CONFLICT` / `FORBIDDEN`.
-
+**201** — `{ "user": { "id", "email", "role" } }` (+ Set-Cookie **`cc_access`** / **`cc_refresh`**). Kolejne wywołania: `CONFLICT` / `FORBIDDEN`.
 
 #### `POST /api/v1/auth/login`
 
@@ -82,25 +89,39 @@ Jednorazowy bootstrap **pierwszego i jedynego** admina self-host. Działa tylko,
 
 Zmiana względem wcześniejszego zapisu „`accessToken` w body + tylko refresh w cookie”: oba tokeny wyłącznie w httpOnly cookie; klienci nie używają Bearer w MVP.
 
+Konto nieaktywne (soft-delete) → **401** / **403** (login odrzucony).
+
 #### `POST /api/v1/auth/refresh`
 
-Odświeżenie sesji na podstawie cookie `cc_refresh`: rotacja refresh + nowe `cc_access` (httpOnly). Body bez tokenów.
+Odświeżenie sesji na podstawie cookie `cc_refresh`: rotacja refresh + nowe `cc_access` (httpOnly). Body bez tokenów (ew. `expiresIn` — opcjonalnie). **Kanoniczny odczyt tożsamości po reloadzie UI** to `GET /auth/me`, nie refresh.
 
 #### `POST /api/v1/auth/logout`
 
 Unieważnia refresh w DB / czyści cookie **`cc_access`** i **`cc_refresh`**.
 
+#### `GET /api/v1/auth/me`
+
+Probe bieżącej sesji na podstawie cookie **`cc_access`** (ta sama sesja co pozostałe chronione trasy).
+
+**200** — `{ "id", "email", "role" }` (wyłącznie te pola).  
+**401** `UNAUTHORIZED` — brak / nieważna sesja access.
+
+**Flow FE (norma produktowa):** po starcie aplikacji → `GET /auth/me`; przy `401` → `POST /auth/refresh`; potem ponownie `GET /auth/me`; przy kolejnym `401` → ekran logowania (albo first-run, gdy `bootstrap-status.available === true`).
+
 #### Users (admin)
 
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
-| `GET` | `/api/v1/users` | Lista użytkowników |
+| `GET` | `/api/v1/users` | Lista użytkowników (w tym flaga aktywności) |
 | `POST` | `/api/v1/users` | Utworzenie **tylko** `role = user` (`email`, `password`); hasło wg `security.md` |
-| `PATCH` | `/api/v1/users/:id` | Aktualizacja (np. aktywność) — **bez** awansu do `admin` |
-| `DELETE` | `/api/v1/users/:id` | Dezaktywacja / usunięcie wg polityki MVP |
+| `PATCH` | `/api/v1/users/:id` | Aktualizacja (np. reaktywacja) — **bez** awansu do `admin`; poza UI MVP (API pod późniejsze V1) |
+| `DELETE` | `/api/v1/users/:id` | **Soft-delete / dezaktywacja** (konto pozostaje; login zablokowany); **nie** twarde usunięcie wiersza |
 
 Zmiana względem wcześniejszego zapisu „`role` dowolna”: w MVP jest **co najwyżej jeden** `admin` (bootstrap). Tworzenie / ustawienie kolejnego `admin` → **403** / **400**. Norma: `security.md`.
 
+Zmiana względem „DELETE = dezaktywacja / usunięcie wg polityki”: w MVP DELETE = wyłącznie soft-delete / dezaktywacja.
+
+**UI MVP (dashboard):** admin tylko **listuje** i **tworzy** użytkowników — bez edycji / dezaktywacji w UI (endpointy PATCH/DELETE zostają w api pod płynne V1).
 ### Company context
 Bramka kompletności: sekcje z dokumentacji koncepcyjnej (tożsamość, oferta, głos SM, CTA/kanały, odbiorca).
 
@@ -121,9 +142,50 @@ Zapis sekcji kontekstu. **403** dla `user`.
 Typy tasków MVP: `post_ideas` \| `post_content` \| `post_ideas_then_content` (dwuetapowy + HITL).  
 Platformy: `linkedin` \| `facebook` \| `instagram`. Język: `pl` \| `en`.
 
+Zakres listy: **runy całej instancji** (jedna firma) — nie tylko runy bieżącego użytkownika. Każdy run ma inicjatora (`startedBy`) oraz status.
+
+#### `GET /api/v1/runs`
+
+Lista runów pod dashboard (widok tabeli → klik → szczegóły).
+
+| Query | Typ | Wymagane | Opis |
+|-------|-----|----------|------|
+| `page` | number | nie (default **1**) | Numer strony (1-based) |
+| `status` | enum statusu runu | nie | Filtr statusu |
+| `taskType` | enum tasku | nie | Filtr typu tasku |
+| `platform` | enum platformy | nie | Filtr platformy |
+| `userId` | string (id użytkownika) | nie | Filtr: kto uruchomił run |
+
+**Paginacja MVP:** stały rozmiar strony **10** (klient **nie** nadpisuje `limit`). Sortowanie: **`createdAt` malejąco** (najnowsze pierwsze).
+
+**200** — kształt:
+
+```json
+{
+  "items": [
+    {
+      "runId": "run_…",
+      "taskType": "post_ideas",
+      "platform": "linkedin",
+      "language": "pl",
+      "status": "completed",
+      "createdAt": "2026-08-12T10:00:00.000Z",
+      "startedBy": { "id": "…", "email": "user@example.com" }
+    }
+  ],
+  "page": 1,
+  "pageSize": 10,
+  "total": 42
+}
+```
+
+- `startedBy.email` — identyfikator wyświetlany w MVP jako „nazwa użytkownika” (brak osobnego display name w MVP).
+- Przy starcie ze sesją `startedBy` jest zawsze ustawiony. W erze przed domknięciem auth (np. Postman bez sesji) pole może być `null` — po auth na api start bez sesji jest odrzucany, więc nowe runy zawsze mają inicjatora.
+
 #### `POST /api/v1/runs`
 
-Start async runu. Wymaga kompletnego kontekstu — inaczej **409** `CONTEXT_INCOMPLETE`.
+Start async runu. Wymaga kompletnego kontekstu — inaczej **409** `CONTEXT_INCOMPLETE`.  
+Przy chronionej sesji zapisuje **inicjatora** (`startedBy` = bieżący użytkownik).
 
 | Pole | Typ | Wymagane | Opis |
 |------|-----|----------|------|
@@ -141,8 +203,9 @@ Start async runu. Wymaga kompletnego kontekstu — inaczej **409** `CONTEXT_INCO
 
 #### `GET /api/v1/runs/:runId`
 
-Snapshot runu: status, typ, `conversationId`, wynik (ideas/content gdy gotowe), metadane HITL.  
-**Nie** zastępuje SSE dla strumienia zdarzeń.
+Snapshot runu: status, typ, `conversationId`, `createdAt`, `startedBy`, wynik (ideas/content gdy gotowe), metadane HITL.  
+**Nie** zastępuje SSE dla strumienia zdarzeń.  
+UI: wiersz listy → podstrona szczegółów tego `runId` (`ux_dashboard.md`).
 
 #### `GET /api/v1/runs/:runId/logs`
 

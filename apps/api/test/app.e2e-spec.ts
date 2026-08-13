@@ -1,0 +1,17 @@
+import { Test, type TestingModule } from '@nestjs/testing';
+import { AppModule } from '../src/app.module';
+
+
+describe('App (e2e)', () => {
+  let module: TestingModule;
+
+  beforeEach(async () => {
+    module = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+  });
+
+  it('should be defined', () => {
+    expect(module).toBeDefined();
+  });
+});

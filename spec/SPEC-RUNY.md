@@ -1,16 +1,16 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-11
+data_modyfikacji: 2026-08-12
 ---
 
 # SPEC — Runy / logi
 
 ## Cel / zakres względem dokumentacji
 
-Norma bounded contextu **Runs / Logs** w `apps/api`: cykl życia async runu, polityka statusów, kanoniczne logi w DB, emisja SSE, kolejka współbieżności oraz recovery po przerwaniu procesu.
+Norma bounded contextu **Runs / Logs** w `apps/api`: cykl życia async runu, **lista runów instancji** (paginacja / filtry), polityka statusów, kanoniczne logi w DB, emisja SSE, kolejka współbieżności oraz recovery po przerwaniu procesu.
 
-Uszczegóławia `docs/architektura.md` (async run), `docs/dokumentacja_komunikacji.md` (SSE / GET), `docs/observability.md` (pola logów vs metrics) oraz współpracę z `SPEC-SOCIAL.md` (fazy pipeline’u, HITL model B).
+Uszczegóławia `docs/architektura.md` (async run), `docs/dokumentacja_komunikacji.md` (lista / SSE / GET), `docs/observability.md` (pola logów vs metrics) oraz współpracę z `SPEC-SOCIAL.md` (fazy pipeline’u, HITL model B).
 
 ## Powiązanie ze stylem z docs
 
@@ -20,7 +20,7 @@ Wiążące: klasyczne warstwy Nest — controller → application → domain (pr
 
 | BC | Odpowiedzialność |
 |----|------------------|
-| **Runs** | Utworzenie runu, statusy, kolejka slotów, append logów, SSE, recovery, HITL HTTP jako zmiana stanu runu |
+| **Runs** | Utworzenie runu, lista kolekcji, statusy, kolejka slotów, append logów, SSE, recovery, HITL HTTP jako zmiana stanu runu, zapis inicjatora |
 | **Social** | Węzły pipeline’u; woła porty Runs (`appendLog`, `transitionStatus`, zapis wyniku SM) — bez omijania cyklu życia |
 
 **Wyjątek względem stylu globalnego:** brak.
@@ -44,6 +44,18 @@ R-1. W domain istnieje polityka przejść statusów (dozwolone krawędzie + egze
 R-2. `run.log` jest **append-only** w DB (brak edycji / usuwania wpisów historii w MVP). Pola wpisu zgodne z `docs/observability.md`: m.in. `runId`, `conversationId` (po starcie), `at`, `level`, `message`, `step?`, `requestId?`.
 
 R-3. Live postęp wyłącznie przez SSE (`SPEC-KOMUNIKACJA.md`). GET run / logs = snapshot. Zakaz pollingu statusu jako kanału live.
+
+R-3a. `GET /api/v1/runs` — lista **całej instancji** (nie tylko bieżącego użytkownika), zgodnie z `docs/dokumentacja_komunikacji.md`:
+
+- sortowanie: `createdAt` malejąco;
+- paginacja: stałe **`pageSize = 10`** (klient nie nadpisuje limitu), query `page` (default 1);
+- filtry opcjonalne: `status`, `taskType`, `platform`, `userId` (inicjator);
+- pozycja listy: `runId`, `taskType`, `platform`, `language`, `status`, `createdAt`, `startedBy: { id, email }` (email = identyfikator wyświetlany w MVP);
+- odpowiedź zawiera `items`, `page`, `pageSize`, `total`.
+
+Zmiana względem wersji 1: wcześniej brak normy listingu kolekcji — obowiązkowe pod dashboard (`docs/ux_dashboard.md`).
+
+R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`).
 
 R-4. Emisja zdarzeń SSE należy do Runs; Social nie streamuje SSE bezpośrednio z węzłów grafu.
 
@@ -70,8 +82,8 @@ R-9. Recovery po brutalnym przerwaniu `running` (restart / crash procesu api):
 ```text
 apps/api/src/runs/
 ├── runs.module.ts
-├── runs.controller.ts           # CRUD snapshot, logs, events SSE, hitl
-├── application/                 # start, enqueue, resume hitl, recovery on boot
+├── runs.controller.ts           # list, snapshot, logs, events SSE, hitl
+├── application/                 # list, start, enqueue, resume hitl, recovery on boot
 ├── domain/                      # status transitions, isRetryable, porty
 └── infrastructure/              # Prisma run/log, SSE hub / subject
 ```
@@ -88,6 +100,7 @@ apps/api/src/runs/
 - Po `POST /runs` od razu `running`, jeśli jest wolny slot; w przeciwnym razie `queued`.
 - Przy starcie api uruchomić use-case recovery przed podejmowaniem nowych `queued`.
 - Emitować SSE przy każdym udanym `appendLog` i każdej legalnej zmianie statusu.
+- `startedBy` nullable wyłącznie dla historycznych / pre-auth przebiegów testowych; po domknięciu auth na api nowe runy zawsze z inicjatorem.
 
 ### Nie wolno
 
@@ -99,6 +112,8 @@ apps/api/src/runs/
 - Limitu współbieżności per-user w v1.
 - Checkpoinetera LangGraph jako mechanizmu recovery Runs.
 - Wycieku sekretów do `run.log`.
+- Listy tylko „moje runy” jako jedynego trybu MVP (norma: cała instancja + filtr `userId`).
+- Zmiennego `pageSize` / dowolnego `limit` z query w MVP (stałe 10).
 
 ### Zatwierdzony stack (obszar)
 
@@ -114,6 +129,7 @@ apps/api/src/runs/
 
 - [ ] Nielegalne przejście statusu jest odrzucane.
 - [ ] Logi rosną tylko przez append; GET logs zwraca historię; SSE dostarcza przyrosty.
+- [ ] `GET /runs` zwraca listę instancji z paginacją 10, sortem `createdAt` desc, filtrami i `startedBy`.
 - [ ] Przy zajętych slotach nowy run jest `queued` i startuje po zwolnieniu slotu (globalny limit, default 3).
 - [ ] Po restarcie api: `awaiting_hitl` bez zmian; `running` przechodzi recovery ≤ 3, potem ewentualnie `failed` z logiem.
 - [ ] Social nie emituje SSE omijając Runs.

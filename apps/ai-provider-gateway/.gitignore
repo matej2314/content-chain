@@ -1,0 +1,86 @@
+# compiled output
+/dist
+/node_modules
+/build
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+
+# Tests
+/coverage
+/coverage-security
+/.nyc_output
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+
+# docs/*.md
+# docs/spec/*.md
+
+# temp directory
+.temp
+.tmp
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+gateway.config.old.yaml
+.env.old
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+PLAN_IMPLEMENTACJI.md
+SYSTEM_PROMPTS_REFACTOR-READY.md
+REDIS_IMPLEMENTATION_PLAN.md
+new-plan.md
+conversation_id_refactor.md
+body-params-refactor.md
+api-documentation-finalize.md
+integrations-plan.md
+gateway-to-contracts-last-step.md
+
+tools_implementation.md
+cli-implementation-plan.md
+backup/*
+docs/pl/spec/
+
+.env.test
+.env.example.old
+gateway.config.placeholder.yaml
+
+production-readiness-plan.md
+prometheus-grafana-implementation-plan.md
+cli-agent-mode-plan.md

@@ -1,0 +1,37 @@
+# Allowlist: root docs + spec, three apps' production src, shared types.
+# Leading `/` is required: without it `!apps/` un-ignores every path that
+# has a segment named `apps` (Graphify gitignore matcher), including
+# gateway docs/, test/, deployment/.
+# Parent directories must be un-ignored before their children (gitignore).
+
+*
+!/docs/
+!/docs/**
+!/spec/
+!/spec/**
+!/apps/
+!/apps/api/
+!/apps/api/src/
+!/apps/api/src/**
+!/apps/frontend/
+!/apps/frontend/src/
+!/apps/frontend/src/**
+!/apps/ai-provider-gateway/
+!/apps/ai-provider-gateway/src/
+!/apps/ai-provider-gateway/src/**
+!/packages/
+!/packages/shared/
+!/packages/shared/src/
+!/packages/shared/src/**
+
+# Tests and test helpers colocated in src
+**/*.spec.ts
+**/*.test.ts
+**/*.e2e-spec.ts
+**/mocks/
+
+# Runtime LLM prompts in gateway src — not architecture docs
+**/src/**/*.md
+
+# package.json / tsconfig / openapi are "code" to Graphify
+**/*.json

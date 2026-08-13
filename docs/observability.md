@@ -9,9 +9,12 @@ Powiązane: `dokumentacja_komunikacji.md`, `data_flow.md`, `deployment.md`, `bra
 | Sygnał | Gdzie | Dla kogo | Źródło prawdy |
 |--------|-------|----------|----------------|
 | Logi runu | DB + SSE / GET logs | Operator treści, debug pipeline SM | Kanoniczne w DB |
-| Stdout/stderr | Procesy / kontenery | Ops (crash, start) | Uzupełnienie |
+| Stdout/stderr (api) | Proces `apps/api` — **Pino** przez `nestjs-pino` | Ops (crash, start, request HTTP) | Uzupełnienie; **nie** zamiennik logów runu w DB |
+| Stdout/stderr (pozostałe) | Procesy / kontenery | Ops | Uzupełnienie |
 | Metryki Prometheus | `GET /metrics` na `apps/api` | Ops / Grafana | Snapshot procesu |
 | Metryki gateway | opcjonalnie `GET /metrics` gateway | Ops LLM | Upstream; scrape osobno |
+
+**Logi procesu vs logi runu:** Pino / `nestjs-pino` = strukturalne logi procesu i requestów HTTP na stdout. Przebieg domenowy SM (kroki agentów, HITL) pozostaje w DB + SSE — jak niżej. Nie mylić tych kanałów.
 
 ## Metryki `apps/api` (MVP)
 

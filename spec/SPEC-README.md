@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-11
+data_modyfikacji: 2026-08-12
 ---
 
 # SPEC — README
@@ -33,7 +33,7 @@ SPEC **uszczegóławia** docs; nie zastępuje ich i nie tworzy równoległej dok
 | `SPEC-SOCIAL.md` | Pipeline SM, LangGraph, HITL model B |
 | `SPEC-RUNY.md` | Cykl życia runu, logi, SSE, kolejka, recovery |
 | `SPEC-PERSISTENCE.md` | Prisma; SQLite w MVP; PostgreSQL od V1 — rozbudowa |
-| `SPEC-FRONTEND.md` | Next.js, features/, shadcn, SSE UI |
+| `SPEC-FRONTEND.md` | Next.js, modules/, shadcn, SSE UI |
 | `SPEC-TESTY.md` | Jest, supertest, piramida, DoD |
 | `SPEC-BEZPIECZENSTWO.md` | Env, ekspozycja, Helmet, CORS, metrics/logi bez sekretów |
 

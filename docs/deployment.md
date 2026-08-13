@@ -21,7 +21,7 @@ Bez osobnego „SaaS multi-tenant cloud” w MVP. Staging opcjonalny później =
 2. Skopiować `.env.example` → `.env` dla `apps/api`, `apps/ai-provider-gateway`, `apps/frontend` (wg implementacji).
 3. Migracje Prisma (api) na SQLite.
 4. Uruchomić procesy: gateway → api → frontend (kolejność: najpierw gateway, potem api zależne od niego).
-5. Bootstrap admin (`POST /api/v1/auth/bootstrap-admin`) przy pustej DB.
+5. First-run w UI (`bootstrap-status` → formularz) albo równoważnie `POST /api/v1/auth/bootstrap-admin` przy pustej DB (ops / Postman).
 
 Skrypty dokładne (`pnpm dev` / `pnpm --filter …`) doprecyzuje root `package.json` przy implementacji.
 

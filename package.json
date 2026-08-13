@@ -1,24 +1,23 @@
 {
-  "name": "content-chain",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/matej2314/content-chain.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
-  "bugs": {
-    "url": "https://github.com/matej2314/content-chain/issues"
-  },
-  "homepage": "https://github.com/matej2314/content-chain#readme"
+	"name": "content-chain",
+	"version": "1.0.0",
+	"private": true,
+	"scripts": {
+		"dev:api": "pnpm --filter api dev",
+		"dev:frontend": "pnpm --filter frontend dev",
+		"dev:gateway": "pnpm --filter ai-provider-gateway dev",
+		"build": "pnpm -r build",
+		"lint": "eslint . && pnpm --filter frontend lint",
+		"format": "prettier --write .",
+		"format:check": "prettier --check ."
+	},
+	"devDependencies": {
+		"@eslint/eslintrc": "^3.2.0",
+		"@typescript-eslint/eslint-plugin": "^8.0.0",
+		"@typescript-eslint/parser": "^8.0.0",
+		"eslint": "^9.0.0",
+		"eslint-config-prettier": "^10.0.0",
+		"prettier": "^3.0.0",
+		"typescript": "^5.7.0"
+	}
 }

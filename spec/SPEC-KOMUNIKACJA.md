@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 4
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-11
+data_modyfikacji: 2026-08-12
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -31,12 +31,15 @@ Wiążące (`docs/architektura.md`):
 | Powierzchnia | Prefiks / ścieżka | Format |
 |--------------|-------------------|--------|
 | Publiczne API CC | `/api/v1` | JSON |
+| Lista runów | `GET /api/v1/runs` | JSON (paginacja stała 10) |
 | Live run | `GET /api/v1/runs/:runId/events` | SSE (`text/event-stream`) |
 | Ops metrics | `GET /metrics` (poza `/api/v1`) | Prometheus text |
+| DX OpenAPI (Swagger UI) | `GET /docs` (poza `/api/v1`) | HTML / OpenAPI JSON |
 | Health | `GET /api/v1/health` | JSON |
+| Auth probe / bootstrap status | `GET /api/v1/auth/me`, `GET /api/v1/auth/bootstrap-status` | JSON |
 | Gateway (z api) | upstream `/api/v1/chat` (+ opcjonalnie stream) | JSON / SSE gateway |
 
-MVP: **wyłącznie** `/api/v1` — bez `/api/v2`.
+MVP: **wyłącznie** `/api/v1` jako prefiks produktowy — bez `/api/v2`. Swagger **nie** pod `/api` (kolizja z `/api/v1`) — norma: `/docs` (`docs/dokumentacja_komunikacji.md`).
 
 Szczegóły metod, pól i kodów: `docs/dokumentacja_komunikacji.md`.
 
@@ -56,6 +59,10 @@ K-1. Każda odpowiedź błędu HTTP z `apps/api` ma envelope:
 `requestId` nadaje **`apps/api`** w ramach obsługi tego żądania (middleware / interceptor) i zwraca w envelope oraz (zalecane) nagłówku `x-request-id`. Klient **nie musi** przysyłać `RequestId`.
 
 K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId` i statusem `queued` | `running` — bez synchronicznego czekania na wynik LLM.
+
+K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`.
+
+Zmiana względem wersji 2: dopisano obowiązek listingu kolekcji runów pod FE (wcześniej tylko POST + GET by id / SSE).
 
 K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed) idzie wyłącznie przez **SSE** `GET /api/v1/runs/:runId/events`. Zdarzenia i statusy jak w docs komunikacji.
 
@@ -120,6 +127,7 @@ Zakaz: FE generuje `RequestId` „na zapas”; zakaz nowego `ConversationId` per
 - Wołania SDK vendorów LLM z `apps/api` z pominięciem gateway.
 - Wyciekania `X-Gateway-Key`, haseł, JWT do envelope, SSE lub `run.log`.
 - Rozwijania publicznego API pod `/api/v2` w MVP.
+- Montowania Swagger UI pod ścieżką `/api` (kolizja z prefiksem produktowym `/api/v1` — norma: `/docs`).
 
 ### Zatwierdzony stack (obszar)
 
@@ -130,25 +138,31 @@ Zakaz: FE generuje `RequestId` „na zapas”; zakaz nowego `ConversationId` per
 | NestJS **`@Sse()`** + RxJS `Observable<MessageEvent>` | obowiązkowe |
 | Port LLM + adapter HTTP (natywny chat gateway) | obowiązkowe |
 | Brand types / enumy z `@content-chain/shared` | obowiązkowe |
+| **`@nestjs/swagger`** + Swagger UI pod **`/docs`** (DX powierzchni api) | obowiązkowe w MVP |
 | OpenAPI gateway jako źródło kontraktu upstream | odwołanie; bez kopiowania pełnego specu do tego SPEC |
 | `/api/v2` | poza MVP |
 
-Źródła weryfikacji: [NestJS Server-Sent Events](https://docs.nestjs.com/techniques/server-sent-events), [NestJS Validation](https://docs.nestjs.com/techniques/validation); kontrakt endpointów — `docs/dokumentacja_komunikacji.md`.
+Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześniej brak normy ścieżki OpenAPI dla `apps/api`; domyślne montowanie pod `/api` jest zakazane ze względu na kolizję z `/api/v1`).
+
+Źródła weryfikacji: [NestJS Server-Sent Events](https://docs.nestjs.com/techniques/server-sent-events), [NestJS Validation](https://docs.nestjs.com/techniques/validation), [NestJS OpenAPI](https://docs.nestjs.com/openapi/introduction); kontrakt endpointów — `docs/dokumentacja_komunikacji.md`.
 
 ## Kryteria akceptacji
 
 - [ ] Błędy HTTP mają envelope z `code`, `message`, `requestId` (format `req_<uuid>`).
 - [ ] `POST /api/v1/runs` kończy się 202 z `runId` + `conversationId` bez czekania na LLM.
+- [ ] `GET /api/v1/runs` listuje runy instancji zgodnie z docs (paginacja 10, filtry, `startedBy`).
 - [ ] Klient otrzymuje live status wyłącznie przez SSE; GET run/logs = snapshot.
 - [ ] SSE wymaga sesji cookie jak API; brak tokenu w query i brak wymogu Bearer.
 - [ ] Adapter gateway woła natywny chat z `X-Gateway-Key`, bez `x-request-id` z CC; `conversationId` stały w runie; `requestId` z odpowiedzi w logu kroku.
 - [ ] DTO HTTP walidowane class-validator; use-case’y używają Zod tam, gdzie parsują / walidują dane aplikacji.
 - [ ] Brak ścieżki FE/api → vendor LLM z pominięciem gateway.
 - [ ] Publiczne API MVP wyłącznie pod `/api/v1`.
+- [ ] Swagger UI api dostępne pod `/docs` (nie pod `/api`).
 
 ## Poza zakresem
 
 - Pełne skopiowanie OpenAPI `ai-provider-gateway`.
+- Traktowanie `/docs` jako kontraktu produktowego FE (to DX / ops lokalne).
 - Definicja grafu Social, refine `max N`, treść promptów → `SPEC-SOCIAL.md`.
 - Polityka przejść statusów runu i kanoniczny model logów DB → `SPEC-RUNY.md`.
 - Implementacja UI EventSource / animacji statusu → `SPEC-FRONTEND.md`.

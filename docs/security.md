@@ -15,18 +15,22 @@ Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, 
 | Akcja | `admin` | `user` |
 |-------|---------|--------|
 | Edycja kontekstu firmy | tak | nie |
-| Start runów SM / HITL / odczyt logów | tak | tak |
-| CRUD użytkowników | tak (z ograniczeniem adminów — niżej) | nie |
-| Bootstrap pierwszego admina | jednorazowy endpoint | — |
+| Start runów SM / HITL / odczyt logów / lista runów instancji | tak | tak |
+| Lista + tworzenie użytkowników (`user`) | tak (z ograniczeniem adminów — niżej) | nie |
+| Soft-delete użytkownika (API; UI MVP bez tego) | tak | nie |
+| Bootstrap pierwszego admina | jednorazowy (API + ekran first-run) | — |
 
 **403** przy naruszeniu (`FORBIDDEN`). Egzekucja zawsze w `apps/api`, nie tylko w UI.
 
 ## Bootstrap i konta admin
 
-1. **`POST /api/v1/auth/bootstrap-admin`** działa **wyłącznie**, gdy w DB **nie ma** żadnego użytkownika z `role = admin`.
-2. Po utworzeniu pierwszego admina endpoint bootstrap jest **trwale niedostępny** (np. **409** `CONFLICT` / **403**).
-3. **Twarda blokada:** tworzenie / awans kolejnych użytkowników z `role = admin` jest **zabronione** w MVP (API odrzuca). W systemie jest **co najwyżej jeden** admin — ten z bootstrapu.
-4. Pozostali użytkownicy tylko z `role = user` (tworzeni przez jedynego admina).
+1. **`GET /api/v1/auth/bootstrap-status`** (publiczny) — `{ available }` pod ekran first-run w dashboardzie.
+2. **`POST /api/v1/auth/bootstrap-admin`** działa **wyłącznie**, gdy w DB **nie ma** żadnego użytkownika z `role = admin`. Po sukcesie ustawia sesję cookie (jak login).
+3. Po utworzeniu pierwszego admina endpoint bootstrap jest **trwale niedostępny** (np. **409** `CONFLICT` / **403**); `bootstrap-status.available === false`.
+4. **Twarda blokada:** tworzenie / awans kolejnych użytkowników z `role = admin` jest **zabronione** w MVP (API odrzuca). W systemie jest **co najwyżej jeden** admin — ten z bootstrapu.
+5. Pozostali użytkownicy tylko z `role = user` (tworzeni przez jedynego admina).
+6. **Self-service konta w MVP poza zakresem:** zmiana hasła, zmiana email, usuwanie własnego konta przez użytkownika — później. MVP: login / logout / bootstrap / admin tworzy `user`.
+7. **`DELETE /api/v1/users/:id`** = soft-delete (dezaktywacja); konto nieaktywne nie loguje się.
 
 ## Hasła (bcrypt)
 
@@ -49,6 +53,7 @@ Niespełnienie → **400** `VALIDATION_FAILED` z czytelnym komunikatem (bez ujaw
 - Oba cookie: `Secure` + sensowny `SameSite` w `production`.
 - SSE i HTTP: ta sama sesja cookie — **zakaz** tokenu w query string; **zakaz** `Authorization: Bearer` jako modelu MVP (FE, Postman = cookie jar).
 - Body login/refresh **nie** zwraca tokenów (tylko `user` / `expiresIn` wg kontraktu API).
+- Probe tożsamości UI: **`GET /api/v1/auth/me`** → `{ id, email, role }` albo **401** (flow: me → przy 401 refresh → me).
 - Wylogowanie unieważnia refresh w DB i czyści **oba** cookie.
 
 Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refresh w cookie”: access także wyłącznie w httpOnly cookie.
@@ -85,6 +90,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 ## Poza zakresem MVP
 
 - OAuth / SSO / 2FA  
+- Self-service: zmiana hasła, zmiana email, usuwanie własnego konta  
 - Rotacja wielu adminów / recovery „lost admin” (osobna procedura później)  
 - WAF / full pentest report  
 - Szyfrowanie pliku SQLite at-rest (opcjonalnie później)
