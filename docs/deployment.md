@@ -46,12 +46,13 @@ Jeden stack:
 - **Env per aplikacja**; w repo tylko **`.env.example`** (placeholdery).
 - **Zakaz** commitowania `.env`, kluczy vendorów, `X-Gateway-Key`, JWT secrets.
 - Fail-fast: brak wymaganych zmiennych → proces nie wstaje (szczególnie api i gateway).
-- Przykładowe kategorie zmiennych (nazwy ustali implementacja):
+- Nazwy zmiennych api = `apps/api/.env.example` (i walidacja przy starcie). Gateway / frontend — wg ich `.env.example`.
+- W `production`: `CORS_ORIGIN` nie może być `*`.
 
-| Obszar | Przykłady |
-|--------|-----------|
-| Api | `DATABASE_URL` (SQLite), `JWT_*`, `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `NODE_ENV` |
-| Gateway | klucze providerów, `gateway.config.yaml`, allowlista kluczy, port |
+| Obszar | Zmienne |
+|--------|---------|
+| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (SQLite), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS` |
+| Gateway | klucze providerów, `gateway.config.yaml`, allowlista kluczy, port (szczegóły: `apps/ai-provider-gateway/.env.example`) |
 | Frontend | `NEXT_PUBLIC_API_BASE_URL` (tylko URL api — **bez** sekretów LLM) |
 
 ## Observability

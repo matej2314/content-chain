@@ -44,7 +44,7 @@ Odpowiada major **Faza 2**.
 
 ### KROK 1 — Fail-fast env i typowana konfiguracja
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Proces `apps/api` nie wstaje przy braku krytycznych zmiennych (B-1, major 2.2 — **przesunięte rozwojowo przed Prisma**). Odwołanie: `SPEC-BEZPIECZENSTWO.md` B-1/B-2, `docs/deployment.md`, `docs/security.md`.
 
@@ -53,6 +53,7 @@ Odpowiada major **Faza 2**.
 - nowy: `apps/api/src/shared/config/env.schema.ts`
 - nowy: `apps/api/src/shared/config/env.schema.spec.ts`
 - nowy: `apps/api/src/shared/config/env.ts`
+- nowy: `apps/api/src/shared/config/env.module.ts`
 - refaktor: `apps/api/src/app.module.ts`
 - refaktor: `apps/api/.env.example`
 - refaktor: `apps/api/package.json` (Jest config + skrypty test)
@@ -66,7 +67,9 @@ import { z } from 'zod';
 
 export const envSchema = z
   .object({
-    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    NODE_ENV: z
+      .enum(['development', 'production', 'test'])
+      .default('development'),
     PORT: z.coerce.number().int().positive().default(3001),
     DATABASE_URL: z.string().min(1),
     GATEWAY_BASE_URL: z.string().url(),
@@ -83,7 +86,7 @@ export const envSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['CORS_ORIGIN'],
-        message: 'CORS_ORIGIN=* is forbidden in production (credentials)',
+        message: 'CORS_ORIGIN cannot be * in production',
       });
     }
   });
@@ -112,7 +115,31 @@ export const ENV = 'ENV';
 export type { Env };
 ```
 
+**Nowy plik:** `apps/api/src/shared/config/env.module.ts`
+
+Token `ENV` musi być widoczny w importowanych modułach (m.in. pod KROK 4 — `@Inject(ENV)` w adapterze LLM). Provider **nie** zostaje lokalnie w `AppModule.providers` (tam nie jest eksportowany do dzieci).
+
+```typescript
+import { Global, Module } from '@nestjs/common';
+import { ENV } from './env';
+import { validateEnv } from './env.schema';
+
+@Global()
+@Module({
+  providers: [
+    {
+      provide: ENV,
+      useFactory: () => validateEnv(process.env as Record<string, unknown>),
+    },
+  ],
+  exports: [ENV],
+})
+export class EnvModule {}
+```
+
 **Nowy plik:** `apps/api/src/shared/config/env.schema.spec.ts`
+
+Pokrycie DoD: brak każdej z krytycznych zmiennych (`DATABASE_URL`, `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `JWT_SECRET`, `CORS_ORIGIN`) → `validateEnv` rzuca.
 
 ```typescript
 import { parseCorsOrigins, validateEnv } from './env.schema';
@@ -135,8 +162,14 @@ describe('validateEnv', () => {
     expect(env.GATEWAY_MODEL_ALIAS).toBe('chat-default');
   });
 
-  it('throws when DATABASE_URL is missing', () => {
-    const { DATABASE_URL: _, ...rest } = valid;
+  it.each([
+    'DATABASE_URL',
+    'GATEWAY_BASE_URL',
+    'GATEWAY_KEY',
+    'JWT_SECRET',
+    'CORS_ORIGIN',
+  ] as const)('throws when %s is missing', (key) => {
+    const { [key]: _, ...rest } = valid;
     expect(() => validateEnv(rest)).toThrow();
   });
 
@@ -149,10 +182,9 @@ describe('validateEnv', () => {
 
 describe('parseCorsOrigins', () => {
   it('splits a comma-separated allowlist', () => {
-    expect(parseCorsOrigins('http://localhost:3000, http://127.0.0.1:3000')).toEqual([
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-    ]);
+    expect(
+      parseCorsOrigins('http://localhost:3000, http://127.0.0.1:3000'),
+    ).toEqual(['http://localhost:3000', 'http://127.0.0.1:3000']);
   });
 });
 ```
@@ -165,38 +197,21 @@ Teraz:
     ConfigModule.forRoot({ isGlobal: true }),
 ```
 
-Zamień na:
+Zamień na fail-fast + globalny `EnvModule` (bez lokalnego providera `ENV` w `AppModule`):
 
 ```typescript
-    ConfigModule.forRoot({
-      isGlobal: true,
-      validate: validateEnv,
-    }),
+import { EnvModule } from './shared/config/env.module';
+import { validateEnv } from './shared/config/env.schema';
+
+// w imports:
+ConfigModule.forRoot({
+  isGlobal: true,
+  validate: validateEnv,
+}),
+EnvModule,
 ```
 
-Dopisz import `validateEnv` z `./shared/config/env.schema`. Po `ConfigModule` dodaj provider wartości typowanej:
-
-```typescript
-{
-  provide: ENV,
-  useFactory: (config: ConfigService): Env => ({
-    NODE_ENV: config.get('NODE_ENV', { infer: true }) as Env['NODE_ENV'],
-    PORT: config.get('PORT', { infer: true }) as number,
-    DATABASE_URL: config.getOrThrow<string>('DATABASE_URL'),
-    GATEWAY_BASE_URL: config.getOrThrow<string>('GATEWAY_BASE_URL'),
-    GATEWAY_KEY: config.getOrThrow<string>('GATEWAY_KEY'),
-    GATEWAY_MODEL_ALIAS: config.get('GATEWAY_MODEL_ALIAS', { infer: true }) as string,
-    JWT_SECRET: config.getOrThrow<string>('JWT_SECRET'),
-    JWT_ACCESS_TTL: config.get('JWT_ACCESS_TTL', { infer: true }) as string,
-    JWT_REFRESH_TTL: config.get('JWT_REFRESH_TTL', { infer: true }) as string,
-    CORS_ORIGIN: config.getOrThrow<string>('CORS_ORIGIN'),
-    MAX_CONCURRENT_RUNS: config.get('MAX_CONCURRENT_RUNS', { infer: true }) as number,
-  }),
-  inject: [ConfigService],
-},
-```
-
-Alternatywa równoważna (preferowana przy implementacji, krótsza): `useFactory: () => validateEnv(process.env as Record<string, unknown>)` — byle token `ENV` eksportował już sparsowany obiekt i nie trzymał sekretów w logach.
+`ConfigModule.validate` = fail-fast bootu. `EnvModule` = token `ENV` z już sparsowanym obiektem (bez sekretów w logach), injectable w całym `apps/api`. **Bez** `envFilePath` — domyślne ładowanie `.env` (zgodnie z `docs/deployment.md` / `.env.example`: kopia do `.env`).
 
 **Refaktor:** `apps/api/.env.example`
 
@@ -231,12 +246,13 @@ Na końcu `package.json` dodaj:
 
 **Biblioteki:** `@nestjs/config` `validate` — Context7 NestJS configuration. Zod — już w `apps/api`.
 
-**Testy:** `env.schema.spec.ts` jak wyżej.
+**Testy:** `env.schema.spec.ts` jak wyżej (`it.each` dla krytycznych kluczy).
 
 **DoD kroku:**
 
-- Brak `DATABASE_URL` / `GATEWAY_KEY` / `JWT_SECRET` / `GATEWAY_BASE_URL` / `CORS_ORIGIN` → proces nie bootuje (Zod throw przy `ConfigModule`).
+- Brak `DATABASE_URL` / `GATEWAY_KEY` / `JWT_SECRET` / `GATEWAY_BASE_URL` / `CORS_ORIGIN` → proces nie bootuje (Zod throw przy `ConfigModule`); unit pokrywa każdy z tych kluczy.
 - `production` + `CORS_ORIGIN=*` → start odrzucony.
+- Token `ENV` dostarcza `@Global()` `EnvModule` (`exports: [ENV]`); `AppModule` nie trzyma lokalnego providera `ENV`.
 - `.env.example` ma placeholdery w tym `GATEWAY_MODEL_ALIAS` i `MAX_CONCURRENT_RUNS`; brak sekretów.
 - `pnpm --filter api test` odpala Jest i przechodzi test schematu env.
 
@@ -244,7 +260,7 @@ Na końcu `package.json` dodaj:
 
 ### KROK 2 — Persistence MVP (schema, migracja, PrismaModule)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `W_TRAKCIE`
 
 **Cel:** Kanoniczna SQLite pod BC z docs (user/sesja, kontekst, runy, logi, wyniki SM) bez logiki biznesowej. Domain/shared **nie** importują Prisma. Major 2.1, `SPEC-PERSISTENCE.md` P-1…P-8, `docs/architektura_katalogi_pliki.md`.
 
