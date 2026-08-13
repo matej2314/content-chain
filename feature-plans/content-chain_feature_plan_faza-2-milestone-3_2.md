@@ -4,8 +4,7 @@
 
 **Kotwica major:** `content-chain-backend_major_plan.md` — Faza 3 (kroki 3.1–3.3) + ślad do MILESTONE 3.  
 **Zestaw wycinka:** `faza-2-milestone-3` (plik `_1` = major Faza 2; **ten plik** = major Faza 3).  
-**Zależność:** implementacja pliku `_1` musi być na miejscu (Prisma schema, `PrismaService`, `ENV`, `DomainException`, `HttpExceptionFilter`, `newRunId` / `newConversationId`, `configureHttpApp`, `/metrics`).  
-**Refaktor w tym planie (KROK 2):** `DomainException` przeniesiona z `shared/http/domain.exception.ts` → `shared/exceptions/domain.exception.ts` — domain nie zależy od katalogu HTTP. Importy z `_1` (`http-exception.filter.ts`, `http-exception.filter.spec.ts`) zaktualizowane w tym samym kroku.  
+**Zależność:** implementacja pliku `_1` musi być na miejscu (Prisma schema, `PrismaService`, `ENV`, `DomainException` w `shared/exceptions/`, `HttpExceptionFilter`, `newRunId` / `newConversationId`, `configureHttpApp`, `/metrics`).  
 **Źródła:** `docs/dokumentacja_komunikacji.md`, `docs/dokumentacja_koncepcyjna.md`, `docs/observability.md`, `docs/architektura.md`, `spec/SPEC-KONTEKST-FIRMY.md`, `SPEC-RUNY.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-TESTY.md`, `SPEC-PERSISTENCE.md`.  
 **Poza zakresem tego pliku:** pipeline Social / LangGraph / wyniki ideas-content (major Faza 4 — podmienia `RunExecutorPort`), auth / cookie / `JwtAuthGuard` / `FORBIDDEN` dla `user` (major Faza 5), dashboard FE, live vendor LLM na PR.
 
@@ -694,10 +693,6 @@ export class CompanyContextModule {}
 
 **Artefakty:**
 
-- nowy: `apps/api/src/shared/exceptions/domain.exception.ts` (przeniesienie klasy z `shared/http/domain.exception.ts`)
-- usunięcie: `apps/api/src/shared/http/domain.exception.ts` (stary plik po przeniesieniu)
-- refaktor: `apps/api/src/shared/http/http-exception.filter.ts` (import `DomainException` → `../exceptions/domain.exception`)
-- refaktor: `apps/api/src/shared/http/http-exception.filter.spec.ts` (j.w.)
 - nowy: `apps/api/src/runs/domain/run.types.ts`
 - nowy: `apps/api/src/runs/domain/status-transitions.ts`
 - nowy: `apps/api/src/runs/domain/status-transitions.spec.ts`
@@ -708,26 +703,9 @@ export class CompanyContextModule {}
 - nowy: `apps/api/src/runs/domain/run-executor.port.ts`
 - nowy: `apps/api/src/runs/domain/run-sse.port.ts`
 
-**Implementacja (kolejność):** refaktor `DomainException` → typy run → statusy → retry → porty.
+**Implementacja (kolejność):** typy run → statusy → retry → porty.
 
----
-
-#### Refaktor: `DomainException` → `shared/exceptions/`
-
-Plik `_1` KROK 3 utworzył `DomainException` w `apps/api/src/shared/http/domain.exception.ts`. Warstwa domain (`runs/domain/status-transitions.ts`) importuje tę klasę — tworząc zależność domain → katalog HTTP. Przeniesienie do `shared/exceptions/` eliminuje ten coupling.
-
-**Nowy plik:** `apps/api/src/shared/exceptions/domain.exception.ts`
-
-Treść **identyczna** jak w `_1` KROK 3 (klasa `DomainException` z `code`, `message`, `httpStatus`, `details`). Przenieś plik; **nie** kopiuj — stary `shared/http/domain.exception.ts` usuń.
-
-**Refaktor `_1`:** zaktualizuj importy w plikach powstałych w pliku `_1`:
-
-| Plik | Stary import | Nowy import |
-|------|-------------|-------------|
-| `shared/http/http-exception.filter.ts` | `from './domain.exception'` | `from '../exceptions/domain.exception'` |
-| `shared/http/http-exception.filter.spec.ts` | `from './domain.exception'` | `from '../exceptions/domain.exception'` |
-
-**Weryfikacja:** `pnpm --filter api build` bez błędów; testy z `_1` nadal przechodzą.
+`DomainException` pochodzi z `_1` KROK 3 (`apps/api/src/shared/exceptions/domain.exception.ts`) — ten krok jej nie tworzy ani nie przenosi.
 
 ---
 
@@ -1054,7 +1032,7 @@ Log **append-only**: adapter tylko `prisma.runLog.create` — zero `update`/`del
 
 ```typescript
 import { Injectable } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { v4 as uuidv4 } from 'uuid';
 import {
   createConversationId,
   createRunId,
@@ -1160,7 +1138,7 @@ export class PrismaRunAdapter implements RunRepository {
   async appendLog(entry: RunLogEntry): Promise<RunLogEntry> {
     const saved = await this.prisma.runLog.create({
       data: {
-        id: `log_${randomUUID()}`,
+        id: `log_${uuidv4()}`,
         runId: entry.runId,
         conversationId: entry.conversationId,
         at: entry.at,

@@ -10,7 +10,8 @@
     "experimentalDecorators": true
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "apps/**/*"
   ],
   "exclude": [
     "node_modules",

@@ -1,13 +1,22 @@
-import { Module } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { AuthModule } from './auth/auth.module';
 import { CompanyContextModule } from './company-context/company-context.module';
+import { HealthModule } from './health/health.module';
 import { SocialModule } from './social/social.module';
 import { RunsModule } from './runs/runs.module';
-import { PrismaModule } from './shared/persistence/prisma.module';
 import { EnvModule } from './shared/config/env.module';
 import { validateEnv } from './shared/config/env.schema';
+import { HttpExceptionFilter } from './shared/http/http-exception.filter';
+import { RequestIdMiddleware } from './shared/http/request-id.middleware';
+import { PrismaModule } from './shared/persistence/prisma.module';
 
 @Module({
   imports: [
@@ -30,6 +39,15 @@ import { validateEnv } from './shared/config/env.schema';
     SocialModule,
     RunsModule,
     PrismaModule,
+    HealthModule,
   ],
+  providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestIdMiddleware).forRoutes({
+      path: '{*splat}',
+      method: RequestMethod.ALL,
+    });
+  }
+}

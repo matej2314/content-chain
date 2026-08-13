@@ -14,7 +14,7 @@
 
 ## Założenia
 
-- Stack z projektu: NestJS `^11`, Prisma `^6` + `prisma-client-js` (nie generator Prisma 7), Zod `^3`, Pino/`nestjs-pino`, `@nestjs/config`, class-validator, Swagger `/docs`, port api **3001**.
+- Stack z projektu: NestJS `^11`, Prisma `^6` + `prisma-client-js` (nie generator Prisma 7), Zod `^3`, Pino/`nestjs-pino`, `@nestjs/config`, class-validator, Swagger `/docs`, port api **3001**, generatory ID: pakiet npm **`uuid`** (`v4`).
 - Silnik DB MVP: **wyłącznie SQLite** (`SPEC-PERSISTENCE.md` P-6). Schema przenośna: String ID brandowane, **bez** `@db.*` (P-7). Enumy kontraktu w kolumnach jako `String` (wartości z `@content-chain/shared`).
 - LLM wyłącznie przez port + adapter HTTP do gateway; **zakaz** importu źródeł `apps/ai-provider-gateway` (`SPEC-MONOREPO.md`).
 - Authz cookie / role — **poza tym plikiem** (major Faza 5). `JWT_*` i tak są w fail-fast (B-1), mimo że nie są jeszcze używane do sesji.
@@ -28,9 +28,10 @@
 | Helmet | Context7 `/nestjs/docs.nestjs.com` — `app.use(helmet())` przed innymi `app.use` | `helmet` na Express adapter; CSP wyłączone poza `production`, żeby nie zepsuć Swagger `/docs` |
 | Config validate | Context7 — `ConfigModule.forRoot({ validate })` | `validate` = `envSchema.parse` (Zod); rzut przy starcie = fail-fast |
 | SSE | Context7 — `@Sse()` + `Observable<MessageEvent>` | **nie w tym pliku** (plik `_2`) |
-| HTTP client | Context7 — `@nestjs/axios` + `axios` | adapter LLM |
+| HTTP client | Node native `fetch` (global; Node 18+) | adapter LLM — **zmiana względem** wcześniejszej reguły `@nestjs/axios` + `axios` w tej tabeli / KROK 4. Powód: jeden sync `POST` chat; brak potrzeby `HttpModule` / Observable / `AxiosError` |
 | Prisma 6 | `package.json` `^6` + prisma.io models; fallback po redirect Context7 `/prisma/docs` | `provider = sqlite`, Migrate (nie sam `db push`), jeden `PrismaClient` |
 | Prometheus | Context7 `/prometheus/client_js` — `Counter`/`Histogram`/`Gauge`, `collectDefaultMetrics({ prefix })`, `register.metrics()`, `Content-Type: register.contentType` | pakiet npm **`prom-client`** (API zgodne; import `prom-client` nie `@prometheus/client`); **bez** ClusterRegistry (api = jeden proces) |
+| UUID | npm `uuid` (jak w `apps/ai-provider-gateway`) | `import { v4 as uuidv4 } from 'uuid'` w generatorach ID api; **nie** `node:crypto` / `randomUUID` |
 
 Przy konflikcie praktyki z internetu ze SPEC → **wygrywa SPEC**.
 
@@ -595,7 +596,7 @@ Zamień na:
 
 ### KROK 3 — Powierzchnia HTTP: requestId, envelope, ValidationPipe, Helmet, CORS, health
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Stabilny kontrakt błędów i health oraz startowe zabezpieczenia procesu. Major 2.2 (reszta po fail-fast z KROK 1). `SPEC-KOMUNIKACJA.md` K-1/K-8, `SPEC-BEZPIECZENSTWO.md` B-3/B-4/B-7, `docs/dokumentacja_komunikacji.md`.
 
@@ -605,16 +606,18 @@ Zamień na:
 - nowy: `apps/api/src/shared/http/request-id.middleware.ts`
 - nowy: `apps/api/src/shared/http/express.d.ts`
 - nowy: `apps/api/src/shared/http/error-envelope.ts`
-- nowy: `apps/api/src/shared/http/domain.exception.ts`
+- nowy: `apps/api/src/shared/exceptions/domain.exception.ts`
 - nowy: `apps/api/src/shared/http/http-exception.filter.ts`
 - nowy: `apps/api/src/shared/http/http-exception.filter.spec.ts`
-- nowy: `apps/api/src/shared/health/health.controller.ts`
-- nowy: `apps/api/src/shared/health/health.module.ts`
+- nowy: `apps/api/src/health/health.service.ts`
+- nowy: `apps/api/src/health/health.service.spec.ts`
+- nowy: `apps/api/src/health/health.controller.ts`
+- nowy: `apps/api/src/health/health.module.ts`
 - nowy: `apps/api/test/setup-env.ts`
 - nowy: `apps/api/test/health.e2e-spec.ts`
 - refaktor: `apps/api/src/main.ts`
 - refaktor: `apps/api/src/app.module.ts`
-- refaktor: `apps/api/package.json` (deps: `helmet`, `supertest`, `@types/supertest`)
+- refaktor: `apps/api/package.json` (deps: `helmet`, `uuid`, `supertest`, `@types/supertest`)
 - refaktor: `apps/api/test/jest-e2e.json`
 - refaktor: `apps/api/test/app.e2e-spec.ts` (env setup / nie bootować bez env)
 
@@ -622,10 +625,10 @@ Zamień na:
 
 **Nowy plik:** `apps/api/src/shared/http/new-ids.ts`
 
-Generatory ID **w api** (nie w `packages/shared` — M-5: shared bez zbędnego runtime). Walidacja wzorca przez istniejące `create*` z kontraktu.
+Generatory ID **w api** (nie w `packages/shared` — M-5: shared bez zbędnego runtime). Walidacja wzorca przez istniejące `create*` z kontraktu. Entropy UUID: pakiet **`uuid`** (`v4`), spójnie z gateway — **nie** `node:crypto`.
 
 ```typescript
-import { randomUUID } from 'node:crypto';
+import { v4 as uuidv4 } from 'uuid';
 import {
   createConversationId,
   createRequestId,
@@ -637,11 +640,11 @@ import {
   type UserId,
 } from '@content-chain/shared';
 
-export const newRequestId = (): RequestId => createRequestId(`req_${randomUUID()}`);
+export const newRequestId = (): RequestId => createRequestId(`req_${uuidv4()}`);
 export const newConversationId = (): ConversationId =>
-  createConversationId(`conv_${randomUUID()}`);
-export const newRunId = (): RunId => createRunId(`run_${randomUUID()}`);
-export const newUserId = (): UserId => createUserId(`usr_${randomUUID()}`);
+  createConversationId(`conv_${uuidv4()}`);
+export const newRunId = (): RunId => createRunId(`run_${uuidv4()}`);
+export const newUserId = (): UserId => createUserId(`usr_${uuidv4()}`);
 ```
 
 **Nowy plik:** `apps/api/src/shared/http/express.d.ts`
@@ -649,9 +652,11 @@ export const newUserId = (): UserId => createUserId(`usr_${randomUUID()}`);
 ```typescript
 import type { RequestId } from '@content-chain/shared';
 
-declare module 'express-serve-static-core' {
-  interface Request {
-    requestId?: RequestId;
+declare global {
+  namespace Express {
+    interface Request {
+      requestId?: RequestId;
+    }
   }
 }
 ```
@@ -660,7 +665,7 @@ declare module 'express-serve-static-core' {
 
 ```typescript
 import { Injectable, NestMiddleware } from '@nestjs/common';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { newRequestId } from './new-ids';
 
 @Injectable()
@@ -668,7 +673,7 @@ export class RequestIdMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction): void {
     const requestId = newRequestId();
     req.requestId = requestId;
-    res.setHeader('x-request-id', requestId);
+    res.setHeader('X-Request-Id', requestId);
     next();
   }
 }
@@ -689,7 +694,9 @@ export type ErrorEnvelope = {
 };
 ```
 
-**Nowy plik:** `apps/api/src/shared/http/domain.exception.ts`
+**Nowy plik:** `apps/api/src/shared/exceptions/domain.exception.ts`
+
+Klasa wspólna dla BC (m.in. Runs / Company Context w pliku `_2`). Lokalizacja `shared/exceptions/` — **nie** `shared/http/` — żeby warstwa domain mogła importować wyjątek **bez** zależności od katalogu HTTP (filter mapuje `DomainException` → envelope K-1; domain nie zależy od transportu).
 
 ```typescript
 export class DomainException extends Error {
@@ -719,7 +726,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { DomainException } from './domain.exception';
+import { DomainException } from '../exceptions/domain.exception';
 import type { ErrorEnvelope } from './error-envelope';
 import { newRequestId } from './new-ids';
 
@@ -821,7 +828,7 @@ Filter **nie** wstawia `X-Gateway-Key`, JWT ani haseł do `message` / `details`.
 ```typescript
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { ArgumentsHost } from '@nestjs/common';
-import { DomainException } from './domain.exception';
+import { DomainException } from '../exceptions/domain.exception';
 import { HttpExceptionFilter } from './http-exception.filter';
 import { createRequestId } from '@content-chain/shared';
 
@@ -884,41 +891,88 @@ describe('HttpExceptionFilter', () => {
 });
 ```
 
-**Nowy plik:** `apps/api/src/shared/health/health.controller.ts`
+**Health — lokalizacja modułu aplikacji (zmiana względem wcześniejszej treści tego kroku):**  
+Wcześniejsza treść KROK 3 umieszczała `health.controller.ts` / `health.module.ts` w `apps/api/src/shared/health/`. Obowiązuje teraz osobny, niezależny moduł aplikacji **`apps/api/src/health/`** (flat: module + controller + service + unit spec) — **nie** pod `shared/`. Semantyka = wyłącznie **liveness** procesu (docs); bez Prisma / DB / readiness. `GET .../health/ready` z docs dotyczy gateway, nie api w tym kroku.
+
+**Nowy plik:** `apps/api/src/health/health.service.ts`
 
 ```typescript
-import { Controller, Get } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Injectable } from '@nestjs/common';
 
-@ApiTags('health')
-@Controller('health')
-export class HealthController {
-  @Get()
-  @ApiOperation({ summary: 'Liveness of apps/api' })
-  @ApiOkResponse({ description: 'Process is alive' })
-  liveness(): { status: 'healthy'; timestamp: string } {
-    return { status: 'healthy', timestamp: new Date().toISOString() };
+export type HealthLiveness = {
+  status: 'healthy';
+  timestamp: string;
+};
+
+@Injectable()
+export class HealthService {
+  liveness(): HealthLiveness {
+    return {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+    };
   }
 }
 ```
 
-Bez `DATABASE_URL`, bez kluczy, bez listy env.
+Bez `DATABASE_URL`, bez kluczy, bez listy env, bez injectu `PrismaService`.
 
-**Nowy plik:** `apps/api/src/shared/health/health.module.ts`
+**Nowy plik:** `apps/api/src/health/health.service.spec.ts`
+
+```typescript
+import { HealthService } from './health.service';
+
+describe('HealthService', () => {
+  const service = new HealthService();
+
+  it('returns liveness without secrets', () => {
+    const body = service.liveness();
+    expect(body.status).toBe('healthy');
+    expect(typeof body.timestamp).toBe('string');
+    expect(Number.isNaN(Date.parse(body.timestamp))).toBe(false);
+    expect(JSON.stringify(body)).not.toMatch(/GATEWAY_KEY|JWT_SECRET|password|DATABASE_URL/i);
+  });
+});
+```
+
+**Nowy plik:** `apps/api/src/health/health.controller.ts`
+
+```typescript
+import { Controller, Get } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { HealthService } from './health.service';
+
+@ApiTags('health')
+@Controller('health')
+export class HealthController {
+  constructor(private readonly health: HealthService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Liveness of apps/api' })
+  @ApiOkResponse({ description: 'Process is alive' })
+  liveness(): ReturnType<HealthService['liveness']> {
+    return this.health.liveness();
+  }
+}
+```
+
+**Nowy plik:** `apps/api/src/health/health.module.ts`
 
 ```typescript
 import { Module } from '@nestjs/common';
 import { HealthController } from './health.controller';
+import { HealthService } from './health.service';
 
 @Module({
   controllers: [HealthController],
+  providers: [HealthService],
 })
 export class HealthModule {}
 ```
 
 **Refaktor:** `apps/api/src/app.module.ts`
 
-- `imports`: dodaj `HealthModule`.
+- `imports`: dodaj `HealthModule` (z `./health/health.module`, **nie** z `shared/health`).
 - Zaimplementuj `NestModule.configure` z `RequestIdMiddleware` dla `*`.
 - `providers`: dodaj `{ provide: APP_FILTER, useClass: HttpExceptionFilter }`.
 
@@ -1080,16 +1134,16 @@ export function configureHttpApp(app: INestApplication): void {
 **Refaktor `package.json` api — zależności:**
 
 ```text
-pnpm --filter api add helmet @nestjs/axios axios
+pnpm --filter api add helmet uuid
 pnpm --filter api add -D supertest @types/supertest
 ```
 
-(`@nestjs/axios` / `axios` są na KROK 4; wolno dodać już tutaj, by nie rozbijać lockfile dwa razy.)
+(`uuid` — generatory ID w `new-ids.ts`; typy wbudowane w pakiet, bez `@types/uuid`. KROK 4 używa natywnego `fetch` — **bez** `@nestjs/axios` / `axios`; zmiana względem wcześniejszej wersji tego kroku, która dopuszczała dodanie axios „na zapas”.)
 
 **DoD kroku:**
 
 - Błąd HTTP ma `{ code, message, requestId, details }` i `x-request-id` w formacie `req_<uuid>`.
-- `GET /api/v1/health` → `200` `{ status: "healthy", timestamp }` bez sekretów.
+- `GET /api/v1/health` → `200` `{ status: "healthy", timestamp }` bez sekretów; logika w `HealthService` (moduł `apps/api/src/health/`, nie `shared/`); unit `health.service.spec.ts` przechodzi.
 - Helmet ustawia security headers; CORS czyta allowlistę z env + credentials.
 - ValidationPipe: nieznane pola → `400` `VALIDATION_FAILED`.
 - Swagger nadal pod `/docs` (nie pod `/api`).
@@ -1191,11 +1245,10 @@ export interface LlmGatewayPort {
 
 **Nowy plik:** `apps/api/src/shared/llm/llm-gateway.http.adapter.ts`
 
+Refaktor względem: wcześniejsza treść KROK 4 (ten plik) używała `@nestjs/axios` (`HttpService` + `firstValueFrom`) oraz `AxiosError` z `axios`. Obowiązuje natywny globalny `fetch` — bez tych zależności.
+
 ```typescript
-import { HttpService } from '@nestjs/axios';
 import { Inject, Injectable } from '@nestjs/common';
-import { AxiosError } from 'axios';
-import { firstValueFrom } from 'rxjs';
 import { createRequestId, isRequestId, unbrand } from '@content-chain/shared';
 import { ENV, type Env } from '../config/env';
 import { LlmGatewayError } from './llm-gateway.errors';
@@ -1227,34 +1280,32 @@ const RETRYABLE_CODES = new Set([
 
 @Injectable()
 export class LlmGatewayHttpAdapter implements LlmGatewayPort {
-  constructor(
-    private readonly http: HttpService,
-    @Inject(ENV) private readonly env: Env,
-  ) {}
+  constructor(@Inject(ENV) private readonly env: Env) {}
 
   async chat(command: LlmChatCommand): Promise<LlmChatResult> {
     const url = `${this.env.GATEWAY_BASE_URL.replace(/\/$/, '')}/api/v1/chat`;
     try {
-      const response = await firstValueFrom(
-        this.http.post<GatewayChatResponse>(
-          url,
-          {
-            modelAlias: unbrand(command.modelAlias),
-            conversationId: unbrand(command.conversationId),
-            messages: command.messages,
-            ...(command.params ? { params: command.params } : {}),
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Gateway-Key': this.env.GATEWAY_KEY,
-            },
-            validateStatus: (status) => status === 201,
-          },
-        ),
-      );
-      const body = response.data;
-      if (!isRequestId(body.requestId)) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Gateway-Key': this.env.GATEWAY_KEY,
+        },
+        body: JSON.stringify({
+          modelAlias: unbrand(command.modelAlias),
+          conversationId: unbrand(command.conversationId),
+          messages: command.messages,
+          ...(command.params ? { params: command.params } : {}),
+        }),
+      });
+
+      if (response.status !== 201) {
+        const errorBody = await this.readJsonBody<GatewayErrorBody>(response);
+        throw this.mapHttpError(errorBody);
+      }
+
+      const body = await this.readJsonBody<GatewayChatResponse>(response);
+      if (!body || !isRequestId(body.requestId)) {
         throw new LlmGatewayError(
           'Gateway chat failed (invalid requestId in response)',
           'VALIDATION_FAILED',
@@ -1276,16 +1327,24 @@ export class LlmGatewayHttpAdapter implements LlmGatewayPort {
     }
   }
 
+  private async readJsonBody<T>(response: Response): Promise<T | undefined> {
+    try {
+      return (await response.json()) as T;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private mapHttpError(body: GatewayErrorBody | undefined): LlmGatewayError {
+    const code = body?.code;
+    const gatewayRequestId = body?.requestId;
+    const retryable = code ? RETRYABLE_CODES.has(code) : false;
+    const safeMessage = `Gateway chat failed (${code ?? 'UNKNOWN'})`;
+    return new LlmGatewayError(safeMessage, code, gatewayRequestId, retryable, body?.details ?? []);
+  }
+
   private mapError(error: unknown): LlmGatewayError {
     if (error instanceof LlmGatewayError) return error;
-    if (error instanceof AxiosError) {
-      const body = error.response?.data as GatewayErrorBody | undefined;
-      const code = body?.code;
-      const gatewayRequestId = body?.requestId;
-      const retryable = code ? RETRYABLE_CODES.has(code) : false;
-      const safeMessage = `Gateway chat failed (${code ?? error.code ?? 'UNKNOWN'})`;
-      return new LlmGatewayError(safeMessage, code, gatewayRequestId, retryable, body?.details ?? []);
-    }
     return new LlmGatewayError('Gateway chat failed (UNKNOWN)', undefined, undefined, false);
   }
 }
@@ -1293,6 +1352,9 @@ export class LlmGatewayHttpAdapter implements LlmGatewayPort {
 
 Twarde reguły adaptera:
 
+- Transport: **wyłącznie** natywny `fetch` (global Node) — **zakaz** `@nestjs/axios` / `axios` / `HttpService` w `apps/api` dla tego hopu.
+- Sukces wyłącznie przy HTTP **201** (jak wcześniejsze `validateStatus`); inny status → parse JSON envelope (jeśli da się) → `LlmGatewayError`.
+- Błąd sieci / nie-JSON body → `LlmGatewayError` z kodem `UNKNOWN` (non-retryable), **bez** wycieku sekretów.
 - **Nie** ustawiać nagłówka `x-request-id` (K-5).
 - **Nie** logować `X-Gateway-Key` ani nie wkładać go do `LlmGatewayError.message`.
 - `conversationId` w body = ten przekazany w komendzie (K-6); `requestId` hopu **z odpowiedzi** gateway.
@@ -1308,27 +1370,24 @@ Twarde reguły adaptera:
 **Nowy plik:** `apps/api/src/shared/llm/llm.module.ts`
 
 ```typescript
-import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
 import { LlmGatewayHttpAdapter } from './llm-gateway.http.adapter';
 import { LLM_GATEWAY_PORT } from './llm.tokens';
 
 @Module({
-  imports: [HttpModule],
   providers: [{ provide: LLM_GATEWAY_PORT, useClass: LlmGatewayHttpAdapter }],
   exports: [LLM_GATEWAY_PORT],
 })
 export class LlmModule {}
 ```
 
+Bez `HttpModule` / `@nestjs/axios` — zmiana względem wcześniejszej treści tego kroku.
+
 **Refaktor:** `AppModule.imports` — dodaj `LlmModule`.
 
 **Nowy plik:** `apps/api/src/shared/llm/llm-gateway.http.adapter.spec.ts`
 
 ```typescript
-import { HttpService } from '@nestjs/axios';
-import { of, throwError } from 'rxjs';
-import { AxiosError, AxiosHeaders } from 'axios';
 import { createConversationId, createGatewayModelAlias } from '@content-chain/shared';
 import { LlmGatewayHttpAdapter } from './llm-gateway.http.adapter';
 import { LlmGatewayError } from './llm-gateway.errors';
@@ -1345,82 +1404,99 @@ const command = {
   messages: [{ role: 'user' as const, content: 'ping' }],
 };
 
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 describe('LlmGatewayHttpAdapter', () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
   it('posts native chat without x-request-id and returns gateway requestId + usage', async () => {
-    const post = jest.fn().mockReturnValue(
-      of({
-        data: {
-          requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
-          conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
-          model: 'chat-default',
-          output: { type: 'text', text: 'pong' },
-          usage: { inputTokens: 5, outputTokens: 1, totalTokens: 6 },
-          finishReason: 'stop',
-        },
+    const fetchMock = jest.fn().mockResolvedValue(
+      jsonResponse(201, {
+        requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+        conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
+        model: 'chat-default',
+        output: { type: 'text', text: 'pong' },
+        usage: { inputTokens: 5, outputTokens: 1, totalTokens: 6 },
+        finishReason: 'stop',
       }),
     );
-    const adapter = new LlmGatewayHttpAdapter({ post } as unknown as HttpService, env);
+    global.fetch = fetchMock;
+
+    const adapter = new LlmGatewayHttpAdapter(env);
     const result = await adapter.chat(command);
     expect(result.text).toBe('pong');
     expect(result.requestId).toBe('req_123e4567-e89b-12d3-a456-426614174000');
     expect(result.usage).toEqual({ inputTokens: 5, outputTokens: 1, totalTokens: 6 });
     expect(result.finishReason).toBe('stop');
-    const [, , config] = post.mock.calls[0];
-    expect(config.headers['X-Gateway-Key']).toBe('super-secret-key');
-    expect(config.headers['x-request-id']).toBeUndefined();
-    expect(post.mock.calls[0][0]).toBe('http://127.0.0.1:3100/api/v1/chat');
-  });
 
-  it('passes params to gateway body when present', async () => {
-    const post = jest.fn().mockReturnValue(
-      of({
-        data: {
-          requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
-          conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
-          model: 'chat-default',
-          output: { type: 'text', text: 'ok' },
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:3100/api/v1/chat',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Gateway-Key': 'super-secret-key',
         },
       }),
     );
-    const adapter = new LlmGatewayHttpAdapter({ post } as unknown as HttpService, env);
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>)['x-request-id']).toBeUndefined();
+  });
+
+  it('passes params to gateway body when present', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(
+      jsonResponse(201, {
+        requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+        conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
+        model: 'chat-default',
+        output: { type: 'text', text: 'ok' },
+      }),
+    );
+    global.fetch = fetchMock;
+
+    const adapter = new LlmGatewayHttpAdapter(env);
     await adapter.chat({ ...command, params: { temperature: 0.4, maxOutputTokens: 2048 } });
-    const body = post.mock.calls[0][1];
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
     expect(body.params).toEqual({ temperature: 0.4, maxOutputTokens: 2048 });
   });
 
   it('omits params from gateway body when absent', async () => {
-    const post = jest.fn().mockReturnValue(
-      of({
-        data: {
-          requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
-          conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
-          model: 'chat-default',
-          output: { type: 'text', text: 'ok' },
-        },
+    const fetchMock = jest.fn().mockResolvedValue(
+      jsonResponse(201, {
+        requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+        conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
+        model: 'chat-default',
+        output: { type: 'text', text: 'ok' },
       }),
     );
-    const adapter = new LlmGatewayHttpAdapter({ post } as unknown as HttpService, env);
+    global.fetch = fetchMock;
+
+    const adapter = new LlmGatewayHttpAdapter(env);
     await adapter.chat(command);
-    const body = post.mock.calls[0][1];
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
     expect(body).not.toHaveProperty('params');
   });
 
   it('maps gateway errors without leaking the key and preserves details', async () => {
-    const axiosError = new AxiosError('Request failed');
-    axiosError.response = {
-      status: 403,
-      statusText: 'Forbidden',
-      headers: {},
-      config: { headers: new AxiosHeaders() },
-      data: {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse(403, {
         code: 'GATEWAY_KEY_INVALID',
         message: 'nope',
         requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
         details: [{ reason: 'key not in allowlist' }],
-      },
-    };
-    const post = jest.fn().mockReturnValue(throwError(() => axiosError));
-    const adapter = new LlmGatewayHttpAdapter({ post } as unknown as HttpService, env);
+      }),
+    );
+
+    const adapter = new LlmGatewayHttpAdapter(env);
     await expect(adapter.chat(command)).rejects.toEqual(expect.any(LlmGatewayError));
     try {
       await adapter.chat(command);
@@ -1439,8 +1515,9 @@ describe('LlmGatewayHttpAdapter', () => {
 
 ```typescript
 import { Test } from '@nestjs/testing';
-import { createConversationId, createGatewayModelAlias } from '@content-chain/shared';
+import { createGatewayModelAlias } from '@content-chain/shared';
 import { AppModule } from '../src/app.module';
+import { newConversationId } from '../src/shared/http/new-ids';
 import { LLM_GATEWAY_PORT } from '../src/shared/llm/llm.tokens';
 import type { LlmGatewayPort } from '../src/shared/llm/llm-gateway.port';
 
@@ -1452,9 +1529,7 @@ const enabled = process.env.SMOKE_GATEWAY === '1';
     const port = moduleRef.get<LlmGatewayPort>(LLM_GATEWAY_PORT);
     const result = await port.chat({
       modelAlias: createGatewayModelAlias(process.env.GATEWAY_MODEL_ALIAS ?? 'chat-default'),
-      conversationId: createConversationId(
-        `conv_${crypto.randomUUID?.() ?? '123e4567-e89b-12d3-a456-426614174000'}`,
-      ),
+      conversationId: newConversationId(),
       messages: [{ role: 'user', content: 'Reply with the single word pong.' }],
     });
     expect(result.text.length).toBeGreaterThan(0);
@@ -1465,13 +1540,14 @@ const enabled = process.env.SMOKE_GATEWAY === '1';
 });
 ```
 
-Dla `createConversationId` w smoke: użyj `newConversationId()` z `shared/http/new-ids.ts` (prostsze niż ręczny UUID).
+Dla `conversationId` w smoke: `newConversationId()` z `shared/http/new-ids.ts` (wewnętrznie `uuid` v4 — bez ręcznego składania / `node:crypto`).
 
 Smoke **nie** jest publicznym endpointem HTTP (brak w kontrakcie docs). Uruchomienie poza PR: gateway + api env, `SMOKE_GATEWAY=1 pnpm --filter api test:e2e -- smoke-gateway`.
 
 **DoD kroku:**
 
 - Brak importów TS `apps/api` → `apps/ai-provider-gateway`.
+- Brak zależności `@nestjs/axios` / `axios` w `apps/api`; adapter używa natywnego `fetch`.
 - Adapter woła `POST {GATEWAY_BASE_URL}/api/v1/chat` z `X-Gateway-Key`, bez `x-request-id`.
 - Unit: sukces mapuje `requestId` z body; `usage` i `finishReason` propagowane z odpowiedzi gateway.
 - Unit: `params` w komendzie → body zawiera `params`; brak `params` → body bez tego klucza.
@@ -1665,13 +1741,13 @@ import { MetricsService } from './metrics.service';
 export class MetricsModule {}
 ```
 
-**Refaktor adaptera LLM** (`llm-gateway.http.adapter.ts`) — w `mapError` przed `return`:
+**Refaktor adaptera LLM** (`llm-gateway.http.adapter.ts`) — w `mapHttpError` (oraz w `mapError` dla ścieżki sieci/`UNKNOWN`) przed `return` nowego `LlmGatewayError`:
 
 ```typescript
 gatewayErrorsTotal.inc({ code: code ?? 'UNKNOWN' });
 ```
 
-Import `gatewayErrorsTotal` z `metrics.registry`. Label = kod gateway (`RATE_LIMITED`, …), **nie** URL z kluczem.
+Import `gatewayErrorsTotal` z `metrics.registry`. Label = kod gateway (`RATE_LIMITED`, …), **nie** URL z kluczem. Transport adaptera pozostaje natywny `fetch` (KROK 4) — ten refaktor tylko dodaje metrykę.
 
 **Refaktor:** `AppModule.imports` — `MetricsModule`.
 

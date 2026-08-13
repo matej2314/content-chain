@@ -231,6 +231,9 @@ importers:
       class-validator:
         specifier: ^0.14.0
         version: 0.14.4
+      helmet:
+        specifier: ^8.2.0
+        version: 8.3.0
       jest:
         specifier: ^30.0.0
         version: 30.4.2(@types/node@22.20.1)(ts-node@10.9.2(@types/node@22.20.1)(typescript@5.9.3))
@@ -252,6 +255,9 @@ importers:
       ts-jest:
         specifier: ^29.2.5
         version: 29.4.12(@babel/core@7.29.7)(@jest/transform@30.4.1)(@jest/types@30.4.1)(babel-jest@30.4.1(@babel/core@7.29.7))(jest-util@30.4.1)(jest@30.4.2(@types/node@22.20.1)(ts-node@10.9.2(@types/node@22.20.1)(typescript@5.9.3)))(typescript@5.9.3)
+      uuid:
+        specifier: ^14.0.0
+        version: 14.0.1
       zod:
         specifier: ^3.0.0
         version: 3.25.76
@@ -274,6 +280,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.1
+      '@types/supertest':
+        specifier: ^7.0.0
+        version: 7.2.1
       '@types/swagger-ui-express':
         specifier: ^4.0.0
         version: 4.1.8
@@ -283,6 +292,9 @@ importers:
       prisma:
         specifier: ^6
         version: 6.19.3(typescript@5.9.3)
+      supertest:
+        specifier: ^7.0.0
+        version: 7.2.2
       typescript:
         specifier: ^5.7.0
         version: 5.9.3

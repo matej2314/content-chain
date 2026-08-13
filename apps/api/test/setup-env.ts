@@ -1,0 +1,11 @@
+process.env.NODE_ENV ??= 'test';
+process.env.PORT ??= '3001';
+process.env.DATABASE_URL ??= 'file:./test.db';
+process.env.GATEWAY_BASE_URL ??= 'http://127.0.0.1:3100';
+process.env.GATEWAY_KEY ??= 'test-gateway-key';
+process.env.GATEWAY_MODEL_ALIAS ??= 'chat-default';
+process.env.JWT_SECRET ??= 'test-jwt-secret';
+process.env.JWT_ACCESS_TTL ??= '15m';
+process.env.JWT_REFRESH_TTL ??= '7d';
+process.env.CORS_ORIGIN ??= 'http://localhost:3000';
+process.env.MAX_CONCURRENT_RUNS ??= '3';

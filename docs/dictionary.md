@@ -111,7 +111,8 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 | `VALIDATION_FAILED` | Błąd walidacji wejścia. |
 | `CONTEXT_INCOMPLETE` | Bramka kontekstu niespełniona — start runu zablokowany. |
 | `HITL_REQUIRED` | Konflikt względem oczekiwanego stanu HITL. |
-| `RUN_NOT_FOUND` | Nieznany `RunId`. |
+| `NOT_FOUND` | Nieznana ścieżka HTTP / zasób na poziomie routera (np. goły HTTP 404). **Nie** mylić z `RUN_NOT_FOUND`. |
+| `RUN_NOT_FOUND` | Nieznany `RunId` (wyłącznie z `DomainException` w BC Runs). |
 | `CONFLICT` | Niedozwolone przejście statusu / konflikt stanu. |
 | `INTERNAL_ERROR` | Błąd nieobsłużony po stronie `apps/api`. |
 
