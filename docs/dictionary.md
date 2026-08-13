@@ -131,6 +131,11 @@ Skrót z kontraktu `ai-provider-gateway`; pełny słownik w docs upstream. CC ma
 | `PROVIDER_UNAVAILABLE` | Provider niedostępny / wyczerpane retry+fallback. |
 | `TOOLS_NOT_SUPPORTED` | Tooling przy aliasie bez `capabilities.tools`. |
 | `STREAMING_NOT_SUPPORTED` | Stream przy aliasie bez wsparcia streamingu. |
+| `PROVIDER_AUTH_FAILED` | Błąd uwierzytelnienia do upstream providera (np. niepoprawny klucz vendora w env gateway). |
+| `MODEL_NOT_ALLOWED` | Niedozwolony override w `params` wg policy `allowOverrides` aliasu (np. klient przesłał `temperature`, a alias nie dopuszcza nadpisania). |
+| `PROVIDER_UNSUPPORTED` | Typ providera nie ma adaptera w gateway (konfiguracja). |
+| `GATEWAY_KEY_NOT_CONFIGURED` | Brak allowlisty kluczy w runtime gateway (błąd konfiguracji serwera; HTTP 500). |
+| `THINKING_NOT_SUPPORTED` | `thinkingEnabled: true` przy aliasie bez `capabilities.thinking`. |
 
 ## Poza zakresem słownika
 

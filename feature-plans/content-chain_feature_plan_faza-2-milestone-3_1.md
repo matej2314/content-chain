@@ -1116,10 +1116,22 @@ export type LlmChatMessage = {
   content: string;
 };
 
+export type LlmChatParams = {
+  temperature?: number;
+  maxOutputTokens?: number;
+};
+
 export type LlmChatCommand = {
   modelAlias: GatewayModelAlias;
   conversationId: ConversationId;
   messages: LlmChatMessage[];
+  params?: LlmChatParams;
+};
+
+export type LlmUsage = {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
 };
 
 export type LlmChatResult = {
@@ -1127,6 +1139,8 @@ export type LlmChatResult = {
   requestId: RequestId;
   conversationId: ConversationId;
   model: string;
+  usage?: LlmUsage;
+  finishReason?: string;
 };
 ```
 
@@ -1139,6 +1153,7 @@ export class LlmGatewayError extends Error {
     public readonly gatewayCode: string | undefined,
     public readonly gatewayRequestId: string | undefined,
     public readonly retryable: boolean,
+    public readonly details: unknown[] = [],
   ) {
     super(message);
     this.name = 'LlmGatewayError';
@@ -1146,7 +1161,7 @@ export class LlmGatewayError extends Error {
 }
 ```
 
-`message` **nie** zawiera wartości `GATEWAY_KEY`. `retryable = true` dla `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` / `PROVIDER_TIMEOUT` / `PROVIDER_UNAVAILABLE`; `false` dla `GATEWAY_KEY_*`, `MODEL_ALIAS_NOT_FOUND`, `VALIDATION_FAILED`.
+`message` **nie** zawiera wartości `GATEWAY_KEY`. `retryable = true` dla `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` / `PROVIDER_TIMEOUT` / `PROVIDER_UNAVAILABLE`; `false` dla `GATEWAY_KEY_*`, `MODEL_ALIAS_NOT_FOUND`, `VALIDATION_FAILED`, `MODEL_NOT_ALLOWED`, `PROVIDER_AUTH_FAILED`, `PROVIDER_UNSUPPORTED`, `GATEWAY_KEY_NOT_CONFIGURED`, `TOOLS_NOT_SUPPORTED`, `THINKING_NOT_SUPPORTED`, `INTERNAL_SERVER_ERROR` (pełna lista kodów: `docs/dictionary.md`).
 
 **Nowy plik:** `apps/api/src/shared/llm/llm-gateway.port.ts`
 
@@ -1175,13 +1190,16 @@ type GatewayChatResponse = {
   requestId: string;
   conversationId: string;
   model: string;
-  output?: { text?: string };
+  output?: { type?: string; text?: string };
+  usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
+  finishReason?: string;
 };
 
 type GatewayErrorBody = {
   code?: string;
   message?: string;
   requestId?: string;
+  details?: unknown[];
 };
 
 const RETRYABLE_CODES = new Set([
@@ -1208,6 +1226,7 @@ export class LlmGatewayHttpAdapter implements LlmGatewayPort {
             modelAlias: unbrand(command.modelAlias),
             conversationId: unbrand(command.conversationId),
             messages: command.messages,
+            ...(command.params ? { params: command.params } : {}),
           },
           {
             headers: {
@@ -1233,6 +1252,8 @@ export class LlmGatewayHttpAdapter implements LlmGatewayPort {
         requestId,
         conversationId: command.conversationId,
         model: body.model,
+        usage: body.usage,
+        finishReason: body.finishReason,
       };
     } catch (error) {
       throw this.mapError(error);
@@ -1247,7 +1268,7 @@ export class LlmGatewayHttpAdapter implements LlmGatewayPort {
       const gatewayRequestId = body?.requestId;
       const retryable = code ? RETRYABLE_CODES.has(code) : false;
       const safeMessage = `Gateway chat failed (${code ?? error.code ?? 'UNKNOWN'})`;
-      return new LlmGatewayError(safeMessage, code, gatewayRequestId, retryable);
+      return new LlmGatewayError(safeMessage, code, gatewayRequestId, retryable, body?.details ?? []);
     }
     return new LlmGatewayError('Gateway chat failed (UNKNOWN)', undefined, undefined, false);
   }
@@ -1262,6 +1283,11 @@ Twarde reguły adaptera:
 - Rola `system` w `messages[]` jest zablokowana upstream — CC wysyła `user` / `assistant`.
 - **Zakaz** SDK OpenAI/Anthropic w `apps/api`.
 - Niepoprawny `requestId` w odpowiedzi gateway → `LlmGatewayError` non-retryable; **zakaz** `as RequestId`.
+- `params` opcjonalnie przekazywane w body (warunkowo, gdy `command.params` jest obecne); gateway stosuje `allowOverrides` z YAML.
+- `usage` i `finishReason` odczytywane z odpowiedzi i propagowane w `LlmChatResult` (opcjonalne).
+- `details` z envelope błędu gateway propagowane w `LlmGatewayError.details` — do logu runu.
+
+**Poza zakresem tego kroku (rozszerzenie Fazy 4):** rola `'tool'` w `LlmChatMessage`, pole `tooling` w `LlmChatCommand`, `toolCalls` w `LlmChatResult`, `metadata` w body. Gateway obsługuje te pola — adapter wymaga rozszerzenia w feature planie Fazy 4 (Social pipeline z function calling), gdy będą potrzebne.
 
 **Nowy plik:** `apps/api/src/shared/llm/llm.module.ts`
 
@@ -1304,14 +1330,16 @@ const command = {
 };
 
 describe('LlmGatewayHttpAdapter', () => {
-  it('posts native chat without x-request-id and returns gateway requestId', async () => {
+  it('posts native chat without x-request-id and returns gateway requestId + usage', async () => {
     const post = jest.fn().mockReturnValue(
       of({
         data: {
           requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
           conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
           model: 'chat-default',
-          output: { text: 'pong' },
+          output: { type: 'text', text: 'pong' },
+          usage: { inputTokens: 5, outputTokens: 1, totalTokens: 6 },
+          finishReason: 'stop',
         },
       }),
     );
@@ -1319,20 +1347,61 @@ describe('LlmGatewayHttpAdapter', () => {
     const result = await adapter.chat(command);
     expect(result.text).toBe('pong');
     expect(result.requestId).toBe('req_123e4567-e89b-12d3-a456-426614174000');
+    expect(result.usage).toEqual({ inputTokens: 5, outputTokens: 1, totalTokens: 6 });
+    expect(result.finishReason).toBe('stop');
     const [, , config] = post.mock.calls[0];
     expect(config.headers['X-Gateway-Key']).toBe('super-secret-key');
     expect(config.headers['x-request-id']).toBeUndefined();
     expect(post.mock.calls[0][0]).toBe('http://127.0.0.1:3100/api/v1/chat');
   });
 
-  it('maps gateway errors without leaking the key', async () => {
+  it('passes params to gateway body when present', async () => {
+    const post = jest.fn().mockReturnValue(
+      of({
+        data: {
+          requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+          conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
+          model: 'chat-default',
+          output: { type: 'text', text: 'ok' },
+        },
+      }),
+    );
+    const adapter = new LlmGatewayHttpAdapter({ post } as unknown as HttpService, env);
+    await adapter.chat({ ...command, params: { temperature: 0.4, maxOutputTokens: 2048 } });
+    const body = post.mock.calls[0][1];
+    expect(body.params).toEqual({ temperature: 0.4, maxOutputTokens: 2048 });
+  });
+
+  it('omits params from gateway body when absent', async () => {
+    const post = jest.fn().mockReturnValue(
+      of({
+        data: {
+          requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+          conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
+          model: 'chat-default',
+          output: { type: 'text', text: 'ok' },
+        },
+      }),
+    );
+    const adapter = new LlmGatewayHttpAdapter({ post } as unknown as HttpService, env);
+    await adapter.chat(command);
+    const body = post.mock.calls[0][1];
+    expect(body).not.toHaveProperty('params');
+  });
+
+  it('maps gateway errors without leaking the key and preserves details', async () => {
     const axiosError = new AxiosError('Request failed');
     axiosError.response = {
       status: 403,
       statusText: 'Forbidden',
       headers: {},
       config: { headers: new AxiosHeaders() },
-      data: { code: 'GATEWAY_KEY_INVALID', message: 'nope', requestId: 'req_123e4567-e89b-12d3-a456-426614174000' },
+      data: {
+        code: 'GATEWAY_KEY_INVALID',
+        message: 'nope',
+        requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+        details: [{ reason: 'key not in allowlist' }],
+      },
     };
     const post = jest.fn().mockReturnValue(throwError(() => axiosError));
     const adapter = new LlmGatewayHttpAdapter({ post } as unknown as HttpService, env);
@@ -1344,6 +1413,7 @@ describe('LlmGatewayHttpAdapter', () => {
       expect((error as LlmGatewayError).message).not.toContain('super-secret-key');
       expect((error as LlmGatewayError).retryable).toBe(false);
       expect((error as LlmGatewayError).gatewayCode).toBe('GATEWAY_KEY_INVALID');
+      expect((error as LlmGatewayError).details).toEqual([{ reason: 'key not in allowlist' }]);
     }
   });
 });
@@ -1387,7 +1457,9 @@ Smoke **nie** jest publicznym endpointem HTTP (brak w kontrakcie docs). Uruchomi
 
 - Brak importów TS `apps/api` → `apps/ai-provider-gateway`.
 - Adapter woła `POST {GATEWAY_BASE_URL}/api/v1/chat` z `X-Gateway-Key`, bez `x-request-id`.
-- Unit: sukces mapuje `requestId` z body; błąd 403 nie zawiera sekretu.
+- Unit: sukces mapuje `requestId` z body; `usage` i `finishReason` propagowane z odpowiedzi gateway.
+- Unit: `params` w komendzie → body zawiera `params`; brak `params` → body bez tego klucza.
+- Unit: błąd 403 nie zawiera sekretu; `details` z envelope gateway propagowane w `LlmGatewayError.details`.
 - `SMOKE_GATEWAY=1` przeciw uruchomionemu gateway kończy się tekstem + `req_…` (obserwowalne w asercji / logu procesu bez wycieku klucza).
 - Na PR suite **nie** wymaga żywego vendora LLM (smoke skip).
 

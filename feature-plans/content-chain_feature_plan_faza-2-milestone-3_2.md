@@ -5,6 +5,7 @@
 **Kotwica major:** `content-chain-backend_major_plan.md` — Faza 3 (kroki 3.1–3.3) + ślad do MILESTONE 3.  
 **Zestaw wycinka:** `faza-2-milestone-3` (plik `_1` = major Faza 2; **ten plik** = major Faza 3).  
 **Zależność:** implementacja pliku `_1` musi być na miejscu (Prisma schema, `PrismaService`, `ENV`, `DomainException`, `HttpExceptionFilter`, `newRunId` / `newConversationId`, `configureHttpApp`, `/metrics`).  
+**Refaktor w tym planie (KROK 2):** `DomainException` przeniesiona z `shared/http/domain.exception.ts` → `shared/exceptions/domain.exception.ts` — domain nie zależy od katalogu HTTP. Importy z `_1` (`http-exception.filter.ts`, `http-exception.filter.spec.ts`) zaktualizowane w tym samym kroku.  
 **Źródła:** `docs/dokumentacja_komunikacji.md`, `docs/dokumentacja_koncepcyjna.md`, `docs/observability.md`, `docs/architektura.md`, `spec/SPEC-KONTEKST-FIRMY.md`, `SPEC-RUNY.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-TESTY.md`, `SPEC-PERSISTENCE.md`.  
 **Poza zakresem tego pliku:** pipeline Social / LangGraph / wyniki ideas-content (major Faza 4 — podmienia `RunExecutorPort`), auth / cookie / `JwtAuthGuard` / `FORBIDDEN` dla `user` (major Faza 5), dashboard FE, live vendor LLM na PR.
 
@@ -693,6 +694,10 @@ export class CompanyContextModule {}
 
 **Artefakty:**
 
+- nowy: `apps/api/src/shared/exceptions/domain.exception.ts` (przeniesienie klasy z `shared/http/domain.exception.ts`)
+- usunięcie: `apps/api/src/shared/http/domain.exception.ts` (stary plik po przeniesieniu)
+- refaktor: `apps/api/src/shared/http/http-exception.filter.ts` (import `DomainException` → `../exceptions/domain.exception`)
+- refaktor: `apps/api/src/shared/http/http-exception.filter.spec.ts` (j.w.)
 - nowy: `apps/api/src/runs/domain/run.types.ts`
 - nowy: `apps/api/src/runs/domain/status-transitions.ts`
 - nowy: `apps/api/src/runs/domain/status-transitions.spec.ts`
@@ -702,6 +707,29 @@ export class CompanyContextModule {}
 - nowy: `apps/api/src/runs/domain/run.repository.port.ts`
 - nowy: `apps/api/src/runs/domain/run-executor.port.ts`
 - nowy: `apps/api/src/runs/domain/run-sse.port.ts`
+
+**Implementacja (kolejność):** refaktor `DomainException` → typy run → statusy → retry → porty.
+
+---
+
+#### Refaktor: `DomainException` → `shared/exceptions/`
+
+Plik `_1` KROK 3 utworzył `DomainException` w `apps/api/src/shared/http/domain.exception.ts`. Warstwa domain (`runs/domain/status-transitions.ts`) importuje tę klasę — tworząc zależność domain → katalog HTTP. Przeniesienie do `shared/exceptions/` eliminuje ten coupling.
+
+**Nowy plik:** `apps/api/src/shared/exceptions/domain.exception.ts`
+
+Treść **identyczna** jak w `_1` KROK 3 (klasa `DomainException` z `code`, `message`, `httpStatus`, `details`). Przenieś plik; **nie** kopiuj — stary `shared/http/domain.exception.ts` usuń.
+
+**Refaktor `_1`:** zaktualizuj importy w plikach powstałych w pliku `_1`:
+
+| Plik | Stary import | Nowy import |
+|------|-------------|-------------|
+| `shared/http/http-exception.filter.ts` | `from './domain.exception'` | `from '../exceptions/domain.exception'` |
+| `shared/http/http-exception.filter.spec.ts` | `from './domain.exception'` | `from '../exceptions/domain.exception'` |
+
+**Weryfikacja:** `pnpm --filter api build` bez błędów; testy z `_1` nadal przechodzą.
+
+---
 
 **Nowy plik:** `apps/api/src/runs/domain/run.types.ts`
 
@@ -754,7 +782,7 @@ export type RunLogEntry = {
 
 ```typescript
 import type { RunStatus } from '@content-chain/shared';
-import { DomainException } from '../../shared/http/domain.exception';
+import { DomainException } from '../../shared/exceptions/domain.exception';
 
 const ALLOWED: Record<RunStatus, readonly RunStatus[]> = {
   queued: ['running'],
@@ -786,7 +814,7 @@ Krawędzie zgodnie z `SPEC-RUNY.md`: `queued → running`; `running → awaiting
 
 ```typescript
 import { assertTransition, canTransition } from './status-transitions';
-import { DomainException } from '../../shared/http/domain.exception';
+import { DomainException } from '../../shared/exceptions/domain.exception';
 
 describe('assertTransition', () => {
   it('allows queued → running', () => {
@@ -864,7 +892,8 @@ export type ListRunsResult = {
 export interface RunRepository {
   create(run: RunRecord): Promise<void>;
   getById(id: RunId): Promise<RunSnapshot | null>;
-  saveStatus(id: RunId, status: RunStatus, recoveryAttempts?: number): Promise<void>;
+  saveStatus(id: RunId, status: RunStatus): Promise<void>;
+  saveRecoveryAttempt(id: RunId, attempts: number): Promise<void>;
   claimNextQueued(): Promise<RunRecord | null>;
   findInterruptedRunning(): Promise<RunRecord[]>;
   appendLog(entry: RunLogEntry): Promise<RunLogEntry>;
@@ -942,6 +971,7 @@ export interface RunSseHub {
 - nowy: `apps/api/src/runs/application/get-run-logs.use-case.ts`
 - nowy: `apps/api/src/runs/infrastructure/stub-run.executor.spec.ts`
 - nowy: `apps/api/src/runs/application/recover-interrupted-runs.use-case.spec.ts`
+- refaktor: `apps/api/src/runs/domain/run.repository.port.ts` (uproszczenie `saveStatus` — bez opcjonalnego `recoveryAttempts`; nowa metoda `saveRecoveryAttempt`)
 
 **Nowy plik:** `apps/api/src/runs/infrastructure/run-sse.hub.ts`
 
@@ -1036,6 +1066,7 @@ import {
   type SocialPlatform,
 } from '@content-chain/shared';
 import { PrismaService } from '../../shared/persistence/prisma.service';
+import { assertTransition } from '../domain/status-transitions';
 import {
   PAGE_SIZE,
   type ListRunsQuery,
@@ -1093,14 +1124,10 @@ export class PrismaRunAdapter implements RunRepository {
   async saveStatus(
     id: ReturnType<typeof createRunId>,
     status: RunStatus,
-    recoveryAttempts?: number,
   ): Promise<void> {
     await this.prisma.run.update({
       where: { id },
-      data: {
-        status,
-        ...(recoveryAttempts !== undefined ? { recoveryAttempts } : {}),
-      },
+      data: { status },
     });
   }
 
@@ -1111,6 +1138,7 @@ export class PrismaRunAdapter implements RunRepository {
       include: { startedBy: { select: { id: true, email: true } } },
     });
     if (!next) return null;
+    assertTransition(next.status as RunStatus, 'running');
     const claimed = await this.prisma.run.updateMany({
       where: { id: next.id, status: 'queued' },
       data: { status: 'running' },
@@ -1206,6 +1234,16 @@ export class PrismaRunAdapter implements RunRepository {
     await this.prisma.run.update({
       where: { id },
       data: { selectedIdeaIds },
+    });
+  }
+
+  async saveRecoveryAttempt(
+    id: ReturnType<typeof createRunId>,
+    attempts: number,
+  ): Promise<void> {
+    await this.prisma.run.update({
+      where: { id },
+      data: { recoveryAttempts: attempts },
     });
   }
 
@@ -1306,11 +1344,23 @@ export class InProcessRunWorker implements OnModuleInit {
     }
   }
 
+  notifyHitlResumed(run: RunRecord): void {
+    this.inflight += 1;
+    void this.executeViaExecutor(run).finally(() => {
+      this.inflight -= 1;
+      void this.pump();
+    });
+  }
+
   private async executeClaimed(run: RunRecord): Promise<void> {
     this.sse.publish({
       event: 'run.status',
       data: { runId: run.id, status: 'running' },
     });
+    await this.executeViaExecutor(run);
+  }
+
+  private async executeViaExecutor(run: RunRecord): Promise<void> {
     try {
       await this.executor.execute(run);
     } catch {
@@ -1334,12 +1384,14 @@ HTTP **nie** `await` całego executora — `notifyQueued()` jest synchronicznym 
 
 Jeśli start ma wolny slot: `StartRunUseCase` tworzy `queued`, potem `notifyQueued()` — 202 z `queued | running` (odczyt po create+claim).
 
+`notifyHitlResumed(run)` — publiczna metoda do wznawiania runów po HITL; zarządza licznikiem `inflight` tak samo jak `executeClaimed`, ale **nie** emituje `run.status=running` (zrobiło to już `lifecycle.transition` w `ResumeHitlUseCase`). Dzięki temu wznowiony HITL wlicza się do limitu `MAX_CONCURRENT_RUNS`.
+
 **Nowy plik:** `apps/api/src/runs/application/start-run.use-case.ts`
 
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';
 import { GetCompletenessUseCase } from '../../company-context/application/get-completeness.use-case';
-import { DomainException } from '../../shared/http/domain.exception';
+import { DomainException } from '../../shared/exceptions/domain.exception';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.repository.port';
 import type { RunBrief, RunRecord } from '../domain/run.types';
@@ -1405,17 +1457,17 @@ Przy `complete === false` **brak** wiersza `Run` i **brak** wywołania LLM.
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';
 import type { RunId } from '@content-chain/shared';
-import { DomainException } from '../../shared/http/domain.exception';
-import { RUN_EXECUTOR, type RunExecutorPort } from '../domain/run-executor.port';
+import { DomainException } from '../../shared/exceptions/domain.exception';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.repository.port';
 import { RunLifecycleService } from './run-lifecycle.service';
+import { InProcessRunWorker } from './in-process-run.worker';
 
 @Injectable()
 export class ResumeHitlUseCase {
   constructor(
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
-    @Inject(RUN_EXECUTOR) private readonly executor: RunExecutorPort,
     private readonly lifecycle: RunLifecycleService,
+    private readonly worker: InProcessRunWorker,
   ) {}
 
   async execute(runId: RunId, selectedIdeaIds: string[]) {
@@ -1428,13 +1480,13 @@ export class ResumeHitlUseCase {
     }
     await this.runs.saveSelectedIdeaIds(runId, selectedIdeaIds);
     const running = await this.lifecycle.transition(run, 'running');
-    void this.executor.execute({ ...running, selectedIdeaIds });
+    this.worker.notifyHitlResumed({ ...running, selectedIdeaIds });
     return { runId, status: 'running' as const };
   }
 }
 ```
 
-HITL wraca do `running` **poza** kolejką `queued` i startuje `execute` od razu. Cap `MAX_CONCURRENT_RUNS` egzekwowany przy `claimNextQueued`, nie przy resume (HITL rzadki w tym wycinku; stub i tak nie wchodzi w `awaiting_hitl`).
+HITL wraca do `running` **poza** kolejką `queued` i startuje `execute` od razu przez `worker.notifyHitlResumed`. Wywołanie jest synchroniczne (nie `void`), a worker zarządza `inflight` tak jak przy normalnym claimie — limit `MAX_CONCURRENT_RUNS` jest egzekwowany.
 
 **Nowy plik:** `apps/api/src/runs/application/recover-interrupted-runs.use-case.ts`
 
@@ -1471,7 +1523,7 @@ export class RecoverInterruptedRunsUseCase {
         await this.lifecycle.transition(run, 'failed');
         continue;
       }
-      await this.runs.saveStatus(run.id, 'running', run.recoveryAttempts + 1);
+      await this.runs.saveRecoveryAttempt(run.id, run.recoveryAttempts + 1);
       try {
         await this.executor.execute({ ...run, recoveryAttempts: run.recoveryAttempts + 1 });
       } catch {
@@ -1504,6 +1556,9 @@ Unit recovery: fake repo z jednym `running` + `recoveryAttempts: 3` → `failed`
 - Stub kończy `completed` z czytelnym logiem, bez LLM i bez sekretów.
 - Wyjątek executora → log + `failed` (run nie zostaje w `running`).
 - Recovery: `running` ≤ 3, potem `failed` + log; `awaiting_hitl` nietknięty (unit na fake repo).
+- `assertTransition('queued', 'running')` wywoływane w `claimNextQueued` przed `updateMany` — domenowa polityka egzekwowana przy każdej zmianie statusu (R-1).
+- `saveRecoveryAttempt` używane w recovery zamiast `saveStatus(..., 'running', ...)` — inkrementacja licznika prób jest wyraźnie oddzielona od zmiany statusu.
+- `notifyHitlResumed` zarządza `inflight` tak samo jak normalny claim — wznowienie po HITL wlicza się do limitu `MAX_CONCURRENT_RUNS` (R-6).
 
 ---
 
@@ -1694,7 +1749,7 @@ Kolejność ścieżek: `logs` i `events` **przed** gołym `:runId`. Listing `GET
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';
 import type { RunId } from '@content-chain/shared';
-import { DomainException } from '../../shared/http/domain.exception';
+import { DomainException } from '../../shared/exceptions/domain.exception';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.repository.port';
 
 @Injectable()
@@ -1729,7 +1784,7 @@ export class GetRunUseCase {
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';
 import type { RunId } from '@content-chain/shared';
-import { DomainException } from '../../shared/http/domain.exception';
+import { DomainException } from '../../shared/exceptions/domain.exception';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.repository.port';
 
 @Injectable()
@@ -1817,6 +1872,7 @@ Kolejka (D-9): e2e z `overrideProvider(RUN_EXECUTOR)` na fake, który wstrzymuje
 - POST 202 bez czekania na LLM; bramka 409 bez runu.
 - GET snapshot + logs; SSE `@Sse()`; HITL 409 poza `awaiting_hitl`.
 - Brak tokenu w query; brak Bearer (nie dodawać).
+- `ResumeHitlUseCase` deleguje wykonanie przez `InProcessRunWorker.notifyHitlResumed` — brak bezpośredniego wywołania `executor.execute` poza workerem.
 
 ---
 
@@ -1876,10 +1932,7 @@ export class ListRunsQueryDto {
 
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';
-import { createUserId, isUserId } from '@content-chain/shared';
-import { DomainException } from '../../shared/http/domain.exception';
-import { PAGE_SIZE, RUN_REPOSITORY, type RunRepository } from '../domain/run.repository.port';
-import type { ListRunsQueryDto } from '../http/dto/list-runs-query.dto';
+import { PAGE_SIZE, RUN_REPOSITORY, type ListRunsQuery, type RunRepository } from '../domain/run.repository.port';
 
 @Injectable()
 export class ListRunsUseCase {
@@ -1887,18 +1940,8 @@ export class ListRunsUseCase {
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
   ) {}
 
-  async execute(query: ListRunsQueryDto) {
-    const page = query.page ?? 1;
-    if (query.userId && !isUserId(query.userId)) {
-      throw new DomainException('VALIDATION_FAILED', 'Invalid userId', 400);
-    }
-    const result = await this.runs.list({
-      page,
-      status: query.status,
-      taskType: query.taskType,
-      platform: query.platform,
-      userId: query.userId ? createUserId(query.userId) : undefined,
-    });
+  async execute(query: ListRunsQuery) {
+    const result = await this.runs.list(query);
     return {
       items: result.items.map((item) => ({
         runId: item.id,
@@ -1917,14 +1960,26 @@ export class ListRunsUseCase {
 }
 ```
 
-**Refaktor:** `runs.module.ts` — dodaj `ListRunsUseCase` do `providers` (import z `./application/list-runs.use-case`). **Refaktor:** `runs.controller.ts` — import `Query`; dopisz `private readonly listRuns: ListRunsUseCase` w konstruktorze; metoda list **nad** `:runId`:
+**Refaktor:** `runs.module.ts` — dodaj `ListRunsUseCase` do `providers` (import z `./application/list-runs.use-case`). **Refaktor:** `runs.controller.ts` — importy: `Query`, `BadRequestException` z `@nestjs/common`; `createUserId`, `isUserId` z `@content-chain/shared`; `type ListRunsQuery` z `./domain/run.repository.port`; dopisz `private readonly listRuns: ListRunsUseCase` w konstruktorze; metoda list **nad** `:runId`:
 
 ```typescript
   @Get()
-  list(@Query() query: ListRunsQueryDto) {
-    return this.listRuns.execute(query);
+  list(@Query() query: ListRunsQueryDto): Promise<unknown> {
+    if (query.userId && !isUserId(query.userId)) {
+      throw new BadRequestException('Invalid userId format');
+    }
+    const command: ListRunsQuery = {
+      page: query.page ?? 1,
+      status: query.status,
+      taskType: query.taskType,
+      platform: query.platform,
+      userId: query.userId ? createUserId(query.userId) : undefined,
+    };
+    return this.listRuns.execute(command);
   }
 ```
+
+Mapowanie `ListRunsQueryDto → ListRunsQuery` w kontrolerze zachowuje czystość granic: `ListRunsUseCase` pracuje wyłącznie na typach domenowych; walidacja formatu `userId` (brandowany string) leży na granicy HTTP.
 
 **E2E:** utwórz >10 runów (kompletny kontekst + stub); `page=1` → 10 itemów, `total >= 11`, `pageSize === 10`; najnowszy pierwszy; filtr `status=completed`; `startedBy === null`.
 
@@ -1932,6 +1987,7 @@ export class ListRunsUseCase {
 
 - Cała instancja, sort `createdAt` desc, strona 10, filtry status/taskType/platform/userId, `startedBy` nullable.
 - Snapshot `GET :runId` spójny meta z wierszem listy (`createdAt`, `startedBy`).
+- `ListRunsUseCase.execute` przyjmuje `ListRunsQuery` (typy domenowe); mapowanie `ListRunsQueryDto → ListRunsQuery` oraz walidacja formatu `userId` w kontrolerze.
 
 ---
 
@@ -1943,6 +1999,9 @@ export class ListRunsUseCase {
 - [ ] HITL poza `awaiting_hitl` → 409; recovery `running` cap 3; kolejka globalna default 3.
 - [ ] `GET /runs` paginacja 10 + filtry.
 - [ ] Brak Social graph, brak authz, brak sekretów w logach.
+- [ ] `assertTransition` wywoływane przed `queued→running` w `claimNextQueued` (R-1).
+- [ ] Wznowienie HITL wlicza się do `MAX_CONCURRENT_RUNS` — `notifyHitlResumed` zarządza `inflight` (R-6).
+- [ ] `ListRunsUseCase` nie zależy od HTTP DTO; mapowanie w kontrolerze (SPEC-KOMUNIKACJA architektura warstw).
 - [ ] Nagłówki wyłącznie `FAZA 2` / `KROK 1`…`KROK 5`.
 - [ ] Statusy `NIE_ROZPOCZĘTY`; major nietknięty.
 

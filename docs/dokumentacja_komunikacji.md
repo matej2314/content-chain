@@ -320,6 +320,10 @@ Upstream envelope (skrót): `{ statusCode, code, message, requestId, details? }`
 | `MODEL_ALIAS_NOT_FOUND` / `VALIDATION_FAILED` | Run `failed`; log z `code` + `requestId` **tego** wywołania gateway |
 | `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` | Log + retry wg polityki api **albo** `failed` po wyczerpaniu; status widoczny w SSE |
 | `PROVIDER_TIMEOUT` / `PROVIDER_UNAVAILABLE` | j.w. |
+| `PROVIDER_AUTH_FAILED` | Run `failed`; log czytelny (konfiguracja vendora w env gateway); bez retry — wymaga interwencji operatora |
+| `MODEL_NOT_ALLOWED` | Run `failed`; niedozwolony override `params` wg policy aliasu; log z `code` + `requestId` |
+| `PROVIDER_UNSUPPORTED` / `GATEWAY_KEY_NOT_CONFIGURED` | Run `failed`; błąd konfiguracji serwera gateway; log bez wycieku sekretów |
+| `TOOLS_NOT_SUPPORTED` / `THINKING_NOT_SUPPORTED` | Run `failed`; żądanie niezgodne z `capabilities` aliasu; log z `code` |
 | Sukces częściowy przy stream gateway | Mapowanie na logi kroku; finalizacja węzła grafu dopiero po domknięciu kontraktu streamu |
 
 `apps/api` mapuje błędy gateway na własne logi runu i ewentualnie `run.failed` — **bez** wyciekania `X-Gateway-Key` do frontendu. W logu zawsze da się odnaleźć parę: `conversationId` runu + `requestId` nieudanego hopu.
