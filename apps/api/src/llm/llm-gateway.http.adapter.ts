@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { createRequestId, isRequestId, unbrand } from '@content-chain/shared';
 import { ENV, type Env } from '../shared/config/env';
 import { LlmGatewayError } from './llm-gateway.errors';
+import { gatewayErrorsTotal } from '../metrics/metrics.registry';
+import { toGatewayErrorCodeLabel } from '../metrics/gateway-error-code';
 import type { LlmGatewayPort } from './llm-gateway.port';
 import type {
   LlmChatCommand,
@@ -60,6 +62,7 @@ export class LlmGatewayHttpAdapter implements LlmGatewayPort {
 
       const body = await this.readJsonBody<GatewayChatResponse>(response);
       if (!body || !isRequestId(body.requestId)) {
+        gatewayErrorsTotal.inc({ code: 'VALIDATION_FAILED' });
         throw new LlmGatewayError(
           'Gateway chat failed (invalid requestId in response)',
           'VALIDATION_FAILED',
@@ -95,6 +98,7 @@ export class LlmGatewayHttpAdapter implements LlmGatewayPort {
     const gatewayRequestId = body?.requestId;
     const retryable = code ? RETRYABLE_CODES.has(code) : false;
     const safeMessage = `Gateway chat failed (${code ?? 'UNKNOWN_ERROR'})`;
+    gatewayErrorsTotal.inc({ code: toGatewayErrorCodeLabel(code) });
     return new LlmGatewayError(
       safeMessage,
       code,
@@ -106,6 +110,7 @@ export class LlmGatewayHttpAdapter implements LlmGatewayPort {
 
   private mapError(error: unknown): LlmGatewayError {
     if (error instanceof LlmGatewayError) return error;
+    gatewayErrorsTotal.inc({ code: 'UNKNOWN' });
     return new LlmGatewayError(
       'Gateway chat failed (UNKNOWN)',
       undefined,

@@ -18,6 +18,7 @@ import { HttpExceptionFilter } from './shared/http/http-exception.filter';
 import { RequestIdMiddleware } from './shared/http/request-id.middleware';
 import { PrismaModule } from './shared/persistence/prisma.module';
 import { LlmModule } from './llm/llm.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { LlmModule } from './llm/llm.module';
     PrismaModule,
     HealthModule,
     LlmModule,
+    MetricsModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })

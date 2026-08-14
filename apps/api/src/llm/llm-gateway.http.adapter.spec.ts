@@ -5,6 +5,10 @@ import {
 import { LlmGatewayHttpAdapter } from './llm-gateway.http.adapter';
 import { LlmGatewayError } from './llm-gateway.errors';
 import type { Env } from '../shared/config/env.schema';
+import {
+  gatewayErrorsTotal,
+  metricsRegistry,
+} from '../metrics/metrics.registry';
 
 const env = {
   GATEWAY_BASE_URL: 'http://127.0.0.1:3100',
@@ -28,6 +32,10 @@ function jsonResponse(status: number, body: unknown): Response {
 
 describe('LlmGatewayHttpAdapter', () => {
   const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    gatewayErrorsTotal.reset();
+  });
 
   afterEach(() => {
     global.fetch = originalFetch;
@@ -140,5 +148,73 @@ describe('LlmGatewayHttpAdapter', () => {
         { reason: 'key not in allowlist' },
       ]);
     }
+  });
+
+  it('increments gatewayErrorsTotal with an allowlisted code', async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse(429, {
+        code: 'RATE_LIMITED',
+        message: 'slow down',
+        requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+      }),
+    );
+
+    const adapter = new LlmGatewayHttpAdapter(env);
+    await expect(adapter.chat(command)).rejects.toBeInstanceOf(LlmGatewayError);
+
+    const snapshot = await metricsRegistry.metrics();
+    expect(snapshot).toMatch(
+      /content_chain_gateway_errors_total\{code="RATE_LIMITED"\} 1/,
+    );
+  });
+
+  it('does not register a free-form error message as a metric code', async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse(502, {
+        code: 'Rate limit exceeded for org-x',
+        message: 'Rate limit exceeded for org-x',
+        requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+      }),
+    );
+
+    const adapter = new LlmGatewayHttpAdapter(env);
+    await expect(adapter.chat(command)).rejects.toBeInstanceOf(LlmGatewayError);
+
+    const snapshot = await metricsRegistry.metrics();
+    expect(snapshot).toMatch(
+      /content_chain_gateway_errors_total\{code="UNKNOWN"\} 1/,
+    );
+    expect(snapshot).not.toContain('Rate limit exceeded for org-x');
+  });
+
+  it('increments VALIDATION_FAILED when gateway returns an invalid requestId', async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse(201, {
+        requestId: 'not-a-req',
+        conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
+        model: 'chat-default',
+        output: { type: 'text', text: 'ok' },
+      }),
+    );
+
+    const adapter = new LlmGatewayHttpAdapter(env);
+    await expect(adapter.chat(command)).rejects.toBeInstanceOf(LlmGatewayError);
+
+    const snapshot = await metricsRegistry.metrics();
+    expect(snapshot).toMatch(
+      /content_chain_gateway_errors_total\{code="VALIDATION_FAILED"\} 1/,
+    );
+  });
+
+  it('increments UNKNOWN when the gateway hop fails at the network layer', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new TypeError('fetch failed'));
+
+    const adapter = new LlmGatewayHttpAdapter(env);
+    await expect(adapter.chat(command)).rejects.toBeInstanceOf(LlmGatewayError);
+
+    const snapshot = await metricsRegistry.metrics();
+    expect(snapshot).toMatch(
+      /content_chain_gateway_errors_total\{code="UNKNOWN"\} 1/,
+    );
   });
 });
