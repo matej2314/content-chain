@@ -17,6 +17,7 @@ import { validateEnv } from './shared/config/env.schema';
 import { HttpExceptionFilter } from './shared/http/http-exception.filter';
 import { RequestIdMiddleware } from './shared/http/request-id.middleware';
 import { PrismaModule } from './shared/persistence/prisma.module';
+import { LlmModule } from './llm/llm.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { PrismaModule } from './shared/persistence/prisma.module';
     RunsModule,
     PrismaModule,
     HealthModule,
+    LlmModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })

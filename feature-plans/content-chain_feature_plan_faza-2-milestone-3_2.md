@@ -4,19 +4,19 @@
 
 **Kotwica major:** `content-chain-backend_major_plan.md` — Faza 3 (kroki 3.1–3.3) + ślad do MILESTONE 3.  
 **Zestaw wycinka:** `faza-2-milestone-3` (plik `_1` = major Faza 2; **ten plik** = major Faza 3).  
-**Zależność:** implementacja pliku `_1` musi być na miejscu (Prisma schema, `PrismaService`, `ENV`, `DomainException` w `shared/exceptions/`, `HttpExceptionFilter`, `newRunId` / `newConversationId`, `configureHttpApp`, `/metrics`).  
+**Zależność:** implementacja pliku `_1` musi być na miejscu (Prisma schema, `PrismaService`, `ENV`, `DomainException` w `shared/exceptions/`, `HttpExceptionFilter`, `newRunId` / `newConversationId`, `configureHttpApp`, `/metrics`, moduł aplikacji `apps/api/src/llm/` z `LlmModule` / `LLM_GATEWAY_PORT` — stub Fazy 3 go **nie** woła; port zostaje dla Fazy 4).  
 **Źródła:** `docs/dokumentacja_komunikacji.md`, `docs/dokumentacja_koncepcyjna.md`, `docs/observability.md`, `docs/architektura.md`, `spec/SPEC-KONTEKST-FIRMY.md`, `SPEC-RUNY.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-TESTY.md`, `SPEC-PERSISTENCE.md`.  
 **Poza zakresem tego pliku:** pipeline Social / LangGraph / wyniki ideas-content (major Faza 4 — podmienia `RunExecutorPort`), auth / cookie / `JwtAuthGuard` / `FORBIDDEN` dla `user` (major Faza 5), dashboard FE, live vendor LLM na PR.
 
 **Authz w tym wycinku:** powierzchnie kontekstu i runów **otwarte** (Postman). C-4 (`admin` na zapis) i K-4 (cookie SSE) obowiązują docelowo — major Faza 5 je domyka. `startedBy` = `null` (docs: era przed auth).
 
-**Pass rozwojowy (ten plik):** `isComplete` i HTTP kontekstu **przed** `POST /runs`; domain statusów **przed** workera; hub SSE **przed** HTTP `.../events`; listing **po** utworzeniu runu. Stub executora **nie** woła LLM (port z `_1` zostaje dla Fazy 4).
+**Pass rozwojowy (ten plik):** `isComplete` i HTTP kontekstu **przed** `POST /runs`; domain statusów **przed** workera; hub SSE **przed** HTTP `.../events`; listing **po** utworzeniu runu. Stub executora **nie** woła LLM (port z `_1` w `apps/api/src/llm/` zostaje dla Fazy 4).
 
 ---
 
 ## Założenia
 
-- Warstwy BC: controller → application → domain + porty → adapter Prisma (`docs/architektura_katalogi_pliki.md`). Prisma tylko w `infrastructure/` oraz w `shared/persistence` z `_1`.
+- Warstwy BC: controller → application → domain + porty → adapter Prisma (`docs/architektura_katalogi_pliki.md`). Prisma tylko w `infrastructure/` oraz w `shared/persistence` z `_1`. Klient LLM (port + adapter HTTP) = osobny moduł aplikacji `apps/api/src/llm/` z `_1` — **nie** w `shared/llm`; Faza 3 go nie importuje (stub bez LLM).
 - Walidacja HTTP: class-validator + `ValidationPipe`. Application: Zod. Shared: bez Zod.
 - SSE: Nest `@Sse()` + RxJS `Observable<MessageEvent>` (Context7 `/nestjs/docs.nestjs.com` — techniques/server-sent-events). Emisja **wyłącznie** z BC Runs (R-4).
 - Worker: in-process, `MAX_CONCURRENT_RUNS` z `ENV` (default 3). Stub executora: log placeholder → `completed` (zatwierdzone HOW).
@@ -834,7 +834,7 @@ export function isRetryable(reason: RetryReason): boolean {
 }
 ```
 
-`gateway.retryable` pochodzi z `LlmGatewayError.retryable` (plik `_1`). Stub Fazy 3 nie woła gateway; funkcja musi istnieć pod recovery i pod Fazę 4 (D-7/D-10).
+`gateway.retryable` pochodzi z `LlmGatewayError.retryable` (plik `_1`, moduł `apps/api/src/llm/`). Stub Fazy 3 nie woła gateway; funkcja musi istnieć pod recovery i pod Fazę 4 (D-7/D-10).
 
 **Nowy plik:** `apps/api/src/runs/domain/is-retryable.spec.ts` — crash/timeout = true; `GATEWAY_KEY_INVALID` / `validation` / `refine_exhausted` = false.
 
@@ -1274,7 +1274,7 @@ export class StubRunExecutor implements RunExecutorPort {
 }
 ```
 
-**Nie** woła `LlmGatewayPort`. **Nie** zapisuje `SocialIdea` / `SocialContent`. Wiadomość logu **bez** sekretów.
+**Nie** woła `LlmGatewayPort` (token / port z `apps/api/src/llm/` — Faza 4). **Nie** zapisuje `SocialIdea` / `SocialContent`. Wiadomość logu **bez** sekretów.
 
 **Nowy plik:** `apps/api/src/runs/application/in-process-run.worker.ts`
 

@@ -1152,31 +1152,34 @@ pnpm --filter api add -D supertest @types/supertest
 
 ### KROK 4 — Port LLM, adapter HTTP, smoke z gateway
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Api woła modele wyłącznie przez port + adapter do lokalnego gateway. Major 2.3, `SPEC-KOMUNIKACJA.md` K-5/K-6/K-7, `docs/dokumentacja_komunikacji.md` powierzchnia 2, `docs/architektura.md`.
 
+**LLM — lokalizacja modułu aplikacji (zmiana względem wcześniejszej treści tego kroku):**  
+Wcześniejsza treść KROK 4 umieszczała port, typy, błędy, adapter HTTP i `LlmModule` w `apps/api/src/shared/llm/`. Obowiązuje teraz osobny, niezależny moduł aplikacji **`apps/api/src/llm/`** (flat: tokens, types, errors, port, adapter + unit spec, `llm.module.ts`) — **nie** pod `shared/`. `shared/` zostaje na cross-cutting (config, HTTP, persistence, metrics) zgodnie z `SPEC-MONOREPO.md` M-8 / `docs/architektura_katalogi_pliki.md`. Konsumentami portu będą BC (m.in. Social w Fazie 4) przez import `LlmModule` / token `LLM_GATEWAY_PORT`.
+
 **Artefakty:**
 
-- nowy: `apps/api/src/shared/llm/llm-gateway.port.ts`
-- nowy: `apps/api/src/shared/llm/llm-gateway.types.ts`
-- nowy: `apps/api/src/shared/llm/llm-gateway.errors.ts`
-- nowy: `apps/api/src/shared/llm/llm-gateway.http.adapter.ts`
-- nowy: `apps/api/src/shared/llm/llm-gateway.http.adapter.spec.ts`
-- nowy: `apps/api/src/shared/llm/llm.module.ts`
-- nowy: `apps/api/src/shared/llm/llm.tokens.ts`
+- nowy: `apps/api/src/llm/llm-gateway.port.ts`
+- nowy: `apps/api/src/llm/llm-gateway.types.ts`
+- nowy: `apps/api/src/llm/llm-gateway.errors.ts`
+- nowy: `apps/api/src/llm/llm-gateway.http.adapter.ts`
+- nowy: `apps/api/src/llm/llm-gateway.http.adapter.spec.ts`
+- nowy: `apps/api/src/llm/llm.module.ts`
+- nowy: `apps/api/src/llm/llm.tokens.ts`
 - nowy: `apps/api/test/smoke-gateway.e2e-spec.ts`
 - refaktor: `apps/api/src/app.module.ts`
 
 **Implementacja:**
 
-**Nowy plik:** `apps/api/src/shared/llm/llm.tokens.ts`
+**Nowy plik:** `apps/api/src/llm/llm.tokens.ts`
 
 ```typescript
 export const LLM_GATEWAY_PORT = Symbol('LLM_GATEWAY_PORT');
 ```
 
-**Nowy plik:** `apps/api/src/shared/llm/llm-gateway.types.ts`
+**Nowy plik:** `apps/api/src/llm/llm-gateway.types.ts`
 
 ```typescript
 import type { ConversationId, GatewayModelAlias, RequestId } from '@content-chain/shared';
@@ -1214,7 +1217,7 @@ export type LlmChatResult = {
 };
 ```
 
-**Nowy plik:** `apps/api/src/shared/llm/llm-gateway.errors.ts`
+**Nowy plik:** `apps/api/src/llm/llm-gateway.errors.ts`
 
 ```typescript
 export class LlmGatewayError extends Error {
@@ -1233,7 +1236,7 @@ export class LlmGatewayError extends Error {
 
 `message` **nie** zawiera wartości `GATEWAY_KEY`. `retryable = true` dla `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` / `PROVIDER_TIMEOUT` / `PROVIDER_UNAVAILABLE`; `false` dla `GATEWAY_KEY_*`, `MODEL_ALIAS_NOT_FOUND`, `VALIDATION_FAILED`, `MODEL_NOT_ALLOWED`, `PROVIDER_AUTH_FAILED`, `PROVIDER_UNSUPPORTED`, `GATEWAY_KEY_NOT_CONFIGURED`, `TOOLS_NOT_SUPPORTED`, `THINKING_NOT_SUPPORTED`, `INTERNAL_SERVER_ERROR` (pełna lista kodów: `docs/dictionary.md`).
 
-**Nowy plik:** `apps/api/src/shared/llm/llm-gateway.port.ts`
+**Nowy plik:** `apps/api/src/llm/llm-gateway.port.ts`
 
 ```typescript
 import type { LlmChatCommand, LlmChatResult } from './llm-gateway.types';
@@ -1243,14 +1246,14 @@ export interface LlmGatewayPort {
 }
 ```
 
-**Nowy plik:** `apps/api/src/shared/llm/llm-gateway.http.adapter.ts`
+**Nowy plik:** `apps/api/src/llm/llm-gateway.http.adapter.ts`
 
 Refaktor względem: wcześniejsza treść KROK 4 (ten plik) używała `@nestjs/axios` (`HttpService` + `firstValueFrom`) oraz `AxiosError` z `axios`. Obowiązuje natywny globalny `fetch` — bez tych zależności.
 
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';
 import { createRequestId, isRequestId, unbrand } from '@content-chain/shared';
-import { ENV, type Env } from '../config/env';
+import { ENV, type Env } from '../shared/config/env';
 import { LlmGatewayError } from './llm-gateway.errors';
 import type { LlmGatewayPort } from './llm-gateway.port';
 import type { LlmChatCommand, LlmChatResult } from './llm-gateway.types';
@@ -1367,7 +1370,7 @@ Twarde reguły adaptera:
 
 **Poza zakresem tego kroku (rozszerzenie Fazy 4):** rola `'tool'` w `LlmChatMessage`, pole `tooling` w `LlmChatCommand`, `toolCalls` w `LlmChatResult`, `metadata` w body. Gateway obsługuje te pola — adapter wymaga rozszerzenia w feature planie Fazy 4 (Social pipeline z function calling), gdy będą potrzebne.
 
-**Nowy plik:** `apps/api/src/shared/llm/llm.module.ts`
+**Nowy plik:** `apps/api/src/llm/llm.module.ts`
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -1383,15 +1386,15 @@ export class LlmModule {}
 
 Bez `HttpModule` / `@nestjs/axios` — zmiana względem wcześniejszej treści tego kroku.
 
-**Refaktor:** `AppModule.imports` — dodaj `LlmModule`.
+**Refaktor:** `AppModule.imports` — dodaj `LlmModule` z `./llm/llm.module` (**nie** z `shared/llm`).
 
-**Nowy plik:** `apps/api/src/shared/llm/llm-gateway.http.adapter.spec.ts`
+**Nowy plik:** `apps/api/src/llm/llm-gateway.http.adapter.spec.ts`
 
 ```typescript
 import { createConversationId, createGatewayModelAlias } from '@content-chain/shared';
 import { LlmGatewayHttpAdapter } from './llm-gateway.http.adapter';
 import { LlmGatewayError } from './llm-gateway.errors';
-import type { Env } from '../config/env.schema';
+import type { Env } from '../shared/config/env.schema';
 
 const env = {
   GATEWAY_BASE_URL: 'http://127.0.0.1:3100',
@@ -1518,8 +1521,8 @@ import { Test } from '@nestjs/testing';
 import { createGatewayModelAlias } from '@content-chain/shared';
 import { AppModule } from '../src/app.module';
 import { newConversationId } from '../src/shared/http/new-ids';
-import { LLM_GATEWAY_PORT } from '../src/shared/llm/llm.tokens';
-import type { LlmGatewayPort } from '../src/shared/llm/llm-gateway.port';
+import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
+import type { LlmGatewayPort } from '../src/llm/llm-gateway.port';
 
 const enabled = process.env.SMOKE_GATEWAY === '1';
 
@@ -1546,6 +1549,7 @@ Smoke **nie** jest publicznym endpointem HTTP (brak w kontrakcie docs). Uruchomi
 
 **DoD kroku:**
 
+- Artefakty LLM leżą w `apps/api/src/llm/` (moduł aplikacji), **nie** w `shared/llm`.
 - Brak importów TS `apps/api` → `apps/ai-provider-gateway`.
 - Brak zależności `@nestjs/axios` / `axios` w `apps/api`; adapter używa natywnego `fetch`.
 - Adapter woła `POST {GATEWAY_BASE_URL}/api/v1/chat` z `X-Gateway-Key`, bez `x-request-id`.
@@ -1559,21 +1563,24 @@ Smoke **nie** jest publicznym endpointem HTTP (brak w kontrakcie docs). Uruchomi
 
 ### KROK 5 — Fundament metryk ops (`GET /metrics`)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `W_TRAKCIE`
 
 **Cel:** Minimalna ekspozycja Prometheus procesu api — bez alertów, bez mylenia z logami runu. Major 2.4, `docs/observability.md`, `SPEC-BEZPIECZENSTWO.md` B-8/B-9, `SPEC-KOMUNIKACJA.md` (ścieżka poza `/api/v1`).
 
+**Metryki — lokalizacja modułu aplikacji (zmiana względem wcześniejszej treści tego kroku):**  
+Wcześniejsza treść KROK 5 umieszczała registry, serwis, interceptor, kontroler i `MetricsModule` w `apps/api/src/shared/metrics/`. Obowiązuje teraz osobny, niezależny moduł aplikacji **`apps/api/src/metrics/`** (flat: registry, service, interceptor, controller, module + e2e) — **nie** pod `shared/`. Spójnie z `HealthModule` (KROK 3) i `LlmModule` (KROK 4). `shared/` zostaje na cross-cutting (config, HTTP, persistence). Konsumentami rejestru metryk (np. `gatewayErrorsTotal`) mogą być inne moduły aplikacji przez import z `../metrics/metrics.registry`.
+
 **Artefakty:**
 
-- nowy: `apps/api/src/shared/metrics/metrics.registry.ts`
-- nowy: `apps/api/src/shared/metrics/metrics.service.ts`
-- nowy: `apps/api/src/shared/metrics/http-metrics.interceptor.ts`
-- nowy: `apps/api/src/shared/metrics/metrics.controller.ts`
-- nowy: `apps/api/src/shared/metrics/metrics.module.ts`
+- nowy: `apps/api/src/metrics/metrics.registry.ts`
+- nowy: `apps/api/src/metrics/metrics.service.ts`
+- nowy: `apps/api/src/metrics/http-metrics.interceptor.ts`
+- nowy: `apps/api/src/metrics/metrics.controller.ts`
+- nowy: `apps/api/src/metrics/metrics.module.ts`
 - nowy: `apps/api/test/metrics.e2e-spec.ts`
 - refaktor: `apps/api/src/app.module.ts`
 - refaktor: `apps/api/package.json` (`prom-client`)
-- refaktor: `apps/api/src/shared/llm/llm-gateway.http.adapter.ts` (inkrement błędów gateway)
+- refaktor: `apps/api/src/llm/llm-gateway.http.adapter.ts` (inkrement błędów gateway)
 
 **Implementacja:**
 
@@ -1581,7 +1588,7 @@ Zależność: `pnpm --filter api add prom-client`.
 
 Prefiks nazw: `content_chain_` (docs). Labelki: **tylko** `method`, `route`, `status` — **zakaz** email, brief, prompt, `GATEWAY_KEY`.
 
-**Nowy plik:** `apps/api/src/shared/metrics/metrics.registry.ts`
+**Nowy plik:** `apps/api/src/metrics/metrics.registry.ts`
 
 ```typescript
 import {
@@ -1635,12 +1642,12 @@ export const gatewayErrorsTotal = new Counter({
 
 `collectDefaultMetrics` z prefiksem pokrywa uptime/CPU/pamięć procesu (B-9 „uptime/process”). Osobny gauge startu = dodatkowy sygnał żywego procesu.
 
-**Nowy plik:** `apps/api/src/shared/metrics/metrics.service.ts`
+**Nowy plik:** `apps/api/src/metrics/metrics.service.ts`
 
 ```typescript
 import { Injectable } from '@nestjs/common';
 import { RUN_STATUSES } from '@content-chain/shared';
-import { PrismaService } from '../persistence/prisma.service';
+import { PrismaService } from '../shared/persistence/prisma.service';
 import { metricsRegistry, runsByStatus } from './metrics.registry';
 
 @Injectable()
@@ -1666,7 +1673,7 @@ export class MetricsService {
 
 W KROK 2 tabele runów istnieją, więc gauge nie wymaga BC Runs. Brak sekretów w labelach.
 
-**Nowy plik:** `apps/api/src/shared/metrics/http-metrics.interceptor.ts`
+**Nowy plik:** `apps/api/src/metrics/http-metrics.interceptor.ts`
 
 ```typescript
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
@@ -1698,7 +1705,7 @@ export class HttpMetricsInterceptor implements NestInterceptor {
 }
 ```
 
-**Nowy plik:** `apps/api/src/shared/metrics/metrics.controller.ts`
+**Nowy plik:** `apps/api/src/metrics/metrics.controller.ts`
 
 ```typescript
 import { Controller, Get, Header, Res } from '@nestjs/common';
@@ -1721,7 +1728,7 @@ export class MetricsController {
 
 Kontroler **bez** prefiksu `api/v1` dzięki `exclude: ['metrics']` w `configureHttpApp`. Nie dodawać `@Controller('metrics')` pod global prefix.
 
-**Nowy plik:** `apps/api/src/shared/metrics/metrics.module.ts`
+**Nowy plik:** `apps/api/src/metrics/metrics.module.ts`
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -1747,9 +1754,9 @@ export class MetricsModule {}
 gatewayErrorsTotal.inc({ code: code ?? 'UNKNOWN' });
 ```
 
-Import `gatewayErrorsTotal` z `metrics.registry`. Label = kod gateway (`RATE_LIMITED`, …), **nie** URL z kluczem. Transport adaptera pozostaje natywny `fetch` (KROK 4) — ten refaktor tylko dodaje metrykę.
+Import `gatewayErrorsTotal` z `../metrics/metrics.registry` (adapter leży w `apps/api/src/llm/`). Label = kod gateway (`RATE_LIMITED`, …), **nie** URL z kluczem. Transport adaptera pozostaje natywny `fetch` (KROK 4) — ten refaktor tylko dodaje metrykę.
 
-**Refaktor:** `AppModule.imports` — `MetricsModule`.
+**Refaktor:** `AppModule.imports` — dodaj `MetricsModule` z `./metrics/metrics.module` (**nie** z `shared/metrics`).
 
 **Nowy plik:** `apps/api/test/metrics.e2e-spec.ts`
 
@@ -1788,6 +1795,7 @@ describe('Metrics (e2e)', () => {
 
 **DoD kroku:**
 
+- Artefakty metryk leżą w `apps/api/src/metrics/` (moduł aplikacji), **nie** w `shared/metrics`.
 - `GET /metrics` (poza `/api/v1`) zwraca tekst Prometheus: HTTP (licznik + latencja), process/default, `runs_by_status`, błędy gateway.
 - Brak sekretów i treści promptów w metrykach/labelach.
 - Brak wymogu Grafana/alertów w tym majorze.
@@ -1798,7 +1806,7 @@ describe('Metrics (e2e)', () => {
 
 - [ ] Schema SQLite + migracja w `apps/api/prisma/`; jeden `PrismaClient`.
 - [ ] Fail-fast krytycznych env; Helmet; CORS z env + credentials; envelope K-1; health bez sekretów.
-- [ ] Port LLM + adapter native chat; smoke za `SMOKE_GATEWAY=1`; PR bez live vendorów.
+- [ ] Port LLM + adapter native chat w `apps/api/src/llm/` (nie `shared/llm`); smoke za `SMOKE_GATEWAY=1`; PR bez live vendorów.
 - [ ] `/metrics` fundament B-9.
 - [ ] Brak logiki Company Context / Runs / Social / Auth (poza tabelami fundamentu).
 - [ ] Nagłówki wyłącznie `FAZA 1` / `KROK 1`…`KROK 5`.
