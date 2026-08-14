@@ -108,7 +108,7 @@
 
 ## Faza 2 — Fundament runtime backendu
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Kanoniczna baza MVP, podstawowa powierzchnia HTTP api, droga do LLM wyłącznie przez gateway oraz **fundament** metryk procesu. Bez budowy pipeline’u SM i bez auth. Zgodnie z `SPEC-PERSISTENCE.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-BEZPIECZENSTWO.md`, `docs/observability.md`.
 
@@ -121,7 +121,7 @@
 
 ### Krok 2.1 — Persistence MVP (fundament schematu)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Fundament zapisu kanonicznego pod auth, kontekst firmy, runy i wyniki SM — silnik MVP zgodnie z docs/SPEC; identyfikatory w postaci brandowanej. Bez cichego fallbacku z plików.
 
@@ -133,7 +133,7 @@
 
 ### Krok 2.2 — Powierzchnia HTTP: envelope, health, startowe zabezpieczenia
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Stabilny kontrakt błędów i health oraz podstawy zabezpieczeń startu procesu (nagłówki / CORS wg normy) — bez pełnego auth. **Uwaga względem Fazy 1 / Kroku 1.4:** `@nestjs/config`, Pino/`nestjs-pino` i Swagger (`/docs`) mogą już być w api; ten krok **nie** instaluje ich od zera — dopina Helmet, CORS, envelope błędów, health oraz **fail-fast** krytycznych zmiennych env.
 
@@ -145,7 +145,7 @@
 
 ### Krok 2.3 — Port LLM i smoke z gateway
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Api woła modele wyłącznie przez port + adapter do lokalnego gateway; weryfikacja dymna połączenia. Zgodnie z granicą LLM w `docs/architektura.md` i `SPEC-KOMUNIKACJA.md`.
 
@@ -157,7 +157,7 @@
 
 ### Krok 2.4 — Fundament metryk ops api
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Minimalny fundament ekspozycji metryk procesu api — wyłącznie podstawa pod observability; **bez** rozbudowy ops, alertów ani mylenia z logami runu domenowego.
 
@@ -170,6 +170,8 @@
 ---
 
 ## MILESTONE 2 — Backend startowalny: kanoniczna DB + droga do LLM
+
+**Status:** `OSIĄGNIĘTY`
 
 **Opis:** Bramka po Fazie 2. Fundament runtime domknięty: wolno budować BC kontekstu i runów.
 

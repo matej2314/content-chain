@@ -1563,7 +1563,7 @@ Smoke **nie** jest publicznym endpointem HTTP (brak w kontrakcie docs). Uruchomi
 
 ### KROK 5 — Fundament metryk ops (`GET /metrics`)
 
-**Status:** `W_TRAKCIE`
+**Status:** `WYKONANY`
 
 **Cel:** Minimalna ekspozycja Prometheus procesu api — bez alertów, bez mylenia z logami runu. Major 2.4, `docs/observability.md`, `SPEC-BEZPIECZENSTWO.md` B-8/B-9, `SPEC-KOMUNIKACJA.md` (ścieżka poza `/api/v1`).
 
@@ -1800,7 +1800,74 @@ describe('Metrics (e2e)', () => {
 - Brak sekretów i treści promptów w metrykach/labelach.
 - Brak wymogu Grafana/alertów w tym majorze.
 
+**Domknięcie KROK 5 — refaktor wad fundamentu:** treść od `metrics.registry.ts` do `metrics.e2e-spec.ts` (włącznie z inkrementem w adapterze LLM) **przyjęta za wykonaną zgodnie ze szkicami powyżej**. Poniższe podkroki nie nadpisują tej historii — poprawiają działający fundament w **tym samym** KROK 5, jednym podejściem, zanim krok dostanie `WYKONANY`. Poza zakresem: `apps/ai-provider-gateway`, wspólna biblioteka metryk, Grafana/alerty.
+
 ---
+
+#### Podkrok 5.1 — HTTP interceptor: błędy + zamknięty `route` (status: `WYKONANY`)
+
+Refaktor względem: Faza 1 / KROK 5 / `apps/api/src/metrics/http-metrics.interceptor.ts` (szkic z `tap(() => { end(); inc(...) })` oraz `req.route?.path ?? req.path`).
+
+**Problem (szkic):** `tap` bez gałęzi `error` nie zapisuje 4xx/5xx z exception filtera i nie zamyka histogramu; fallback `req.path` wylewa unikalne URL-e (404, skan) do etykiety `route`.
+
+**Zmiana:**
+
+- Pomijanie scrape: nadal `req.path === '/metrics' || req.path === 'metrics'` (ścieżka URL, nie label).
+- Label `route`: wyłącznie `req.route?.path` gdy to niepusty `string`; w przeciwnym razie stała **`unmapped`**. **Zakaz** `req.path` / `req.url` / `req.originalUrl` jako wartości etykiety.
+- Zapis licznika i `end()` timera **zawsze** (sukces i błąd) — `finalize` albo `tap({ next, error })` + rethrow. Na ścieżce błędu, jeśli `res.statusCode` jest jeszcze `200` (filter nie zdążył), status z `HttpException.getStatus()` albo `500`.
+- Etykieta `method`: `req.method` bez zmiany kontraktu (plan: `method` / `route` / `status`).
+
+**Artefakt:** refaktor `apps/api/src/metrics/http-metrics.interceptor.ts`; nowy unit `apps/api/src/metrics/http-metrics.interceptor.spec.ts` (sukces → `inc` + timer; rzut `HttpException` 404/500 → `inc` z tym statusem i `end()`; request bez `route` → `route="unmapped"`, nie surowa ścieżka).
+
+---
+
+#### Podkrok 5.2 — Usunięcie kolizji `process_start_time` (status: `WYKONANY`)
+
+Refaktor względem: Faza 1 / KROK 5 / `apps/api/src/metrics/metrics.registry.ts` (export `processStartTimeSeconds` o nazwie `content_chain_process_start_time_seconds` + `setToCurrentTime()` oraz komentarz „osobny gauge startu = dodatkowy sygnał”).
+
+**Problem (szkic):** `collectDefaultMetrics({ prefix: 'content_chain_' })` już rejestruje `content_chain_process_start_time_seconds`. Drugi gauge o tej samej nazwie = kolizja w `prom-client` albo zdublowana seria.
+
+**Zmiana:** usuń custom gauge `processStartTimeSeconds` i jego `setToCurrentTime()`. Sygnał startu/uptime/CPU/pamięci = wyłącznie defaults (B-9). Nie dodawaj zamiennika pod inną nazwą „na wszelki wypadek”.
+
+**Artefakt:** refaktor `metrics.registry.ts`; e2e nadal może asertować obecność `content_chain_process_start_time_seconds` **z defaults** (jedna definicja `# TYPE` / jeden help).
+
+---
+
+#### Podkrok 5.3 — Allowlista `gatewayErrorsTotal{code}` (status: `WYKONANY`)
+
+Refaktor względem: Faza 1 / KROK 5 / inkrement w `apps/api/src/llm/llm-gateway.http.adapter.ts` (`gatewayErrorsTotal.inc({ code: code ?? 'UNKNOWN' })`).
+
+**Problem (szkic):** surowy `body.code` z hopu (albo literówka / HTML) staje się etykietą Prometheusa — ta sama klasa kardynalności co `error.message` w gateway, tylko pod nazwą `code`.
+
+**Zmiana:** helper w module metryk (np. `apps/api/src/metrics/gateway-error-code.ts`) — `toGatewayErrorCodeLabel(code: string | undefined): string`. Zwraca `code` tylko gdy należy do **zamkniętego** zbioru kodów envelope gateway z `docs/dictionary.md` używanych przez hop api (m.in. `RATE_LIMITED`, `PROVIDER_RATE_LIMITED`, `PROVIDER_TIMEOUT`, `PROVIDER_UNAVAILABLE`, `GATEWAY_KEY_MISSING`, `GATEWAY_KEY_INVALID`, `GATEWAY_KEY_NOT_CONFIGURED`, `MODEL_ALIAS_NOT_FOUND`, `VALIDATION_FAILED`, `MODEL_NOT_ALLOWED`, `PROVIDER_AUTH_FAILED`, `PROVIDER_UNSUPPORTED`, `TOOLS_NOT_SUPPORTED`, `THINKING_NOT_SUPPORTED`, `INTERNAL_SERVER_ERROR`, `UNKNOWN`). Wszystko inne, `undefined` i pusty string → **`UNKNOWN`**. Adapter woła `inc({ code: toGatewayErrorCodeLabel(code) })` w `mapHttpError` i `inc({ code: 'UNKNOWN' })` w `mapError` (ścieżka sieci). **Nie** wkładaj `message` / URL / klucza do labela. `LlmGatewayError.gatewayCode` może nadal trzymać surowy kod z body (log runu) — allowlista dotyczy **tylko** metryki.
+
+**Artefakt:** nowy helper + spec (`RATE_LIMITED` przepuszczony; `"Rate limit exceeded for org-x"` → `UNKNOWN`); refaktor `llm-gateway.http.adapter.ts`; rozszerzenie `llm-gateway.http.adapter.spec.ts` (mock `inc` albo asercja, że nieznany kod nie trafia do rejestru jako unikalna seria).
+
+---
+
+#### Podkrok 5.4 — E2E / DoD domknięcia (status: `WYKONANY`)
+
+Refaktor względem: Faza 1 / KROK 5 / `apps/api/test/metrics.e2e-spec.ts` (jeden happy-path health → `/metrics`).
+
+**Dopisz scenariusze** (ten sam plik e2e albo sąsiad `metrics.http.e2e-spec.ts` — bez drugiego bootu `AppModule` jeśli nie trzeba):
+
+1. `GET /api/v1/health` (200) → w `/metrics` jest seria HTTP z `route` szablonu (nie surowy URL) oraz `status="200"`.
+2. Nieznana ścieżka (404) → co najwyżej `route="unmapped"`; **brak** etykiety równej pełnemu path (np. `/no-such-route-xyz`).
+3. Request, który kończy się błędem HTTP (np. 404 z filtra albo kontrolowany 4xx/5xx) → `content_chain_http_requests_total` zawiera ten `status`; histogram duration ma zamknięty sample (suma/count rosną).
+4. `GET /metrics` **nie** inkrementuje sam siebie (scrape pominięty jak w szkicu).
+5. W body `/metrics` jest dokładnie jedna rodzina `content_chain_process_start_time_seconds` (defaults); brak sekretów — bez zmiany istniejącej asercji z KROK 5.
+
+**DoD podkroków 5.1–5.4 (domknięcie KROK 5):**
+
+- 4xx/5xx widać w `content_chain_http_requests_total`; timer duration zawsze domykany.
+- Etykieta `route` ∈ szablony Nest/Express **lub** `unmapped` — nigdy pełnych nieznanych URL-i.
+- Brak ręcznego gauge’a startu procesu obok `collectDefaultMetrics`.
+- `content_chain_gateway_errors_total{code}` przyjmuje wyłącznie allowlistę + `UNKNOWN`.
+- Unit + e2e z tego bloku przechodzą; `pnpm --filter api test` oraz `pnpm --filter api test:e2e` (bez `SMOKE_GATEWAY`) zielone.
+- Nadal brak Grafany/alertów i braku zmian w `apps/ai-provider-gateway`.
+
+---
+
 
 ## Weryfikacja wycinka (ten plik)
 
