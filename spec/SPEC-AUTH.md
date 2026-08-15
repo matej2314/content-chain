@@ -1,7 +1,7 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-12
+data_modyfikacji: 2026-08-15
 ---
 
 # SPEC — Auth
@@ -25,10 +25,14 @@ Wiążące (`docs/architektura.md`): klasyczne warstwy Nest — HTTP → applica
 | Bootstrap pierwszego admina | jednorazowy (gdy brak admina) + status publiczny | — |
 | Edycja kontekstu firmy | tak (egzekucja w BC kontekstu) | nie → `FORBIDDEN` |
 | Start runów SM / HITL / odczyt logów / lista runów | tak | tak |
+| Ocena / flaga edycji / finalize **własnego** runu; `GET /runs/user/:userId` tylko własny id; `POST /feedback` | tak | tak |
+| To samo na cudzym runie / cudzym `:userId` | nie → `FORBIDDEN` | nie → `FORBIDDEN` |
 | `GET` / `POST` użytkowników | tak (tylko tworzenie `role = user`) | nie |
 | Soft-delete (`DELETE`) użytkownika | tak (API; UI MVP bez tego) | nie |
 
 W systemie MVP jest **co najwyżej jeden** `admin` — ten z bootstrapu. Tworzenie / awans kolejnego admina → odrzucenie (`403` / `400`).
+
+Zmiana względem wersji 3: dopisano authz przeglądu runu i `POST /feedback` (tylko własny run / własny `:userId`).
 
 ## Wymagania (egzekwowalne)
 

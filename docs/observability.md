@@ -30,7 +30,7 @@ Minimalny zestaw (nazwy przykładowe — implementacja może użyć prefiksu `co
 | Runy | Liczniki / gauge wg `RunStatus` (queued, running, awaiting_hitl, completed, failed) |
 | Gateway (z perspektywy api) | Licznik błędów / timeoutów wywołań do gateway (nie mylić z logiem runu) |
 
-Poza MVP metryk: pełny USE/RED, tracing OTel, biznesowe „jakość copy”.
+Poza MVP metryk: pełny USE/RED, tracing OTel, biznesowe „jakość copy”, **analityka ocen / opinii** (panel admina — V1 — rozbudowa).
 
 ### Scrape
 

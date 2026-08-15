@@ -51,7 +51,7 @@ Wszystkie bounded contexty w `apps/api` stosują ten sam wzorzec warstw (cienki 
 
 | Obszar                                              | Styl wewnętrzny                                                                                                                                  |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Auth, Company Context, Runs / Logs                  | Klasyczne warstwy NestJS: HTTP → use-case → domain / porty → adaptery                                                                            |
+| Auth, Company Context, Runs / Logs, Feedback        | Klasyczne warstwy NestJS: HTTP → use-case → domain / porty → adaptery                                                                            |
 | Social pipeline (ideas, content, weryfikacja, HITL) | **Orchestracja / graf** (LangChain/LangGraph) ukryty za application service; stan runu w DB; węzły = kroki pipeline’u, nie logika w controllerze |
 | `apps/frontend`                                     | Cienki klient: UI + stan serwerowy z API; App Router z podziałem Server/Client bez przenoszenia domeny do Next                                   |
 | `apps/ai-provider-gateway`                          | Osobny bounded deployable: wyłącznie warstwa providerów / routingu LLM                                                                           |
@@ -61,6 +61,7 @@ Wszystkie bounded contexty w `apps/api` stosują ten sam wzorzec warstw (cienki 
 - Mikroserwisy domenowe i event-driven między wieloma serwisami biznesowymi
 - CQRS / Event Sourcing jako styl globalny
 - „Fat” LangGraph / reguły SM w controllerze lub w gateway
+- Opinie, gwiazdki i flaga edycji outputu wewnątrz grafu Social (to komendy Runs / Feedback po zakończeniu przebiegu)
 - Pełna ceremonialna Clean Architecture w `frontend/`
 - **Czyste taktyczne DDD** jako obowiązkowy styl globalny (świadomie odłożone względem MVP)
 
@@ -71,7 +72,8 @@ Wszystkie bounded contexty w `apps/api` stosują ten sam wzorzec warstw (cienki 
 | **Auth** | Użytkownicy, role `admin` \| `user`, sesja: JWT w `cc_access` + refresh w `cc_refresh` (httpOnly) | **Jeden** `admin` (bootstrap); tylko on edytuje kontekst; obaj mogą uruchamiać flow’y SM — `security.md` |
 | **Company Context** | Kanoniczny kontekst firmy w DB, bramka kompletności                                  | Do kompletności — start flow’ów SM zablokowany                        |
 | **Social**          | Post ideas, post content (LI / FB / IG, PL / EN), weryfikacja spójności z kontekstem | Task jednoetapowy = full-auto; dwuetapowy = HITL przy wyborze z listy |
-| **Runs / Logs**     | Cykl życia async runu, statusy, czytelne logi powiązane z `runId`                    | DB = źródło prawdy dla logów widocznych w UI; stdout = ops            |
+| **Runs / Logs**     | Cykl życia async runu, statusy, czytelne logi powiązane z `runId`                    | DB = źródło prawdy dla logów widocznych w UI; stdout = ops; ocena gwiazdkowa + flaga edycji outputu + zamknięcie przeglądu — metadane runu (nie graf) |
+| **Feedback**        | Opinie tekstowe o aplikacji / agencie / runie (append-only)                           | Zapis w DB; odczyt analityczny / panel admina = **V1 — rozbudowa**; nie w LangGraph |
 
 Rozszerzenia o kolejnych agentów (poczta, dokumenty, rolki itd.) — **V1 — rozbudowa** / później (poza MVP); architektura zakłada dodawanie kolejnych contextów / grafów bez rozbijania monorepo na mikroserwisy. Przy wejściu w V1 — rozbudowę: **cutover persistence na PostgreSQL** (`spec/SPEC-PERSISTENCE.md`).
 
@@ -112,8 +114,9 @@ Pipeline SM działa jako **asynchroniczny run**:
 4. Przy tasku dwuetapowym run przechodzi w stan oczekiwania na **HITL** (wybór z listy pomysłów); wznowienie osobnym wywołaniem API.
 5. Task jednoetapowy (np. sama lista pomysłów) kończy się bez pauzy selekcji.
 6. Wynik (ideas / content) i werdykt weryfikacji spójności są zapisane w DB i dostępne przez API / UI.
+7. Po `completed` albo `failed` autor runu (`startedBy`) może: oznaczyć edycję outputu (flaga), ustawić ocenę `1–5` albo zostawić `null`, potem **zatwierdzić / zamknąć przegląd** — od tej chwili ocena i flaga są niemutowalne. Opinia tekstowa (aplikacja / agent / run) jest osobnym zapisem (BC Feedback), niezależnym od grafu.
 
-Zmiana względem wcześniejszego zapisu w tym dokumencie: zamiast opierania obserwacji runu na samym pollingu HTTP — **SSE od MVP** (szczegóły kontraktu: `dokumentacja_komunikacji.md`).
+Zmiana względem wcześniejszego zapisu w tym dokumencie: zamiast opierania obserwacji runu na samym pollingu HTTP — **SSE od MVP** (szczegóły kontraktu: `dokumentacja_komunikacji.md`). Dopisano fundament feedbacku (zapis w MVP; panel analityczny = V1 — rozbudowa).
 
 ## Auth
 
@@ -156,6 +159,7 @@ Norma egzekwowalna: `spec/SPEC-PERSISTENCE.md`.
 | DB              | Prisma + **SQLite w MVP**; **PostgreSQL od V1 — rozbudowa** | Postgres w MVP; SQLite po wejściu w V1 — rozbudowę |
 | Layout monorepo | `apps/*` + `packages/shared` w rootcie          | Rootowy `src/apps/` (porzucone)                |
 | Shared          | `packages/shared` typy/enumy/brand (**bez Zod**) | Duplikacja DTO; Zod/runtime w shared           |
+| Feedback        | Osobny BC + tabela opinii; ocena/edycja na Run   | Feedback w LangGraph; panel admina w MVP       |
 
 ## Poza zakresem tego dokumentu
 

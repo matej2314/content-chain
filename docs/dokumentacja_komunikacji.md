@@ -44,6 +44,8 @@ Wybrane kody domenowe:
 | `CONTEXT_INCOMPLETE` | 409 | Bramka kontekstu — start runu zablokowany |
 | `HITL_REQUIRED` | 409 | Operacja wymaga stanu oczekiwania na wybór / odwrotnie |
 | `RUN_NOT_FOUND` | 404 | Nieznany `runId` |
+| `REVIEW_LOCKED` | 409 | Przegląd runu zatwierdzony — zmiana oceny / flagi edycji zabroniona |
+| `RUN_NOT_REVIEWABLE` | 409 | Ocena / edycja / finalize gdy status inny niż `completed` \| `failed` |
 | `CONFLICT` | 409 | Niedozwolone przejście statusu runu |
 | `INTERNAL_ERROR` | 500 | Błąd nieobsłużony |
 
@@ -203,9 +205,70 @@ Przy chronionej sesji zapisuje **inicjatora** (`startedBy` = bieżący użytkown
 
 #### `GET /api/v1/runs/:runId`
 
-Snapshot runu: status, typ, `conversationId`, `createdAt`, `startedBy`, wynik (ideas/content gdy gotowe), metadane HITL.  
-**Nie** zastępuje SSE dla strumienia zdarzeń.  
-UI: wiersz listy → podstrona szczegółów tego `runId` (`ux_dashboard.md`).
+Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów (`ux_dashboard.md`).
+
+**200** — kształt:
+
+```json
+{
+  "runId": "run_…",
+  "conversationId": "conv_…",
+  "taskType": "post_ideas",
+  "platform": "linkedin",
+  "language": "pl",
+  "status": "completed",
+  "createdAt": "2026-08-12T10:00:00.000Z",
+  "startedBy": { "id": "usr_…", "email": "user@example.com" },
+  "userRating": null,
+  "outputEdited": false,
+  "reviewFinalizedAt": null,
+  "result": { "ideas": [], "content": null },
+  "hitl": null
+}
+```
+
+- Meta jak pozycja listy + `conversationId`.
+- `userRating` — **zawsze** w JSON: `null` (brak gwiazdek) albo `1`…`5`. Pozytywna wartość tylko gdy autor faktycznie ocenił.
+- `outputEdited` — `true` po użyciu Edytuj (flaga; bez diff w MVP).
+- `reviewFinalizedAt` — `null` dopóki autor nie zatwierdzi przeglądu; po finalize ISO8601 i pola oceny/edycji niemutowalne.
+- `result` — ideas/content gdy zapisane (kształt payloadu SM doprecyzowuje implementacja Social); puste / `null` gdy brak.
+- `hitl` — metadane pauzy gdy `awaiting_hitl`; inaczej `null`.
+
+`startedBy` jak na liście (`null` wyłącznie era pre-auth).
+
+#### `GET /api/v1/runs/user/:userId`
+
+Lekka lista **wszystkich** runów, których inicjatorem jest `:userId` (filtr `startedBy`). **Bez** paginacji `pageSize=10` (to wyjątek względem listingu dashboardu — pod select formularza opinii). Sort: `createdAt` desc.
+
+**Authz:** `:userId` **musi** być id zalogowanego użytkownika (sesja). Inny id → **403** `FORBIDDEN`. Brak wyjątku dla `admin` w MVP (panel cudzych runów = V1).
+
+**200** — `{ "items": [ { "runId", "taskType", "platform", "language", "status", "createdAt" } ] }`.
+
+Trasa statyczna `user/:userId` **przed** parametrem `:runId` w routerze Nest.
+
+#### `PATCH /api/v1/runs/:runId/rating`
+
+Ustawienie oceny przez **autora** runu (`startedBy`). Body: `{ "rating": 1 | 2 | 3 | 4 | 5 | null }`. `null` = brak oceny (dopóki przegląd otwarty).
+
+Dozwolone wielokrotnie **do** finalize. Status runu: tylko `completed` \| `failed`.
+
+**200** — `{ "runId", "userRating", "reviewFinalizedAt" }`.  
+**403** gdy sesja ≠ autor. **409** `REVIEW_LOCKED` po finalize. **409** `RUN_NOT_REVIEWABLE` przy innym statusie.
+
+#### `POST /api/v1/runs/:runId/output-edited`
+
+Autor oznacza, że edytował wynik agentów. Ustawia `outputEdited: true` (jednokierunkowo w MVP). Nie nadpisuje payloadu SM w DB w MVP.
+
+Te same warunki authz / status / lock co ocena.
+
+**200** — `{ "runId", "outputEdited": true }`.
+
+#### `POST /api/v1/runs/:runId/finalize-review`
+
+Zatwierdzenie przeglądu: zapisuje aktualne `userRating` (`null` albo `1–5`) i `outputEdited`, ustawia `reviewFinalizedAt`. Dalszy `PATCH` oceny i `POST` edycji → **409** `REVIEW_LOCKED`.
+
+**200** — `{ "runId", "userRating", "outputEdited", "reviewFinalizedAt" }`.  
+Idempotencja: ponowne finalize gdy już zamknięty → **409** `REVIEW_LOCKED`.
 
 #### `GET /api/v1/runs/:runId/logs`
 
@@ -242,6 +305,37 @@ Wznowienie po wyborze z listy (task dwuetapowy).
 **409** `HITL_REQUIRED` / `CONFLICT` gdy run nie jest w `awaiting_hitl`.
 
 To żądanie HTTP dostaje `RequestId` w **odpowiedzi** `apps/api` (jak każde inne). Wznowione agenty LLM dostaną kolejne `requestId` z odpowiedzi gateway; `ConversationId` runu bez zmian.
+
+### Feedback (opinie tekstowe)
+
+MVP: **wyłącznie zapis**. Odczyt listy / panel admina = **V1 — rozbudowa**.
+
+#### `POST /api/v1/feedback`
+
+Wymaga sesji. Append-only.
+
+| Pole | Typ | Wymagane | Opis |
+|------|-----|----------|------|
+| `targetType` | `application` \| `agent` \| `run` | tak | Co dotyczy opinia |
+| `body` | string | tak | Treść (limit długości — SPEC; bez sekretów) |
+| `agentKey` | enum agentów | gdy `targetType = agent` | `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier` |
+| `runId` | `RunId` | gdy `targetType = run` | Run **autora** (sesja = `startedBy`); inaczej **403** |
+
+**201:**
+
+```json
+{
+  "id": "fbk_…",
+  "targetType": "run",
+  "agentKey": null,
+  "runId": "run_…",
+  "body": "…",
+  "authorId": "usr_…",
+  "createdAt": "2026-08-15T12:00:00.000Z"
+}
+```
+
+Wiele wpisów tego samego autora na ten sam target — dozwolone. Brak `GET` kolekcji w MVP.
 
 ### Health
 

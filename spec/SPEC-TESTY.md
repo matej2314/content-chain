@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-11
+data_modyfikacji: 2026-08-15
 ---
 
 # SPEC — Testy
@@ -57,6 +57,11 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-8 | Korelacja: stały `conversationId`; `requestId` z „odpowiedzi” stubu gateway w logu kroku |
 | D-9 | Kolejka: przy limicie współbieżności nowy run zostaje `queued`, potem startuje (`SPEC-RUNY.md`) |
 | D-10 | Recovery: symulacja przerwanego `running` → ≤3 próby retryable → potem `failed` + log |
+| D-11 | `POST /feedback`: zapis z `authorId`+`createdAt`; cudzy `runId` → `FORBIDDEN`; drugi wpis = nowy wiersz |
+| D-12 | Ocena `null` \| 1–5 na `completed`/`failed` tylko autora; po finalize → `REVIEW_LOCKED`; flaga `outputEdited` |
+| D-13 | `GET /runs/user/:userId`: własne wszystkie; cudzy id → `403` |
+
+Zmiana względem wersji 1: dopisano D-11…D-13 (fundament zapisu feedbacku).
 
 ## Norma implementacji
 
@@ -97,7 +102,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-10 pokryte testami (warstwa adekwatna do przypadku).
+- [ ] Przypadki D-1…D-13 pokryte testami (warstwa adekwatna do przypadku).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

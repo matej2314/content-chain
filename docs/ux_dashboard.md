@@ -32,6 +32,8 @@ Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_
 | **Użytkownicy** | tylko admin | Lista + tworzenie `user` (bez edycji / dezaktywacji w UI MVP) |
 | **Konto** | każdy | Wylogowanie |
 
+**Globalny CTA (po zalogowaniu):** przycisk **„Zostaw opinię”** (równoważny label: „Oceń aplikację”) — dostępny z layoutu (np. sidebar / header), nie tylko ze szczegółów runu. Otwiera formularz opinii tekstowej (niżej). Panel administracyjny odczytu opinii = **V1 — rozbudowa** (MVP = zapis).
+
 ## Globalny wskaźnik: czy agenci są aktywni
 
 Stały element UI (np. pasek pod headerem / chip w sidebarze), widoczny na wszystkich widokach po zalogowaniu:
@@ -71,9 +73,29 @@ Wejście: z listy Runy SM (klik) lub bezpośredni deep-link po `runId`.
 | **Status live** | Subskrypcja SSE `.../events`; zmiana statusu **natychmiast**; prezentacja **animowana / atrakcyjna** (np. pulsacja / progress przy `running`, wyraźny stan `awaiting_hitl`, sukces/fail) — nie tylko szary label |
 | **Logi** | Przyrostowo z SSE `run.log` + możliwość dociągnięcia historii GET logs |
 | **HITL** | Panel wyboru pomysłów, gdy `awaiting_hitl` + `run.hitl`; submit → `POST .../hitl` |
-| **Wynik** | Ideas / content po `completed` (czytelny podgląd, kopiowanie) |
+| **Wynik** | Ideas / content po `completed` (czytelny podgląd, kopiowanie); przy `failed` — to, co zdążyło się zapisać |
+| **Edytuj** | Widoczny gdy jest wynik i przegląd **nie** jest zatwierdzony **oraz** sesja = `startedBy`. Klik → użytkownik edytuje treść w UI; api ustawia **wyłącznie flagę** `outputEdited: true` (bez diff / % w MVP; oryginał agentów w DB bez nadpisu w MVP) |
+| **Ocena gwiazdkowa (1–5)** | Po `completed` **albo** `failed`, tylko autor runu. Dobrowolna: brak wyboru = w DB zostaje `userRating: null`. Do zatwierdzenia można zmieniać wybór (w tym wrócić do braku oceny). Czytelne gwiazdki, nie sam numeric input |
+| **Zamknij / zapisz przegląd** | Zatwierdza aktualną ocenę (`null` albo `1–5`) i flagę edycji. Po sukcesie kontrolki oceny i Edytuj są zablokowane |
 
 Reconnect SSE: UI powinien odtworzyć subskrypcję; status i logi można uzupełnić snapshotem GET run / logs.
+
+Ocena i Edytuj **nie** są HITL (HITL = wybór pomysłów w trakcie pipeline).
+
+## Formularz: Zostaw opinię (zapis MVP)
+
+Modal / panel z layoutu (CTA globalny). Wymaga sesji.
+
+| Pole | Zachowanie |
+|------|------------|
+| **Co oceniasz** | Wybór: **aplikacja** \| **agent** \| **run** |
+| **Agent** | Gdy target = agent: **obowiązkowy** select stałego enumu: `IdeationAgent`, `ContentWriterAgent`, `ConsistencyVerifier` (labelki PL w UI) |
+| **Run** | Gdy target = run: **obowiązkowy** select runów **zalogowanego** użytkownika — źródło `GET /api/v1/runs/user/:userId` (`:userId` = id z `/auth/me`). Lista **wszystkich** jego runów (bez paginacji 10 z dashboardu) |
+| **Treść** | Pole tekstowe opinii |
+
+Zapis → `POST /api/v1/feedback`. Wiele opinii w czasie (append). Brak ekranu listy opinii i panelu admina w MVP.
+
+Authz selecta runów: wyłącznie runy autora; obcy `userId` → api `403`.
 
 ## Widok: Użytkownicy (admin)
 
@@ -93,6 +115,9 @@ Reconnect SSE: UI powinien odtworzyć subskrypcję; status i logi można uzupeł
 
 - Zmiana hasła / email / usuwanie własnego konta przez użytkownika  
 - Soft-delete użytkowników w UI admina (endpoint api istnieje; UI później)  
+- Panel administracyjny opinii / średnich ocen / analityki feedbacku (**V1 — rozbudowa**)  
+- Stopień edycji outputu (diff / procent) — tylko flaga w MVP  
+- Zmiana oceny po „Zamknij / zapisz przegląd”  
 - Motywy dark/light jako wymóg  
 - i18n UI (EN)  
 - Pipeline builder, drag-and-drop agentów  

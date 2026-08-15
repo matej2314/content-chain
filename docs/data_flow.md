@@ -4,7 +4,7 @@ Opis orkiestracji i ruchu danych w MVP. Kontrakty HTTP/SSE: `dokumentacja_komuni
 
 ## Zasady wspólne
 
-- **DB kanoniczna** (Prisma/SQLite): kontekst firmy, użytkownicy, runy, wyniki, logi runu.
+- **DB kanoniczna** (Prisma/SQLite): kontekst firmy, użytkownicy, runy, wyniki, logi runu, **opinie tekstowe**, metadane oceny/edycji runu.
 - **LLM wyłącznie** przez `apps/ai-provider-gateway`.
 - **Korelacja runu agentowego:** jeden `RunId` + jeden `ConversationId`; `RequestId` HTTP z odpowiedzi `apps/api`; `RequestId` hopu LLM z odpowiedzi gateway (zapisywany w `run.log`).
 - **Live UI:** SSE; snapshot logów i health/metrics — GET (patrz komunikacja).
@@ -149,6 +149,26 @@ Szczegóły: `brand_types.md`.
 | Błąd / timeout gateway | Log kroku (bez `requestId` przy braku odpowiedzi); po polityce retry lub **`failed`** + SSE `run.failed` |
 | Verifier fail po `max N=2` | **`failed`**; w logach czytelny powód (kontekst i/lub język) |
 | HITL na runie nie w `awaiting_hitl` | **409** `HITL_REQUIRED` / `CONFLICT` |
+| Ocena / Edytuj / finalize gdy nie `completed`/`failed` | **409** `RUN_NOT_REVIEWABLE` |
+| Zmiana oceny lub flagi po finalize | **409** `REVIEW_LOCKED` |
+| Ocena / edycja / opinia o runie obcej osoby | **403** `FORBIDDEN` |
+| `GET /runs/user/:userId` z cudzym id | **403** `FORBIDDEN` |
+
+---
+
+## 7. Przegląd runu i opinie (po pipeline)
+
+Po `completed` albo `failed` (także gdy autor edytował output) — **poza grafem**:
+
+```text
+status completed | failed
+  → autor: gwiazdki 1–5 albo zostaw null; opcjonalnie Edytuj → outputEdited=true
+  → Zamknij/zapisz przegląd → reviewFinalizedAt; dalsze zmiany oceny/flagi zablokowane
+```
+
+Opinia tekstowa (`POST /feedback`) jest niezależna od finalize runu (append; target aplikacja / agent / run). Katalog agentów = stały enum, nie węzły `LoadContext` / `Persist*` / `Refine*`.
+
+Nie mylić z HITL (wybór pomysłów w trakcie pipeline).
 
 ---
 

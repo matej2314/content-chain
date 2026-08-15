@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-12
+data_modyfikacji: 2026-08-15
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -34,7 +34,7 @@ B-6. W `production`: `apps/ai-provider-gateway` **nie** jest publikowany do inte
 
 B-7. `GET /api/v1/health` może być bez auth do probe — **bez** wrażliwych danych w odpowiedzi.
 
-B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, klucze vendorów) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, labelach Prometheus.
+B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, klucze vendorów) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, treści opinii (`Feedback.body`), labelach Prometheus.
 
 B-9. Minimalny zestaw `/metrics` (proces `apps/api`) zgodny z `docs/observability.md`: HTTP (licznik + latencja), uptime/process, liczniki/gauge statusów runów, sygnały błędów wywołań gateway — nazwy mogą mieć prefiks `content_chain_`.
 
@@ -84,12 +84,14 @@ B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/s
 
 Zmiana względem wersji 1: dopisano `@nestjs/config` oraz Pino/`nestjs-pino` jako zatwierdzony stack logów/konfiguracji procesu (wcześniej tylko ogólne „walidowany obiekt env” i stdout bez wskazania biblioteki — `docs/observability.md` / `docs/architektura.md`).
 
+Zmiana względem wersji 2: B-8 obejmuje też treść opinii (`Feedback.body`).
+
 ## Kryteria akceptacji
 
 - [ ] Api/gateway padają przy starcie bez wymaganych env; `.env.example` istnieje i nie zawiera sekretów.
 - [ ] Helmet (lub równoważne) aktywne na api; CORS czyta allowlistę z env.
 - [ ] W production: gateway i metrics nie są publiczne; cookie Secure.
-- [ ] Brak sekretów w logach runu, SSE, envelope i labelach metrics.
+- [ ] Brak sekretów w logach runu, SSE, envelope, treści opinii i labelach metrics.
 - [ ] `/metrics` zwraca co najmniej sygnały z B-9.
 - [ ] Checklist operatora z `docs/security.md` da się odhaczyć na instalacji compose.
 
@@ -98,4 +100,4 @@ Zmiana względem wersji 1: dopisano `@nestjs/config` oraz Pino/`nestjs-pino` jak
 - OAuth / SSO / 2FA, rotacja wielu adminów, recovery lost-admin.
 - WAF, pełny pentest, szyfrowanie pliku SQLite at-rest.
 - Alerty Prometheus YAML, OTel traces, centralny ELK/Loki.
-- Szczegóły BC Auth / Social (odniesienia do właściwych SPEC).
+- Szczegóły BC Auth / Social / Feedback / przegląd runu (odniesienia do właściwych SPEC).

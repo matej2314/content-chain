@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-11
+data_modyfikacji: 2026-08-15
 ---
 
 # SPEC — Persistence
@@ -43,7 +43,9 @@ P-3. Identyfikatory w kolumnach: **brandowane stringi** zgodnie z `docs/brand_ty
 
 P-4. ORM / SQL / Prisma **zakazane** w `domain/` oraz w `packages/shared`. Application zależy od **portów**.
 
-P-5. DB jest kanoniczna dla kontekstu firmy, userów, sesji refresh, runów, wyników SM i logów runu. **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
+P-5. DB jest kanoniczna dla kontekstu firmy, userów, sesji refresh, runów, wyników SM, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
+
+Zmiana względem wersji 1: kanon obejmuje Feedback i pola przeglądu (fundament zapisu MVP).
 
 P-6. W MVP `datasource.provider = "sqlite"`. Wprowadzenie PostgreSQL jako providera aplikacji = sygnał wejścia w fazę **V1 — rozbudowa** (patrz tabela wyżej), z nową historią migracji.
 
@@ -66,7 +68,7 @@ apps/api/
 
 | Element | Norma |
 |---------|--------|
-| Port persistence | interfejsy per potrzeba BC (users, sessions, context, runs, logs, wyniki SM) |
+| Port persistence | interfejsy per potrzeba BC (users, sessions, context, runs, logs, wyniki SM, feedback) |
 | Adapter | Prisma implementuje porty |
 | SQLite ops (WAL, busy_timeout) | **poza** sztywną normą SPEC — decyzja implementacyjna pod współbieżność runów |
 | Kolumny kontekstu firmy | per sekcja — `SPEC-KONTEKST-FIRMY.md` |
@@ -115,4 +117,4 @@ apps/api/
 - Backup/restore volume (docs deployment / ops).
 - Eksport kontekstu do `.md` / checksum (tuż po MVP wg docs produktowych — nie ten SPEC).
 - Konfiguracja WAL/busy_timeout (implementacja).
-- Szczegóły schematu każdej tabeli BC (doprecyzowują Auth / Kontekst / Runy / Social przy implementacji, byle norma port/adapter i silników była zachowana).
+- Szczegóły schematu każdej tabeli BC (doprecyzowują Auth / Kontekst / Runy / Social / Feedback przy implementacji, byle norma port/adapter i silników była zachowana).

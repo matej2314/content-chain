@@ -16,6 +16,11 @@ Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, 
 |-------|---------|--------|
 | Edycja kontekstu firmy | tak | nie |
 | Start runów SM / HITL / odczyt logów / lista runów instancji | tak | tak |
+| Ocena gwiazdkowa / flaga edycji / finalize przeglądu **własnego** runu | tak | tak |
+| To samo na runie obcego `startedBy` | nie | nie |
+| `GET /runs/user/:userId` tylko gdy `:userId` = sesja | tak (własne) | tak (własne) |
+| `POST /feedback` (opinia tekstowa) | tak | tak |
+| Panel odczytu / analityka opinii | V1 — rozbudowa | V1 — rozbudowa |
 | Lista + tworzenie użytkowników (`user`) | tak (z ograniczeniem adminów — niżej) | nie |
 | Soft-delete użytkownika (API; UI MVP bez tego) | tak | nie |
 | Bootstrap pierwszego admina | jednorazowy (API + ekran first-run) | — |

@@ -12,7 +12,7 @@ export const envSchema = z
     GATEWAY_MODEL_ALIAS: z.string().min(1).default('chat-default'),
     JWT_SECRET: z.string().min(1),
     JWT_ACCESS_TTL: z.string().min(1).default('15m'),
-    JWT_REFRESH_TTL: z.string().min(1).default('7d'),
+    JWT_REFRESH_TTL: z.string().min(1).default('1d'),
     CORS_ORIGIN: z.string().min(1),
     MAX_CONCURRENT_RUNS: z.coerce.number().int().positive().default(3),
   })

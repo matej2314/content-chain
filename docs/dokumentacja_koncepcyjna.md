@@ -35,6 +35,7 @@ Content Chain jest świadomie **ograniczony pierwszym slice’em Social** (post 
 - Persistence: **SQLite wyłącznie w MVP** (port/adapter Prisma). **PostgreSQL** — obowiązkowe przejście w fazie **V1 — rozbudowa** (kolejne workflowy poza pierwszym slice Social); nie jest silnikiem MVP. Cutover: nowa historia migracji Prisma + pusta baza (ew. osobny import danych) — `spec/SPEC-PERSISTENCE.md`.
 - Logi runów: pełna czytelność przebiegu.
 - Bramka kompletności kontekstu w DB (patrz niżej) — do spełnienia warunki flow’y SM są zablokowane.
+- **Fundament feedbacku (zapis):** tabela opinii tekstowych (aplikacja / agent / run), ocena gwiazdkowa runu (`1–5` albo `null`) oraz flaga edycji outputu — API + DB; kontrolki zapisu na dashboardzie przy majorze FE. **Pełne wprowadzenie** (panel administracyjny, analityka, stopień edycji) — faza **V1 — rozbudowa**. Szczegóły: `ux_dashboard.md`, `dokumentacja_komunikacji.md`.
 
 ### Bramka kompletności kontekstu firmy
 
@@ -63,9 +64,12 @@ Zakres produktowy MVP obejmuje auth i dashboard od początku koncepcji. Kolejno�
 
 1. **api + gateway + pipeline SM + SQLite** — DoD pośredni: happy path weryfikowany Postmanem.
 2. **Auth** (admin + użytkownicy).
-3. **Web / dashboard** — domknięcie self-host UX.
+3. **Fundament zapisu feedbacku** (opinie, ocena runu, flaga edycji) — API + DB; Postman bez UI.
+4. **Web / dashboard** — domknięcie self-host UX (w tym kontrolki zapisu opinii / gwiazdek / Edytuj).
 
 Sam wynik Postmana **nie** jest ostatecznym publicznym MVP.
+
+Zmiana względem wcześniejszej kolejności trzech kroków: dopisano fundament feedbacku **po auth, przed** dashboardem (wymaga `startedBy` / sesji; UI zostaje w majorze FE).
 
 ## Poza zakresem MVP (oraz później — V1 — rozbudowa / dalsze)
 
@@ -77,6 +81,9 @@ Sam wynik Postmana **nie** jest ostatecznym publicznym MVP.
 - Cichy runtime-fallback kontekstu z plików przy niedostępnej lub niespójnej DB.
 - Marketingowy traffic / „produkt dla agencji” jako cel MVP.
 - Uznanie samego API bez auth i dashboardu za finalne MVP.
+- Panel administracyjny opinii / średnich ocen / analityki feedbacku (V1 — rozbudowa).
+- Stopień edycji outputu (diff / procent) — poza fundamentem flagi w MVP.
+- Zmiana oceny gwiazdkowej po zatwierdzeniu / zamknięciu przeglądu runu.
 
 ## Główne założenia
 
@@ -95,6 +102,7 @@ Sam wynik Postmana **nie** jest ostatecznym publicznym MVP.
 - Logi runu są **w pełni czytelne** i pozwalają odtworzyć przebieg.
 - Auth działa w formie docelowej; dashboard umożliwia pracę self-host bez obchodzenia API „na piechotę” jako jedynego UX.
 - Integracja z gateway LLM działa end-to-end dla pipeline’u SM.
+- Fundament feedbacku: opinia tekstowa, ocena runu (`null` albo `1–5`) i flaga edycji outputu **zapisują się w DB** przez API (bez panelu analitycznego w MVP).
 
 ## Słownik skrótowy
 
@@ -106,5 +114,6 @@ Sam wynik Postmana **nie** jest ostatecznym publicznym MVP.
 | HITL | Pauza na wybór użytkownika, gdy kolejny krok zależy od selekcji z listy |
 | Gateway | Osobna aplikacja pośrednicząca w wywołaniach LLM |
 | Bramka kontekstu | Programowy warunek kompletności sekcji wymaganych przed startem flow’ów |
+| Opinia / ocena runu | Zapis feedbacku użytkownika: tekst (aplikacja, agent, run) oraz gwiazdki `1–5` \| `null` na zakończonym przebiegu; flaga edycji wyniku |
 
 Szczegóły pojęć: `dictionary.md`. Brand types: `brand_types.md`. Komunikacja: `dokumentacja_komunikacji.md`. UI: `ux_dashboard.md`.

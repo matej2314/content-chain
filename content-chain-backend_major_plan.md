@@ -1,10 +1,10 @@
 # Content Chain — major plan (backend)
 
-**Zakres tego pliku:** fundament monorepo, boilerplate frontu (wyłącznie struktura i pakiety) oraz **backend** aż do zielonego pipeline’u SM i auth API.  
-**Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa, rozbudowa ops poza fundamentem metryk.
+**Zakres tego pliku:** fundament monorepo, boilerplate frontu (wyłącznie struktura i pakiety) oraz **backend** aż do zielonego pipeline’u SM, auth API **oraz fundamentu zapisu feedbacku** (opinie, ocena runu, flaga edycji).  
+**Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md`, `content-chain_brief.md` (kontekst kolejności budowy).  
-**Kolejność priorytetów:** najpierw Milestone 4 (pipeline + Postman), potem Faza 5 (Auth) — zgodnie z order of attack w docs.
+**Kolejność priorytetów:** najpierw Milestone 4 (pipeline + Postman), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku) — zgodnie z order of attack w docs.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -360,17 +360,85 @@
 
 ---
 
-## MILESTONE 5 — Backend w zakresie tego majoru domknięty
+## MILESTONE 5 — Auth API gotowe pod feedback i frontend
 
-**Opis:** Bramka zamykająca ten plik (uzgodniony wyjątek „po ostatniej fazie”). Pipeline SM + auth API działają łącznie; frontend produktowy pozostaje poza planem.
+**Opis:** Bramka po Fazie 5. Sesja, role i `startedBy` działają. **Nie** zamyka majoru backendowego.
+
+Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresie tego majoru domknięty”): domknięcie przesunięte za Fazę 6 (fundament zapisu feedbacku). Powód: ocena i opinie wymagają autentycznego `startedBy` / sesji, ale są osobnym krokiem po auth.
 
 **DoD (milestone):**
 
 - Faza 5 spełnia swoje DoD (lub `WYKONANY`).
 - Zielony pipeline (Milestone 4) nadal przechodzi przy poprawnej sesji / rolach.
 - Auth jest w formie docelowej na api (`/me`, bootstrap-status, soft-delete); egzekucja uprawnień nie polega na UI.
-- Lista runów + `startedBy` oraz probe sesji są gotowe jako kontrakt pod major frontendowy.
-- Dashboard / feature FE, pełny compose production, eksport `.md`/checksum oraz PostgreSQL / V1 — rozbudowa pozostają **poza** tym major planem.
+- Lista runów + `startedBy` oraz probe sesji są gotowe jako kontrakt pod Fazę 6 i major frontendowy.
+- Akceptacja przejścia do Fazy 6.
+
+---
+
+## Faza 6 — Fundament zapisu: opinie, ocena runu, flaga edycji
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** MVP-fundament jakości z perspektywy użytkownika: tabela opinii tekstowych, metadane oceny gwiazdkowej (`null` \| `1–5`) i flagi edycji outputu na runie, HTTP zapisu, lista `GET /runs/user/:userId`. **Bez** panelu administracyjnego / analityki (V1 — rozbudowa) i **bez** UI (major FE). Zgodnie z `SPEC-FEEDBACK.md`, `SPEC-RUNY.md` (R-3c, R-10), `docs/dokumentacja_komunikacji.md`.
+
+**DoD (faza):**
+
+- Opinia tekstowa zapisuje się w DB z `authorId` i `createdAt`; target aplikacja / agent (enum) / własny run.
+- Snapshot runu zawiera `userRating`, `outputEdited`, `reviewFinalizedAt`; ocena i flaga działają na `completed` i `failed` tylko dla autora; po finalize — lock.
+- `GET /api/v1/runs/user/:userId` zwraca wszystkie runy sesji; cudzy id → 403.
+- Happy path Postman (bez UI) dla zapisu opinii, oceny, flagi i finalize.
+
+### Krok 6.1 — Persistence: tabela opinii i pola przeglądu Run
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Nowa migracja Prisma (append; bez przepisywania historii SQLite z Fazy 2): tabela Feedback + kolumny Run (`userRating`, `outputEdited`, `reviewFinalizedAt`). Domyślnie `userRating = null`, `outputEdited = false`, `reviewFinalizedAt = null`.
+
+**DoD (krok):**
+
+- Schema przenośna (P-7); ID opinii brandowane `fbk_<uuid>`.
+- Istniejący cykl życia runu (Faza 3–4) nie psuje się: nowe pola mają bezpieczne defaulty.
+- ORM tylko w infrastructure.
+
+### Krok 6.2 — HTTP Feedback i lista runów autora
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** BC `feedback/` — `POST /api/v1/feedback`. `GET /api/v1/runs/user/:userId` w BC Runs (trasa przed `:runId`). Authz: sesja; run/target run tylko `startedBy`; `:userId` = sesja.
+
+**DoD (krok):**
+
+- POST opinii: 201 z metadanymi; drugi wpis = nowy wiersz; cudzy run → 403.
+- Target `agent` wymaga enumu `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier`.
+- Lista user zwraca wszystkie runy autora bez `pageSize=10`.
+- Brak GET panelu opinii w tym kroku (świadomie).
+
+### Krok 6.3 — Ocena, flaga edycji, finalize; snapshot
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** `PATCH .../rating`, `POST .../output-edited`, `POST .../finalize-review`. Snapshot `GET /runs/:runId` zgodny z docs (w tym `userRating` zawsze obecne). Flaga edycji nie nadpisuje payloadu SM.
+
+**DoD (krok):**
+
+- `completed` i `failed` (także po edycji outputu) — autor może oceniać i oznaczać edycję do finalize.
+- Brak gwiazdek → `null`; 1–5 tylko po wyborze użytkownika.
+- Po finalize dalsza zmiana → `REVIEW_LOCKED`; zły status → `RUN_NOT_REVIEWABLE`.
+- Postman: finalize z `null` oraz z oceną 1–5.
+
+---
+
+## MILESTONE 6 — Backend w zakresie tego majoru domknięty
+
+**Opis:** Bramka zamykająca ten plik (przesunięta za Fazę 6). Pipeline SM + auth API + fundament zapisu feedbacku działają łącznie; frontend produktowy oraz panel admina opinii pozostają poza planem.
+
+**DoD (milestone):**
+
+- Faza 6 spełnia swoje DoD (lub `WYKONANY`).
+- Zielony pipeline (Milestone 4) i auth (Milestone 5) nadal przechodzą.
+- Kontrakt zapisu opinii / oceny / flagi / listy `runs/user/:userId` jest gotowy pod major frontendowy (`ux_dashboard.md`).
+- Dashboard / feature FE, pełny compose production, eksport `.md`/checksum, PostgreSQL / V1 — rozbudowa (panel analityczny opinii) pozostają **poza** tym major planem.
 - Akceptacja domknięcia majoru backendowego (kolejny major: frontend produktowy — osobno).
 
 ---
@@ -383,10 +451,11 @@
 | Brand types | `docs/brand_types.md` |
 | Frontend (tylko boilerplate tu) | `SPEC-FRONTEND.md`, `docs/ux_dashboard.md` (ekrany = później) |
 | Persistence MVP | `SPEC-PERSISTENCE.md` |
-| HTTP / SSE / gateway / lista runów / auth probe | `docs/dokumentacja_komunikacji.md`, `SPEC-KOMUNIKACJA.md` |
+| HTTP / SSE / gateway / lista runów / auth probe / feedback | `docs/dokumentacja_komunikacji.md`, `SPEC-KOMUNIKACJA.md` |
 | Bezpieczeństwo / env / bootstrap /me | `docs/security.md`, `SPEC-BEZPIECZENSTWO.md`, `SPEC-AUTH.md` |
 | Kontekst firmy | `SPEC-KONTEKST-FIRMY.md`, `docs/dokumentacja_koncepcyjna.md` |
-| Runy / logi / listing | `SPEC-RUNY.md`, `docs/observability.md` |
+| Runy / logi / listing / przegląd (ocena, edycja) | `SPEC-RUNY.md`, `docs/observability.md` |
+| Opinie tekstowe | `SPEC-FEEDBACK.md` |
 | Social | `SPEC-SOCIAL.md`, `docs/data_flow.md` |
 | Auth | `SPEC-AUTH.md` |
 | Kolejność budowy | `docs/dokumentacja_koncepcyjna.md`, `content-chain_brief.md` |

@@ -48,6 +48,7 @@ Docelowe pliki (propozycja):
 | `ConversationId` | `conv_<uuid>` — `/^conv_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i` | **Jeden na cały run agentowy.** Wspólna oś korelacji wszystkich wywołań LLM; CC tworzy przy starcie runu i przekazuje w body `POST .../chat`. |
 | `UserId` | `usr_<uuid>` | ID użytkownika w DB / JWT po zmapowaniu |
 | `RunId` | `run_<uuid>` | Jeden async run pipeline’u SM |
+| `FeedbackId` | `fbk_<uuid>` | Jeden wpis opinii tekstowej |
 | `GatewayModelAlias` | string brand (bez sztywnego prefiksu) | Alias modelu z konfiguracji gateway; walidacja „niepusty” na granicy api→gateway |
 
 `RequestId` / `ConversationId` **nie** dostają osobnego „CC formatu” — świadoma zgodność wzorców z upstream.
@@ -61,6 +62,9 @@ Docelowe pliki (propozycja):
 | `RunTaskType` | `post_ideas` \| `post_content` \| `post_ideas_then_content` |
 | `SocialPlatform` | `linkedin` \| `facebook` \| `instagram` |
 | `ContentLanguage` | `pl` \| `en` |
+| `FeedbackTargetType` | `application` \| `agent` \| `run` |
+| `FeedbackAgentKey` | `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier` |
+| `RunUserRating` | `1` \| `2` \| `3` \| `4` \| `5` (w JSON runu pole jest `number \| null`; `null` = brak oceny) |
 
 Enumy wolno modelować jako `Brand<string, 'RunStatus'>` z whitelistą w `createRunStatus` **albo** jako wąskie string union w shared. Schemy Zod dla tych enumów — w `apps/api` (application), nie w `packages/shared`. Jedna konwencja nazw w shared; brak magicznych stringów w feature kodzie.
 
@@ -91,7 +95,7 @@ RequestId LLM₃                    ──► z odpowiedzi gateway po kolejnym a
 | Jeden `ConversationId` na run agentowy | Generować i wysyłać `x-request-id` do gateway przy chat/stream |
 | class-validator (HTTP) + Zod (application api) → branded | `as RunId` na `req.params` bez walidacji |
 | Brandów / enumów kontraktu w `packages/shared` **bez Zod** | Zod (lub inny runtime walidator) w `packages/shared`; duplikacja `Brand` w `apps/frontend` |
-| Prefiksy `usr_` / `run_` dla ID wyłącznie CC | Mylenie `GatewayModelAlias` z vendor `modelId` |
+| Prefiksy `usr_` / `run_` / `fbk_` dla ID wyłącznie CC | Mylenie `GatewayModelAlias` z vendor `modelId` |
 
 ## Poza zakresem MVP tego dokumentu
 

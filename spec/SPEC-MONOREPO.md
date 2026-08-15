@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-11
+data_modyfikacji: 2026-08-15
 ---
 
 # SPEC — Monorepo
@@ -68,7 +68,9 @@ M-8. `apps/api/src/shared/` (jeśli używany) służy wyłącznie cross-cuttingo
 - Tworzyć drugiego pakietu „shared” z logiką biznesową poza `packages/shared`.
 - Opakowywać aplikacje w rootowy katalog `src/apps/`.
 - Wprowadzać Nx lub Turborepo jako wymóg DX w MVP.
-- Przenosić domenę Content Chain (kontekst firmy, Social, auth produktu) do `apps/ai-provider-gateway` lub do `apps/frontend`.
+- Przenosić domenę Content Chain (kontekst firmy, Social, auth produktu, Feedback, przegląd runu) do `apps/ai-provider-gateway` lub do `apps/frontend`.
+
+Zmiana względem wersji 1: lista zakazu obejmuje Feedback i przegląd runu.
 
 ### Zatwierdzony stack (obszar)
 

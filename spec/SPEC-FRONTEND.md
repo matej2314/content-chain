@@ -1,14 +1,14 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-12
+data_modyfikacji: 2026-08-15
 ---
 
 # SPEC — Frontend
 
 ## Cel / zakres względem dokumentacji
 
-Norma `apps/frontend`: cienki klient self-host (first-run, login, dashboard, flow’y SM, HITL, logi), spójny z `docs/ux_dashboard.md` i kontraktem `SPEC-KOMUNIKACJA.md` / `SPEC-AUTH.md`.
+Norma `apps/frontend`: cienki klient self-host (first-run, login, dashboard, flow’y SM, HITL, logi, **zapis opinii / oceny / flagi edycji**), spójny z `docs/ux_dashboard.md` i kontraktem `SPEC-KOMUNIKACJA.md` / `SPEC-AUTH.md` / `SPEC-FEEDBACK.md` / `SPEC-RUNY.md`.
 
 Bez reguł domenowych pipeline’u, bez bramki kompletności jako jedynej egzekucji, bez sekretów LLM.
 
@@ -45,7 +45,12 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 - First-run (bootstrap), Logowanie;
 - Kontekst firmy, Runy SM (lista instancji + filtry + paginacja 10), Run szczegóły (live) po kliknięciu wiersza;
 - Użytkownicy (admin: **tylko** lista + tworzenie);
-- Konto (**tylko** logout).
+- Konto (**tylko** logout);
+- Globalny CTA **„Zostaw opinię”** + formularz (aplikacja / agent / run); na szczegółach runu: **Edytuj** (flaga), **gwiazdki 1–5** (dobrowolne, `null` gdy brak), **Zamknij / zapisz przegląd**.
+
+Zmiana względem wersji 3: dopisano kontrolki **zapisu** feedbacku (`docs/ux_dashboard.md`). Panel administracyjny odczytu opinii / analityka = **V1 — rozbudowa**, nie ten SPEC.
+
+F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. Select agentów = enum z shared (labelki PL). Ocena i Edytuj tylko gdy snapshot mówi, że sesja jest `startedBy` i przegląd niezamknięty.
 
 Zmiana względem wersji 1: Konto nie obejmuje zmiany hasła; dodano first-run; lista runów = cała instancja z nawigacją lista → szczegóły; admin users bez edycji/dezaktywacji w UI.
 
@@ -56,7 +61,7 @@ Zmiana względem wersji 1: Konto nie obejmuje zmiany hasła; dodano first-run; l
 ```text
 apps/frontend/src/
 ├── app/                    # App Router: routes, layouts
-├── modules/                # moduły UI: auth, company-context, runs, users, …
+├── modules/                # moduły UI: auth, company-context, runs, users, feedback, …
 │   └── <module>/
 │       ├── components/
 │       ├── api/            # fetch wrappers do endpointów modułu
@@ -78,6 +83,7 @@ apps/frontend/src/
 - Reconnect SSE + uzupełnienie snapshotem GET run/logs.
 - Read-only podgląd kontekstu dla `user`; edycja tylko gdy sesja `admin` (api i tak egzekwuje).
 - First-run na podstawie `bootstrap-status`.
+- Formularz opinii i gwiazdki jako Client Components; lock UI po `reviewFinalizedAt`.
 
 ### Nie wolno
 
@@ -89,6 +95,8 @@ apps/frontend/src/
 - Bearer access jako domyślnego transportu auth w MVP.
 - Self-service konta w MVP (zmiana hasła / email / usuwanie siebie).
 - UI soft-delete / edycji użytkowników w MVP (tylko lista + create).
+- Panelu administracyjnego opinii / analityki ocen w MVP (V1 — rozbudowa).
+- Nadpisywania wyniku SM w api z FE poza flagą `outputEdited` w MVP.
 
 ### Zatwierdzony stack (obszar)
 
@@ -110,6 +118,7 @@ apps/frontend/src/
 - [ ] Admin: lista + create users; Konto: tylko logout.
 - [ ] Kod FE podzielony na `app/` + `modules/`; typy z shared.
 - [ ] Brak sekretów LLM w bundlu klienta.
+- [ ] CTA opinii + formularz zapisuje `POST /feedback`; gwiazdki/Edytuj/finalize wołają kontrakt Runs; select runów z `/runs/user/:userId`.
 
 ## Poza zakresem
 
@@ -118,3 +127,4 @@ apps/frontend/src/
 - Publikacja postów na API portali (v2).
 - OAuth / social login.
 - Self-service konta; soft-delete users w UI (później / V1).
+- Panel admina opinii / stopień edycji outputu (V1 — rozbudowa).

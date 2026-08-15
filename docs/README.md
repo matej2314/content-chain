@@ -27,7 +27,7 @@
 | `local` / `production`, compose, backup | `deployment.md` |
 | Auth, bootstrap, hasła, ekspozycja | `security.md` |
 | Metryki vs logi runu | `observability.md` |
-| Widoki dashboardu, agenci aktywni, live status | `ux_dashboard.md` |
+| Widoki dashboardu, agenci aktywni, live status, opinia / gwiazdki / Edytuj | `ux_dashboard.md` |
 
 ## Schematy (skrót)
 

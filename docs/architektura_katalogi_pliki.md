@@ -22,6 +22,10 @@ content-chain/
 │   │       ├── company-context/
 │   │       ├── social/
 │   │       ├── runs/
+│   │       ├── feedback/            # opinie tekstowe (zapis MVP)
+│   │       ├── health/              # liveness / readiness procesu
+│   │       ├── metrics/             # eksporter Prometheus (`GET /metrics`)
+│   │       ├── llm/                 # port LLM + adapter HTTP do gateway
 │   │       └── shared/              # cross-cutting tylko w api (nie packages/shared)
 │   ├── frontend/                    # Next.js — cienki klient
 │   │   ├── package.json
@@ -44,7 +48,8 @@ content-chain/
 | Ustalenie z `architektura.md` | Konsekwencja w drzewie |
 |-------------------------------|-------------------------|
 | Modularny monolit, 3 procesy | `apps/api`, `apps/frontend`, `apps/ai-provider-gateway` |
-| Port/adapter (persistence, LLM) | Porty w `domain` / `application`; adaptery w `infrastructure` (+ Prisma w `apps/api/prisma`) |
+| Port/adapter (persistence, LLM) | Porty w `domain` / `application`; adaptery w `infrastructure` (+ Prisma w `apps/api/prisma`); klient gateway w `apps/api/src/llm/` |
+| Health / metrics (ops) | `apps/api/src/health/`, `apps/api/src/metrics/` — nie BC |
 | Social = LangGraph za fasadą | `apps/api/src/social/infrastructure/graph/` |
 | Prompty przy BC Social | `apps/api/src/social/infrastructure/prompts/` |
 | Cienki frontend | Moduły UI w `apps/frontend/src/modules/`; brak `domain/` SM |
@@ -53,7 +58,7 @@ content-chain/
 
 ## `apps/api` — bounded contexty (~1 poziom w głąb)
 
-Każdy BC (`auth`, `company-context`, `social`, `runs`) trzyma spójny układ warstw:
+Każdy BC (`auth`, `company-context`, `social`, `runs`, `feedback`) trzyma spójny układ warstw:
 
 ```text
 apps/api/src/<context>/
@@ -61,7 +66,7 @@ apps/api/src/<context>/
 ├── <context>.controller.ts          # cienkie HTTP
 ├── application/                     # use-case’y / serwisy aplikacyjne
 ├── domain/                          # reguły, typy domenowe, porty (interfejsy)
-└── infrastructure/                  # adaptery (Prisma repos, klient gateway, …)
+└── infrastructure/                  # adaptery (Prisma repos, …); klient LLM w `src/llm/`
 ```
 
 ### Social (wyjątek orchestracji)
@@ -83,10 +88,21 @@ apps/api/src/social/
 ```text
 apps/api/src/runs/
 ├── runs.module.ts
-├── runs.controller.ts               # status runu, logi, wznowienie HITL (wg kontraktu API)
+├── runs.controller.ts               # status, logi, HITL, lista user/:userId, ocena, flaga edycji, finalize
 ├── application/
-├── domain/                          # statusy runu, polityka przejść
+├── domain/                          # statusy runu, polityka przejść, lock przeglądu
 └── infrastructure/
+```
+
+### Feedback (opinie tekstowe)
+
+```text
+apps/api/src/feedback/
+├── feedback.module.ts
+├── feedback.controller.ts           # POST zapisu opinii (MVP: bez panelu odczytu)
+├── application/
+├── domain/
+└── infrastructure/                  # adapter Prisma tabeli opinii
 ```
 
 ### Auth i Company Context
@@ -104,12 +120,20 @@ Ten sam szkielet warstw; w `company-context` — reguła bramki kompletności w 
 
 Pomocnicze elementy wyłącznie API (np. konfiguracja, interceptory, mapping błędów). **Nie** dublować `packages/shared` i **nie** umieszczać tu reguł Social / kontekstu firmy.
 
+### `apps/api/src/health/`, `metrics/`, `llm/`
+
+To **nie** są bounded contexty — brak układu `application` / `domain` / `infrastructure`.
+
+- `health/` — liveness i readiness procesu (`GET /api/v1/health`, `GET /api/v1/health/ready`; kontrakt: `dokumentacja_komunikacji.md`).
+- `metrics/` — eksporter Prometheus (`GET /metrics` poza `/api/v1`; `observability.md`).
+- `llm/` — port LLM i adapter HTTP do `apps/ai-provider-gateway`. Wołają go BC (np. Social), nie kontrolery HTTP. **Nie** umieszczać tu domeny Content Chain ani kluczy vendorów.
+
 ## `apps/frontend`
 
 ```text
 apps/frontend/src/
 ├── app/                             # App Router (routes, layouts)
-├── modules/                         # np. auth, company-context, social, runs
+├── modules/                         # np. auth, company-context, social, runs, feedback
 ├── shared/                          # UI kit / utils frontu (nie domena api)
 └── ...
 ```

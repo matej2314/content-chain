@@ -81,10 +81,14 @@ export type GateSection = (typeof GATE_SECTIONS)[number];
 ```typescript
 import type { GateSection } from './company-context.constants';
 
-export type OfferItem = { name: string; benefit: string };
+export type OfferItem = {
+  name: string;
+  benefit: string[];
+  description: string;
+};
+
 export type CtaItem = { label: string; target?: string };
 export type AudienceProfile = { description: string };
-
 export type CompanyContextExtras = Record<string, unknown>;
 
 export type CompanyContext = {
@@ -115,31 +119,28 @@ export const emptyCompanyContext = (): CompanyContext => ({
 
 ```typescript
 import type { CompanyContext, Completeness } from './company-context.types';
-import type { GateSection } from './company-context.constants';
+import { GATE_SECTIONS, type GateSection } from './company-context.constants';
 
 const nonEmpty = (value: string): boolean => value.trim().length > 0;
 
+const sectionFilled: Record<GateSection, (context: CompanyContext) => boolean> =
+  {
+    identity: ({ identity }) =>
+      nonEmpty(identity.name) && nonEmpty(identity.description),
+    offer: ({ offer }) =>
+      offer.items.some(
+        (item) => nonEmpty(item.name) && item.benefit.some(nonEmpty),
+      ),
+    voice: ({ voice }) => nonEmpty(voice.weDo) && nonEmpty(voice.weDont),
+    cta: ({ cta }) => cta.items.some((item) => nonEmpty(item.label)),
+    audience: ({ audience }) =>
+      audience.profiles.some((profile) => nonEmpty(profile.description)),
+  };
+
 export function isComplete(context: CompanyContext): Completeness {
-  const missing: GateSection[] = [];
-
-  if (!nonEmpty(context.identity.name) || !nonEmpty(context.identity.description)) {
-    missing.push('identity');
-  }
-  if (
-    !context.offer.items.some((item) => nonEmpty(item.name) && nonEmpty(item.benefit))
-  ) {
-    missing.push('offer');
-  }
-  if (!nonEmpty(context.voice.weDo) || !nonEmpty(context.voice.weDont)) {
-    missing.push('voice');
-  }
-  if (!context.cta.items.some((item) => nonEmpty(item.label))) {
-    missing.push('cta');
-  }
-  if (!context.audience.profiles.some((item) => nonEmpty(item.description))) {
-    missing.push('audience');
-  }
-
+  const missing = GATE_SECTIONS.filter(
+    (section) => !sectionFilled[section](context),
+  );
   return { complete: missing.length === 0, missing };
 }
 ```
@@ -152,7 +153,7 @@ import { isComplete } from './is-complete';
 
 const complete = {
   identity: { name: 'Acme', description: 'Robimy X.' },
-  offer: { items: [{ name: 'Audyt', benefit: 'Oszczędność czasu' }] },
+  offer: { items: [{ name: 'Audyt', benefit: ['Oszczędność czasu'], description: 'Przegląd procesów.' }] },
   voice: { weDo: 'konkretnie', weDont: 'żargon' },
   cta: { items: [{ label: 'Napisz do nas', target: '/kontakt' }] },
   audience: { profiles: [{ description: 'Founder SaaS B2B' }] },
@@ -211,6 +212,8 @@ export type PartialCompanyContext = {
 
 **Nowy plik:** `apps/api/src/company-context/infrastructure/prisma-company-context.adapter.ts`
 
+Kolumny `Json` Prisma są `JsonValue` / `InputJsonValue` — typy domenowe nie są do nich przypisywalne. Helpery zostają **w tym pliku** (nie `packages/shared`, nie `apps/api/src/shared`, dopóki drugi adapter nie potrzebuje tego samego). `toInputJson` koncentruje rzutowanie zapisu; `Prisma.JsonNull` poza helperem (wartownik, nie wartość JSON). `jsonArray` / `jsonRecord` na odczycie: nie-tablica → `[]`, nie-obiekt → `null` (zamiast `as … ?? []`, które łapie tylko `null`/`undefined`). Kształt elementów tablicy nadal zaufany — ten adapter jest jedynym pisarzem.
+
 ```typescript
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -222,9 +225,38 @@ import type {
 } from '../domain/company-context.query.port';
 import {
   emptyCompanyContext,
+  type AudienceProfile,
   type CompanyContext,
   type CompanyContextExtras,
+  type CtaItem,
+  type OfferItem,
 } from '../domain/company-context.types';
+
+type CompanyContextRow = {
+  identityName: string;
+  identityDescription: string;
+  offerItems: Prisma.JsonValue;
+  voiceWeDo: string;
+  voiceWeDont: string;
+  ctaItems: Prisma.JsonValue;
+  audienceProfiles: Prisma.JsonValue;
+  extras: Prisma.JsonValue | null;
+};
+
+const toInputJson = (value: unknown): Prisma.InputJsonValue =>
+  value as Prisma.InputJsonValue;
+
+const jsonArray = <T>(value: Prisma.JsonValue, fallback: T[] = []): T[] =>
+  Array.isArray(value) ? (value as T[]) : fallback;
+
+const jsonRecord = (
+  value: Prisma.JsonValue | null,
+): CompanyContextExtras | null => {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as CompanyContextExtras;
+};
 
 @Injectable()
 export class PrismaCompanyContextAdapter implements CompanyContextRepository {
@@ -253,7 +285,9 @@ export class PrismaCompanyContextAdapter implements CompanyContextRepository {
       offer: { items: partial.offer?.items ?? current.offer.items },
       voice: { ...current.voice, ...partial.voice },
       cta: { items: partial.cta?.items ?? current.cta.items },
-      audience: { profiles: partial.audience?.profiles ?? current.audience.profiles },
+      audience: {
+        profiles: partial.audience?.profiles ?? current.audience.profiles,
+      },
       extras: partial.extras === undefined ? current.extras : partial.extras,
     };
     return this.put(merged);
@@ -264,34 +298,27 @@ export class PrismaCompanyContextAdapter implements CompanyContextRepository {
       id: COMPANY_CONTEXT_SINGLETON_ID,
       identityName: context.identity.name,
       identityDescription: context.identity.description,
-      offerItems: context.offer.items as Prisma.InputJsonValue,
+      offerItems: toInputJson(context.offer.items),
       voiceWeDo: context.voice.weDo,
       voiceWeDont: context.voice.weDont,
-      ctaItems: context.cta.items as Prisma.InputJsonValue,
-      audienceProfiles: context.audience.profiles as Prisma.InputJsonValue,
-      extras: (context.extras ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+      ctaItems: toInputJson(context.cta.items),
+      audienceProfiles: toInputJson(context.audience.profiles),
+      extras:
+        context.extras == null ? Prisma.JsonNull : toInputJson(context.extras),
     };
   }
 
-  private toDomain(row: {
-    identityName: string;
-    identityDescription: string;
-    offerItems: Prisma.JsonValue;
-    voiceWeDo: string;
-    voiceWeDont: string;
-    ctaItems: Prisma.JsonValue;
-    audienceProfiles: Prisma.JsonValue;
-    extras: Prisma.JsonValue | null;
-  }): CompanyContext {
+  private toDomain(row: CompanyContextRow): CompanyContext {
     return {
-      identity: { name: row.identityName, description: row.identityDescription },
-      offer: { items: (row.offerItems as CompanyContext['offer']['items']) ?? [] },
-      voice: { weDo: row.voiceWeDo, weDont: row.voiceWeDont },
-      cta: { items: (row.ctaItems as CompanyContext['cta']['items']) ?? [] },
-      audience: {
-        profiles: (row.audienceProfiles as CompanyContext['audience']['profiles']) ?? [],
+      identity: {
+        name: row.identityName,
+        description: row.identityDescription,
       },
-      extras: (row.extras as CompanyContextExtras | null) ?? null,
+      offer: { items: jsonArray<OfferItem>(row.offerItems) },
+      voice: { weDo: row.voiceWeDo, weDont: row.voiceWeDont },
+      cta: { items: jsonArray<CtaItem>(row.ctaItems) },
+      audience: { profiles: jsonArray<AudienceProfile>(row.audienceProfiles) },
+      extras: jsonRecord(row.extras),
     };
   }
 }
@@ -443,39 +470,58 @@ export class PatchCompanyContextUseCase {
 ```typescript
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsObject,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 
 export class OfferItemDto {
+  @ApiProperty()
   @IsString()
   name!: string;
 
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  benefit!: string[];
+
+  @ApiProperty()
   @IsString()
-  benefit!: string;
+  description!: string;
 }
 
 export class CtaItemDto {
+  @ApiProperty()
   @IsString()
   label!: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   target?: string;
 }
 
 export class AudienceProfileDto {
+  @ApiProperty()
   @IsString()
   description!: string;
 }
 
 export class IdentityDto {
+  @ApiProperty()
   @IsString()
   name!: string;
 
+  @ApiProperty()
   @IsString()
   description!: string;
 }
 
 export class OfferDto {
+  @ApiProperty({ type: [OfferItemDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => OfferItemDto)
@@ -483,14 +529,17 @@ export class OfferDto {
 }
 
 export class VoiceDto {
+  @ApiProperty()
   @IsString()
   weDo!: string;
 
+  @ApiProperty()
   @IsString()
   weDont!: string;
 }
 
 export class CtaDto {
+  @ApiProperty({ type: [CtaItemDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CtaItemDto)
@@ -498,6 +547,7 @@ export class CtaDto {
 }
 
 export class AudienceDto {
+  @ApiProperty({ type: [AudienceProfileDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AudienceProfileDto)
@@ -505,82 +555,104 @@ export class AudienceDto {
 }
 
 export class PatchIdentityDto {
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   name?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description?: string;
 }
 
 export class PatchVoiceDto {
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   weDo?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   weDont?: string;
 }
 
 export class PutCompanyContextDto {
+  @ApiProperty({ type: IdentityDto })
   @ValidateNested()
   @Type(() => IdentityDto)
   identity!: IdentityDto;
 
+  @ApiProperty({ type: OfferDto })
   @ValidateNested()
   @Type(() => OfferDto)
   offer!: OfferDto;
 
+  @ApiProperty({ type: VoiceDto })
   @ValidateNested()
   @Type(() => VoiceDto)
   voice!: VoiceDto;
 
+  @ApiProperty({ type: CtaDto })
   @ValidateNested()
   @Type(() => CtaDto)
   cta!: CtaDto;
 
+  @ApiProperty({ type: AudienceDto })
   @ValidateNested()
   @Type(() => AudienceDto)
   audience!: AudienceDto;
 
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true, nullable: true })
   @IsOptional()
-  extras?: Record<string, unknown>;
+  @IsObject()
+  extras?: Record<string, unknown> | null;
 }
 
 export class PatchCompanyContextDto {
+  @ApiPropertyOptional({ type: PatchIdentityDto })
   @IsOptional()
   @ValidateNested()
   @Type(() => PatchIdentityDto)
   identity?: PatchIdentityDto;
 
+  @ApiPropertyOptional({ type: OfferDto })
   @IsOptional()
   @ValidateNested()
   @Type(() => OfferDto)
   offer?: OfferDto;
 
+  @ApiPropertyOptional({ type: PatchVoiceDto })
   @IsOptional()
   @ValidateNested()
   @Type(() => PatchVoiceDto)
   voice?: PatchVoiceDto;
 
+  @ApiPropertyOptional({ type: CtaDto })
   @IsOptional()
   @ValidateNested()
   @Type(() => CtaDto)
   cta?: CtaDto;
 
+  @ApiPropertyOptional({ type: AudienceDto })
   @IsOptional()
   @ValidateNested()
   @Type(() => AudienceDto)
   audience?: AudienceDto;
 
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true, nullable: true })
   @IsOptional()
-  extras?: Record<string, unknown>;
+  @IsObject()
+  extras?: Record<string, unknown> | null;
 }
 ```
 
-PUT **nie** wymaga niepustych stringów na granicy HTTP — kompletność to domain. Puste stringi są legalnym zapisem (admin uzupełnia później). PATCH: zagnieżdżone DTO z polami opcjonalnymi (`PatchIdentityDto` / `PatchVoiceDto`), żeby `PATCH { "identity": { "name": "Nowa" } }` przeszło `ValidationPipe`.
+`OfferItemDto` jest 1:1 z `OfferItem` w `company-context.types.ts` (i JSON `offerItems` w adapterze): `benefit` to **tablica stringów**, jest też `description`. Pusta tablica `benefit` i pusty `description` są legalne na HTTP — bramka (`item.benefit.some(nonEmpty)`) zostaje w domain. Dzięki temu mapper `offer: { items: dto.offer.items }` jest typowo zgodny, bez ręcznego składania oferty.
+
+Pola DTO mają `@ApiProperty` / `@ApiPropertyOptional` (`@nestjs/swagger`) — zagnieżdżone klasy przez `type: FooDto`, tablice przez `type: [FooDto]` / `type: [String]`, `extras` z `nullable: true`. Bez tego `/docs` pokazałby blob `object` zamiast sekcji. Walidacja nadal class-validator; Swagger nie zastępuje `ValidationPipe`.
+
+PUT **nie** wymaga niepustych stringów na granicy HTTP — kompletność to domain. Puste stringi są legalnym zapisem (admin uzupełnia później). PATCH: zagnieżdżone DTO z polami opcjonalnymi (`PatchIdentityDto` / `PatchVoiceDto`), żeby `PATCH { "identity": { "name": "Nowa" } }` przeszło `ValidationPipe`. `extras` opcjonalne, obiekt albo `null` (wyczyść) — jak `CompanyContext['extras']` i `partial.extras === undefined ? current : partial` w adapterze.
 
 **Refaktor:** `company-context.controller.ts`
 

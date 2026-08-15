@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-11
+data_modyfikacji: 2026-08-15
 ---
 
 # SPEC — Social
@@ -116,6 +116,9 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 - Reguł SM / bramki w FE lub w gateway.
 - Wołania vendorów LLM z pominięciem gateway.
 - Rozszerzania MVP o rolki / YouTube / blog / pipeline builder w tym SPEC.
+- Re-invoke grafu ani zmiany węzłów z powodu oceny gwiazdkowej, flagi edycji outputu lub opinii tekstowej (to Runs / Feedback po `completed`/`failed`).
+
+Zmiana względem wersji 1: dopisano zakaz re-invoke grafu z powodu oceny / edycji / opinii (to Runs / Feedback).
 
 ### Zatwierdzony stack (obszar)
 
@@ -145,3 +148,4 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 - Checkpointer LangGraph / B+C.
 - Uniwersalny orkiestrator agentowy firmy, pipeline builder, kolejne kanały contentowe.
 - UI HITL / animacje → `SPEC-FRONTEND.md`.
+- Ocena gwiazdkowa, flaga edycji outputu, opinie tekstowe → `SPEC-RUNY.md` / `SPEC-FEEDBACK.md`.

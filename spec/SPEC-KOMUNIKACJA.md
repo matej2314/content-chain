@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-12
+data_modyfikacji: 2026-08-15
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -32,7 +32,9 @@ Wiążące (`docs/architektura.md`):
 |--------------|-------------------|--------|
 | Publiczne API CC | `/api/v1` | JSON |
 | Lista runów | `GET /api/v1/runs` | JSON (paginacja stała 10) |
+| Runy użytkownika (select opinii) | `GET /api/v1/runs/user/:userId` | JSON (wszystkie, bez pageSize=10) |
 | Live run | `GET /api/v1/runs/:runId/events` | SSE (`text/event-stream`) |
+| Opinia tekstowa | `POST /api/v1/feedback` | JSON (zapis MVP) |
 | Ops metrics | `GET /metrics` (poza `/api/v1`) | Prometheus text |
 | DX OpenAPI (Swagger UI) | `GET /docs` (poza `/api/v1`) | HTML / OpenAPI JSON |
 | Health | `GET /api/v1/health` | JSON |
@@ -62,6 +64,10 @@ K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId`
 
 K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`.
 
+K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora pod select opinii (`SPEC-RUNY.md` R-3c). `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`). Ocena / flaga edycji / finalize — `SPEC-RUNY.md` R-10. Payloady w `docs/dokumentacja_komunikacji.md`.
+
+Zmiana względem wersji 4: dopisano fundament zapisu feedbacku (wcześniej tylko listing dashboardu).
+
 Zmiana względem wersji 2: dopisano obowiązek listingu kolekcji runów pod FE (wcześniej tylko POST + GET by id / SSE).
 
 K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed) idzie wyłącznie przez **SSE** `GET /api/v1/runs/:runId/events`. Zdarzenia i statusy jak w docs komunikacji.
@@ -76,7 +82,7 @@ K-6. Na wszystkich hopach LLM w jednym runie body niesie **ten sam** `conversati
 
 K-7. Błędy gateway mapowane na logi runu i ewentualnie `run.failed` / retry wg **polityki api** — zawsze z czytelnym logiem; **bez** wycieku `X-Gateway-Key` do frontendu ani logów produktowych.
 
-K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, `HITL_REQUIRED`, `RUN_NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach.
+K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, `HITL_REQUIRED`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, `CONFLICT`, `INTERNAL_ERROR`, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach.
 
 ## Norma implementacji
 
@@ -151,6 +157,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - [ ] Błędy HTTP mają envelope z `code`, `message`, `requestId` (format `req_<uuid>`).
 - [ ] `POST /api/v1/runs` kończy się 202 z `runId` + `conversationId` bez czekania na LLM.
 - [ ] `GET /api/v1/runs` listuje runy instancji zgodnie z docs (paginacja 10, filtry, `startedBy`).
+- [ ] `GET /api/v1/runs/user/:userId` i `POST /feedback` oraz rating/edit/finalize istnieją w kontrakcie docs; kody `REVIEW_LOCKED` / `RUN_NOT_REVIEWABLE` w envelope.
 - [ ] Klient otrzymuje live status wyłącznie przez SSE; GET run/logs = snapshot.
 - [ ] SSE wymaga sesji cookie jak API; brak tokenu w query i brak wymogu Bearer.
 - [ ] Adapter gateway woła natywny chat z `X-Gateway-Key`, bez `x-request-id` z CC; `conversationId` stały w runie; `requestId` z odpowiedzi w logu kroku.
@@ -164,7 +171,8 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - Pełne skopiowanie OpenAPI `ai-provider-gateway`.
 - Traktowanie `/docs` jako kontraktu produktowego FE (to DX / ops lokalne).
 - Definicja grafu Social, refine `max N`, treść promptów → `SPEC-SOCIAL.md`.
-- Polityka przejść statusów runu i kanoniczny model logów DB → `SPEC-RUNY.md`.
+- Polityka przejść statusów runu, przegląd (ocena/edycja) i kanoniczny model logów DB → `SPEC-RUNY.md`.
+- Opinie tekstowe → `SPEC-FEEDBACK.md`.
 - Implementacja UI EventSource / animacji statusu → `SPEC-FRONTEND.md`.
 - Szczegółowy zestaw metryk Prometheus i dashboardy → docs observability / `SPEC-BEZPIECZENSTWO.md` (tu tylko istnienie ścieżki `/metrics`).
 - Sztywna liczba retry gateway (pozostaje „polityka api + czytelny log”).
