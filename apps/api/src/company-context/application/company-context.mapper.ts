@@ -2,7 +2,7 @@ import type {
   Completeness,
   CompanyContext,
 } from '../domain/company-context.types';
-import type { PartialCompanyContext } from '../domain/company-context.query.port';
+import type { PartialCompanyContext } from '../domain/company-context.port';
 import type {
   PatchCompanyContextDto,
   PutCompanyContextDto,

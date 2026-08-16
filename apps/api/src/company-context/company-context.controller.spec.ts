@@ -1,18 +1,23 @@
-import { Test, type TestingModule } from '@nestjs/testing';
+import 'reflect-metadata';
 import { CompanyContextController } from './company-context.controller';
 
 describe('CompanyContextController', () => {
-  let controller: CompanyContextController;
+  it('declares completeness route before collection GET', () => {
+    const methodNames = Object.getOwnPropertyNames(
+      CompanyContextController.prototype,
+    );
+    expect(methodNames.indexOf('completeness')).toBeLessThan(
+      methodNames.indexOf('get'),
+    );
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [CompanyContextController],
-    }).compile();
-
-    controller = module.get<CompanyContextController>(CompanyContextController);
-  });
-
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+    expect(
+      Reflect.getMetadata(
+        'path',
+        CompanyContextController.prototype.completeness,
+      ),
+    ).toBe('completeness');
+    expect(
+      Reflect.getMetadata('path', CompanyContextController.prototype.get),
+    ).toBe('/');
   });
 });

@@ -41,7 +41,7 @@ Odpowiada major **Faza 3**. Numer `FAZA 2` = drugi w zestawie wycinka (ciągło�
 
 ### KROK 1 — BC Company Context (domain, persistence, HTTP)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Kanoniczny jeden kontekst na instancję, werdykt kompletności, GET/PUT/PATCH. Major 3.1, `SPEC-KONTEKST-FIRMY.md` C-1…C-7 (C-4 authz — Faza 5). JSON uzgodniony w wywiadzie HOW.
 
@@ -51,7 +51,7 @@ Odpowiada major **Faza 3**. Numer `FAZA 2` = drugi w zestawie wycinka (ciągło�
 - nowy: `apps/api/src/company-context/domain/is-complete.ts`
 - nowy: `apps/api/src/company-context/domain/is-complete.spec.ts`
 - nowy: `apps/api/src/company-context/domain/company-context.constants.ts`
-- nowy: `apps/api/src/company-context/domain/company-context.query.port.ts`
+- nowy: `apps/api/src/company-context/domain/company-context.port.ts`
 - nowy: `apps/api/src/company-context/application/company-context.mapper.ts`
 - nowy: `apps/api/src/company-context/application/get-company-context.use-case.ts`
 - nowy: `apps/api/src/company-context/application/put-company-context.use-case.ts`
@@ -187,7 +187,7 @@ describe('isComplete', () => {
 });
 ```
 
-**Nowy plik:** `apps/api/src/company-context/domain/company-context.query.port.ts`
+**Nowy plik:** `apps/api/src/company-context/domain/company-context.port.ts`
 
 ```typescript
 import type { CompanyContext } from './company-context.types';
@@ -222,7 +222,7 @@ import { COMPANY_CONTEXT_SINGLETON_ID } from '../domain/company-context.constant
 import type {
   CompanyContextRepository,
   PartialCompanyContext,
-} from '../domain/company-context.query.port';
+} from '../domain/company-context.port';
 import {
   emptyCompanyContext,
   type AudienceProfile,
@@ -333,7 +333,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   COMPANY_CONTEXT_REPOSITORY,
   type CompanyContextRepository,
-} from '../domain/company-context.query.port';
+} from '../domain/company-context.port';
 import { isComplete } from '../domain/is-complete';
 
 @Injectable()
@@ -355,7 +355,7 @@ export class GetCompanyContextUseCase {
 
 ```typescript
 import type { Completeness, CompanyContext } from '../domain/company-context.types';
-import type { PartialCompanyContext } from '../domain/company-context.query.port';
+import type { PartialCompanyContext } from '../domain/company-context.port';
 import type {
   PatchCompanyContextDto,
   PutCompanyContextDto,
@@ -397,7 +397,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   COMPANY_CONTEXT_REPOSITORY,
   type CompanyContextRepository,
-} from '../domain/company-context.query.port';
+} from '../domain/company-context.port';
 import { isComplete } from '../domain/is-complete';
 
 @Injectable()
@@ -420,7 +420,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   COMPANY_CONTEXT_REPOSITORY,
   type CompanyContextRepository,
-} from '../domain/company-context.query.port';
+} from '../domain/company-context.port';
 import type { CompanyContext } from '../domain/company-context.types';
 import { isComplete } from '../domain/is-complete';
 import { toPublicCompanyContext } from './company-context.mapper';
@@ -447,7 +447,7 @@ import {
   COMPANY_CONTEXT_REPOSITORY,
   type CompanyContextRepository,
   type PartialCompanyContext,
-} from '../domain/company-context.query.port';
+} from '../domain/company-context.port';
 import { isComplete } from '../domain/is-complete';
 import { toPublicCompanyContext } from './company-context.mapper';
 
@@ -720,7 +720,7 @@ import { GetCompletenessUseCase } from './application/get-completeness.use-case'
 import { PatchCompanyContextUseCase } from './application/patch-company-context.use-case';
 import { PutCompanyContextUseCase } from './application/put-company-context.use-case';
 import { CompanyContextController } from './company-context.controller';
-import { COMPANY_CONTEXT_REPOSITORY } from './domain/company-context.query.port';
+import { COMPANY_CONTEXT_REPOSITORY } from './domain/company-context.port';
 import { PrismaCompanyContextAdapter } from './infrastructure/prisma-company-context.adapter';
 
 @Module({

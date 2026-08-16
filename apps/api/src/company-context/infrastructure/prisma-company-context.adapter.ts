@@ -5,7 +5,7 @@ import { COMPANY_CONTEXT_SINGLETON_ID } from '../domain/company-context.constant
 import type {
   CompanyContextRepository,
   PartialCompanyContext,
-} from '../domain/company-context.query.port';
+} from '../domain/company-context.port';
 import {
   emptyCompanyContext,
   type AudienceProfile,

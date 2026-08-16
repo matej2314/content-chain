@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   COMPANY_CONTEXT_REPOSITORY,
   type CompanyContextRepository,
-} from '../domain/company-context.query.port';
+} from '../domain/company-context.port';
 import { isComplete } from '../domain/is-complete';
 
 @Injectable()
