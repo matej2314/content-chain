@@ -18,7 +18,7 @@
 
 - Warstwy BC: controller → application → domain + porty → adapter Prisma (`docs/architektura_katalogi_pliki.md`). Prisma tylko w `infrastructure/` oraz w `shared/persistence` z `_1`. Klient LLM (port + adapter HTTP) = osobny moduł aplikacji `apps/api/src/llm/` z `_1` — **nie** w `shared/llm`; Faza 3 go nie importuje (stub bez LLM).
 - Walidacja HTTP: class-validator + `ValidationPipe`. Application: Zod. Shared: bez Zod.
-- SSE: Nest `@Sse()` + RxJS `Observable<MessageEvent>` (Context7 `/nestjs/docs.nestjs.com` — techniques/server-sent-events). Emisja **wyłącznie** z BC Runs (R-4).
+- SSE: Nest `@Sse()` + RxJS `Observable<MessageEvent>` **na handlerze HTTP** (Context7 `/nestjs/docs.nestjs.com` — techniques/server-sent-events; `SPEC-KOMUNIKACJA.md` K-3). Port domain (KROK 2) emituje `RunSseEvent`; mapowanie na `MessageEvent` jest w KROK 4. Emisja **wyłącznie** z BC Runs (R-4).
 - Worker: in-process, `MAX_CONCURRENT_RUNS` z `ENV` (default 3). Stub executora: log placeholder → `completed` (zatwierdzone HOW).
 - HITL HTTP istnieje jako zmiana stanu; stub **nie** wchodzi w `awaiting_hitl`. Social (Faza 4) ustawi pauzę modelem B (`SPEC-SOCIAL.md` S-6) — poza tym plikiem.
 - Testy: Jest unit (domain bez I/O) + supertest; D-1 (`CONTEXT_INCOMPLETE`) w tym wycinku; D-2/D-3 authz — Faza 5; D-4…D-8 Social — Faza 4; D-9 kolejka i D-10 recovery — tutaj (z fake/stub executora, bez live LLM).
@@ -27,8 +27,8 @@
 
 | Temat | Źródło | Ustalenie |
 |-------|--------|-----------|
-| SSE | Context7 NestJS `@Sse()` / `MessageEvent` | `type` = nazwa zdarzenia (`run.status`, …); `data` = JSON |
-| RxJS | już w `apps/api` (`rxjs`) | `Subject` w hubie; `startWith` na snapshot statusu przy subskrypcji |
+| SSE | Context7 NestJS `@Sse()` / `MessageEvent` | `type` = nazwa zdarzenia z docs (`run.status`, …); `data` = JSON. **Tylko** handler `@Sse()` (KROK 4). Hub (KROK 3) nie zna `MessageEvent`. |
+| RxJS | już w `apps/api` (`rxjs`) | `Subject<RunSseEvent>` w hubie; w kontrolerze `startWith` snapshotu statusu + `map` na `MessageEvent` |
 | Prisma | plik `_1` / Prisma 6 | `groupBy`/`updateMany` do kolejki i recovery; append log = `create` |
 
 ---
@@ -759,7 +759,7 @@ export class CompanyContextModule {}
 
 ### KROK 2 — BC Runs: domain (statusy, retry, log)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Polityka przejść i `isRetryable` niezależne od Nest/Prisma. Major 3.2 (warstwa domain), R-1, R-9 pkt 3.
 
@@ -770,8 +770,7 @@ export class CompanyContextModule {}
 - nowy: `apps/api/src/runs/domain/status-transitions.spec.ts`
 - nowy: `apps/api/src/runs/domain/is-retryable.ts`
 - nowy: `apps/api/src/runs/domain/is-retryable.spec.ts`
-- nowy: `apps/api/src/runs/domain/run-log.ts`
-- nowy: `apps/api/src/runs/domain/run.repository.port.ts`
+- nowy: `apps/api/src/runs/domain/run.port.ts`
 - nowy: `apps/api/src/runs/domain/run-executor.port.ts`
 - nowy: `apps/api/src/runs/domain/run-sse.port.ts`
 
@@ -910,7 +909,7 @@ export function isRetryable(reason: RetryReason): boolean {
 
 **Nowy plik:** `apps/api/src/runs/domain/is-retryable.spec.ts` — crash/timeout = true; `GATEWAY_KEY_INVALID` / `validation` / `refine_exhausted` = false.
 
-**Nowy plik:** `apps/api/src/runs/domain/run.repository.port.ts`
+**Nowy plik:** `apps/api/src/runs/domain/run.port.ts`
 
 ```typescript
 import type { RunId, RunStatus, UserId } from '@content-chain/shared';
@@ -1007,6 +1006,8 @@ export interface RunSseHub {
 
 **Cel:** Runtime cyklu życia in-process bez Social. Major 3.2 (application/infra), R-2, R-5, R-6, R-9.
 
+Rozszerza KROK 2 (WYKONANY): adapter Prisma implementuje `RunRepository`; hub SSE implementuje `RunSseHub` **jak w kodzie** `apps/api/src/runs/domain/run-sse.port.ts` (`subscribe(): Observable<RunSseEvent>`). Ten krok **nie** edytuje plików `domain/` z KROK 2 (`run.port.ts` już ma `saveStatus` + `saveRecoveryAttempt`; port SSE już ma czystszą granicę z DoD KROK 2).
+
 **Artefakty:**
 
 - nowy: `apps/api/src/runs/infrastructure/prisma-run.adapter.ts`
@@ -1021,14 +1022,14 @@ export interface RunSseHub {
 - nowy: `apps/api/src/runs/application/get-run-logs.use-case.ts`
 - nowy: `apps/api/src/runs/infrastructure/stub-run.executor.spec.ts`
 - nowy: `apps/api/src/runs/application/recover-interrupted-runs.use-case.spec.ts`
-- refaktor: `apps/api/src/runs/domain/run.repository.port.ts` (uproszczenie `saveStatus` — bez opcjonalnego `recoveryAttempts`; nowa metoda `saveRecoveryAttempt`)
 
 **Nowy plik:** `apps/api/src/runs/infrastructure/run-sse.hub.ts`
+
+Hub jest adapterem portu z KROK 2: multicast `RunSseEvent` per `runId` (R-4 — emisja w BC Runs). Nazwy `event` są 1:1 z tabelą SSE w `docs/dokumentacja_komunikacji.md` (`run.status`, `run.log`, `run.hitl`, `run.completed`, `run.failed`). **Nie** mapuje na Nest `MessageEvent` — to kontrakt `@Sse()` na granicy HTTP (`SPEC-KOMUNIKACJA.md`: handler zwraca `Observable<MessageEvent>`), więc mapowanie + `startWith` snapshotu statusu są w KROK 4.
 
 ```typescript
 import { Injectable } from '@nestjs/common';
 import { Subject, type Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
 import type { RunId } from '@content-chain/shared';
 import type { RunSseEvent, RunSseHub } from '../domain/run-sse.port';
 
@@ -1036,10 +1037,8 @@ import type { RunSseEvent, RunSseHub } from '../domain/run-sse.port';
 export class InMemoryRunSseHub implements RunSseHub {
   private readonly subjects = new Map<string, Subject<RunSseEvent>>();
 
-  subscribe(runId: RunId): Observable<MessageEvent> {
-    return this.subjectFor(runId).pipe(
-      map((event) => ({ type: event.event, data: event.data }) as MessageEvent),
-    );
+  subscribe(runId: RunId): Observable<RunSseEvent> {
+    return this.subjectFor(runId).asObservable();
   }
 
   publish(event: RunSseEvent): void {
@@ -1123,7 +1122,7 @@ import {
   type ListRunsResult,
   type RunRepository,
   type RunSnapshot,
-} from '../domain/run.repository.port';
+} from '../domain/run.port';
 import type { RunLogEntry, RunRecord } from '../domain/run.types';
 
 type RunRow = {
@@ -1354,7 +1353,7 @@ export class StubRunExecutor implements RunExecutorPort {
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ENV, type Env } from '../../shared/config/env';
 import { RUN_EXECUTOR, type RunExecutorPort } from '../domain/run-executor.port';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.repository.port';
+import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { RUN_SSE_HUB, type RunSseHub } from '../domain/run-sse.port';
 import type { RunRecord } from '../domain/run.types';
 import { RecoverInterruptedRunsUseCase } from './recover-interrupted-runs.use-case';
@@ -1443,7 +1442,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { GetCompletenessUseCase } from '../../company-context/application/get-completeness.use-case';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.repository.port';
+import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import type { RunBrief, RunRecord } from '../domain/run.types';
 import { InProcessRunWorker } from './in-process-run.worker';
 import type { ContentLanguage, RunTaskType, SocialPlatform } from '@content-chain/shared';
@@ -1508,7 +1507,7 @@ Przy `complete === false` **brak** wiersza `Run` i **brak** wywołania LLM.
 import { Inject, Injectable } from '@nestjs/common';
 import type { RunId } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.repository.port';
+import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { RunLifecycleService } from './run-lifecycle.service';
 import { InProcessRunWorker } from './in-process-run.worker';
 
@@ -1544,7 +1543,7 @@ HITL wraca do `running` **poza** kolejką `queued` i startuje `execute` od razu 
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { isRetryable } from '../domain/is-retryable';
 import { RUN_EXECUTOR, type RunExecutorPort } from '../domain/run-executor.port';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.repository.port';
+import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { RunLifecycleService } from './run-lifecycle.service';
 
 const RECOVERY_CAP = 3;
@@ -1609,6 +1608,7 @@ Unit recovery: fake repo z jednym `running` + `recoveryAttempts: 3` → `failed`
 - `assertTransition('queued', 'running')` wywoływane w `claimNextQueued` przed `updateMany` — domenowa polityka egzekwowana przy każdej zmianie statusu (R-1).
 - `saveRecoveryAttempt` używane w recovery zamiast `saveStatus(..., 'running', ...)` — inkrementacja licznika prób jest wyraźnie oddzielona od zmiany statusu.
 - `notifyHitlResumed` zarządza `inflight` tak samo jak normalny claim — wznowienie po HITL wlicza się do limitu `MAX_CONCURRENT_RUNS` (R-6).
+- Hub implementuje `RunSseHub` z KROK 2: `subscribe` → `Observable<RunSseEvent>`; brak `MessageEvent` w infra huba (wire SSE = KROK 4 / K-3).
 
 ---
 
@@ -1729,13 +1729,13 @@ export class ParseRunIdPipe implements PipeTransform<string> {
 ```typescript
 import { Body, Controller, Get, HttpCode, Param, Post, Sse } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Observable, startWith } from 'rxjs';
+import { map, Observable, startWith } from 'rxjs';
 import type { RunId } from '@content-chain/shared';
 import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
 import { GetRunUseCase } from './application/get-run.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
-import { RUN_SSE_HUB, type RunSseHub } from './domain/run-sse.port';
+import { RUN_SSE_HUB, type RunSseEvent, type RunSseHub } from './domain/run-sse.port';
 import { Inject } from '@nestjs/common';
 import { HitlDto } from './http/dto/hitl.dto';
 import { StartRunDto } from './http/dto/start-run.dto';
@@ -1771,11 +1771,13 @@ export class RunsController {
   @Sse(':runId/events')
   async events(@Param('runId', ParseRunIdPipe) runId: RunId): Promise<Observable<MessageEvent>> {
     const snapshot = await this.getRun.execute(runId);
+    const snapshotEvent: RunSseEvent = {
+      event: 'run.status',
+      data: { runId, status: snapshot.status },
+    };
     return this.sse.subscribe(runId).pipe(
-      startWith({
-        type: 'run.status',
-        data: { runId, status: snapshot.status },
-      } as MessageEvent),
+      startWith(snapshotEvent),
+      map((event) => ({ type: event.event, data: event.data })),
     );
   }
 
@@ -1792,6 +1794,8 @@ export class RunsController {
 }
 ```
 
+Handler `@Sse()` mapuje `RunSseEvent` → Nest `MessageEvent` (`type` = `event` z docs komunikacji, `data` = JSON). Hub z KROK 3 zostaje przy typie domenowym. Snapshot `startWith` jest zdarzeniem `run.status` (GET = snapshot; live = SSE — R-3 / K-3).
+
 Kolejność ścieżek: `logs` i `events` **przed** gołym `:runId`. Listing `GET /runs` — KROK 5, metoda **bez** parametru, zadeklarowana **nad** `:runId`.
 
 **Nowy plik:** `apps/api/src/runs/application/get-run.use-case.ts`
@@ -1800,7 +1804,7 @@ Kolejność ścieżek: `logs` i `events` **przed** gołym `:runId`. Listing `GET
 import { Inject, Injectable } from '@nestjs/common';
 import type { RunId } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.repository.port';
+import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 
 @Injectable()
 export class GetRunUseCase {
@@ -1835,7 +1839,7 @@ export class GetRunUseCase {
 import { Inject, Injectable } from '@nestjs/common';
 import type { RunId } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.repository.port';
+import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 
 @Injectable()
 export class GetRunLogsUseCase {
@@ -1876,7 +1880,7 @@ import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { RunLifecycleService } from './application/run-lifecycle.service';
 import { StartRunUseCase } from './application/start-run.use-case';
 import { RUN_EXECUTOR } from './domain/run-executor.port';
-import { RUN_REPOSITORY } from './domain/run.repository.port';
+import { RUN_REPOSITORY } from './domain/run.port';
 import { RUN_SSE_HUB } from './domain/run-sse.port';
 import { PrismaRunAdapter } from './infrastructure/prisma-run.adapter';
 import { InMemoryRunSseHub } from './infrastructure/run-sse.hub';
@@ -1982,7 +1986,7 @@ export class ListRunsQueryDto {
 
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';
-import { PAGE_SIZE, RUN_REPOSITORY, type ListRunsQuery, type RunRepository } from '../domain/run.repository.port';
+import { PAGE_SIZE, RUN_REPOSITORY, type ListRunsQuery, type RunRepository } from '../domain/run.port';
 
 @Injectable()
 export class ListRunsUseCase {
@@ -2010,7 +2014,7 @@ export class ListRunsUseCase {
 }
 ```
 
-**Refaktor:** `runs.module.ts` — dodaj `ListRunsUseCase` do `providers` (import z `./application/list-runs.use-case`). **Refaktor:** `runs.controller.ts` — importy: `Query`, `BadRequestException` z `@nestjs/common`; `createUserId`, `isUserId` z `@content-chain/shared`; `type ListRunsQuery` z `./domain/run.repository.port`; dopisz `private readonly listRuns: ListRunsUseCase` w konstruktorze; metoda list **nad** `:runId`:
+**Refaktor:** `runs.module.ts` — dodaj `ListRunsUseCase` do `providers` (import z `./application/list-runs.use-case`). **Refaktor:** `runs.controller.ts` — importy: `Query`, `BadRequestException` z `@nestjs/common`; `createUserId`, `isUserId` z `@content-chain/shared`; `type ListRunsQuery` z `./domain/run.port`; dopisz `private readonly listRuns: ListRunsUseCase` w konstruktorze; metoda list **nad** `:runId`:
 
 ```typescript
   @Get()
