@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../shared/persistence/prisma.service';
 import { COMPANY_CONTEXT_SINGLETON_ID } from '../domain/company-context.constants';
+import { toInputJson } from '../../shared/persistence/to-input-json';
 import type {
   CompanyContextRepository,
   PartialCompanyContext,
@@ -25,9 +26,6 @@ type CompanyContextRow = {
   audienceProfiles: Prisma.JsonValue;
   extras: Prisma.JsonValue | null;
 };
-
-const toInputJson = (value: unknown): Prisma.InputJsonValue =>
-  value as Prisma.InputJsonValue;
 
 const jsonArray = <T>(value: Prisma.JsonValue, fallback: T[] = []): T[] =>
   Array.isArray(value) ? (value as T[]) : fallback;

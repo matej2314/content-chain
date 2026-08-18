@@ -19,7 +19,7 @@
 - Warstwy BC: controller → application → domain + porty → adapter Prisma (`docs/architektura_katalogi_pliki.md`). Prisma tylko w `infrastructure/` oraz w `shared/persistence` z `_1`. Klient LLM (port + adapter HTTP) = osobny moduł aplikacji `apps/api/src/llm/` z `_1` — **nie** w `shared/llm`; Faza 3 go nie importuje (stub bez LLM).
 - Walidacja HTTP: class-validator + `ValidationPipe`. Application: Zod. Shared: bez Zod.
 - SSE: Nest `@Sse()` + RxJS `Observable<MessageEvent>` **na handlerze HTTP** (Context7 `/nestjs/docs.nestjs.com` — techniques/server-sent-events; `SPEC-KOMUNIKACJA.md` K-3). Port domain (KROK 2) emituje `RunSseEvent`; mapowanie na `MessageEvent` jest w KROK 4. Emisja **wyłącznie** z BC Runs (R-4).
-- Worker: in-process, `MAX_CONCURRENT_RUNS` z `ENV` (default 3). Stub executora: log placeholder → `completed` (zatwierdzone HOW).
+- Worker: in-process, `MAX_CONCURRENT_RUNS` z `ENV` (default 3). Twardy cap tylko na claim z `queued`; HITL/recovery boot mogą chwilowo przekroczyć (burst). Stub executora: log placeholder → `completed` (zatwierdzone HOW).
 - HITL HTTP istnieje jako zmiana stanu; stub **nie** wchodzi w `awaiting_hitl`. Social (Faza 4) ustawi pauzę modelem B (`SPEC-SOCIAL.md` S-6) — poza tym plikiem.
 - Testy: Jest unit (domain bez I/O) + supertest; D-1 (`CONTEXT_INCOMPLETE`) w tym wycinku; D-2/D-3 authz — Faza 5; D-4…D-8 Social — Faza 4; D-9 kolejka i D-10 recovery — tutaj (z fake/stub executora, bez live LLM).
 
@@ -1002,30 +1002,43 @@ export interface RunSseHub {
 
 ### KROK 3 — BC Runs: persistence, SSE hub, worker, stub, recovery
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Runtime cyklu życia in-process bez Social. Major 3.2 (application/infra), R-2, R-5, R-6, R-9.
 
-Rozszerza KROK 2 (WYKONANY): adapter Prisma implementuje `RunRepository`; hub SSE implementuje `RunSseHub` **jak w kodzie** `apps/api/src/runs/domain/run-sse.port.ts` (`subscribe(): Observable<RunSseEvent>`). Ten krok **nie** edytuje plików `domain/` z KROK 2 (`run.port.ts` już ma `saveStatus` + `saveRecoveryAttempt`; port SSE już ma czystszą granicę z DoD KROK 2).
+Rozszerza KROK 2 (WYKONANY). Ten krok **nie** edytuje plików `domain/` z KROK 2. Źródłem kontraktu jest **kod**, nie snippet w tekście KROK 2:
+
+- `RunRepository` — `apps/api/src/runs/domain/run.port.ts` (`saveStatus`, `saveRecoveryAttempt`, `claimNextQueued`, `PAGE_SIZE`, `list`);
+- `RunSseHub` — `apps/api/src/runs/domain/run-sse.port.ts`: `subscribe(): Observable<RunSseEvent>` (nie `MessageEvent`);
+- `RunExecutorPort`, `assertTransition`, `isRetryable`, `RunRecord` / `RunLogEntry` — bez zmian.
+
+**Norma runtime (kanon tego kroku):**
+
+1. **Jedyna ścieżka `executor.execute`:** `InProcessRunWorker.executeViaExecutor`. Recovery i HITL tylko **wkładają** run do workera. Use-case’y **nie** wołają `RUN_EXECUTOR`.
+2. **R-6:** twardy cap `ENV.MAX_CONCURRENT_RUNS` (default 3) wyłącznie dla `claimNextQueued` (nowe runy → `queued`, FIFO). `pump()` jest szeregowany (łańcuch Promise) — dwa równoległe `notifyQueued()` nie claimują ponad cap. HITL i recovery boot **mogą chwilowo przekroczyć cap** (burst): jedyna legalna krawędź to `awaiting_hitl → running` / już-`running` po crashu; nie wolno wracać do `queued`. Burst podbija `inflight`, więc `queued` czeka.
+3. **R-9:** jedna próba na boot procesu. `findInterruptedRunning` = status `running` (`awaiting_hitl` nietknięty). `recoveryAttempts >= 3` → `failed` + log, bez execute. Pozostałe: `saveRecoveryAttempt` i zwrot listy do workera (klasyfikacja interruptu = `process_crash`, `isRetryable` zawsze true dla tego kind). Throw executora przy żywym procesie → log + `failed` w workerze (żadnych zombie `running`). `onModuleInit` **nie** `await` na `executor.execute` (Faza 4 nie zablokuje nasłuchu HTTP).
+4. **SSE / R-1:** `RunLifecycleService.transition` / `appendLog` = jedyna droga zmiany statusu i logu **z application**. Świadomy wyjątek: `queued → running` jest atomowe w `claimNextQueued` (`assertTransition` + `updateMany`); worker emituje `run.status=running` po claim — bez drugiego `saveStatus`.
+
+**Placeholdery:** w drzewie są puste pliki z literówkami. Przy implementacji użyj **kanonicznych** ścieżek z listy artefaktów; usuń / przemianuj duplikaty (`in-process.run.worker.ts` → `in-process-run.worker.ts`, `start-run.user-case.ts` → `start-run.use-case.ts`, `resumt-hitl.use-case.ts` → `resume-hitl.use-case.ts`, spec recovery z `infrastructure/` do `application/`). `get-run*.ts` — treść w KROK 4.
 
 **Artefakty:**
 
 - nowy: `apps/api/src/runs/infrastructure/prisma-run.adapter.ts`
 - nowy: `apps/api/src/runs/infrastructure/run-sse.hub.ts`
 - nowy: `apps/api/src/runs/infrastructure/stub-run.executor.ts`
+- nowy: `apps/api/src/runs/infrastructure/stub-run.executor.spec.ts`
 - nowy: `apps/api/src/runs/application/run-lifecycle.service.ts`
 - nowy: `apps/api/src/runs/application/in-process-run.worker.ts`
+- nowy: `apps/api/src/runs/application/in-process-run.worker.spec.ts`
 - nowy: `apps/api/src/runs/application/recover-interrupted-runs.use-case.ts`
-- nowy: `apps/api/src/runs/application/start-run.use-case.ts` *(HTTP w KROK 4 woła ten use-case — tu pełna logika startu, żeby worker i bramka były gotowe)*
-- nowy: `apps/api/src/runs/application/resume-hitl.use-case.ts`
-- nowy: `apps/api/src/runs/application/get-run.use-case.ts`
-- nowy: `apps/api/src/runs/application/get-run-logs.use-case.ts`
-- nowy: `apps/api/src/runs/infrastructure/stub-run.executor.spec.ts`
 - nowy: `apps/api/src/runs/application/recover-interrupted-runs.use-case.spec.ts`
+- nowy: `apps/api/src/runs/application/start-run.use-case.ts`
+- nowy: `apps/api/src/runs/application/resume-hitl.use-case.ts`
+- refaktor: `apps/api/src/runs/runs.module.ts` (providery + worker; kontroler zostaje pusty do KROK 4)
 
 **Nowy plik:** `apps/api/src/runs/infrastructure/run-sse.hub.ts`
 
-Hub jest adapterem portu z KROK 2: multicast `RunSseEvent` per `runId` (R-4 — emisja w BC Runs). Nazwy `event` są 1:1 z tabelą SSE w `docs/dokumentacja_komunikacji.md` (`run.status`, `run.log`, `run.hitl`, `run.completed`, `run.failed`). **Nie** mapuje na Nest `MessageEvent` — to kontrakt `@Sse()` na granicy HTTP (`SPEC-KOMUNIKACJA.md`: handler zwraca `Observable<MessageEvent>`), więc mapowanie + `startWith` snapshotu statusu są w KROK 4.
+Hub jest adapterem portu z KROK 2: multicast `RunSseEvent` per `runId` (R-4). Nazwy `event` 1:1 z `docs/dokumentacja_komunikacji.md`. **Nie** mapuje na Nest `MessageEvent` — to KROK 4 / K-3.
 
 ```typescript
 import { Injectable } from '@nestjs/common';
@@ -1059,11 +1072,22 @@ export class InMemoryRunSseHub implements RunSseHub {
 
 **Nowy plik:** `apps/api/src/runs/application/run-lifecycle.service.ts`
 
-Orkiestruje `assertTransition` + `saveStatus` + `publish(run.status)` oraz `appendLog` + `publish(run.log)`. Jedyna droga zmiany statusu i dopisania logu z application (Social w Fazie 4 też tędy — nie omija SSE).
-
-Szkielet:
+Orkiestruje `assertTransition` + `saveStatus` + `publish(run.status)` oraz `appendLog` + `publish(run.log)`. Social w Fazie 4 też tędy — nie omija SSE. `queued → running` **nie** idzie tędy (wyjątek w normie pkt 4).
 
 ```typescript
+import { Inject, Injectable } from '@nestjs/common';
+import type { RunStatus } from '@content-chain/shared';
+import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
+import { RUN_SSE_HUB, type RunSseHub } from '../domain/run-sse.port';
+import type { RunLogEntry, RunRecord } from '../domain/run.types';
+import { assertTransition } from '../domain/status-transitions';
+
+export type TransitionExtras = {
+  resultSummary?: string;
+  failedCode?: string;
+  failedMessage?: string;
+};
+
 @Injectable()
 export class RunLifecycleService {
   constructor(
@@ -1071,38 +1095,50 @@ export class RunLifecycleService {
     @Inject(RUN_SSE_HUB) private readonly sse: RunSseHub,
   ) {}
 
-  async transition(run: RunRecord, to: RunStatus): Promise<RunRecord> {
+  async transition(
+    run: RunRecord,
+    to: RunStatus,
+    extras?: TransitionExtras,
+  ): Promise<RunRecord> {
     assertTransition(run.status, to);
     await this.runs.saveStatus(run.id, to);
     this.sse.publish({ event: 'run.status', data: { runId: run.id, status: to } });
     if (to === 'completed') {
       this.sse.publish({
         event: 'run.completed',
-        data: { runId: run.id, resultSummary: 'stub: no Social pipeline' },
+        data: { runId: run.id, resultSummary: extras?.resultSummary },
       });
     }
     if (to === 'failed') {
       this.sse.publish({
         event: 'run.failed',
-        data: { runId: run.id, message: 'run failed' },
+        data: {
+          runId: run.id,
+          code: extras?.failedCode,
+          message: extras?.failedMessage ?? 'run failed',
+        },
       });
     }
     return { ...run, status: to };
   }
 
   async appendLog(entry: Omit<RunLogEntry, 'at'> & { at?: Date }): Promise<void> {
-    const saved = await this.runs.appendLog({ ...entry, at: entry.at ?? new Date() });
+    const saved = await this.runs.appendLog({
+      ...entry,
+      at: entry.at ?? new Date(),
+    });
     this.sse.publish({ event: 'run.log', data: { ...saved, runId: saved.runId } });
   }
 }
 ```
 
-Log **append-only**: adapter tylko `prisma.runLog.create` — zero `update`/`delete` na `RunLog`.
-
 **Nowy plik:** `apps/api/src/runs/infrastructure/prisma-run.adapter.ts`
+
+Implementuje `RunRepository` z KROK 2. Sygnatury: `RunId` (nie `ReturnType<typeof createRunId>`). Kolumny `Json` jak w adapterze kontekstu: `toInputJson` w tym pliku. Log **append-only**: wyłącznie `runLog.create`. `list()` od razu (KROK 5 = HTTP + use-case). `claimNextQueued`: FIFO `createdAt asc`, `assertTransition('queued','running')` przed `updateMany` z wartownikiem `status: 'queued'` (R-1); przy `count !== 1` retry.
 
 ```typescript
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import {
   createConversationId,
@@ -1110,6 +1146,7 @@ import {
   createUserId,
   isUserId,
   type ContentLanguage,
+  type RunId,
   type RunStatus,
   type RunTaskType,
   type SocialPlatform,
@@ -1140,6 +1177,9 @@ type RunRow = {
   startedBy: { id: string; email: string } | null;
 };
 
+const toInputJson = (value: unknown): Prisma.InputJsonValue =>
+  value as Prisma.InputJsonValue;
+
 @Injectable()
 export class PrismaRunAdapter implements RunRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -1153,8 +1193,11 @@ export class PrismaRunAdapter implements RunRepository {
         platform: run.platform,
         language: run.language,
         status: run.status,
-        brief: run.brief,
-        selectedIdeaIds: run.selectedIdeaIds ?? undefined,
+        brief: toInputJson(run.brief),
+        selectedIdeaIds:
+          run.selectedIdeaIds == null
+            ? undefined
+            : toInputJson(run.selectedIdeaIds),
         startedByUserId: run.startedByUserId,
         recoveryAttempts: run.recoveryAttempts,
         createdAt: run.createdAt,
@@ -1162,7 +1205,7 @@ export class PrismaRunAdapter implements RunRepository {
     });
   }
 
-  async getById(id: ReturnType<typeof createRunId>): Promise<RunSnapshot | null> {
+  async getById(id: RunId): Promise<RunSnapshot | null> {
     const row = await this.prisma.run.findUnique({
       where: { id },
       include: { startedBy: { select: { id: true, email: true } } },
@@ -1170,10 +1213,7 @@ export class PrismaRunAdapter implements RunRepository {
     return row ? this.toSnapshot(row) : null;
   }
 
-  async saveStatus(
-    id: ReturnType<typeof createRunId>,
-    status: RunStatus,
-  ): Promise<void> {
+  async saveStatus(id: RunId, status: RunStatus): Promise<void> {
     await this.prisma.run.update({
       where: { id },
       data: { status },
@@ -1184,7 +1224,6 @@ export class PrismaRunAdapter implements RunRepository {
     const next = await this.prisma.run.findFirst({
       where: { status: 'queued' },
       orderBy: { createdAt: 'asc' },
-      include: { startedBy: { select: { id: true, email: true } } },
     });
     if (!next) return null;
     assertTransition(next.status as RunStatus, 'running');
@@ -1195,15 +1234,14 @@ export class PrismaRunAdapter implements RunRepository {
     if (claimed.count !== 1) {
       return this.claimNextQueued();
     }
-    return this.toSnapshot({ ...next, status: 'running' });
+    return this.toSnapshot({ ...next, status: 'running', startedBy: null });
   }
 
   async findInterruptedRunning(): Promise<RunRecord[]> {
     const rows = await this.prisma.run.findMany({
       where: { status: 'running' },
-      include: { startedBy: { select: { id: true, email: true } } },
     });
-    return rows.map((row) => this.toSnapshot(row));
+    return rows.map((row) => this.toSnapshot({ ...row, startedBy: null }));
   }
 
   async appendLog(entry: RunLogEntry): Promise<RunLogEntry> {
@@ -1219,35 +1257,15 @@ export class PrismaRunAdapter implements RunRepository {
         requestId: entry.requestId,
       },
     });
-    return {
-      runId: createRunId(saved.runId),
-      conversationId: saved.conversationId
-        ? createConversationId(saved.conversationId)
-        : null,
-      at: saved.at,
-      level: saved.level as RunLogEntry['level'],
-      message: saved.message,
-      step: saved.step ?? undefined,
-      requestId: saved.requestId ?? undefined,
-    };
+    return this.toLog(saved);
   }
 
-  async listLogs(id: ReturnType<typeof createRunId>): Promise<RunLogEntry[]> {
+  async listLogs(id: RunId): Promise<RunLogEntry[]> {
     const rows = await this.prisma.runLog.findMany({
       where: { runId: id },
       orderBy: { at: 'asc' },
     });
-    return rows.map((saved) => ({
-      runId: createRunId(saved.runId),
-      conversationId: saved.conversationId
-        ? createConversationId(saved.conversationId)
-        : null,
-      at: saved.at,
-      level: saved.level as RunLogEntry['level'],
-      message: saved.message,
-      step: saved.step ?? undefined,
-      requestId: saved.requestId ?? undefined,
-    }));
+    return rows.map((row) => this.toLog(row));
   }
 
   async list(query: ListRunsQuery): Promise<ListRunsResult> {
@@ -1277,23 +1295,42 @@ export class PrismaRunAdapter implements RunRepository {
   }
 
   async saveSelectedIdeaIds(
-    id: ReturnType<typeof createRunId>,
+    id: RunId,
     selectedIdeaIds: string[],
   ): Promise<void> {
     await this.prisma.run.update({
       where: { id },
-      data: { selectedIdeaIds },
+      data: { selectedIdeaIds: toInputJson(selectedIdeaIds) },
     });
   }
 
-  async saveRecoveryAttempt(
-    id: ReturnType<typeof createRunId>,
-    attempts: number,
-  ): Promise<void> {
+  async saveRecoveryAttempt(id: RunId, attempts: number): Promise<void> {
     await this.prisma.run.update({
       where: { id },
       data: { recoveryAttempts: attempts },
     });
+  }
+
+  private toLog(saved: {
+    runId: string;
+    conversationId: string | null;
+    at: Date;
+    level: string;
+    message: string;
+    step: string | null;
+    requestId: string | null;
+  }): RunLogEntry {
+    return {
+      runId: createRunId(saved.runId),
+      conversationId: saved.conversationId
+        ? createConversationId(saved.conversationId)
+        : null,
+      at: saved.at,
+      level: saved.level as RunLogEntry['level'],
+      message: saved.message,
+      step: saved.step ?? undefined,
+      requestId: saved.requestId ?? undefined,
+    };
   }
 
   private toSnapshot(row: RunRow): RunSnapshot {
@@ -1318,9 +1355,9 @@ export class PrismaRunAdapter implements RunRepository {
 }
 ```
 
-Log **append-only**: wyłącznie `runLog.create` — zero `update`/`delete` na `RunLog`. `list()` jest w adapterze od razu (KROK 5 tylko HTTP + use-case).
-
 **Nowy plik:** `apps/api/src/runs/infrastructure/stub-run.executor.ts`
+
+Stand-in pod Faza 4 (Social za `RunExecutorPort`). Zależy od `RunLifecycleService` — to szew, który Social też użyje; **nie** woła `LlmGatewayPort`. **Nie** zapisuje `SocialIdea` / `SocialContent`. Wiadomość logu **bez** sekretów.
 
 ```typescript
 import { Injectable } from '@nestjs/common';
@@ -1340,14 +1377,16 @@ export class StubRunExecutor implements RunExecutorPort {
       message: 'pipeline executor: no-op (Social w Fazie 4)',
       step: 'StubRunExecutor',
     });
-    await this.lifecycle.transition(run, 'completed');
+    await this.lifecycle.transition(run, 'completed', {
+      resultSummary: 'stub: no Social pipeline',
+    });
   }
 }
 ```
 
-**Nie** woła `LlmGatewayPort` (token / port z `apps/api/src/llm/` — Faza 4). **Nie** zapisuje `SocialIdea` / `SocialContent`. Wiadomość logu **bez** sekretów.
-
 **Nowy plik:** `apps/api/src/runs/application/in-process-run.worker.ts`
+
+HTTP **nie** `await` executora — `notifyQueued()` tylko kolejkuje `pump`. `onModuleInit`: recovery (szybkie I/O DB) → `scheduleExistingRunning` bez await execute → `enqueuePump`.
 
 ```typescript
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
@@ -1362,6 +1401,7 @@ import { RunLifecycleService } from './run-lifecycle.service';
 @Injectable()
 export class InProcessRunWorker implements OnModuleInit {
   private inflight = 0;
+  private pumpTail: Promise<void> = Promise.resolve();
 
   constructor(
     @Inject(ENV) private readonly env: Env,
@@ -1373,32 +1413,43 @@ export class InProcessRunWorker implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.recover.execute();
-    void this.pump();
+    const resume = await this.recover.execute();
+    for (const run of resume) {
+      this.scheduleExistingRunning(run);
+    }
+    this.enqueuePump();
   }
 
   notifyQueued(): void {
-    void this.pump();
+    this.enqueuePump();
   }
 
-  private async pump(): Promise<void> {
+  notifyHitlResumed(run: RunRecord): void {
+    this.scheduleExistingRunning(run);
+  }
+
+  private scheduleExistingRunning(run: RunRecord): void {
+    this.inflight += 1;
+    void this.executeViaExecutor(run).finally(() => {
+      this.inflight -= 1;
+      this.enqueuePump();
+    });
+  }
+
+  private enqueuePump(): void {
+    this.pumpTail = this.pumpTail.then(() => this.drain()).catch(() => undefined);
+  }
+
+  private async drain(): Promise<void> {
     while (this.inflight < this.env.MAX_CONCURRENT_RUNS) {
       const claimed = await this.runs.claimNextQueued();
       if (!claimed) return;
       this.inflight += 1;
       void this.executeClaimed(claimed).finally(() => {
         this.inflight -= 1;
-        void this.pump();
+        this.enqueuePump();
       });
     }
-  }
-
-  notifyHitlResumed(run: RunRecord): void {
-    this.inflight += 1;
-    void this.executeViaExecutor(run).finally(() => {
-      this.inflight -= 1;
-      void this.pump();
-    });
   }
 
   private async executeClaimed(run: RunRecord): Promise<void> {
@@ -1422,30 +1473,36 @@ export class InProcessRunWorker implements OnModuleInit {
       });
       const latest = await this.runs.getById(run.id);
       if (latest && latest.status === 'running') {
-        await this.lifecycle.transition(latest, 'failed');
+        await this.lifecycle.transition(latest, 'failed', {
+          failedMessage: 'run executor failed',
+        });
       }
     }
   }
 }
 ```
 
-HTTP **nie** `await` całego executora — `notifyQueued()` jest synchronicznym kickiem. `claimNextQueued` tylko DB; worker emituje `run.status=running` po claim.
+`StartRunUseCase` tworzy `queued`, woła `notifyQueued()`, odczytuje status (`queued | running`) — K-2.
 
-Jeśli start ma wolny slot: `StartRunUseCase` tworzy `queued`, potem `notifyQueued()` — 202 z `queued | running` (odczyt po create+claim).
-
-`notifyHitlResumed(run)` — publiczna metoda do wznawiania runów po HITL; zarządza licznikiem `inflight` tak samo jak `executeClaimed`, ale **nie** emituje `run.status=running` (zrobiło to już `lifecycle.transition` w `ResumeHitlUseCase`). Dzięki temu wznowiony HITL wlicza się do limitu `MAX_CONCURRENT_RUNS`.
+`notifyHitlResumed` **nie** emituje `run.status` (zrobiło to `lifecycle.transition` w `ResumeHitlUseCase`) i **nie** czeka na wolny slot.
 
 **Nowy plik:** `apps/api/src/runs/application/start-run.use-case.ts`
 
+Walidacja HTTP (class-validator) jest w KROK 4; tu komenda jest już typowana. Bramka przez `GetCompletenessUseCase` z KROK 1 (export modułu).
+
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';
+import type {
+  ContentLanguage,
+  RunTaskType,
+  SocialPlatform,
+} from '@content-chain/shared';
 import { GetCompletenessUseCase } from '../../company-context/application/get-completeness.use-case';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import type { RunBrief, RunRecord } from '../domain/run.types';
 import { InProcessRunWorker } from './in-process-run.worker';
-import type { ContentLanguage, RunTaskType, SocialPlatform } from '@content-chain/shared';
 
 export type StartRunCommand = {
   taskType: RunTaskType;
@@ -1463,7 +1520,9 @@ export class StartRunUseCase {
     private readonly worker: InProcessRunWorker,
   ) {}
 
-  async execute(command: StartRunCommand): Promise<Pick<RunRecord, 'id' | 'conversationId' | 'status'>> {
+  async execute(
+    command: StartRunCommand,
+  ): Promise<Pick<RunRecord, 'id' | 'conversationId' | 'status'>> {
     const gate = await this.completeness.execute();
     if (!gate.complete) {
       throw new DomainException(
@@ -1499,7 +1558,7 @@ export class StartRunUseCase {
 }
 ```
 
-Przy `complete === false` **brak** wiersza `Run` i **brak** wywołania LLM.
+Przy `complete === false` **brak** wiersza `Run` i **brak** wywołania executora / LLM (D-1).
 
 **Nowy plik:** `apps/api/src/runs/application/resume-hitl.use-case.ts`
 
@@ -1508,8 +1567,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { RunId } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import { RunLifecycleService } from './run-lifecycle.service';
 import { InProcessRunWorker } from './in-process-run.worker';
+import { RunLifecycleService } from './run-lifecycle.service';
 
 @Injectable()
 export class ResumeHitlUseCase {
@@ -1525,7 +1584,11 @@ export class ResumeHitlUseCase {
       throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
     }
     if (run.status !== 'awaiting_hitl') {
-      throw new DomainException('HITL_REQUIRED', 'Run is not awaiting HITL', 409);
+      throw new DomainException(
+        'HITL_REQUIRED',
+        'Run is not awaiting HITL',
+        409,
+      );
     }
     await this.runs.saveSelectedIdeaIds(runId, selectedIdeaIds);
     const running = await this.lifecycle.transition(run, 'running');
@@ -1535,33 +1598,37 @@ export class ResumeHitlUseCase {
 }
 ```
 
-HITL wraca do `running` **poza** kolejką `queued` i startuje `execute` od razu przez `worker.notifyHitlResumed`. Wywołanie jest synchroniczne (nie `void`), a worker zarządza `inflight` tak jak przy normalnym claimie — limit `MAX_CONCURRENT_RUNS` jest egzekwowany.
+HITL wraca do `running` poza kolejką `queued` i startuje execute przez `notifyHitlResumed` (burst ponad cap, R-6 dotyczy nowych runów). Stub Fazy 3 **nie** wchodzi w `awaiting_hitl` — ten use-case jest gotowy pod model B w Fazie 4 (`SPEC-SOCIAL.md` S-6); w tym wycinku e2e sprawdza 409 poza `awaiting_hitl` (KROK 4).
 
 **Nowy plik:** `apps/api/src/runs/application/recover-interrupted-runs.use-case.ts`
 
+Bez `RUN_EXECUTOR` — unika cyklu DI z workerem i spełnia normę pkt 1. Zwraca runy do `scheduleExistingRunning`.
+
 ```typescript
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { isRetryable } from '../domain/is-retryable';
-import { RUN_EXECUTOR, type RunExecutorPort } from '../domain/run-executor.port';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
+import type { RunRecord } from '../domain/run.types';
 import { RunLifecycleService } from './run-lifecycle.service';
 
 const RECOVERY_CAP = 3;
 
 @Injectable()
 export class RecoverInterruptedRunsUseCase {
-  private readonly logger = new Logger(RecoverInterruptedRunsUseCase.name);
-
   constructor(
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
-    @Inject(RUN_EXECUTOR) private readonly executor: RunExecutorPort,
     private readonly lifecycle: RunLifecycleService,
   ) {}
 
-  async execute(): Promise<void> {
+  async execute(): Promise<RunRecord[]> {
     const interrupted = await this.runs.findInterruptedRunning();
+    const resume: RunRecord[] = [];
     for (const run of interrupted) {
-      if (!isRetryable({ kind: 'process_crash' }) || run.recoveryAttempts >= RECOVERY_CAP) {
+      // R-9.3: leftover `running` po restarcie procesu = process_crash (nie zgadujemy walidacji).
+      if (
+        run.recoveryAttempts >= RECOVERY_CAP ||
+        !isRetryable({ kind: 'process_crash' })
+      ) {
         await this.lifecycle.appendLog({
           runId: run.id,
           conversationId: run.conversationId,
@@ -1569,46 +1636,72 @@ export class RecoverInterruptedRunsUseCase {
           message: 'recovery exhausted after process interrupt',
           step: 'recovery',
         });
-        await this.lifecycle.transition(run, 'failed');
+        await this.lifecycle.transition(run, 'failed', {
+          failedMessage: 'recovery exhausted after process interrupt',
+        });
         continue;
       }
       await this.runs.saveRecoveryAttempt(run.id, run.recoveryAttempts + 1);
-      try {
-        await this.executor.execute({ ...run, recoveryAttempts: run.recoveryAttempts + 1 });
-      } catch {
-        await this.lifecycle.appendLog({
-          runId: run.id,
-          conversationId: run.conversationId,
-          level: 'error',
-          message: 'recovery attempt failed',
-          step: 'recovery',
-        });
-        const latest = await this.runs.getById(run.id);
-        if (latest && latest.recoveryAttempts >= RECOVERY_CAP && latest.status === 'running') {
-          await this.lifecycle.transition(latest, 'failed');
-        }
-      }
+      resume.push({ ...run, recoveryAttempts: run.recoveryAttempts + 1 });
     }
+    return resume;
   }
 }
 ```
 
-Runy `awaiting_hitl` **nie** są w `findInterruptedRunning`. `queued` rusza dopiero w `worker.pump()` po recovery.
+Unit recovery (fake repo + fake lifecycle, **bez** executora): `running` + `recoveryAttempts: 3` → `failed` + log, pusta lista; `attempts: 0` → `saveRecoveryAttempt`, run na liście, `executor.execute` nie istnieje w tym use-case.
 
-Unit recovery: fake repo z jednym `running` + `recoveryAttempts: 3` → `failed` + log; `attempts: 0` + fake executor success → `execute` wywołane.
+Unit workera (fake repo/executor): dwa równoległe `notifyQueued` przy `MAX_CONCURRENT_RUNS=1` → co najwyżej jeden `claimNextQueued` z wynikiem naraz póki pierwszy `inflight`; `notifyHitlResumed` przy `inflight === MAX` i tak woła `execute`.
 
-**Refaktor później w module (KROK 4)** spina providery. Tu trzymaj pliki gotowe.
+**Refaktor:** `runs.module.ts` — spina porty i workera. Kontroler zostaje pustą klasą `@Controller('runs')` (KROK 4 doda HTTP). `PrismaModule` jest `@Global()`; `EnvModule` też.
+
+```typescript
+import { Module } from '@nestjs/common';
+import { CompanyContextModule } from '../company-context/company-context.module';
+import { InProcessRunWorker } from './application/in-process-run.worker';
+import { RecoverInterruptedRunsUseCase } from './application/recover-interrupted-runs.use-case';
+import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
+import { RunLifecycleService } from './application/run-lifecycle.service';
+import { StartRunUseCase } from './application/start-run.use-case';
+import { RUN_EXECUTOR } from './domain/run-executor.port';
+import { RUN_REPOSITORY } from './domain/run.port';
+import { RUN_SSE_HUB } from './domain/run-sse.port';
+import { PrismaRunAdapter } from './infrastructure/prisma-run.adapter';
+import { InMemoryRunSseHub } from './infrastructure/run-sse.hub';
+import { StubRunExecutor } from './infrastructure/stub-run.executor';
+import { RunsController } from './runs.controller';
+
+@Module({
+  imports: [CompanyContextModule],
+  controllers: [RunsController],
+  providers: [
+    { provide: RUN_REPOSITORY, useClass: PrismaRunAdapter },
+    { provide: RUN_SSE_HUB, useClass: InMemoryRunSseHub },
+    { provide: RUN_EXECUTOR, useClass: StubRunExecutor },
+    RunLifecycleService,
+    RecoverInterruptedRunsUseCase,
+    InProcessRunWorker,
+    StartRunUseCase,
+    ResumeHitlUseCase,
+  ],
+  exports: [RUN_REPOSITORY, RUN_SSE_HUB, RunLifecycleService],
+})
+export class RunsModule {}
+```
+
+KROK 4 doda `GetRunUseCase` / `GetRunLogsUseCase` do `providers` i metody HTTP. Faza 4: `{ provide: RUN_EXECUTOR, useClass: SocialRunExecutor }` — **nie** w tym kroku.
 
 **DoD kroku:**
 
-- Logi tylko `create`; worker in-process; cap z `ENV.MAX_CONCURRENT_RUNS`.
+- Logi tylko `create`; worker in-process; twardy cap z `ENV.MAX_CONCURRENT_RUNS` na `claimNextQueued`; `pump` szeregowany.
 - Stub kończy `completed` z czytelnym logiem, bez LLM i bez sekretów.
-- Wyjątek executora → log + `failed` (run nie zostaje w `running`).
-- Recovery: `running` ≤ 3, potem `failed` + log; `awaiting_hitl` nietknięty (unit na fake repo).
-- `assertTransition('queued', 'running')` wywoływane w `claimNextQueued` przed `updateMany` — domenowa polityka egzekwowana przy każdej zmianie statusu (R-1).
-- `saveRecoveryAttempt` używane w recovery zamiast `saveStatus(..., 'running', ...)` — inkrementacja licznika prób jest wyraźnie oddzielona od zmiany statusu.
-- `notifyHitlResumed` zarządza `inflight` tak samo jak normalny claim — wznowienie po HITL wlicza się do limitu `MAX_CONCURRENT_RUNS` (R-6).
-- Hub implementuje `RunSseHub` z KROK 2: `subscribe` → `Observable<RunSseEvent>`; brak `MessageEvent` w infra huba (wire SSE = KROK 4 / K-3).
+- Wyjątek executora (ścieżka workera) → log + `failed` (run nie zostaje w `running`).
+- Recovery: jedna próba na boot; cap 3 → `failed` + log; lista do workera (zero `executor.execute` w use-case); `awaiting_hitl` nietknięty (unit na fake repo).
+- `assertTransition('queued', 'running')` w `claimNextQueued` przed `updateMany` (R-1).
+- `saveRecoveryAttempt` oddzielone od `saveStatus`.
+- HITL: `inflight++` bez czekania na slot (burst); `queued` czeka, gdy `inflight >= MAX` (R-6).
+- Hub = `RunSseHub` z kodu KROK 2: `subscribe` → `Observable<RunSseEvent>`; brak `MessageEvent` w infra huba (wire SSE = KROK 4 / K-3).
+- Żaden plik `domain/` z KROK 2 nie jest edytowany.
 
 ---
 
@@ -2054,7 +2147,7 @@ Mapowanie `ListRunsQueryDto → ListRunsQuery` w kontrolerze zachowuje czystoś�
 - [ ] `GET /runs` paginacja 10 + filtry.
 - [ ] Brak Social graph, brak authz, brak sekretów w logach.
 - [ ] `assertTransition` wywoływane przed `queued→running` w `claimNextQueued` (R-1).
-- [ ] Wznowienie HITL wlicza się do `MAX_CONCURRENT_RUNS` — `notifyHitlResumed` zarządza `inflight` (R-6).
+- [ ] HITL burst: `notifyHitlResumed` startuje mimo pełnego capu; `queued` czeka, gdy `inflight >= MAX` (R-6). Jedyna ścieżka `executor.execute` to worker.
 - [ ] `ListRunsUseCase` nie zależy od HTTP DTO; mapowanie w kontrolerze (SPEC-KOMUNIKACJA architektura warstw).
 - [ ] Nagłówki wyłącznie `FAZA 2` / `KROK 1`…`KROK 5`.
 - [ ] Statusy `NIE_ROZPOCZĘTY`; major nietknięty.
