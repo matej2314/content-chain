@@ -44,7 +44,7 @@ Odpowiada major **Faza 8**. Jedna faza w tym zestawie.
 
 ### KROK 1 — Port i `InMemoryRunSseHub`: `complete` + evikcja
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Port eksportuje `complete(runId)`; hub kończy subject, usuwa wpis, drugi `complete` = no-op; `publish` po evikcji nie tworzy subjectu. Major 8.1; `SPEC-RUNY.md` R-4a; `docs/anty_patterny.md` (mapa Subject bez evikcji).
 

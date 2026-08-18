@@ -12,7 +12,21 @@ export class InMemoryRunSseHub implements RunSseHub {
   }
 
   publish(event: RunSseEvent): void {
-    this.subjectFor(event.data.runId).next(event);
+    const subject = this.subjects.get(createRunId(event.data.runId));
+    if (!subject) return;
+    subject.next(event);
+  }
+
+  complete(runId: RunId): void {
+    const key = createRunId(runId);
+    const subject = this.subjects.get(key);
+    if (!subject) return;
+    this.subjects.delete(key);
+    subject.complete();
+  }
+
+  has(runId: RunId): boolean {
+    return this.subjects.has(createRunId(runId));
   }
 
   private subjectFor(runId: RunId): Subject<RunSseEvent> {

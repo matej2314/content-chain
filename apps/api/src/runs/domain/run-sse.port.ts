@@ -17,4 +17,5 @@ export type RunSseEvent =
 export interface RunSseHub {
   subscribe(runId: RunId): Observable<RunSseEvent>;
   publish(event: RunSseEvent): void;
+  complete(runId: RunId): void;
 }
