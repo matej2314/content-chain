@@ -28,10 +28,7 @@ export class InProcessRunWorker implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    const resume = await this.recover.execute();
-    for (const run of resume) {
-      this.scheduleExistingRunning(run);
-    }
+    await this.recover.execute();
     this.enqueuePump();
   }
 
@@ -59,7 +56,9 @@ export class InProcessRunWorker implements OnModuleInit {
 
   private async drain(): Promise<void> {
     while (this.inFlight < this.env.MAX_CONCURRENT_RUNS) {
-      const claimed = await this.runs.claimNextQueued();
+      const claimed =
+        (await this.runs.claimNextInterrupted()) ??
+        (await this.runs.claimNextQueued());
       if (!claimed) return;
       this.inFlight += 1;
       void this.executeClaimed(claimed).finally(() => {

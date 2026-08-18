@@ -26,6 +26,7 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | Synchroniczny HTTP = cały pipeline LLM | Timeouty, brak SSE, koszmar HITL | Async run + SSE; GET tylko snapshot logów / health / metrics |
 | Pomijanie `ConsistencyVerifier` „na skróty” | Łamie kryterium spójności (kontekst + język) | Verifier obowiązkowy; refine `max N=2`, potem `failed` |
 | Burst execute recovery ponad `MAX_CONCURRENT_RUNS` albo `running → queued` jako „naprawa” po crashu | Przeciąża LLM/RAM po restarcie; `queued` to kolejka **nowych** POST, nie zombie execute | Status `interrupted` + claim pod tym samym capem (`dictionary.md`, `SPEC-RUNY.md` R-6 / R-9) |
+| Mapa Subject SSE per `runId` bez `complete` / evikcji po terminalu | Wyciek pamięci przez życie procesu; wiszące sockety | Po `completed`/`failed`: complete Observable + usunięcie wpisu; late-join na skończonym runie też kończy stream (`dokumentacja_komunikacji.md`) |
 | Nieskończona pętla refine | Koszt LLM, zawieszony run | Twardy limit `max N=2` |
 | Osobne „mikroserwisy agentów” w MVP | Overengineering względem modularnego monolitu | Węzły w jednym grafie w `apps/api` |
 
@@ -37,6 +38,7 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 |--------------|--------------|--------------|
 | Sekrety LLM / `X-Gateway-Key` w `NEXT_PUBLIC_*` | Wyciek kluczy | Tylko `apps/api` ↔ gateway |
 | Polling statusu runu zamiast SSE | Obciążenie, gorszy UX, rozjazd z kontraktem | SSE `.../events`; GET logów = historia |
+| Zostawianie `EventSource` po `completed`/`failed` (auto-reconnect) | Pętla GET `.../events` na skończonym runie | `close()` po evencie terminalnym; nie otwierać SSE, gdy snapshot już terminalny (`ux_dashboard.md`) |
 | Duplikacja brand types / DTO poza `packages/shared` | Rozjazd kontraktu FE/BE | Import z shared + walidacja na granicach (HTTP: class-validator; api application: Zod — nie w shared) |
 | Logika kompletności kontekstu tylko w UI | Da się obejść API | Egzekucja bramki w `apps/api` |
 | Feedback / gwiazdki / flaga edycji w LangGraph | Miesza jakość UX z pipeline LLM | Komendy Runs + BC Feedback po `completed`/`failed` |

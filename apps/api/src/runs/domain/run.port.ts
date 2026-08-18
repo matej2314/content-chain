@@ -30,6 +30,7 @@ export interface RunRepository {
   saveStatus(id: RunId, status: RunStatus): Promise<void>;
   saveRecoveryAttempt(id: RunId, attempts: number): Promise<void>;
   claimNextQueued(): Promise<RunRecord | null>;
+  claimNextInterrupted(): Promise<RunRecord | null>;
   findInterruptedRunning(): Promise<RunRecord[]>;
   appendLog(entry: RunLogEntry): Promise<RunLogEntry>;
   listLogs(id: RunId): Promise<RunLogEntry[]>;

@@ -3,7 +3,8 @@ import { DomainException } from '../../shared/exceptions/domain.exception';
 
 const ALLOWED: Record<RunStatus, readonly RunStatus[]> = {
   queued: ['running'],
-  running: ['awaiting_hitl', 'completed', 'failed'],
+  running: ['awaiting_hitl', 'completed', 'failed', 'interrupted'],
+  interrupted: ['running', 'failed'],
   awaiting_hitl: ['running'],
   completed: [],
   failed: [],

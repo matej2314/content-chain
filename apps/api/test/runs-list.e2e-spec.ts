@@ -1,4 +1,5 @@
 import { execFileSync } from 'child_process';
+import { randomUUID } from 'node:crypto';
 import { join } from 'path';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -117,16 +118,22 @@ describe('Runs list (e2e)', () => {
       await sleep(10);
     }
 
-    await waitUntil(
-      async () =>
-        (await prisma.run.count({ where: { status: 'completed' } })) ===
-        createdRunIds.length,
-      'all seeded runs to complete',
-    );
+    await waitUntil(async () => {
+      const rows = await prisma.run.findMany({
+        where: { id: { in: createdRunIds } },
+        select: { status: true },
+      });
+      return (
+        rows.length === createdRunIds.length &&
+        rows.every((row) => row.status === 'completed')
+      );
+    }, 'all seeded runs to complete');
   }, 30_000);
 
   afterAll(async () => {
-    await wipeRuns(prisma);
+    if (prisma) {
+      await wipeRuns(prisma);
+    }
     await app?.close();
   }, 15_000);
 
@@ -207,5 +214,38 @@ describe('Runs list (e2e)', () => {
       .query({ userId: 'not-a-user-id' })
       .expect(400);
     expect(userId.body.code).toBe('VALIDATION_FAILED');
+  });
+
+  it('accepts status=interrupted on GET /api/v1/runs and returns the seeded row', async () => {
+    const interruptedId = `run_${randomUUID()}`;
+    await prisma.run.create({
+      data: {
+        id: interruptedId,
+        conversationId: `conv_${randomUUID()}`,
+        taskType: 'post_ideas',
+        platform: 'linkedin',
+        language: 'pl',
+        status: 'interrupted',
+        brief: { topic: 'recovery-filter' },
+        recoveryAttempts: 1,
+      },
+    });
+
+    const listed = await request(app.getHttpServer())
+      .get('/api/v1/runs')
+      .query({ page: 1, status: 'interrupted' })
+      .expect(200);
+
+    const items = listed.body.items as ListRunItem[];
+    expect(listed.body.total).toBe(1);
+    expect(items).toHaveLength(1);
+    expect(items[0].runId).toBe(interruptedId);
+    expect(items.every((item) => item.status === 'interrupted')).toBe(true);
+
+    const rejected = await request(app.getHttpServer())
+      .get('/api/v1/runs')
+      .query({ status: 'not-a-status' })
+      .expect(400);
+    expect(rejected.body.code).toBe('VALIDATION_FAILED');
   });
 });

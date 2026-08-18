@@ -55,7 +55,7 @@ Wybrane kody domenowe:
 
 | Kanał | Zastosowanie |
 |-------|--------------|
-| **SSE** `GET /api/v1/runs/:runId/events` | Live: status, logi przyrostowe, HITL, completed/failed |
+| **SSE** `GET /api/v1/runs/:runId/events` | Live: status, logi przyrostowe, HITL, completed/failed; po terminalu serwer **kończy** strumień |
 | **GET** logów | Snapshot / historia logów runu (nie zastępuje SSE dla statusu) |
 | **GET** `/api/v1/health` | Liveness „zdrowotny” `apps/api` |
 | **GET** `/metrics` | Metryki Prometheus procesu `apps/api` (ops — nie mylić z logami runu) |
@@ -295,6 +295,14 @@ Zdarzenia (`event:` / `data:` JSON):
 | `run.completed` | Sukces | `{ runId, resultSummary? }` |
 | `run.failed` | Porażka | `{ runId, code?, message }` |
 
+**Koniec strumienia.** Po wyemitowaniu `run.completed` albo `run.failed` serwer **kończy** SSE (Observable complete → zamknięcie odpowiedzi HTTP). Subskrypcja, gdy snapshot runu jest już `completed` \| `failed`: serwer emituje co najmniej `run.status` ze snapshotu, potem kończy stream — bez wiszącego połączenia.
+
+Strumień **nie** kończy się na `awaiting_hitl` ani `interrupted` (run nadal żywy; po HITL / claimie idą dalsze eventy).
+
+**Reconnect.** Klient odtwarza subskrypcję wyłącznie po **nieoczekiwanym** zerwaniu przy statusie nieterminalnym (restart procesu api, drop sieci). Zamknięcie po `run.completed` / `run.failed` **nie** jest sygnałem do reconnectu. Po restarcie api status może być `interrupted`, zanim znowu `running` — uzupełnić snapshotem GET.
+
+Zmiana względem wcześniejszego zapisu tej sekcji: wymieniono eventy terminalne i reconnect po restarcie api, ale nie określono, czy połączenie HTTP zostaje otwarte; reconnect nie rozróżniał terminalu od awarii.
+
 Statusy runu (normatywnie):
 
 ```text
@@ -305,7 +313,7 @@ queued → running → (awaiting_hitl → running) → completed
                               └→ failed     (cap recovery)
 ```
 
-Trzy legalne krawędzie **do** `running`: `queued`, `interrupted`, `awaiting_hitl`. `POST /runs` nigdy nie tworzy `interrupted`. Po restarcie api klient SSE powinien odtworzyć subskrypcję i uzupełnić snapshotem GET — status może być `interrupted`, zanim znowu `running`.
+Trzy legalne krawędzie **do** `running`: `queued`, `interrupted`, `awaiting_hitl`. `POST /runs` nigdy nie tworzy `interrupted`. Reconnect SSE po restarcie api — jak w akapicie **Reconnect** powyżej (status może być `interrupted` zanim znowu `running`).
 
 Ocena / Edytuj / finalize oraz HITL na `interrupted` → istniejące **409** (`RUN_NOT_REVIEWABLE` / `HITL_REQUIRED`); bez osobnego kodu HTTP na MVP.
 

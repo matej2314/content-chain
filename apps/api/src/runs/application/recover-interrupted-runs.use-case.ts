@@ -2,7 +2,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { isRetryable } from '../domain/is-retryable';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { RunLifecycleService } from './run-lifecycle.service';
-import type { RunRecord } from '../domain/run.types';
 
 const RECOVERY_CAP = 3;
 
@@ -13,10 +12,9 @@ export class RecoverInterruptedRunsUseCase {
     private readonly lifeCycle: RunLifecycleService,
   ) {}
 
-  async execute(): Promise<RunRecord[]> {
-    const interrupted = await this.runs.findInterruptedRunning();
-    const resume: RunRecord[] = [];
-    for (const run of interrupted) {
+  async execute(): Promise<void> {
+    const leftoverRunning = await this.runs.findInterruptedRunning();
+    for (const run of leftoverRunning) {
       if (
         run.recoveryAttempts >= RECOVERY_CAP ||
         !isRetryable({ kind: 'process_crash' })
@@ -29,13 +27,12 @@ export class RecoverInterruptedRunsUseCase {
           step: 'recovery',
         });
         await this.lifeCycle.transition(run, 'failed', {
-          failedMessage: 'recovery exhauster after process interrupt',
+          failedMessage: 'recovery exhausted after process interrupt',
         });
         continue;
       }
       await this.runs.saveRecoveryAttempt(run.id, run.recoveryAttempts + 1);
-      resume.push({ ...run, recoveryAttempts: run.recoveryAttempts + 1 });
+      await this.lifeCycle.transition(run, 'interrupted');
     }
-    return resume;
   }
 }

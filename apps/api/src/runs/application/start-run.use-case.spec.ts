@@ -16,6 +16,7 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     saveStatus: unexpected,
     saveRecoveryAttempt: unexpected,
     claimNextQueued: unexpected,
+    claimNextInterrupted: unexpected,
     findInterruptedRunning: unexpected,
     appendLog: unexpected,
     listLogs: unexpected,

@@ -1,5 +1,5 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-08-18
 ---
@@ -37,6 +37,10 @@ Zmiana względem wersji 1: dopisano obowiązkowy flow me → refresh → me oraz
 F-5. Live status runu: **SSE** `.../runs/:runId/events` (ta sama sesja cookie). Zakaz pollingu statusu jako kanału live. Status wizualnie animowany / czytelny (`docs/ux_dashboard.md`) — w tym odrębny stan **`interrupted`** (nie pulsacja `running`; brak panelu HITL i oceny). Typ statusu z `@content-chain/shared`.
 
 Zmiana względem wersji 4 / F-5: zbiór statusów UI bez `interrupted`; po restarcie UI mogło mylić przestój recovery z aktywnym pipeline.
+
+F-5a. Cykl życia `EventSource`: gdy snapshot GET jest już `completed` \| `failed`, UI **nie** otwiera SSE (wystarczy GET run / logs). Po evencie `run.completed` \| `run.failed` UI woła `EventSource.close()`. Reconnect (`docs/ux_dashboard.md`) wyłącznie po nieoczekiwanym zerwaniu przy statusie nieterminalnym — nie po zamknięciu terminalnym (przeglądarka sama retry’uje `EventSource`).
+
+Zmiana względem wersji 5 / F-5: F-5 i „Wolno: Reconnect SSE” bez rozróżnienia terminal vs. awaria i bez obowiązku `close()` / braku subskrypcji skończonego runu.
 
 F-6. Bramka „Agenci aktywni” i disable CTA startu runu — UX na bazie `GET .../completeness`; **egzekucja** nadal w api (`409` `CONTEXT_INCOMPLETE`).
 
@@ -82,7 +86,7 @@ apps/frontend/src/
 ### Wolno
 
 - Client components dla SSE, formularzy, interaktywnego HITL.
-- Reconnect SSE + uzupełnienie snapshotem GET run/logs.
+- Reconnect SSE wyłącznie po nieoczekiwanym zerwaniu przy statusie nieterminalnym + uzupełnienie snapshotem GET run/logs; `EventSource.close()` po evencie terminalnym.
 - Read-only podgląd kontekstu dla `user`; edycja tylko gdy sesja `admin` (api i tak egzekwuje).
 - First-run na podstawie `bootstrap-status`.
 - Formularz opinii i gwiazdki jako Client Components; lock UI po `reviewFinalizedAt`.
@@ -91,6 +95,8 @@ apps/frontend/src/
 
 - Sekretów LLM, `X-Gateway-Key`, JWT w `NEXT_PUBLIC_*` / localStorage.
 - Pollingu statusu runu zamiast SSE.
+- Zostawiania `EventSource` otwartego po `completed`/`failed` ani reconnectu po zamknięciu terminalnym.
+- Otwierania SSE, gdy snapshot już jest `completed` \| `failed`.
 - Prezentowania `interrupted` tą samą animacją / copy co `running`.
 - Egzekucji bramki kompletności **tylko** w UI.
 - Logiki pipeline SM / verifiera / promptów w FE.
@@ -117,6 +123,7 @@ apps/frontend/src/
 - [ ] First-run, login, ekrany z `ux_dashboard.md` dostępne; UI po polsku.
 - [ ] Flow me → refresh → me; sesja na `cc_access` / `cc_refresh` bez tokenu w JS storage.
 - [ ] Lista runów: instancja, paginacja 10, filtry (w tym `interrupted`), klik → szczegóły live (SSE) bez pollingu statusu; `interrupted` czytelnie odróżniony od `running` / `queued`.
+- [ ] Szczegóły skończonego runu (`completed` \| `failed`) bez otwartego `EventSource`; w trakcie live — `close()` po evencie terminalnym (F-5a).
 - [ ] Start runu zablokowany w UI przy niekompletności **i** api zwraca 409 przy obejściu.
 - [ ] Admin: lista + create users; Konto: tylko logout.
 - [ ] Kod FE podzielony na `app/` + `modules/`; typy z shared.

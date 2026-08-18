@@ -78,7 +78,11 @@ Wejście: z listy Runy SM (klik) lub bezpośredni deep-link po `runId`.
 | **Ocena gwiazdkowa (1–5)** | Po `completed` **albo** `failed`, tylko autor runu. Dobrowolna: brak wyboru = w DB zostaje `userRating: null`. Do zatwierdzenia można zmieniać wybór (w tym wrócić do braku oceny). Czytelne gwiazdki, nie sam numeric input |
 | **Zamknij / zapisz przegląd** | Zatwierdza aktualną ocenę (`null` albo `1–5`) i flagę edycji. Po sukcesie kontrolki oceny i Edytuj są zablokowane |
 
-Reconnect SSE: UI powinien odtworzyć subskrypcję; status i logi można uzupełnić snapshotem GET run / logs. Po restarcie api snapshot może pokazać `interrupted` zanim znowu `running` — nie zakładać natychmiastowego powrotu do pulsu pipeline.
+**SSE — start i koniec.** Gdy snapshot GET już ma status `completed` albo `failed`, UI **nie** otwiera SSE (wystarczy GET run / logs). W trakcie live: po evencie `run.completed` albo `run.failed` UI **zamyka** `EventSource` (`close()`). Tego zamknięcia ani `onerror` po tym `close()` **nie** wolno traktować jako restartu api.
+
+Reconnect SSE: odtworzyć subskrypcję wyłącznie po nieoczekiwanym zerwaniu, gdy status runu jest wciąż nieterminalny; status i logi uzupełnić snapshotem GET. Po restarcie api snapshot może pokazać `interrupted` zanim znowu `running` — nie zakładać natychmiastowego powrotu do pulsu pipeline. Przeglądarkowy `EventSource` sam wznawia połączenie po close serwera — bez `close()` po terminalu powstaje pętla na `.../events`.
+
+Zmiana względem wcześniejszego zapisu: reconnect był ogólny, bez rozróżnienia terminal vs. awaria i bez obowiązku `close()` / braku subskrypcji skończonego runu.
 
 Ocena i Edytuj **nie** są HITL (HITL = wybór pomysłów w trakcie pipeline).
 

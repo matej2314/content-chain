@@ -228,7 +228,9 @@ describe('Runs lifecycle (e2e)', () => {
     }, 30_000);
 
     afterAll(async () => {
-      await wipeRuns(prisma);
+      if (prisma) {
+        await wipeRuns(prisma);
+      }
       await app?.close();
     }, 15_000);
 
@@ -356,10 +358,15 @@ describe('Runs lifecycle (e2e)', () => {
     }, 30_000);
 
     afterAll(async () => {
-      holding?.release();
-      await wipeRuns(prisma);
-      await app?.close();
-      process.env.MAX_CONCURRENT_RUNS = previousMax;
+      try {
+        holding?.release();
+        if (prisma) {
+          await wipeRuns(prisma);
+        }
+        await app?.close();
+      } finally {
+        process.env.MAX_CONCURRENT_RUNS = previousMax;
+      }
     }, 15_000);
 
     it('keeps the second run queued while MAX_CONCURRENT_RUNS=1 is occupied, then starts it after release', async () => {

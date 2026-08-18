@@ -62,6 +62,7 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     saveStatus: unexpected,
     saveRecoveryAttempt: unexpected,
     claimNextQueued: unexpected,
+    claimNextInterrupted: unexpected,
     findInterruptedRunning: unexpected,
     appendLog: unexpected,
     listLogs: unexpected,
@@ -82,7 +83,7 @@ function makeWorker(args: {
     args.runs,
     args.executor,
     { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
-    { execute: async () => [] } as unknown as RecoverInterruptedRunsUseCase,
+    { execute: async () => undefined } as unknown as RecoverInterruptedRunsUseCase,
     {
       appendLog: jest.fn(),
       transition: jest.fn(),
@@ -102,6 +103,7 @@ describe('InProcessRunWorker', () => {
     const started: string[] = [];
 
     const runs = unusedRepo({
+      claimNextInterrupted: async () => null,
       claimNextQueued: async () => {
         claimDepth += 1;
         maxClaimDepth = Math.max(maxClaimDepth, claimDepth);
@@ -131,7 +133,7 @@ describe('InProcessRunWorker', () => {
       runs,
       executor,
       { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
-      { execute: async () => [] } as unknown as RecoverInterruptedRunsUseCase,
+      { execute: async () => undefined } as unknown as RecoverInterruptedRunsUseCase,
       {
         appendLog: jest.fn(),
         transition: jest.fn(),
@@ -162,6 +164,7 @@ describe('InProcessRunWorker', () => {
     const hitlRun = makeRun({ status: 'running' });
 
     const runs = unusedRepo({
+      claimNextInterrupted: async () => null,
       claimNextQueued: async () => {
         const next = queued.shift();
         if (!next) return null;
@@ -184,7 +187,7 @@ describe('InProcessRunWorker', () => {
       runs,
       executor,
       { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
-      { execute: async () => [] } as unknown as RecoverInterruptedRunsUseCase,
+      { execute: async () => undefined } as unknown as RecoverInterruptedRunsUseCase,
       {
         appendLog: jest.fn(),
         transition: jest.fn(),
@@ -216,6 +219,7 @@ describe('InProcessRunWorker', () => {
     const hitlRun = makeRun({ status: 'running' });
 
     const runs = unusedRepo({
+      claimNextInterrupted: async () => null,
       claimNextQueued: async () => {
         claimStarted += 1;
         if (claimStarted === 1) {
@@ -409,5 +413,107 @@ describe('InProcessRunWorker', () => {
     } finally {
       loggerError.mockRestore();
     }
+  });
+
+  it('D-9b: at MAX=1 executes two interrupted before one queued', async () => {
+    const firstInterrupted = makeRun({ status: 'interrupted' });
+    const secondInterrupted = makeRun({ status: 'interrupted' });
+    const queued = makeRun({ status: 'queued' });
+    const interruptedQueue = [firstInterrupted, secondInterrupted];
+    const queuedQueue = [queued];
+    const holdFirst = deferred();
+    const started: string[] = [];
+
+    const runs = unusedRepo({
+      claimNextInterrupted: async () => {
+        const next = interruptedQueue.shift();
+        return next ? { ...next, status: 'running' } : null;
+      },
+      claimNextQueued: async () => {
+        const next = queuedQueue.shift();
+        return next ? { ...next, status: 'running' } : null;
+      },
+    });
+
+    const worker = new InProcessRunWorker(
+      { MAX_CONCURRENT_RUNS: 1 } as Env,
+      runs,
+      {
+        async execute(run) {
+          started.push(run.id);
+          if (started.length === 1) {
+            await holdFirst.promise;
+          }
+        },
+      },
+      { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
+      { execute: async () => undefined } as unknown as RecoverInterruptedRunsUseCase,
+      {
+        appendLog: jest.fn(),
+        transition: jest.fn(),
+      } as unknown as RunLifecycleService,
+    );
+
+    worker.notifyQueued();
+
+    await waitUntil(() => started.length === 1, 'first interrupted execute');
+    expect(started).toEqual([firstInterrupted.id]);
+
+    holdFirst.resolve();
+    await waitUntil(
+      () => started.length === 3,
+      'second interrupted then queued',
+    );
+    expect(started).toEqual([
+      firstInterrupted.id,
+      secondInterrupted.id,
+      queued.id,
+    ]);
+  });
+
+  it('D-10: onModuleInit recovers before drain and does not burst interrupted execute beyond MAX', async () => {
+    const recoverExecute = jest.fn(async () => undefined);
+    const first = makeRun({ status: 'interrupted' });
+    const second = makeRun({ status: 'interrupted' });
+    const pending = [first, second];
+    const holdFirst = deferred();
+    const started: string[] = [];
+
+    const runs = unusedRepo({
+      claimNextInterrupted: async () => {
+        expect(recoverExecute).toHaveBeenCalled();
+        const next = pending.shift();
+        return next ? { ...next, status: 'running' } : null;
+      },
+      claimNextQueued: async () => null,
+    });
+
+    const worker = new InProcessRunWorker(
+      { MAX_CONCURRENT_RUNS: 1 } as Env,
+      runs,
+      {
+        async execute(run) {
+          started.push(run.id);
+          if (started.length === 1) {
+            await holdFirst.promise;
+          }
+        },
+      },
+      { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
+      { execute: recoverExecute } as unknown as RecoverInterruptedRunsUseCase,
+      {
+        appendLog: jest.fn(),
+        transition: jest.fn(),
+      } as unknown as RunLifecycleService,
+    );
+
+    await worker.onModuleInit();
+    await waitUntil(() => started.length === 1, 'first recovered execute');
+    expect(started).toEqual([first.id]);
+
+    holdFirst.resolve();
+    await waitUntil(() => started.length === 2, 'second after slot frees');
+    expect(started).toEqual([first.id, second.id]);
+    expect(recoverExecute).toHaveBeenCalledTimes(1);
   });
 });

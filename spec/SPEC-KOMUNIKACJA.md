@@ -1,5 +1,5 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-08-18
 ---
@@ -74,6 +74,10 @@ K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed) idzie 
 
 Zmiana względem wersji 5: zbiór statusów SSE / filtra listy rozszerzony o `interrupted`; K-2 (POST `queued` \| `running`) **bez** zmiany statusów startowych.
 
+K-3a. Koniec strumienia SSE: po wyemitowaniu `run.completed` albo `run.failed` handler **kończy** `Observable` (Nest zamyka response). Subskrypcja przy snapshotcie już `completed` \| `failed`: co najmniej `run.status` ze snapshotu, potem complete — bez zostawiania subjectu na zawsze. Stream **nie** kończy się na `awaiting_hitl` ani `interrupted`. Reconnect klienta tylko po nieoczekiwanym zerwaniu przy statusie nieterminalnym — kontrakt w `docs/dokumentacja_komunikacji.md`.
+
+Zmiana względem wersji 6 / K-3: K-3 wymieniało eventy completed/failed jako treść live, bez normy zamknięcia połączenia HTTP ani late-join na skończonym runie.
+
 K-4. Auth SSE = ta sama sesja co API: cookie httpOnly **`cc_access`** / **`cc_refresh`** (`SPEC-AUTH.md`). **Zakaz** tokenu w query string oraz **`Authorization: Bearer`** jako modelu MVP (FE, Postman, integracje — cookie jar / `credentials: 'include'`).
 
 Zmiana względem wersji 1 tego SPEC: usunięto Bearer jako równorzędny transport; access nie wraca w body JSON.
@@ -95,7 +99,7 @@ K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CO
 | Controller | DTO + **class-validator** + globalny `ValidationPipe` (whitelist); mapowanie HTTP ↔ komendy use-case; bez ORM, bez promptów, bez klienta gateway |
 | Application | use-case’y; walidacja / parsing wewnętrzny **Zod**; orkiestracja startu/wznowienia runu, odczyt snapshotów |
 | Błędy HTTP | jeden wspólny **exception filter** (ew. interceptor korelacji) → envelope K-1 |
-| SSE | oficjalny mechanizm Nest: dekorator `@Sse()`, handler zwraca `Observable<MessageEvent>` ([NestJS SSE](https://docs.nestjs.com/techniques/server-sent-events)) |
+| SSE | oficjalny mechanizm Nest: dekorator `@Sse()`, handler zwraca `Observable<MessageEvent>` ([NestJS SSE](https://docs.nestjs.com/techniques/server-sent-events)); Observable **kończy się** po terminalu runu; teardown (`complete` / `finalize`) przy disconnect i po `completed`/`failed` |
 | LLM | port (np. `LlmGatewayPort`) w domain/application + **osobny adapter HTTP** w `infrastructure` |
 | Typy kontraktu | brand / enumy z `@content-chain/shared` (`docs/brand_types.md`); bez magicznych stringów ID w feature kodzie |
 
@@ -119,6 +123,7 @@ Zakaz: FE generuje `RequestId` „na zapas”; zakaz nowego `ConversationId` per
 - Globalny `ValidationPipe` z `whitelist` / `forbidNonWhitelisted` / `transform`.
 - Wspólny filter mapujący wyjątki domenowe i walidację na envelope + właściwy status HTTP.
 - `@Sse()` na `GET .../events` z auth guardem jak pozostałe chronione trasy.
+- Kończyć `Observable` po `run.completed` / `run.failed` oraz na late-join, gdy snapshot jest już terminalny (K-3a).
 - Adapter gateway używający natywnego chat; zapis `requestId` z odpowiedzi do logu kroku.
 - Opcjonalnie `POST .../chat/stream` gateway, gdy konkretny węzeł pipeline’u tego wymaga (finalizacja węzła po domknięciu streamu).
 - Polityka retry/timeout po stronie api przy `RATE_LIMITED` / `PROVIDER_TIMEOUT` / `PROVIDER_UNAVAILABLE` — byle zakończenie było obserwowalne w logu/SSE.
@@ -126,6 +131,8 @@ Zakaz: FE generuje `RequestId` „na zapas”; zakaz nowego `ConversationId` per
 ### Nie wolno
 
 - Pollingu statusu runu jako kanału **live** (zamiast SSE).
+- Zostawiania otwartego SSE po evencie terminalnym albo na runie już `completed` \| `failed`.
+- Unbounded mapy Subject per `runId` bez evikcji po terminalu (cykl życia huba — `SPEC-RUNY.md`).
 - Ustawiania `x-request-id` przez Content Chain przy wywołaniach chat/stream gateway.
 - Tokenu JWT / access w query string SSE.
 - `Authorization: Bearer` oraz zwracania `accessToken` w body jako modelu auth MVP (norma: dwa cookie httpOnly — `SPEC-AUTH.md`).
@@ -161,6 +168,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - [ ] `GET /api/v1/runs` listuje runy instancji zgodnie z docs (paginacja 10, filtry, `startedBy`).
 - [ ] `GET /api/v1/runs/user/:userId` i `POST /feedback` oraz rating/edit/finalize istnieją w kontrakcie docs; kody `REVIEW_LOCKED` / `RUN_NOT_REVIEWABLE` w envelope.
 - [ ] Klient otrzymuje live status wyłącznie przez SSE; GET run/logs = snapshot.
+- [ ] SSE na skończonym runie (`completed` \| `failed`) emituje snapshot statusu i **kończy** strumień; po `run.completed` / `run.failed` serwer zamyka połączenie. `awaiting_hitl` / `interrupted` nie kończą SSE.
 - [ ] SSE wymaga sesji cookie jak API; brak tokenu w query i brak wymogu Bearer.
 - [ ] Adapter gateway woła natywny chat z `X-Gateway-Key`, bez `x-request-id` z CC; `conversationId` stały w runie; `requestId` z odpowiedzi w logu kroku.
 - [ ] DTO HTTP walidowane class-validator; use-case’y używają Zod tam, gdzie parsują / walidują dane aplikacji.

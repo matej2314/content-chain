@@ -1,5 +1,5 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-08-18
 ---
@@ -20,7 +20,7 @@ Wiążące: testowanie zachowania na granicach (domain / application + porty); c
 
 | Warstwa | Gdzie | Udział | Norma |
 |---------|-------|--------|-------|
-| **Unit** | `apps/api` (domain, application) | Najwięcej | Bramka, statusy, role, `isRetryable`, fasady z **fake** portów (LLM, persistence wg potrzeby) |
+| **Unit** | `apps/api` (domain, application) | Najwięcej | Bramka, statusy, role, `isRetryable`, hub SSE (complete / evikcja), fasady z **fake** portów (LLM, persistence wg potrzeby) |
 | **Integration** | `apps/api` | Mniej | HTTP (**supertest**) + Prisma/SQLite; cookie auth; SSE/statusy; stub LLM |
 | **E2E API** | przeciw api (bez przeglądarki) | Wąsko, ale **pełne use-case’y** | Happy path **oraz** error/edge case’y MVP — bez pinu narzędzia w SPEC |
 | **Frontend** | — | **Poza MVP** | Brak wymogu automatycznych testów `apps/frontend` |
@@ -61,9 +61,11 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-11 | `POST /feedback`: zapis z `authorId`+`createdAt`; cudzy `runId` → `FORBIDDEN`; drugi wpis = nowy wiersz |
 | D-12 | Ocena `null` \| 1–5 na `completed`/`failed` tylko autora; po finalize → `REVIEW_LOCKED`; flaga `outputEdited` |
 | D-13 | `GET /runs/user/:userId`: własne wszystkie; cudzy id → `403` |
+| D-14 | SSE: hub nie zatrzymuje subjectu po `completed`/`failed`; `GET .../events` na skończonym runie emituje `run.status` i kończy stream |
 
 Zmiana względem wersji 1: dopisano D-11…D-13 (fundament zapisu feedbacku).
 Zmiana względem wersji 2: D-10 to `interrupted` + cap claimu (wcześniej retry na leftover `running` bez statusu pośredniego); dopisano D-9b (priorytet `interrupted` nad `queued`).
+Zmiana względem wersji 3: dopisano D-14 (cykl życia SSE / evikcja huba — `SPEC-KOMUNIKACJA.md` K-3a, `SPEC-RUNY.md` R-4a).
 
 ## Norma implementacji
 
@@ -88,7 +90,7 @@ Zmiana względem wersji 2: D-10 to `interrupted` + cap claimu (wcześniej retry 
 - Live OpenAI/Anthropic (lub innego vendora) na każdy PR.
 - Wymuszania suite automatycznego FE w v1/MVP.
 - Over-mockowania (testy tylko powtarzające implementację).
-- Odkładania testów bramki, HITL, recovery „na potem” poza DoD.
+- Odkładania testów bramki, HITL, recovery ani cyklu życia SSE (D-14) „na potem” poza DoD.
 
 ### Zatwierdzony stack (obszar)
 
@@ -104,7 +106,7 @@ Zmiana względem wersji 2: D-10 to `interrupted` + cap claimu (wcześniej retry 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-13 (w tym D-9b) pokryte testami (warstwa adekwatna do przypadku).
+- [ ] Przypadki D-1…D-14 (w tym D-9b) pokryte testami (warstwa adekwatna do przypadku).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

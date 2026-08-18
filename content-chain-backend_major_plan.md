@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md`, `content-chain_brief.md` (kontekst kolejności budowy).  
-**Kolejność priorytetów:** po Milestone 3 — **Faza 7** (refaktor statusów runu / recovery), potem Milestone 4 (pipeline + Postman), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 nie ma własnego milestone’u; blokuje start Fazy 4 do czasu `WYKONANY`.
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) — kolejny start: **Faza 8** (cykl życia SSE / evikcja huba; **przed** Fazą 4), potem Faza 4 / Milestone 4 (pipeline + Postman), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -260,7 +260,7 @@
 **Status:** `NIE_ROZPOCZĘTY`
 
 **Opis:** Pierwszy slice produktowy backendu: post ideas i post content z weryfikacją względem kontekstu, zapisem wyników i czytelnych logów; LLM tylko przez gateway. Weryfikacja **obu** happy pathów Postmanem (bez UI). Zgodnie z `SPEC-SOCIAL.md`, `docs/data_flow.md`, `docs/dokumentacja_koncepcyjna.md`.  
-**Start po Fazie 7** (`WYKONANY`): executor Social siada na grafie z `interrupted` i twardym capem claimu (`SPEC-RUNY.md` R-6 / R-9).
+**Odblokowana po Fazie 7** (`WYKONANY`) **i Fazie 8**: executor Social siada na grafie z `interrupted` i twardym capem claimu (`SPEC-RUNY.md` R-6 / R-9); hub SSE kończy strumień po `completed`/`failed` (`SPEC-RUNY.md` R-4a), zanim pipeline zacznie produkować runy.
 
 **DoD (faza):**
 
@@ -448,11 +448,13 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 
 ## Faza 7 — Refaktor cyklu runu: `interrupted` i cap recovery
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Refaktor względem: **Faza 3 / Krok 3.2** (`WYKONANY`) — worker in-process, recovery po crashu, przejścia statusów; oraz **Faza 1 / Krok 1.2** (`WYKONANY`) — enum `RunStatus` w `packages/shared`. Cel: status `interrupted`, twardy `MAX_CONCURRENT_RUNS` na claim `interrupted → running` (priorytet nad `queued`), bez burstu leftover `running`. HITL (`awaiting_hitl → running`) poza tym use-casem.  
-Źródło normy: `docs/dictionary.md`, `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md`, `SPEC-RUNY.md` (od v4), `SPEC-TESTY.md` D-9b / D-10.  
-**Bez MILESTONE 7** — to korekta kontraktu, nie skok produktowy. Wykonać **przed startem Fazy 4**. MILESTONE 3 (`OSIĄGNIĘTY`) zostaje: runy istnieją; ta faza koryguje graf zanim Social użyje executora.
+Źródło normy: `docs/dictionary.md`, `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md`, `SPEC-RUNY.md` (od v4), `SPEC-TESTY.md` D-9 / D-9b / D-10.  
+**Bez MILESTONE 7** — to korekta kontraktu, nie skok produktowy. Wykonana **przed startem Fazy 4**. MILESTONE 3 (`OSIĄGNIĘTY`) zostaje: runy istnieją; ta faza koryguje graf zanim Social użyje executora.
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-7-interrupted-recovery.md`. Recovery na starcie procesu tylko ustawia stan; leftover wraca do wykonania przez ten sam cap co kolejka (priorytet `interrupted` przed `queued`). HITL poza capem bez zmian. Brak MILESTONE 7. Faza 4 pozostaje `NIE_ROZPOCZĘTY`, odblokowana do startu.
 
 **DoD (faza):**
 
@@ -464,7 +466,7 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 
 ### Krok 7.1 — Kontrakt `RunStatus` i maszyna przejść
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Refaktor względem: Faza 1 / Krok 1.2 (`WYKONANY`) oraz Faza 3 / Krok 3.2 (`WYKONANY`, `assertTransition`). Dopisanie `interrupted` do unii/enumu w `packages/shared` oraz legalnych krawędzi: `running → interrupted`, `interrupted → running`, `interrupted → failed`.
 
@@ -473,32 +475,91 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 - `@content-chain/shared` eksportuje `interrupted` w `RunStatus` / `RUN_STATUSES`.
 - Domain odrzuca `interrupted → queued`, `completed → running`, `awaiting_hitl → interrupted`.
 - Filtr listy runów akceptuje nowy status (ten sam enum).
+- Brak zmiany modelu persistence statusu runu (nowa wartość kontraktu, bez migracji schematu).
 
 ### Krok 7.2 — Recovery boot, claim i drain pod capem
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
-**Opis:** Refaktor względem: Faza 3 / Krok 3.2 (`WYKONANY`) — `RecoverInterruptedRunsUseCase`, `InProcessRunWorker` (`scheduleExistingRunning` / burst), `claimNextQueued`. Recovery ustawia stan; worker claimuje `interrupted` analogicznie do `queued`, pod `MAX_CONCURRENT_RUNS`, z priorytetem w `drain`.
+**Opis:** Refaktor względem: Faza 3 / Krok 3.2 (`WYKONANY`) — `RecoverInterruptedRunsUseCase`, `InProcessRunWorker` (`scheduleExistingRunning` / burst), `claimNextQueued`. Recovery ustawia stan; worker claimuje `interrupted` analogicznie do `queued`, pod `MAX_CONCURRENT_RUNS`, z priorytetem w `drain`. HITL nadal poza tym capem (ten sam use-case co w Kroku 3.2).
 
 **DoD (krok):**
 
 - `onModuleInit`: recovery **przed** claimem `queued`; brak startu wszystkich leftover execute naraz.
 - Atomowy claim `interrupted → running` (`assertTransition` + wartownik statusu).
+- Drain przy wolnym slocie: najpierw `interrupted`, potem FIFO `queued`.
 - `recoveryAttempts++` tylko z leftover `running`; cap 3 → `failed` + log, bez execute.
 - SSE `run.status` przy przejściach do/z `interrupted`.
+- HITL (`awaiting_hitl → running`) nadal omija cap claimu.
 
-### Krok 7.3 — Testy kolejki i recovery (D-9b / D-10)
+### Krok 7.3 — Testy kolejki i recovery (D-9 / D-9b / D-10)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
-**Opis:** Pokrycie nowej normy z `SPEC-TESTY.md` (warstwa unit / integration). Refaktor względem: testów workera i recovery z Fazy 3 / Kroku 3.2 (`WYKONANY`), które utrwalają burst HITL — burst **HITL** zostaje; burst **recovery** jest sprzeczny z R-6/R-9 od SPEC v4.
+**Opis:** Pokrycie nowej normy z `SPEC-TESTY.md` (warstwa unit / integration oraz istniejący e2e D-9). Refaktor względem: testów workera i recovery z Fazy 3 / Kroku 3.2 (`WYKONANY`), które utrwalają burst HITL — burst **HITL** zostaje; burst **recovery** jest sprzeczny z R-6/R-9 od SPEC v4.
 
 **DoD (krok):**
 
 - D-9: nowy POST przy pełnym capie zostaje `queued`, potem startuje.
 - D-9b: `MAX=1`, dwa `interrupted` + jeden `queued` → kolejność execute: interrupted, interrupted, queued.
-- D-10: leftover `running` → `interrupted`; 3× przerwany execute → `failed` + log; leftover `interrupted` bez inkrementu attempts.
+- D-10: leftover `running` → `interrupted`; 3× przerwany execute → `failed` + log; leftover `interrupted` bez inkrementu attempts; boot nie burstuje ponad cap.
 - Istniejący test HITL ponad cap **nie** jest przepisywany na recovery (osobny use-case).
+
+---
+
+## Faza 8 — Refaktor SSE: koniec strumienia i evikcja huba
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Refaktor względem: **Faza 3 / Krok 3.2** (`WYKONANY`) — `InMemoryRunSseHub` (`Map` subjectów), `RunsController.events`, `RunLifecycleService.publish`; oraz **Faza 7 / Krok 7.2** (`WYKONANY`) — SSE `run.status` przy `interrupted` **zostaje** (stream nie kończy się na `interrupted` / `awaiting_hitl`). Cel: po `completed` / `failed` hub robi `complete` + usuwa wpis z mapy; Observable SSE się kończy; late-join na skończonym runie emituje snapshot i zamyka połączenie — bez wycieku pamięci i wiszących socketów.  
+Źródło normy: `docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`, `docs/anty_patterny.md`, `SPEC-KOMUNIKACJA.md` K-3a, `SPEC-RUNY.md` R-4a, `SPEC-FRONTEND.md` F-5a, `SPEC-TESTY.md` D-14.  
+Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wdrażamy go w `apps/api`. UI `EventSource` (F-5a) pozostaje w majorze frontendowym.  
+**Bez MILESTONE 8** — korekta cyklu życia kanału live, nie skok produktowy. **Wykonana przed startem Fazy 4** (Faza 7 uznała Faza 4 za odblokowaną po `interrupted`; ta faza wstawia się przed Social, żeby hub nie rósł z każdym runem pipeline’u).
+
+**DoD (faza):**
+
+- Port `RunSseHub` ma jawny `complete(runId)` (lub równoważne); hub po `completed`/`failed` kończy subject i usuwa wpis z mapy.
+- `awaiting_hitl` i `interrupted` nie wołają `complete`; disconnect klienta nie evikuje subjectu żyjącego runu.
+- `GET .../events` przy snapshotcie już terminalnym: co najmniej `run.status`, potem koniec streamu — bez wiecznego subjectu.
+- Testy D-14 przechodzą (unit huba/lifecycle/controllera + e2e: skończony run zamyka SSE).
+
+### Krok 8.1 — Port i `InMemoryRunSseHub`: `complete` + evikcja
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Refaktor względem: Faza 3 / Krok 3.2 (`WYKONANY`) — `run-sse.port.ts` / `run-sse.hub.ts` (`subjectFor` bez `delete`). Idempotentny `complete(runId)`: `subject.complete()` + `subjects.delete`. `publish` po `complete` nie ożywia wiecznego subjectu.
+
+**DoD (krok):**
+
+- Interfejs huba eksportuje `complete(runId)`.
+- Po `complete` mapa nie trzyma wpisu; drugi `complete` = no-op.
+- Unit test huba pokrywa evikcję i propagację complete do subscribera (bez HTTP).
+
+### Krok 8.2 — Lifecycle i late-join HTTP
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Refaktor względem: Faza 3 / Krok 3.2 (`WYKONANY`) — `RunLifecycleService.transition` (publish terminalnego eventu bez `complete`) oraz `RunsController.events` (`subscribe` + `startWith` bez końca Observable). Po `publish(run.completed)` / `publish(run.failed)` wołane `complete(runId)`. Snapshot `completed` \| `failed` → `of(snapshot)` i complete, **bez** `subscribe` na hubie.
+
+**DoD (krok):**
+
+- Transition do `completed`/`failed` kończy hub po evencie terminalnym.
+- Transition do `awaiting_hitl` / `interrupted` nie kończy huba (zgodność z Fazą 7 / 7.2).
+- Late-join na skończonym runie nie alokuje subjectu na zawsze.
+- Worker / `appendLog` bez zmian semantyki (kolejność: logi, potem terminal + `complete`).
+
+### Krok 8.3 — Testy D-14
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Pokrycie `SPEC-TESTY.md` D-14. Refaktor względem: testów controllera SSE i e2e lifecycle z Fazy 3 / Kroku 3.2 (`WYKONANY`) — e2e zrywa połączenie po pierwszym `run.status` i nie asertuje końca streamu ani rozmiaru mapy.
+
+**DoD (krok):**
+
+- Unit: lifecycle woła `complete` tylko po `completed`/`failed`.
+- Unit: controller przy snapshotcie terminalnym nie woła `subscribe`.
+- E2E (lub integration HTTP): `GET .../events` na skończonym runie emituje `run.status` i **kończy** response (`end`), bez timeoutu na otwartym sockecie.
+- Istniejące e2e live `run.status` na nieskończonym jeszcze przebiegu nie są psute.
 
 ---
 
@@ -513,7 +574,7 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 | HTTP / SSE / gateway / lista runów / auth probe / feedback | `docs/dokumentacja_komunikacji.md`, `SPEC-KOMUNIKACJA.md` |
 | Bezpieczeństwo / env / bootstrap /me | `docs/security.md`, `SPEC-BEZPIECZENSTWO.md`, `SPEC-AUTH.md` |
 | Kontekst firmy | `SPEC-KONTEKST-FIRMY.md`, `docs/dokumentacja_koncepcyjna.md` |
-| Runy / logi / listing / przegląd (ocena, edycja) / `interrupted` | `SPEC-RUNY.md`, `docs/observability.md`, `docs/data_flow.md` (recovery) |
+| Runy / logi / listing / przegląd (ocena, edycja) / `interrupted` / cykl życia SSE | `SPEC-RUNY.md` (w tym R-4a), `SPEC-KOMUNIKACJA.md` (K-3a), `docs/observability.md`, `docs/data_flow.md` (recovery), `docs/dokumentacja_komunikacji.md` |
 | Opinie tekstowe | `SPEC-FEEDBACK.md` |
 | Social | `SPEC-SOCIAL.md`, `docs/data_flow.md` |
 | Auth | `SPEC-AUTH.md` |

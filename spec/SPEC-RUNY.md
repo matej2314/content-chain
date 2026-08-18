@@ -1,5 +1,5 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-08-18
 ---
@@ -72,6 +72,10 @@ Zmiana względem wersji 2 / R-3a: R-3a (dashboard, strona 10) **zostaje**; R-3c 
 
 R-4. Emisja zdarzeń SSE należy do Runs; Social nie streamuje SSE bezpośrednio z węzłów grafu.
 
+R-4a. Hub SSE (in-memory subject per `runId` w MVP): port ma jawny koniec cyklu życia (`complete` lub równoważne). Po legalnym przejściu do `completed` albo `failed` hub **kończy** subject i **usuwa** wpis z mapy. `awaiting_hitl` i `interrupted` **nie** kończą subjectu. Sam disconnect klienta (Nest unsubscribe) **nie** evikuje subjectu żyjącego runu. Późny `GET .../events` na runie już terminalnym nie alokuje wiecznego subjectu (ścieżka snapshot + complete w HTTP — `SPEC-KOMUNIKACJA.md` K-3a).
+
+Zmiana względem wersji 4 / R-4: R-4 mówiło tylko kto emituje; infra „SSE hub / subject” bez evikcji — subject żył z procesem.
+
 R-5. Worker MVP: **in-process** w procesie `apps/api` (po `202` z `POST /runs`). Zakaz spawnu osobnego procesu OS na każdy run oraz osobnego always-on workera w MVP.
 
 R-6. Współbieżność: tylko limit **globalny** `MAX_CONCURRENT_RUNS` (env), domyślnie **3** — maksymalna liczba równoległych **execute** w procesie api. Claim do `running` z `queued` **oraz** z `interrupted` wyłącznie przy wolnym slocie. Nowe runy (`POST /runs`) powyżej limitu pozostają w `queued` i są podejmowane FIFO, gdy zwolni się slot **i** nie ma starszego `interrupted` w drain. Drain: najpierw `interrupted`, potem `queued`. Bez limitu per-user w v1. `awaiting_hitl → running` (HITL) jest osobnym use-casem i **nie** podlega temu capowi w MVP.
@@ -118,7 +122,7 @@ apps/api/src/runs/
 | Element | Norma |
 |---------|--------|
 | Kolejka | Stan w DB (`queued` / `interrupted` / `running`); semafor współbieżności w procesie api |
-| SSE | Nest `@Sse()`; subskrypcja po `runId`; auth jak API |
+| SSE | Nest `@Sse()`; subskrypcja po `runId`; auth jak API; **complete + evikcja** subjectu po `completed`/`failed` (R-4a) |
 | Licznik recovery | Pole / metadane runu (np. `recoveryAttempts`), cap = 3 |
 | Idempotencja HITL | Tylko ze statusu `awaiting_hitl` |
 | Przegląd | `userRating` + `outputEdited` + `reviewFinalizedAt`; lock po finalize |
@@ -129,12 +133,15 @@ apps/api/src/runs/
 - Przy starcie api uruchomić use-case recovery (`running` → `interrupted` / `failed`) przed podejmowaniem nowych `queued`.
 - Claim `interrupted → running` pod tym samym capem co `queued`; priorytet `interrupted` w drain.
 - Emitować SSE przy każdym udanym `appendLog` i każdej legalnej zmianie statusu (w tym do/z `interrupted`).
+- Domykać i usuwać subject huba wyłącznie po `completed` / `failed` (R-4a).
 - `startedBy` nullable wyłącznie dla historycznych / pre-auth przebiegów testowych; po domknięciu auth na api nowe runy zawsze z inicjatorem.
 - Trzymać `userRating: null` jako jawny brak oceny (nie pomijać pola w snapshotcie).
 
 ### Nie wolno
 
 - Pollingu statusu runu jako live.
+- `complete` subjectu SSE na `awaiting_hitl` albo `interrupted`.
+- Mapy Subject bez evikcji po terminalu (wpis na zawsze w singletonie procesu).
 - Traktowania stdout jako jedynego źródła przebiegu dla UI.
 - Mylenia `/metrics` z logami runu.
 - Niedozwolonych skoków statusów.
@@ -158,6 +165,7 @@ apps/api/src/runs/
 |---------|--------|
 | BC Runs + porty używane przez Social | obowiązkowe |
 | Append-only logi w DB + SSE Nest | obowiązkowe |
+| Hub SSE: `complete` + evikcja subjectu po `completed`/`failed` (R-4a) | obowiązkowe |
 | In-process worker + `MAX_CONCURRENT_RUNS` (default 3) | obowiązkowe |
 | Recovery: leftover `running` → `interrupted` → claim pod capem; max 3 × `isRetryable` → `failed` | obowiązkowe |
 | Pola przeglądu `userRating` / `outputEdited` / `reviewFinalizedAt` + `GET /runs/user/:userId` | obowiązkowe w **MVP** (fundament zapisu) |
@@ -168,6 +176,7 @@ apps/api/src/runs/
 
 - [ ] Nielegalne przejście statusu jest odrzucane.
 - [ ] Logi rosną tylko przez append; GET logs zwraca historię; SSE dostarcza przyrosty.
+- [ ] Po `completed`/`failed` hub nie zatrzymuje subjectu danego `runId`; `awaiting_hitl` / `interrupted` nie evikują subjectu.
 - [ ] `GET /runs` zwraca listę instancji z paginacją 10, sortem `createdAt` desc, filtrami i `startedBy`.
 - [ ] `GET /runs/user/:userId` zwraca wszystkie runy sesji; cudzy id → 403.
 - [ ] Snapshot zawiera `userRating` (`null` \| 1–5), `outputEdited`, `reviewFinalizedAt`.
