@@ -323,14 +323,14 @@ describe('InProcessRunWorker', () => {
     expect(transition).not.toHaveBeenCalled();
   });
 
-  it('still marks running as failed when appendLog throws, and falls back to saveStatus if transition throws', async () => {
+  it('still transitions to failed when appendLog throws', async () => {
     const run = makeRun({ status: 'running' });
     const loggerError = jest
       .spyOn(Logger.prototype, 'error')
       .mockImplementation(() => undefined);
     const appendLog = jest.fn().mockRejectedValue(new Error('log write failed'));
-    const transition = jest.fn().mockRejectedValue(new Error('sse/db failed'));
-    const saveStatus = jest.fn().mockResolvedValue(undefined);
+    const transition = jest.fn().mockResolvedValue({ ...run, status: 'failed' });
+    const saveStatus = jest.fn();
     const getById = jest.fn().mockResolvedValue(asSnapshot(run));
 
     const worker = makeWorker({
@@ -346,12 +346,53 @@ describe('InProcessRunWorker', () => {
     worker.notifyHitlResumed(run);
     try {
       await waitUntil(
-        () => saveStatus.mock.calls.length === 1,
-        'fallback saveStatus after failed transition',
+        () => transition.mock.calls.length === 1,
+        'failed transition after appendLog throw',
       );
 
-      expect(transition).toHaveBeenCalled();
-      expect(saveStatus).toHaveBeenCalledWith(run.id, 'failed');
+      expect(transition).toHaveBeenCalledWith(
+        expect.objectContaining({ id: run.id, status: 'running' }),
+        'failed',
+        expect.objectContaining({ failedMessage: expect.any(String) }),
+      );
+      expect(saveStatus).not.toHaveBeenCalled();
+      expect(loggerError).toHaveBeenCalled();
+    } finally {
+      loggerError.mockRestore();
+    }
+  });
+
+  it('does not bypass lifecycle with saveStatus when transition throws', async () => {
+    const run = makeRun({ status: 'running' });
+    const loggerError = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    const transition = jest.fn().mockRejectedValue(new Error('sse/db failed'));
+    const saveStatus = jest.fn();
+    const getById = jest.fn().mockResolvedValue(asSnapshot(run));
+
+    const worker = makeWorker({
+      runs: unusedRepo({ getById, saveStatus }),
+      executor: {
+        async execute() {
+          throw new Error('boom');
+        },
+      },
+      lifecycle: {
+        appendLog: jest.fn().mockResolvedValue(undefined),
+        transition,
+      },
+    });
+
+    worker.notifyHitlResumed(run);
+    try {
+      await waitUntil(
+        () => transition.mock.calls.length === 1,
+        'failed transition attempted after executor throw',
+      );
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(saveStatus).not.toHaveBeenCalled();
       expect(loggerError).toHaveBeenCalled();
     } finally {
       loggerError.mockRestore();

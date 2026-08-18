@@ -4,9 +4,11 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { newConversationId, newRunId } from '../shared/http/new-ids';
 import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
 import { GetRunUseCase } from './application/get-run.use-case';
+import { ListRunsUseCase } from './application/list-runs.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
 import { RUN_SSE_HUB, type RunSseEvent } from './domain/run-sse.port';
+import { ListRunsQueryDto } from './http/dto/list-runs-query.dto';
 import { HitlDto } from './http/dto/hitl.dto';
 import { StartRunDto } from './http/dto/start-run.dto';
 import { RunsController } from './runs.controller';
@@ -16,6 +18,7 @@ describe('RunsController', () => {
   let startRun: { execute: jest.Mock };
   let getRun: { execute: jest.Mock };
   let getLogs: { execute: jest.Mock };
+  let listRuns: { execute: jest.Mock };
   let resumeHitl: { execute: jest.Mock };
   let sse: { subscribe: jest.Mock; publish: jest.Mock };
 
@@ -23,6 +26,7 @@ describe('RunsController', () => {
     startRun = { execute: jest.fn() };
     getRun = { execute: jest.fn() };
     getLogs = { execute: jest.fn() };
+    listRuns = { execute: jest.fn() };
     resumeHitl = { execute: jest.fn() };
     sse = { subscribe: jest.fn(), publish: jest.fn() };
 
@@ -32,6 +36,7 @@ describe('RunsController', () => {
         { provide: StartRunUseCase, useValue: startRun },
         { provide: GetRunUseCase, useValue: getRun },
         { provide: GetRunLogsUseCase, useValue: getLogs },
+        { provide: ListRunsUseCase, useValue: listRuns },
         { provide: ResumeHitlUseCase, useValue: resumeHitl },
         { provide: RUN_SSE_HUB, useValue: sse },
       ],
@@ -47,12 +52,35 @@ describe('RunsController', () => {
     expect(names.indexOf('logs')).toBeLessThan(names.indexOf('get'));
     expect(names.indexOf('events')).toBeLessThan(names.indexOf('get'));
     expect(names.indexOf('hitl')).toBeLessThan(names.indexOf('get'));
+    expect(names.indexOf('list')).toBeLessThan(names.indexOf('get'));
 
     expect(Reflect.getMetadata('path', proto.create)).toBe('/');
     expect(Reflect.getMetadata('path', proto.logs)).toBe(':runId/logs');
     expect(Reflect.getMetadata('path', proto.events)).toBe(':runId/events');
     expect(Reflect.getMetadata('path', proto.hitl)).toBe(':runId/hitl');
+    expect(Reflect.getMetadata('path', proto.list)).toBe('/');
     expect(Reflect.getMetadata('path', proto.get)).toBe(':runId');
+  });
+
+  it('maps list query DTO to ListRunsQuery and delegates to ListRunsUseCase', async () => {
+    const listed = { items: [], page: 1, pageSize: 10, total: 0 };
+    listRuns.execute.mockResolvedValue(listed);
+
+    const query: ListRunsQueryDto = {
+      page: 2,
+      status: 'completed',
+      taskType: 'post_ideas',
+      platform: 'linkedin',
+    };
+
+    await expect(controller.list(query)).resolves.toBe(listed);
+    expect(listRuns.execute).toHaveBeenCalledWith({
+      page: 2,
+      status: 'completed',
+      taskType: 'post_ideas',
+      platform: 'linkedin',
+      userId: undefined,
+    });
   });
 
   it('maps start-run result to { runId, conversationId, status }', async () => {

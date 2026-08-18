@@ -7,12 +7,14 @@ import {
   Param,
   Post,
   Sse,
+  Query,
+  BadRequestException,
   type MessageEvent,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { map, Observable, startWith } from 'rxjs';
-import type { RunId } from '@content-chain/shared';
 import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
+import { ListRunsUseCase } from './application/list-runs.use-case';
 import { GetRunUseCase } from './application/get-run.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
@@ -23,7 +25,11 @@ import {
 } from './domain/run-sse.port';
 import { HitlDto } from './http/dto/hitl.dto';
 import { StartRunDto } from './http/dto/start-run.dto';
+import { ListRunsQueryDto } from './http/dto/list-runs-query.dto';
 import { ParseRunIdPipe } from './http/parse-run-id.pipe';
+import { createUserId, isUserId } from '@content-chain/shared';
+import type { RunId } from '@content-chain/shared';
+import type { ListRunsQuery } from './domain/run.port';
 
 @ApiTags('runs')
 @Controller('runs')
@@ -33,6 +39,7 @@ export class RunsController {
     private readonly getRun: GetRunUseCase,
     private readonly getLogs: GetRunLogsUseCase,
     private readonly resumeHitl: ResumeHitlUseCase,
+    private readonly listRuns: ListRunsUseCase,
     @Inject(RUN_SSE_HUB) private readonly sse: RunSseHub,
   ) {}
 
@@ -71,6 +78,21 @@ export class RunsController {
   @HttpCode(202)
   hitl(@Param('runId', ParseRunIdPipe) runId: RunId, @Body() body: HitlDto) {
     return this.resumeHitl.execute(runId, body.selectedIdeaIds);
+  }
+
+  @Get()
+  list(@Query() query: ListRunsQueryDto): Promise<unknown> {
+    if (query.userId && !isUserId(query.userId)) {
+      throw new BadRequestException('Invalid user ID format');
+    }
+    const command: ListRunsQuery = {
+      page: query.page ?? 1,
+      status: query.status,
+      taskType: query.taskType,
+      platform: query.platform,
+      userId: query.userId ? createUserId(query.userId) : undefined,
+    };
+    return this.listRuns.execute(command);
   }
 
   @Get(':runId')

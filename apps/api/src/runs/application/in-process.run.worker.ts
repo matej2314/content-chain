@@ -100,17 +100,10 @@ export class InProcessRunWorker implements OnModuleInit {
         if (latest?.status !== 'running') {
           return;
         }
-        try {
-          await this.lifecycle.transition(latest, 'failed', {
-            failedMessage: EXECUTOR_FAILED_MESSAGE,
-          });
-        } catch (failError) {
-          this.logger.error(
-            { runId: run.id, err: failError },
-            'lifecycle failed-path failed, falling back to saveStatus',
-          );
-          await this.runs.saveStatus(run.id, 'failed');
-        }
+
+        await this.lifecycle.transition(latest, 'failed', {
+          failedMessage: EXECUTOR_FAILED_MESSAGE,
+        });
       } catch (markError) {
         this.logger.error(
           { runId: run.id, err: markError },

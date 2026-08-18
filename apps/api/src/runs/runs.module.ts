@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { CompanyContextModule } from '../company-context/company-context.module';
-import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
-import { GetRunUseCase } from './application/get-run.use-case';
 import { InProcessRunWorker } from './application/in-process.run.worker';
 import { RecoverInterruptedRunsUseCase } from './application/recover-interrupted-runs.use-case';
+import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
+import { GetRunUseCase } from './application/get-run.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
-import { RunLifecycleService } from './application/run-lifecycle.service';
 import { StartRunUseCase } from './application/start-run.use-case';
+import { ListRunsUseCase } from './application/list-runs.use-case';
+import { RunLifecycleService } from './application/run-lifecycle.service';
 import { RUN_EXECUTOR } from './domain/run-executor.port';
 import { RUN_REPOSITORY } from './domain/run.port';
 import { RUN_SSE_HUB } from './domain/run-sse.port';
@@ -29,6 +30,7 @@ import { RunsController } from './runs.controller';
     ResumeHitlUseCase,
     GetRunUseCase,
     GetRunLogsUseCase,
+    ListRunsUseCase,
   ],
   exports: [RUN_REPOSITORY, RUN_SSE_HUB, RunLifecycleService],
 })

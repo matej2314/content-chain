@@ -2025,7 +2025,7 @@ Kolejka (D-9): e2e z `overrideProvider(RUN_EXECUTOR)` na fake, który wstrzymuje
 
 ### KROK 5 — Lista runów instancji (`GET /api/v1/runs`)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Listing pod dashboard. Major 3.3, R-3a, K-2a.
 

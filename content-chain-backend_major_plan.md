@@ -187,7 +187,7 @@
 
 ## Faza 3 — Kontekst firmy i cykl życia runów
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Bramka kompletności kontekstu firmy oraz cykl życia async runu (statusy, logi w DB, SSE, lista kolekcji pod dashboard, wykonanie in-process) jako podstawa pod Social. Zgodnie z `SPEC-KONTEKST-FIRMY.md`, `SPEC-RUNY.md`, `docs/data_flow.md`, `docs/dokumentacja_komunikacji.md`.
 
@@ -200,7 +200,7 @@
 
 ### Krok 3.1 — BC Company Context
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Kanoniczny kontekst jednej firmy na instancję, werdykt kompletności sekcji bramki oraz blokada startu runów przy braku kompletności.
 
@@ -212,7 +212,7 @@
 
 ### Krok 3.2 — BC Runs (statusy, logi, SSE, in-process)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Utworzenie runu, polityka statusów, kanoniczne logi, emisja SSE oraz wykonanie workera w procesie api — bez osobnego always-on workera OS w MVP. Przy starcie zapisywane jest miejsce na inicjatora (`startedBy`) pod późniejsze auth.
 
@@ -225,7 +225,7 @@
 
 ### Krok 3.3 — Lista runów instancji (paginacja i filtry)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Powierzchnia `GET /api/v1/runs` pod widok listy dashboardu: cała instancja, stała strona 10, sort `createdAt` desc, filtry status / taskType / platforma / userId, pozycje z `startedBy` (email jako identyfikator wyświetlany). Zgodnie z docs komunikacji i `SPEC-RUNY.md`.  
 *(Dopisane względem wcześniejszej wersji Fazy 3: wcześniej tylko cykl pojedynczego runu bez listingu kolekcji.)*
@@ -240,6 +240,8 @@
 ---
 
 ## MILESTONE 3 — Bramka kontekstu i runy gotowe pod pipeline Social
+
+**Status:** `OSIĄGNIĘTY`
 
 **Opis:** Bramka po Fazie 3. Kontekst i runy (w tym listing) są gotowe; wolno wdrażać pipeline Social.
 
