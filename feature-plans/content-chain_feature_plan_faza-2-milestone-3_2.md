@@ -1707,7 +1707,7 @@ KROK 4 doda `GetRunUseCase` / `GetRunLogsUseCase` do `providers` i metody HTTP. 
 
 ### KROK 4 — HTTP runów: POST, snapshot, logi, SSE, HITL
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Powierzchnia zgodna z `docs/dokumentacja_komunikacji.md`. Major 3.2 HTTP. K-2, K-3. Auth SSE — Faza 5.
 

@@ -27,9 +27,10 @@ describe('assertTransition', () => {
     );
   });
 
-  it('allows running => awaiting_hitl and running => failed', () => {
+  it('allows running => awaiting_hitl, completed and failed', () => {
     expect(canTransition('running', 'awaiting_hitl')).toBe(true);
-    expect(() => assertTransition('running', 'completed')).toBe(true);
+    expect(canTransition('running', 'completed')).toBe(true);
     expect(canTransition('running', 'failed')).toBe(true);
+    expect(() => assertTransition('running', 'completed')).not.toThrow();
   });
 });

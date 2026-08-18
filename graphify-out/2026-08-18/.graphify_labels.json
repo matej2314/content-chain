@@ -130,5 +130,9 @@
   "128": "provider-base-url.validation.ts",
   "129": "ConfigValidateCommand",
   "130": "ClientListCommand",
-  "131": "ModelListCommand"
+  "131": "ModelListCommand",
+  "132": "ProviderListCommand",
+  "133": "health.controller.ts",
+  "134": "ParseRunIdPipe",
+  "135": "LoggingModule"
 }

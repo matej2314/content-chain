@@ -235,7 +235,7 @@ importers:
         specifier: ^8.2.0
         version: 8.3.0
       jest:
-        specifier: ^30.0.0
+        specifier: ^30.4.2
         version: 30.4.2(@types/node@22.20.1)(ts-node@10.9.2(@types/node@22.20.1)(typescript@5.9.3))
       nestjs-pino:
         specifier: ^4.0.0

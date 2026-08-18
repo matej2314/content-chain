@@ -4,6 +4,8 @@ import { DomainException } from '../../shared/exceptions/domain.exception';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { InProcessRunWorker } from './in-process.run.worker';
+import { parseWithZod } from './parse-with-zod';
+import { startRunCommandSchema } from './run.schemas';
 import type {
   ContentLanguage,
   RunTaskType,
@@ -30,6 +32,7 @@ export class StartRunUseCase {
   async execute(
     command: StartRunCommand,
   ): Promise<Pick<RunRecord, 'id' | 'conversationId' | 'status'>> {
+    const parsedCommand = parseWithZod(startRunCommandSchema, command);
     const gate = await this.completeness.execute();
     if (!gate.complete) {
       throw new DomainException(
@@ -43,12 +46,12 @@ export class StartRunUseCase {
     const run: RunRecord = {
       id: newRunId(),
       conversationId: newConversationId(),
-      taskType: command.taskType,
-      platform: command.platform,
-      language: command.language,
+      taskType: parsedCommand.taskType,
+      platform: parsedCommand.platform,
+      language: parsedCommand.language,
       status: 'queued',
-      brief: command.brief,
-      selectedIdeaIds: command.selectedIdeaIds ?? null,
+      brief: parsedCommand.brief,
+      selectedIdeaIds: parsedCommand.selectedIdeaIds ?? null,
       startedByUserId: null,
       recoveryAttempts: 0,
       createdAt: new Date(),

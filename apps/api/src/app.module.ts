@@ -35,6 +35,7 @@ import { MetricsModule } from './metrics/metrics.module';
             ? { target: 'pino-pretty' }
             : undefined,
       },
+      forRoutes: [{ path: '{*splat}', method: RequestMethod.ALL }],
     }),
     AuthModule,
     CompanyContextModule,
