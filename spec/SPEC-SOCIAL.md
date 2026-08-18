@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-15
+data_modyfikacji: 2026-08-18
 ---
 
 # SPEC — Social
@@ -51,6 +51,9 @@ S-6. HITL (**model B** — samodzielne zarządzanie pauzą):
 2. Application ustawia run `awaiting_hitl` i zapisuje w DB stan potrzebny do resume (draft pomysłów, `conversationId`, metadane fazy, liczniki refine itd.) — **kanonicznie w Run / powiązanych tabelach Prisma**, nie w pliku JSON i nie w checkpointerze LangGraph.
 3. `POST .../hitl` waliduje stan `awaiting_hitl`, zapisuje wybór, uruchamia **nowy invoke** fazy content (osobny graf lub ten sam z jawnym entry fazy).
 4. Idempotencja: ponowny HITL gdy run nie jest w `awaiting_hitl` → `409` `HITL_REQUIRED` / `CONFLICT`.
+5. Crash procesu podczas **execute** (nie pauzy HITL) należy do Runs: leftover `running` → `interrupted` (`SPEC-RUNY.md` R-9). Po `interrupted → running` Social re-invoke **fazy** z trwałego stanu w DB (model B). Pauza HITL **nie** przechodzi w `interrupted`.
+
+Zmiana względem wersji 2 / S-6: recovery procesu było milcząco poza Social; tu jawny podział — `interrupted` = Runs, re-invoke fazy po powrocie do `running` = Social.
 
 S-7. Taski jednoetapowe (`post_ideas`, `post_content`) — bez pauzy HITL.
 
@@ -134,7 +137,7 @@ Zmiana względem wersji 1: dopisano zakaz re-invoke grafu z powodu oceny / edycj
 ## Kryteria akceptacji
 
 - [ ] `post_ideas` full-auto: completed + ideas w DB + logi z `conversationId` / `requestId` hopów.
-- [ ] `post_ideas_then_content`: po ideas status `awaiting_hitl` + draft w DB; po HITL content → completed; restart procesu api nie gubi draftu HITL (stan w DB).
+- [ ] `post_ideas_then_content`: po ideas status `awaiting_hitl` + draft w DB; po HITL content → completed; restart procesu api nie gubi draftu HITL (stan w DB; status zostaje `awaiting_hitl`, nie `interrupted`).
 - [ ] Verifier fail → refine ≤ 2, potem `failed` z czytelnym powodem (kontekst i/lub język).
 - [ ] Węzły LLM zwracają dane po walidacji Zod (lub równoważnej); złamany kształt nie trafia do wyniku „sukces”.
 - [ ] Brak checkpoinetera LangGraph i brak JSON-pliku jako store HITL.

@@ -58,7 +58,7 @@ Docelowe pliki (propozycja):
 | Typ | Wartości MVP |
 |-----|-------------|
 | `UserRole` | `admin` \| `user` |
-| `RunStatus` | `queued` \| `running` \| `awaiting_hitl` \| `completed` \| `failed` |
+| `RunStatus` | `queued` \| `running` \| `interrupted` \| `awaiting_hitl` \| `completed` \| `failed` |
 | `RunTaskType` | `post_ideas` \| `post_content` \| `post_ideas_then_content` |
 | `SocialPlatform` | `linkedin` \| `facebook` \| `instagram` |
 | `ContentLanguage` | `pl` \| `en` |

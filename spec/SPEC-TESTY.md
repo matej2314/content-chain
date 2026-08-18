@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-15
+data_modyfikacji: 2026-08-18
 ---
 
 # SPEC — Testy
@@ -56,12 +56,14 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-7 | Stub błędu gateway: run `failed` / retry wg polityki; log bez wycieku `X-Gateway-Key` |
 | D-8 | Korelacja: stały `conversationId`; `requestId` z „odpowiedzi” stubu gateway w logu kroku |
 | D-9 | Kolejka: przy limicie współbieżności nowy run zostaje `queued`, potem startuje (`SPEC-RUNY.md`) |
-| D-10 | Recovery: symulacja przerwanego `running` → ≤3 próby retryable → potem `failed` + log |
+| D-9b | Drain: przy `MAX=1` dwa `interrupted` + jeden `queued` → kolejność execute: interrupted, interrupted, queued |
+| D-10 | Recovery: leftover `running` → `interrupted`; claim pod `MAX_CONCURRENT_RUNS`; leftover już `interrupted` bez inkrementu `recoveryAttempts`; 3× przerwany execute → `failed` + log |
 | D-11 | `POST /feedback`: zapis z `authorId`+`createdAt`; cudzy `runId` → `FORBIDDEN`; drugi wpis = nowy wiersz |
 | D-12 | Ocena `null` \| 1–5 na `completed`/`failed` tylko autora; po finalize → `REVIEW_LOCKED`; flaga `outputEdited` |
 | D-13 | `GET /runs/user/:userId`: własne wszystkie; cudzy id → `403` |
 
 Zmiana względem wersji 1: dopisano D-11…D-13 (fundament zapisu feedbacku).
+Zmiana względem wersji 2: D-10 to `interrupted` + cap claimu (wcześniej retry na leftover `running` bez statusu pośredniego); dopisano D-9b (priorytet `interrupted` nad `queued`).
 
 ## Norma implementacji
 
@@ -102,7 +104,7 @@ Zmiana względem wersji 1: dopisano D-11…D-13 (fundament zapisu feedbacku).
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-13 pokryte testami (warstwa adekwatna do przypadku).
+- [ ] Przypadki D-1…D-13 (w tym D-9b) pokryte testami (warstwa adekwatna do przypadku).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

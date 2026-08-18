@@ -27,7 +27,7 @@ Minimalny zestaw (nazwy przykładowe — implementacja może użyć prefiksu `co
 | HTTP | Licznik requestów: method, route, status |
 | HTTP | Latencja (histogram / summary) per route |
 | Process | Uptime / żywy proces (gauge) |
-| Runy | Liczniki / gauge wg `RunStatus` (queued, running, awaiting_hitl, completed, failed) |
+| Runy | Liczniki / gauge wg `RunStatus` (queued, running, interrupted, awaiting_hitl, completed, failed) |
 | Gateway (z perspektywy api) | Licznik błędów / timeoutów wywołań do gateway (nie mylić z logiem runu) |
 
 Poza MVP metryk: pełny USE/RED, tracing OTel, biznesowe „jakość copy”, **analityka ocen / opinii** (panel admina — V1 — rozbudowa).

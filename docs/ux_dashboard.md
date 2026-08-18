@@ -42,7 +42,7 @@ Stały element UI (np. pasek pod headerem / chip w sidebarze), widoczny na wszys
 |------|---------|--------------|
 | **Agenci aktywni** | `completeness.complete === true` | Można uruchamiać flow’y SM |
 | **Agenci nieaktywni / zablokowani** | kontekst niekompletny | Start runów zablokowany; lista brakujących sekcji + link do Kontekstu |
-| **Run w toku** (uzupełnienie) | istnieje run w `running` / `awaiting_hitl` | Opcjonalny drugi sygnał: „Trwa run…” z linkiem do szczegółów |
+| **Run w toku** (uzupełnienie) | istnieje run w `running` / `awaiting_hitl` / `interrupted` | Opcjonalny drugi sygnał: przy `running` / `awaiting_hitl` — „Trwa run…”; przy `interrupted` — **inne copy** („Przerwany — wznowienie przy wolnym slocie”), z linkiem do szczegółów |
 
 Źródło: `GET /company-context/completeness` (+ lista runów / SSE).  
 CTA „Start runu” disabled + tooltip, gdy agenci nieaktywni — zgodnie z **409** `CONTEXT_INCOMPLETE` po stronie api (UI nie jest jedyną bramką).
@@ -58,7 +58,7 @@ CTA „Start runu” disabled + tooltip, gdy agenci nieaktywni — zgodnie z **4
 - Źródło: `GET /api/v1/runs` — **runy całej instancji**.
 - Kolumny listy: `runId`, typ tasku, platforma, język, status, `createdAt`, email inicjatora (`startedBy.email`).
 - Paginacja: **10** na stronę, najnowsze pierwsze; stały rozmiar strony.
-- Filtry MVP: status, `taskType`, platforma, użytkownik inicjujący (`userId`).
+- Filtry MVP: status (w tym `interrupted`), `taskType`, platforma, użytkownik inicjujący (`userId`).
 - Akcja: nowy run (brief, `taskType`, platforma, język, ewent. `selectedIdeaIds` dla samego content).
 - Start zablokowany wizualnie, gdy globalnie agenci nieaktywni.
 - **Nawigacja:** klik wiersza → podstrona **Run (szczegóły)** dla tego `runId` (podstawowe info z listy; pełny live / logi / HITL / wynik na szczegółach).
@@ -70,7 +70,7 @@ Wejście: z listy Runy SM (klik) lub bezpośredni deep-link po `runId`.
 | Element | Zachowanie |
 |---------|------------|
 | **Nagłówek / meta** | Te same podstawowe pola co wiersz listy + ewent. `conversationId` (ops light) |
-| **Status live** | Subskrypcja SSE `.../events`; zmiana statusu **natychmiast**; prezentacja **animowana / atrakcyjna** (np. pulsacja / progress przy `running`, wyraźny stan `awaiting_hitl`, sukces/fail) — nie tylko szary label |
+| **Status live** | Subskrypcja SSE `.../events`; zmiana statusu **natychmiast**; prezentacja **animowana / atrakcyjna** (np. pulsacja / progress przy `running`, wyraźny stan `awaiting_hitl`, **czytelny przestój `interrupted`** — nie ta sama pulsacja co `running`, sukces/fail) — nie tylko szary label |
 | **Logi** | Przyrostowo z SSE `run.log` + możliwość dociągnięcia historii GET logs |
 | **HITL** | Panel wyboru pomysłów, gdy `awaiting_hitl` + `run.hitl`; submit → `POST .../hitl` |
 | **Wynik** | Ideas / content po `completed` (czytelny podgląd, kopiowanie); przy `failed` — to, co zdążyło się zapisać |
@@ -78,7 +78,7 @@ Wejście: z listy Runy SM (klik) lub bezpośredni deep-link po `runId`.
 | **Ocena gwiazdkowa (1–5)** | Po `completed` **albo** `failed`, tylko autor runu. Dobrowolna: brak wyboru = w DB zostaje `userRating: null`. Do zatwierdzenia można zmieniać wybór (w tym wrócić do braku oceny). Czytelne gwiazdki, nie sam numeric input |
 | **Zamknij / zapisz przegląd** | Zatwierdza aktualną ocenę (`null` albo `1–5`) i flagę edycji. Po sukcesie kontrolki oceny i Edytuj są zablokowane |
 
-Reconnect SSE: UI powinien odtworzyć subskrypcję; status i logi można uzupełnić snapshotem GET run / logs.
+Reconnect SSE: UI powinien odtworzyć subskrypcję; status i logi można uzupełnić snapshotem GET run / logs. Po restarcie api snapshot może pokazać `interrupted` zanim znowu `running` — nie zakładać natychmiastowego powrotu do pulsu pipeline.
 
 Ocena i Edytuj **nie** są HITL (HITL = wybór pomysłów w trakcie pipeline).
 
@@ -110,6 +110,7 @@ Authz selecta runów: wyłącznie runy autora; obcy `userId` → api `403`.
 - Pusty kontekst / po pierwszym wejściu admina: onboarding → uzupełnij kontekst → „Agenci aktywni”.
 - Błędy API: czytelny komunikat z `code` / `message` (bez stack trace).
 - `failed` run: status + ostatnie logi z powodem (verifier / gateway).
+- `interrupted` run: status + informacja, że wznowienie czeka na wolny slot (bez panelu HITL i bez oceny).
 
 ## Poza zakresem UX MVP
 

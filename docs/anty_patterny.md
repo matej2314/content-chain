@@ -25,6 +25,7 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | LangGraph wołany wprost z controllera | Brak fasady use-case; trudny HITL i statusy runu | Application service startuje/wznawia run; graf za fasadą |
 | Synchroniczny HTTP = cały pipeline LLM | Timeouty, brak SSE, koszmar HITL | Async run + SSE; GET tylko snapshot logów / health / metrics |
 | Pomijanie `ConsistencyVerifier` „na skróty” | Łamie kryterium spójności (kontekst + język) | Verifier obowiązkowy; refine `max N=2`, potem `failed` |
+| Burst execute recovery ponad `MAX_CONCURRENT_RUNS` albo `running → queued` jako „naprawa” po crashu | Przeciąża LLM/RAM po restarcie; `queued` to kolejka **nowych** POST, nie zombie execute | Status `interrupted` + claim pod tym samym capem (`dictionary.md`, `SPEC-RUNY.md` R-6 / R-9) |
 | Nieskończona pętla refine | Koszt LLM, zawieszony run | Twardy limit `max N=2` |
 | Osobne „mikroserwisy agentów” w MVP | Overengineering względem modularnego monolitu | Węzły w jednym grafie w `apps/api` |
 

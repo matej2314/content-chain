@@ -49,6 +49,8 @@ flowchart TB
   Run --> Agents[Agenci: ideation / content / verifier]
   Agents --> GW[gateway LLM]
   Agents --> Logs[run.log + SSE]
+  Crash{Crash procesu?} -->|tak| Int[interrupted]
+  Int -->|wolny slot| Agents
   Hitl{HITL?} -->|tak| Pause[awaiting_hitl]
   Pause --> Agents
   Hitl -->|nie / po wyborze| Done[completed + wynik w DB]

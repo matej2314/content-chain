@@ -1,7 +1,7 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-15
+data_modyfikacji: 2026-08-18
 ---
 
 # SPEC — Runy / logi
@@ -32,11 +32,17 @@ Dozwolona ścieżka:
 
 ```text
 queued → running → (awaiting_hitl → running) → completed
-                                         ↘ failed
-                         running ──────────→ failed
+              │                         ↘ failed
+              ├──→ failed
+              └──→ interrupted → running    (claim, gdy wolny slot)
+                              └→ failed     (cap recovery)
 ```
 
-Przejścia inne niż dozwolone krawędzie domeny → odrzucenie (`CONFLICT` / błąd domenowy). Przykład zakazany: `completed` → `running`.
+Trzy legalne krawędzie **do** `running`: `queued`, `interrupted`, `awaiting_hitl`. `POST /runs` nigdy nie tworzy `interrupted`.
+
+Przejścia inne niż dozwolone krawędzie domeny → odrzucenie (`CONFLICT` / błąd domenowy). Przykłady zakazane: `completed` → `running`; `interrupted` → `queued`; `awaiting_hitl` → `interrupted`.
+
+Zmiana względem wersji 3: graf bez `interrupted`; leftover `running` wznawiane execute bez statusu pośredniego (burst poza capem claimu z R-6). Źródło: `docs/dictionary.md`, `docs/dokumentacja_komunikacji.md`.
 
 ## Wymagania (egzekwowalne)
 
@@ -68,7 +74,9 @@ R-4. Emisja zdarzeń SSE należy do Runs; Social nie streamuje SSE bezpośrednio
 
 R-5. Worker MVP: **in-process** w procesie `apps/api` (po `202` z `POST /runs`). Zakaz spawnu osobnego procesu OS na każdy run oraz osobnego always-on workera w MVP.
 
-R-6. Współbieżność: tylko limit **globalny** `MAX_CONCURRENT_RUNS` (env), domyślnie **3**. Nowe runy powyżej limitu pozostają w `queued` i są podejmowane FIFO (lub równoważnie fair globalnie), gdy zwolni się slot. Bez limitu per-user w v1.
+R-6. Współbieżność: tylko limit **globalny** `MAX_CONCURRENT_RUNS` (env), domyślnie **3** — maksymalna liczba równoległych **execute** w procesie api. Claim do `running` z `queued` **oraz** z `interrupted` wyłącznie przy wolnym slocie. Nowe runy (`POST /runs`) powyżej limitu pozostają w `queued` i są podejmowane FIFO, gdy zwolni się slot **i** nie ma starszego `interrupted` w drain. Drain: najpierw `interrupted`, potem `queued`. Bez limitu per-user w v1. `awaiting_hitl → running` (HITL) jest osobnym use-casem i **nie** podlega temu capowi w MVP.
+
+Zmiana względem wersji 3 / R-6: cap dotyczył wyłącznie nowych runów w `queued`; recovery boot mogło odpalić execute ponad limit (burst).
 
 R-7. Retention: logi runu **bez TTL** w MVP; **bez** limitu długości `message` w MVP. Zakaz sekretów w `message` (jak observability / security).
 
@@ -76,11 +84,14 @@ R-8. `/metrics` (Prometheus) **nie** zastępuje logów runu i nie jest kanałem 
 
 R-9. Recovery po brutalnym przerwaniu `running` (restart / crash procesu api):
 
-1. Przy starcie api wykryj runy pozostawione w `running`.
-2. Dla każdego: do **3** prób wznowienia **fazy** z trwałego stanu w DB (model B z `SPEC-SOCIAL.md` — re-invoke, nie checkpointer, nie dokończenie przerwanego hopu LLM w locie).
-3. Przed każdą próbą / przy klasyfikacji błędu: `isRetryable(...)` — retry m.in. dla recovery po crashu, timeoutów / rate-limit gateway (zgodnie z polityką); **bez** retry dla błędów walidacji, wyczerpanego refine verifiera, błędów konfiguracji klucza gateway itd.
-4. Po wyczerpaniu 3 prób → `failed` + czytelny wpis logu (powód recovery / exhausted).
-5. Run w `awaiting_hitl` po restarcie **pozostaje** `awaiting_hitl` — bez zużywania puli recovery.
+1. Przy starcie api, **zanim** pump claimuje `queued`: leftover `running` → `interrupted` (albo od razu `failed` przy capie). `POST` / HITL **nie** ustawiają `interrupted`.
+2. `recoveryAttempts++` tylko gdy leftover był `running` (faktycznie przerwany execute). Leftover już `interrupted` (nie zdążył dostać slotu) — **bez** inkrementu; wraca do pompy.
+3. Wznowienie execute wyłącznie przez claim `interrupted → running` pod `MAX_CONCURRENT_RUNS` (R-6). Zakaz startu wszystkich leftover naraz z pominięciem semafora. Po powrocie do `running`: do **3** prób wznowienia **fazy** z trwałego stanu w DB (model B z `SPEC-SOCIAL.md` — re-invoke, nie checkpointer, nie dokończenie przerwanego hopu LLM w locie).
+4. Przed każdą próbą / przy klasyfikacji błędu: `isRetryable(...)` — retry m.in. dla recovery po crashu, timeoutów / rate-limit gateway (zgodnie z polityką); **bez** retry dla błędów walidacji, wyczerpanego refine verifiera, błędów konfiguracji klucza gateway itd.
+5. Po wyczerpaniu 3 prób (`recoveryAttempts >= 3`) → `failed` + czytelny wpis logu (powód recovery / exhausted); bez execute.
+6. Run w `awaiting_hitl` po restarcie **pozostaje** `awaiting_hitl` — bez zużywania puli recovery i bez przejścia do `interrupted`. HITL (`awaiting_hitl → running`) **nie** jest tym wymaganiem.
+
+Zmiana względem wersji 3 / R-9: recovery wznawiało leftover `running` przez ponowne `execute` bez statusu `interrupted` i bez twardego capu na claim.
 
 R-10. Przegląd runu (po pipeline; **nie** HITL):
 
@@ -106,7 +117,7 @@ apps/api/src/runs/
 
 | Element | Norma |
 |---------|--------|
-| Kolejka | Stan w DB (`queued` / `running`); semafor współbieżności w procesie api |
+| Kolejka | Stan w DB (`queued` / `interrupted` / `running`); semafor współbieżności w procesie api |
 | SSE | Nest `@Sse()`; subskrypcja po `runId`; auth jak API |
 | Licznik recovery | Pole / metadane runu (np. `recoveryAttempts`), cap = 3 |
 | Idempotencja HITL | Tylko ze statusu `awaiting_hitl` |
@@ -115,8 +126,9 @@ apps/api/src/runs/
 ### Wolno
 
 - Po `POST /runs` od razu `running`, jeśli jest wolny slot; w przeciwnym razie `queued`.
-- Przy starcie api uruchomić use-case recovery przed podejmowaniem nowych `queued`.
-- Emitować SSE przy każdym udanym `appendLog` i każdej legalnej zmianie statusu.
+- Przy starcie api uruchomić use-case recovery (`running` → `interrupted` / `failed`) przed podejmowaniem nowych `queued`.
+- Claim `interrupted → running` pod tym samym capem co `queued`; priorytet `interrupted` w drain.
+- Emitować SSE przy każdym udanym `appendLog` i każdej legalnej zmianie statusu (w tym do/z `interrupted`).
 - `startedBy` nullable wyłącznie dla historycznych / pre-auth przebiegów testowych; po domknięciu auth na api nowe runy zawsze z inicjatorem.
 - Trzymać `userRating: null` jako jawny brak oceny (nie pomijać pola w snapshotcie).
 
@@ -129,6 +141,9 @@ apps/api/src/runs/
 - Spawnu procesu per run; always-on worker process w MVP.
 - Limitu współbieżności per-user w v1.
 - Checkpoinetera LangGraph jako mechanizmu recovery Runs.
+- `running → queued` jako recovery.
+- Startu wszystkich leftover `running` execute ponad `MAX_CONCURRENT_RUNS` (burst recovery).
+- Tworzenia `interrupted` z HTTP (`POST /runs`, HITL).
 - Wycieku sekretów do `run.log`.
 - Listy tylko „moje runy” jako jedynego trybu MVP (norma: cała instancja + filtr `userId`).
 - Zmiennego `pageSize` / dowolnego `limit` z query na `GET /runs` w MVP (stałe 10). `GET /runs/user/:userId` jest **osobnym** wyjątkiem bez tej paginacji — nie mylić z R-3a.
@@ -144,7 +159,7 @@ apps/api/src/runs/
 | BC Runs + porty używane przez Social | obowiązkowe |
 | Append-only logi w DB + SSE Nest | obowiązkowe |
 | In-process worker + `MAX_CONCURRENT_RUNS` (default 3) | obowiązkowe |
-| Recovery `running`: max 3 × `isRetryable` → potem `failed` | obowiązkowe |
+| Recovery: leftover `running` → `interrupted` → claim pod capem; max 3 × `isRetryable` → `failed` | obowiązkowe |
 | Pola przeglądu `userRating` / `outputEdited` / `reviewFinalizedAt` + `GET /runs/user/:userId` | obowiązkowe w **MVP** (fundament zapisu) |
 | Osobny worker process / per-user limit / TTL logów | poza MVP |
 | Stopień edycji outputu / zmiana oceny po finalize | poza MVP |
@@ -157,8 +172,8 @@ apps/api/src/runs/
 - [ ] `GET /runs/user/:userId` zwraca wszystkie runy sesji; cudzy id → 403.
 - [ ] Snapshot zawiera `userRating` (`null` \| 1–5), `outputEdited`, `reviewFinalizedAt`.
 - [ ] Ocena i Edytuj działają na `completed` i `failed` tylko dla autora; po finalize → `REVIEW_LOCKED`.
-- [ ] Przy zajętych slotach nowy run jest `queued` i startuje po zwolnieniu slotu (globalny limit, default 3).
-- [ ] Po restarcie api: `awaiting_hitl` bez zmian; `running` przechodzi recovery ≤ 3, potem ewentualnie `failed` z logiem.
+- [ ] Przy zajętych slotach nowy run jest `queued` i startuje po zwolnieniu slotu (globalny limit, default 3); `interrupted` ma priorytet nad `queued`.
+- [ ] Po restarcie api: `awaiting_hitl` bez zmian; leftover `running` → `interrupted` (claim pod `MAX_CONCURRENT_RUNS`); po 3 przerwanych execute → `failed` z logiem. N leftover przy `MAX=1` → jeden execute naraz, reszta zostaje `interrupted`.
 - [ ] Social nie emituje SSE omijając Runs.
 - [ ] `/metrics` nie jest używane jako podgląd przebiegu runu.
 

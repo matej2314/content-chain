@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md`, `content-chain_brief.md` (kontekst kolejności budowy).  
-**Kolejność priorytetów:** najpierw Milestone 4 (pipeline + Postman), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku) — zgodnie z order of attack w docs.
+**Kolejność priorytetów:** po Milestone 3 — **Faza 7** (refaktor statusów runu / recovery), potem Milestone 4 (pipeline + Postman), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 nie ma własnego milestone’u; blokuje start Fazy 4 do czasu `WYKONANY`.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -259,7 +259,8 @@
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Pierwszy slice produktowy backendu: post ideas i post content z weryfikacją względem kontekstu, zapisem wyników i czytelnych logów; LLM tylko przez gateway. Weryfikacja **obu** happy pathów Postmanem (bez UI). Zgodnie z `SPEC-SOCIAL.md`, `docs/data_flow.md`, `docs/dokumentacja_koncepcyjna.md`.
+**Opis:** Pierwszy slice produktowy backendu: post ideas i post content z weryfikacją względem kontekstu, zapisem wyników i czytelnych logów; LLM tylko przez gateway. Weryfikacja **obu** happy pathów Postmanem (bez UI). Zgodnie z `SPEC-SOCIAL.md`, `docs/data_flow.md`, `docs/dokumentacja_koncepcyjna.md`.  
+**Start po Fazie 7** (`WYKONANY`): executor Social siada na grafie z `interrupted` i twardym capem claimu (`SPEC-RUNY.md` R-6 / R-9).
 
 **DoD (faza):**
 
@@ -445,6 +446,62 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 
 ---
 
+## Faza 7 — Refaktor cyklu runu: `interrupted` i cap recovery
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Refaktor względem: **Faza 3 / Krok 3.2** (`WYKONANY`) — worker in-process, recovery po crashu, przejścia statusów; oraz **Faza 1 / Krok 1.2** (`WYKONANY`) — enum `RunStatus` w `packages/shared`. Cel: status `interrupted`, twardy `MAX_CONCURRENT_RUNS` na claim `interrupted → running` (priorytet nad `queued`), bez burstu leftover `running`. HITL (`awaiting_hitl → running`) poza tym use-casem.  
+Źródło normy: `docs/dictionary.md`, `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md`, `SPEC-RUNY.md` (od v4), `SPEC-TESTY.md` D-9b / D-10.  
+**Bez MILESTONE 7** — to korekta kontraktu, nie skok produktowy. Wykonać **przed startem Fazy 4**. MILESTONE 3 (`OSIĄGNIĘTY`) zostaje: runy istnieją; ta faza koryguje graf zanim Social użyje executora.
+
+**DoD (faza):**
+
+- `RunStatus` w shared obejmuje `interrupted`; niedozwolone krawędzie (w tym `interrupted → queued`, `awaiting_hitl → interrupted`) są odrzucane.
+- Boot: leftover `running` → `interrupted` (albo `failed` przy capie 3); leftover już `interrupted` bez inkrementu `recoveryAttempts`.
+- Claim `interrupted → running` i `queued → running` tylko przy `inFlight < MAX_CONCURRENT_RUNS`; drain: najpierw `interrupted`, potem FIFO `queued`.
+- `POST /runs` nadal zwraca tylko `queued` \| `running`; `awaiting_hitl` po restarcie bez zmian.
+- Testy D-9, D-9b i D-10 przechodzą; brak burstu execute recovery ponad cap.
+
+### Krok 7.1 — Kontrakt `RunStatus` i maszyna przejść
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Refaktor względem: Faza 1 / Krok 1.2 (`WYKONANY`) oraz Faza 3 / Krok 3.2 (`WYKONANY`, `assertTransition`). Dopisanie `interrupted` do unii/enumu w `packages/shared` oraz legalnych krawędzi: `running → interrupted`, `interrupted → running`, `interrupted → failed`.
+
+**DoD (krok):**
+
+- `@content-chain/shared` eksportuje `interrupted` w `RunStatus` / `RUN_STATUSES`.
+- Domain odrzuca `interrupted → queued`, `completed → running`, `awaiting_hitl → interrupted`.
+- Filtr listy runów akceptuje nowy status (ten sam enum).
+
+### Krok 7.2 — Recovery boot, claim i drain pod capem
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Refaktor względem: Faza 3 / Krok 3.2 (`WYKONANY`) — `RecoverInterruptedRunsUseCase`, `InProcessRunWorker` (`scheduleExistingRunning` / burst), `claimNextQueued`. Recovery ustawia stan; worker claimuje `interrupted` analogicznie do `queued`, pod `MAX_CONCURRENT_RUNS`, z priorytetem w `drain`.
+
+**DoD (krok):**
+
+- `onModuleInit`: recovery **przed** claimem `queued`; brak startu wszystkich leftover execute naraz.
+- Atomowy claim `interrupted → running` (`assertTransition` + wartownik statusu).
+- `recoveryAttempts++` tylko z leftover `running`; cap 3 → `failed` + log, bez execute.
+- SSE `run.status` przy przejściach do/z `interrupted`.
+
+### Krok 7.3 — Testy kolejki i recovery (D-9b / D-10)
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Pokrycie nowej normy z `SPEC-TESTY.md` (warstwa unit / integration). Refaktor względem: testów workera i recovery z Fazy 3 / Kroku 3.2 (`WYKONANY`), które utrwalają burst HITL — burst **HITL** zostaje; burst **recovery** jest sprzeczny z R-6/R-9 od SPEC v4.
+
+**DoD (krok):**
+
+- D-9: nowy POST przy pełnym capie zostaje `queued`, potem startuje.
+- D-9b: `MAX=1`, dwa `interrupted` + jeden `queued` → kolejność execute: interrupted, interrupted, queued.
+- D-10: leftover `running` → `interrupted`; 3× przerwany execute → `failed` + log; leftover `interrupted` bez inkrementu attempts.
+- Istniejący test HITL ponad cap **nie** jest przepisywany na recovery (osobny use-case).
+
+---
+
 ## Mapa odwołań (lekka)
 
 | Obszar | Docs / SPEC |
@@ -456,7 +513,7 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 | HTTP / SSE / gateway / lista runów / auth probe / feedback | `docs/dokumentacja_komunikacji.md`, `SPEC-KOMUNIKACJA.md` |
 | Bezpieczeństwo / env / bootstrap /me | `docs/security.md`, `SPEC-BEZPIECZENSTWO.md`, `SPEC-AUTH.md` |
 | Kontekst firmy | `SPEC-KONTEKST-FIRMY.md`, `docs/dokumentacja_koncepcyjna.md` |
-| Runy / logi / listing / przegląd (ocena, edycja) | `SPEC-RUNY.md`, `docs/observability.md` |
+| Runy / logi / listing / przegląd (ocena, edycja) / `interrupted` | `SPEC-RUNY.md`, `docs/observability.md`, `docs/data_flow.md` (recovery) |
 | Opinie tekstowe | `SPEC-FEEDBACK.md` |
 | Social | `SPEC-SOCIAL.md`, `docs/data_flow.md` |
 | Auth | `SPEC-AUTH.md` |

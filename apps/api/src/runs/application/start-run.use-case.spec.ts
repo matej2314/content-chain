@@ -3,11 +3,8 @@ import type { Completeness } from '../../company-context/domain/company-context.
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import type { RunRecord } from '../domain/run.types';
-import type { InProcessRunWorker } from './in-process.run.worker';
-import {
-  StartRunUseCase,
-  type StartRunCommand,
-} from './start-run.use-case';
+import type { InProcessRunWorker } from './in-process-run.worker';
+import { StartRunUseCase, type StartRunCommand } from './start-run.use-case';
 
 function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
   const unexpected = async () => {
@@ -28,7 +25,9 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
   };
 }
 
-function validCommand(overrides: Partial<StartRunCommand> = {}): StartRunCommand {
+function validCommand(
+  overrides: Partial<StartRunCommand> = {},
+): StartRunCommand {
   return {
     taskType: 'post_ideas',
     platform: 'linkedin',
@@ -95,7 +94,9 @@ describe('StartRunUseCase', () => {
       runs: unusedRepo({ create }),
     });
 
-    const error = await useCase.execute(validCommand()).catch((err: unknown) => err);
+    const error = await useCase
+      .execute(validCommand())
+      .catch((err: unknown) => err);
 
     expect(error).toBeInstanceOf(DomainException);
     expect(error).toMatchObject({

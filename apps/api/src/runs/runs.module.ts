@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CompanyContextModule } from '../company-context/company-context.module';
-import { InProcessRunWorker } from './application/in-process.run.worker';
+import { InProcessRunWorker } from './application/in-process-run.worker';
 import { RecoverInterruptedRunsUseCase } from './application/recover-interrupted-runs.use-case';
 import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
 import { GetRunUseCase } from './application/get-run.use-case';

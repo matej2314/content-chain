@@ -141,7 +141,39 @@ Szczegóły: `brand_types.md`.
 
 ---
 
-## 6. Ścieżki błędu (skrót)
+## 6. Recovery po restarcie api
+
+Crash / restart procesu zostawia rekord w DB (status `running`); semafor `inFlight` ginie z pamięcią. Use-case recovery na bootcie **zanim** worker claimuje `queued`:
+
+```mermaid
+flowchart TB
+  Crash[Crash procesu przy running] --> Leftover[DB: leftover running]
+  Leftover --> Boot[onModuleInit recovery]
+  Boot -->|attempts >= 3| Fail[failed + log]
+  Boot -->|attempts poniżej capu| Int[status interrupted + recoveryAttempts plus 1]
+  Int --> Slot{Wolny slot MAX_CONCURRENT_RUNS?}
+  Slot -->|nie| Wait[zostaje interrupted]
+  Slot -->|tak| Claim[interrupted to running]
+  Claim --> Pipe[re-invoke fazy z DB model B]
+  Wait --> Slot
+  Queued[queued z POST] --> SlotQ{Slot i brak starszego interrupted?}
+  SlotQ -->|tak| QRun[queued to running]
+  SlotQ -->|nie| Queued
+```
+
+| Reguła | Norma |
+|--------|--------|
+| Źródło `interrupted` | wyłącznie leftover `running` na bootcie; nigdy `POST /runs` ani HITL |
+| Leftover już `interrupted` | bez `recoveryAttempts++`; wraca do pompy |
+| Drain | najpierw `interrupted`, potem FIFO `queued` |
+| Cap | ten sam `MAX_CONCURRENT_RUNS` co przy `queued → running` |
+| `awaiting_hitl` | bez zmian; nie zużywa puli recovery |
+
+Szczegóły: `dictionary.md` (hasła `interrupted`, Recovery runu), `SPEC-RUNY.md` R-6 / R-9.
+
+---
+
+## 7. Ścieżki błędu (skrót)
 
 | Sytuacja | Przepływ danych |
 |----------|-----------------|
@@ -149,6 +181,7 @@ Szczegóły: `brand_types.md`.
 | Błąd / timeout gateway | Log kroku (bez `requestId` przy braku odpowiedzi); po polityce retry lub **`failed`** + SSE `run.failed` |
 | Verifier fail po `max N=2` | **`failed`**; w logach czytelny powód (kontekst i/lub język) |
 | HITL na runie nie w `awaiting_hitl` | **409** `HITL_REQUIRED` / `CONFLICT` |
+| Crash procesu przy `running` | Boot: `interrupted` (lub `failed` przy capie); claim pod `MAX_CONCURRENT_RUNS`; SSE `run.status` |
 | Ocena / Edytuj / finalize gdy nie `completed`/`failed` | **409** `RUN_NOT_REVIEWABLE` |
 | Zmiana oceny lub flagi po finalize | **409** `REVIEW_LOCKED` |
 | Ocena / edycja / opinia o runie obcej osoby | **403** `FORBIDDEN` |
@@ -156,7 +189,7 @@ Szczegóły: `brand_types.md`.
 
 ---
 
-## 7. Przegląd runu i opinie (po pipeline)
+## 8. Przegląd runu i opinie (po pipeline)
 
 Po `completed` albo `failed` (także gdy autor edytował output) — **poza grafem**:
 

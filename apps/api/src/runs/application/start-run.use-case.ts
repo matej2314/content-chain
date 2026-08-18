@@ -3,7 +3,7 @@ import { GetCompletenessUseCase } from '../../company-context/application/get-co
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import { InProcessRunWorker } from './in-process.run.worker';
+import { InProcessRunWorker } from './in-process-run.worker';
 import { parseWithZod } from './parse-with-zod';
 import { startRunCommandSchema } from './run.schemas';
 import type {

@@ -5,7 +5,7 @@ import type { RunExecutorPort } from '../domain/run-executor.port';
 import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import type { RunSseHub } from '../domain/run-sse.port';
 import type { RunRecord } from '../domain/run.types';
-import { InProcessRunWorker } from './in-process.run.worker';
+import { InProcessRunWorker } from './in-process-run.worker';
 import type { RecoverInterruptedRunsUseCase } from './recover-interrupted-runs.use-case';
 import type { RunLifecycleService } from './run-lifecycle.service';
 
@@ -146,7 +146,10 @@ describe('InProcessRunWorker', () => {
     expect(maxClaimDepth).toBe(1);
 
     holdFirst.resolve();
-    await waitUntil(() => started.length === 2, 'second execute after slot frees');
+    await waitUntil(
+      () => started.length === 2,
+      'second execute after slot frees',
+    );
     expect(claimsWithResult).toBe(2);
     expect(maxClaimDepth).toBe(1);
   });
@@ -263,7 +266,9 @@ describe('InProcessRunWorker', () => {
   it('logs and transitions to failed when the executor throws while the run is still running', async () => {
     const run = makeRun({ status: 'running' });
     const appendLog = jest.fn().mockResolvedValue(undefined);
-    const transition = jest.fn().mockResolvedValue({ ...run, status: 'failed' });
+    const transition = jest
+      .fn()
+      .mockResolvedValue({ ...run, status: 'failed' });
     const getById = jest.fn().mockResolvedValue(asSnapshot(run));
 
     const worker = makeWorker({
@@ -301,9 +306,9 @@ describe('InProcessRunWorker', () => {
     const run = makeRun({ status: 'running' });
     const appendLog = jest.fn().mockResolvedValue(undefined);
     const transition = jest.fn();
-    const getById = jest.fn().mockResolvedValue(
-      asSnapshot({ ...run, status: 'completed' }),
-    );
+    const getById = jest
+      .fn()
+      .mockResolvedValue(asSnapshot({ ...run, status: 'completed' }));
 
     const worker = makeWorker({
       runs: unusedRepo({ getById }),
@@ -316,7 +321,10 @@ describe('InProcessRunWorker', () => {
     });
 
     worker.notifyHitlResumed(run);
-    await waitUntil(() => getById.mock.calls.length === 1, 'status re-read after throw');
+    await waitUntil(
+      () => getById.mock.calls.length === 1,
+      'status re-read after throw',
+    );
     await new Promise<void>((resolve) => setImmediate(resolve));
 
     expect(appendLog).toHaveBeenCalled();
@@ -328,8 +336,12 @@ describe('InProcessRunWorker', () => {
     const loggerError = jest
       .spyOn(Logger.prototype, 'error')
       .mockImplementation(() => undefined);
-    const appendLog = jest.fn().mockRejectedValue(new Error('log write failed'));
-    const transition = jest.fn().mockResolvedValue({ ...run, status: 'failed' });
+    const appendLog = jest
+      .fn()
+      .mockRejectedValue(new Error('log write failed'));
+    const transition = jest
+      .fn()
+      .mockResolvedValue({ ...run, status: 'failed' });
     const saveStatus = jest.fn();
     const getById = jest.fn().mockResolvedValue(asSnapshot(run));
 

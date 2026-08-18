@@ -60,7 +60,7 @@ Powiązane: `architektura.md`, `data_flow.md`, `anty_patterny.md`, `spec/SPEC-TE
 - `post_ideas_then_content`: `awaiting_hitl` → resume → content → completed.
 - Verifier + refine: sukces po poprawce; fail po `max N=2`.
 - Błąd gateway (stub): run `failed` / retry wg polityki — czytelny log bez wycieku `X-Gateway-Key`.
-- Kolejka współbieżności i recovery runu — wg `spec/SPEC-RUNY.md` / `spec/SPEC-TESTY.md`.
+- Kolejka współbieżności i recovery runu — wg `spec/SPEC-RUNY.md` / `spec/SPEC-TESTY.md`: nowy run ponad cap → `queued`; leftover `running` → `interrupted` → claim pod `MAX_CONCURRENT_RUNS` (priorytet nad `queued`); 3× przerwany execute → `failed` + log.
 - Feedback: zapis opinii z metadanymi; ocena `null`/`1–5`; flaga edycji; lock po finalize; `403` na cudzy run; `GET /runs/user/:id` tylko własny id.
 
 ## CI (MVP)

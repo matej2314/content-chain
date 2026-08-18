@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-15
+data_modyfikacji: 2026-08-18
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -60,9 +60,9 @@ K-1. Każda odpowiedź błędu HTTP z `apps/api` ma envelope:
 
 `requestId` nadaje **`apps/api`** w ramach obsługi tego żądania (middleware / interceptor) i zwraca w envelope oraz (zalecane) nagłówku `x-request-id`. Klient **nie musi** przysyłać `RequestId`.
 
-K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId` i statusem `queued` | `running` — bez synchronicznego czekania na wynik LLM.
+K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId` i statusem `queued` | `running` — bez synchronicznego czekania na wynik LLM. `interrupted` **nie** jest statusem odpowiedzi POST.
 
-K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`.
+K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`. Filtr `status` obejmuje pełny `RunStatus` (w tym `interrupted`).
 
 K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora pod select opinii (`SPEC-RUNY.md` R-3c). `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`). Ocena / flaga edycji / finalize — `SPEC-RUNY.md` R-10. Payloady w `docs/dokumentacja_komunikacji.md`.
 
@@ -70,7 +70,9 @@ Zmiana względem wersji 4: dopisano fundament zapisu feedbacku (wcześniej tylko
 
 Zmiana względem wersji 2: dopisano obowiązek listingu kolekcji runów pod FE (wcześniej tylko POST + GET by id / SSE).
 
-K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed) idzie wyłącznie przez **SSE** `GET /api/v1/runs/:runId/events`. Zdarzenia i statusy jak w docs komunikacji.
+K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed) idzie wyłącznie przez **SSE** `GET /api/v1/runs/:runId/events`. Zdarzenia i statusy jak w docs komunikacji — `run.status` może nieść `interrupted`.
+
+Zmiana względem wersji 5: zbiór statusów SSE / filtra listy rozszerzony o `interrupted`; K-2 (POST `queued` \| `running`) **bez** zmiany statusów startowych.
 
 K-4. Auth SSE = ta sama sesja co API: cookie httpOnly **`cc_access`** / **`cc_refresh`** (`SPEC-AUTH.md`). **Zakaz** tokenu w query string oraz **`Authorization: Bearer`** jako modelu MVP (FE, Postman, integracje — cookie jar / `credentials: 'include'`).
 

@@ -6,6 +6,8 @@ Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `architektura_kata
 
 Zmiana względem wcześniejszej wersji tego dokumentu: lista BC uzupełniona o **Feedback**; HITL uściślony do **modelu B** (stan pauzy w DB); port LLM zlokalizowany w `apps/api/src/llm/`; Health rozróżnia api vs gateway; `DB kanoniczna` obejmuje opinie i metadane przeglądu; dopisano hasła cross-cutting, workera, recovery, korelacji hopu LLM oraz przeglądu. `FeedbackId` / `FeedbackTargetType` / `FeedbackAgentKey` / `RunUserRating` = kontrakt MVP w docs/spec (w `packages/shared` przy implementacji BC Feedback / przeglądu).
 
+Zmiana względem poprzedniego zbioru `RunStatus` (pięć wartości, recovery jako ponowne execute na leftover `running`): dopisano status **`interrupted`**. `MAX_CONCURRENT_RUNS` tnie **każdy** claim do `running` z `queued` oraz z `interrupted` (priorytet recovery nad nowymi POST). Burst execute wszystkich leftover `running` ponad cap **unieważniony**. HITL (`awaiting_hitl`) pozostaje osobnym use-casem.
+
 ---
 
 ## Produkt i domena
@@ -26,7 +28,7 @@ Zmiana względem wcześniejszej wersji tego dokumentu: lista BC uzupełniona o *
 | **Full-auto** | Wykonanie tasku jednoetapowego bez wymuszonej pauzy selekcji. |
 | **Self-host** | Uruchomienie we własnej infrastrukturze operatora; licencja MIT. |
 | **First-run** | Stan pustej instancji: `GET /api/v1/auth/bootstrap-status` → `available: true` → jednorazowy `POST .../bootstrap-admin`. Potem endpoint bootstrap trwale niedostępny. |
-| **Agenci aktywni** | Sygnał UX: bramka `complete === true` (można startować flow’y SM). **Nie** oznacza „run w toku” (`running` / `awaiting_hitl`). Odwrotnie: agenci nieaktywni / zablokowani = kontekst niekompletny. |
+| **Agenci aktywni** | Sygnał UX: bramka `complete === true` (można startować flow’y SM). **Nie** oznacza „run w toku” (`running` / `awaiting_hitl` / `interrupted`). Odwrotnie: agenci nieaktywni / zablokowani = kontekst niekompletny. |
 | **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, post ideas/content, gateway, **SQLite**, logi, SSE. |
 | **V1 — rozbudowa** | Faza **po MVP**: kolejne workflowy / agenci poza pierwszym slice Social; obowiązkowy cutover persistence na **PostgreSQL** (`spec/SPEC-PERSISTENCE.md`). Nie mylić z prefiksem HTTP `/api/v1`. |
 
@@ -52,7 +54,7 @@ Zmiana względem wcześniejszej wersji tego dokumentu: lista BC uzupełniona o *
 | **LangGraph / graf** | Orchestracja pipeline’u Social za fasadą application service (nie w controllerze). |
 | **Async run** | Asynchroniczne wykonanie pipeline’u; klient dostaje `RunId`, postęp przez SSE. |
 | **Worker in-process** | Wykonanie runu w procesie `apps/api` po `202`. Zakaz osobnego always-on workera OS i spawnu procesu per run w MVP. |
-| **Limit współbieżności** | Globalny `MAX_CONCURRENT_RUNS` (domyślnie **3**). Nadwyżka zostaje `queued` i jest podejmowana FIFO, gdy zwolni się slot. Brak limitu per-user w MVP. |
+| **Limit współbieżności** | Globalny `MAX_CONCURRENT_RUNS` (domyślnie **3**) = maksymalna liczba równoległych **execute** w procesie api. Wejście w `running` z `queued` **oraz** z `interrupted` tylko przy wolnym slocie. Nowe POST ponad limit zostają `queued` (FIFO). W drain: najpierw `interrupted`, potem `queued`. `awaiting_hitl → running` (HITL) jest osobnym use-casem i **nie** jest tym capem w MVP. Brak limitu per-user w MVP. Zmiana względem: wcześniejszy opis capu wyłącznie dla nowych runów w `queued`. |
 | **Gateway** (`ai-provider-gateway`) | Osobna aplikacja — jedyna droga `apps/api` do vendorów LLM; bez domeny Content Chain. |
 | **`packages/shared`** | Współdzielone typy kontraktu API i brand types (**bez** logiki biznesowej, **bez Zod** / runtime walidatorów). **Nie** mylić z `apps/api/src/shared/`. |
 | **`apps/api/src/shared/`** | Cross-cutting wyłącznie wewnątrz api (env, envelope, interceptory). **Nie** zastępuje `packages/shared` i **nie** trzyma reguł Social / kontekstu firmy. |
@@ -66,10 +68,11 @@ Zmiana względem wcześniejszej wersji tego dokumentu: lista BC uzupełniona o *
 | Pojęcie | Definicja |
 |---------|-----------|
 | **`RunId`** | Brandowany ID runu; format `run_<uuid>`. |
-| **`RunStatus`** | `queued` \| `running` \| `awaiting_hitl` \| `completed` \| `failed`. |
+| **`RunStatus`** | `queued` \| `running` \| `interrupted` \| `awaiting_hitl` \| `completed` \| `failed`. |
 | **`RunTaskType`** | `post_ideas` \| `post_content` \| `post_ideas_then_content`. |
 | **`SocialPlatform`** | `linkedin` \| `facebook` \| `instagram`. |
 | **`ContentLanguage`** | `pl` \| `en`. |
+| **`interrupted`** | Status recovery: execute w procesie api zostało przerwane (crash/restart); pipeline **nie leci**, ale to **nie** jest nowa pozycja FIFO z `POST /runs`. Powstaje wyłącznie na bootcie z leftover `running`. Legalne wyjścia: `interrupted → running` (wolny slot) albo `interrupted → failed` (cap recovery). Zakaz `interrupted → queued`. Nie mylić z `queued` ani z `awaiting_hitl`. |
 | **`startedBy`** | Inicjator runu (sesja). Lista/snapshot; authz oceny, Edytuj, opinii o runie i `GET /runs/user/:userId`. Po auth nowe runy zawsze z inicjatorem. |
 | **Log runu** | Czytelny wpis w DB powiązany z `RunId`, zwykle też z `ConversationId` oraz `RequestId` **tego kroku**; źródło prawdy dla UI. |
 | **Logi procesu (Pino)** | Strukturalne logi stdout `apps/api` (request HTTP, crash, start) przez `nestjs-pino`. **Nie** zamiennik kanonicznych logów runu w DB. |
@@ -88,7 +91,7 @@ Zmiana względem wcześniejszej wersji tego dokumentu: lista BC uzupełniona o *
 | **`ConsistencyVerifier`** | Jeden węzeł, dwa obszary: (1) spójność z kontekstem firmy, (2) język — gramatyka, interpunkcja, składnia dla `pl`/`en`. Osobny `LanguageQualityVerifier` = poza MVP. Fail → Refine*. |
 | **Refine** | Ponowne wywołanie agenta po negatywnym werdykcie `ConsistencyVerifier`. Twardy limit **`max N=2`**, potem `failed`. Zakaz nieskończonej pętli. Zmiana względem: wcześniejsze „ograniczone `max N`” bez liczby. |
 | **Structured output** | Wyjście węzła LLM walidowane schemą (Zod) zanim pójdzie dalej w grafie. Porażka parse = błąd kroku / refine / `failed` — nie cichy tekst do UI. |
-| **Recovery runu** | Po restarcie / crashu api: runy pozostawione w `running` — do **3** re-invoke **fazy** z trwałego stanu w DB (model B; nie dokończenie hopu LLM w locie). `awaiting_hitl` **nie** zużywa puli recovery. Po wyczerpaniu → `failed`. |
+| **Recovery runu** | Po restarcie / crashu api: leftover `running` → `interrupted` (`recoveryAttempts++`), potem claim `interrupted → running` pod `MAX_CONCURRENT_RUNS`. Leftover już `interrupted` (nie zdążył dostać slotu) — **bez** inkrementu, wraca do pompy. Do **3** prób wznowienia **fazy** z trwałego stanu w DB po powrocie do `running` (model B; nie dokończenie hopu LLM w locie). `awaiting_hitl` **nie** zużywa puli recovery. Po wyczerpaniu capu → `failed` + log. Zmiana względem: wcześniejsze recovery jako ponowne execute na leftover `running` bez statusu pośredniego i bez capu na claim. |
 | **`isRetryable`** | Polityka domeny Runs: co wolno ponowić (recovery po crashu, timeout / rate-limit gateway wg polityki) vs czego nie (walidacja, wyczerpany refine verifiera, zła konfiguracja klucza gateway). |
 
 ## Identyfikatory i korelacja

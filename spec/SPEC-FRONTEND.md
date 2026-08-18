@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-15
+data_modyfikacji: 2026-08-18
 ---
 
 # SPEC — Frontend
@@ -34,7 +34,9 @@ F-4a. Probe sesji: `GET /api/v1/auth/me` → przy **401** `POST /auth/refresh` �
 
 Zmiana względem wersji 1: dopisano obowiązkowy flow me → refresh → me oraz first-run (wcześniej: ogólne „login/sesja na cookie” bez probe i bootstrap UI).
 
-F-5. Live status runu: **SSE** `.../runs/:runId/events` (ta sama sesja cookie). Zakaz pollingu statusu jako kanału live. Status wizualnie animowany / czytelny (`docs/ux_dashboard.md`).
+F-5. Live status runu: **SSE** `.../runs/:runId/events` (ta sama sesja cookie). Zakaz pollingu statusu jako kanału live. Status wizualnie animowany / czytelny (`docs/ux_dashboard.md`) — w tym odrębny stan **`interrupted`** (nie pulsacja `running`; brak panelu HITL i oceny). Typ statusu z `@content-chain/shared`.
+
+Zmiana względem wersji 4 / F-5: zbiór statusów UI bez `interrupted`; po restarcie UI mogło mylić przestój recovery z aktywnym pipeline.
 
 F-6. Bramka „Agenci aktywni” i disable CTA startu runu — UX na bazie `GET .../completeness`; **egzekucja** nadal w api (`409` `CONTEXT_INCOMPLETE`).
 
@@ -89,6 +91,7 @@ apps/frontend/src/
 
 - Sekretów LLM, `X-Gateway-Key`, JWT w `NEXT_PUBLIC_*` / localStorage.
 - Pollingu statusu runu zamiast SSE.
+- Prezentowania `interrupted` tą samą animacją / copy co `running`.
 - Egzekucji bramki kompletności **tylko** w UI.
 - Logiki pipeline SM / verifiera / promptów w FE.
 - Płaskiego `components/` bez podziału na moduły (`modules/`) przy rozroście ekranów MVP.
@@ -113,7 +116,7 @@ apps/frontend/src/
 
 - [ ] First-run, login, ekrany z `ux_dashboard.md` dostępne; UI po polsku.
 - [ ] Flow me → refresh → me; sesja na `cc_access` / `cc_refresh` bez tokenu w JS storage.
-- [ ] Lista runów: instancja, paginacja 10, filtry, klik → szczegóły live (SSE) bez pollingu statusu.
+- [ ] Lista runów: instancja, paginacja 10, filtry (w tym `interrupted`), klik → szczegóły live (SSE) bez pollingu statusu; `interrupted` czytelnie odróżniony od `running` / `queued`.
 - [ ] Start runu zablokowany w UI przy niekompletności **i** api zwraca 409 przy obejściu.
 - [ ] Admin: lista + create users; Konto: tylko logout.
 - [ ] Kod FE podzielony na `app/` + `modules/`; typy z shared.

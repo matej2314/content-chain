@@ -9,6 +9,8 @@ Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
 
 Zmiana względem wcześniejszej wersji tego dokumentu (korelacja): **`ConversationId` jest jeden na run agentowy** (główna oś kroków LLM). **`RequestId`** zawsze z **odpowiedzi** (`apps/api` dla HTTP, gateway dla LLM) — klienci nie generują go z góry. Formaty jak w gateway — patrz `brand_types.md` / `dictionary.md`.
 
+Zmiana względem wcześniejszego grafu statusów: dopisano `interrupted` (recovery po crashu procesu). `POST /runs` nadal zwraca wyłącznie `queued` \| `running`. Filtr `GET /runs?status=` i SSE `run.status` obejmują pełny zbiór `RunStatus` ze słownika.
+
 ---
 
 ## Powierzchnia 1 — HTTP API (`apps/api`)
@@ -153,7 +155,7 @@ Lista runów pod dashboard (widok tabeli → klik → szczegóły).
 | Query | Typ | Wymagane | Opis |
 |-------|-----|----------|------|
 | `page` | number | nie (default **1**) | Numer strony (1-based) |
-| `status` | enum statusu runu | nie | Filtr statusu |
+| `status` | enum statusu runu | nie | Filtr statusu (`RunStatus`, w tym `interrupted`) |
 | `taskType` | enum tasku | nie | Filtr typu tasku |
 | `platform` | enum platformy | nie | Filtr platformy |
 | `userId` | string (id użytkownika) | nie | Filtr: kto uruchomił run |
@@ -199,6 +201,8 @@ Przy chronionej sesji zapisuje **inicjatora** (`startedBy` = bieżący użytkown
 
 **202** — `{ "runId", "conversationId", "status": "queued" \| "running" }`.
 
+`interrupted` **nie** jest statusem startowym — `POST /runs` go nie zwraca.
+
 - `runId` — `RunId` (`run_<uuid>`)
 - `conversationId` — `ConversationId` (`conv_<uuid>`), **stały przez cały run agentowy**
 - `requestId` tego HTTP — w **odpowiedzi** `apps/api` (klient nie generuje); nie jest ID hopów LLM (`brand_types.md`)
@@ -232,7 +236,7 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
 - `outputEdited` — `true` po użyciu Edytuj (flaga; bez diff w MVP).
 - `reviewFinalizedAt` — `null` dopóki autor nie zatwierdzi przeglądu; po finalize ISO8601 i pola oceny/edycji niemutowalne.
 - `result` — ideas/content gdy zapisane (kształt payloadu SM doprecyzowuje implementacja Social); puste / `null` gdy brak.
-- `hitl` — metadane pauzy gdy `awaiting_hitl`; inaczej `null`.
+- `hitl` — metadane pauzy gdy `awaiting_hitl`; inaczej `null` (w tym przy `interrupted`).
 
 `startedBy` jak na liście (`null` wyłącznie era pre-auth).
 
@@ -291,7 +295,19 @@ Zdarzenia (`event:` / `data:` JSON):
 | `run.completed` | Sukces | `{ runId, resultSummary? }` |
 | `run.failed` | Porażka | `{ runId, code?, message }` |
 
-Statusy runu (normatywnie): `queued` → `running` → (`awaiting_hitl` → `running`) → `completed` \| `failed`.
+Statusy runu (normatywnie):
+
+```text
+queued → running → (awaiting_hitl → running) → completed
+              │                         ↘ failed
+              ├──→ failed
+              └──→ interrupted → running    (claim, gdy wolny slot)
+                              └→ failed     (cap recovery)
+```
+
+Trzy legalne krawędzie **do** `running`: `queued`, `interrupted`, `awaiting_hitl`. `POST /runs` nigdy nie tworzy `interrupted`. Po restarcie api klient SSE powinien odtworzyć subskrypcję i uzupełnić snapshotem GET — status może być `interrupted`, zanim znowu `running`.
+
+Ocena / Edytuj / finalize oraz HITL na `interrupted` → istniejące **409** (`RUN_NOT_REVIEWABLE` / `HITL_REQUIRED`); bez osobnego kodu HTTP na MVP.
 
 #### `POST /api/v1/runs/:runId/hitl`
 

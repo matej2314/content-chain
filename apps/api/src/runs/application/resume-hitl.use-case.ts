@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import { InProcessRunWorker } from './in-process.run.worker';
+import { InProcessRunWorker } from './in-process-run.worker';
 import { RunLifecycleService } from './run-lifecycle.service';
 import { parseWithZod } from './parse-with-zod';
 import { runIdSchema, hitlSelectedIdeaIdsSchema } from './run.schemas';
