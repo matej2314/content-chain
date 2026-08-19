@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-18
+data_modyfikacji: 2026-08-19
 ---
 
 # SPEC — Runy / logi
@@ -74,6 +74,12 @@ R-4. Emisja zdarzeń SSE należy do Runs; Social nie streamuje SSE bezpośrednio
 
 R-4a. Hub SSE (in-memory subject per `runId` w MVP): port ma jawny koniec cyklu życia (`complete` lub równoważne). Po legalnym przejściu do `completed` albo `failed` hub **kończy** subject i **usuwa** wpis z mapy. `awaiting_hitl` i `interrupted` **nie** kończą subjectu. Sam disconnect klienta (Nest unsubscribe) **nie** evikuje subjectu żyjącego runu. Późny `GET .../events` na runie już terminalnym nie alokuje wiecznego subjectu (ścieżka snapshot + complete w HTTP — `SPEC-KOMUNIKACJA.md` K-3a).
 
+**TTL Subject:** Subject otworzony przez `subscribe()` na runie nieterminalnym jest domykany z błędem i usuwany z mapy po `RUN_SSE_SUBJECT_TTL_MS` (env, default `600_000` ms). Klient otrzymuje błąd EventSource i próbuje reconnect — przy snapshotcie terminalnym dostanie `of(...)` bez nowego Subject; przy nieterminalnym Subject powstaje od nowa z nowym TTL. Timer jest uwalniany przez `timer.unref()` (brak blokady shutdown Node.js).
+
+**Heartbeat keep-alive:** live Observable zwracany przez handler `@Sse()` jest mergowany ze strumieniem `interval(SSE_HEARTBEAT_MS)` emitującym `{ type: 'heartbeat', data: '' }`. Klient ignoruje tę wartość. Heartbeat nie jest emitowany w ścieżce `of(snapshot)` (terminal late-join). Interwał pochodzi z `SSE_HEARTBEAT_MS` (env, default `25_000` ms).
+
+**Snapshot przy live-join:** pierwszy event `run.status` emitowany przez `startWith` pochodzi z **najnowszego** odczytu z DB (drugi `getRun.execute` przed `subscribe`) — nie ze starszego odczytu guard-terminalu.
+
 Zmiana względem wersji 4 / R-4: R-4 mówiło tylko kto emituje; infra „SSE hub / subject” bez evikcji — subject żył z procesem.
 
 R-5. Worker MVP: **in-process** w procesie `apps/api` (po `202` z `POST /runs`). Zakaz spawnu osobnego procesu OS na każdy run oraz osobnego always-on workera w MVP.
@@ -142,6 +148,8 @@ apps/api/src/runs/
 - Pollingu statusu runu jako live.
 - `complete` subjectu SSE na `awaiting_hitl` albo `interrupted`.
 - Mapy Subject bez evikcji po terminalu (wpis na zawsze w singletonie procesu).
+- Subjectu bez TTL automatu ewikcji — zombie Subject przy hung/crashed runie powoduje memory leak i głodzi file descriptory.
+- Hardkodowania wartości `SSE_HEARTBEAT_MS` i `RUN_SSE_SUBJECT_TTL_MS` w kodzie (env z walidacją Zod).
 - Traktowania stdout jako jedynego źródła przebiegu dla UI.
 - Mylenia `/metrics` z logami runu.
 - Niedozwolonych skoków statusów.
@@ -166,6 +174,8 @@ apps/api/src/runs/
 | BC Runs + porty używane przez Social | obowiązkowe |
 | Append-only logi w DB + SSE Nest | obowiązkowe |
 | Hub SSE: `complete` + evikcja subjectu po `completed`/`failed` (R-4a) | obowiązkowe |
+| `RUN_SSE_SUBJECT_TTL_MS` (env, default `600_000`) — TTL automatu ewikcji Subject | obowiązkowe |
+| `SSE_HEARTBEAT_MS` (env, default `25_000`) — interwał keep-alive SSE | obowiązkowe |
 | In-process worker + `MAX_CONCURRENT_RUNS` (default 3) | obowiązkowe |
 | Recovery: leftover `running` → `interrupted` → claim pod capem; max 3 × `isRetryable` → `failed` | obowiązkowe |
 | Pola przeglądu `userRating` / `outputEdited` / `reviewFinalizedAt` + `GET /runs/user/:userId` | obowiązkowe w **MVP** (fundament zapisu) |

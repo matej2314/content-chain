@@ -294,14 +294,17 @@ Zdarzenia (`event:` / `data:` JSON):
 | `run.hitl` | Oczekiwanie na wybór | `{ runId, options: [...] }` |
 | `run.completed` | Sukces | `{ runId, resultSummary? }` |
 | `run.failed` | Porażka | `{ runId, code?, message }` |
+| `heartbeat` | Co ~25 s (keep-alive) | `""` — klient **ignoruje** |
 
-**Koniec strumienia.** Po wyemitowaniu `run.completed` albo `run.failed` serwer **kończy** SSE (Observable complete → zamknięcie odpowiedzi HTTP). Subskrypcja, gdy snapshot runu jest już `completed` \| `failed`: serwer emituje co najmniej `run.status` ze snapshotu, potem kończy stream — bez wiszącego połączenia.
+**Koniec strumienia.** Po wyemitowaniu `run.completed` albo `run.failed` serwer **kończy** SSE (Observable complete → zamknięcie odpowiedzi HTTP). Subskrypcja, gdy snapshot runu jest już `completed` \| `failed`: serwer emituje `run.status` z **najświeższego** odczytu z DB i kończy stream — bez wiszącego połączenia.
 
 Strumień **nie** kończy się na `awaiting_hitl` ani `interrupted` (run nadal żywy; po HITL / claimie idą dalsze eventy).
 
-**Reconnect.** Klient odtwarza subskrypcję wyłącznie po **nieoczekiwanym** zerwaniu przy statusie nieterminalnym (restart procesu api, drop sieci). Zamknięcie po `run.completed` / `run.failed` **nie** jest sygnałem do reconnectu. Po restarcie api status może być `interrupted`, zanim znowu `running` — uzupełnić snapshotem GET.
+**Keep-alive.** Co ~25 s serwer wysyła event `heartbeat` z pustym `data`. Klient (FE, Postman) **ignoruje** tę wartość i nie traktuje jej jako zmiany statusu. Keep-alive zapobiega zamknięciu połączenia przez reverse proxy (np. Nginx timeout 60 s) i niepotrzebnemu reconnectowi klienta.
 
-Zmiana względem wcześniejszego zapisu tej sekcji: wymieniono eventy terminalne i reconnect po restarcie api, ale nie określono, czy połączenie HTTP zostaje otwarte; reconnect nie rozróżniał terminalu od awarii.
+**Reconnect.** Klient odtwarza subskrypcję wyłącznie po **nieoczekiwanym** zerwaniu przy statusie nieterminalnym (restart procesu api, drop sieci). Zamknięcie po `run.completed` / `run.failed` **nie** jest sygnałem do reconnectu. Eventy `heartbeat` **nie** są sygnałem do reconnectu. Po restarcie api status może być `interrupted`, zanim znowu `running` — uzupełnić snapshotem GET.
+
+Zmiana względem wcześniejszego zapisu tej sekcji: wymieniono eventy terminalne i reconnect po restarcie api, ale nie określono, czy połączenie HTTP zostaje otwarte; reconnect nie rozróżniał terminalu od awarii. Dopisano `heartbeat` (keep-alive) oraz doprecyzowano, że pierwszy `run.status` przy live-join pochodzi z najświeższego odczytu DB.
 
 Statusy runu (normatywnie):
 

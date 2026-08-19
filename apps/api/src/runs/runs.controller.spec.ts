@@ -1,6 +1,7 @@
 import 'reflect-metadata';
-import { firstValueFrom, of, take, toArray } from 'rxjs';
+import { firstValueFrom, NEVER, of, Subject, take, toArray } from 'rxjs';
 import { Test, type TestingModule } from '@nestjs/testing';
+import { ENV, type Env } from '../shared/config/env';
 import { newConversationId, newRunId } from '../shared/http/new-ids';
 import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
 import { GetRunUseCase } from './application/get-run.use-case';
@@ -13,6 +14,8 @@ import { HitlDto } from './http/dto/hitl.dto';
 import { StartRunDto } from './http/dto/start-run.dto';
 import { RunsController } from './runs.controller';
 
+const HEARTBEAT_MS = 25_000;
+
 describe('RunsController', () => {
   let controller: RunsController;
   let startRun: { execute: jest.Mock };
@@ -20,7 +23,7 @@ describe('RunsController', () => {
   let getLogs: { execute: jest.Mock };
   let listRuns: { execute: jest.Mock };
   let resumeHitl: { execute: jest.Mock };
-  let sse: { subscribe: jest.Mock; publish: jest.Mock };
+  let sse: { subscribe: jest.Mock; publish: jest.Mock; complete: jest.Mock };
 
   beforeEach(async () => {
     startRun = { execute: jest.fn() };
@@ -28,7 +31,7 @@ describe('RunsController', () => {
     getLogs = { execute: jest.fn() };
     listRuns = { execute: jest.fn() };
     resumeHitl = { execute: jest.fn() };
-    sse = { subscribe: jest.fn(), publish: jest.fn() };
+    sse = { subscribe: jest.fn(), publish: jest.fn(), complete: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RunsController],
@@ -39,10 +42,18 @@ describe('RunsController', () => {
         { provide: ListRunsUseCase, useValue: listRuns },
         { provide: ResumeHitlUseCase, useValue: resumeHitl },
         { provide: RUN_SSE_HUB, useValue: sse },
+        {
+          provide: ENV,
+          useValue: { SSE_HEARTBEAT_MS: HEARTBEAT_MS } as Env,
+        },
       ],
     }).compile();
 
     controller = module.get(RunsController);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('declares parameterized routes before GET :runId', () => {
@@ -139,6 +150,81 @@ describe('RunsController', () => {
     expect(resumeHitl.execute).toHaveBeenCalledWith(runId, body.selectedIdeaIds);
   });
 
+  it('startWith emits latest status, not the earlier snapshot', async () => {
+    const runId = newRunId();
+    getRun.execute
+      .mockResolvedValueOnce({ runId, status: 'queued' })
+      .mockResolvedValueOnce({ runId, status: 'running' });
+    sse.subscribe.mockReturnValue(of());
+
+    const stream = await controller.events(runId);
+    const events = await firstValueFrom(stream.pipe(take(1), toArray()));
+
+    expect(getRun.execute).toHaveBeenCalledTimes(2);
+    expect(sse.subscribe).toHaveBeenCalledWith(runId);
+    expect(events).toEqual([
+      { type: 'run.status', data: { runId, status: 'running' } },
+    ]);
+  });
+
+  it('merges heartbeat into the live stream', async () => {
+    jest.useFakeTimers();
+    const runId = newRunId();
+    getRun.execute.mockResolvedValue({ runId, status: 'running' });
+    sse.subscribe.mockReturnValue(NEVER);
+
+    const stream = await controller.events(runId);
+    const collected: Array<{ type?: string; data?: unknown }> = [];
+    const sub = stream.subscribe((event) => collected.push(event));
+
+    expect(collected).toEqual([
+      { type: 'run.status', data: { runId, status: 'running' } },
+    ]);
+
+    jest.advanceTimersByTime(HEARTBEAT_MS);
+    expect(collected).toEqual([
+      { type: 'run.status', data: { runId, status: 'running' } },
+      { type: 'heartbeat', data: '' },
+    ]);
+
+    sub.unsubscribe();
+    jest.advanceTimersByTime(HEARTBEAT_MS);
+    expect(collected).toHaveLength(2);
+  });
+
+  it('completes the live stream when the hub completes, without further heartbeats', async () => {
+    jest.useFakeTimers();
+    const runId = newRunId();
+    getRun.execute.mockResolvedValue({ runId, status: 'running' });
+    const hub$ = new Subject<RunSseEvent>();
+    sse.subscribe.mockReturnValue(hub$.asObservable());
+
+    const stream = await controller.events(runId);
+    const collected: Array<{ type?: string; data?: unknown }> = [];
+    let completed = false;
+    stream.subscribe({
+      next: (event) => collected.push(event),
+      complete: () => {
+        completed = true;
+      },
+    });
+
+    hub$.next({
+      event: 'run.completed',
+      data: { runId, resultSummary: 'ok' },
+    });
+    hub$.complete();
+
+    expect(completed).toBe(true);
+    expect(collected).toEqual([
+      { type: 'run.status', data: { runId, status: 'running' } },
+      { type: 'run.completed', data: { runId, resultSummary: 'ok' } },
+    ]);
+
+    jest.advanceTimersByTime(HEARTBEAT_MS * 2);
+    expect(collected).toHaveLength(2);
+  });
+
   it('emits current status then maps hub events to MessageEvent', async () => {
     const runId = newRunId();
     getRun.execute.mockResolvedValue({
@@ -161,11 +247,77 @@ describe('RunsController', () => {
     const stream = await controller.events(runId);
     const events = await firstValueFrom(stream.pipe(take(2), toArray()));
 
+    expect(getRun.execute).toHaveBeenCalledTimes(2);
     expect(getRun.execute).toHaveBeenCalledWith(runId);
     expect(sse.subscribe).toHaveBeenCalledWith(runId);
+    expect(sse.complete).not.toHaveBeenCalled();
     expect(events).toEqual([
       { type: 'run.status', data: { runId, status: 'queued' } },
       { type: 'run.log', data: live.data },
+    ]);
+  });
+
+  it('on completed snapshot emits run.status and completes without subscribe', async () => {
+    const runId = newRunId();
+    getRun.execute.mockResolvedValue({
+      runId,
+      status: 'completed',
+    });
+
+    const stream = await controller.events(runId);
+    const events = await firstValueFrom(stream.pipe(toArray()));
+
+    expect(getRun.execute).toHaveBeenCalledTimes(1);
+    expect(getRun.execute).toHaveBeenCalledWith(runId);
+    expect(sse.subscribe).not.toHaveBeenCalled();
+    expect(sse.complete).not.toHaveBeenCalled();
+    expect(events).toEqual([
+      { type: 'run.status', data: { runId, status: 'completed' } },
+    ]);
+  });
+
+  it('on failed snapshot does not subscribe', async () => {
+    const runId = newRunId();
+    getRun.execute.mockResolvedValue({
+      runId,
+      status: 'failed',
+    });
+
+    const stream = await controller.events(runId);
+    await firstValueFrom(stream.pipe(toArray()));
+
+    expect(sse.subscribe).not.toHaveBeenCalled();
+    expect(sse.complete).not.toHaveBeenCalled();
+  });
+
+  it('on interrupted snapshot still subscribes (stream stays live)', async () => {
+    const runId = newRunId();
+    getRun.execute.mockResolvedValue({
+      runId,
+      status: 'interrupted',
+    });
+    sse.subscribe.mockReturnValue(of());
+
+    await controller.events(runId);
+
+    expect(sse.subscribe).toHaveBeenCalledWith(runId);
+    expect(sse.complete).not.toHaveBeenCalled();
+  });
+
+  it('when run becomes completed between snapshot and subscribe, emits latest terminal run.status without subscribing', async () => {
+    const runId = newRunId();
+    getRun.execute
+      .mockResolvedValueOnce({ runId, status: 'running' })
+      .mockResolvedValueOnce({ runId, status: 'completed' });
+
+    const stream = await controller.events(runId);
+    const events = await firstValueFrom(stream.pipe(toArray()));
+
+    expect(getRun.execute).toHaveBeenCalledTimes(2);
+    expect(sse.subscribe).not.toHaveBeenCalled();
+    expect(sse.complete).not.toHaveBeenCalled();
+    expect(events).toEqual([
+      { type: 'run.status', data: { runId, status: 'completed' } },
     ]);
   });
 });

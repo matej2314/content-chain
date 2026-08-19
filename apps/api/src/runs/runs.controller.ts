@@ -12,7 +12,17 @@ import {
   type MessageEvent,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { map, Observable, startWith } from 'rxjs';
+import {
+  endWith,
+  ignoreElements,
+  interval,
+  map,
+  merge,
+  Observable,
+  of,
+  startWith,
+  takeUntil,
+} from 'rxjs';
 import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
 import { ListRunsUseCase } from './application/list-runs.use-case';
 import { GetRunUseCase } from './application/get-run.use-case';
@@ -23,13 +33,18 @@ import {
   type RunSseEvent,
   type RunSseHub,
 } from './domain/run-sse.port';
+import { ENV, type Env } from '../shared/config/env';
 import { HitlDto } from './http/dto/hitl.dto';
 import { StartRunDto } from './http/dto/start-run.dto';
 import { ListRunsQueryDto } from './http/dto/list-runs-query.dto';
 import { ParseRunIdPipe } from './http/parse-run-id.pipe';
 import { createUserId, isUserId } from '@content-chain/shared';
-import type { RunId } from '@content-chain/shared';
+import type { RunId, RunStatus } from '@content-chain/shared';
 import type { ListRunsQuery } from './domain/run.port';
+
+function isTerminalStatus(status: RunStatus): boolean {
+  return status === 'completed' || status === 'failed';
+}
 
 @ApiTags('runs')
 @Controller('runs')
@@ -41,6 +56,7 @@ export class RunsController {
     private readonly resumeHitl: ResumeHitlUseCase,
     private readonly listRuns: ListRunsUseCase,
     @Inject(RUN_SSE_HUB) private readonly sse: RunSseHub,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   @Post()
@@ -68,10 +84,36 @@ export class RunsController {
       event: 'run.status',
       data: { runId, status: snapshot.status },
     };
-    return this.sse.subscribe(runId).pipe(
-      startWith(snapshotEvent),
-      map((event) => ({ type: event.event, data: event.data })),
+    const toMessage = (event: RunSseEvent): MessageEvent => ({
+      type: event.event,
+      data: event.data,
+    });
+    if (isTerminalStatus(snapshot.status)) {
+      return of(toMessage(snapshotEvent));
+    }
+
+    const latest = await this.getRun.execute(runId);
+    if (isTerminalStatus(latest.status)) {
+      return of(
+        toMessage({
+          event: 'run.status',
+          data: { runId, status: latest.status },
+        }),
+      );
+    }
+
+    const latestEvent: RunSseEvent = {
+      event: 'run.status',
+      data: { runId, status: latest.status },
+    };
+    const hub$ = this.sse.subscribe(runId);
+    const live$ = hub$.pipe(startWith(latestEvent), map(toMessage));
+    const heartbeat$ = interval(this.env.SSE_HEARTBEAT_MS).pipe(
+      map((): MessageEvent => ({ type: 'heartbeat', data: '' })),
+      takeUntil(hub$.pipe(ignoreElements(), endWith(true))),
     );
+
+    return merge(live$, heartbeat$);
   }
 
   @Post(':runId/hitl')

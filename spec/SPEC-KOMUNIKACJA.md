@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-18
+data_modyfikacji: 2026-08-19
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -74,9 +74,17 @@ K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed) idzie 
 
 Zmiana względem wersji 5: zbiór statusów SSE / filtra listy rozszerzony o `interrupted`; K-2 (POST `queued` \| `running`) **bez** zmiany statusów startowych.
 
-K-3a. Koniec strumienia SSE: po wyemitowaniu `run.completed` albo `run.failed` handler **kończy** `Observable` (Nest zamyka response). Subskrypcja przy snapshotcie już `completed` \| `failed`: co najmniej `run.status` ze snapshotu, potem complete — bez zostawiania subjectu na zawsze. Stream **nie** kończy się na `awaiting_hitl` ani `interrupted`. Reconnect klienta tylko po nieoczekiwanym zerwaniu przy statusie nieterminalnym — kontrakt w `docs/dokumentacja_komunikacji.md`.
+K-3a. Koniec strumienia SSE: po wyemitowaniu `run.completed` albo `run.failed` handler **kończy** `Observable` (Nest zamyka response). Subskrypcja przy snapshotcie już `completed` \| `failed`: `run.status` z **najnowszego** odczytu z DB (drugi `getRun.execute` przed `subscribe`), potem complete — bez zostawiania subjectu na zawsze. Stream **nie** kończy się na `awaiting_hitl` ani `interrupted`. Reconnect klienta tylko po nieoczekiwanym zerwaniu przy statusie nieterminalnym — kontrakt w `docs/dokumentacja_komunikacji.md`.
 
 Zmiana względem wersji 6 / K-3: K-3 wymieniało eventy completed/failed jako treść live, bez normy zamknięcia połączenia HTTP ani late-join na skończonym runie.
+
+K-3b. Heartbeat keep-alive i TTL Subject:
+
+1. Handler `@Sse()` **merguje** live Observable ze strumieniem `interval(SSE_HEARTBEAT_MS)` emitującym `{ type: 'heartbeat', data: '' }`. Klient **ignoruje** tę wartość. Heartbeat **nie** jest emitowany w ścieżce `of(snapshot)` (terminal late-join) — wyłącznie przy otwartym połączeniu live.
+2. Subject w `InMemoryRunSseHub` otworzony przez `subscribe()` jest domykany z błędem i usuwany z mapy po `RUN_SSE_SUBJECT_TTL_MS`. Timer musi mieć `timer.unref()`.
+3. Wartości `SSE_HEARTBEAT_MS` (default `25_000`) i `RUN_SSE_SUBJECT_TTL_MS` (default `600_000`) są walidowane przez Zod w `env.schema.ts`. Zakaz hardkodowania.
+
+Zmiana względem wersji 7: dopisano K-3b (heartbeat + TTL Subject — ochrona przed zombie Subject przy hung runie i przed ciszą TCP przy długich runach).
 
 K-4. Auth SSE = ta sama sesja co API: cookie httpOnly **`cc_access`** / **`cc_refresh`** (`SPEC-AUTH.md`). **Zakaz** tokenu w query string oraz **`Authorization: Bearer`** jako modelu MVP (FE, Postman, integracje — cookie jar / `credentials: 'include'`).
 
@@ -133,6 +141,9 @@ Zakaz: FE generuje `RequestId` „na zapas”; zakaz nowego `ConversationId` per
 - Pollingu statusu runu jako kanału **live** (zamiast SSE).
 - Zostawiania otwartego SSE po evencie terminalnym albo na runie już `completed` \| `failed`.
 - Unbounded mapy Subject per `runId` bez evikcji po terminalu (cykl życia huba — `SPEC-RUNY.md`).
+- Subjectu bez TTL automatu ewikcji — zombie Subject przy hung runie powoduje memory leak (K-3b).
+- Braku heartbeat przy live SSE — cisza TCP >60 s grozi zamknięciem połączenia przez proxy i reconnectem klienta (K-3b).
+- Hardkodowania `SSE_HEARTBEAT_MS` / `RUN_SSE_SUBJECT_TTL_MS` w kodzie zamiast env z walidacją Zod.
 - Ustawiania `x-request-id` przez Content Chain przy wywołaniach chat/stream gateway.
 - Tokenu JWT / access w query string SSE.
 - `Authorization: Bearer` oraz zwracania `accessToken` w body jako modelu auth MVP (norma: dwa cookie httpOnly — `SPEC-AUTH.md`).
@@ -150,7 +161,8 @@ Zakaz: FE generuje `RequestId` „na zapas”; zakaz nowego `ConversationId` per
 |---------|--------|
 | NestJS controllers + `ValidationPipe` + **class-validator** / class-transformer | obowiązkowe |
 | **Zod** (warstwa application) | obowiązkowe |
-| NestJS **`@Sse()`** + RxJS `Observable<MessageEvent>` | obowiązkowe |
+| NestJS **`@Sse()`** + RxJS `Observable<MessageEvent>` + `merge` z heartbeat `interval` | obowiązkowe |
+| `SSE_HEARTBEAT_MS` (env, default `25_000`) + `RUN_SSE_SUBJECT_TTL_MS` (env, default `600_000`) — walidowane Zod | obowiązkowe |
 | Port LLM + adapter HTTP (natywny chat gateway) | obowiązkowe |
 | Brand types / enumy z `@content-chain/shared` | obowiązkowe |
 | **`@nestjs/swagger`** + Swagger UI pod **`/docs`** (DX powierzchni api) | obowiązkowe w MVP |

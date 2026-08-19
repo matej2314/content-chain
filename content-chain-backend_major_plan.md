@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md`, `content-chain_brief.md` (kontekst kolejności budowy).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) — kolejny start: **Faza 8** (cykl życia SSE / evikcja huba; **przed** Fazą 4), potem Faza 4 / Milestone 4 (pipeline + Postman), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u.
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — kolejny start: **Faza 4** / Milestone 4 (pipeline + Postman), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -260,7 +260,7 @@
 **Status:** `NIE_ROZPOCZĘTY`
 
 **Opis:** Pierwszy slice produktowy backendu: post ideas i post content z weryfikacją względem kontekstu, zapisem wyników i czytelnych logów; LLM tylko przez gateway. Weryfikacja **obu** happy pathów Postmanem (bez UI). Zgodnie z `SPEC-SOCIAL.md`, `docs/data_flow.md`, `docs/dokumentacja_koncepcyjna.md`.  
-**Odblokowana po Fazie 7** (`WYKONANY`) **i Fazie 8**: executor Social siada na grafie z `interrupted` i twardym capem claimu (`SPEC-RUNY.md` R-6 / R-9); hub SSE kończy strumień po `completed`/`failed` (`SPEC-RUNY.md` R-4a), zanim pipeline zacznie produkować runy.
+**Odblokowana po Fazie 7** (`WYKONANY`) **i Fazie 8** (`WYKONANY`): executor Social siada na grafie z `interrupted` i twardym capem claimu (`SPEC-RUNY.md` R-6 / R-9); hub SSE kończy strumień po `completed`/`failed` (`SPEC-RUNY.md` R-4a), zanim pipeline zacznie produkować runy.
 
 **DoD (faza):**
 
@@ -509,23 +509,28 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 
 ## Faza 8 — Refaktor SSE: koniec strumienia i evikcja huba
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Refaktor względem: **Faza 3 / Krok 3.2** (`WYKONANY`) — `InMemoryRunSseHub` (`Map` subjectów), `RunsController.events`, `RunLifecycleService.publish`; oraz **Faza 7 / Krok 7.2** (`WYKONANY`) — SSE `run.status` przy `interrupted` **zostaje** (stream nie kończy się na `interrupted` / `awaiting_hitl`). Cel: po `completed` / `failed` hub robi `complete` + usuwa wpis z mapy; Observable SSE się kończy; late-join na skończonym runie emituje snapshot i zamyka połączenie — bez wycieku pamięci i wiszących socketów.  
 Źródło normy: `docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`, `docs/anty_patterny.md`, `SPEC-KOMUNIKACJA.md` K-3a, `SPEC-RUNY.md` R-4a, `SPEC-FRONTEND.md` F-5a, `SPEC-TESTY.md` D-14.  
 Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wdrażamy go w `apps/api`. UI `EventSource` (F-5a) pozostaje w majorze frontendowym.  
 **Bez MILESTONE 8** — korekta cyklu życia kanału live, nie skok produktowy. **Wykonana przed startem Fazy 4** (Faza 7 uznała Faza 4 za odblokowaną po `interrupted`; ta faza wstawia się przed Social, żeby hub nie rósł z każdym runem pipeline’u).
 
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-8-sse-complete.md`. Port `complete` + evikcja huba; lifecycle woła `complete` tylko po `completed`/`failed`; late-join terminalny zamyka stream bez `subscribe`; heartbeat + TTL Subject. Brak MILESTONE 8. Faza 4 pozostaje `NIE_ROZPOCZĘTY`, odblokowana do startu (po Fazie 7 i Fazie 8).
+
 **DoD (faza):**
 
 - Port `RunSseHub` ma jawny `complete(runId)` (lub równoważne); hub po `completed`/`failed` kończy subject i usuwa wpis z mapy.
 - `awaiting_hitl` i `interrupted` nie wołają `complete`; disconnect klienta nie evikuje subjectu żyjącego runu.
-- `GET .../events` przy snapshotcie już terminalnym: co najmniej `run.status`, potem koniec streamu — bez wiecznego subjectu.
+- `GET .../events` przy snapshotcie już terminalnym: `run.status` z najnowszego odczytu DB, potem koniec streamu — bez wiecznego subjectu.
+- Subjects w hubie mają TTL automatu ewikcji (`RUN_SSE_SUBJECT_TTL_MS`); brak zombie Subject przy hung runie.
+- Live Observable zawiera merge z heartbeat (`SSE_HEARTBEAT_MS`); klient nie dostaje ciszy TCP dłuższej niż ~25 s.
+- `startWith` w `events()` oparty na najnowszym odczycie DB (drugi `getRun.execute` przed `subscribe`).
 - Testy D-14 przechodzą (unit huba/lifecycle/controllera + e2e: skończony run zamyka SSE).
 
 ### Krok 8.1 — Port i `InMemoryRunSseHub`: `complete` + evikcja
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Refaktor względem: Faza 3 / Krok 3.2 (`WYKONANY`) — `run-sse.port.ts` / `run-sse.hub.ts` (`subjectFor` bez `delete`). Idempotentny `complete(runId)`: `subject.complete()` + `subjects.delete`. `publish` po `complete` nie ożywia wiecznego subjectu.
 
@@ -537,7 +542,7 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 
 ### Krok 8.2 — Lifecycle i late-join HTTP
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Refaktor względem: Faza 3 / Krok 3.2 (`WYKONANY`) — `RunLifecycleService.transition` (publish terminalnego eventu bez `complete`) oraz `RunsController.events` (`subscribe` + `startWith` bez końca Observable). Po `publish(run.completed)` / `publish(run.failed)` wołane `complete(runId)`. Snapshot `completed` \| `failed` → `of(snapshot)` i complete, **bez** `subscribe` na hubie.
 
@@ -550,7 +555,7 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 
 ### Krok 8.3 — Testy D-14
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Pokrycie `SPEC-TESTY.md` D-14. Refaktor względem: testów controllera SSE i e2e lifecycle z Fazy 3 / Kroku 3.2 (`WYKONANY`) — e2e zrywa połączenie po pierwszym `run.status` i nie asertuje końca streamu ani rozmiaru mapy.
 
@@ -560,6 +565,22 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 - Unit: controller przy snapshotcie terminalnym nie woła `subscribe`.
 - E2E (lub integration HTTP): `GET .../events` na skończonym runie emituje `run.status` i **kończy** response (`end`), bez timeoutu na otwartym sockecie.
 - Istniejące e2e live `run.status` na nieskończonym jeszcze przebiegu nie są psute.
+
+### Krok 8.4 — Heartbeat keep-alive i TTL Subject
+
+**Status:** `WYKONANY`
+
+**Opis:** Rozszerzenie względem: Krok 8.1 (`WYKONANY`) — `InMemoryRunSseHub.subjectFor` bez TTL automatu; Krok 8.2 (`WYKONANY`) — `RunsController.events` bez heartbeat merge. Cel: (1) Subject otworzony przez `subscribe()` jest domykany z błędem po `RUN_SSE_SUBJECT_TTL_MS`, gdy run nigdy nie dobiegnie do stanu terminalnego (hung/crashed worker); (2) live Observable mergowany ze strumieniem heartbeat co `SSE_HEARTBEAT_MS` — zapobiega ciszy TCP i reconnectowi klienta, który skutkowałby nowym Subject w hubie; (3) `startWith` w `events()` używa odczytu `latest` (drugi `getRun.execute`), nie `snapshot` (starszy odczyt guard-terminalu).  
+Źródło normy: `SPEC-RUNY.md` R-4a (TTL + heartbeat), `SPEC-KOMUNIKACJA.md` K-3b (heartbeat + latest snapshot), `docs/dokumentacja_komunikacji.md` (kontrakt heartbeat dla klienta).
+
+**DoD (krok):**
+
+- `env.schema.ts` zawiera `RUN_SSE_SUBJECT_TTL_MS` (default `600_000`) i `SSE_HEARTBEAT_MS` (default `25_000`) z walidacją Zod i wstrzyknięciem przez `ENV` token.
+- `InMemoryRunSseHub` wstrzykuje `Env`; `subjectFor` uruchamia timer TTL z `timer.unref()`; drugi `complete` = no-op (idempotentność zachowana z Kroku 8.1).
+- `RunsController.events` merguje live Observable z `interval(SSE_HEARTBEAT_MS)` emitującym `{ type: 'heartbeat', data: '' }`.
+- `startWith` w `events()` używa obiektu `latestEvent` (z drugiego `getRun.execute`), nie `snapshotEvent`.
+- Unit: TTL Subject zamyka strumień po upływie czasu i usuwa wpis z mapy; idempotentność zachowana.
+- Unit: heartbeat nie pojawia się w ścieżce `of(...)` (snapshot terminalny) — tylko w live merge.
 
 ---
 
@@ -574,7 +595,7 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 | HTTP / SSE / gateway / lista runów / auth probe / feedback | `docs/dokumentacja_komunikacji.md`, `SPEC-KOMUNIKACJA.md` |
 | Bezpieczeństwo / env / bootstrap /me | `docs/security.md`, `SPEC-BEZPIECZENSTWO.md`, `SPEC-AUTH.md` |
 | Kontekst firmy | `SPEC-KONTEKST-FIRMY.md`, `docs/dokumentacja_koncepcyjna.md` |
-| Runy / logi / listing / przegląd (ocena, edycja) / `interrupted` / cykl życia SSE | `SPEC-RUNY.md` (w tym R-4a), `SPEC-KOMUNIKACJA.md` (K-3a), `docs/observability.md`, `docs/data_flow.md` (recovery), `docs/dokumentacja_komunikacji.md` |
+| Runy / logi / listing / przegląd (ocena, edycja) / `interrupted` / cykl życia SSE | `SPEC-RUNY.md` (w tym R-4a), `SPEC-KOMUNIKACJA.md` (K-3a, K-3b), `docs/observability.md`, `docs/data_flow.md` (recovery), `docs/dokumentacja_komunikacji.md` |
 | Opinie tekstowe | `SPEC-FEEDBACK.md` |
 | Social | `SPEC-SOCIAL.md`, `docs/data_flow.md` |
 | Auth | `SPEC-AUTH.md` |

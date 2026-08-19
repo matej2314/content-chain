@@ -222,7 +222,7 @@ describe('InMemoryRunSseHub', () => {
 
 ### KROK 2 — Lifecycle i late-join HTTP
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Transition do `completed`/`failed` kończy hub **po** evencie terminalnym. `awaiting_hitl` / `interrupted` nie wołają `complete`. Late-join na skończonym runie: `of(run.status)` i complete Observable — **bez** `subscribe` (brak wiecznego subjectu). Major 8.2; `SPEC-KOMUNIKACJA.md` K-3a; `docs/dokumentacja_komunikacji.md` (koniec strumienia).
 
@@ -365,7 +365,7 @@ Late-join emituje **co najmniej** `run.status` (K-3a) — bez syntetycznego `run
 
 ### KROK 3 — Testy D-14
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Pokrycie `SPEC-TESTY.md` D-14. Refaktor względem testów controllera SSE i e2e lifecycle z Fazy 3 / Kroku 3.2 (`WYKONANY`) — e2e zrywa połączenie po pierwszym `run.status` i nie asertuje końca streamu. Major 8.3.
 
@@ -612,19 +612,115 @@ Timeout helpera = fail (wiszący socket). Sukces wymaga `res.on('end')` od Nest 
 
 ---
 
+### KROK 4 — Heartbeat keep-alive i TTL Subject
+
+**Status:** `WYKONANY`
+
+**Cel:** Ochrona przed zombie Subject przy hung/crashed runie (TTL automatu ewikcji) oraz przed ciszą TCP grożącą zamknięciem połączenia przez proxy (heartbeat keep-alive). Korekta `startWith` — najnowszy odczyt DB zamiast starszego guard-odczytu. Major 8.4; `SPEC-RUNY.md` R-4a (TTL + heartbeat); `SPEC-KOMUNIKACJA.md` K-3b.
+
+**Artefakty:**
+
+- Zmiana: `apps/api/src/shared/config/env.schema.ts` — nowe env vars
+- Zmiana: `apps/api/src/runs/infrastructure/run-sse.hub.ts` — TTL timer w `subjectFor`
+- Zmiana: `apps/api/src/runs/runs.controller.ts` — heartbeat merge + `latestEvent` w `startWith`
+
+**Kolejność:** env schema → hub TTL → controller heartbeat + latest.
+
+#### Implementacja — `apps/api/src/shared/config/env.schema.ts`
+
+Dopisać do schematu Zod:
+
+```typescript
+SSE_HEARTBEAT_MS: z.coerce.number().int().positive().default(25_000),
+RUN_SSE_SUBJECT_TTL_MS: z.coerce.number().int().positive().default(600_000),
+```
+
+#### Implementacja — `apps/api/src/runs/infrastructure/run-sse.hub.ts`
+
+Wstrzyknąć `Env` (token `ENV`) i zastąpić `subjectFor` wersją z timerem TTL:
+
+```typescript
+private subjectFor(runId: RunId): Subject<RunSseEvent> {
+  const key = createRunId(runId);
+  let subject = this.subjects.get(key);
+  if (!subject) {
+    subject = new Subject<RunSseEvent>();
+    this.subjects.set(key, subject);
+
+    const timer = setTimeout(() => {
+      const current = this.subjects.get(key);
+      if (current === subject) {
+        this.subjects.delete(key);
+        subject!.error(new Error(`SSE subject TTL exceeded for run ${key}`));
+      }
+    }, this.env.RUN_SSE_SUBJECT_TTL_MS);
+
+    timer.unref();
+  }
+  return subject;
+}
+```
+
+`complete()` pozostaje bez zmian — kasuje timer pośrednio przez ewikcję z mapy (nowy Subject po reconnect dostanie nowy timer).
+
+#### Implementacja — `apps/api/src/runs/runs.controller.ts`
+
+```typescript
+import { endWith, ignoreElements, interval, merge, takeUntil } from 'rxjs';
+
+// wewnątrz events() — zastąpić ostatni return:
+
+const latestEvent: RunSseEvent = {
+  event: 'run.status',
+  data: { runId, status: latest.status },
+};
+
+const hub$ = this.sse.subscribe(runId);
+const live$ = hub$.pipe(startWith(latestEvent), map(toMessage));
+const heartbeat$ = interval(this.env.SSE_HEARTBEAT_MS).pipe(
+  map((): MessageEvent => ({ type: 'heartbeat', data: '' })),
+  takeUntil(hub$.pipe(ignoreElements(), endWith(true))),
+);
+
+return merge(live$, heartbeat$);
+```
+
+`env` wstrzykiwany przez `@Inject(ENV) private readonly env: Env` w konstruktorze kontrolera (analogicznie do `InProcessRunWorker`).
+
+`takeUntil` wyłącznie na `heartbeat$` (nie na całym `merge`): RxJS `merge` kończy się dopiero gdy **wszystkie** źródła complete, a `interval` nigdy nie complete. Bez `takeUntil` po `hub.complete()` (KROK 2 / K-3a) live SSE zostawałoby otwarte i biło keep-alive. `takeUntil` na całym `merge` zamykałby strumień zanim `startWith` zdąży emitować, gdy hub jest już complete (`of()`). Ścieżka `of(snapshot)` bez heartbeat — bez zmian.
+
+Zmiana względem wcześniejszego szkicu w tym samym KROK 4: nagi `merge(subscribe, interval)` bez `takeUntil`.
+
+**Biblioteki / API:** RxJS `interval`, `merge`, `takeUntil`, `ignoreElements`, `endWith` — już w zależnościach; `ENV` token — już w projekcie.
+
+**DoD kroku:**
+
+- `env.schema.ts` eksportuje `SSE_HEARTBEAT_MS` i `RUN_SSE_SUBJECT_TTL_MS` z walidacją Zod.
+- `InMemoryRunSseHub` wstrzykuje `Env`; TTL timer uruchamiany przy tworzeniu Subject; `timer.unref()` obecne.
+- Unit huba: Subject zamknięty z błędem po TTL; wpis usunięty z mapy; idempotentność `complete` zachowana.
+- `RunsController.events` merguje live Observable z `heartbeat$`; `startWith` używa `latestEvent`.
+- `heartbeat$` ma `takeUntil` na complete huba — live merge kończy się po terminalu (K-3a); unit: po `hub.complete()` brak dalszych heartbeatów.
+- Unit controllera: heartbeat nie pojawia się w ścieżce `of(snapshot)` (terminal); `startWith` zawiera status z `latest`, nie `snapshot`.
+- `pnpm --filter api test` zielone dla nowych unit testów TTL i heartbeat.
+
+
+---
+
 ## Weryfikacja wycinka
 
 | Kryterium | Jak sprawdzić |
-|-----------|----------------|
-| Kotwica major 8.1–8.3 | Port `complete`; hub evikcja; lifecycle + late-join; D-14 |
-| `SPEC-RUNY.md` R-4a | Complete + delete tylko po `completed`/`failed`; HITL/`interrupted` bez `complete`; disconnect ≠ evikcja |
-| `SPEC-KOMUNIKACJA.md` K-3a | Observable kończy się po terminalu; late-join: `run.status` + complete, bez wiecznego subjectu |
-| `SPEC-TESTY.md` D-14 | Unit huba/lifecycle/controllera + e2e `end` |
-| `docs/anty_patterny.md` | Brak mapy Subject bez evikcji po terminalu |
-| `SPEC-FRONTEND.md` F-5a | Świadomie nieimplementowane (UI) — serwer i tak zamyka stream |
-| Worker | Brak zmiany semantyki; stub: logi → `transition(completed)` → `complete` |
-| Nagłówki | wyłącznie `FAZA 1` / `KROK 1\|2\|3` |
-| Sekrety | brak |
+||-----------|----------------|
+|| Kotwica major 8.1–8.3 | Port `complete`; hub ewikcja; lifecycle + late-join; D-14 |
+|| Kotwica major 8.4 | TTL Subject; heartbeat merge; `latestEvent` w `startWith` |
+|| `SPEC-RUNY.md` R-4a | Complete + delete tylko po `completed`/`failed`; HITL/`interrupted` bez `complete`; disconnect ≠ ewikcja; TTL timer; heartbeat |
+|| `SPEC-KOMUNIKACJA.md` K-3a | Observable kończy się po terminalu; late-join: `run.status` (najnowszy) + complete, bez wiecznego subjectu |
+|| `SPEC-KOMUNIKACJA.md` K-3b | Heartbeat merge; TTL env z Zod; brak heartbeat na `of(snapshot)` |
+|| `SPEC-TESTY.md` D-14 | Unit huba/lifecycle/controllera + e2e `end` |
+|| `docs/anty_patterny.md` | Brak mapy Subject bez ewikcji po terminalu |
+|| `SPEC-FRONTEND.md` F-5a | Świadomie nieimplementowane (UI) — serwer i tak zamyka stream |
+|| Worker | Brak zmiany semantyki; stub: logi → `transition(completed)` → `complete` |
+|| Nagłówki | wyłącznie `FAZA 1` / `KROK 1\|2\|3\|4` |
+|| Sekrety | brak |
 
 **Świadomie poza wycinkiem:** `EventSource.close()` na FE; auth SSE cookie (Faza 5); Social nie emituje SSE z węzłów grafu (R-4 — bez zmian).
 
@@ -637,18 +733,19 @@ Ten skill **nie** edytuje `content-chain-backend_major_plan.md`.
 Po spełnieniu DoD Fazy 8 w kodzie i testach (osobna sesja, np. ręczne `/feature-implementation`):
 
 | Element major | Docelowy status |
-|---------------|-----------------|
-| Faza 8 | `WYKONANY` |
-| Krok 8.1 | `WYKONANY` |
-| Krok 8.2 | `WYKONANY` |
-| Krok 8.3 | `WYKONANY` |
-| Milestone 8 | nie istnieje — nic nie oznaczać |
-| Faza 4 | nadal `NIE_ROZPOCZĘTY` (odblokowana po Fazie 7 **i** Fazie 8) |
+||---------------|-----------------|
+|| Faza 8 | `WYKONANY` |
+|| Krok 8.1 | `WYKONANY` |
+|| Krok 8.2 | `WYKONANY` |
+|| Krok 8.3 | `WYKONANY` |
+|| Krok 8.4 | `WYKONANY` |
+|| Milestone 8 | nie istnieje — nic nie oznaczać |
+|| Faza 4 | nadal `NIE_ROZPOCZĘTY` (odblokowana po Fazie 7 **i** Fazie 8) |
 
 ---
 
 ## Pass rozwojowy (sesja planu)
 
-Przegląd od końca: KROK 3 asertuje `complete()` na porcie, brak `subscribe` na terminalnym snapshotcie oraz HTTP `end`. Port/`complete` powstaje w KROK 1; wywołanie z lifecycle i gałąź `of(...)` w controllerze — w KROK 2. Unit huba zostaje w KROK 1 (DoD 8.1), nie przesuwany do KROK 3.
+Przegląd od końca: KROK 3 asertuje `complete()` na porcie, brak `subscribe` na terminalnym snapshotcie oraz HTTP `end`. Port/`complete` powstaje w KROK 1; wywołanie z lifecycle i gałąź `of(...)` w controllerze — w KROK 2. Unit huba zostaje w KROK 1 (DoD 8.1), nie przesuwany do KROK 3. KROK 4 (heartbeat + TTL) jest niezależny od kolejności KROK 1–3 na poziomie kodu, ale logicznie siedzi na gotowym hubie z KROK 1.
 
-**Brak przesunięć** względem major 8.1 → 8.2 → 8.3.
+**Brak przesunięć** względem major 8.1 → 8.2 → 8.3 → 8.4.

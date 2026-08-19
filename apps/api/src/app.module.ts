@@ -29,11 +29,17 @@ import { MetricsModule } from './metrics/metrics.module';
     EnvModule,
     LoggerModule.forRoot({
       pinoHttp: {
-        level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info',
+        level:
+          process.env.NODE_ENV === 'production'
+            ? 'info'
+            : process.env.NODE_ENV === 'test'
+              ? 'silent'
+              : 'debug',
         transport:
-          process.env.NODE_ENV !== 'production'
-            ? { target: 'pino-pretty' }
-            : undefined,
+          process.env.NODE_ENV === 'production' ||
+          process.env.NODE_ENV === 'test'
+            ? undefined
+            : { target: 'pino-pretty' },
       },
       forRoutes: [{ path: '{*splat}', method: RequestMethod.ALL }],
     }),

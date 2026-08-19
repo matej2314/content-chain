@@ -11,6 +11,10 @@ describe('App (e2e)', () => {
     }).compile();
   });
 
+  afterEach(async () => {
+    await module?.close();
+  });
+
   it('should be defined', () => {
     expect(module).toBeDefined();
   });

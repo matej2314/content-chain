@@ -209,6 +209,64 @@ async function collectSseUntilStatusEvent(
   });
 }
 
+async function collectSseUntilServerCloses(
+  app: INestApplication,
+  runId: string,
+  timeoutMs = 4_000,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let buffer = '';
+    let settled = false;
+
+    const finish = (error?: Error): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      incoming?.destroy();
+      if (error) reject(error);
+      else resolve(buffer);
+    };
+
+    const timer = setTimeout(() => {
+      finish(
+        new Error(
+          `SSE timed out waiting for stream end. received: ${buffer}`,
+        ),
+      );
+    }, timeoutMs);
+
+    let incoming: IncomingMessage | undefined;
+
+    request(app.getHttpServer())
+      .get(`/api/v1/runs/${runId}/events`)
+      .set('Accept', 'text/event-stream')
+      .buffer(false)
+      .parse((res, callback) => {
+        incoming = res as unknown as IncomingMessage;
+        res.setEncoding('utf8');
+        res.on('data', (chunk: string) => {
+          buffer += chunk;
+        });
+        res.on('end', () => {
+          callback(null, buffer);
+          finish();
+        });
+        res.on('error', (err: Error) => {
+          callback(err, buffer);
+          finish(err);
+        });
+      })
+      .end((err) => {
+        if (settled) return;
+        if (err) {
+          finish(err);
+          return;
+        }
+        finish();
+      });
+  });
+}
+
 describe('Runs lifecycle (e2e)', () => {
   describe('stub executor', () => {
     let app: INestApplication;
@@ -303,6 +361,19 @@ describe('Runs lifecycle (e2e)', () => {
 
       expect(payload).toContain('event: run.status');
       expect(payload).toContain(runId);
+    });
+
+    it('GET /api/v1/runs/:runId/events on a completed run emits run.status and ends (D-14)', async () => {
+      await putCompleteContext(app);
+      const created = await postRun(app);
+      const runId = created.body.runId as string;
+      await waitForRunStatus(app, runId, 'completed');
+
+      const payload = await collectSseUntilServerCloses(app, runId);
+
+      expect(payload).toContain('event: run.status');
+      expect(payload).toContain(runId);
+      expect(payload).toContain('completed');
     });
 
     it('POST HITL on a completed run returns 409 HITL_REQUIRED', async () => {

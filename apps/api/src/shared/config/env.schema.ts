@@ -10,6 +10,8 @@ export const envSchema = z
     GATEWAY_BASE_URL: z.string().url(),
     GATEWAY_KEY: z.string().min(1),
     GATEWAY_MODEL_ALIAS: z.string().min(1).default('chat-default'),
+    SSE_HEARTBEAT_MS: z.coerce.number().int().positive().default(25_000),
+    RUN_SSE_SUBJECT_TTL_MS: z.coerce.number().int().positive().default(600_000),
     JWT_SECRET: z.string().min(1),
     JWT_ACCESS_TTL: z.string().min(1).default('15m'),
     JWT_REFRESH_TTL: z.string().min(1).default('1d'),

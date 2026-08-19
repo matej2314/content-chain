@@ -34,6 +34,7 @@ export class RunLifecycleService {
         event: 'run.completed',
         data: { runId: run.id, resultSummary: extras?.resultSummary },
       });
+      this.sseHub.complete(run.id);
     }
     if (to === 'failed') {
       this.sseHub.publish({
@@ -44,6 +45,7 @@ export class RunLifecycleService {
           message: extras?.failedMessage ?? 'run failed',
         },
       });
+      this.sseHub.complete(run.id);
     }
     return { ...run, status: to };
   }
