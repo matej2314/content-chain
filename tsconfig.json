@@ -7,5 +7,11 @@
         "declaration": true,
         "declarationMap": true,
         "sourceMap": true
-    }
+    },
+    "files": [],
+    "references": [
+        { "path": "./apps/api/tsconfig.json" },
+        { "path": "./apps/ai-provider-gateway/tsconfig.json" },
+        { "path": "./apps/frontend/tsconfig.json" }
+    ]
 }
