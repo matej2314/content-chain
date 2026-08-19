@@ -17,6 +17,8 @@
   },
   "dependencies": {
     "@content-chain/shared": "workspace:*",
+    "@langchain/core": "^1.2.8",
+    "@langchain/langgraph": "^1.4.10",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
@@ -35,7 +37,7 @@
     "swagger-ui-express": "^5.0.0",
     "ts-jest": "^29.2.5",
     "uuid": "^14.0.0",
-    "zod": "^3.0.0"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -67,7 +69,7 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
     "transformIgnorePatterns": [
-      "/node_modules/(?!(.pnpm/)?uuid(?:@[^/]+)?(?:/|$))"
+      "/node_modules/(?!.*(?:uuid|@langchain|langsmith|langgraph)/)"
     ]
   }
 }

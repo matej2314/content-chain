@@ -348,7 +348,7 @@ describe('parseLlmJson', () => {
 
 ### KROK 3 — Szablony promptów jako pliki
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Prompty w `infrastructure/prompts/`, nie w controllerze (S-2). Copy roboczy — treść merytoryczna poza SPEC.
 
@@ -487,7 +487,7 @@ Zwróć WYŁĄCZNIE JSON: {"body":"...","hashtags":["..."],"cta":"..."}.
 
 ### KROK 4 — Zależności w `apps/api/package.json`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** LangGraph.js + LangChain.js (rdzeń) w workspace api, zanim węzły importują pakiety. `SPEC-SOCIAL.md` stack. Oficjalny install: `pnpm add @langchain/langgraph @langchain/core` ([docs](https://docs.langchain.com/oss/javascript/langgraph/install)).
 
