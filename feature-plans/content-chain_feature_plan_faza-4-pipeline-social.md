@@ -215,7 +215,7 @@ export interface SocialResultStore {
 
 ### KROK 2 — Schematy Zod structured output
 
-**Status:** `W_TRAKCIE`
+**Status:** `WYKONANY`
 
 **Cel:** Parse wyjść LLM zanim graf pójdzie dalej (S-3). Porażka parse ≠ cichy tekst do klienta. Zod 3 już w `apps/api` (`package.json`).
 
