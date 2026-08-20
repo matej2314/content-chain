@@ -562,7 +562,7 @@ To samo `transformIgnorePatterns` dodać w `apps/api/test/jest-e2e.json`, jeśli
 
 ### KROK 5 — Węzły grafu (porty, bez Prisma)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Węzły z `docs/data_flow.md` jako fabryki zamykające porty. Testy na fake LLM / fake store. Typ stanu = czysty TS (`SocialGraphState`); `StateSchema` i krawędzie — KROK 6. Węzły nie importują `@langchain/langgraph`.
 
