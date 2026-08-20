@@ -57,10 +57,10 @@ function fakeHop(
   return { chatJson } as unknown as LlmHopService;
 }
 
-function fakeLifecycle(): RunLifecycleService {
-  return {
-    appendLog: jest.fn().mockResolvedValue(undefined),
-  } as unknown as RunLifecycleService;
+function fakeAppendLog() {
+  return jest.fn().mockResolvedValue(undefined) as jest.MockedFunction<
+    RunLifecycleService['appendLog']
+  >;
 }
 
 describe('createVerifierNode', () => {
@@ -68,15 +68,15 @@ describe('createVerifierNode', () => {
     const hop = fakeHop({
       data: { ok: true, contextIssues: [], languageIssues: [] },
     });
-    const lifecycle = fakeLifecycle();
+    const appendLog = fakeAppendLog();
     const state = makeState();
 
-    const out = await createVerifierNode(hop, lifecycle)(state);
+    const out = await createVerifierNode(hop, appendLog)(state);
 
     expect(out).toEqual({
       verdict: { ok: true, contextIssues: [], languageIssues: [] },
     });
-    expect(lifecycle.appendLog).not.toHaveBeenCalled();
+    expect(appendLog).not.toHaveBeenCalled();
     expect(hop.chatJson).toHaveBeenCalledWith({
       runId: state.runId,
       conversationId: state.conversationId,
@@ -92,7 +92,7 @@ describe('createVerifierNode', () => {
     });
     const state = makeState({ phase: 'ideas' });
 
-    await createVerifierNode(hop, fakeLifecycle())(state);
+    await createVerifierNode(hop, fakeAppendLog())(state);
 
     const { userContent } = (hop.chatJson as jest.Mock).mock.calls[0][0];
     expect(userContent).toContain(JSON.stringify(state.ideas));
@@ -105,7 +105,7 @@ describe('createVerifierNode', () => {
     });
     const state = makeState({ phase: 'content' });
 
-    await createVerifierNode(hop, fakeLifecycle())(state);
+    await createVerifierNode(hop, fakeAppendLog())(state);
 
     const { userContent } = (hop.chatJson as jest.Mock).mock.calls[0][0];
     expect(userContent).toContain(JSON.stringify(state.content));
@@ -120,18 +120,18 @@ describe('createVerifierNode', () => {
         languageIssues: ['missing comma'],
       },
     });
-    const lifecycle = fakeLifecycle();
+    const appendLog = fakeAppendLog();
     const state = makeState();
 
-    const out = await createVerifierNode(hop, lifecycle)(state);
+    const out = await createVerifierNode(hop, appendLog)(state);
 
     expect(out.verdict).toEqual({
       ok: false,
       contextIssues: ['off-brand CTA'],
       languageIssues: ['missing comma'],
     });
-    expect(lifecycle.appendLog).toHaveBeenCalledTimes(1);
-    expect(lifecycle.appendLog).toHaveBeenCalledWith({
+    expect(appendLog).toHaveBeenCalledTimes(1);
+    expect(appendLog).toHaveBeenCalledWith({
       runId: state.runId,
       conversationId: state.conversationId,
       level: 'warn',
@@ -139,9 +139,7 @@ describe('createVerifierNode', () => {
       requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
       message: expect.stringMatching(/off-brand CTA/),
     });
-    const message = String(
-      (lifecycle.appendLog as jest.Mock).mock.calls[0][0].message,
-    );
+    const message = String(appendLog.mock.calls[0][0].message);
     expect(message).toContain('Context issues: ["off-brand CTA"]');
     expect(message).toContain('Language issues: ["missing comma"]');
     expect(message).not.toMatch(/GATEWAY_KEY|jwt|password|secret/i);
@@ -155,16 +153,16 @@ describe('createVerifierNode', () => {
         500,
       ),
     );
-    const lifecycle = fakeLifecycle();
+    const appendLog = fakeAppendLog();
 
     await expect(
-      createVerifierNode(hop, lifecycle)(makeState()),
+      createVerifierNode(hop, appendLog)(makeState()),
     ).rejects.toThrow(
       expect.objectContaining({
         name: 'DomainException',
         code: 'STRUCTURED_OUTPUT_INVALID',
       }),
     );
-    expect(lifecycle.appendLog).not.toHaveBeenCalled();
+    expect(appendLog).not.toHaveBeenCalled();
   });
 });

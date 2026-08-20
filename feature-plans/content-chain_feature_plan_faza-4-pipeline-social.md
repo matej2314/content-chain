@@ -37,7 +37,7 @@
 - Testy CI: fake `LlmGatewayPort`, **zakaz** live vendora (`SPEC-TESTY.md`). E2E, które dziś kończą stubem, nadpisują port LLM, nie `RUN_EXECUTOR` (D-9 nadal trzyma `HoldingRunExecutor`).
 - NestJS 11, Prisma 6 + SQLite, Zod 3 (już w `apps/api`), Jest 30. Identyfikatory pomysłów: `idea_<uuid>` w payloadzie SM — **bez** nowego brandu w `packages/shared` (katalog `docs/brand_types.md` go nie ma).
 
-**Biblioteki (weryfikacja 2026-08-19, Context7 + oficjalne docs + npm):** stan grafu = `StateSchema` + Zod 3 ([Graph API](https://docs.langchain.com/oss/javascript/langgraph/graph-api), [use-graph-api](https://docs.langchain.com/oss/javascript/langgraph/use-graph-api) — `Annotation.Root` jest **Legacy**, nie używać). `StateGraph`, `START`/`END`, `addEdge(START, …)`, `addConditionalEdges(source, routingFn)`, `compile()` bez checkpoinetera. Install: `pnpm add @langchain/langgraph @langchain/core` ([install](https://docs.langchain.com/oss/javascript/langgraph/install)); meta `langchain` / vendor SDK — poza zakresem (K-5). npm: `@langchain/langgraph@1.4.10` (latest; peer `@langchain/core@^1.1.48`, `zod@^3.25.32 \|\| ^4.2.0`), `@langchain/core@^1.2.8`, Zod zostaje na 3 (`^3.25.32`; latest Zod 4.x nie bierzemy). Nest 11: `compilerOptions.assets` pod `src/`. Prisma 6 SQLite: `createMany` OK, `skipDuplicates` nie; SQL migracji = wynik CLI. SPEC wygrywa ze wzorcem LangGraph HITL (`interrupt` + checkpointer) — pauza = `awaiting_hitl` w DB.
+**Biblioteki (weryfikacja 2026-08-19, Context7 + oficjalne docs + npm; korekta stanu grafu 2026-08-20):** stan grafu = `z.object` (Zod 3) przekazany do `new StateGraph(SocialState)` ([use-graph-api](https://docs.langchain.com/oss/javascript/langgraph/use-graph-api) — ścieżka Zod v3 / `InteropZodObject`). Zmiana względem: wcześniejsza norma `StateSchema` + Zod 3 ([Graph API](https://docs.langchain.com/oss/javascript/langgraph/graph-api)). Powód: `StateSchema` w `@langchain/langgraph@1.4.10` wymaga `~standard.jsonSchema`; Zod 3.25 ma tylko `validate` — `new StateSchema({ field: z.*() })` nie typuje się. **Nie** `new StateSchema({…})`. **Nie** `Annotation.Root` (Legacy). **Nie** Zod 4.x. `StateGraph`, `START`/`END`, `addEdge(START, …)`, `addConditionalEdges(source, routingFn)`, `compile()` bez checkpoinetera. Install: `pnpm add @langchain/langgraph @langchain/core` ([install](https://docs.langchain.com/oss/javascript/langgraph/install)); meta `langchain` / vendor SDK — poza zakresem (K-5). npm: `@langchain/langgraph@1.4.10` (latest; peer `@langchain/core@^1.1.48`, `zod@^3.25.32 \|\| ^4.2.0`), `@langchain/core@^1.2.8`, Zod zostaje na 3 (`^3.25.32`; latest Zod 4.x nie bierzemy). Nest 11: `compilerOptions.assets` pod `src/`. Prisma 6 SQLite: `createMany` OK, `skipDuplicates` nie; SQL migracji = wynik CLI. SPEC wygrywa ze wzorcem LangGraph HITL (`interrupt` + checkpointer) — pauza = `awaiting_hitl` w DB.
 
 ---
 
@@ -831,9 +831,9 @@ export function createPersistIdeasNode(store: SocialResultStore) {
 
 ### KROK 6 — Compiled graph + fasada application
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
-**Cel:** S-1 / S-6: `graph.invoke` tylko w fasadzie. Jeden graf: stały entry `addEdge(START, 'loadContext')`, rozgałęzienie `phase` **po** `normalizeBrief` (`addConditionalEdges`). `compile()` bez checkpoinetera.
+**Cel:** S-1 / S-6: `graph.invoke` tylko w fasadzie. Jeden graf: stały entry `START → loadContext → normalizeBrief` (prefiks przepleciony: `addNode` + od razu `addEdge`, bo to sekwencja bez rozjazdu). Reszta węzłów jako katalog, potem krawędzie i pętle. Rozgałęzienie `phase` **po** `normalizeBrief` oraz decyzja persist/refine/fail **po** `consistencyVerifier` — `addConditionalEdges(source, namedRoutingFn)`. Po Refine* krawędź stała z powrotem do `consistencyVerifier` (nie do generatora). Funkcje routera w **tym samym pliku** (`routeAfterNormalizeBrief`, `routeAfterConsistencyVerifier`); to zwykłe fn zwracające nazwę węzła, nie klasa LangGraph. `compile()` bez checkpoinetera.
 
 **Artefakty (nowe):**
 
@@ -841,20 +841,16 @@ export function createPersistIdeasNode(store: SocialResultStore) {
 - `apps/api/src/social/application/social-pipeline.facade.ts`
 - `apps/api/src/social/application/social-pipeline.facade.spec.ts`
 
-**Źródło API:** [Graph API](https://docs.langchain.com/oss/javascript/langgraph/graph-api) + [use-graph-api](https://docs.langchain.com/oss/javascript/langgraph/use-graph-api) — `StateSchema` (recommended; Zod 3 lub 4), `addEdge(START, firstNode)`, `addConditionalEdges(source, routingFn)` (zwrot = nazwa węzła; mapa ścieżek opcjonalna), `compile()`. **Nie** `Annotation.Root` (Legacy). **Nie** `addConditionalEdges(START, router)` — u nas `START` jest krawędzią stałą do `loadContext`; `phase` routuje dopiero z `normalizeBrief`.
+**Źródło API:** [Graph API](https://docs.langchain.com/oss/javascript/langgraph/graph-api) + [use-graph-api](https://docs.langchain.com/oss/javascript/langgraph/use-graph-api) — stan = `z.object({…})` (Zod 3) jako argument `new StateGraph(SocialState)` (`InteropZodObject`). `addEdge(START, firstNode)`, `addConditionalEdges(source, routingFn)` (zwrot = nazwa węzła; mapa ścieżek opcjonalna), `compile()`. `routingFn` = zwykła funkcja / typ `ConditionalEdgeRouter` — **nie** klasa do `new`. **Nie** `new StateSchema({…})` (typy 1.4.10 wymagają `~standard.jsonSchema`, którego Zod 3 nie ma). **Nie** `Annotation.Root` (Legacy). **Nie** `addConditionalEdges(START, router)` — u nas `START` jest krawędzią stałą do `loadContext`; `phase` routuje dopiero z `normalizeBrief`. **Nie** lambd inline w `addConditionalEdges` — nazwane fn w tym samym pliku, żeby łańcuch `compileSocialGraph` czytał się jako topologia.
 
-Pola bez `ReducedValue` = last-write-wins. Graf jest sekwencyjny (brak równoległego zapisu tego samego kanału).
+Zmiana względem: wcześniejszy szkic tego kroku z `const SocialState = new StateSchema({…})`. Last-write-wins bez `.langgraph.reducer()` / `ReducedValue`. Graf jest sekwencyjny (brak równoległego zapisu tego samego kanału). Typ węzłów nadal `SocialGraphState` (`state.ts`).
 
 #### Nowy plik — `apps/api/src/social/infrastructure/graph/social.graph.ts`
 
 ```typescript
-import { END, START, StateGraph, StateSchema } from '@langchain/langgraph';
+import { END, START, StateGraph } from '@langchain/langgraph';
 import { z } from 'zod';
 import { canRefine } from '../../domain/refine-policy';
-import type { SocialGraphState } from './state';
-import type { CompanyContextRepository } from '../../../company-context/domain/company-context.port';
-import type { SocialResultStore } from '../../domain/social-result.port';
-import type { LlmHopService } from './llm-hop';
 import { createLoadContextNode } from './nodes/load-context.node';
 import { createNormalizeBriefNode } from './nodes/normalize-brief.node';
 import { createIdeationNode } from './nodes/ideation.node';
@@ -865,8 +861,13 @@ import { createRefineContentNode } from './nodes/refine-content.node';
 import { createPersistIdeasNode } from './nodes/persist-ideas.node';
 import { createPersistContentNode } from './nodes/persist-content.node';
 import { createFailRunNode } from './nodes/fail-run.node';
+import { RunLifecycleService } from '../../../runs/application/run-lifecycle.service';
+import type { SocialGraphState } from './state';
+import type { CompanyContextRepository } from '../../../company-context/domain/company-context.port';
+import type { LlmHopService } from './llm-hop';
+import type { SocialResultStore } from '../../domain/social-result.port';
 
-const SocialState = new StateSchema({
+const SocialState = z.object({
   runId: z.custom<SocialGraphState['runId']>(),
   conversationId: z.custom<SocialGraphState['conversationId']>(),
   taskType: z.custom<SocialGraphState['taskType']>(),
@@ -885,45 +886,73 @@ const SocialState = new StateSchema({
   failedMessage: z.custom<SocialGraphState['failedMessage']>(),
 });
 
-export function compileSocialGraph(deps: {
+interface CompileSocialGraphOptions {
   context: CompanyContextRepository;
   store: SocialResultStore;
   hop: LlmHopService;
-}) {
+  lifecycle: RunLifecycleService;
+}
+
+export type CompiledSocialGraph = {
+  invoke(input: SocialGraphState): Promise<SocialGraphState>;
+};
+
+function routeAfterNormalizeBrief(
+  state: SocialGraphState,
+): 'contentWriterAgent' | 'ideationAgent' {
+  return state.phase === 'content' ? 'contentWriterAgent' : 'ideationAgent';
+}
+
+function routeAfterConsistencyVerifier(
+  state: SocialGraphState,
+):
+  | 'failRun'
+  | 'persistContent'
+  | 'persistIdeas'
+  | 'refineContent'
+  | 'refineIdeas' {
+  if (state.failedCode) return 'failRun';
+  if (state.verdict?.ok) {
+    return state.phase === 'content' ? 'persistContent' : 'persistIdeas';
+  }
+  const attempts =
+    state.phase === 'content'
+      ? state.contentRefineCount
+      : state.ideasRefineCount;
+  if (canRefine(attempts)) {
+    return state.phase === 'content' ? 'refineContent' : 'refineIdeas';
+  }
+  return 'failRun';
+}
+
+export function compileSocialGraph(
+  deps: CompileSocialGraphOptions,
+): CompiledSocialGraph {
   const graph = new StateGraph(SocialState)
     .addNode('loadContext', createLoadContextNode(deps.context))
+    .addEdge(START, 'loadContext')
     .addNode('normalizeBrief', createNormalizeBriefNode())
+    .addEdge('loadContext', 'normalizeBrief')
     .addNode('ideationAgent', createIdeationNode(deps.hop))
     .addNode('contentWriterAgent', createContentWriterNode(deps.hop))
-    .addNode('consistencyVerifier', createVerifierNode(deps.hop))
+    .addNode(
+      'consistencyVerifier',
+      createVerifierNode(
+        deps.hop,
+        deps.lifecycle.appendLog.bind(deps.lifecycle),
+      ),
+    )
     .addNode('refineIdeas', createRefineIdeasNode(deps.hop))
     .addNode('refineContent', createRefineContentNode(deps.hop))
     .addNode('persistIdeas', createPersistIdeasNode(deps.store))
     .addNode('persistContent', createPersistContentNode(deps.store))
     .addNode('failRun', createFailRunNode())
-    .addEdge(START, 'loadContext')
-    .addEdge('loadContext', 'normalizeBrief')
-    .addConditionalEdges('normalizeBrief', (state) =>
-      state.phase === 'content' ? 'contentWriterAgent' : 'ideationAgent',
-    )
+    .addConditionalEdges('normalizeBrief', routeAfterNormalizeBrief)
     .addEdge('ideationAgent', 'consistencyVerifier')
     .addEdge('contentWriterAgent', 'consistencyVerifier')
-    .addEdge('refineIdeas', 'ideationAgent')
-    .addEdge('refineContent', 'contentWriterAgent')
-    .addConditionalEdges('consistencyVerifier', (state) => {
-      if (state.failedCode) return 'failRun';
-      if (state.verdict?.ok) {
-        return state.phase === 'content' ? 'persistContent' : 'persistIdeas';
-      }
-      const attempts =
-        state.phase === 'content'
-          ? state.contentRefineCount
-          : state.ideasRefineCount;
-      if (canRefine(attempts)) {
-        return state.phase === 'content' ? 'refineContent' : 'refineIdeas';
-      }
-      return 'failRun';
-    })
+    .addEdge('refineIdeas', 'consistencyVerifier')
+    .addEdge('refineContent', 'consistencyVerifier')
+    .addConditionalEdges('consistencyVerifier', routeAfterConsistencyVerifier)
     .addEdge('persistIdeas', END)
     .addEdge('persistContent', END)
     .addEdge('failRun', END);
@@ -931,6 +960,12 @@ export function compileSocialGraph(deps: {
   return graph.compile();
 }
 ```
+
+Zmiana względem: wcześniejszy szkic tego kroku z `createVerifierNode(deps.hop)` (sam hop). Powód: węzeł z KROK 5 (WYKONANY) przyjmuje `appendLog: RunLifecycleService['appendLog']`, nie cały serwis. Goła referencja `deps.lifecycle.appendLog` gubi `this` metody klasy (`this.runs` / `this.sseHub`) — kompozycja woła `.bind(deps.lifecycle)`, żeby wywołanie z węzła było równoważne `deps.lifecycle.appendLog(...)`. `transition` nie wchodzi do grafu.
+
+Zmiana względem: wcześniejszy szkic tego kroku z katalogiem **wszystkich** `addNode` przed **wszystkimi** `addEdge` oraz z lambdami inline w `addConditionalEdges`. Teraz: (1) liniowy prefiks przepleciony (`loadContext` / `normalizeBrief` + ich krawędzie od razu po węźle — `START` nie „w środku” sekcji krawędzi); od `ideationAgent` dalej katalog węzłów, potem krawędzie (rozjazdy i pętle nie da się uczciwie zapisać jako jednej sekwencji); (2) routing wyciągnięty do `routeAfterNormalizeBrief` i `routeAfterConsistencyVerifier` w tym samym pliku, wołanych z `addConditionalEdges`; (3) `CompileSocialGraphOptions` + `CompiledSocialGraph` zamiast inline `deps` i gołego zwrotu `compile()`.
+
+Zmiana względem: wcześniejszy szkic tego kroku (oraz mermaid w `docs/data_flow.md`) z `.addEdge('refineIdeas', 'ideationAgent')` i `.addEdge('refineContent', 'contentWriterAgent')`. Teraz: Refine* wraca do `consistencyVerifier`. Powód: węzły generatora z KROK 5 (WYKONANY) nadpisują `ideas` / `content` nowym hopem z briefu (bez zarzutów verifiera); verifier ma ocenić materiał po Refine*. Router `routeAfterConsistencyVerifier` bez zmian (`canRefine` → Refine*, limit → `failRun`).
 
 **Zakaz:** `compile({ checkpointer: ... })`. `interrupt()` z docs LangGraph wymaga checkpoinetera — poza zakresem (model B).
 
@@ -946,23 +981,32 @@ import {
   SOCIAL_RESULT_STORE,
   type SocialResultStore,
 } from '../domain/social-result.port';
-import type { SocialPipelineOutcome } from '../domain/social.types';
-import type { RunRecord } from '../../runs/domain/run.types';
-import { compileSocialGraph } from '../infrastructure/graph/social.graph';
+import {
+  CompiledSocialGraph,
+  compileSocialGraph,
+} from '../infrastructure/graph/social.graph';
 import { LlmHopService } from '../infrastructure/graph/llm-hop';
-import type { PipelinePhase } from '../domain/social.types';
+import { RunLifecycleService } from '../../runs/application/run-lifecycle.service';
+import type {
+  PipelinePhase,
+  SocialIdea,
+  SocialPipelineOutcome,
+} from '../domain/social.types';
+import type { RunRecord } from '../../runs/domain/run.types';
+import type { SocialGraphState } from '../infrastructure/graph/state';
 
 @Injectable()
 export class SocialPipelineFacade {
-  private readonly graph;
+  private readonly graph: CompiledSocialGraph;
 
   constructor(
     @Inject(COMPANY_CONTEXT_REPOSITORY)
     context: CompanyContextRepository,
     @Inject(SOCIAL_RESULT_STORE) store: SocialResultStore,
     hop: LlmHopService,
+    lifecycle: RunLifecycleService,
   ) {
-    this.graph = compileSocialGraph({ context, store, hop });
+    this.graph = compileSocialGraph({ context, store, hop, lifecycle });
   }
 
   async invokePhase(
@@ -971,7 +1015,7 @@ export class SocialPipelineFacade {
     extras: {
       ideasRefineCount: number;
       contentRefineCount: number;
-      ideas: Awaited<ReturnType<SocialResultStore['listIdeas']>>;
+      ideas: SocialIdea[];
     },
   ): Promise<SocialPipelineOutcome> {
     const final = await this.graph.invoke({
@@ -992,39 +1036,122 @@ export class SocialPipelineFacade {
       failedCode: null,
       failedMessage: null,
     });
+    return toOutcome(run, phase, final);
+  }
+}
 
-    if (final.failedCode) {
-      return {
-        kind: 'failed',
-        code: final.failedCode,
-        message: final.failedMessage ?? 'pipeline failed',
-        contextIssues: final.verdict?.contextIssues,
-        languageIssues: final.verdict?.languageIssues,
-      };
-    }
-
-    if (
-      phase === 'ideas' &&
-      run.taskType === 'post_ideas_then_content'
-    ) {
-      return { kind: 'awaiting_hitl', ideas: final.ideas };
-    }
-
+export function toOutcome(
+  run: Pick<RunRecord, 'taskType'>,
+  phase: PipelinePhase,
+  final: Pick<
+    SocialGraphState,
+    'failedCode' | 'failedMessage' | 'verdict' | 'ideas' | 'content'
+  >,
+): SocialPipelineOutcome {
+  if (final.failedCode) {
     return {
-      kind: 'completed',
-      ideas: final.ideas,
-      content: final.content,
+      kind: 'failed',
+      code: final.failedCode,
+      message: final.failedMessage ?? 'pipeline failed',
+      contextIssues: final.verdict?.contextIssues,
+      languageIssues: final.verdict?.languageIssues,
     };
   }
+  if (phase === 'ideas' && run.taskType === 'post_ideas_then_content') {
+    return { kind: 'awaiting_hitl', ideas: final.ideas };
+  }
+  return {
+    kind: 'completed',
+    ideas: final.ideas,
+    content: final.content,
+  };
 }
 ```
 
-**Test fasady:** fake compiled graph nie jest wymagany — wystarczy unit routera `canRefine` + test, że fasada przy `post_ideas_then_content` + `phase=ideas` + brak `failedCode` zwraca `awaiting_hitl` (wyciągnąć mapowanie wyniku do czystej funkcji `toOutcome(run, phase, final)` jeśli łatwiej testować bez `invoke`).
+#### Nowy plik — `apps/api/src/social/application/social-pipeline.facade.spec.ts`
+
+```typescript
+import type { SocialGraphState } from '../infrastructure/graph/state';
+import { toOutcome } from './social-pipeline.facade';
+
+const ideas = [{ id: 'idea_1', title: 'T1', angle: 'A1', hook: 'H1' }];
+
+function makeFinal(
+  overrides: Partial<
+    Pick<
+      SocialGraphState,
+      'failedCode' | 'failedMessage' | 'verdict' | 'ideas' | 'content'
+    >
+  > = {},
+) {
+  return {
+    failedCode: null,
+    failedMessage: null,
+    verdict: null,
+    ideas,
+    content: null,
+    ...overrides,
+  };
+}
+
+describe('toOutcome', () => {
+  it('returns awaiting_hitl for ideas phase of post_ideas_then_content', () => {
+    expect(
+      toOutcome({ taskType: 'post_ideas_then_content' }, 'ideas', makeFinal()),
+    ).toEqual({ kind: 'awaiting_hitl', ideas });
+  });
+
+  it('returns completed for post_ideas without HITL', () => {
+    expect(toOutcome({ taskType: 'post_ideas' }, 'ideas', makeFinal())).toEqual({
+      kind: 'completed',
+      ideas,
+      content: null,
+    });
+  });
+
+  it('returns completed for content phase after HITL', () => {
+    const content = { body: 'Post', hashtags: ['#acme'], cta: 'CTA' };
+    expect(
+      toOutcome(
+        { taskType: 'post_ideas_then_content' },
+        'content',
+        makeFinal({ content }),
+      ),
+    ).toEqual({ kind: 'completed', ideas, content });
+  });
+
+  it('returns failed when graph set failedCode, even if HITL would apply', () => {
+    expect(
+      toOutcome(
+        { taskType: 'post_ideas_then_content' },
+        'ideas',
+        makeFinal({
+          failedCode: 'VERIFIER_FAILED',
+          failedMessage: null,
+          verdict: {
+            ok: false,
+            contextIssues: ['off-brand CTA'],
+            languageIssues: ['grammar'],
+          },
+        }),
+      ),
+    ).toEqual({
+      kind: 'failed',
+      code: 'VERIFIER_FAILED',
+      message: 'pipeline failed',
+      contextIssues: ['off-brand CTA'],
+      languageIssues: ['grammar'],
+    });
+  });
+});
+```
 
 **DoD (krok):**
 
 - Controller nadal nie importuje `@langchain/langgraph`.
-- Stan grafu przez `StateSchema` + Zod 3, nie `Annotation.Root`.
+- Stan grafu przez `z.object` (Zod 3) → `new StateGraph(SocialState)`, nie `StateSchema`, nie `Annotation.Root`.
+- Prefiks `START → loadContext → normalizeBrief` przepleciony (`addNode` + `addEdge`); od `ideationAgent` katalog węzłów, potem krawędzie.
+- `addConditionalEdges` woła `routeAfterNormalizeBrief` / `routeAfterConsistencyVerifier` (ten sam plik, nie lambdy, nie klasa routera).
 - `compile()` bez checkpoinetera.
 - Fasada nie woła `transition` (to executor w KROK 9) — tylko zwraca `SocialPipelineOutcome`.
 

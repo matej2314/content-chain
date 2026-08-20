@@ -8,7 +8,7 @@ Opis orkiestracji i ruchu danych w MVP. Kontrakty HTTP/SSE: `dokumentacja_komuni
 - **LLM wyłącznie** przez `apps/ai-provider-gateway`.
 - **Korelacja runu agentowego:** jeden `RunId` + jeden `ConversationId`; `RequestId` HTTP z odpowiedzi `apps/api`; `RequestId` hopu LLM z odpowiedzi gateway (zapisywany w `run.log`).
 - **Live UI:** SSE; snapshot logów i health/metrics — GET (patrz komunikacja).
-- **Verifier:** węzeł `ConsistencyVerifier` — obowiązkowy; checklista: (1) kontekst firmy, (2) język (gramatyka, interpunkcja, składnia). Fail → Refine* z **`max N=2`**.
+- **Verifier:** węzeł `ConsistencyVerifier` — obowiązkowy; checklista: (1) kontekst firmy, (2) język (gramatyka, interpunkcja, składnia). Fail → Refine* z **`max N=2`**, potem z powrotem do **tego samego** `ConsistencyVerifier` (ocena poprawionego materiału). Nie wraca do `IdeationAgent` / `ContentWriterAgent`.
 
 ---
 
@@ -66,7 +66,7 @@ flowchart TB
   Norm --> Idea[IdeationAgent]
   Idea --> Ver[ConsistencyVerifier]
   Ver -->|fail i n less than max N| Ref[RefineIdeas]
-  Ref --> Idea
+  Ref --> Ver
   Ver -->|fail i n equals max N| Fail[status failed + SSE]
   Ver -->|ok| Pers[PersistIdeas]
   Pers --> Done[status completed + SSE]
@@ -83,7 +83,9 @@ flowchart TB
 
 Każdy hop LLM: body `conversationId` = run; po odpowiedzi gateway → wpis `run.log` z `requestId` gateway.
 
-Analogicznie **`post_content` (full-auto):** zamiast `IdeationAgent` / `RefineIdeas` → `ContentWriterAgent` / `RefineContent`; wejście zawiera wybrane / podane idea(e).
+Analogicznie **`post_content` (full-auto):** zamiast `IdeationAgent` / `RefineIdeas` → `ContentWriterAgent` / `RefineContent`; pętla refine tak samo wraca do `ConsistencyVerifier`. Wejście zawiera wybrane / podane idea(e).
+
+Zmiana względem: wcześniejszy mermaid `Ref --> Idea` (oraz analogicznie powrót `RefineContent` do `ContentWriterAgent`). Powód: węzły generatora piszą nowy output z briefu i nadpisywałyby wynik Refine*; verifier ma ocenić poprawiony materiał.
 
 ---
 
@@ -96,16 +98,22 @@ flowchart TB
   Load --> Norm[NormalizeBrief]
   Norm --> Idea[IdeationAgent]
   Idea --> VerI[ConsistencyVerifier ideas]
-  VerI -->|fail refine max 2| Idea
+  VerI -->|fail i n less than max N| RefI[RefineIdeas]
+  RefI --> VerI
+  VerI -->|fail i n equals max N| FailI[status failed + SSE]
   VerI -->|ok| Draft[PersistIdeasDraft]
   Draft --> Hitl[status awaiting_hitl + SSE run.hitl]
   Hitl --> User[POST .../hitl selectedIdeaIds]
   User --> Write[ContentWriterAgent]
   Write --> VerC[ConsistencyVerifier content]
-  VerC -->|fail refine max 2| Write
+  VerC -->|fail i n less than max N| RefC[RefineContent]
+  RefC --> VerC
+  VerC -->|fail i n equals max N| FailC[status failed + SSE]
   VerC -->|ok| Pers[PersistContent]
   Pers --> Done[completed + SSE]
 ```
+
+Zmiana względem: wcześniejszy mermaid skracał pętlę do `VerI -->|fail refine max 2| Idea` oraz `VerC -->|fail refine max 2| Write` (powrót do generatora, bez węzła Refine*). Teraz jak §3 i graf: Refine* → ten sam ConsistencyVerifier.
 
 HITL nie woła LLM; nowe `RequestId` pojawia się w odpowiedzi HTTP `.../hitl`. Po resume kolejne hopy LLM nadal z tym samym `ConversationId`.
 

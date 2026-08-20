@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md`, `content-chain_brief.md` (kontekst kolejności budowy).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — kolejny start: **Faza 4** / Milestone 4 (pipeline + Postman), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u.
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — kolejny start: **Faza 4** / Milestone 4 (pipeline + Postman), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, 5 i 6 oraz osiągnięciu Milestone 4–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -584,6 +584,52 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 
 ---
 
+## Faza 9 — Refaktor `apps/api`: Zod 4 (zbieżnie z gateway)
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Kiedy start:** **wyłącznie na końcu tego majoru** — po `WYKONANY` Fazy 4, 5 i 6 oraz `OSIĄGNIĘTY` Milestone 4, 5 i 6. Fazy 7 i 8 są już `WYKONANY`. Zakaz startu tej fazy w trakcie pipeline’u Social, auth albo fundamentu feedbacku.
+
+**Opis:** Refaktor względem: **Faza 1 / Krok 1.4** (`WYKONANY`) — Zod jako zależność walidacji application w `apps/api`; oraz świadomy pin **Zod 3** w `feature-plans/content-chain_feature_plan_faza-4-pipeline-social.md` (graf `z.object` / Interop Zod 3, **nie** Zod 4.x w tamtym wycinku). Cel: jedna linia Zod **4.4.x** w `apps/api` i `apps/ai-provider-gateway` (gateway ma `zod@^4.4.3`). Peer `@langchain/langgraph` (`zod@^3.25.32 || ^4.2.0`) obejmuje 4.4.x. Docs/SPEC wymagają Zod w application, **bez** pinu major — `packages/shared` nadal bez Zod.
+
+**Poza zakresem tej fazy:** migracja grafu Social na `StateSchema` LangGraph (osobna decyzja po zielonym Zod 4); zmiana kontraktu HTTP; Zod w `packages/shared`.
+
+**Bez MILESTONE 9** — ujednolicenie zależności, nie skok produktowy.
+
+**DoD (faza):**
+
+- `apps/api` zależy od `zod@^4.4.x` (ta sama linia co gateway).
+- Schemy application / env / structured output LLM kompilują się i zachowują semantykę S-3 (porażka parse ≠ cichy tekst).
+- `pnpm --filter api test` oraz istniejące e2e api przechodzą (w tym walidacja env i komend).
+- Graf Social nadal działa (`z.object` albo późniejszy `StateSchema` — nie wymóg tej fazy).
+- Brak Zod w `packages/shared`.
+
+### Krok 9.1 — Bump Zod w api i korekta typów / schematów
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Podnieść `apps/api` do `zod@^4.4.x`. Dostosować API Zod 3→4 w plikach, które importują `zod` (m.in. `env.schema.ts`, `parse-with-zod.ts`, `parse-llm-json.ts`, `run.schemas.ts`, `social.schemas.ts`, stan grafu). Wzorzec użycia: `apps/ai-provider-gateway`.
+
+**DoD (krok):**
+
+- `apps/api/package.json` + lockfile: Zod 4.4.x; brak Zod 3 w drzewie api.
+- TypeScript api kompiluje się (m.in. `ZodTypeAny` / kody `addIssue`).
+- `validateEnv` i parse komend / LLM nadal rzucają te same kody domenowe (`VALIDATION_FAILED`, `STRUCTURED_OUTPUT_INVALID`).
+
+### Krok 9.2 — Testy regresji walidacji
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Zielone testy po bumpie — w szczególności `.default([])` vs `null` w structured output oraz `env.schema` (`CORS_ORIGIN` w production).
+
+**DoD (krok):**
+
+- Unit schematów Social / Runs / env przechodzą na Zod 4.
+- E2E api, które polegają na walidacji Zod, bez regresji.
+- Gateway pozostaje na swojej 4.4.x bez zmian w tej fazie (chyba że lockfile workspace wymaga spójnego bumpa — bez obniżania gateway do 3).
+
+---
+
 ## Mapa odwołań (lekka)
 
 | Obszar | Docs / SPEC |
@@ -598,5 +644,6 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 | Runy / logi / listing / przegląd (ocena, edycja) / `interrupted` / cykl życia SSE | `SPEC-RUNY.md` (w tym R-4a), `SPEC-KOMUNIKACJA.md` (K-3a, K-3b), `docs/observability.md`, `docs/data_flow.md` (recovery), `docs/dokumentacja_komunikacji.md` |
 | Opinie tekstowe | `SPEC-FEEDBACK.md` |
 | Social | `SPEC-SOCIAL.md`, `docs/data_flow.md` |
+| Zod (api vs gateway) | `SPEC-KOMUNIKACJA.md` (Zod w application, bez pinu major); Faza 9 — `zod@^4.4.x` w `apps/api` jak `apps/ai-provider-gateway` |
 | Auth | `SPEC-AUTH.md` |
 | Kolejność budowy | `docs/dokumentacja_koncepcyjna.md`, `content-chain_brief.md` |

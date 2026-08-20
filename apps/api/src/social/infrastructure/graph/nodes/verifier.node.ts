@@ -8,7 +8,7 @@ import type { VerifierVerdict } from '../../../domain/social.types';
 
 export function createVerifierNode(
   hop: LlmHopService,
-  lifeCycle: RunLifecycleService,
+  appendLog: RunLifecycleService['appendLog'],
 ) {
   const template = loadPrompt('verifier.prompt.md');
   return async (
@@ -33,7 +33,7 @@ export function createVerifierNode(
     };
 
     if (!verdict.ok) {
-      await lifeCycle.appendLog({
+      await appendLog({
         runId: state.runId,
         conversationId: state.conversationId,
         level: 'warn',
