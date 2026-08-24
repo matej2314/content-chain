@@ -1,6 +1,8 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+overrides:
+  '@prisma/config>deepmerge-ts': 8.0.0
 allowBuilds:
   '@google/genai': false
   '@prisma/client': true
