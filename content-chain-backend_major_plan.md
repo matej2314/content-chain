@@ -305,6 +305,67 @@
 - `post_ideas_then_content` pauzuje na HITL, wznawia po wyborze i kończy treścią w DB.
 - Scenariusze da się powtórzyć przez klienta HTTP (Postman) bez frontendu produktowego.
 
+### Krok 4.4 — Korekty implementacyjne: `startedBy` w snapshotcie i `resolvePhase` z DB
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Dwa punkty naprawcze zidentyfikowane w przeglądzie architektonicznym planu Fazy 4 (feature plan KROK 8 i KROK 9).
+
+**1. `startedBy` w snapshotcie `GET /runs/:runId` — Opcja A**
+
+Refaktor względem: Krok 3.2 (`WYKONANY`) — `RunRecord` posiada `startedByUserId: UserId | null`, bez pola `startedBy` jako obiektu. Refaktor `GetRunUseCase` z KROK 8 feature planu zawiera linię `startedBy: run.startedBy`, która zwróciłaby `undefined` w runtime (pole nie istnieje w `RunRecord`).
+
+Korekta: mapowanie bezpośrednio z `startedByUserId`:
+
+```typescript
+startedBy: run.startedByUserId ?? null,
+```
+
+Snapshot zwraca `string | null` (surowe UserId lub brak inicjatora). Wzbogacenie do `{ id, email }` — dopiero Faza 5 / Krok 5.2, po domknięciu auth i dołączeniu User do odczytu RunRepository.
+
+**2. `resolvePhase` z odczytem `pipelinePhase` z DB jako aktywny fallback**
+
+Refaktor względem: feature plan KROK 9 (`SocialRunExecutor.resolvePhase`) — metoda derywuje fazę wyłącznie z `taskType` + `selectedIdeaIds`, ignorując pole `pipelinePhase` zapisane przez `savePipelineState` przed `facade.invokePhase`. Kolumna była write-only (obserwability); po korekcie staje się aktywnym fallbackiem recovery.
+
+Korekta: `resolvePhase` przyjmuje `storedPhase: PipelinePhase | null` z `getPipelineState()` i używa go w pierwszej kolejności:
+
+```typescript
+private resolvePhase(run: RunRecord, storedPhase: PipelinePhase | null): PipelinePhase {
+  if (storedPhase) return storedPhase;
+  if (run.taskType === 'post_content') return 'content';
+  if (
+    run.taskType === 'post_ideas_then_content' &&
+    run.selectedIdeaIds &&
+    run.selectedIdeaIds.length > 0
+  ) {
+    return 'content';
+  }
+  return 'ideas';
+}
+```
+
+Wywołanie w `execute`: `this.resolvePhase(run, pipeline.phase)` (gdzie `pipeline` pochodzi z `getPipelineState()`). Dla obecnych `taskType` wynik jest identyczny z poprzednią logiką, więc brak regresji. Kolumna `pipelinePhase` zapisana przed `invoke` jest aktywna w ścieżce recovery przy typach zadań dodanych w przyszłości.
+
+**3. `ContentWriterAgent` dla `post_content` bez uprzedniego ideation (Opcja B)**
+
+Refaktor względem: Krok 4.1 (`NIE_ROZPOCZĘTY`) / feature plan KROK 5 (`WYKONANY`) — `content-writer.node.ts` przekazuje surowe `[]` do promptu gdy `post_content` startuje bez wcześniejszego ideation. LLM dostaje sprzeczny sygnał: instrukcja „na podstawie wybranych pomysłów" + pusta lista.
+
+Korekta (dwa artefakty):
+
+- **`content-writer.node.ts`** — gdy `ideas.length === 0`, zamiast `JSON.stringify([])` przekazuje eksplicytny komunikat: `'[] — brak wybranych pomysłów; generuj post wyłącznie z brief.topic, brief.goal i kontekstu firmy'`
+- **`content-writer.prompt.md`** — sekcja `## Zadanie` opisuje obie ścieżki: z pomysłami (zrealizuj hook/angle/title) i bez pomysłów (generuj z brief.topic i kontekstu); usuwa domyślne założenie o niepustej liście
+
+Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pomysł lub temat: [hook + opis LUB sam temat w zdaniu]" — brief bez pomysłu był zawsze poprawnym wejściem dla `post_content`.
+
+**DoD (krok):**
+
+- `GetRunUseCase` zwraca `startedBy: run.startedByUserId ?? null`; TypeScript kompiluje się bez błędów na tym polu.
+- `SocialRunExecutor.resolvePhase` przyjmuje `storedPhase: PipelinePhase | null` i używa go jako pierwszeństwo przed logiką `taskType`/`selectedIdeaIds`.
+- Wywołanie `resolvePhase(run, pipeline.phase)` jest aktualne w metodzie `execute`.
+- `content-writer.node.ts` przekazuje eksplicytny string instrukcji gdy `ideas.length === 0`; JSON gdy niepuste.
+- `content-writer.prompt.md` opisuje obie ścieżki bez ambigwitu.
+- Testy D-4..D-10 oraz D-14 nie psują się po wszystkich zmianach; dodany unit test węzła dla przypadku `ideas = []`.
+
 ---
 
 ## MILESTONE 4 — Zielony pipeline SM (dowód pośredni Postman)

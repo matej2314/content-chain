@@ -1159,6 +1159,68 @@ describe('toOutcome', () => {
 
 
 
+### KROK 6a — Korekta: ContentWriterAgent dla `post_content` bez ideas (Opcja B)
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Cel:** Usunięcie ciszy / nieokreślonego zachowania LLM gdy `post_content` startuje bez uprzedniego ideation (pusty `ideas: []` w stanie grafu). Refaktor względem: KROK 5 (`WYKONANY`) — `content-writer.node.ts` zawsze serializuje `state.ideas` do JSON, niezależnie od tego czy lista jest pusta.
+
+**Artefakty (zmiana):**
+
+- Zmiana: `apps/api/src/social/infrastructure/graph/nodes/content-writer.node.ts`
+- Zmiana: `apps/api/src/social/infrastructure/prompts/content-writer.prompt.md`
+
+#### Refaktor — `content-writer.node.ts`
+
+**Teraz (fragment):**
+
+```typescript
+      ideas: JSON.stringify(ideas),
+```
+
+**Zamień na:**
+
+```typescript
+      ideas:
+        ideas.length > 0
+          ? JSON.stringify(ideas)
+          : '[] — brak wybranych pomysłów; generuj post wyłącznie z brief.topic, brief.goal i kontekstu firmy',
+```
+
+Zmiana względem: KROK 5 (`WYKONANY`) — węzeł przekazywał surowe `[]` bez instrukcji dla LLM. Pusty string JSON jest technicznie poprawny, ale LLM dostaje sprzeczny sygnał: instrukcja mówi „na podstawie wybranych pomysłów", a dane są puste. Opcja B: eksplicytny, czytelny komunikat w danych zamiast warunkowej logiki w promptcie. Brak zmian w `renderPrompt`; brak nowych szablonów.
+
+#### Refaktor — `content-writer.prompt.md` (sekcja `## Zadanie`)
+
+**Teraz:**
+
+```
+Napisz JEDEN post na podstawie wybranych pomysłów i briefu.
+- Jeśli jest jeden pomysł — zrealizuj jego `hook` / `angle` / `title`.
+- Jeśli jest kilka — scal w jedną spójną myśl (jedna myśl na post). Nie pisz serii postów ani wariantów.
+```
+
+**Zamień na:**
+
+```
+Napisz JEDEN post na podstawie briefu i kontekstu firmy.
+- Jeśli pole `ideas` zawiera pomysły — zrealizuj ich `hook` / `angle` / `title` (jeden lub scalone w jedną myśl).
+- Jeśli pole `ideas` jest puste (brak wybranych pomysłów) — generuj post wyłącznie z `brief.topic` i `brief.goal` jako kierunku treści. Nie wymyślaj dodatkowych angle'ów spoza briefu i kontekstu.
+- Jedna myśl na post. Nie pisz serii postów ani wariantów.
+```
+
+Zmiana względem: KROK 3 (`WYKONANY`) — prompt zakładał zawsze niepuste `ideas`. Nowe brzmienie usuwa założenie o niepustej liście i jawnie opisuje obie ścieżki.
+
+**DoD (krok):**
+
+- Węzeł `content-writer.node.ts` przekazuje eksplicytny string instrukcji gdy `ideas.length === 0`; przekazuje `JSON.stringify(ideas)` gdy niepuste.
+- Prompt `content-writer.prompt.md` opisuje obie ścieżki (z pomysłami / bez pomysłów) bez ambigwitu.
+- Unit test węzła: gdy `state.ideas = []`, zmienna `ideas` w renderze promptu zawiera string z „brak wybranych pomysłów"; gdy `state.ideas` niepuste — poprawny JSON.
+- Istniejące testy KROK 5 / KROK 10 (D-4, D-5) nie psują się.
+
+---
+
+
+
 ### KROK 7 — Persistence Prisma: wyniki SM + stan fazy
 
 **Status:** `NIE_ROZPOCZĘTY`
@@ -1393,7 +1455,7 @@ Po `publish` `run.status`, gdy `to === 'awaiting_hitl'`:
       status: run.status,
       conversationId: run.conversationId,
       createdAt: run.createdAt.toISOString(),
-      startedBy: run.startedBy,
+      startedBy: run.startedByUserId ?? null,
       result: {
         ideas,
         content: stored?.content ?? null,
@@ -1402,11 +1464,14 @@ Po `publish` `run.status`, gdy `to === 'awaiting_hitl'`:
     };
 ```
 
+Zmiana względem: wcześniejszy szkic tego kroku z `startedBy: run.startedBy`. Powód: `RunRecord` (Krok 3.2 — `WYKONANY`) posiada `startedByUserId: UserId | null`, nie pole `startedBy` — odwołanie do nieistniejącego pola zwróciłoby `undefined` w runtime. Opcja A: mapowanie bezpośrednio z `startedByUserId`. Wzbogacenie do `{ id, email }` — Faza 5 / Krok 5.2, po domknięciu auth i dołączeniu User do odczytu `RunRepository`.
+
 **DoD (krok):**
 
 - `GET /runs/:id` przy `awaiting_hitl` ma niepusty `hitl.options` i `result.ideas`.
 - `interrupted` → `hitl: null` (docs).
 - Unit lifecycle: `run.hitl` emitowany; `complete` nie.
+- Pole `startedBy` w odpowiedzi ma typ `string | null` (surowe UserId lub brak inicjatora); TypeScript kompiluje się bez błędów.
 
 ---
 
@@ -1467,7 +1532,7 @@ export class SocialRunExecutor implements RunExecutorPort {
       return;
     }
 
-    const phase = this.resolvePhase(run);
+    const phase = this.resolvePhase(run, pipeline.phase);
     await this.store.savePipelineState(run.id, {
       phase,
       ideasRefineCount: pipeline.ideasRefineCount,
@@ -1515,7 +1580,8 @@ export class SocialRunExecutor implements RunExecutorPort {
     }
   }
 
-  private resolvePhase(run: RunRecord): PipelinePhase {
+  private resolvePhase(run: RunRecord, storedPhase: PipelinePhase | null): PipelinePhase {
+    if (storedPhase) return storedPhase;
     if (run.taskType === 'post_content') return 'content';
     if (
       run.taskType === 'post_ideas_then_content' &&
@@ -1529,9 +1595,12 @@ export class SocialRunExecutor implements RunExecutorPort {
 }
 ```
 
-Reguły fazy:
+Zmiana względem: wcześniejszy szkic `resolvePhase(run: RunRecord)` bez parametru `storedPhase`. Powód: kolumna `pipelinePhase` na `Run` (KROK 7) jest zapisywana przez `savePipelineState` przed `facade.invokePhase`, ale nie była odczytywana w recovery — pełniła wyłącznie rolę observability. Po korekcie: `storedPhase` (z `getPipelineState().phase`) staje się pierwszeństwem w rozwiązaniu fazy; dla istniejących `taskType` wynik jest identyczny z poprzednią logiką (bez regresji). Kolumna staje się aktywnym fallbackiem przy typach zadań niejednoznacznych bez pełnego stanu `RunRecord`.
 
-- `post_ideas` → zawsze `ideas`
+Reguły fazy (po korekcie):
+
+- `storedPhase` niepuste → zawsze ta wartość (fallback z DB; priorytet przed poniższymi regułami)
+- `post_ideas` → `ideas`
 - `post_content` → `content`
 - `then_content` + `selectedIdeaIds.length ≥ 1` → `content` (po HITL albo start z wyborem)
 - `then_content` + pomysły w DB bez wyboru → **wczesny return** `awaiting_hitl` (recovery po crashu między persist a transition)
@@ -1616,6 +1685,7 @@ Worker przy catch nadal oznacza `failed`, jeśli executor rzuci **zanim** sam zr
 - Refine ≤ 2, potem `failed` z powodem kontekst i/lub język.
 - Crash przy `running` → Faza 7 recovery; kolejny `execute` wznawia fazę z DB, nie checkpoinera.
 - `awaiting_hitl` po restarcie zostaje (nie `interrupted`).
+- `resolvePhase` przyjmuje `storedPhase: PipelinePhase | null`; przy niepustej wartości zwraca ją bez sprawdzania `taskType`/`selectedIdeaIds`.
 
 ---
 
