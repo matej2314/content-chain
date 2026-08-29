@@ -309,7 +309,7 @@
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Dwa punkty naprawcze zidentyfikowane w przeglądzie architektonicznym planu Fazy 4 (feature plan KROK 8 i KROK 9).
+**Opis:** Trzy punkty naprawcze zidentyfikowane w przeglądzie architektonicznym planu Fazy 4 (feature plan KROK 6a, KROK 8 i KROK 9).
 
 **1. `startedBy` w snapshotcie `GET /runs/:runId` — Opcja A**
 
