@@ -25,7 +25,10 @@ export function createContentWriterNode(hop: LlmHopService) {
         platform: state.platform,
         company: JSON.stringify(state.company),
         brief: JSON.stringify(state.brief),
-        ideas: JSON.stringify(ideas),
+        ideas:
+          ideas.length > 0
+            ? JSON.stringify(ideas)
+            : '[] - brak wybranych pomysłów; generuj post wyłącznie z brief.topic, brief.goal i kontekstu firmy',
       }),
     });
 

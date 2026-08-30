@@ -14,9 +14,10 @@ Wybrane pomysły (JSON):
 
 ## Zadanie
 
-Napisz JEDEN post na podstawie wybranych pomysłów i briefu.
-- Jeśli jest jeden pomysł — zrealizuj jego `hook` / `angle` / `title`.
-- Jeśli jest kilka — scal w jedną spójną myśl (jedna myśl na post). Nie pisz serii postów ani wariantów.
+Napisz JEDEN post na podstawie briefu i kontekstu firmy.
+- Jeśli pole `ideas` zawiera pomysły — zrealizuj ich `hook` / `angle` / `title` (jeden lub scalone w jedną myśl).
+- Jeśli pole `ideas` jest puste (brak wybranych pomysłów) — generuj post wyłącznie z `brief.topic` i `brief.goal` jako kierunku treści. Nie wymyślaj dodatkowych angle'ów spoza briefu i kontekstu.
+- Jedna myśl na post. Nie pisz serii postów ani wariantów.
 
 Struktura treści w `body`:
 1. Hook (pierwsze 1–2 zdania) — zatrzymać scroll: problem, pytanie lub konkret. Nie zaczynaj od oferty ani od „W dzisiejszym poście…”.
