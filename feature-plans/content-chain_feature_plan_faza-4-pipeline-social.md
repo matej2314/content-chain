@@ -1426,7 +1426,7 @@ Token **nie** trafia do `packages/shared`. Provider: `{ provide: RUN_LIFECYCLE, 
 
 ### KROK 8 — GET snapshot `result`/`hitl` + SSE `run.hitl`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Kontrakt `docs/dokumentacja_komunikacji.md`. Social nie emituje SSE z węzłów (R-4) — tylko lifecycle. Odczyt `result`/`hitl` przez **port** (`SPEC-KOMUNIKACJA.md`, `SPEC-RUNY.md`) — nie przez import `SocialModule` z `RunsModule`.
 

@@ -10,6 +10,7 @@ export type TransitionExtras = {
   resultSummary?: string;
   failedCode?: string;
   failedMessage?: string;
+  hitlOptions?: unknown[];
 };
 
 @Injectable()
@@ -30,6 +31,12 @@ export class RunLifecycleService implements RunLifecyclePort {
       event: 'run.status',
       data: { runId: run.id, status: to },
     });
+    if (to === 'awaiting_hitl') {
+      this.sseHub.publish({
+        event: 'run.hitl',
+        data: { runId: run.id, options: extras?.hitlOptions ?? [] },
+      });
+    }
     if (to === 'completed') {
       this.sseHub.publish({
         event: 'run.completed',

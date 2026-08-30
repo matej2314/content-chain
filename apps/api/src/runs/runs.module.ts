@@ -12,6 +12,8 @@ import { RUN_EXECUTOR } from './domain/run-executor.port';
 import { RUN_REPOSITORY } from './domain/run.port';
 import { RUN_SSE_HUB } from './domain/run-sse.port';
 import { RUN_LIFECYCLE } from './domain/run-lifecycle.port';
+import { RUN_RESULT_READER } from './domain/run-result-reader.port';
+import { EmptyRunResultReader } from './infrastructure/empty-run-result.reader';
 import { PrismaRunAdapter } from './infrastructure/prisma-run.adapter';
 import { InMemoryRunSseHub } from './infrastructure/run-sse.hub';
 import { StubRunExecutor } from './infrastructure/stub-run.executor';
@@ -24,6 +26,7 @@ import { RunsController } from './runs.controller';
     { provide: RUN_REPOSITORY, useClass: PrismaRunAdapter },
     { provide: RUN_SSE_HUB, useClass: InMemoryRunSseHub },
     { provide: RUN_EXECUTOR, useClass: StubRunExecutor },
+    { provide: RUN_RESULT_READER, useClass: EmptyRunResultReader },
     RunLifecycleService,
     { provide: RUN_LIFECYCLE, useExisting: RunLifecycleService },
     RecoverInterruptedRunsUseCase,

@@ -72,6 +72,24 @@ describe('RunLifecycleService', () => {
     expect(sseHub.complete).toHaveBeenCalledWith(run.id);
   });
 
+  it('publishes run.hitl on awaiting_hitl and does not complete', async () => {
+    const { sseHub, service } = setup();
+    const run = makeRun('running');
+    const options = [{ id: 'idea_1', title: 'T1', angle: 'A1', hook: 'H1' }];
+
+    await service.transition(run, 'awaiting_hitl', { hitlOptions: options });
+
+    expect(sseHub.publish).toHaveBeenCalledWith({
+      event: 'run.status',
+      data: { runId: run.id, status: 'awaiting_hitl' },
+    });
+    expect(sseHub.publish).toHaveBeenCalledWith({
+      event: 'run.hitl',
+      data: { runId: run.id, options },
+    });
+    expect(sseHub.complete).not.toHaveBeenCalled();
+  });
+
   it('does not complete on awaiting_hitl or interrupted', async () => {
     const hitl = setup();
     await hitl.service.transition(makeRun('running'), 'awaiting_hitl');
