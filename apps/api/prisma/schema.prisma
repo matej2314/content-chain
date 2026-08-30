@@ -44,22 +44,25 @@ model CompanyContext {
 }
 
 model Run {
-  id               String           @id
-  conversationId   String
-  taskType         String
-  platform         String
-  language         String
-  status           String
-  brief            Json
-  selectedIdeaIds  Json?
-  startedByUserId  String?
-  recoveryAttempts Int              @default(0)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  startedBy        User?            @relation("RunStartedBy", fields: [startedByUserId], references: [id])
-  logs             RunLog[]
-  ideas            SocialIdea[]
-  contents         SocialContent[]
+  id                 String          @id
+  conversationId     String
+  taskType           String
+  platform           String
+  language           String
+  status             String
+  brief              Json
+  selectedIdeaIds    Json?
+  startedByUserId    String?
+  pipelinePhase      String?
+  ideasRefineCount   Int             @default(0)
+  contentRefineCount Int             @default(0)
+  recoveryAttempts   Int             @default(0)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  startedBy          User?           @relation("RunStartedBy", fields: [startedByUserId], references: [id])
+  logs               RunLog[]
+  ideas              SocialIdea[]
+  contents           SocialContent[]
 
   @@index([createdAt])
   @@index([status])

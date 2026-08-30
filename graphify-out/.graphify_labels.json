@@ -133,9 +133,5 @@
   "131": "config-validator.ts",
   "132": "GatewayCommand",
   "133": "provider-base-url.validation.ts",
-  "134": "openai-chat-completion-request.dto.ts",
-  "135": "rate-limit.module.ts",
-  "136": ".constructor",
-  "137": ".execute",
-  "138": "ParseRunIdPipe"
+  "135": "rate-limit.module.ts"
 }

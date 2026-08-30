@@ -29,6 +29,7 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | Mapa Subject SSE per `runId` bez `complete` / evikcji po terminalu | Wyciek pamięci przez życie procesu; wiszące sockety | Po `completed`/`failed`: complete Observable + usunięcie wpisu; late-join na skończonym runie też kończy stream (`dokumentacja_komunikacji.md`) |
 | Nieskończona pętla refine | Koszt LLM, zawieszony run | Twardy limit `max N=2` |
 | Osobne „mikroserwisy agentów” w MVP | Overengineering względem modularnego monolitu | Węzły w jednym grafie w `apps/api` |
+| `forwardRef` Runs ↔ Social (albo `RunsModule` importuje każdy graf) jako klej pipeline’u | Cykl Nest; orkiestrator zna katalog agentów; V1 (poczta, pliki) mnoży pętle | Graf woła port lifecycle Runs; `RUN_EXECUTOR` wiązany w `AppModule` / `registerAsync`; bez self-register w MVP |
 
 ---
 

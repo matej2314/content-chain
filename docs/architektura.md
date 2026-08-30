@@ -75,7 +75,21 @@ Wszystkie bounded contexty w `apps/api` stosują ten sam wzorzec warstw (cienki 
 | **Runs / Logs**     | Cykl życia async runu, statusy, czytelne logi powiązane z `runId`                    | DB = źródło prawdy dla logów widocznych w UI; stdout = ops; ocena gwiazdkowa + flaga edycji outputu + zamknięcie przeglądu — metadane runu (nie graf) |
 | **Feedback**        | Opinie tekstowe o aplikacji / agencie / runie (append-only)                           | Zapis w DB; odczyt analityczny / panel admina = **V1 — rozbudowa**; nie w LangGraph |
 
-Rozszerzenia o kolejnych agentów (poczta, dokumenty, rolki itd.) — **V1 — rozbudowa** / później (poza MVP); architektura zakłada dodawanie kolejnych contextów / grafów bez rozbijania monorepo na mikroserwisy. Przy wejściu w V1 — rozbudowę: **cutover persistence na PostgreSQL** (`spec/SPEC-PERSISTENCE.md`).
+Rozszerzenia o kolejnych agentów (poczta, dokumenty, rolki itd.) — **V1 — rozbudowa** / później (poza MVP); architektura zakłada dodawanie kolejnych contextów / grafów bez rozbijania monorepo na mikroserwisy i **bez złączania** katalogów grafu z BC Runs. Przy wejściu w V1 — rozbudowę: **cutover persistence na PostgreSQL** (`spec/SPEC-PERSISTENCE.md`).
+
+### Zależności między BC w `apps/api`
+
+Runs jest orkiestratorem **procesu** (kolejka, statusy, logi, SSE, recovery). Social (i przyszłe grafy: poczta, pliki) jest orkiestratorem **treści** swojego kanału.
+
+Kierunek współpracy:
+
+- Graf agenta **woła porty Runs** (`appendLog`, `transition`) — bez omijania cyklu życia runu i bez emisji SSE z węzłów.
+- Worker Runs woła jeden port `RunExecutorPort` („wykonaj ten run”). Implementacja portu żyje w BC grafu (w MVP: Social).
+- **Spięcie** tokenu executora z konkretną klasą należy do **kleju procesu** (`AppModule` / `registerAsync`) — nie do wzajemnego importu modułów Nest (`forwardRef` Runs ↔ Social).
+- V1: nowy folder BC + nowy wpis w kleju. Runs **nie** importuje `SocialModule` ani przyszłego `MailModule`.
+- Self-register grafów (`OnModuleInit` do rejestru) **nie** jest wzorcem MVP — jeden executor Social wpinany ręcznie w kleju; rejestr przy wielu grafach to decyzja V1.
+
+Zlewanie `social/` z `runs/` w jeden moduł Nest jest odrzucone: izolacja katalogu grafu ma umożliwić kolejne agenty bez przebudowy orkiestratora.
 
 ## Warstwy w `apps/api` (NestJS)
 
@@ -102,7 +116,7 @@ flowchart TB
 - **Ports / adapters:** Prisma + **SQLite w MVP** (ORM tylko w infrastructure); klient HTTP (lub równoważny) do gateway jako adapter portu LLM. PostgreSQL — od fazy **V1 — rozbudowa**.
 - **Cross-cutting w `apps/api` (MVP):** `@nestjs/config` (env), **Pino** / `nestjs-pino` (logi procesu — `observability.md`), DX OpenAPI **Swagger UI pod `/docs`** (poza prefiksem produktowym `/api/v1`; szczegóły `dokumentacja_komunikacji.md`). Walidacja HTTP: class-validator; application: Zod — `SPEC-KOMUNIKACJA.md`.
 
-**Anty-patterny do unikania:** reguły biznesowe w controllerze; bezpośrednie wywołania vendorów LLM z `apps/api`; logika SM w `apps/frontend` lub w gateway; synchroniczne blokowanie HTTP na cały długi run LLM; montowanie Swagger pod `/api` (kolizja z `/api/v1`).
+**Anty-patterny do unikania:** reguły biznesowe w controllerze; bezpośrednie wywołania vendorów LLM z `apps/api`; logika SM w `apps/frontend` lub w gateway; synchroniczne blokowanie HTTP na cały długi run LLM; montowanie Swagger pod `/api` (kolizja z `/api/v1`); wzajemny `forwardRef` między modułami Nest BC Runs i Social (albo import `SocialModule` z `RunsModule`) jako klej pipeline’u.
 
 ## Async run i HITL
 
@@ -160,6 +174,7 @@ Norma egzekwowalna: `spec/SPEC-PERSISTENCE.md`.
 | Layout monorepo | `apps/*` + `packages/shared` w rootcie          | Rootowy `src/apps/` (porzucone)                |
 | Shared          | `packages/shared` typy/enumy/brand (**bez Zod**) | Duplikacja DTO; Zod/runtime w shared           |
 | Feedback        | Osobny BC + tabela opinii; ocena/edycja na Run   | Feedback w LangGraph; panel admina w MVP       |
+| Zależności Nest BC | Social → porty lifecycle Runs; `RUN_EXECUTOR` w kleju (`AppModule` / `registerAsync`) | `forwardRef` Runs ↔ Social; zlewanie `social/` z `runs/`; self-register grafów w MVP |
 
 ## Poza zakresem tego dokumentu
 

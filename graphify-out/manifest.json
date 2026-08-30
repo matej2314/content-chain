@@ -1490,8 +1490,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/runs.module.ts": {
-    "mtime": 1787074629.6188838,
-    "ast_hash": "e59b3472f49d2973f7cfcd3f01e20b57",
+    "mtime": 1788087600.306709,
+    "ast_hash": "8c10ac1dd707ac8dae2ebc5e6d03391d",
     "semantic_hash": ""
   },
   "apps/api/src/social/social.controller.ts": {
@@ -1500,8 +1500,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/social/social.module.ts": {
-    "mtime": 1786560180.8142476,
-    "ast_hash": "ad18b018d200cdfac717a3b619ba5d9a",
+    "mtime": 1788087600.3308764,
+    "ast_hash": "5d5e534029095b106e7768e517c19c0b",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/layout.tsx": {
@@ -1695,8 +1695,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/start-run.use-case.ts": {
-    "mtime": 1787074629.682408,
-    "ast_hash": "12a8461228f04d2993ab1bb18a9acc6d",
+    "mtime": 1788087319.7141502,
+    "ast_hash": "d6ed075f975294c23050a3b6d7938448",
     "semantic_hash": ""
   },
   "apps/api/src/runs/domain/is-retryable.ts": {
@@ -1720,8 +1720,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/domain/run.types.ts": {
-    "mtime": 1786957455.5812047,
-    "ast_hash": "88bf67cebcb7ea14ddd79b6c09773874",
+    "mtime": 1788085607.1861842,
+    "ast_hash": "2af53ffcafb78e6dd1a9b5556c34d7f9",
     "semantic_hash": ""
   },
   "apps/api/src/runs/domain/status-transitions.ts": {
@@ -1730,8 +1730,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/infrastructure/prisma-run.adapter.ts": {
-    "mtime": 1787079302.5140219,
-    "ast_hash": "3061e55d921f141dd2935113178389b5",
+    "mtime": 1788087600.237169,
+    "ast_hash": "8fa4b20103fb3ec54fb72c862aa18622",
     "semantic_hash": ""
   },
   "apps/api/src/runs/infrastructure/run-sse.hub.ts": {
@@ -2207,6 +2207,11 @@
   "apps/api/src/social/infrastructure/graph/social.graph.ts": {
     "mtime": 1787237863.1438923,
     "ast_hash": "adce44997a6801204db8aa4d0a77d7ab",
+    "semantic_hash": ""
+  },
+  "apps/api/src/social/infrastructure/persistence/prisma-social-result.adapter.ts": {
+    "mtime": 1788087600.541835,
+    "ast_hash": "a7084079deac466dc9c1b3d6a5f7a9a7",
     "semantic_hash": ""
   }
 }

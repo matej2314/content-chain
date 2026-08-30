@@ -1,9 +1,9 @@
 # Content Chain — feature plan: pipeline Social (ideas / content)
 
 **Lokalizacja:** `feature-plans/content-chain_feature_plan_faza-4-pipeline-social.md`  
-**Kotwica major:** Faza 4 (kroki 4.1–4.3) + MILESTONE 4.  
+**Kotwica major:** Faza 4 (kroki 4.1–4.3, 4.5) + MILESTONE 4.  
 **Źródła:** `docs/data_flow.md`, `docs/dokumentacja_komunikacji.md`, `docs/architektura.md`, `docs/architektura_katalogi_pliki.md`, `docs/brand_types.md`, `SPEC-SOCIAL.md`, `SPEC-RUNY.md` (R-4, R-6, R-9), `SPEC-KOMUNIKACJA.md` (K-5, K-7), `SPEC-PERSISTENCE.md` (P-1, P-4, P-7), `SPEC-TESTY.md` (D-4…D-8).  
-**Kolejność** `KROK` **w tym pliku ≠ etykietom major 4.1 / 4.2 / 4.3** — pass rozwojowy: porty → Zod → prompty → zależności → węzły → graf → Prisma → snapshot/SSE → executor → testy → Postman.
+**Kolejność** `KROK` **w tym pliku ≠ etykietom major 4.1 / 4.2 / 4.3 / 4.5** — pass rozwojowy: porty → Zod → prompty → zależności → węzły → graf → Prisma → **granice Nest (7b)** → snapshot/SSE → executor w kleju → testy → Postman.
 
 **Statusy kroków feature:** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`
 
@@ -17,9 +17,9 @@
 | Pole                             | Wartość                                                                                                                                                                                          |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Wycinek                          | Cała Faza 4 majoru + dowód Milestone 4 (Postman, obie ścieżki)                                                                                                                                   |
-| Major                            | Faza 4 / 4.1–4.3; start po Fazie 7 i Fazie 8 (`WYKONANY`) oraz Milestone 3 (`OSIĄGNIĘTY`)                                                                                                        |
+| Major                            | Faza 4 / 4.1–4.3 + 4.5; start po Fazie 7 i Fazie 8 (`WYKONANY`) oraz Milestone 3 (`OSIĄGNIĘTY`)                                                                                                        |
 | Poza zakresem                    | Faza 5 (auth cookie), Faza 6 (`userRating` / opinie), UI HITL, checkpointer LangGraph, `LanguageQualityVerifier`, vendor SDK LLM (`ChatOpenAI` itd.), kolekcja Postman dla samego `post_content` |
-| Po implementacji (informacyjnie) | Major: Faza 4 i kroki 4.1–4.3 → `WYKONANY`; MILESTONE 4 → `OSIĄGNIĘTY`. Edycja major **poza** tym skillem                                                                                        |
+| Po implementacji (informacyjnie) | Major: Faza 4 i kroki 4.1–4.3 + 4.5 → `WYKONANY`; MILESTONE 4 → `OSIĄGNIĘTY`. Edycja major **poza** tym skillem                                                                                        |
 
 
 ---
@@ -36,6 +36,8 @@
 - `post_content` ma ścieżkę w grafie (węzły content potrzebne przy HITL). DoD Postman/Milestone 4 = wyłącznie `post_ideas` oraz `post_ideas_then_content`.
 - Testy CI: fake `LlmGatewayPort`, **zakaz** live vendora (`SPEC-TESTY.md`). E2E, które dziś kończą stubem, nadpisują port LLM, nie `RUN_EXECUTOR` (D-9 nadal trzyma `HoldingRunExecutor`).
 - NestJS 11, Prisma 6 + SQLite, Zod 3 (już w `apps/api`), Jest 30. Identyfikatory pomysłów: `idea_<uuid>` w payloadzie SM — **bez** nowego brandu w `packages/shared` (katalog `docs/brand_types.md` go nie ma).
+- Zależność Nest **jednokierunkowa:** Social → port lifecycle Runs (`appendLog` / `transition`). `RUN_EXECUTOR` wiązany w kleju procesu (`AppModule` / `RunsModule.registerAsync`), **nie** przez `forwardRef` Runs ↔ Social i **nie** przez `RunsModule imports SocialModule`. Self-register grafów — poza tym wycinkiem (V1).
+- Snapshot `result`/`hitl`: port odczytu (reader), nie wstrzyknięcie `SOCIAL_RESULT_STORE` do `GetRunUseCase` z importu Social.
 
 **Biblioteki (weryfikacja 2026-08-19, Context7 + oficjalne docs + npm; korekta stanu grafu 2026-08-20):** stan grafu = `z.object` (Zod 3) przekazany do `new StateGraph(SocialState)` ([use-graph-api](https://docs.langchain.com/oss/javascript/langgraph/use-graph-api) — ścieżka Zod v3 / `InteropZodObject`). Zmiana względem: wcześniejsza norma `StateSchema` + Zod 3 ([Graph API](https://docs.langchain.com/oss/javascript/langgraph/graph-api)). Powód: `StateSchema` w `@langchain/langgraph@1.4.10` wymaga `~standard.jsonSchema`; Zod 3.25 ma tylko `validate` — `new StateSchema({ field: z.*() })` nie typuje się. **Nie** `new StateSchema({…})`. **Nie** `Annotation.Root` (Legacy). **Nie** Zod 4.x. `StateGraph`, `START`/`END`, `addEdge(START, …)`, `addConditionalEdges(source, routingFn)`, `compile()` bez checkpoinetera. Install: `pnpm add @langchain/langgraph @langchain/core` ([install](https://docs.langchain.com/oss/javascript/langgraph/install)); meta `langchain` / vendor SDK — poza zakresem (K-5). npm: `@langchain/langgraph@1.4.10` (latest; peer `@langchain/core@^1.1.48`, `zod@^3.25.32 \|\| ^4.2.0`), `@langchain/core@^1.2.8`, Zod zostaje na 3 (`^3.25.32`; latest Zod 4.x nie bierzemy). Nest 11: `compilerOptions.assets` pod `src/`. Prisma 6 SQLite: `createMany` OK, `skipDuplicates` nie; SQL migracji = wynik CLI. SPEC wygrywa ze wzorcem LangGraph HITL (`interrupt` + checkpointer) — pauza = `awaiting_hitl` w DB.
 
@@ -1161,7 +1163,7 @@ describe('toOutcome', () => {
 
 ### KROK 6a — Korekta: ContentWriterAgent dla `post_content` bez ideas (Opcja B)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Usunięcie ciszy / nieokreślonego zachowania LLM gdy `post_content` startuje bez uprzedniego ideation (pusty `ideas: []` w stanie grafu). Refaktor względem: KROK 5 (`WYKONANY`) — `content-writer.node.ts` zawsze serializuje `state.ideas` do JSON, niezależnie od tego czy lista jest pusta.
 
@@ -1223,7 +1225,7 @@ Zmiana względem: KROK 3 (`WYKONANY`) — prompt zakładał zawsze niepuste `ide
 
 ### KROK 7 — Persistence Prisma: wyniki SM + stan fazy
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Model B w DB (S-6). Adapter w `social/infrastructure/persistence/`. Append migracja (P-1, P-7).
 
@@ -1378,19 +1380,87 @@ exports: [SOCIAL_RESULT_STORE],
 
 
 
+### KROK 7b — Granice Nest: `RunLifecyclePort`, zdjęcie `forwardRef`
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Cel:** Major 4.5. Refaktor względem: **KROK 7** (`WYKONANY`) — `RunsModule` importuje `forwardRef(() => SocialModule)` pod przyszły `SOCIAL_RESULT_STORE` w `GetRunUseCase`. Ten import jest na zapas (store jeszcze nie jest wstrzykiwany). KROK 8 i 9 **nie** wolno go utrwalać. Zgodnie z `docs/architektura.md`, `SPEC-RUNY.md`, `SPEC-SOCIAL.md`.
+
+**Artefakty:**
+
+- Nowy: `apps/api/src/runs/domain/run-lifecycle.port.ts`
+- Zmiana: `apps/api/src/runs/application/run-lifecycle.service.ts` (klasa implementuje port; provider tokenu)
+- Zmiana: `apps/api/src/runs/runs.module.ts` (usunąć `forwardRef` + import Social; eksport `RUN_LIFECYCLE`)
+- Opcjonalnie: cienki `RunLifecycleModule` w `runs/` eksportujący `RUN_LIFECYCLE`, `RUN_REPOSITORY`, `RUN_SSE_HUB`, `RunLifecycleService` — worker/HTTP zostają w `RunsModule`. Nie nowy BC.
+- Zmiana (import type): hop / fasada / graf — `RunLifecyclePort` zamiast klasy `RunLifecycleService` tam, gdzie wystarczy `appendLog` | `transition`. **Nie** przepisywać treści KROK 6 (`WYKONANY`); to korekta importów w istniejących plikach.
+
+**Kontrakt typów** (`run-lifecycle.port.ts`):
+
+```typescript
+import type { RunLifecycleService } from '../application/run-lifecycle.service';
+
+export const RUN_LIFECYCLE = Symbol('RUN_LIFECYCLE');
+
+export type RunLifecyclePort = Pick<
+  RunLifecycleService,
+  'appendLog' | 'transition'
+>;
+```
+
+Token **nie** trafia do `packages/shared`. Provider: `{ provide: RUN_LIFECYCLE, useExisting: RunLifecycleService }` (albo `useClass` jeśli serwis nie jest osobno w `providers`).
+
+`RunsModule` po tym kroku: `imports: [CompanyContextModule]` — **bez** Social. `StubRunExecutor` zostaje do KROK 9.
+
+`SocialModule` w tym kroku **nie** importuje `RunsModule` i **nie** dostaje `forwardRef`. Store + export bez zmian względem KROK 7.
+
+**DoD (krok):**
+
+- `RunsModule` nie importuje `SocialModule`; brak `forwardRef`.
+- Token `RUN_LIFECYCLE` jest eksportowany z kernelu / `RunsModule`.
+- `pnpm --filter api test` (Faza 3 / 7 / 8, w tym D-9 i D-14) zielone.
+- Żadnego self-register / `@Global()` na Social.
+
+---
+
+
+
 ### KROK 8 — GET snapshot `result`/`hitl` + SSE `run.hitl`
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Cel:** Kontrakt `docs/dokumentacja_komunikacji.md`. Social nie emituje SSE z węzłów (R-4) — tylko lifecycle.
+**Cel:** Kontrakt `docs/dokumentacja_komunikacji.md`. Social nie emituje SSE z węzłów (R-4) — tylko lifecycle. Odczyt `result`/`hitl` przez **port** (`SPEC-KOMUNIKACJA.md`, `SPEC-RUNY.md`) — nie przez import `SocialModule` z `RunsModule`.
 
 **Artefakty:**
 
+- Nowy: `apps/api/src/runs/domain/run-result-reader.port.ts`
+- Nowy (domyślny pusty adapter): `apps/api/src/runs/infrastructure/empty-run-result.reader.ts`
 - Zmiana: `apps/api/src/runs/application/run-lifecycle.service.ts` (`TransitionExtras` + publish `run.hitl`)
 - Zmiana: `apps/api/src/runs/application/run-lifecycle.service.spec.ts`
 - Zmiana: `apps/api/src/runs/application/get-run.use-case.ts`
-- `RunsModule` już importuje `SocialModule` od KROK 7 (`SOCIAL_RESULT_STORE` w konstruktorze `GetRunUseCase`)
+- Zmiana: `apps/api/src/runs/runs.module.ts` — provider `RUN_RESULT_READER` = pusta implementacja; **nadal bez** importu Social
 
+**Kontrakt typów** (reader; `import type` z `social/domain/social.types` — zależność TS, nie cykl Nest):
+
+```typescript
+import type { RunId } from '@content-chain/shared';
+import type {
+  SocialContent,
+  SocialIdea,
+  VerifierVerdict,
+} from '../../social/domain/social.types';
+
+export const RUN_RESULT_READER = Symbol('RUN_RESULT_READER');
+
+export interface RunResultReader {
+  listIdeas(runId: RunId): Promise<SocialIdea[]>;
+  getContent(runId: RunId): Promise<{
+    content: SocialContent | null;
+    verification: VerifierVerdict | null;
+  } | null>;
+}
+```
+
+Pusta implementacja zwraca `[]` / `null`. KROK 9 podmienia binding w kleju na adapter nad `SOCIAL_RESULT_STORE`. Unit `GetRunUseCase`: fake reader, bez `SocialModule`.
 
 
 #### Refaktor — `RunLifecycleService.transition`
@@ -1438,11 +1508,11 @@ Po `publish` `run.status`, gdy `to === 'awaiting_hitl'`:
       hitl: null,
 ```
 
-**Zamień na (wstrzyknięty** `SocialResultStore`**):**
+**Zamień na (wstrzyknięty** `RunResultReader`**, nie `SocialResultStore`):**
 
 ```typescript
-    const ideas = await this.social.listIdeas(run.id);
-    const stored = await this.social.getContent(run.id);
+    const ideas = await this.results.listIdeas(run.id);
+    const stored = await this.results.getContent(run.id);
     const hitl =
       run.status === 'awaiting_hitl'
         ? { options: ideas }
@@ -1464,14 +1534,15 @@ Po `publish` `run.status`, gdy `to === 'awaiting_hitl'`:
     };
 ```
 
-Zmiana względem: wcześniejszy szkic tego kroku z `startedBy: run.startedBy`. Powód: `RunRecord` (Krok 3.2 — `WYKONANY`) posiada `startedByUserId: UserId | null`, nie pole `startedBy` — odwołanie do nieistniejącego pola zwróciłoby `undefined` w runtime. Opcja A: mapowanie bezpośrednio z `startedByUserId`. Wzbogacenie do `{ id, email }` — Faza 5 / Krok 5.2, po domknięciu auth i dołączeniu User do odczytu `RunRepository`.
+Zmiana względem: szkic tego kroku z `SocialResultStore` w konstruktorze i `RunsModule` importującym Social (KROK 7, `WYKONANY` — nie powielać). Powód: cykl Nest i orkiestrator znający BC grafu. `startedBy: run.startedByUserId ?? null` zostaje (Krok 3.2 / major 4.4 pkt 1). Wzbogacenie do `{ id, email }` — Faza 5 / Krok 5.2.
 
 **DoD (krok):**
 
-- `GET /runs/:id` przy `awaiting_hitl` ma niepusty `hitl.options` i `result.ideas`.
-- `interrupted` → `hitl: null` (docs).
+- `GetRunUseCase` zależy od `RUN_RESULT_READER`, nie od `SOCIAL_RESULT_STORE`.
+- Unit z fake readerem: `awaiting_hitl` → niepusty `hitl.options` i `result.ideas`; `interrupted` → `hitl: null`.
 - Unit lifecycle: `run.hitl` emitowany; `complete` nie.
-- Pole `startedBy` w odpowiedzi ma typ `string | null` (surowe UserId lub brak inicjatora); TypeScript kompiluje się bez błędów.
+- Pole `startedBy` w odpowiedzi ma typ `string | null`; TypeScript kompiluje się bez błędów.
+- `RunsModule` nadal bez `SocialModule`.
 
 ---
 
@@ -1481,15 +1552,17 @@ Zmiana względem: wcześniejszy szkic tego kroku z `startedBy: run.startedBy`. P
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Cel:** Major 4.2. `RUN_EXECUTOR` = Social. Po `interrupted → running` re-invoke **fazy** z DB (S-6 pkt 5, R-9). Worker in-process bez zmian semantyki capu.
+**Cel:** Major 4.2 + 4.5. `RUN_EXECUTOR` = `SocialRunExecutor` **wpięty w kleju**, nie przez cykl modułów. Po `interrupted → running` re-invoke **fazy** z DB (S-6 pkt 5, R-9). Worker in-process bez zmian semantyki capu.
 
 **Artefakty:**
 
 - Nowy: `apps/api/src/social/application/social-run.executor.ts`
 - Nowy: `apps/api/src/social/application/social-run.executor.spec.ts`
+- Nowy (opcjonalnie cienki adapter readera): `apps/api/src/social/infrastructure/social-run-result.reader.ts` (`useExisting` / delegacja do `SOCIAL_RESULT_STORE`)
 - Zmiana: `apps/api/src/social/social.module.ts`
-- Zmiana: `apps/api/src/runs/runs.module.ts` (usunąć binding `StubRunExecutor`; `forwardRef` + import Social)
-- `StubRunExecutor` — zostawić plik + spec jako martwy albo usunąć w tym kroku; **nie** rejestrować w module. Komentarz w e2e D-9 zaktualizować („production uses SocialRunExecutor”).
+- Zmiana: `apps/api/src/runs/runs.module.ts` — usunąć binding `StubRunExecutor`; **bez** importu Social; token `RUN_EXECUTOR` przez `registerAsync` albo zostawiony do nadpisania w `AppModule`
+- Zmiana: `apps/api/src/app.module.ts` — klej: `RunsModule.registerAsync({ imports: [SocialModule], inject: [SocialRunExecutor], … })` oraz `{ provide: RUN_RESULT_READER, useExisting: … }`
+- `StubRunExecutor` — zostawić plik + spec jako double testowe albo usunąć z produkcji; **nie** rejestrować jako produkcyjny provider. E2E D-9 nadal `overrideProvider(RUN_EXECUTOR)`.
 
 
 
@@ -1499,7 +1572,10 @@ Zmiana względem: wcześniejszy szkic tego kroku z `startedBy: run.startedBy`. P
 import { Inject, Injectable } from '@nestjs/common';
 import type { RunExecutorPort } from '../../runs/domain/run-executor.port';
 import type { RunRecord } from '../../runs/domain/run.types';
-import { RunLifecycleService } from '../../runs/application/run-lifecycle.service';
+import {
+  RUN_LIFECYCLE,
+  type RunLifecyclePort,
+} from '../../runs/domain/run-lifecycle.port';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { LlmGatewayError } from '../../llm/llm-gateway.errors';
 import {
@@ -1513,7 +1589,7 @@ import type { PipelinePhase } from '../domain/social.types';
 export class SocialRunExecutor implements RunExecutorPort {
   constructor(
     private readonly facade: SocialPipelineFacade,
-    private readonly lifecycle: RunLifecycleService,
+    @Inject(RUN_LIFECYCLE) private readonly lifecycle: RunLifecyclePort,
     @Inject(SOCIAL_RESULT_STORE) private readonly store: SocialResultStore,
   ) {}
 
@@ -1608,18 +1684,17 @@ Reguły fazy (po korekcie):
 
 
 
-#### Refaktor — `social.module.ts` (rozszerzenie KROK 7)
+#### Refaktor — `social.module.ts` (rozszerzenie KROK 7; **bez** `forwardRef(RunsModule)`)
 
-**Teraz (po KROK 7):** store + export, bez executora.
+**Teraz (po KROK 7 / 7b):** store + export, bez executora.
 
-**Zamień na** pełny moduł z `forwardRef(RunsModule)`, `LlmModule`, `LlmHopService`, `SocialPipelineFacade`, `SocialRunExecutor` i `{ provide: RUN_EXECUTOR, useExisting: SocialRunExecutor }` — jak poniżej:
+**Zamień na** moduł importujący **kernel lifecycle** (albo `RunsModule` tylko jeśli 7b zostawił eksport portu bez HTTP-cyklu — preferowany osobny kernel), `LlmModule`, `CompanyContextModule`:
 
 ```typescript
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { CompanyContextModule } from '../company-context/company-context.module';
 import { LlmModule } from '../llm/llm.module';
-import { RUN_EXECUTOR } from '../runs/domain/run-executor.port';
-import { RunsModule } from '../runs/runs.module';
+import { RUN_LIFECYCLE } from '../runs/domain/run-lifecycle.port';
 import { SOCIAL_RESULT_STORE } from './domain/social-result.port';
 import { SocialPipelineFacade } from './application/social-pipeline.facade';
 import { SocialRunExecutor } from './application/social-run.executor';
@@ -1629,7 +1704,7 @@ import { SocialController } from './social.controller';
 
 @Module({
   imports: [
-    forwardRef(() => RunsModule),
+    /* kernel eksportujący RUN_LIFECYCLE — nie forwardRef(RunsModule) */
     LlmModule,
     CompanyContextModule,
   ],
@@ -1639,44 +1714,38 @@ import { SocialController } from './social.controller';
     LlmHopService,
     SocialPipelineFacade,
     SocialRunExecutor,
-    { provide: RUN_EXECUTOR, useExisting: SocialRunExecutor },
   ],
-  exports: [RUN_EXECUTOR, SOCIAL_RESULT_STORE],
+  exports: [SocialRunExecutor, SOCIAL_RESULT_STORE],
 })
 export class SocialModule {}
 ```
 
-`CompanyContextModule` już eksportuje `COMPANY_CONTEXT_REPOSITORY`.
+**Zakaz:** `{ provide: RUN_EXECUTOR, useExisting: SocialRunExecutor }` **w** `SocialModule` jako pretekst, by `RunsModule` importował Social. Token `RUN_EXECUTOR` wiąże **klej**.
 
-#### Refaktor — `runs.module.ts`
+`CompanyContextModule` już eksportuje `COMPANY_CONTEXT_REPOSITORY`. `LlmHopService` / fasada wstrzykują `@Inject(RUN_LIFECYCLE)`.
 
-**Teraz (fragment):**
+#### Refaktor — klej `app.module.ts` + `runs.module.ts`
 
-```typescript
-import { StubRunExecutor } from './infrastructure/stub-run.executor';
-// ...
-  imports: [CompanyContextModule],
-  providers: [
-    { provide: RUN_REPOSITORY, useClass: PrismaRunAdapter },
-    { provide: RUN_SSE_HUB, useClass: InMemoryRunSseHub },
-    { provide: RUN_EXECUTOR, useClass: StubRunExecutor },
-```
+`RunsModule` **nie** importuje Social. Usunąć produkcyjny `{ provide: RUN_EXECUTOR, useClass: StubRunExecutor }`.
 
-**Zamień na:**
+Wzorzec Nest (szkic — `DynamicModule` wg Nest 11):
 
 ```typescript
-import { Module, forwardRef } from '@nestjs/common';
-import { SocialModule } from '../social/social.module';
-// ...
-  imports: [CompanyContextModule, forwardRef(() => SocialModule)],
-  providers: [
-    { provide: RUN_REPOSITORY, useClass: PrismaRunAdapter },
-    { provide: RUN_SSE_HUB, useClass: InMemoryRunSseHub },
+// AppModule
+RunsModule.registerAsync({
+  imports: [SocialModule],
+  inject: [SocialRunExecutor],
+  useFactory: (executor: SocialRunExecutor) => executor,
+}),
 ```
 
-Usunąć provider `RUN_EXECUTOR` z Runs (token przychodzi z Social). `GetRunUseCase` dostaje `SOCIAL_RESULT_STORE` z importu Social.
+Albo równoważne: cienki provider w `AppModule` **tylko jeśli** `RUN_EXECUTOR` jest widoczny dla workera (enkapsulacja Nest: provider w `AppModule` nie wchodzi do `RunsModule` — stąd `registerAsync` / import modułu klejącego, **nie** `@Global()` na Social).
+
+Równolegle: `{ provide: RUN_RESULT_READER, useExisting: SocialResultStore }` albo cienki adapter, jeśli kształty `listIdeas` / `getContent` się zgadzają.
 
 Worker przy catch nadal oznacza `failed`, jeśli executor rzuci **zanim** sam zrobi `transition` — executor w tym planie łapie błędy i woła `failed` sam. Żeby uniknąć podwójnego `failed`, **nie rzucać** po obsłudze (albo sprawdzić status jak dziś w workerze). Zostawić catch workera jako siatkę.
+
+Zmiana względem: szkic KROK 9 z `forwardRef(() => RunsModule)` w Social i `forwardRef(() => SocialModule)` w Runs oraz „token przychodzi z Social”. Powód: cykl Nest; V1 (poczta, pliki) nie skaluje się na N `forwardRef`.
 
 **DoD (krok):**
 
@@ -1686,6 +1755,8 @@ Worker przy catch nadal oznacza `failed`, jeśli executor rzuci **zanim** sam zr
 - Crash przy `running` → Faza 7 recovery; kolejny `execute` wznawia fazę z DB, nie checkpoinera.
 - `awaiting_hitl` po restarcie zostaje (nie `interrupted`).
 - `resolvePhase` przyjmuje `storedPhase: PipelinePhase | null`; przy niepustej wartości zwraca ją bez sprawdzania `taskType`/`selectedIdeaIds`.
+- `SocialModule` bez `forwardRef(RunsModule)`; `RunsModule` bez importu Social; `RUN_EXECUTOR` i `RUN_RESULT_READER` spięte w kleju.
+- Brak self-register / `@Global()` na Social.
 
 ---
 
@@ -1700,7 +1771,7 @@ Worker przy catch nadal oznacza `failed`, jeśli executor rzuci **zanim** sam zr
 **Artefakty (nowe / zmiana):**
 
 - Nowy: `apps/api/src/social/application/social-pipeline.integration.spec.ts` (albo `test/social-pipeline.e2e-spec.ts`)
-- Zmiana: `apps/api/test/runs-lifecycle.e2e-spec.ts` — asercja StubRunExecutor → logi `IdeationAgent` / `ConsistencyVerifier`; override `LLM_GATEWAY_PORT` zwracający poprawny JSON ideas
+- Zmiana: `apps/api/test/runs-lifecycle.e2e-spec.ts` — po KROK 9 produkcja = Social przez klej; D-9 nadal `overrideProvider(RUN_EXECUTOR)` (Holding); ścieżka pipeline nadpisuje `LLM_GATEWAY_PORT`, nie token executora, gdy testuje graf
 - Nowy helper fake: `apps/api/test/fake-llm-gateway.ts`
 
 
@@ -1838,11 +1909,12 @@ Skrypty testów Postman: `pm.test` na status 202/200, `status` enum, niepusty `r
 | Postman obie ścieżki / Milestone 4           | KROK 11                                           |
 | SSE complete po completed/failed (Faza 8)    | bez regresji; `awaiting_hitl` nie woła `complete` |
 | Cap `interrupted` (Faza 7)                   | executor siada na claimu; re-invoke fazy          |
+| Acykliczny Nest / port lifecycle / klej      | KROK 7b / 8 / 9; major 4.5                        |
 
 
-**Pass rozwojowy (potwierdzenie):** porty (1) → Zod (2) → prompty (3) → pakiety (4) → węzły (5) → graf/fasada (6) → Prisma + eksport `SOCIAL_RESULT_STORE` (7) → snapshot/SSE (8) → executor / `RUN_EXECUTOR` (9) → Jest (10) → Postman (11). Binding store w module **przesunięty do KROK 7**, żeby KROK 8 nie czekał na executor.
+**Pass rozwojowy (potwierdzenie):** porty (1) → Zod (2) → prompty (3) → pakiety (4) → węzły (5) → graf/fasada (6) → Prisma + eksport `SOCIAL_RESULT_STORE` (7) → **granice Nest / `RUN_LIFECYCLE` (7b)** → snapshot/SSE + reader (8) → executor w kleju (9) → Jest (10) → Postman (11). Binding store w module **przesunięty do KROK 7**; **nie** importować Social z Runs w KROK 8–9.
 
-**Nagłówki:** wyłącznie `FAZA 1` / `KROK 1`…`KROK 11`.
+**Nagłówki:** `FAZA 1` / `KROK 1`…`KROK 11` oraz `KROK 6a`, `KROK 7b`.
 
 ---
 

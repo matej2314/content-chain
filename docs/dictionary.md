@@ -49,7 +49,11 @@ Zmiana względem poprzedniego zbioru `RunStatus` (pięć wartości, recovery jak
 | **Cienki klient** | `apps/frontend`: UI + HTTP/SSE; **bez** reguł bramki, grafu SM, Prisma i sekretów LLM. |
 | **Port / adapter** | Granica I/O: domain/application zależą od portu. Prisma = adapter w `infrastructure` BC. Klient gateway = adapter HTTP w `apps/api/src/llm/` (port `LlmGateway`). Zmiana względem: wcześniejszy opis bez lokalizacji adaptera LLM. |
 | **Port `LlmGateway`** | Port chat (i opcjonalnie stream) do `apps/ai-provider-gateway`; jedyna droga `apps/api` do LLM. Wołają go BC (np. Social), nie kontrolery HTTP. |
-| **Bounded context (BC)** | Moduł odpowiedzialności w `apps/api` z układem warstw HTTP → application → domain + porty → adaptery: **Auth**, **Company Context**, **Social**, **Runs / Logs**, **Feedback**. Zmiana względem: wcześniejsza lista bez Feedback. |
+| **Bounded context (BC)** | Obszar odpowiedzialności w `apps/api` z układem warstw HTTP → application → domain + porty → adaptery: **Auth**, **Company Context**, **Social**, **Runs / Logs**, **Feedback**. **Nie** to samo co jeden plik `*.module.ts` Nest — jeden BC może mieć kernel + HTTP. Zmiana względem: wcześniejsza lista bez Feedback oraz milczące 1:1 BC↔moduł Nest. |
+| **Moduł Nest** | Jednostka DI (`@Module`). Import w **jedną** stronę jest legalny (Social → kernel lifecycle). Pętla `forwardRef` między BC grafu a Runs — zakaz (`architektura.md`, `anty_patterny.md`). |
+| **Port lifecycle runu** | Port Runs: `appendLog` + `transition`. Wołają go węzły/fasada grafu. Token w `runs/domain/`; **nie** w `packages/shared`. |
+| **Port `RunExecutor`** | Port Runs: `execute(run)`. Implementacja w BC grafu (MVP: Social). Binding tokenu = klej procesu, nie import `SocialModule` z `RunsModule`. |
+| **Klej procesu (composition root)** | Spięcie tokenów Nest przy starcie `apps/api` (`AppModule` / `registerAsync`). **Nie** bounded context i **nie** `health/` / `llm/`. |
 | **Feedback (BC)** | Bounded context zapisu opinii tekstowych (`application` \| `agent` \| `run`). Bez LangGraph; panel odczytu = **V1 — rozbudowa**. **Nie** ocena gwiazdkowa, flaga edycji ani finalize (to Runs). |
 | **LangGraph / graf** | Orchestracja pipeline’u Social za fasadą application service (nie w controllerze). |
 | **Async run** | Asynchroniczne wykonanie pipeline’u; klient dostaje `RunId`, postęp przez SSE. |

@@ -34,6 +34,9 @@ type RunRow = {
   brief: unknown;
   selectedIdeaIds: unknown;
   startedByUserId: string | null;
+  pipelinePhase: string | null;
+  ideasRefineCount: number;
+  contentRefineCount: number;
   recoveryAttempts: number;
   createdAt: Date;
   startedBy: { id: string; email: string } | null;
@@ -48,6 +51,13 @@ type RunLogRow = {
   step: string | null;
   requestId: string | null;
 };
+
+function toPipelinePhase(value: string | null): RunRecord['pipelinePhase'] {
+  if (value === 'ideas' || value === 'content') {
+    return value;
+  }
+  return null;
+}
 
 @Injectable()
 export class PrismaRunAdapter implements RunRepository {
@@ -68,6 +78,9 @@ export class PrismaRunAdapter implements RunRepository {
             ? undefined
             : toInputJson(run.selectedIdeaIds),
         startedByUserId: run.startedByUserId,
+        pipelinePhase: run.pipelinePhase,
+        ideasRefineCount: run.ideasRefineCount,
+        contentRefineCount: run.contentRefineCount,
         recoveryAttempts: run.recoveryAttempts,
         createdAt: run.createdAt,
       },
@@ -225,6 +238,9 @@ export class PrismaRunAdapter implements RunRepository {
         row.startedByUserId && isUserId(row.startedByUserId)
           ? createUserId(row.startedByUserId)
           : null,
+      pipelinePhase: toPipelinePhase(row.pipelinePhase),
+      ideasRefineCount: row.ideasRefineCount,
+      contentRefineCount: row.contentRefineCount,
       recoveryAttempts: row.recoveryAttempts,
       createdAt: row.createdAt,
       startedBy: row.startedBy,

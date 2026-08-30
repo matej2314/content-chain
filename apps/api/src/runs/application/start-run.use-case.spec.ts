@@ -150,6 +150,9 @@ describe('StartRunUseCase', () => {
         brief: command.brief,
         selectedIdeaIds: null,
         startedByUserId: null,
+        pipelinePhase: null,
+        ideasRefineCount: 0,
+        contentRefineCount: 0,
         recoveryAttempts: 0,
       }),
     );

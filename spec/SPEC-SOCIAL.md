@@ -1,7 +1,7 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-18
+data_modyfikacji: 2026-08-30
 ---
 
 # SPEC — Social
@@ -10,7 +10,9 @@ data_modyfikacji: 2026-08-18
 
 Norma bounded contextu **Social** w `apps/api`: pipeline post ideas / post content, weryfikacja spójności, refine, HITL vs full-auto.
 
-Uszczegóławia wyjątek orchestracji z `docs/architektura.md`, przepływy z `docs/data_flow.md` oraz taski/platformy z `docs/dokumentacja_komunikacji.md`. Social jest **jednym modułem** monolit — nie uniwersalnym orkiestratorem firmowym.
+Uszczegóławia wyjątek orchestracji z `docs/architektura.md`, przepływy z `docs/data_flow.md` oraz taski/platformy z `docs/dokumentacja_komunikacji.md`. Social jest **jednym bounded contextem** pipeline’u SM w monoliticie — nie uniwersalnym orkiestratorem firmowym i **nie** orkiestratorem cyklu życia runu (to Runs).
+
+Zmiana względem wersji 3: doprecyzowano, że „jeden moduł” = BC SM, nie klej Nest z Runs.
 
 ## Powiązanie ze stylem z docs / wyjątek
 
@@ -19,7 +21,8 @@ Wiążące:
 - controllery i application jak w innych BC (cienkie HTTP → use-case);
 - **wyjątek:** pipeline SM = **LangGraph** w `social/infrastructure/graph/`, ukryty za fasadą application service;
 - LLM wyłącznie przez port → gateway (`SPEC-KOMUNIKACJA.md`);
-- bramka kontekstu przed startem (`SPEC-KONTEKST-FIRMY.md`); cykl życia runu / logi / SSE — BC Runs (`SPEC-RUNY.md`), Social dopina węzły i wyniki SM.
+- bramka kontekstu przed startem (`SPEC-KONTEKST-FIRMY.md`); cykl życia runu / logi / SSE — BC Runs (`SPEC-RUNY.md`), Social dopina węzły i wyniki SM;
+- Social zależy od **portu** lifecycle Runs (token, nie klasa serwisu) oraz implementuje `RunExecutorPort`; binding tokenu executora — klej procesu (`docs/architektura.md`).
 
 **Wyjątek względem stylu globalnego:** tak — wyłącznie orchestracja grafem za fasadą; **nie** wolno przenosić grafu do controllera ani reguł SM do FE/gateway.
 
@@ -68,14 +71,16 @@ S-9. W MVP **zakaz** checkpoinetera LangGraph (`SqliteSaver` / MemorySaver jako 
 ```text
 apps/api/src/social/
 ├── social.module.ts
-├── social.controller.ts              # cienkie HTTP (jeśli wydzielone; albo Runs jako wejście)
-├── application/                      # StartSocialRun, ResumeAfterHitl, …
-├── domain/                           # typy ideas/content, polityki limitu refine, porty
+├── social.controller.ts              # cienkie HTTP (MVP: bez nowych tras; wejście = Runs)
+├── application/                      # fasada invoke fazy, SocialRunExecutor (adapter RunExecutorPort)
+├── domain/                           # typy ideas/content, polityki limitu refine, port store
 └── infrastructure/
     ├── graph/                        # LangGraph: definicje faz / węzłów
     ├── prompts/                      # szablony
     └── persistence/                  # zapis wyników SM via porty/Prisma
 ```
+
+Zmiana względem wersji 3: drzewo `application/` sugerowało `StartSocialRun` / `ResumeAfterHitl` — te use-case’y HTTP zostają w Runs; Social = fasada grafu + executor.
 
 | Element | Norma |
 |---------|--------|
@@ -106,6 +111,8 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 - Jeden skompilowany graf z jawnym parametrem fazy **albo** dwa grafy (ideas / content) — byle norma B i S-6 były spełnione.
 - Współdzielić węzeł `ConsistencyVerifier` między ideas i content.
 - Logować w `run.log` rozróżnienie faila verifiera: kontekst vs język.
+- Importować kernel / token lifecycle Runs (jednokierunkowo) oraz eksportować `SocialRunExecutor` do kleju procesu.
+- Implementować `RunExecutorPort` klasą w `social/application/` — bez rejestracji tokenu `RUN_EXECUTOR` **w** `RunsModule` przez import Social.
 
 ### Nie wolno
 
@@ -120,8 +127,11 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 - Wołania vendorów LLM z pominięciem gateway.
 - Rozszerzania MVP o rolki / YouTube / blog / pipeline builder w tym SPEC.
 - Re-invoke grafu ani zmiany węzłów z powodu oceny gwiazdkowej, flagi edycji outputu lub opinii tekstowej (to Runs / Feedback po `completed`/`failed`).
+- `forwardRef(() => RunsModule)` ani importu pełnego `RunsModule` (HTTP + worker + stub executor) z `SocialModule`.
+- Eksportu `{ provide: RUN_EXECUTOR }` z Social **jako** powodu, by `RunsModule` robił `imports: [SocialModule]`.
+- Zależności węzłów / hopu / fasady od klasy `RunLifecycleService` zamiast portu (`SPEC-RUNY.md`).
 
-Zmiana względem wersji 1: dopisano zakaz re-invoke grafu z powodu oceny / edycji / opinii (to Runs / Feedback).
+Zmiana względem wersji 3: dopisano zakaz cyklu Nest z Runs (wcześniej tylko zakaz re-invoke z powodu oceny / edycji / opinii).
 
 ### Zatwierdzony stack (obszar)
 
@@ -132,7 +142,8 @@ Zmiana względem wersji 1: dopisano zakaz re-invoke grafu z powodu oceny / edycj
 | Structured output (Zod) na wyjściach LLM | obowiązkowe |
 | HITL model **B** (stan w Run/DB, bez checkpoinetera) | obowiązkowe |
 | ConsistencyVerifier (1 węzeł, 2 obszary) | obowiązkowe |
-| LanguageQualityVerifier / checkpointer LangGraph / uniwersalny orkiestrator | poza MVP |
+| Executor SM jako adapter `RunExecutorPort`; Social → port lifecycle (bez cyklu Nest) | obowiązkowe |
+| LanguageQualityVerifier / checkpointer LangGraph / uniwersalny orkiestrator / self-register grafów | poza MVP |
 
 ## Kryteria akceptacji
 
@@ -142,6 +153,7 @@ Zmiana względem wersji 1: dopisano zakaz re-invoke grafu z powodu oceny / edycj
 - [ ] Węzły LLM zwracają dane po walidacji Zod (lub równoważnej); złamany kształt nie trafia do wyniku „sukces”.
 - [ ] Brak checkpoinetera LangGraph i brak JSON-pliku jako store HITL.
 - [ ] Controller bez promptów i bez bezpośredniego `graph.invoke`.
+- [ ] `SocialModule` bez `forwardRef(RunsModule)`; `RunsModule` bez importu Social.
 
 ## Poza zakresem
 

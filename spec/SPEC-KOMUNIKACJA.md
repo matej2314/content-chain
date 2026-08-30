@@ -1,7 +1,7 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-19
+data_modyfikacji: 2026-08-30
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -105,7 +105,7 @@ K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CO
 | Warstwa | Norma |
 |---------|--------|
 | Controller | DTO + **class-validator** + globalny `ValidationPipe` (whitelist); mapowanie HTTP ↔ komendy use-case; bez ORM, bez promptów, bez klienta gateway |
-| Application | use-case’y; walidacja / parsing wewnętrzny **Zod**; orkiestracja startu/wznowienia runu, odczyt snapshotów |
+| Application | use-case’y; walidacja / parsing wewnętrzny **Zod**; orkiestracja startu/wznowienia runu; odczyt snapshotów (meta runu z Runs + wycinek `result`/`hitl` z portu odczytu BC grafu — bez `imports: [SocialModule]` w `RunsModule`) |
 | Błędy HTTP | jeden wspólny **exception filter** (ew. interceptor korelacji) → envelope K-1 |
 | SSE | oficjalny mechanizm Nest: dekorator `@Sse()`, handler zwraca `Observable<MessageEvent>` ([NestJS SSE](https://docs.nestjs.com/techniques/server-sent-events)); Observable **kończy się** po terminalu runu; teardown (`complete` / `finalize`) przy disconnect i po `completed`/`failed` |
 | LLM | port (np. `LlmGatewayPort`) w domain/application + **osobny adapter HTTP** w `infrastructure` |
@@ -135,6 +135,9 @@ Zakaz: FE generuje `RequestId` „na zapas”; zakaz nowego `ConversationId` per
 - Adapter gateway używający natywnego chat; zapis `requestId` z odpowiedzi do logu kroku.
 - Opcjonalnie `POST .../chat/stream` gateway, gdy konkretny węzeł pipeline’u tego wymaga (finalizacja węzła po domknięciu streamu).
 - Polityka retry/timeout po stronie api przy `RATE_LIMITED` / `PROVIDER_TIMEOUT` / `PROVIDER_UNAVAILABLE` — byle zakończenie było obserwowalne w logu/SSE.
+- Składać envelope snapshotu `GET /runs/:id` z meta Runs i portu odczytu wyniku (reader); kontrakt HTTP bez zmian (`dokumentacja_komunikacji.md`).
+
+Zmiana względem wersji 8 / wiersz Application: odczyt snapshotu był milcząco „w use-case Runs” bez zakazu importu store Social — teraz reader + klej (`SPEC-RUNY.md`).
 
 ### Nie wolno
 
@@ -154,6 +157,7 @@ Zakaz: FE generuje `RequestId` „na zapas”; zakaz nowego `ConversationId` per
 - Wyciekania `X-Gateway-Key`, haseł, JWT do envelope, SSE lub `run.log`.
 - Rozwijania publicznego API pod `/api/v2` w MVP.
 - Montowania Swagger UI pod ścieżką `/api` (kolizja z prefiksem produktowym `/api/v1` — norma: `/docs`).
+- Składania snapshotu `result`/`hitl` przez `RunsModule imports SocialModule` / `forwardRef` (`SPEC-RUNY.md`).
 
 ### Zatwierdzony stack (obszar)
 

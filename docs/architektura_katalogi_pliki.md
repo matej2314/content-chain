@@ -69,6 +69,8 @@ apps/api/src/<context>/
 └── infrastructure/                  # adaptery (Prisma repos, …); klient LLM w `src/llm/`
 ```
 
+**1 BC ≠ obowiązkowo 1 plik `*.module.ts`.** Wolno wydzielić kernel lifecycle (port `appendLog` / `transition` + hub SSE + repozytorium runu) od HTTP/workera, jeśli to zamyka cykl importów Nest. To nadal ten sam BC Runs — nie nowy bounded context. Klej `RUN_EXECUTOR` w `app.module.ts` (albo `registerAsync`) **nie** jest BC; analogia: `health/` / `llm/` to też nie-BC, ale ops — klej pipeline’u zostaje przy starcie procesu, nie w `llm/`.
+
 ### Social (wyjątek orchestracji)
 
 ```text
@@ -90,9 +92,11 @@ apps/api/src/runs/
 ├── runs.module.ts
 ├── runs.controller.ts               # status, logi, HITL, lista user/:userId, ocena, flaga edycji, finalize
 ├── application/
-├── domain/                          # statusy runu, polityka przejść, lock przeglądu
+├── domain/                          # statusy runu, polityka przejść, lock przeglądu, porty (executor, lifecycle, odczyt wyniku)
 └── infrastructure/
 ```
+
+Port lifecycle (`appendLog`, `transition`) i port executora (`execute`) żyją w `domain/`. Implementacja executora SM **nie** należy do tego drzewa — jest w `social/application/`. Binding tokenu — klej procesu, nie `imports: [SocialModule]` w `runs.module.ts`.
 
 ### Feedback (opinie tekstowe)
 
@@ -164,6 +168,7 @@ Tylko kontrakt typów/enumów/brand; **bez** Zod, Nest/Next/Prisma/LangGraph, us
 | Prompty i graf w `social/infrastructure/` | Prompty i wywołania LLM w controllerze |
 | Typy publiczne w `packages/shared` (**bez Zod**) | Use-case’y, DB, Zod/runtime w `packages/shared` |
 | Aplikacje pod `apps/` | Rootowy katalog `src/` opakowujący wszystkie app |
+| Kernel lifecycle Runs + klej `RUN_EXECUTOR` w `AppModule` | `forwardRef` Runs ↔ Social; port lifecycle w `packages/shared` |
 
 ## Poza zakresem tego dokumentu
 

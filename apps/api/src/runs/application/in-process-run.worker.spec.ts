@@ -20,6 +20,9 @@ function makeRun(overrides: Partial<RunRecord> = {}): RunRecord {
     brief: { topic: 'Q3' },
     selectedIdeaIds: null,
     startedByUserId: null,
+    pipelinePhase: null,
+    ideasRefineCount: 0,
+    contentRefineCount: 0,
     recoveryAttempts: 0,
     createdAt: new Date(),
     ...overrides,
@@ -83,7 +86,9 @@ function makeWorker(args: {
     args.runs,
     args.executor,
     { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
-    { execute: async () => undefined } as unknown as RecoverInterruptedRunsUseCase,
+    {
+      execute: async () => undefined,
+    } as unknown as RecoverInterruptedRunsUseCase,
     {
       appendLog: jest.fn(),
       transition: jest.fn(),
@@ -133,7 +138,9 @@ describe('InProcessRunWorker', () => {
       runs,
       executor,
       { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
-      { execute: async () => undefined } as unknown as RecoverInterruptedRunsUseCase,
+      {
+        execute: async () => undefined,
+      } as unknown as RecoverInterruptedRunsUseCase,
       {
         appendLog: jest.fn(),
         transition: jest.fn(),
@@ -187,7 +194,9 @@ describe('InProcessRunWorker', () => {
       runs,
       executor,
       { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
-      { execute: async () => undefined } as unknown as RecoverInterruptedRunsUseCase,
+      {
+        execute: async () => undefined,
+      } as unknown as RecoverInterruptedRunsUseCase,
       {
         appendLog: jest.fn(),
         transition: jest.fn(),
@@ -447,7 +456,9 @@ describe('InProcessRunWorker', () => {
         },
       },
       { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
-      { execute: async () => undefined } as unknown as RecoverInterruptedRunsUseCase,
+      {
+        execute: async () => undefined,
+      } as unknown as RecoverInterruptedRunsUseCase,
       {
         appendLog: jest.fn(),
         transition: jest.fn(),

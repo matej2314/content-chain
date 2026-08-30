@@ -15,6 +15,9 @@ function makeRun(overrides: Partial<RunRecord> = {}): RunRecord {
     brief: { topic: 'Q3' },
     selectedIdeaIds: null,
     startedByUserId: null,
+    pipelinePhase: null,
+    ideasRefineCount: 0,
+    contentRefineCount: 0,
     recoveryAttempts: 0,
     createdAt: new Date(),
     ...overrides,
@@ -53,10 +56,12 @@ describe('RecoverInterruptedRunsUseCase', () => {
       Promise<void>,
       [Omit<RunLogEntry, 'at'> & { at?: Date }]
     >();
-    const transition = jest.fn(async (run: RunRecord, to: RunRecord['status']) => ({
-      ...run,
-      status: to,
-    }));
+    const transition = jest.fn(
+      async (run: RunRecord, to: RunRecord['status']) => ({
+        ...run,
+        status: to,
+      }),
+    );
 
     const useCase = new RecoverInterruptedRunsUseCase(
       unusedRepo({
@@ -140,7 +145,10 @@ describe('RecoverInterruptedRunsUseCase', () => {
     expect(transition).not.toHaveBeenCalledWith(hitl, expect.anything());
     expect(hitl.status).toBe('awaiting_hitl');
     expect(hitl.recoveryAttempts).toBe(0);
-    expect(saveRecoveryAttempt).not.toHaveBeenCalledWith(hitl.id, expect.anything());
+    expect(saveRecoveryAttempt).not.toHaveBeenCalledWith(
+      hitl.id,
+      expect.anything(),
+    );
   });
 
   it('does not increment recoveryAttempts for leftover already interrupted', async () => {

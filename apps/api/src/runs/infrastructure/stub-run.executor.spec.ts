@@ -14,6 +14,9 @@ function makeRun(): RunRecord {
     brief: { topic: 'Q3' },
     selectedIdeaIds: null,
     startedByUserId: null,
+    pipelinePhase: null,
+    ideasRefineCount: 0,
+    contentRefineCount: 0,
     recoveryAttempts: 0,
     createdAt: new Date(),
   };

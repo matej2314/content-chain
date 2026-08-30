@@ -21,6 +21,9 @@ export type RunRecord = {
   taskType: RunTaskType;
   platform: SocialPlatform;
   language: ContentLanguage;
+  pipelinePhase: 'ideas' | 'content' | null;
+  ideasRefineCount: number;
+  contentRefineCount: number;
   status: RunStatus;
   brief: RunBrief;
   selectedIdeaIds: string[] | null;

@@ -1,7 +1,7 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-19
+data_modyfikacji: 2026-08-30
 ---
 
 # SPEC — Runy / logi
@@ -14,15 +14,17 @@ Uszczegóławia `docs/architektura.md` (async run), `docs/dokumentacja_komunikac
 
 ## Powiązanie ze stylem z docs
 
-Wiążące: klasyczne warstwy Nest — controller → application → domain (przejścia statusów, retry/recovery) + porty → adaptery. LangGraph **nie** należy do tego BC (pozostaje w Social za fasadą).
+Wiążące: klasyczne warstwy Nest — controller → application → domain (przejścia statusów, retry/recovery) + porty → adaptery. LangGraph **nie** należy do tego BC (pozostaje w Social za fasadą). Kierunek zależności Nest: graf agenta → porty Runs; binding `RunExecutorPort` w kleju procesu — `docs/architektura.md` (Zależności między BC).
 
 **Podział odpowiedzialności:**
 
 | BC | Odpowiedzialność |
 |----|------------------|
-| **Runs** | Utworzenie runu, lista kolekcji, statusy, kolejka slotów, append logów, SSE, recovery, HITL HTTP jako zmiana stanu runu, zapis inicjatora, **ocena gwiazdkowa, flaga edycji outputu, finalize przeglądu**, lista `GET /runs/user/:userId` |
-| **Social** | Węzły pipeline’u; woła porty Runs (`appendLog`, `transitionStatus`, zapis wyniku SM) — bez omijania cyklu życia |
+| **Runs** | Utworzenie runu, lista kolekcji, statusy, kolejka slotów, append logów, SSE, recovery, HITL HTTP jako zmiana stanu runu, zapis inicjatora, **ocena gwiazdkowa, flaga edycji outputu, finalize przeglądu**, lista `GET /runs/user/:userId`. Porty: lifecycle, executor, odczyt wycinka wyniku do snapshotu |
+| **Social** | Węzły pipeline’u; woła **port** lifecycle Runs (`appendLog`, `transition`) oraz zapisuje wynik SM we własnym store — bez omijania cyklu życia, bez importu całego `RunsModule` przez `forwardRef` |
 | **Feedback** | Opinie tekstowe — nie statusy runu |
+
+Zmiana względem wersji 6: tabela mówiła „woła porty Runs (`appendLog`, `transitionStatus`, zapis wyniku SM)” bez normy importów Nest — implementacja Fazy 4 planowała `forwardRef` Runs ↔ Social. Teraz: port lifecycle (nie klasa serwisu); wynik SM zostaje w store Social; cykl modułów Nest zakazany.
 
 **Wyjątek względem stylu globalnego:** brak.
 
@@ -121,9 +123,11 @@ apps/api/src/runs/
 ├── runs.module.ts
 ├── runs.controller.ts           # list, snapshot, logs, events SSE, hitl, user/:userId, rating, output-edited, finalize
 ├── application/                 # list, start, enqueue, resume hitl, recovery on boot
-├── domain/                      # status transitions, isRetryable, porty
+├── domain/                      # status transitions, isRetryable, porty (executor, lifecycle, result reader)
 └── infrastructure/              # Prisma run/log, SSE hub / subject
 ```
+
+Wolno wydzielić kernel Nest (lifecycle + repo + hub) od HTTP/workera **w tym samym** BC, gdy zamyka to cykl importów. To nie nowy bounded context.
 
 | Element | Norma |
 |---------|--------|
@@ -132,6 +136,11 @@ apps/api/src/runs/
 | Licznik recovery | Pole / metadane runu (np. `recoveryAttempts`), cap = 3 |
 | Idempotencja HITL | Tylko ze statusu `awaiting_hitl` |
 | Przegląd | `userRating` + `outputEdited` + `reviewFinalizedAt`; lock po finalize |
+| Port lifecycle | Token + interfejs `appendLog` + `transition` w `domain/`; graf zależy od portu, nie od klasy `RunLifecycleService` |
+| Port executor | Token `RunExecutorPort` w Runs; klasa implementująca — w BC grafu; **binding w `AppModule` / `registerAsync`** |
+| Odczyt snapshotu `result`/`hitl` | Port odczytu (reader) albo cienkie złożenie HTTP; **zakaz** wstrzykiwania store Social do use-case’u Runs przez `imports: [SocialModule]` |
+
+Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnienia lifecycle vs executor vs reader; binding executora nie był unormowany (feature plan Fazy 4 wstawiał `forwardRef`).
 
 ### Wolno
 
@@ -142,6 +151,8 @@ apps/api/src/runs/
 - Domykać i usuwać subject huba wyłącznie po `completed` / `failed` (R-4a).
 - `startedBy` nullable wyłącznie dla historycznych / pre-auth przebiegów testowych; po domknięciu auth na api nowe runy zawsze z inicjatorem.
 - Trzymać `userRating: null` jako jawny brak oceny (nie pomijać pola w snapshotcie).
+- `RunsModule.registerAsync` (lub równoważny klej w `AppModule`) wpinające implementację `RunExecutorPort` z BC grafu — bez `forwardRef`.
+- Domyślną (pustą) implementację portu odczytu wyniku w Runs, podmienianą w kleju na adapter Social.
 
 ### Nie wolno
 
@@ -166,12 +177,20 @@ apps/api/src/runs/
 - Zmiany `userRating` / `outputEdited` po `reviewFinalizedAt`.
 - Mylenia finalize / Edytuj z HITL.
 - Umieszczania opinii tekstowych w tym BC (to `SPEC-FEEDBACK.md`).
+- `forwardRef` między `RunsModule` a modułem grafu (Social / przyszły Mail).
+- Importu `SocialModule` (ani innego BC grafu) z `RunsModule` jako sposobu na `RUN_EXECUTOR` albo snapshot `result`.
+- Eksportu tokenu `RUN_EXECUTOR` z modułu Social **po to**, by Runs musiał ten moduł zaimportować.
+- `@Global()` na BC grafu albo na całym Runs jako ukrycia cyklu.
+- Self-register grafów (`OnModuleInit` → rejestr) jako wymogu MVP.
+- Zależności grafu od **klasy** `RunLifecycleService` zamiast portu (token + interfejs `appendLog` / `transition`).
+- Umieszczania portu lifecycle / executora w `packages/shared`.
 
 ### Zatwierdzony stack (obszar)
 
 | Element | Status |
 |---------|--------|
 | BC Runs + porty używane przez Social | obowiązkowe |
+| Port lifecycle + binding `RunExecutorPort` w kleju procesu (bez cyklu Nest) | obowiązkowe |
 | Append-only logi w DB + SSE Nest | obowiązkowe |
 | Hub SSE: `complete` + evikcja subjectu po `completed`/`failed` (R-4a) | obowiązkowe |
 | `RUN_SSE_SUBJECT_TTL_MS` (env, default `600_000`) — TTL automatu ewikcji Subject | obowiązkowe |
@@ -180,6 +199,7 @@ apps/api/src/runs/
 | Recovery: leftover `running` → `interrupted` → claim pod capem; max 3 × `isRetryable` → `failed` | obowiązkowe |
 | Pola przeglądu `userRating` / `outputEdited` / `reviewFinalizedAt` + `GET /runs/user/:userId` | obowiązkowe w **MVP** (fundament zapisu) |
 | Osobny worker process / per-user limit / TTL logów | poza MVP |
+| Self-register grafów / `@Global()` na BC grafu jako klej | poza MVP (i zakazane jako obejście cyklu) |
 | Stopień edycji outputu / zmiana oceny po finalize | poza MVP |
 
 ## Kryteria akceptacji
@@ -195,6 +215,7 @@ apps/api/src/runs/
 - [ ] Po restarcie api: `awaiting_hitl` bez zmian; leftover `running` → `interrupted` (claim pod `MAX_CONCURRENT_RUNS`); po 3 przerwanych execute → `failed` z logiem. N leftover przy `MAX=1` → jeden execute naraz, reszta zostaje `interrupted`.
 - [ ] Social nie emituje SSE omijając Runs.
 - [ ] `/metrics` nie jest używane jako podgląd przebiegu runu.
+- [ ] Brak cyklu Nest Runs ↔ Social; worker dostaje executor z kleju, nie z `imports: [SocialModule]`.
 
 ## Poza zakresem
 

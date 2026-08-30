@@ -1,5 +1,6 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { CompanyContextModule } from '../company-context/company-context.module';
+import { SocialModule } from '../social/social.module';
 import { InProcessRunWorker } from './application/in-process-run.worker';
 import { RecoverInterruptedRunsUseCase } from './application/recover-interrupted-runs.use-case';
 import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
@@ -17,7 +18,7 @@ import { StubRunExecutor } from './infrastructure/stub-run.executor';
 import { RunsController } from './runs.controller';
 
 @Module({
-  imports: [CompanyContextModule],
+  imports: [CompanyContextModule, forwardRef(() => SocialModule)],
   controllers: [RunsController],
   providers: [
     { provide: RUN_REPOSITORY, useClass: PrismaRunAdapter },
