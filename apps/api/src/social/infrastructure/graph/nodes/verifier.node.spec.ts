@@ -2,7 +2,7 @@ import { createRequestId } from '@content-chain/shared';
 import { emptyCompanyContext } from '../../../../company-context/domain/company-context.types';
 import { DomainException } from '../../../../shared/exceptions/domain.exception';
 import { newConversationId, newRunId } from '../../../../shared/http/new-ids';
-import type { RunLifecycleService } from '../../../../runs/application/run-lifecycle.service';
+import type { RunLifecyclePort } from '../../../../runs/domain/run-lifecycle.port';
 import { verifierOutputSchema } from '../../../application/social.schemas';
 import type { LlmHopService } from '../llm-hop';
 import type { SocialGraphState } from '../state';
@@ -59,7 +59,7 @@ function fakeHop(
 
 function fakeAppendLog() {
   return jest.fn().mockResolvedValue(undefined) as jest.MockedFunction<
-    RunLifecycleService['appendLog']
+    RunLifecyclePort['appendLog']
   >;
 }
 

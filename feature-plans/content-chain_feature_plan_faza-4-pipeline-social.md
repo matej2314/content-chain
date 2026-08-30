@@ -1382,7 +1382,7 @@ exports: [SOCIAL_RESULT_STORE],
 
 ### KROK 7b — Granice Nest: `RunLifecyclePort`, zdjęcie `forwardRef`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Major 4.5. Refaktor względem: **KROK 7** (`WYKONANY`) — `RunsModule` importuje `forwardRef(() => SocialModule)` pod przyszły `SOCIAL_RESULT_STORE` w `GetRunUseCase`. Ten import jest na zapas (store jeszcze nie jest wstrzykiwany). KROK 8 i 9 **nie** wolno go utrwalać. Zgodnie z `docs/architektura.md`, `SPEC-RUNY.md`, `SPEC-SOCIAL.md`.
 

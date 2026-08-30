@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { RunLifecyclePort } from '../domain/run-lifecycle.port';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { RUN_SSE_HUB, type RunSseHub } from '../domain/run-sse.port';
 import { assertTransition } from '../domain/status-transitions';
@@ -12,7 +13,7 @@ export type TransitionExtras = {
 };
 
 @Injectable()
-export class RunLifecycleService {
+export class RunLifecycleService implements RunLifecyclePort {
   constructor(
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
     @Inject(RUN_SSE_HUB) private readonly sseHub: RunSseHub,

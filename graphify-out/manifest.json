@@ -1490,8 +1490,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/runs.module.ts": {
-    "mtime": 1788087600.306709,
-    "ast_hash": "8c10ac1dd707ac8dae2ebc5e6d03391d",
+    "mtime": 1788092299.1532989,
+    "ast_hash": "efa13ea9898cd30df469e05034f040a3",
     "semantic_hash": ""
   },
   "apps/api/src/social/social.controller.ts": {
@@ -1500,7 +1500,7 @@
     "semantic_hash": ""
   },
   "apps/api/src/social/social.module.ts": {
-    "mtime": 1788087600.3308764,
+    "mtime": 1788087773.740067,
     "ast_hash": "5d5e534029095b106e7768e517c19c0b",
     "semantic_hash": ""
   },
@@ -1690,8 +1690,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/run-lifecycle.service.ts": {
-    "mtime": 1787156430.7316468,
-    "ast_hash": "ead58cca7eb1a7bc6456f23bb796abb8",
+    "mtime": 1788092301.5313551,
+    "ast_hash": "1fcac082eee4ad8dd188a3dcb69e4c42",
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/start-run.use-case.ts": {
@@ -1730,8 +1730,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/infrastructure/prisma-run.adapter.ts": {
-    "mtime": 1788087600.237169,
-    "ast_hash": "8fa4b20103fb3ec54fb72c862aa18622",
+    "mtime": 1788087698.5798335,
+    "ast_hash": "946e59b00ff4d1db6caacd98380d8ba5",
     "semantic_hash": ""
   },
   "apps/api/src/runs/infrastructure/run-sse.hub.ts": {
@@ -1815,18 +1815,18 @@
     "semantic_hash": ""
   },
   "docs/anty_patterny.md": {
-    "mtime": 1787079782.7161372,
-    "ast_hash": "65fcfc9163018f42b80448dcd9c5490a",
+    "mtime": 1788091283.7760665,
+    "ast_hash": "91c6e7522767203bc3fc86075e3096a6",
     "semantic_hash": ""
   },
   "docs/architektura.md": {
-    "mtime": 1787079787.1577008,
-    "ast_hash": "8766d55b98c5148c95cc8b2659676a9d",
+    "mtime": 1788091258.7169504,
+    "ast_hash": "b9ebdb67bcb7fc82406e72393d7c7ef2",
     "semantic_hash": ""
   },
   "docs/architektura_katalogi_pliki.md": {
-    "mtime": 1786810042.3699625,
-    "ast_hash": "27e032b3c79d590cc2bb201ac627509b",
+    "mtime": 1788091272.2693372,
+    "ast_hash": "0a4fa8f5437636e56ac654bffaa28590",
     "semantic_hash": ""
   },
   "docs/brand_types.md": {
@@ -1845,8 +1845,8 @@
     "semantic_hash": ""
   },
   "docs/dictionary.md": {
-    "mtime": 1787079778.292274,
-    "ast_hash": "597a22fd0d76085bd3e11028f701a082",
+    "mtime": 1788091283.808245,
+    "ast_hash": "f383169bbd9637912ee2a0dc72e41234",
     "semantic_hash": ""
   },
   "docs/dokumentacja_komunikacji.md": {
@@ -1900,8 +1900,8 @@
     "semantic_hash": ""
   },
   "spec/SPEC-KOMUNIKACJA.md": {
-    "mtime": 1787156430.7931552,
-    "ast_hash": "64af37b5c69bd860a6e4fcb93f3f8bf6",
+    "mtime": 1788091555.1955378,
+    "ast_hash": "a9684a294b1f7e6a08215630497b9cfb",
     "semantic_hash": ""
   },
   "spec/SPEC-KONTEKST-FIRMY.md": {
@@ -1925,13 +1925,13 @@
     "semantic_hash": ""
   },
   "spec/SPEC-RUNY.md": {
-    "mtime": 1787156430.7941558,
-    "ast_hash": "72a4e7d5b54e99e05e49028139d56241",
+    "mtime": 1788091564.223367,
+    "ast_hash": "1d83e142635b1faaec2fade2991ab5cb",
     "semantic_hash": ""
   },
   "spec/SPEC-SOCIAL.md": {
-    "mtime": 1787074701.9109514,
-    "ast_hash": "d51c4f71daf2bb6a793ac1e918ac8231",
+    "mtime": 1788091339.1134558,
+    "ast_hash": "0fb8338015191216b68176ce20e96871",
     "semantic_hash": ""
   },
   "spec/SPEC-TESTY.md": {
@@ -2010,8 +2010,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/social/infrastructure/graph/llm-hop.ts": {
-    "mtime": 1787222970.0371902,
-    "ast_hash": "dc959ef396569ba8a26aa9c507b42270",
+    "mtime": 1788092304.255541,
+    "ast_hash": "1871cee346434683dd6ab5f51490bee0",
     "semantic_hash": ""
   },
   "apps/api/src/social/infrastructure/graph/nodes/content-writer.node.ts": {
@@ -2060,8 +2060,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/social/infrastructure/graph/nodes/verifier.node.ts": {
-    "mtime": 1787228520.3296707,
-    "ast_hash": "0cfde9e5aa2a9f6060615c297fd900e8",
+    "mtime": 1788092309.5675778,
+    "ast_hash": "cd0db1156c7437d3dfd537ea6b7c2f7c",
     "semantic_hash": ""
   },
   "apps/api/src/social/infrastructure/graph/state.ts": {
@@ -2200,18 +2200,23 @@
     "semantic_hash": ""
   },
   "apps/api/src/social/application/social-pipeline.facade.ts": {
-    "mtime": 1787237167.1593902,
-    "ast_hash": "e7260db677eb6da63242303f66b60e50",
+    "mtime": 1788092306.4773355,
+    "ast_hash": "4f7e2081902fb2c687fcd16dd4546bc3",
     "semantic_hash": ""
   },
   "apps/api/src/social/infrastructure/graph/social.graph.ts": {
-    "mtime": 1787237863.1438923,
-    "ast_hash": "adce44997a6801204db8aa4d0a77d7ab",
+    "mtime": 1788092308.2570944,
+    "ast_hash": "4e6796b8c0b0374b8c068f3795008d2b",
     "semantic_hash": ""
   },
   "apps/api/src/social/infrastructure/persistence/prisma-social-result.adapter.ts": {
     "mtime": 1788087600.541835,
     "ast_hash": "a7084079deac466dc9c1b3d6a5f7a9a7",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/domain/run-lifecycle.port.ts": {
+    "mtime": 1788091890.8560634,
+    "ast_hash": "51beef9525b96b38a7b9710eda9f965d",
     "semantic_hash": ""
   }
 }

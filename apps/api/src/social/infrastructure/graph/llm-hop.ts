@@ -9,7 +9,10 @@ import { LLM_GATEWAY_PORT } from '../../../llm/llm.tokens';
 import { LlmGatewayError } from '../../../llm/llm-gateway.errors';
 import { ENV, type Env } from '../../../shared/config/env';
 import { isRetryable } from '../../../runs/domain/is-retryable';
-import { RunLifecycleService } from '../../../runs/application/run-lifecycle.service';
+import {
+  RUN_LIFECYCLE,
+  type RunLifecyclePort,
+} from '../../../runs/domain/run-lifecycle.port';
 import { parseLlmJson } from '../../application/parse-llm-json';
 import type { RunId } from '@content-chain/shared';
 import type { LlmGatewayPort } from '../../../llm/llm-gateway.port';
@@ -30,7 +33,7 @@ export class LlmHopService {
   constructor(
     @Inject(LLM_GATEWAY_PORT) private readonly gateway: LlmGatewayPort,
     @Inject(ENV) private readonly env: Env,
-    private readonly lifeCycle: RunLifecycleService,
+    @Inject(RUN_LIFECYCLE) private readonly lifeCycle: RunLifecyclePort,
   ) {}
 
   async chatJson<T extends z.ZodTypeAny>(

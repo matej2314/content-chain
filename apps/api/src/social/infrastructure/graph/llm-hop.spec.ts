@@ -5,7 +5,7 @@ import {
 import { LlmGatewayError } from '../../../llm/llm-gateway.errors';
 import type { LlmGatewayPort } from '../../../llm/llm-gateway.port';
 import type { LlmChatResult } from '../../../llm/llm-gateway.types';
-import type { RunLifecycleService } from '../../../runs/application/run-lifecycle.service';
+import type { RunLifecyclePort } from '../../../runs/domain/run-lifecycle.port';
 import type { Env } from '../../../shared/config/env.schema';
 import { newConversationId, newRunId } from '../../../shared/http/new-ids';
 import { verifierOutputSchema } from '../../application/social.schemas';
@@ -15,10 +15,13 @@ const REQUEST_ID = createRequestId(
   'req_123e4567-e89b-12d3-a456-426614174000',
 );
 
-function fakeLifecycle(): RunLifecycleService {
+function fakeLifecycle(): RunLifecyclePort {
   return {
     appendLog: jest.fn().mockResolvedValue(undefined),
-  } as unknown as RunLifecycleService;
+    transition: jest
+      .fn()
+      .mockImplementation(async (run, to) => ({ ...run, status: to })),
+  };
 }
 
 function chatResult(text: string): LlmChatResult {
@@ -32,7 +35,7 @@ function chatResult(text: string): LlmChatResult {
   };
 }
 
-function makeHop(gateway: LlmGatewayPort, lifecycle: RunLifecycleService) {
+function makeHop(gateway: LlmGatewayPort, lifecycle: RunLifecyclePort) {
   return new LlmHopService(
     gateway,
     { GATEWAY_MODEL_ALIAS: 'chat-default' } as Env,

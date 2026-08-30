@@ -1,14 +1,14 @@
 import { unbrand } from '@content-chain/shared';
 import { verifierOutputSchema } from '../../../application/social.schemas';
 import { loadPrompt, renderPrompt } from '../../prompts/load-prompt';
-import type { RunLifecycleService } from '../../../../runs/application/run-lifecycle.service';
+import type { RunLifecyclePort } from '../../../../runs/domain/run-lifecycle.port';
 import type { SocialGraphState } from '../state';
 import type { LlmHopService } from '../llm-hop';
 import type { VerifierVerdict } from '../../../domain/social.types';
 
 export function createVerifierNode(
   hop: LlmHopService,
-  appendLog: RunLifecycleService['appendLog'],
+  appendLog: RunLifecyclePort['appendLog'],
 ) {
   const template = loadPrompt('verifier.prompt.md');
   return async (

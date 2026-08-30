@@ -1,6 +1,5 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { CompanyContextModule } from '../company-context/company-context.module';
-import { SocialModule } from '../social/social.module';
 import { InProcessRunWorker } from './application/in-process-run.worker';
 import { RecoverInterruptedRunsUseCase } from './application/recover-interrupted-runs.use-case';
 import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
@@ -12,19 +11,21 @@ import { RunLifecycleService } from './application/run-lifecycle.service';
 import { RUN_EXECUTOR } from './domain/run-executor.port';
 import { RUN_REPOSITORY } from './domain/run.port';
 import { RUN_SSE_HUB } from './domain/run-sse.port';
+import { RUN_LIFECYCLE } from './domain/run-lifecycle.port';
 import { PrismaRunAdapter } from './infrastructure/prisma-run.adapter';
 import { InMemoryRunSseHub } from './infrastructure/run-sse.hub';
 import { StubRunExecutor } from './infrastructure/stub-run.executor';
 import { RunsController } from './runs.controller';
 
 @Module({
-  imports: [CompanyContextModule, forwardRef(() => SocialModule)],
+  imports: [CompanyContextModule],
   controllers: [RunsController],
   providers: [
     { provide: RUN_REPOSITORY, useClass: PrismaRunAdapter },
     { provide: RUN_SSE_HUB, useClass: InMemoryRunSseHub },
     { provide: RUN_EXECUTOR, useClass: StubRunExecutor },
     RunLifecycleService,
+    { provide: RUN_LIFECYCLE, useExisting: RunLifecycleService },
     RecoverInterruptedRunsUseCase,
     InProcessRunWorker,
     StartRunUseCase,
@@ -33,6 +34,6 @@ import { RunsController } from './runs.controller';
     GetRunLogsUseCase,
     ListRunsUseCase,
   ],
-  exports: [RUN_REPOSITORY, RUN_SSE_HUB, RunLifecycleService],
+  exports: [RUN_REPOSITORY, RUN_SSE_HUB, RUN_LIFECYCLE],
 })
 export class RunsModule {}

@@ -11,7 +11,7 @@ import { createRefineContentNode } from './nodes/refine-content.node';
 import { createPersistIdeasNode } from './nodes/persist-ideas.node';
 import { createPersistContentNode } from './nodes/persist-content.node';
 import { createFailRunNode } from './nodes/fail-run.node';
-import { RunLifecycleService } from '../../../runs/application/run-lifecycle.service';
+import type { RunLifecyclePort } from '../../../runs/domain/run-lifecycle.port';
 import type { SocialGraphState } from './state';
 import type { CompanyContextRepository } from '../../../company-context/domain/company-context.port';
 import type { LlmHopService } from './llm-hop';
@@ -40,7 +40,7 @@ interface CompileSocialGraphOptions {
   context: CompanyContextRepository;
   store: SocialResultStore;
   hop: LlmHopService;
-  lifecycle: RunLifecycleService;
+  lifecycle: RunLifecyclePort;
 }
 
 export type CompiledSocialGraph = {

@@ -12,7 +12,10 @@ import {
   compileSocialGraph,
 } from '../infrastructure/graph/social.graph';
 import { LlmHopService } from '../infrastructure/graph/llm-hop';
-import { RunLifecycleService } from '../../runs/application/run-lifecycle.service';
+import {
+  RUN_LIFECYCLE,
+  type RunLifecyclePort,
+} from '../../runs/domain/run-lifecycle.port';
 import type {
   PipelinePhase,
   SocialIdea,
@@ -30,7 +33,7 @@ export class SocialPipelineFacade {
     private readonly context: CompanyContextRepository,
     @Inject(SOCIAL_RESULT_STORE) private readonly store: SocialResultStore,
     hop: LlmHopService,
-    lifecycle: RunLifecycleService,
+    @Inject(RUN_LIFECYCLE) lifecycle: RunLifecyclePort,
   ) {
     this.graph = compileSocialGraph({
       context,
