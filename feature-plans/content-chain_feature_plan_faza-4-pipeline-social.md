@@ -1764,7 +1764,7 @@ Zmiana względem: szkic KROK 9 z `forwardRef(() => RunsModule)` w Social i `forw
 
 ### KROK 10 — Testy Jest D-4…D-8 (fake LLM)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** `SPEC-TESTY.md` D-4…D-8 na PR bez live vendora. Graf pełny rzadko — happy path integration z fake `LlmGatewayPort`.
 

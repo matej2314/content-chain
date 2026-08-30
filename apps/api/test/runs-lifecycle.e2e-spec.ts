@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { GATE_SECTIONS } from '../src/company-context/domain/company-context.constants';
+import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { ENV, type Env } from '../src/shared/config/env';
 import { validateEnv } from '../src/shared/config/env.schema';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
@@ -16,7 +17,7 @@ import {
   type RunExecutorPort,
 } from '../src/runs/domain/run-executor.port';
 import type { RunRecord } from '../src/runs/domain/run.types';
-import { StubRunExecutor } from '../src/runs/infrastructure/stub-run.executor';
+import { FakeLlmGateway } from './fake-llm-gateway';
 
 const completeContextBody = {
   identity: { name: 'Acme', description: 'Robimy X.' },
@@ -83,21 +84,27 @@ async function waitUntil(
   throw new Error(`timed out waiting for ${label}`);
 }
 
+type RunSnapshotBody = {
+  status: string;
+  result?: { ideas?: Array<{ id: string; title: string }> };
+};
+
 async function waitForRunStatus(
   app: INestApplication,
   runId: string,
   expected: string,
   timeoutMs = 5_000,
-): Promise<{ status: string }> {
+): Promise<RunSnapshotBody> {
   const deadline = Date.now() + timeoutMs;
   let lastStatus: string | undefined;
   while (Date.now() < deadline) {
     const response = await request(app.getHttpServer())
       .get(`/api/v1/runs/${runId}`)
       .expect(200);
-    lastStatus = response.body.status;
+    const body = response.body as RunSnapshotBody;
+    lastStatus = body.status;
     if (lastStatus === expected) {
-      return response.body;
+      return body;
     }
     await sleep(25);
   }
@@ -269,18 +276,20 @@ async function collectSseUntilServerCloses(
 }
 
 describe('Runs lifecycle (e2e)', () => {
-  describe('stub executor', () => {
+  describe('pipeline (fake LLM)', () => {
     let app: INestApplication;
     let prisma: PrismaService;
+    let fakeLlm: FakeLlmGateway;
 
     beforeAll(async () => {
       deployTestDb();
+      fakeLlm = new FakeLlmGateway();
 
       const moduleRef = await Test.createTestingModule({
         imports: [AppModule],
       })
-        .overrideProvider(RUN_EXECUTOR)
-        .useClass(StubRunExecutor)
+        .overrideProvider(LLM_GATEWAY_PORT)
+        .useValue(fakeLlm)
         .compile();
       app = moduleRef.createNestApplication();
       configureHttpApp(app);
@@ -288,6 +297,19 @@ describe('Runs lifecycle (e2e)', () => {
       prisma = app.get(PrismaService);
       await wipeRuns(prisma);
     }, 30_000);
+
+    beforeEach(async () => {
+      fakeLlm.reset();
+      const deadline = Date.now() + 15_000;
+      while (Date.now() < deadline) {
+        const active = await prisma.run.count({
+          where: { status: { in: ['queued', 'running'] } },
+        });
+        if (active === 0) break;
+        await sleep(25);
+      }
+      await wipeRuns(prisma);
+    });
 
     afterAll(async () => {
       if (prisma) {
@@ -313,7 +335,7 @@ describe('Runs lifecycle (e2e)', () => {
       expect(await prisma.run.count()).toBe(0);
     });
 
-    it('PUT complete context then POST /api/v1/runs returns 202 before the stub finishes', async () => {
+    it('PUT complete context then POST /api/v1/runs returns 202 before the pipeline finishes', async () => {
       await putCompleteContext(app);
 
       const startedAt = Date.now();
@@ -331,13 +353,18 @@ describe('Runs lifecycle (e2e)', () => {
       expect(row).not.toBeNull();
     });
 
-    it('GET snapshot reaches completed and logs include StubRunExecutor without GATEWAY_KEY', async () => {
+    it('GET snapshot reaches completed with ideas and hop logs without GATEWAY_KEY', async () => {
       await putCompleteContext(app);
       const created = await postRun(app);
       const runId = created.body.runId as string;
 
-      const snapshot = await waitForRunStatus(app, runId, 'completed');
+      const snapshot = await waitForRunStatus(app, runId, 'completed', 15_000);
       expect(snapshot.status).toBe('completed');
+      expect(snapshot.result?.ideas).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'idea_1', title: 'T1' }),
+        ]),
+      );
 
       const logs = await request(app.getHttpServer())
         .get(`/api/v1/runs/${runId}/logs`)
@@ -348,10 +375,11 @@ describe('Runs lifecycle (e2e)', () => {
       expect(
         logs.body.items.some(
           (entry: { step?: string; message?: string }) =>
-            entry.step === 'StubRunExecutor' ||
-            String(entry.message).includes('StubRunExecutor'),
+            entry.step === 'IdeationAgent' ||
+            String(entry.message).includes('LLM hop IdeationAgent'),
         ),
       ).toBe(true);
+      expect(serialized).not.toMatch(/X-Gateway-Key/i);
       expect(serialized).not.toMatch(/GATEWAY_KEY/i);
       expect(serialized).not.toContain(process.env.GATEWAY_KEY);
     });
@@ -371,7 +399,7 @@ describe('Runs lifecycle (e2e)', () => {
       await putCompleteContext(app);
       const created = await postRun(app);
       const runId = created.body.runId as string;
-      await waitForRunStatus(app, runId, 'completed');
+      await waitForRunStatus(app, runId, 'completed', 15_000);
 
       const payload = await collectSseUntilServerCloses(app, runId);
 
@@ -384,7 +412,7 @@ describe('Runs lifecycle (e2e)', () => {
       await putCompleteContext(app);
       const created = await postRun(app);
       const runId = created.body.runId as string;
-      await waitForRunStatus(app, runId, 'completed');
+      await waitForRunStatus(app, runId, 'completed', 15_000);
 
       const response = await request(app.getHttpServer())
         .post(`/api/v1/runs/${runId}/hitl`)
