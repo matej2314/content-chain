@@ -11,7 +11,14 @@ import { AuthModule } from './auth/auth.module';
 import { CompanyContextModule } from './company-context/company-context.module';
 import { HealthModule } from './health/health.module';
 import { SocialModule } from './social/social.module';
+import { SocialRunExecutor } from './social/application/social-run.executor';
+import {
+  SOCIAL_RESULT_STORE,
+  type SocialResultStore,
+} from './social/domain/social-result.port';
 import { RunsModule } from './runs/runs.module';
+import type { RunExecutorPort } from './runs/domain/run-executor.port';
+import type { RunResultReader } from './runs/domain/run-result-reader.port';
 import { EnvModule } from './shared/config/env.module';
 import { validateEnv } from './shared/config/env.schema';
 import { HttpExceptionFilter } from './shared/http/http-exception.filter';
@@ -46,7 +53,15 @@ import { MetricsModule } from './metrics/metrics.module';
     AuthModule,
     CompanyContextModule,
     SocialModule,
-    RunsModule,
+    RunsModule.registerAsync({
+      imports: [SocialModule],
+      inject: [SocialRunExecutor],
+      useFactory: (executor: SocialRunExecutor): RunExecutorPort => executor,
+      resultReader: {
+        inject: [SOCIAL_RESULT_STORE],
+        useFactory: (store: SocialResultStore): RunResultReader => store,
+      },
+    }),
     PrismaModule,
     HealthModule,
     LlmModule,

@@ -1455,8 +1455,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/app.module.ts": {
-    "mtime": 1787156430.7296467,
-    "ast_hash": "24ad545b3a660bc7e10991beb902bb37",
+    "mtime": 1788111420.6815403,
+    "ast_hash": "894e33e1e9ca1bd2f3c9a73eb8f9501b",
     "semantic_hash": ""
   },
   "apps/api/src/auth/auth.controller.ts": {
@@ -1490,8 +1490,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/runs.module.ts": {
-    "mtime": 1788092299.1532989,
-    "ast_hash": "efa13ea9898cd30df469e05034f040a3",
+    "mtime": 1788111411.640518,
+    "ast_hash": "c67b266920bf5699ced8f8a268c45287",
     "semantic_hash": ""
   },
   "apps/api/src/social/social.controller.ts": {
@@ -1500,8 +1500,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/social/social.module.ts": {
-    "mtime": 1788087773.740067,
-    "ast_hash": "5d5e534029095b106e7768e517c19c0b",
+    "mtime": 1788111418.2015896,
+    "ast_hash": "8b69ceffec22095566f67b586e886119",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/layout.tsx": {
@@ -1680,8 +1680,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/get-run.use-case.ts": {
-    "mtime": 1787059756.2742822,
-    "ast_hash": "6db4d9b31268cfc678e37e1304f76b1a",
+    "mtime": 1788093910.178368,
+    "ast_hash": "4b1ea49f38a73fc962c0a51524785ce2",
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/recover-interrupted-runs.use-case.ts": {
@@ -1690,8 +1690,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/run-lifecycle.service.ts": {
-    "mtime": 1788092301.5313551,
-    "ast_hash": "1fcac082eee4ad8dd188a3dcb69e4c42",
+    "mtime": 1788093910.14717,
+    "ast_hash": "12819c46d4a9ea054cdcfd0ddeec576b",
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/start-run.use-case.ts": {
@@ -1740,8 +1740,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/infrastructure/stub-run.executor.ts": {
-    "mtime": 1786990868.9950192,
-    "ast_hash": "00054dd5a20f439c812755b4859a34cc",
+    "mtime": 1788111422.3686388,
+    "ast_hash": "0b4887d941e457f11040d05146b9f07c",
     "semantic_hash": ""
   },
   "apps/api/src/shared/config/env.module.ts": {
@@ -2217,6 +2217,26 @@
   "apps/api/src/runs/domain/run-lifecycle.port.ts": {
     "mtime": 1788091890.8560634,
     "ast_hash": "51beef9525b96b38a7b9710eda9f965d",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/domain/run-result-reader.port.ts": {
+    "mtime": 1788093910.1169853,
+    "ast_hash": "30ff1f5c28a3a22e438e186f1af4ad67",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/infrastructure/empty-run-result.reader.ts": {
+    "mtime": 1788093910.1280966,
+    "ast_hash": "79b65b7662b56f38def14bca1f4fe926",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/run-lifecycle.module.ts": {
+    "mtime": 1788111411.657519,
+    "ast_hash": "cfc8906ae11cdf485a2df6bef0b8016c",
+    "semantic_hash": ""
+  },
+  "apps/api/src/social/application/social-run.executor.ts": {
+    "mtime": 1788110073.5957136,
+    "ast_hash": "8e14d0daeb0173b21de3761f945683cf",
     "semantic_hash": ""
   }
 }

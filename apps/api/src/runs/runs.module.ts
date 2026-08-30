@@ -1,4 +1,10 @@
-import { Module } from '@nestjs/common';
+import {
+  Module,
+  type DynamicModule,
+  type InjectionToken,
+  type ModuleMetadata,
+  type OptionalFactoryDependency,
+} from '@nestjs/common';
 import { CompanyContextModule } from '../company-context/company-context.module';
 import { InProcessRunWorker } from './application/in-process-run.worker';
 import { RecoverInterruptedRunsUseCase } from './application/recover-interrupted-runs.use-case';
@@ -7,28 +13,30 @@ import { GetRunUseCase } from './application/get-run.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
 import { ListRunsUseCase } from './application/list-runs.use-case';
-import { RunLifecycleService } from './application/run-lifecycle.service';
-import { RUN_EXECUTOR } from './domain/run-executor.port';
-import { RUN_REPOSITORY } from './domain/run.port';
-import { RUN_SSE_HUB } from './domain/run-sse.port';
-import { RUN_LIFECYCLE } from './domain/run-lifecycle.port';
-import { RUN_RESULT_READER } from './domain/run-result-reader.port';
-import { EmptyRunResultReader } from './infrastructure/empty-run-result.reader';
-import { PrismaRunAdapter } from './infrastructure/prisma-run.adapter';
-import { InMemoryRunSseHub } from './infrastructure/run-sse.hub';
-import { StubRunExecutor } from './infrastructure/stub-run.executor';
+import { RUN_EXECUTOR, type RunExecutorPort } from './domain/run-executor.port';
+import {
+  RUN_RESULT_READER,
+  type RunResultReader,
+} from './domain/run-result-reader.port';
+import { RunLifecycleModule } from './run-lifecycle.module';
 import { RunsController } from './runs.controller';
 
+export type RunsModuleAsyncOptions = {
+  imports?: ModuleMetadata['imports'];
+  inject: Array<InjectionToken | OptionalFactoryDependency>;
+  useFactory: (...args: never[]) => RunExecutorPort | Promise<RunExecutorPort>;
+  resultReader: {
+    inject: Array<InjectionToken | OptionalFactoryDependency>;
+    useFactory: (
+      ...args: never[]
+    ) => RunResultReader | Promise<RunResultReader>;
+  };
+};
+
 @Module({
-  imports: [CompanyContextModule],
+  imports: [CompanyContextModule, RunLifecycleModule],
   controllers: [RunsController],
   providers: [
-    { provide: RUN_REPOSITORY, useClass: PrismaRunAdapter },
-    { provide: RUN_SSE_HUB, useClass: InMemoryRunSseHub },
-    { provide: RUN_EXECUTOR, useClass: StubRunExecutor },
-    { provide: RUN_RESULT_READER, useClass: EmptyRunResultReader },
-    RunLifecycleService,
-    { provide: RUN_LIFECYCLE, useExisting: RunLifecycleService },
     RecoverInterruptedRunsUseCase,
     InProcessRunWorker,
     StartRunUseCase,
@@ -37,6 +45,25 @@ import { RunsController } from './runs.controller';
     GetRunLogsUseCase,
     ListRunsUseCase,
   ],
-  exports: [RUN_REPOSITORY, RUN_SSE_HUB, RUN_LIFECYCLE],
+  exports: [RunLifecycleModule],
 })
-export class RunsModule {}
+export class RunsModule {
+  static registerAsync(options: RunsModuleAsyncOptions): DynamicModule {
+    return {
+      module: RunsModule,
+      imports: options.imports ?? [],
+      providers: [
+        {
+          provide: RUN_EXECUTOR,
+          useFactory: options.useFactory,
+          inject: options.inject,
+        },
+        {
+          provide: RUN_RESULT_READER,
+          useFactory: options.resultReader.useFactory,
+          inject: options.resultReader.inject,
+        },
+      ],
+    };
+  }
+}

@@ -16,6 +16,7 @@ import {
   type RunExecutorPort,
 } from '../src/runs/domain/run-executor.port';
 import type { RunRecord } from '../src/runs/domain/run.types';
+import { StubRunExecutor } from '../src/runs/infrastructure/stub-run.executor';
 
 const completeContextBody = {
   identity: { name: 'Acme', description: 'Robimy X.' },
@@ -129,8 +130,8 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
 
 /**
  * Test-only fake for D-9 (queue). Parks `execute` on a deferred Promise so the
- * worker keeps the claimed slot (`running`) until `release()`. Production uses
- * StubRunExecutor — this must not be registered in RunsModule.
+ * worker keeps the claimed slot (`running`) until `release()`. Production binds
+ * SocialRunExecutor in AppModule glue — this must not be registered in RunsModule.
  */
 class HoldingRunExecutor implements RunExecutorPort {
   private readonly hold = deferred();
@@ -277,7 +278,10 @@ describe('Runs lifecycle (e2e)', () => {
 
       const moduleRef = await Test.createTestingModule({
         imports: [AppModule],
-      }).compile();
+      })
+        .overrideProvider(RUN_EXECUTOR)
+        .useClass(StubRunExecutor)
+        .compile();
       app = moduleRef.createNestApplication();
       configureHttpApp(app);
       await app.init();

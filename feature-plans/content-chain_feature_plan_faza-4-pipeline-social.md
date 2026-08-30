@@ -1550,7 +1550,7 @@ Zmiana względem: szkic tego kroku z `SocialResultStore` w konstruktorze i `Runs
 
 ### KROK 9 — Executor zamiast stuba: gateway, refine, re-invoke fazy
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Major 4.2 + 4.5. `RUN_EXECUTOR` = `SocialRunExecutor` **wpięty w kleju**, nie przez cykl modułów. Po `interrupted → running` re-invoke **fazy** z DB (S-6 pkt 5, R-9). Worker in-process bez zmian semantyki capu.
 

@@ -3,6 +3,7 @@ import { RunLifecycleService } from '../application/run-lifecycle.service';
 import type { RunExecutorPort } from '../domain/run-executor.port';
 import type { RunRecord } from '../domain/run.types';
 
+/** Only for testing purposes. Not registered as the production `RUN_EXECUTOR`. */
 @Injectable()
 export class StubRunExecutor implements RunExecutorPort {
   constructor(private readonly lifeCycleService: RunLifecycleService) {}

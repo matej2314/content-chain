@@ -5,6 +5,8 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { RUN_EXECUTOR } from '../src/runs/domain/run-executor.port';
+import { StubRunExecutor } from '../src/runs/infrastructure/stub-run.executor';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 import { PrismaService } from '../src/shared/persistence/prisma.service';
 
@@ -93,7 +95,10 @@ describe('Runs list (e2e)', () => {
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(RUN_EXECUTOR)
+      .useClass(StubRunExecutor)
+      .compile();
     app = moduleRef.createNestApplication();
     configureHttpApp(app);
     await app.init();
