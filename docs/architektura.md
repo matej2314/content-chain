@@ -45,7 +45,7 @@ Content Chain jest też **realnym use-case’em** projektu `ai-provider-gateway`
 
 ### Dziedziczenie i wyjątki
 
-Wszystkie bounded contexty w `apps/api` stosują ten sam wzorzec warstw (cienki controller → application / use-case → domain + porty), z **jednym świadomym wyjątkiem wewnętrznym**: Social pipeline orkestrowany grafem (LangGraph) za fasadą application service.
+Wszystkie bounded contexty w `apps/api` stosują ten sam wzorzec warstw (cienki controller → application / use-case → domain + porty), z **jednym świadomym wyjątkiem wewnętrznym**: Social pipeline orkestrowany grafem (LangGraph) za fasadą application service. Social **nie** wystawia własnego controllera HTTP — start runu i HITL zostają w BC Runs (`dokumentacja_komunikacji.md`).
 
 ### Style per obszar
 
@@ -71,7 +71,7 @@ Wszystkie bounded contexty w `apps/api` stosują ten sam wzorzec warstw (cienki 
 | ------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
 | **Auth** | Użytkownicy, role `admin` \| `user`, sesja: JWT w `cc_access` + refresh w `cc_refresh` (httpOnly) | **Jeden** `admin` (bootstrap); tylko on edytuje kontekst; obaj mogą uruchamiać flow’y SM — `security.md` |
 | **Company Context** | Kanoniczny kontekst firmy w DB, bramka kompletności                                  | Do kompletności — start flow’ów SM zablokowany                        |
-| **Social**          | Post ideas, post content (LI / FB / IG, PL / EN), weryfikacja spójności z kontekstem | Task jednoetapowy = full-auto; dwuetapowy = HITL przy wyborze z listy |
+| **Social**          | Post ideas, post content (LI / FB / IG, PL / EN), weryfikacja spójności z kontekstem | Task jednoetapowy = full-auto; dwuetapowy = HITL przy wyborze z listy; **bez** własnych tras HTTP (`SocialModule` nie rejestruje controllera) |
 | **Runs / Logs**     | Cykl życia async runu, statusy, czytelne logi powiązane z `runId`                    | DB = źródło prawdy dla logów widocznych w UI; stdout = ops; ocena gwiazdkowa + flaga edycji outputu + zamknięcie przeglądu — metadane runu (nie graf) |
 | **Feedback**        | Opinie tekstowe o aplikacji / agencie / runie (append-only)                           | Zapis w DB; odczyt analityczny / panel admina = **V1 — rozbudowa**; nie w LangGraph |
 

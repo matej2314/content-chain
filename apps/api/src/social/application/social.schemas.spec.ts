@@ -30,4 +30,77 @@ describe('parseLlmJson', () => {
       }),
     );
   });
+
+  it('keeps string issues unchanged', () => {
+    const out = parseLlmJson(
+      verifierOutputSchema,
+      '{"ok":false,"contextIssues":["off-brand CTA"],"languageIssues":[]}',
+    );
+    expect(out).toEqual({
+      ok: false,
+      contextIssues: ['off-brand CTA'],
+      languageIssues: [],
+    });
+  });
+
+  it('coerces object-shaped issues from a live verifier payload into strings', () => {
+    const raw = [
+      '```json',
+      '{',
+      '  "ok": false,',
+      '  "contextIssues": [',
+      '    {',
+      '      "itemId": "idea_4a91844a-0a36-43f0-b82c-4c0daef2afae",',
+      '      "issue": "Hook: «seed zamknięty» — audience opisuje seed, nie narrację Q2."',
+      '    },',
+      '    {',
+      '      "item": "idea_fcb6eb9c-e84e-4025-9618-6557955d4ec5",',
+      '      "issue": "Title obiecuje, co klienci robią z czasem.",',
+      '      "quote": "6 godzin tygodniowo"',
+      '    }',
+      '  ],',
+      '  "languageIssues": [',
+      '    {',
+      '      "itemId": "idea_4a91844a-0a36-43f0-b82c-4c0daef2afae",',
+      '      "issue": "Brak przecinka po okoliczniku."',
+      '    }',
+      '  ]',
+      '}',
+      '```',
+    ].join('\n');
+    const out = parseLlmJson(verifierOutputSchema, raw);
+    expect(out.ok).toBe(false);
+    expect(out.contextIssues).toEqual([
+      'idea_4a91844a-0a36-43f0-b82c-4c0daef2afae — Hook: «seed zamknięty» — audience opisuje seed, nie narrację Q2.',
+      'idea_fcb6eb9c-e84e-4025-9618-6557955d4ec5 — 6 godzin tygodniowo — Title obiecuje, co klienci robią z czasem.',
+    ]);
+    expect(out.languageIssues).toEqual([
+      'idea_4a91844a-0a36-43f0-b82c-4c0daef2afae — Brak przecinka po okoliczniku.',
+    ]);
+  });
+
+  it('rejects issue entries that are neither strings nor issue objects', () => {
+    expect(() =>
+      parseLlmJson(
+        verifierOutputSchema,
+        '{"ok":false,"contextIssues":[42],"languageIssues":[]}',
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        name: 'DomainException',
+        code: 'STRUCTURED_OUTPUT_INVALID',
+      }),
+    );
+    expect(() =>
+      parseLlmJson(
+        verifierOutputSchema,
+        '{"ok":false,"contextIssues":[{}],"languageIssues":[]}',
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        name: 'DomainException',
+        code: 'STRUCTURED_OUTPUT_INVALID',
+      }),
+    );
+  });
 });

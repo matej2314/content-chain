@@ -23,6 +23,7 @@ Odrzuć (wpis w `contextIssues`, konkretna fraza / zdanie + powód), gdy:
 - obietnica w hooku/title nie ma pokrycia w ofercie (clickbait względem faktów firmy).
 
 Nie karz za parafrazę faktów z kontekstu, jeśli treść pozostaje prawdziwa. Nie wymagaj cytowania pól JSON.
+Fakty z `audience.profiles` (np. seed / seria A, wielkość zespołu, rola foundera) **wolno** wpleść w hook, title i angle jako perspektywę czytelnika. To nie jest wymyślony case firmy. Odrzuć dopiero, gdy treść **przeczy** profilowi albo opisuje inną grupę.
 
 ## Obszar 2 — język
 
@@ -36,6 +37,7 @@ Odrzuć (wpis w `languageIssues`, cytat + błąd), gdy:
 - dla `en`: broken English, missing articles w stopniu, który psuje odbiór B2B.
 
 Nie czepiaj się świadomego stylu SM (równoważniki, krótkie linie, pytanie bez pełnego zdania), o ile jest poprawne i czytelne. Nie oceniaj „czy mi się podoba” — tylko poprawność.
+**Nie odrzucaj** haczyka ani tytułu za brak kropki na końcu, za pytanie retoryczne bez kropki (`Co z tym robią?`) ani za wielokropek / pauzę zamiast kropki. Interpunkcja w `languageIssues` tylko gdy **utrudnia odczyt** (zlepione zdania, brak znaku w środku, który psuje sens).
 
 ## Werdykt
 
@@ -52,8 +54,12 @@ Nie czepiaj się świadomego stylu SM (równoważniki, krótkie linie, pytanie b
 
 ## Wyjście
 
-Zwróć WYŁĄCZNIE JSON (bez markdown, bez komentarza, bez tekstu przed/po):
+Zwróć WYŁĄCZNIE JSON (bez markdown, bez komentarza, bez tekstu przed/po).
+
+Sukces:
 
 {"ok":true,"contextIssues":[],"languageIssues":[]}
 
-Przy failu: `"ok": false` oraz niepuste tablice z konkretnymi zarzutami.
+Fail — `ok` false oraz niepuste tablice. Każdy element to **string** (nie obiekt `{itemId, issue}`):
+
+{"ok":false,"contextIssues":["idea_…: «fraza» — liczba / usługa spoza JSON kontekstu"],"languageIssues":[]}

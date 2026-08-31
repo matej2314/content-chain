@@ -14,6 +14,9 @@ content-chain/
 ├── apps/
 │   ├── api/                         # NestJS + LangGraph — domena i orchestracja
 │   │   ├── prisma/                  # schema Prisma (SQLite MVP)
+│   │   ├── test/
+│   │   │   ├── *.e2e-spec.ts        # Jest e2e (supertest; fake LLM w happy path pipeline)
+│   │   │   └── postman/             # kolekcja Postman v2.1 Milestone 4 + README; nie BC, nie runtime, nie runner pnpm test:e2e
 │   │   ├── package.json
 │   │   └── src/
 │   │       ├── main.ts
@@ -75,15 +78,16 @@ apps/api/src/<context>/
 
 ```text
 apps/api/src/social/
-├── social.module.ts
-├── social.controller.ts
-├── application/                     # fasada: start/wznów pipeline, bez fat controller
+├── social.module.ts                 # bez controllers[] — HTTP start/HITL jest w Runs
+├── application/                     # fasada invoke fazy + SocialRunExecutor
 ├── domain/
 └── infrastructure/
     ├── graph/                       # LangGraph — definicja i węzły pipeline’u
     ├── prompts/                     # szablony promptów SM
     └── persistence/                 # adaptery zapisu wyników SM (via Prisma)
 ```
+
+Zmiana względem wcześniejszego drzewa z `social.controller.ts`: plik i rejestracja Nest nie istnieją. Wejście produktowe = `POST /runs` i `POST .../hitl` w BC Runs (`architektura.md`).
 
 ### Runs / Logs
 
@@ -130,7 +134,7 @@ To **nie** są bounded contexty — brak układu `application` / `domain` / `inf
 
 - `health/` — liveness i readiness procesu (`GET /api/v1/health`, `GET /api/v1/health/ready`; kontrakt: `dokumentacja_komunikacji.md`).
 - `metrics/` — eksporter Prometheus (`GET /metrics` poza `/api/v1`; `observability.md`).
-- `llm/` — port LLM i adapter HTTP do `apps/ai-provider-gateway`. Wołają go BC (np. Social), nie kontrolery HTTP. **Nie** umieszczać tu domeny Content Chain ani kluczy vendorów.
+- `llm/` — port LLM i adapter HTTP do `apps/ai-provider-gateway`. Wołają go BC (np. Social), nie kontrolery HTTP. Helper kształtu logu hopu: `llm-gateway-chat.log.ts` (stdout tylko w `development`, z redakcją `GATEWAY_KEY` — `observability.md`). **Nie** umieszczać tu domeny Content Chain ani kluczy vendorów.
 
 ## `apps/frontend`
 
@@ -169,6 +173,7 @@ Tylko kontrakt typów/enumów/brand; **bez** Zod, Nest/Next/Prisma/LangGraph, us
 | Typy publiczne w `packages/shared` (**bez Zod**) | Use-case’y, DB, Zod/runtime w `packages/shared` |
 | Aplikacje pod `apps/` | Rootowy katalog `src/` opakowujący wszystkie app |
 | Kernel lifecycle Runs + klej `RUN_EXECUTOR` w `AppModule` | `forwardRef` Runs ↔ Social; port lifecycle w `packages/shared` |
+| Kolekcja E2E pod `apps/api/test/postman/` | `apps/api/postman/` ani `apps/api/src/postman/` (wygląda jak moduł produktu) |
 
 ## Poza zakresem tego dokumentu
 

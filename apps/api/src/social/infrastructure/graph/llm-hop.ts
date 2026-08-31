@@ -72,7 +72,10 @@ export class LlmHopService {
           runId: input.runId,
           conversationId: input.conversationId,
           level: 'error',
-          message: `LLM hop ${input.step} failed (attempt ${attempt})`,
+          message:
+            error instanceof LlmGatewayError
+              ? `LLM hop ${input.step} failed (attempt ${attempt}): ${error.message}`
+              : `LLM hop ${input.step} failed (attempt ${attempt})`,
           step: input.step,
           requestId:
             error instanceof LlmGatewayError

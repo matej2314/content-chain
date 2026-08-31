@@ -222,6 +222,12 @@ Jeden węzeł, dwa obszary (opcja B — bez osobnego LanguageQualityVerifier w M
 
 Werdykt: `ok` albo konkretne poprawki dla Refine*. W logu / SSE rozróżnialne powody faila (kontekst vs język), nawet gdy to jeden hop LLM.
 
+Domena: `contextIssues` i `languageIssues` to **`string[]`**. Parser Zod (`verifierOutputSchema`) dodatkowo **spłaszcza** element w kształcie `{ itemId | item, quote?, issue }` do jednego stringa (`itemId — quote — issue`). Liczba, pusta `{}` albo obiekt bez tych pól → `STRUCTURED_OUTPUT_INVALID` (nie cichy tekst).
+
+Na obszarze kontekstu: fakty z `audience.profiles` (np. seed, wielkość zespołu) **wolno** wpleść w hook / title / angle jako perspektywę czytelnika — to nie jest wymyślony case firmy. Odrzut, gdy treść **przeczy** profilowi albo opisuje inną grupę.
+
+Na obszarze języka: **nie** odrzucać haczyka ani tytułu za brak kropki na końcu, pytanie retoryczne albo pauzę / wielokropek zamiast kropki. Interpunkcja w `languageIssues` tylko gdy **utrudnia odczyt**.
+
 ---
 
 ## Logi vs metryki

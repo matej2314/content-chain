@@ -17,7 +17,7 @@
 |-------|------|
 | Cel, zakres MVP, poza zakresem | `dokumentacja_koncepcyjna.md` |
 | Style, BC, async run, decyzje | `architektura.md` |
-| Drzewo `apps/*`, Prisma, prompty | `architektura_katalogi_pliki.md` |
+| Drzewo `apps/*`, Prisma, prompty, `test/postman` | `architektura_katalogi_pliki.md` |
 | API, SSE, metrics, integracja gateway | `dokumentacja_komunikacji.md` |
 | Brand types / korelacja ID | `brand_types.md` |
 | Słownik pojęć i kodów błędów | `dictionary.md` |
@@ -26,7 +26,7 @@
 | Strategia testów | `testy.md` |
 | `local` / `production`, compose, backup | `deployment.md` |
 | Auth, bootstrap, hasła, ekspozycja | `security.md` |
-| Metryki vs logi runu | `observability.md` |
+| Metryki vs logi runu; dump hopu gateway w `development` | `observability.md` |
 | Widoki dashboardu, agenci aktywni, live status, opinia / gwiazdki / Edytuj | `ux_dashboard.md` |
 
 ## Schematy (skrót)

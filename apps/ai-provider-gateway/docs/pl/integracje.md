@@ -176,7 +176,7 @@ Gateway stosuje **różne profile walidacji** dla natywnego API i fasad oficjaln
 
 | Profil | Endpoint | Max messages | Max content (user/assistant) | Max content (tool) |
 |--------|----------|--------------|------------------------------|---------------------|
-| `native` | `/api/v1/chat`, `/api/v1/chat/stream` | 150 | 3000 | 32000 |
+| `native` | `/api/v1/chat`, `/api/v1/chat/stream` | 150 | 10000 | 32000 |
 | `facade-openai` | `/api/v1/openai/chat/completions` | 15000 | 128000 | 128000 |
 | `facade-anthropic` | `/api/v1/anthropic/messages` | 15000 | 128000 | 128000 |
 

@@ -74,8 +74,8 @@ Przy walidacji `ValidationPipe` źródłowe `message` bywa tablicą stringów; *
 
 | Rola        | Pola                                   | Limity           |
 | ----------- | -------------------------------------- | ---------------- |
-| `user`      | `content`                              | max 3000 znaków  |
-| `assistant` | `content`; opcjonalnie `toolCalls[]`   | max 3000 znaków  |
+| `user`      | `content`                              | max 10 000 znaków  |
+| `assistant` | `content`; opcjonalnie `toolCalls[]`   | max 10 000 znaków  |
 | `tool`      | `content`, **`toolCallId`** (wymagane) | max 32000 znaków |
 
 **Pole `tooling` (opcjonalne):** obiekt z `definitions[]` (`name`, `description?`, `parameters` — JSON Schema) oraz opcjonalnym `toolChoice`. Włącza function calling — alias musi mieć **`capabilities.tools: true`** w YAML; inaczej **`400`** + **`TOOLS_NOT_SUPPORTED`**.
@@ -108,7 +108,7 @@ Fasady OpenAI / Anthropic mapują `tools`, `tool_calls`, bloki `tool_use` / `too
 | Aspekt                                     | Natywny (`/api/v1/chat`)                                                         | Fasady OpenAI/Anthropic                                                        |
 | ------------------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | Max wiadomości                             | 150                                                                              | 15000                                                                          |
-| Max długość `content` (user/assistant)     | 3000 znaków                                                                      | 128000 znaków                                                                  |
+| Max długość `content` (user/assistant)     | 10 000 znaków                                                                    | 128000 znaków                                                                  |
 | Max długość `content` (tool)               | 32000 znaków                                                                     | 128000 znaków                                                                  |
 | Pole `warnings` w response                 | Tak (`warnings[].code` — string w JSON; wewnętrznie `WarningCode`, np. `PARAM_IGNORED_BY_PROVIDER`) | Nie (zgodność z vendorem)                                                      |
 | `systemFingerprint` / `system_fingerprint` | Opcjonalnie w JSON i SSE `done` — tylko gdy upstream zwraca (praktycznie OpenAI) | OpenAI fasada: `system_fingerprint` gdy ustawione; Anthropic fasada: brak pola |

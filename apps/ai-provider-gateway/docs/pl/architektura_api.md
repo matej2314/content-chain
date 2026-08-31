@@ -112,7 +112,7 @@ Kody błędów (skrót): `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `TO
 
 ## Walidacja
 
-- Walidacja DTO na brzegu (`ValidationPipe`: m.in. **`messages` 1–150** w natywnym czacie, `content` max 3000 znaków (32000 dla `tool`), opcjonalne `conversationId` w formacie `conv_<uuid>`, opcjonalne zagnieżdżone `params` (w tym `responseFormat.jsonSchema`), opcjonalne `metadata`, `forbidNonWhitelisted`). Fasady OpenAI / Anthropic dopuszczają do **15 000** wiadomości (`MAX_MESSAGES` w DTO integracji).
+- Walidacja DTO na brzegu (`ValidationPipe`: m.in. **`messages` 1–150** w natywnym czacie, `content` max 10 000 znaków (32000 dla `tool`), opcjonalne `conversationId` w formacie `conv_<uuid>`, opcjonalne zagnieżdżone `params` (w tym `responseFormat.jsonSchema`), opcjonalne `metadata`, `forbidNonWhitelisted`). Fasady OpenAI / Anthropic dopuszczają do **15 000** wiadomości (`MAX_MESSAGES` w DTO integracji).
 - Limit rozmiaru JSON body: **1 MB** (`express.json` w `src/setup.app.ts`); przekroczenie → **413** (`VALIDATION_FAILED`).
 - Walidacja konfiguracji przy starcie (fail‑fast) i w runtime (np. unknown `modelAlias` → błąd deterministyczny z kodem `MODEL_ALIAS_NOT_FOUND` przy `POST /chat`).
 

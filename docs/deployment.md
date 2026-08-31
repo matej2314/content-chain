@@ -52,10 +52,12 @@ Jeden stack:
 | Obszar | Zmienne |
 |--------|---------|
 | Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (SQLite), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS` |
-
-`MAX_CONCURRENT_RUNS` ogranicza liczbę równoległych execute: claim `queued → running` **oraz** `interrupted → running` (wznowienia po restarcie). Nie dotyczy wyłącznie nowych `POST /runs`.
 | Gateway | klucze providerów, `gateway.config.yaml`, allowlista kluczy, port (szczegóły: `apps/ai-provider-gateway/.env.example`) |
 | Frontend | `NEXT_PUBLIC_API_BASE_URL` (tylko URL api — **bez** sekretów LLM) |
+
+`MAX_CONCURRENT_RUNS` ogranicza liczbę równoległych execute: claim `queued → running` **oraz** `interrupted → running` (wznowienia po restarcie). Nie dotyczy wyłącznie nowych `POST /runs`.
+
+Lokalna instancja gateway w tym repo: `apps/ai-provider-gateway/gateway.config.yaml` (m.in. `timeoutMs` i `maxOutputTokens` aliasu używanego przez api) musi unieść hop Social z pełnym JSON kontekstu firmy. **Liczb z YAML nie pinujemy w SPEC** — źródło operatorskie to plik instancji. Ingress native: **10 000** znaków na `content` `user` / `assistant` (`dokumentacja_komunikacji.md`). Jak odpalić happy path: `apps/api/test/postman/README.md`.
 
 ## Observability
 
@@ -79,7 +81,7 @@ W `production`: zalecany Prometheus (lub agent) scrapujący api; alerty poza MVP
 
 Zgodna z docs koncepcyjnymi:
 
-1. api + gateway + pipeline + SQLite (Postman)  
+1. api + gateway + pipeline + SQLite (`apps/api/test/postman/`)  
 2. auth  
 3. frontend  
 
@@ -92,7 +94,7 @@ Compose może od początku definiować wszystkie trzy usługi; „puste” UI do
 3. Sprawdź `GET /api/v1/health` (api) oraz readiness gateway (wewnętrznie).  
 4. Bootstrap admin.  
 5. Uzupełnij kontekst → completeness.  
-6. Smoke: start runu SM (Postman lub UI).  
+6. Smoke: start runu SM (`apps/api/test/postman/` albo UI).  
 7. Podłącz scrape `/metrics` (opcjonalnie od razu).  
 8. Zaplanuj backup volume SQLite.
 

@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md`, `content-chain_brief.md` (kontekst kolejności budowy).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`W_TRAKCIE`: feature KROK 1–7 `WYKONANY`; dalej KROK 7b / 8–11) / Milestone 4 (pipeline + Postman), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, 5 i 6 oraz osiągnięciu Milestone 4–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, 5 i 6 oraz osiągnięciu Milestone 4–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -257,7 +257,7 @@
 
 ## Faza 4 — Pipeline Social (ideas / content)
 
-**Status:** `W_TRAKCIE`
+**Status:** `WYKONANY`
 
 **Opis:** Pierwszy slice produktowy backendu: post ideas i post content z weryfikacją względem kontekstu, zapisem wyników i czytelnych logów; LLM tylko przez gateway. Weryfikacja **obu** happy pathów Postmanem (bez UI). Zgodnie z `SPEC-SOCIAL.md`, `SPEC-RUNY.md` (porty lifecycle / executor, bez cyklu Nest), `docs/data_flow.md`, `docs/dokumentacja_koncepcyjna.md`, `docs/architektura.md` (zależności między BC).  
 **Odblokowana po Fazie 7** (`WYKONANY`) **i Fazie 8** (`WYKONANY`): executor Social siada na grafie z `interrupted` i twardym capem claimu (`SPEC-RUNY.md` R-6 / R-9); hub SSE kończy strumień po `completed`/`failed` (`SPEC-RUNY.md` R-4a), zanim pipeline zacznie produkować runy.
@@ -283,7 +283,7 @@
 
 ### Krok 4.2 — Integracja z kontekstem, runami i gateway; wyniki
 
-**Status:** `W_TRAKCIE`
+**Status:** `WYKONANY`
 
 **Opis:** Spięcie Social z bramką kontekstu, cyklem runu, logami oraz gateway; zapis ideas/content i weryfikacja spójności z kontekstem firmy. Persistence store SM — feature KROK 7 (`WYKONANY`). Snapshot GET + executor — KROK 8–9 po KROK 7b (granice Nest).
 
@@ -299,7 +299,7 @@
 
 ### Krok 4.3 — Happy path Postman (obie ścieżki)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** DoD pośredni z docs: weryfikacja bez UI. Obowiązkowo obie ścieżki: lista pomysłów full-auto oraz ideas → HITL → content.
 
@@ -311,7 +311,7 @@
 
 ### Krok 4.4 — Korekty implementacyjne: `startedBy` w snapshotcie i `resolvePhase` z DB
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Trzy punkty naprawcze zidentyfikowane w przeglądzie architektonicznym planu Fazy 4 (feature plan KROK 6a, KROK 8 i KROK 9). Punkt 3 (pusty `ideas` w ContentWriter) **już dostarczony** w feature KROK 6a (`WYKONANY`) — nie powtarzać. Punkty 1–2 zostają w KROK 8–9; snapshot **nie** wraca do `startedBy: run.startedBy` ani do wstrzyknięcia `SOCIAL_RESULT_STORE` przez import Social.
 
@@ -374,7 +374,7 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 
 ### Krok 4.5 — Granice Nest: port lifecycle i klej `RUN_EXECUTOR`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Refaktor względem: feature plan **KROK 7** (`WYKONANY`) — `RunsModule` importuje `forwardRef(() => SocialModule)` pod przyszły `SOCIAL_RESULT_STORE` w `GetRunUseCase`; oraz względem szkicu KROK 9 z wzajemnym `forwardRef`. Cel: acykliczny graf Nest zgodny z `docs/architektura.md` i `SPEC-RUNY.md` v7 / `SPEC-SOCIAL.md` v4. Social zostaje osobnym BC (kolejne grafy V1 bez złączania z Runs).
 
@@ -396,6 +396,8 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 ---
 
 ## MILESTONE 4 — Zielony pipeline SM (dowód pośredni Postman)
+
+**Status:** `OSIĄGNIĘTY`
 
 **Opis:** Bramka po Fazie 4. Duży skok produktowy backendu: pipeline SM działa end-to-end bez UI. **Priorytet przed Auth.**
 

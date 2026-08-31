@@ -1,9 +1,14 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { createRequestId, isRequestId, unbrand } from '@content-chain/shared';
 import { ENV, type Env } from '../shared/config/env';
 import { LlmGatewayError } from './llm-gateway.errors';
 import { gatewayErrorsTotal } from '../metrics/metrics.registry';
 import { toGatewayErrorCodeLabel } from '../metrics/gateway-error-code';
+import {
+  buildGatewayChatErrorLog,
+  buildGatewayChatRequestLog,
+  buildGatewayChatResponseLog,
+} from './llm-gateway-chat.log';
 import type { LlmGatewayPort } from './llm-gateway.port';
 import type {
   LlmChatCommand,
@@ -36,10 +41,28 @@ const RETRYABLE_CODES = new Set([
 
 @Injectable()
 export class LlmGatewayHttpAdapter implements LlmGatewayPort {
+  private readonly logger = new Logger(LlmGatewayHttpAdapter.name);
+
   constructor(@Inject(ENV) private readonly env: Env) {}
 
   async chat(command: LlmChatCommand): Promise<LlmChatResult> {
     const url = `${this.env.GATEWAY_BASE_URL.replace(/\/$/, '')}/api/v1/chat`;
+    const modelAlias = unbrand(command.modelAlias);
+    const conversationId = unbrand(command.conversationId);
+    this.logDevGatewayChat(() => {
+      this.logger.log(
+        `gateway chat request ${JSON.stringify(
+          buildGatewayChatRequestLog({
+            url,
+            modelAlias,
+            conversationId,
+            messages: command.messages,
+            params: command.params,
+            secret: this.env.GATEWAY_KEY,
+          }),
+        )}`,
+      );
+    });
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -48,8 +71,8 @@ export class LlmGatewayHttpAdapter implements LlmGatewayPort {
           'X-Gateway-Key': this.env.GATEWAY_KEY,
         },
         body: JSON.stringify({
-          modelAlias: unbrand(command.modelAlias),
-          conversationId: unbrand(command.conversationId),
+          modelAlias,
+          conversationId,
           messages: command.messages,
           ...(command.params ? { params: command.params } : {}),
         }),
@@ -57,10 +80,39 @@ export class LlmGatewayHttpAdapter implements LlmGatewayPort {
 
       if (response.status !== 201) {
         const errorBody = await this.readJsonBody<GatewayErrorBody>(response);
+        this.logDevGatewayChat(() => {
+          this.logger.warn(
+            `gateway chat error ${JSON.stringify(
+              buildGatewayChatErrorLog({
+                httpStatus: response.status,
+                code: errorBody?.code,
+                message: errorBody?.message,
+                requestId: errorBody?.requestId,
+                secret: this.env.GATEWAY_KEY,
+              }),
+            )}`,
+          );
+        });
         throw this.mapHttpError(errorBody);
       }
 
       const body = await this.readJsonBody<GatewayChatResponse>(response);
+      this.logDevGatewayChat(() => {
+        this.logger.log(
+          `gateway chat response ${JSON.stringify(
+            buildGatewayChatResponseLog({
+              httpStatus: response.status,
+              requestId: body?.requestId,
+              conversationId: body?.conversationId,
+              model: body?.model,
+              finishReason: body?.finishReason,
+              usage: body?.usage,
+              text: body?.output?.text,
+              secret: this.env.GATEWAY_KEY,
+            }),
+          )}`,
+        );
+      });
       if (!body || !isRequestId(body.requestId)) {
         gatewayErrorsTotal.inc({ code: 'VALIDATION_FAILED' });
         throw new LlmGatewayError(
@@ -81,8 +133,18 @@ export class LlmGatewayHttpAdapter implements LlmGatewayPort {
         finishReason: body.finishReason,
       };
     } catch (error) {
+      if (!(error instanceof LlmGatewayError)) {
+        this.logger.warn('gateway chat transport error');
+      }
       throw this.mapError(error);
     }
+  }
+
+  private logDevGatewayChat(write: () => void): void {
+    if (this.env.NODE_ENV !== 'development') {
+      return;
+    }
+    write();
   }
 
   private async readJsonBody<T>(response: Response): Promise<T | undefined> {

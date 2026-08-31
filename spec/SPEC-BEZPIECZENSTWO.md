@@ -1,7 +1,7 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-15
+data_modyfikacji: 2026-08-31
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -34,7 +34,9 @@ B-6. W `production`: `apps/ai-provider-gateway` **nie** jest publikowany do inte
 
 B-7. `GET /api/v1/health` może być bez auth do probe — **bez** wrażliwych danych w odpowiedzi.
 
-B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, klucze vendorów) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, treści opinii (`Feedback.body`), labelach Prometheus.
+B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, klucze vendorów) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, treści opinii (`Feedback.body`), labelach Prometheus, stdout procesu. Dump treści hopu chat na stdout adaptera LLM **wyłącznie** przy `NODE_ENV=development`; w polach tekstowych wartość `GATEWAY_KEY` zastępowana `[REDACTED]`.
+
+Zmiana względem wersji 3 / B-8: wcześniejsza lista nie obejmowała diagnostycznego dumpa hopu; kod w `LlmGatewayHttpAdapter` + `llm-gateway-chat.log.ts` (`docs/observability.md`, `docs/security.md`).
 
 B-9. Minimalny zestaw `/metrics` (proces `apps/api`) zgodny z `docs/observability.md`: HTTP (licznik + latencja), uptime/process, liczniki/gauge statusów runów, sygnały błędów wywołań gateway — nazwy mogą mieć prefiks `content_chain_`.
 
@@ -57,6 +59,7 @@ B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/s
 - Ograniczać `/metrics` reverse proxy / firewallem zamiast auth w aplikacji (MVP).
 - Trzymać osobne `.env.example` per workspace package.
 - Opcjonalnie scrape metrics gateway w sieci ops (upstream) — bez ekspozycji publicznej.
+- Dump hopu chat na stdout wyłącznie w `development`, z redakcją `GATEWAY_KEY`.
 
 ### Nie wolno
 
@@ -64,6 +67,7 @@ B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/s
 - Publicznego gateway z kluczami vendorów w production.
 - Publicznego `/metrics` na internet w production.
 - Sekretów LLM / gateway w FE.
+- Dumpa pełnych promptów hopu gateway na stdout w `production` (w tym przy `NODE_ENV=production`).
 - Tokenu sesji w query string (SSE/API).
 - Drugiego `admin` w MVP.
 - `Authorization: Bearer` jako modelu auth MVP.
@@ -86,12 +90,14 @@ Zmiana względem wersji 1: dopisano `@nestjs/config` oraz Pino/`nestjs-pino` jak
 
 Zmiana względem wersji 2: B-8 obejmuje też treść opinii (`Feedback.body`).
 
+Zmiana względem wersji 3: B-8 obejmuje stdout dump hopu (tylko `development` + redakcja klucza).
+
 ## Kryteria akceptacji
 
 - [ ] Api/gateway padają przy starcie bez wymaganych env; `.env.example` istnieje i nie zawiera sekretów.
 - [ ] Helmet (lub równoważne) aktywne na api; CORS czyta allowlistę z env.
 - [ ] W production: gateway i metrics nie są publiczne; cookie Secure.
-- [ ] Brak sekretów w logach runu, SSE, envelope, treści opinii i labelach metrics.
+- [ ] Brak sekretów w logach runu, SSE, envelope, treści opinii, labelach metrics i stdout (w `development` dump hopu z `[REDACTED]` zamiast `GATEWAY_KEY`; w `production` bez dumpa treści chat).
 - [ ] `/metrics` zwraca co najmniej sygnały z B-9.
 - [ ] Checklist operatora z `docs/security.md` da się odhaczyć na instalacji compose.
 

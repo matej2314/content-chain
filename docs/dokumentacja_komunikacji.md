@@ -407,6 +407,8 @@ Content Chain **nie definiuje** własnego kontraktu LLM. Adapter w `apps/api` wo
 | Poza domyślną ścieżką CC | fasady `/api/v1/openai/...`, `/api/v1/anthropic/...` |
 | `x-request-id` | **Nie ustawiany** przez CC przy chat/stream — gateway generuje `req_<uuid>`; CC zapisuje go z odpowiedzi |
 | `conversationId` w body | **Ten sam** `ConversationId` runu na wszystkich wywołaniach LLM w runie |
+| Limit `content` (native, `user` / `assistant`) | **10 000** znaków na wiadomość — `INGRESS_LIMITS.native` w `apps/ai-provider-gateway` (`chat-ingress.constants.ts`). Hop Social z JSON kontekstu firmy musi się w tym limicie mieścić. |
+| Structured output | CC parsuje `output.text` przez `JSON.parse` + Zod. W tej instancji gateway `MASTER_SYSTEM_PROMPT.md` / `MAIN_SYSTEM_PROMPT.md` wymagają czystego JSON, gdy użytkownik o to prosi. CC **nadal nie** wysyła `role: system`. |
 
 ### Przykład — natywny czat (non-stream)
 
@@ -431,6 +433,8 @@ Headers: `Content-Type: application/json`, `X-Gateway-Key: …` — **bez** `x-r
 CC **musi** przepisać ten `requestId` do `run.log` danego kroku agenta.  
 Rola `system` w `messages[]` jest po stronie gateway **zablokowana** — system prompt składa gateway; Content Chain przekazuje treść użytkownika / turny tool zgodnie z kontraktem upstream.
 
+Zmiana względem wcześniejszego skrótu (limit native 3000 znaków, bez wzmianki o JSON w MAIN/MASTER): hop pipeline’u z pełnym kontekstem firmy przekraczał 3000 znaków — kanoniczny limit native w tej instancji to **10 000**. Reguły wyjścia JSON żyją w plikach system promptu gateway, nie w body z api.
+
 ### Błędy gateway → run Content Chain
 
 Upstream envelope (skrót): `{ statusCode, code, message, requestId, details? }`.
@@ -447,7 +451,7 @@ Upstream envelope (skrót): `{ statusCode, code, message, requestId, details? }`
 | `TOOLS_NOT_SUPPORTED` / `THINKING_NOT_SUPPORTED` | Run `failed`; żądanie niezgodne z `capabilities` aliasu; log z `code` |
 | Sukces częściowy przy stream gateway | Mapowanie na logi kroku; finalizacja węzła grafu dopiero po domknięciu kontraktu streamu |
 
-`apps/api` mapuje błędy gateway na własne logi runu i ewentualnie `run.failed` — **bez** wyciekania `X-Gateway-Key` do frontendu. W logu zawsze da się odnaleźć parę: `conversationId` runu + `requestId` nieudanego hopu.
+`apps/api` mapuje błędy gateway na własne logi runu i ewentualnie `run.failed` — **bez** wyciekania `X-Gateway-Key` do frontendu. W logu zawsze da się odnaleźć parę: `conversationId` runu + `requestId` nieudanego hopu. Przy `LlmGatewayError` `message` wpisu kroku może zawierać zmapowany tekst adaptera (`Gateway chat failed (CODE)`). Dump pełnej treści żądania/odpowiedzi na stdout — wyłącznie `development` (`observability.md`).
 
 ### Przykład korelacji (norma)
 

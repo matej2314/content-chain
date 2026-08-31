@@ -110,7 +110,7 @@ Without the turn 1 `assistant` in `messages[]`, Sentry will only see what is in 
 
 | Field | Required | Description |
 |------|----------|------|
-| `messages` | Yes | 1–150 elements; roles `user` \| `assistant` \| `tool` (`toolCallId` required); `content` max 3000 (user/assistant) or 32000 (`tool`). History — **always from the client**. |
+| `messages` | Yes | 1–150 elements; roles `user` \| `assistant` \| `tool` (`toolCallId` required); `content` max 10 000 (user/assistant) or 32000 (`tool`). History — **always from the client**. |
 | `conversationId` | No | String in format **`conv_<uuid>`** (regex in `ChatRequestDto`). **In request:** enables Sentry grouping (`gen_ai.conversation.id`). **Absent in request:** span without conversation id; gateway returns a new `conv_<uuid>` in the response. |
 
 Validation: `@IsOptional()`, `@IsString()`, `@Matches(/^conv_[0-9a-f]{8}-…/)`. Invalid format (e.g. `conv_abc`) → **400** (`VALIDATION_FAILED`, message: `conversationId must be conv_<uuid>`).

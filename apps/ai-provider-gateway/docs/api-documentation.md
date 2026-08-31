@@ -74,8 +74,8 @@ On `ValidationPipe` validation the source `message` is sometimes an array of str
 
 | Role        | Fields                                   | Limits           |
 | ----------- | -------------------------------------- | ---------------- |
-| `user`      | `content`                              | max 3000 characters  |
-| `assistant` | `content`; optionally `toolCalls[]`   | max 3000 characters  |
+| `user`      | `content`                              | max 10 000 characters  |
+| `assistant` | `content`; optionally `toolCalls[]`   | max 10 000 characters  |
 | `tool`      | `content`, **`toolCallId`** (required) | max 32000 characters |
 
 **`tooling` field (optional):** object with `definitions[]` (`name`, `description?`, `parameters` â JSON Schema) and optional `toolChoice`. Enables function calling â the alias must have **`capabilities.tools: true`** in YAML; otherwise **`400`** + **`TOOLS_NOT_SUPPORTED`**.
@@ -108,7 +108,7 @@ OpenAI / Anthropic facades map `tools`, `tool_calls`, `tool_use` / `tool_result`
 | Aspect                                     | Native (`/api/v1/chat`)                                                         | OpenAI/Anthropic facades                                                        |
 | ------------------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | Max messages                             | 150                                                                              | 15000                                                                          |
-| Max `content` length (user/assistant)     | 3000 characters                                                                      | 128000 characters                                                                  |
+| Max `content` length (user/assistant)     | 10 000 characters                                                                    | 128000 characters                                                                  |
 | Max `content` length (tool)               | 32000 characters                                                                     | 128000 characters                                                                  |
 | `warnings` field in response                 | Yes (`warnings[].code` â string in JSON; internally `WarningCode`, e.g. `PARAM_IGNORED_BY_PROVIDER`) | No (vendor compatibility)                                                      |
 | `systemFingerprint` / `system_fingerprint` | Optionally in JSON and SSE `done` â only when upstream returns it (practically OpenAI) | OpenAI facade: `system_fingerprint` when set; Anthropic facade: no field |

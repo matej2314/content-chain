@@ -16,6 +16,12 @@ Powiązane: `dokumentacja_komunikacji.md`, `data_flow.md`, `deployment.md`, `bra
 
 **Logi procesu vs logi runu:** Pino / `nestjs-pino` = strukturalne logi procesu i requestów HTTP na stdout. Przebieg domenowy SM (kroki agentów, HITL) pozostaje w DB + SSE — jak niżej. Nie mylić tych kanałów.
 
+### Dump hopu gateway (tylko `development`)
+
+`LlmGatewayHttpAdapter` przy `NODE_ENV=development` zapisuje na stdout (Nest `Logger`) treść hopu `POST {GATEWAY}/api/v1/chat`: żądanie, odpowiedź **201** albo ciało błędu HTTP. Kształt pól: `apps/api/src/llm/llm-gateway-chat.log.ts`. W polach tekstowych wartość `GATEWAY_KEY` jest zastępowana `[REDACTED]`. To **nie** zastępuje `run.log` i **nie** jest włączane poza `development`. W `production` adapter nie emituje promptów ani `output.text`. Przy błędzie transportu (sieć, nie envelope gateway) — krótki `warn` bez ciała odpowiedzi.
+
+W `run.log` kroku hopu: przy `LlmGatewayError` `message` może zawierać zmapowany komunikat adaptera (`Gateway chat failed (CODE)`), nadal bez sekretu.
+
 ## Metryki `apps/api` (MVP)
 
 Endpoint: `GET /metrics` (poza `/api/v1`). Ekspozycja sieci: `security.md` / `deployment.md`.
@@ -80,6 +86,7 @@ Szczegóły: `brand_types.md`, `dictionary.md`.
 - Po każdym udanym hopie LLM w logu jest `requestId` z gateway.
 - `/metrics` zwraca HTTP i run status counters bez auth w sieci ops.
 - Brak sekretów w logach runu i w metrykach (labelach).
+- Dump pełnej treści hopu chat na stdout wyłącznie w `development`, z `[REDACTED]` zamiast `GATEWAY_KEY`.
 
 ## Poza zakresem MVP
 

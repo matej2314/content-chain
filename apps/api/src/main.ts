@@ -26,5 +26,6 @@ async function bootstrap(): Promise<void> {
   SwaggerModule.setup('docs', app, documentFactory);
 
   await app.listen(port);
+  app.get(Logger).log(`Server is running on http://localhost:${port}`);
 }
 void bootstrap();

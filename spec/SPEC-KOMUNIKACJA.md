@@ -1,7 +1,7 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-30
+data_modyfikacji: 2026-08-31
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -90,11 +90,15 @@ K-4. Auth SSE = ta sama sesja co API: cookie httpOnly **`cc_access`** / **`cc_re
 
 Zmiana względem wersji 1 tego SPEC: usunięto Bearer jako równorzędny transport; access nie wraca w body JSON.
 
-K-5. Wywołania LLM z Content Chain idą wyłącznie przez adapter portu LLM → natywne `POST {GATEWAY}/api/v1/chat` (opcjonalnie `.../chat/stream` gdy krok tego wymaga). Nagłówek `X-Gateway-Key` tylko po stronie `apps/api` / env. **Zakaz** ustawiania `x-request-id` przez CC przy chat/stream.
+K-5. Wywołania LLM z Content Chain idą wyłącznie przez adapter portu LLM → natywne `POST {GATEWAY}/api/v1/chat` (opcjonalnie `.../chat/stream` gdy krok tego wymaga). Nagłówek `X-Gateway-Key` tylko po stronie `apps/api` / env. **Zakaz** ustawiania `x-request-id` przez CC przy chat/stream. Hop Social musi mieścić się w limicie native gateway: **10 000** znaków `content` na wiadomość `user` / `assistant` (`INGRESS_LIMITS.native` w instancji `apps/ai-provider-gateway`).
+
+Zmiana względem wersji 9 / K-5: dopisano limit ingressu native (wcześniej milczący; żywy hop z JSON kontekstu firmy przekraczał historyczne 3000 znaków — `docs/dokumentacja_komunikacji.md`).
 
 K-6. Na wszystkich hopach LLM w jednym runie body niesie **ten sam** `conversationId` utworzony przy starcie runu. Po każdej odpowiedzi gateway `requestId` hopu trafia do `run.log` (gdy odpowiedź nadeszła).
 
-K-7. Błędy gateway mapowane na logi runu i ewentualnie `run.failed` / retry wg **polityki api** — zawsze z czytelnym logiem; **bez** wycieku `X-Gateway-Key` do frontendu ani logów produktowych.
+K-7. Błędy gateway mapowane na logi runu i ewentualnie `run.failed` / retry wg **polityki api** — zawsze z czytelnym logiem; **bez** wycieku `X-Gateway-Key` do frontendu, `run.log` ani stdout. Dump pełnej treści hopu (prompty, `output.text`) na stdout adaptera **wyłącznie** przy `NODE_ENV=development`, z redakcją sekretu (`docs/observability.md`).
+
+Zmiana względem wersji 9 / K-7: wcześniejsza norma mówiła o logach produktowych i frontendzie — bez rozróżnienia dumpa diagnostycznego stdout w `development`.
 
 K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, `HITL_REQUIRED`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, `CONFLICT`, `INTERNAL_ERROR`, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach.
 
@@ -133,6 +137,7 @@ Zakaz: FE generuje `RequestId` „na zapas”; zakaz nowego `ConversationId` per
 - `@Sse()` na `GET .../events` z auth guardem jak pozostałe chronione trasy.
 - Kończyć `Observable` po `run.completed` / `run.failed` oraz na late-join, gdy snapshot jest już terminalny (K-3a).
 - Adapter gateway używający natywnego chat; zapis `requestId` z odpowiedzi do logu kroku.
+- Dump kształtu hopu na stdout wyłącznie gdy `NODE_ENV=development`, z `[REDACTED]` zamiast `GATEWAY_KEY` (helper `llm-gateway-chat.log.ts`).
 - Opcjonalnie `POST .../chat/stream` gateway, gdy konkretny węzeł pipeline’u tego wymaga (finalizacja węzła po domknięciu streamu).
 - Polityka retry/timeout po stronie api przy `RATE_LIMITED` / `PROVIDER_TIMEOUT` / `PROVIDER_UNAVAILABLE` — byle zakończenie było obserwowalne w logu/SSE.
 - Składać envelope snapshotu `GET /runs/:id` z meta Runs i portu odczytu wyniku (reader); kontrakt HTTP bez zmian (`dokumentacja_komunikacji.md`).
@@ -154,7 +159,8 @@ Zmiana względem wersji 8 / wiersz Application: odczyt snapshotu był milcząco 
 - Generowania `RequestId` po stronie frontendu przed `POST /runs`.
 - Synchronicznego blokowania HTTP na cały długi run LLM.
 - Wołania SDK vendorów LLM z `apps/api` z pominięciem gateway.
-- Wyciekania `X-Gateway-Key`, haseł, JWT do envelope, SSE lub `run.log`.
+- Wyciekania `X-Gateway-Key`, haseł, JWT do envelope, SSE, `run.log` albo stdout.
+- Dumpa pełnych promptów / `output.text` hopu gateway na stdout poza `NODE_ENV=development`.
 - Rozwijania publicznego API pod `/api/v2` w MVP.
 - Montowania Swagger UI pod ścieżką `/api` (kolizja z prefiksem produktowym `/api/v1` — norma: `/docs`).
 - Składania snapshotu `result`/`hitl` przez `RunsModule imports SocialModule` / `forwardRef` (`SPEC-RUNY.md`).
@@ -186,7 +192,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - [ ] Klient otrzymuje live status wyłącznie przez SSE; GET run/logs = snapshot.
 - [ ] SSE na skończonym runie (`completed` \| `failed`) emituje snapshot statusu i **kończy** strumień; po `run.completed` / `run.failed` serwer zamyka połączenie. `awaiting_hitl` / `interrupted` nie kończą SSE.
 - [ ] SSE wymaga sesji cookie jak API; brak tokenu w query i brak wymogu Bearer.
-- [ ] Adapter gateway woła natywny chat z `X-Gateway-Key`, bez `x-request-id` z CC; `conversationId` stały w runie; `requestId` z odpowiedzi w logu kroku.
+- [ ] Adapter gateway woła natywny chat z `X-Gateway-Key`, bez `x-request-id` z CC; `conversationId` stały w runie; `requestId` z odpowiedzi w logu kroku. Hop mieści się w limicie native **10 000** znaków. Dump pełnej treści hopu na stdout tylko w `development`, z redakcją sekretu.
 - [ ] DTO HTTP walidowane class-validator; use-case’y używają Zod tam, gdzie parsują / walidują dane aplikacji.
 - [ ] Brak ścieżki FE/api → vendor LLM z pominięciem gateway.
 - [ ] Publiczne API MVP wyłącznie pod `/api/v1`.

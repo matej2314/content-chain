@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-30
+data_modyfikacji: 2026-08-31
 ---
 
 # SPEC — Social
@@ -38,13 +38,19 @@ Platformy: `linkedin` \| `facebook` \| `instagram`. Język: `pl` \| `en`.
 
 ## Wymagania (egzekwowalne)
 
-S-1. Start / wznowienie pipeline’u wyłącznie przez **application service** (fasada). Controller nie woła LangGraph ani nie ładuje promptów.
+S-1. Start / wznowienie pipeline’u wyłącznie przez **application service** (fasada). `SocialModule` **nie** rejestruje controllera HTTP. Wejście produktowe to trasy Runs (`POST /runs`, `POST .../hitl`). Żaden controller nie woła LangGraph ani nie ładuje promptów.
+
+Zmiana względem wersji 4 / S-1: wcześniejsza norma zakładała cienki `social.controller.ts` bez nowych tras. W kodzie plik i `controllers[]` nie istnieją — HTTP zostaje w Runs.
 
 S-2. Graf i węzły żyją w `apps/api/src/social/infrastructure/graph/`. Szablony promptów w `.../infrastructure/prompts/` — **wymagane** jako pliki szablonów (nie stringi hardcoded w controllerze).
 
-S-3. Każdy węzeł LLM produkuje **structured output** walidowany schemą (Zod lub równoważny JSON Schema → parse) przed dalszym krokiem. Porażka parse = błąd kroku / refine / `failed` wg polityki — nie „cichy” tekst do UI.
+S-3. Każdy węzeł LLM produkuje **structured output** walidowany schemą (Zod lub równoważny JSON Schema → parse) przed dalszym krokiem. Porażka parse = błąd kroku / refine / `failed` wg polityki — nie „cichy” tekst do UI. Dla verifiera domena `contextIssues` / `languageIssues` pozostaje **`string[]`**. Parser **może** spłaszczyć element `{ itemId | item, quote?, issue }` do jednego stringa; liczba, pusta `{}` i obiekt bez tych pól nadal są nieważne.
 
-S-4. `ConsistencyVerifier` — **jeden** węzeł, dwa obszary: (1) spójność z kontekstem firmy, (2) język (gramatyka, interpunkcja, składnia dla `pl`/`en`). Osobny `LanguageQualityVerifier` — **poza MVP**.
+Zmiana względem wersji 4 / S-3: dotychczas wyłącznie `z.array(z.string())` — żywy model często zwraca obiekty zarzutów; preprocess nie zmienia kontraktu domeny.
+
+S-4. `ConsistencyVerifier` — **jeden** węzeł, dwa obszary: (1) spójność z kontekstem firmy, (2) język (gramatyka, interpunkcja, składnia dla `pl`/`en`). Osobny `LanguageQualityVerifier` — **poza MVP**. Na (1): fakty z `audience.profiles` wolno wpleść w hook / title / angle; odrzut dopiero przy sprzeczności z profilem albo gdy treść opisuje inną grupę. Na (2): brak kropki na końcu haczyka / tytułu, pytanie retoryczne oraz pauza albo wielokropek **nie** są same w sobie podstawą odrzutu; interpunkcja w `languageIssues` tylko gdy utrudnia odczyt.
+
+Zmiana względem wersji 4 / S-4: doprecyzowanie dwóch obszarów względem żywego werdyktu i szablonu `verifier.prompt.md` (`docs/data_flow.md`). Treść copy promptu nadal poza tym SPEC.
 
 S-5. Po fail verifiera: Refine* z twardym limitem **`max N=2`**, potem `failed`. Zakaz nieskończonej pętli.
 
@@ -70,8 +76,7 @@ S-9. W MVP **zakaz** checkpoinetera LangGraph (`SqliteSaver` / MemorySaver jako 
 
 ```text
 apps/api/src/social/
-├── social.module.ts
-├── social.controller.ts              # cienkie HTTP (MVP: bez nowych tras; wejście = Runs)
+├── social.module.ts                  # bez controllers[] — HTTP w Runs
 ├── application/                      # fasada invoke fazy, SocialRunExecutor (adapter RunExecutorPort)
 ├── domain/                           # typy ideas/content, polityki limitu refine, port store
 └── infrastructure/
@@ -81,6 +86,8 @@ apps/api/src/social/
 ```
 
 Zmiana względem wersji 3: drzewo `application/` sugerowało `StartSocialRun` / `ResumeAfterHitl` — te use-case’y HTTP zostają w Runs; Social = fasada grafu + executor.
+
+Zmiana względem wersji 4: usunięto `social.controller.ts` z drzewa (plik i rejestracja Nest nie istnieją — zgodnie z kodem i `docs/architektura_katalogi_pliki.md`).
 
 | Element | Norma |
 |---------|--------|
@@ -117,6 +124,7 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 ### Nie wolno
 
 - Wołać LangGraph / ładować prompty z controllera.
+- Rejestrować controller HTTP w `SocialModule`.
 - Pomijać `ConsistencyVerifier`.
 - Refine bez limitu `max N=2`.
 - Synchronicznie blokować HTTP na cały pipeline LLM.
@@ -152,8 +160,7 @@ Zmiana względem wersji 3: dopisano zakaz cyklu Nest z Runs (wcześniej tylko za
 - [ ] Verifier fail → refine ≤ 2, potem `failed` z czytelnym powodem (kontekst i/lub język).
 - [ ] Węzły LLM zwracają dane po walidacji Zod (lub równoważnej); złamany kształt nie trafia do wyniku „sukces”.
 - [ ] Brak checkpoinetera LangGraph i brak JSON-pliku jako store HITL.
-- [ ] Controller bez promptów i bez bezpośredniego `graph.invoke`.
-- [ ] `SocialModule` bez `forwardRef(RunsModule)`; `RunsModule` bez importu Social.
+- [ ] `SocialModule` bez `forwardRef(RunsModule)` i bez `controllers[]`; `RunsModule` bez importu Social.
 
 ## Poza zakresem
 

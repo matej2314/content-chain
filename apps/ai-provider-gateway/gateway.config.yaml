@@ -44,9 +44,9 @@ models:
     capabilities:
       streaming: true
       tools: true
-      thinking: true
+      thinking: false
     policy:
-      timeoutMs: 30000
+      timeoutMs: 60000
       retry:
         maxAttempts: 3
         onStatus:
@@ -57,8 +57,8 @@ models:
           - 504
       params:
         defaults:
-          temperature: 0.4
-          maxOutputTokens: 500
+          temperature: 0.5
+          maxOutputTokens: 4096
           thinkingEnabled: false
         allowOverrides:
           - temperature
@@ -108,9 +108,9 @@ models:
           - 504
       params:
         defaults:
-          temperature: 0.4
+          temperature: 0.5
           maxOutputTokens: 1024
-          thinkingEnabled: false
+          thinkingEnabled: true
         allowOverrides:
           - temperature
           - maxOutputTokens

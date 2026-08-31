@@ -14,6 +14,7 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | Domena Content Chain w `apps/ai-provider-gateway` | Miesza produkt z infrastrukturą LLM; psuje reuse gateway | Gateway = routing/providery; CC woła natywny chat |
 | Use-case’y / Prisma / **Zod** w `packages/shared` | Shared przestaje być czystym kontraktem typów | W `shared` tylko typy / brand / enumy kontraktu (**bez Zod**) |
 | Rootowy `src/apps/` albo rozjechane ścieżki app | Drift względem docs i DX monorepo | `apps/{api,frontend,ai-provider-gateway}` + `packages/shared` |
+| Katalog `postman/` na rootcie `apps/api` (sibling `src/`) albo seed SQL/Prisma kontekstu pod E2E zamiast `PUT /company-context` | Kolekcja wygląda jak BC/moduł produktu; seed omija bramkę HTTP (`CONTEXT_INCOMPLETE`) | `apps/api/test/postman/`; Setup = `PUT /company-context` |
 
 ---
 
@@ -22,6 +23,8 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | Anty-pattern | Dlaczego źle | Zamiast tego |
 |--------------|--------------|--------------|
 | Fat controller: ORM + prompt + HTTP | Niemożliwy unit test domeny; puchnięcie tras | Controller → application → domain/porty; graf w `infrastructure/graph` |
+| Dump hopu chat (prompty / `output.text`) na stdout w `production` | Wyciek treści i ryzyko sekretu w agregatorze logów | Tylko `NODE_ENV=development` + redakcja `GATEWAY_KEY`; kanon przebiegu = `run.log` |
+| Traktowanie `social.controller.ts` jako obowiązkowej powierzchni HTTP Social | Pozorna trasa „obok” Runs; drift z S-1 | `SocialModule` bez `controllers[]`; start i HITL wyłącznie w BC Runs |
 | LangGraph wołany wprost z controllera | Brak fasady use-case; trudny HITL i statusy runu | Application service startuje/wznawia run; graf za fasadą |
 | Synchroniczny HTTP = cały pipeline LLM | Timeouty, brak SSE, koszmar HITL | Async run + SSE; GET tylko snapshot logów / health / metrics |
 | Pomijanie `ConsistencyVerifier` „na skróty” | Łamie kryterium spójności (kontekst + język) | Verifier obowiązkowy; refine `max N=2`, potem `failed` |

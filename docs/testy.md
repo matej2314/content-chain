@@ -32,6 +32,10 @@ Powiązane: `architektura.md`, `data_flow.md`, `anty_patterny.md`, `spec/SPEC-TE
 | E2E API | **bez pinu** — Postman/Newman, skrypt lub równoważne; byle pokrycie use-case / error / edge |
 | FE | poza MVP (np. Playwright później) |
 
+Warstwa „E2E API — bez pinu narzędzia” zostaje. W **tym** repo happy path Milestone 4 (żywy gateway, poza CI PR) leży w `apps/api/test/postman/` — wybrany artefakt, nie jedyny dozwolony runner w SPEC. Setup = `PUT /company-context` + asercja `GET /company-context/completeness` (nie seed Prisma). Jak odpalić: `apps/api/test/postman/README.md`. Nazwa pliku kolekcji: `social-pipeline.postman-collection.json` (myślnik, nie `_collection`).
+
+Unit uzupełniające (nie zastępują D-4…D-8): redakcja `GATEWAY_KEY` w helperze logu hopu (`llm-gateway-chat.log.spec.ts`); preprocess zarzutów verifiera z obiektu `{ itemId, issue }` do `string[]` (`social.schemas.spec.ts`).
+
 ## Zasady
 
 1. **Testuj zachowanie na granicach** — controllery cienkie; reguły w domain/application.

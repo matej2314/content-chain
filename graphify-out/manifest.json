@@ -85,14 +85,14 @@
     "semantic_hash": "cc8713b8b96f84f001b906c87790f3fa"
   },
   "apps/ai-provider-gateway/src/chat/chat.service.ts": {
-    "mtime": 1788008253.6618762,
+    "mtime": 1788177020.4786513,
     "ast_hash": "cd0d4bfcdc440b2085f7ba014f235f5e",
     "semantic_hash": "cd0d4bfcdc440b2085f7ba014f235f5e"
   },
   "apps/ai-provider-gateway/src/chat/dto/chat-message.dto.ts": {
-    "mtime": 1784640699.3008285,
-    "ast_hash": "8d49ccaa43e96a28a0bcf31210b724c1",
-    "semantic_hash": "8d49ccaa43e96a28a0bcf31210b724c1"
+    "mtime": 1788172534.0753076,
+    "ast_hash": "eba06610fe368794c5e17561734f6ee5",
+    "semantic_hash": ""
   },
   "apps/ai-provider-gateway/src/chat/dto/chat-output-text.dto.ts": {
     "mtime": 1784640699.3016577,
@@ -280,9 +280,9 @@
     "semantic_hash": "74fdab6661c9ea78ffc0641f0d1d78e9"
   },
   "apps/ai-provider-gateway/src/chat/validation/chat-ingress.constants.ts": {
-    "mtime": 1787692002.7417786,
-    "ast_hash": "7eeb7584099d087e25f3f817f8b70ce9",
-    "semantic_hash": "7eeb7584099d087e25f3f817f8b70ce9"
+    "mtime": 1788172554.644377,
+    "ast_hash": "a2ae3264c4c387d1fa9398984139ba1e",
+    "semantic_hash": ""
   },
   "apps/ai-provider-gateway/src/chat/validation/chat-ingress.types.ts": {
     "mtime": 1784640699.3396542,
@@ -1480,9 +1480,9 @@
     "semantic_hash": "87e872c3ecac38b736342e07b6635a61"
   },
   "apps/api/src/main.ts": {
-    "mtime": 1786642280.3760748,
-    "ast_hash": "7b93e72550d9aca83585871c55311752",
-    "semantic_hash": "7b93e72550d9aca83585871c55311752"
+    "mtime": 1788170237.6400025,
+    "ast_hash": "10064a5c061877261a3b8cb93f77a51a",
+    "semantic_hash": ""
   },
   "apps/api/src/runs/runs.controller.ts": {
     "mtime": 1787156430.7336464,
@@ -1495,9 +1495,9 @@
     "semantic_hash": "c67b266920bf5699ced8f8a268c45287"
   },
   "apps/api/src/social/social.module.ts": {
-    "mtime": 1788111418.2015896,
-    "ast_hash": "8b69ceffec22095566f67b586e886119",
-    "semantic_hash": "8b69ceffec22095566f67b586e886119"
+    "mtime": 1788168370.8621123,
+    "ast_hash": "196ec1ceed74ab5e59933504c3c37c62",
+    "semantic_hash": ""
   },
   "apps/frontend/src/app/layout.tsx": {
     "mtime": 1786558619.9491591,
@@ -1615,9 +1615,9 @@
     "semantic_hash": "98d3948f5f74c133e16bd428b34c3d7f"
   },
   "apps/api/src/llm/llm-gateway.http.adapter.ts": {
-    "mtime": 1786710709.4992702,
-    "ast_hash": "6f24b2f63cd135c80e275b903d416ce3",
-    "semantic_hash": "6f24b2f63cd135c80e275b903d416ce3"
+    "mtime": 1788184721.18821,
+    "ast_hash": "1a1cbb3177f7f5b67984722358239c0f",
+    "semantic_hash": ""
   },
   "apps/api/src/llm/llm-gateway.port.ts": {
     "mtime": 1786647143.968365,
@@ -1805,14 +1805,14 @@
     "semantic_hash": "72ff68b06ec58e16029929f47748e5fe"
   },
   "docs/README.md": {
-    "mtime": 1787074619.9572558,
-    "ast_hash": "d5b100f68bd2607c504f23fcfe24f3e9",
-    "semantic_hash": "d5b100f68bd2607c504f23fcfe24f3e9"
+    "mtime": 1788167668.83853,
+    "ast_hash": "41baf993ec0f11031e7bf8a86ae76158",
+    "semantic_hash": ""
   },
   "docs/anty_patterny.md": {
-    "mtime": 1788091283.7760665,
-    "ast_hash": "91c6e7522767203bc3fc86075e3096a6",
-    "semantic_hash": "91c6e7522767203bc3fc86075e3096a6"
+    "mtime": 1788167668.83853,
+    "ast_hash": "e436110e6675867ef6504695f92db366",
+    "semantic_hash": ""
   },
   "docs/architektura.md": {
     "mtime": 1788091258.7169504,
@@ -1820,9 +1820,9 @@
     "semantic_hash": "b9ebdb67bcb7fc82406e72393d7c7ef2"
   },
   "docs/architektura_katalogi_pliki.md": {
-    "mtime": 1788091272.2693372,
-    "ast_hash": "0a4fa8f5437636e56ac654bffaa28590",
-    "semantic_hash": "0a4fa8f5437636e56ac654bffaa28590"
+    "mtime": 1788167663.8188748,
+    "ast_hash": "1777da72d1c917be5094eb11dcf7e55d",
+    "semantic_hash": ""
   },
   "docs/brand_types.md": {
     "mtime": 1787074573.677507,
@@ -1835,9 +1835,9 @@
     "semantic_hash": "2f24ed8c82ff388b7d6c660f9387efad"
   },
   "docs/deployment.md": {
-    "mtime": 1787074619.9572558,
-    "ast_hash": "6ca73e76f82c785a24b31b62ce292906",
-    "semantic_hash": "6ca73e76f82c785a24b31b62ce292906"
+    "mtime": 1788167667.7928252,
+    "ast_hash": "6ee12766e1eabdbd2d0b9344c9005afd",
+    "semantic_hash": ""
   },
   "docs/dictionary.md": {
     "mtime": 1788091283.808245,
@@ -1865,9 +1865,9 @@
     "semantic_hash": "0f5bf2b4e437d70b11384a4aebb9e7a6"
   },
   "docs/testy.md": {
-    "mtime": 1787079787.9823782,
-    "ast_hash": "c1feb65b0575770f1ddafa24ed7b257b",
-    "semantic_hash": "c1feb65b0575770f1ddafa24ed7b257b"
+    "mtime": 1788167664.4410985,
+    "ast_hash": "00da1c77615276a684a747a157209d0f",
+    "semantic_hash": ""
   },
   "docs/ux_dashboard.md": {
     "mtime": 1787079775.2032273,
@@ -1930,9 +1930,9 @@
     "semantic_hash": "0fb8338015191216b68176ce20e96871"
   },
   "spec/SPEC-TESTY.md": {
-    "mtime": 1787079846.568251,
-    "ast_hash": "8c885ce3a2aa12e7939a1500c3d9d66c",
-    "semantic_hash": "8c885ce3a2aa12e7939a1500c3d9d66c"
+    "mtime": 1788167679.6432755,
+    "ast_hash": "98c4810de50d8f68c8e78ab10ae94f32",
+    "semantic_hash": ""
   },
   "apps/api/src/runs/application/parse-with-zod.ts": {
     "mtime": 1787059499.759421,
@@ -1985,9 +1985,9 @@
     "semantic_hash": "634d12d8e8521da8c7ce14feb9db8247"
   },
   "apps/api/src/social/application/social.schemas.ts": {
-    "mtime": 1787156430.7366462,
-    "ast_hash": "beee1210cdd4ea52ea257efd6c509494",
-    "semantic_hash": "beee1210cdd4ea52ea257efd6c509494"
+    "mtime": 1788181646.3063436,
+    "ast_hash": "8f227c34b3b2a7244669fe139bf3dc4d",
+    "semantic_hash": ""
   },
   "apps/api/src/social/domain/refine-policy.ts": {
     "mtime": 1787156430.737646,
@@ -2005,9 +2005,9 @@
     "semantic_hash": "cd2d77d6dc355f28d9d2ba561ba5bbdb"
   },
   "apps/api/src/social/infrastructure/graph/llm-hop.ts": {
-    "mtime": 1788092304.255541,
-    "ast_hash": "1871cee346434683dd6ab5f51490bee0",
-    "semantic_hash": "1871cee346434683dd6ab5f51490bee0"
+    "mtime": 1788172158.8323102,
+    "ast_hash": "7e0bc894231c2bcf0b7fae7707500e86",
+    "semantic_hash": ""
   },
   "apps/api/src/social/infrastructure/graph/nodes/content-writer.node.ts": {
     "mtime": 1788084098.3685913,
@@ -2233,5 +2233,10 @@
     "mtime": 1788110073.5957136,
     "ast_hash": "8e14d0daeb0173b21de3761f945683cf",
     "semantic_hash": "8e14d0daeb0173b21de3761f945683cf"
+  },
+  "apps/api/src/llm/llm-gateway-chat.log.ts": {
+    "mtime": 1788177335.2767048,
+    "ast_hash": "28c0eba226ead4c7f2a19cbc24539094",
+    "semantic_hash": ""
   }
 }

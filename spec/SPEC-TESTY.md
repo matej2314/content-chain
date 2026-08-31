@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 6
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-18
+data_modyfikacji: 2026-08-31
 ---
 
 # SPEC — Testy
@@ -83,6 +83,12 @@ Zmiana względem wersji 3: dopisano D-14 (cykl życia SSE / evikcja huba — `SP
 - Kontrolowane generatory czasu / UUID w testach domain.
 - Osobna baza SQLite na suite integration.
 - Opcjonalny smoke przeciw prawdziwemu gateway **poza PR** (staging).
+- Kolekcja Postman v2.1 w `apps/api/test/postman/` jako artefakt E2E poza CI PR; Setup happy path przez `PUT /company-context` i weryfikację completeness. Plik kolekcji: `social-pipeline.postman-collection.json`.
+- Unit helpera logu hopu gateway (redakcja `GATEWAY_KEY`) oraz preprocess zarzutów verifiera (obiekt `{ itemId, issue }` → `string`).
+
+Zmiana względem: dotychczasowa norma mówiła tylko „narzędzie E2E bez pinu” i „opcjonalny smoke poza PR” — bez kanonicznej ścieżki artefaktu i bez zakazu mylenia kolekcji z modułem Nest. T-5, tabela stacku (bez pinu runnera) i poza zakresem „wybór konkretnego runnera” zostają.
+
+Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów verifiera (kod w `apps/api/src/llm/` oraz `social.schemas.ts` — `docs/testy.md`, `docs/data_flow.md`).
 
 ### Nie wolno
 
@@ -91,6 +97,8 @@ Zmiana względem wersji 3: dopisano D-14 (cykl życia SSE / evikcja huba — `SP
 - Wymuszania suite automatycznego FE w v1/MVP.
 - Over-mockowania (testy tylko powtarzające implementację).
 - Odkładania testów bramki, HITL, recovery ani cyklu życia SSE (D-14) „na potem” poza DoD.
+- `apps/api/postman/` / `src/postman/` jako pozorne BC.
+- Seed Prisma/SQL kontekstu jako substytut Setupu E2E.
 
 ### Zatwierdzony stack (obszar)
 

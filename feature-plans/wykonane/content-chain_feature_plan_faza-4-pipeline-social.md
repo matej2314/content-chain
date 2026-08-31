@@ -1863,7 +1863,7 @@ E2e lifecycle: `overrideProvider(LLM_GATEWAY_PORT).useValue(fake)` w `beforeAll`
 
 ### KROK 11 — Kolekcja Postman: obie ścieżki happy path
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Major 4.3 + DoD Milestone 4. Powtarzalne bez UI. Auth nie jest wymagany (Faza 5 później). Gateway **lokalny** musi działać — to dowód pośredni ops, nie CI PR.
 
@@ -1899,7 +1899,7 @@ Skrypty testów Postman: `pm.test` na status 202/200, `status` enum, niepusty `r
 
 ### KROK 12 — Spójność `docs/` i `spec/` z artefaktem Postman
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Po KROK 11 drzewo i strategia testów w dokumentacji opisują rzeczywistość repo (kolekcja w `apps/api/test/postman/`, Setup przez HTTP, nie moduł Nest). SPEC **uszczegóławia** docs — najpierw docs, potem SPEC. Ten krok **nie** startuje implementacji kodu.
 

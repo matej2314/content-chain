@@ -112,7 +112,7 @@ Error codes (summary): `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `TOOL
 
 ## Validation
 
-- DTO validation at the edge (`ValidationPipe`: among others **`messages` 1–150** in native chat, `content` max 3000 characters (32000 for `tool`), optional `conversationId` in `conv_<uuid>` format, optional nested `params` (including `responseFormat.jsonSchema`), optional `metadata`, `forbidNonWhitelisted`). OpenAI / Anthropic facades allow up to **15 000** messages (`MAX_MESSAGES` in integration DTOs).
+- DTO validation at the edge (`ValidationPipe`: among others **`messages` 1–150** in native chat, `content` max 10 000 characters (32000 for `tool`), optional `conversationId` in `conv_<uuid>` format, optional nested `params` (including `responseFormat.jsonSchema`), optional `metadata`, `forbidNonWhitelisted`). OpenAI / Anthropic facades allow up to **15 000** messages (`MAX_MESSAGES` in integration DTOs).
 - JSON body size limit: **1 MB** (`express.json` in `src/setup.app.ts`); overflow → **413** (`VALIDATION_FAILED`).
 - Configuration validation at startup (fail-fast) and at runtime (e.g. unknown `modelAlias` → deterministic error with code `MODEL_ALIAS_NOT_FOUND` on `POST /chat`).
 

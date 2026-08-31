@@ -7,11 +7,9 @@ import { SocialPipelineFacade } from './application/social-pipeline.facade';
 import { SocialRunExecutor } from './application/social-run.executor';
 import { LlmHopService } from './infrastructure/graph/llm-hop';
 import { PrismaSocialResultAdapter } from './infrastructure/persistence/prisma-social-result.adapter';
-import { SocialController } from './social.controller';
 
 @Module({
   imports: [RunLifecycleModule, LlmModule, CompanyContextModule],
-  controllers: [SocialController],
   providers: [
     { provide: SOCIAL_RESULT_STORE, useClass: PrismaSocialResultAdapter },
     LlmHopService,

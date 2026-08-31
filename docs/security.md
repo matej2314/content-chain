@@ -68,7 +68,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 | Element | Norma |
 |---------|--------|
 | `.env` | tylko lokalnie / w runtime; w repo wyłącznie `.env.example` |
-| `X-Gateway-Key`, klucze vendorów, `JWT_*` | nigdy w obrazie FE, nigdy `NEXT_PUBLIC_*` |
+| `X-Gateway-Key`, klucze vendorów, `JWT_*` | nigdy w obrazie FE, nigdy `NEXT_PUBLIC_*`; w stdout dumpie hopu (tylko `development`) wartość klucza → `[REDACTED]` (`observability.md`) |
 | `apps/ai-provider-gateway` w `production` | **nie** publikować na internet; tylko sieć wewnętrzna (compose) |
 | `GET /metrics` (`apps/api`) | scrape z sieci ops / localhost; **nie** jako publiczny endpoint internetowy w `production` |
 | `GET /api/v1/health` | może być dostępny do probe; bez wrażliwych danych |
@@ -81,7 +81,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 4. Bootstrap → jeden admin → wyłączenie bootstrapu zweryfikowane.  
 5. Próba utworzenia drugiego admina → odrzucona.  
 6. Volume SQLite z ograniczonymi uprawnieniami hosta + backup.  
-7. Brak sekretów w logach stdout / `run.log`.
+7. Brak sekretów w logach stdout / `run.log`. Pełna treść hopu chat **nie** trafia na stdout w `production`.
 
 ## Do / Don’t
 
@@ -91,6 +91,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 | bcrypt + polityka haseł jak wyżej | Przechowywanie haseł plaintext / odwracalne |
 | Cookie httpOnly dla **access i refresh** (`cc_access`, `cc_refresh`) | Access/refresh w `localStorage`, memory FE jako store ani Bearer jako model MVP |
 | Wewnętrzny gateway + ograniczony metrics | Publiczny gateway z kluczami vendorów |
+| Dump hopu chat na stdout wyłącznie przy `NODE_ENV=development`, z redakcją `GATEWAY_KEY` | Pełne prompty / `output.text` hopu w logach procesu w `production` |
 
 ## Poza zakresem MVP
 

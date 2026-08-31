@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import {
   createConversationId,
   createGatewayModelAlias,
@@ -11,6 +12,7 @@ import {
 } from '../metrics/metrics.registry';
 
 const env = {
+  NODE_ENV: 'development',
   GATEWAY_BASE_URL: 'http://127.0.0.1:3100',
   GATEWAY_KEY: 'super-secret-key',
 } as Env;
@@ -32,13 +34,19 @@ function jsonResponse(status: number, body: unknown): Response {
 
 describe('LlmGatewayHttpAdapter', () => {
   const originalFetch = global.fetch;
+  let logSpy: jest.SpyInstance;
+  let warnSpy: jest.SpyInstance;
 
   beforeEach(() => {
     gatewayErrorsTotal.reset();
+    logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
+    logSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 
   it('posts native chat without x-request-id and returns gateway requestId + usage', async () => {
@@ -120,6 +128,31 @@ describe('LlmGatewayHttpAdapter', () => {
       String((fetchMock.mock.calls[0][1] as RequestInit).body),
     );
     expect(body).not.toHaveProperty('params');
+  });
+
+  it('forwards user content over 3000 characters as a single message', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(
+      jsonResponse(201, {
+        requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+        conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
+        model: 'chat-default',
+        output: { type: 'text', text: 'ok' },
+      }),
+    );
+    global.fetch = fetchMock;
+
+    const adapter = new LlmGatewayHttpAdapter(env);
+    const content = 'a'.repeat(3050);
+    await adapter.chat({
+      ...command,
+      messages: [{ role: 'user', content }],
+    });
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0][1] as RequestInit).body),
+    ) as { messages: Array<{ role: string; content: string }> };
+    expect(body.messages).toHaveLength(1);
+    expect(body.messages[0]?.role).toBe('user');
+    expect(body.messages[0]?.content).toBe(content);
   });
 
   it('maps gateway errors without leaking the key and preserves details', async () => {
@@ -216,5 +249,104 @@ describe('LlmGatewayHttpAdapter', () => {
     expect(snapshot).toMatch(
       /content_chain_gateway_errors_total\{code="UNKNOWN"\} 1/,
     );
+    expect(warnSpy).toHaveBeenCalledWith('gateway chat transport error');
   });
+
+  it('logs request messages and response text without the gateway key', async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse(201, {
+        requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+        conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
+        model: 'chat-default',
+        output: { type: 'text', text: '{"ok":true}' },
+        finishReason: 'stop',
+      }),
+    );
+
+    const adapter = new LlmGatewayHttpAdapter(env);
+    await adapter.chat(command);
+
+    const requestLine = logSpy.mock.calls
+      .map((call) => String(call[0]))
+      .find((line) => line.startsWith('gateway chat request '));
+    const responseLine = logSpy.mock.calls
+      .map((call) => String(call[0]))
+      .find((line) => line.startsWith('gateway chat response '));
+    expect(requestLine).toBeDefined();
+    expect(responseLine).toBeDefined();
+    expect(
+      JSON.parse((requestLine ?? '').slice('gateway chat request '.length)),
+    ).toEqual(
+      expect.objectContaining({
+        messages: [expect.objectContaining({ content: 'ping' })],
+      }),
+    );
+    expect(
+      JSON.parse((responseLine ?? '').slice('gateway chat response '.length)),
+    ).toEqual(
+      expect.objectContaining({
+        text: '{"ok":true}',
+      }),
+    );
+    expect(requestLine).not.toContain('super-secret-key');
+    expect(responseLine).not.toContain('super-secret-key');
+    expect(`${requestLine}\n${responseLine}`).not.toMatch(/X-Gateway-Key/i);
+  });
+
+  it('logs HTTP error body without the gateway key', async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse(403, {
+        code: 'GATEWAY_KEY_INVALID',
+        message: 'nope',
+        requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+      }),
+    );
+
+    const adapter = new LlmGatewayHttpAdapter(env);
+    await expect(adapter.chat(command)).rejects.toBeInstanceOf(LlmGatewayError);
+
+    const logged = warnSpy.mock.calls.map((call) => String(call[0])).join('\n');
+    expect(logged).toContain('gateway chat error');
+    expect(logged).toContain('GATEWAY_KEY_INVALID');
+    expect(logged).not.toContain('super-secret-key');
+  });
+
+  it.each(['production', 'test'] as const)(
+    'does not log gateway chat request or response when NODE_ENV is %s',
+    async (nodeEnv) => {
+      global.fetch = jest.fn().mockResolvedValue(
+        jsonResponse(201, {
+          requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+          conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
+          model: 'chat-default',
+          output: { type: 'text', text: 'pong' },
+        }),
+      );
+
+      const adapter = new LlmGatewayHttpAdapter({ ...env, NODE_ENV: nodeEnv });
+      await adapter.chat(command);
+
+      expect(logSpy).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['production', 'test'] as const)(
+    'does not log gateway chat HTTP error body when NODE_ENV is %s',
+    async (nodeEnv) => {
+      global.fetch = jest.fn().mockResolvedValue(
+        jsonResponse(403, {
+          code: 'GATEWAY_KEY_INVALID',
+          message: 'nope',
+          requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+        }),
+      );
+
+      const adapter = new LlmGatewayHttpAdapter({ ...env, NODE_ENV: nodeEnv });
+      await expect(adapter.chat(command)).rejects.toBeInstanceOf(
+        LlmGatewayError,
+      );
+
+      expect(warnSpy).not.toHaveBeenCalled();
+    },
+  );
 });
