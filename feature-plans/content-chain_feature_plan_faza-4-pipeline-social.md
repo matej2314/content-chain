@@ -2,8 +2,8 @@
 
 **Lokalizacja:** `feature-plans/content-chain_feature_plan_faza-4-pipeline-social.md`  
 **Kotwica major:** Faza 4 (kroki 4.1–4.3, 4.5) + MILESTONE 4.  
-**Źródła:** `docs/data_flow.md`, `docs/dokumentacja_komunikacji.md`, `docs/architektura.md`, `docs/architektura_katalogi_pliki.md`, `docs/brand_types.md`, `SPEC-SOCIAL.md`, `SPEC-RUNY.md` (R-4, R-6, R-9), `SPEC-KOMUNIKACJA.md` (K-5, K-7), `SPEC-PERSISTENCE.md` (P-1, P-4, P-7), `SPEC-TESTY.md` (D-4…D-8).  
-**Kolejność** `KROK` **w tym pliku ≠ etykietom major 4.1 / 4.2 / 4.3 / 4.5** — pass rozwojowy: porty → Zod → prompty → zależności → węzły → graf → Prisma → **granice Nest (7b)** → snapshot/SSE → executor w kleju → testy → Postman.
+**Źródła:** `docs/data_flow.md`, `docs/dokumentacja_komunikacji.md`, `docs/architektura.md`, `docs/architektura_katalogi_pliki.md`, `docs/brand_types.md`, `docs/testy.md`, `SPEC-SOCIAL.md`, `SPEC-RUNY.md` (R-4, R-6, R-9), `SPEC-KOMUNIKACJA.md` (K-5, K-7), `SPEC-PERSISTENCE.md` (P-1, P-4, P-7), `SPEC-TESTY.md` (D-4…D-8, T-5).  
+**Kolejność** `KROK` **w tym pliku ≠ etykietom major 4.1 / 4.2 / 4.3 / 4.5** — pass rozwojowy: porty → Zod → prompty → zależności → węzły → graf → Prisma → **granice Nest (7b)** → snapshot/SSE → executor w kleju → testy → Postman → spójność docs/SPEC.
 
 **Statusy kroków feature:** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`
 
@@ -1867,16 +1867,20 @@ E2e lifecycle: `overrideProvider(LLM_GATEWAY_PORT).useValue(fake)` w `beforeAll`
 
 **Cel:** Major 4.3 + DoD Milestone 4. Powtarzalne bez UI. Auth nie jest wymagany (Faza 5 później). Gateway **lokalny** musi działać — to dowód pośredni ops, nie CI PR.
 
+Zmiana względem: wcześniejsza treść tego kroku (nadal `NIE_ROZPOCZĘTY`) wskazywała `apps/api/postman/`. **To nie obowiązuje.** Kolekcja jest artefaktem warstwy E2E API (`SPEC-TESTY.md` T-5, `docs/testy.md`), nie bounded contextem ani siblingem runtime `src/` / `prisma/`. Kanoniczna ścieżka: `apps/api/test/postman/`.
+
 **Artefakty (nowe):**
 
-- `apps/api/postman/social-pipeline.postman_collection.json`
-- `apps/api/postman/README.md` (jak odpalić: api :3001 + gateway + kompletny kontekst; cookie jar niepotrzebny)
+- `apps/api/test/postman/social-pipeline.postman_collection.json`
+- `apps/api/test/postman/README.md` (jak odpalić: api :3001 + gateway; Setup w kolekcji wstawia kompletny kontekst; cookie jar niepotrzebny; **nie** jest to suite `pnpm test:e2e`)
+
+`jest-e2e.json` łapie wyłącznie `.e2e-spec.ts$` — JSON w `test/postman/` **nie** wchodzi do Jest. Nazwa katalogu zostaje `postman/` (format v2.1 / import w Postmanie; Newman opcjonalnie).
 
 Kolekcja v2.1, zmienne: `baseUrl` = `http://localhost:3001/api/v1`, `runId`, `ideaId`.
 
 Foldery:
 
-1. **Setup** — `PUT /company-context` (body jak `completeContextBody` z e2e).
+1. **Setup** — najpierw `PUT /company-context` (body jak `completeContextBody` z `apps/api/test/social-pipeline.e2e-spec.ts`), potem `GET /company-context/completeness` z `pm.test`: `complete === true` i `missing` puste. **Zakaz** seeda Prisma / SQL jako substytutu Setupu — bramka startu runu (`CONTEXT_INCOMPLETE`) i graf (`load-context`) mają zobaczyć ten sam kontrakt HTTP co UI. `PUT` jest idempotentnym upsertem singletona; ponowne odpalenie kolekcji nie wymaga wipe tabeli kontekstu.
 2. **A. post_ideas** — `POST /runs` (`taskType: post_ideas`) → pętla `GET /runs/:runId` aż `completed` → `GET .../logs` (asercja: jest `conversationId`, jest `requestId` na hopie, brak sekretu gateway w body).
 3. **B. post_ideas_then_content** — `POST /runs` → czekaj `awaiting_hitl` → weź `result.ideas[0].id` → `POST .../hitl` `{ selectedIdeaIds: [id] }` → czekaj `completed` + `result.content.body`.
 
@@ -1884,9 +1888,51 @@ Skrypty testów Postman: `pm.test` na status 202/200, `status` enum, niepusty `r
 
 **DoD (krok):**
 
-- Ręcznie / Newman lokalnie: obie ścieżki zielone przy żywym gateway i kompletnych env z `.env.example`.
+- Ręcznie / Newman lokalnie: Setup (PUT + completeness) oraz obie ścieżki zielone przy żywym gateway i kompletnych env z `.env.example`.
 - UI nie jest potrzebny.
 - Kolekcja bez sekretów (placeholder `GATEWAY` nie występuje — klient nie woła gateway).
+- Pliki leżą w `apps/api/test/postman/` (nie w `apps/api/postman/` ani `src/postman/`).
+
+---
+
+
+
+### KROK 12 — Spójność `docs/` i `spec/` z artefaktem Postman
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Cel:** Po KROK 11 drzewo i strategia testów w dokumentacji opisują rzeczywistość repo (kolekcja w `apps/api/test/postman/`, Setup przez HTTP, nie moduł Nest). SPEC **uszczegóławia** docs — najpierw docs, potem SPEC. Ten krok **nie** startuje implementacji kodu.
+
+Kolejność zapisu: `docs/` → `spec/SPEC-TESTY.md`. Nie kopiować README z KROK 11 do docs (krótki skrót + odwołanie do `apps/api/test/postman/README.md`). Nie wstawiać `[NEEDS CLARIFICATION]`. Frontmatter SPEC: `wersja` +1, `data_modyfikacji` = dzień zapisu, `data_utworzenia` bez zmian.
+
+**Nie zmieniać** T-5 ani wiersza stacku „Narzędzie E2E API … **bez pinu**” na „Postman obowiązkowy”. Kanoniczna jest **lokalizacja artefaktu** w repo; runner (Postman GUI / Newman / inny importer JSON) nadal poza pinem SPEC. CI PR nadal = Jest unit + integration, bez live vendora.
+
+**Docs (obowiązkowe):**
+
+1. `docs/architektura_katalogi_pliki.md` — w drzewie `apps/api/` dopisać `test/` obok `prisma/` i `src/`:
+   - `test/*.e2e-spec.ts` — Jest e2e (supertest; fake LLM w happy path pipeline).
+   - `test/postman/` — kolekcja Postman v2.1 Milestone 4 + README; **nie** BC, **nie** runtime, **nie** runner `pnpm test:e2e`.
+   - W tabeli do/don’t: wolno trzymać kolekcję E2E pod `apps/api/test/postman/`; nie wolno `apps/api/postman/` ani `apps/api/src/postman/` (wygląda jak moduł produktu).
+2. `docs/testy.md` — dopisać, że artefakt happy path Milestone 4 leży w `apps/api/test/postman/`; Setup = `PUT /company-context` + asercja `GET …/completeness` (nie seed Prisma); kolekcja poza CI PR, przy żywym gateway. Warstwa „E2E API — bez pinu narzędzia” zostaje; wskazać konkretny plik jako wybrany artefakt tego repo, nie jako jedyny dozwolony runner w SPEC.
+3. `docs/deployment.md` — w smoke (checklist / kolejność wdrożenia „api + gateway + pipeline + SQLite (Postman)”) krótki pointer do `apps/api/test/postman/` zamiast gołego słowa „Postman” bez ścieżki. Instrukcja odpalenia zostaje w README kolekcji.
+4. `docs/anty_patterny.md` — jeden wiersz: katalog `postman/` na rootcie `apps/api` (sibling `src/`) albo seed SQL kontekstu pod E2E zamiast `PUT /company-context`.
+
+Opcjonalnie jedna linia w mapie `docs/README.md` (wiersz drzewa), jeśli opis `architektura_katalogi_pliki.md` wymaga dopisku `test/postman`. **Nie** przepisywać `dokumentacja_koncepcyjna.md` — „DoD pośredni Postman” zostaje koncepcją; ścieżka należy do katalogów i testów.
+
+**SPEC (obowiązkowe):**
+
+5. `spec/SPEC-TESTY.md` — w **Wolno** dopisać: kolekcja Postman v2.1 w `apps/api/test/postman/` jako artefakt E2E poza CI PR; Setup happy path przez `PUT /company-context` i weryfikację completeness. W **Nie wolno** dopisać: `apps/api/postman/` / `src/postman/` jako pozorne BC; seed Prisma/SQL kontekstu jako substytut Setupu E2E.  
+   Zmiana względem: dotychczasowa norma mówiła tylko „narzędzie E2E bez pinu” i „opcjonalny smoke poza PR” — bez kanonicznej ścieżki artefaktu i bez zakazu mylenia kolekcji z modułem Nest. T-5, tabela stacku (bez pinu runnera) i poza zakresem „wybór konkretnego runnera” **zostają**.
+
+**Poza tym krokiem:** `SPEC-MONOREPO.md`, `SPEC-SOCIAL.md`, `SPEC-KONTEKST-FIRMY.md`, `SPEC-README.md` — bez zmian (to nie nowy proces, nie nowy BC, nie nowa bramka kompletności). Major `content-chain-backend_major_plan.md` — poza tym skillem / tym krokiem.
+
+**DoD (krok):**
+
+- Drzewo w `docs/architektura_katalogi_pliki.md` pokazuje `apps/api/test/postman/`.
+- `docs/testy.md` i `docs/deployment.md` wskazują tę ścieżkę; Setup kontekstu opisany jako HTTP, nie seed DB.
+- `SPEC-TESTY.md` ma kanoniczną lokalizację + zakaz katalogu-modułu; T-5 nadal bez pinu runnera.
+- Frontmatter zaktualizowanych SPEC zgodny z regułą edycji `spec/`.
+- Brak równoległej „drugiej dokumentacji” (README kolekcji = jak odpalić; docs/SPEC = gdzie i po co).
 
 ---
 
@@ -1907,14 +1953,15 @@ Skrypty testów Postman: `pm.test` na status 202/200, `status` enum, niepusty `r
 | S-8 ten sam ConversationId, requestId w logu | KROK 5 / 10 / 11                                  |
 | D-4…D-8                                      | KROK 10                                           |
 | Postman obie ścieżki / Milestone 4           | KROK 11                                           |
+| Drzewo + strategia testów spójne z kolekcją  | KROK 12                                           |
 | SSE complete po completed/failed (Faza 8)    | bez regresji; `awaiting_hitl` nie woła `complete` |
 | Cap `interrupted` (Faza 7)                   | executor siada na claimu; re-invoke fazy          |
 | Acykliczny Nest / port lifecycle / klej      | KROK 7b / 8 / 9; major 4.5                        |
 
 
-**Pass rozwojowy (potwierdzenie):** porty (1) → Zod (2) → prompty (3) → pakiety (4) → węzły (5) → graf/fasada (6) → Prisma + eksport `SOCIAL_RESULT_STORE` (7) → **granice Nest / `RUN_LIFECYCLE` (7b)** → snapshot/SSE + reader (8) → executor w kleju (9) → Jest (10) → Postman (11). Binding store w module **przesunięty do KROK 7**; **nie** importować Social z Runs w KROK 8–9.
+**Pass rozwojowy (potwierdzenie):** porty (1) → Zod (2) → prompty (3) → pakiety (4) → węzły (5) → graf/fasada (6) → Prisma + eksport `SOCIAL_RESULT_STORE` (7) → **granice Nest / `RUN_LIFECYCLE` (7b)** → snapshot/SSE + reader (8) → executor w kleju (9) → Jest (10) → Postman (11) → docs/SPEC (12). Binding store w module **przesunięty do KROK 7**; **nie** importować Social z Runs w KROK 8–9.
 
-**Nagłówki:** `FAZA 1` / `KROK 1`…`KROK 11` oraz `KROK 6a`, `KROK 7b`.
+**Nagłówki:** `FAZA 1` / `KROK 1`…`KROK 12` oraz `KROK 6a`, `KROK 7b`.
 
 ---
 
