@@ -1,5 +1,5 @@
 ---
-wersja: 5
+wersja: 7
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-08-31
 ---
@@ -8,11 +8,11 @@ data_modyfikacji: 2026-08-31
 
 ## Cel / zakres względem dokumentacji
 
-Norma bounded contextu **Social** w `apps/api`: pipeline post ideas / post content, weryfikacja spójności, refine, HITL vs full-auto.
+Norma bounded contextu **Social** w `apps/api`: pipeline post ideas / post content **oraz** reel ideas / reel script, weryfikacja spójności, refine, HITL vs full-auto.
 
-Uszczegóławia wyjątek orchestracji z `docs/architektura.md`, przepływy z `docs/data_flow.md` oraz taski/platformy z `docs/dokumentacja_komunikacji.md`. Social jest **jednym bounded contextem** pipeline’u SM w monoliticie — nie uniwersalnym orkiestratorem firmowym i **nie** orkiestratorem cyklu życia runu (to Runs).
+Uszczegóławia wyjątek orchestracji z `docs/architektura.md`, przepływy z `docs/data_flow.md` oraz taski/platformy z `docs/dokumentacja_komunikacji.md`. Social jest **jednym bounded contextem** pipeline’u SM w monoliticie — nie uniwersalnym orkiestratorem firmowym i **nie** orkiestratorem cyklu życia runu (to Runs). Blog / page copy **nie** należą do tego SPEC (`SPEC-CONTENT.md`).
 
-Zmiana względem wersji 3: doprecyzowano, że „jeden moduł” = BC SM, nie klej Nest z Runs.
+Zmiana względem wersji 5: **zakaz** „rolki w tym SPEC” unieważniony — rolki **są** w Social (MVP). YouTube i blog nadal nie w tym pliku.
 
 ## Powiązanie ze stylem z docs / wyjątek
 
@@ -33,8 +33,13 @@ Wiążące:
 | `post_ideas` | full-auto → lista pomysłów |
 | `post_content` | full-auto → treść (z podanymi / wybranymi ideas) |
 | `post_ideas_then_content` | ideas → **HITL** → content |
+| `reel_ideas` | full-auto → lista pomysłów na rolki (`result.reelIdeas`) |
+| `reel_script` | full-auto → scenariusz (`result.reelScript`) |
+| `reel_ideas_then_scripts` | reel ideas → **HITL** (`selectedIdeaIds` z `reelIdeas`) → scenariusz |
 
-Platformy: `linkedin` \| `facebook` \| `instagram`. Język: `pl` \| `en`.
+Platformy: `linkedin` \| `facebook` \| `instagram` (katalog **nie** zwężamy dla rolek). Język: `pl` \| `en`.
+
+**Poza tym SPEC:** YouTube, publikacja, `Reels_performance` jako produkt, osobny `LanguageQualityVerifier`, page copy (`SPEC-CONTENT.md`).
 
 ## Wymagania (egzekwowalne)
 
@@ -64,7 +69,13 @@ S-6. HITL (**model B** — samodzielne zarządzanie pauzą):
 
 Zmiana względem wersji 2 / S-6: recovery procesu było milcząco poza Social; tu jawny podział — `interrupted` = Runs, re-invoke fazy po powrocie do `running` = Social.
 
-S-7. Taski jednoetapowe (`post_ideas`, `post_content`) — bez pauzy HITL.
+S-7. Taski jednoetapowe (`post_ideas`, `post_content`, `reel_ideas`, `reel_script`) — bez pauzy HITL.
+
+S-7a. Fazy invoke — **bez** nowej wartości `pipelinePhase` w DB. Unia zostaje `'ideas' \| 'content'`: dla rolek `'content'` **znaczy** fazę scenariusza. `resolvePhase`: `reel_script` → `'content'`; `reel_ideas_then_scripts` + niepuste `selectedIdeaIds` → `'content'`; analogia 1:1 do postów. `storedPhase` z DB zostaje pierwszym fallbackiem.
+
+S-7b. Snapshot addytywny: posty — `result.ideas` / `result.content` **bez zmian** (`SocialIdea`, `SocialContent`). Rolki — `result.reelIdeas` / `result.reelScript` (nie wpychać scenariusza w `SocialContent`). `hitl.options` przy `reel_ideas_then_scripts` = `reelIdeas`. `ReelIdea`: `id`, `title`, `description`, `hook`, `durationSeconds` (`15` \| `30` \| `90`). `ReelScript`: `segments` (`startSeconds`, `endSeconds`, `onScreen`, `voiceover`), `cta`, `notes?`. Id pomysłu rolki: `idea_<uuid>` (bez nowego brandu w shared).
+
+S-7c. Persistence rolek: **nie** reuse tabeli `SocialContent` na skrypt. Modele Prisma `SocialReelIdea`, `SocialReelScript` (payload JSON + `runId`). Port `SocialResultStore` rozszerzony (`listReelIdeas`, `getReelScript`). Prompty: `reel-ideas.prompt.md`, `reel-script.prompt.md`, `refine-reel-ideas.prompt.md`, `refine-reel-script.prompt.md`. Ten sam skompilowany graf; routing po `taskType` + `phase`. Katalog `FeedbackAgentKey` **bez** nowych kluczy w 4.1.
 
 S-8. Każdy hop LLM: ten sam `ConversationId` runu w body gateway; `requestId` z odpowiedzi gateway → log kroku (`SPEC-KOMUNIKACJA.md`).
 
@@ -81,8 +92,8 @@ apps/api/src/social/
 ├── domain/                           # typy ideas/content, polityki limitu refine, port store
 └── infrastructure/
     ├── graph/                        # LangGraph: definicje faz / węzłów
-    ├── prompts/                      # szablony
-    └── persistence/                  # zapis wyników SM via porty/Prisma
+    ├── prompts/                      # szablony postów **i** rolek
+    └── persistence/                  # zapis wyników SM via porty/Prisma (w tym SocialReelIdea / SocialReelScript)
 ```
 
 Zmiana względem wersji 3: drzewo `application/` sugerowało `StartSocialRun` / `ResumeAfterHitl` — te use-case’y HTTP zostają w Runs; Social = fasada grafu + executor.
@@ -102,12 +113,12 @@ Odwołanie do możliwości checkpoinetera LangGraph (świadomie **niewykorzystan
 ### Fazy invoke (model B)
 
 ```text
-post_ideas_then_content:
+post_ideas_then_content / reel_ideas_then_scripts:
   invoke A (ideas + verifier + persist draft) → awaiting_hitl
   HITL HTTP
-  invoke B (content + verifier + persist) → completed | failed
+  invoke B (content lub scenariusz + verifier + persist) → completed | failed
 
-post_ideas / post_content:
+post_ideas / post_content / reel_ideas / reel_script:
   pojedynczy invoke → completed | failed
 ```
 
@@ -133,13 +144,15 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 - Mikroserwisów per agent w MVP.
 - Reguł SM / bramki w FE lub w gateway.
 - Wołania vendorów LLM z pominięciem gateway.
-- Rozszerzania MVP o rolki / YouTube / blog / pipeline builder w tym SPEC.
+- Rozszerzania tego SPEC o YouTube / blog / pipeline builder / WordPress. **Zmiana względem** wersji 5: rolki **są** w tym SPEC (nie „poza MVP”).
 - Re-invoke grafu ani zmiany węzłów z powodu oceny gwiazdkowej, flagi edycji outputu lub opinii tekstowej (to Runs / Feedback po `completed`/`failed`).
 - `forwardRef(() => RunsModule)` ani importu pełnego `RunsModule` (HTTP + worker + stub executor) z `SocialModule`.
+- Importu `ContentModule` z `SocialModule` (i odwrotnie — `SPEC-CONTENT.md`).
 - Eksportu `{ provide: RUN_EXECUTOR }` z Social **jako** powodu, by `RunsModule` robił `imports: [SocialModule]`.
 - Zależności węzłów / hopu / fasady od klasy `RunLifecycleService` zamiast portu (`SPEC-RUNY.md`).
 
 Zmiana względem wersji 3: dopisano zakaz cyklu Nest z Runs (wcześniej tylko zakaz re-invoke z powodu oceny / edycji / opinii).
+Zmiana względem wersji 6: dopisano zakaz importu `ContentModule` (rolki są w Social; page copy pozostaje w `SPEC-CONTENT.md`).
 
 ### Zatwierdzony stack (obszar)
 
@@ -156,6 +169,7 @@ Zmiana względem wersji 3: dopisano zakaz cyklu Nest z Runs (wcześniej tylko za
 ## Kryteria akceptacji
 
 - [ ] `post_ideas` full-auto: completed + ideas w DB + logi z `conversationId` / `requestId` hopów.
+- [ ] `reel_ideas` full-auto: completed + `reelIdeas` w DB; `reel_ideas_then_scripts`: HITL na `reelIdeas`, potem `reelScript`.
 - [ ] `post_ideas_then_content`: po ideas status `awaiting_hitl` + draft w DB; po HITL content → completed; restart procesu api nie gubi draftu HITL (stan w DB; status zostaje `awaiting_hitl`, nie `interrupted`).
 - [ ] Verifier fail → refine ≤ 2, potem `failed` z czytelnym powodem (kontekst i/lub język).
 - [ ] Węzły LLM zwracają dane po walidacji Zod (lub równoważnej); złamany kształt nie trafia do wyniku „sukces”.
@@ -168,6 +182,6 @@ Zmiana względem wersji 3: dopisano zakaz cyklu Nest z Runs (wcześniej tylko za
 - Treść merytoryczna promptów (copy szablonów).
 - LanguageQualityVerifier jako osobny węzeł.
 - Checkpointer LangGraph / B+C.
-- Uniwersalny orkiestrator agentowy firmy, pipeline builder, kolejne kanały contentowe.
+- Uniwersalny orkiestrator agentowy firmy, pipeline builder, YouTube, blog (page copy → `SPEC-CONTENT.md`).
 - UI HITL / animacje → `SPEC-FRONTEND.md`.
 - Ocena gwiazdkowa, flaga edycji outputu, opinie tekstowe → `SPEC-RUNY.md` / `SPEC-FEEDBACK.md`.

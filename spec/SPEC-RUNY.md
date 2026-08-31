@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 9
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-30
+data_modyfikacji: 2026-08-31
 ---
 
 # SPEC — Runy / logi
@@ -10,18 +10,23 @@ data_modyfikacji: 2026-08-30
 
 Norma bounded contextu **Runs / Logs** w `apps/api`: cykl życia async runu, **lista runów instancji** (paginacja / filtry), polityka statusów, kanoniczne logi w DB, emisja SSE, kolejka współbieżności oraz recovery po przerwaniu procesu.
 
-Uszczegóławia `docs/architektura.md` (async run), `docs/dokumentacja_komunikacji.md` (lista / SSE / GET / ocena / lista user), `docs/observability.md` (pola logów vs metrics) oraz współpracę z `SPEC-SOCIAL.md` (fazy pipeline’u, HITL model B) i `SPEC-FEEDBACK.md` (opinie tekstowe — osobny BC).
+Uszczegóławia `docs/architektura.md` (async run, klej composite), `docs/dokumentacja_komunikacji.md` (lista / SSE / GET / ocena / lista user / unia startu), `docs/observability.md` (pola logów vs metrics) oraz współpracę z `SPEC-SOCIAL.md`, `SPEC-CONTENT.md` i `SPEC-FEEDBACK.md`.
+
+Zmiana względem wersji 7: **jeden** executor Social w MVP unieważniony — klej composite (Social \| Content); `UNKNOWN_TASK_TYPE`; unia `platform` / `contentKind`; HITL `selectedIdeaIds` także dla reel/page.
 
 ## Powiązanie ze stylem z docs
 
-Wiążące: klasyczne warstwy Nest — controller → application → domain (przejścia statusów, retry/recovery) + porty → adaptery. LangGraph **nie** należy do tego BC (pozostaje w Social za fasadą). Kierunek zależności Nest: graf agenta → porty Runs; binding `RunExecutorPort` w kleju procesu — `docs/architektura.md` (Zależności między BC).
+Wiążące: klasyczne warstwy Nest — controller → application → domain (przejścia statusów, retry/recovery) + porty → adaptery. LangGraph **nie** należy do tego BC (pozostaje w Social **i** Content za fasadami). Kierunek zależności Nest: graf agenta → porty Runs; binding `RunExecutorPort` w kleju procesu — `docs/architektura.md` (Zależności między BC).
+
+Zmiana względem wersji 8: LangGraph pozostaje poza Runs — w Social **i** Content (w v8 akapit stylu nadal wymieniał tylko Social).
 
 **Podział odpowiedzialności:**
 
 | BC | Odpowiedzialność |
 |----|------------------|
-| **Runs** | Utworzenie runu, lista kolekcji, statusy, kolejka slotów, append logów, SSE, recovery, HITL HTTP jako zmiana stanu runu, zapis inicjatora, **ocena gwiazdkowa, flaga edycji outputu, finalize przeglądu**, lista `GET /runs/user/:userId`. Porty: lifecycle, executor, odczyt wycinka wyniku do snapshotu |
-| **Social** | Węzły pipeline’u; woła **port** lifecycle Runs (`appendLog`, `transition`) oraz zapisuje wynik SM we własnym store — bez omijania cyklu życia, bez importu całego `RunsModule` przez `forwardRef` |
+| **Runs** | Utworzenie runu, lista kolekcji, statusy, kolejka slotów, append logów, SSE, recovery, HITL HTTP jako zmiana stanu runu, zapis inicjatora, **ocena gwiazdkowa, flaga edycji outputu, finalize przeglądu**, lista `GET /runs/user/:userId`. Porty: lifecycle, **composite** executor, odczyt wycinka wyniku do snapshotu |
+| **Social** | Węzły pipeline’u post/reel; woła **port** lifecycle Runs; wynik we własnym store |
+| **Content** | Węzły pipeline’u page; woła **port** lifecycle Runs; wynik we własnym store (`SPEC-CONTENT.md`) |
 | **Feedback** | Opinie tekstowe — nie statusy runu |
 
 Zmiana względem wersji 6: tabela mówiła „woła porty Runs (`appendLog`, `transitionStatus`, zapis wyniku SM)” bez normy importów Nest — implementacja Fazy 4 planowała `forwardRef` Runs ↔ Social. Teraz: port lifecycle (nie klasa serwisu); wynik SM zostaje w store Social; cykl modułów Nest zakazany.
@@ -58,13 +63,19 @@ R-3a. `GET /api/v1/runs` — lista **całej instancji** (nie tylko bieżącego u
 
 - sortowanie: `createdAt` malejąco;
 - paginacja: stałe **`pageSize = 10`** (klient nie nadpisuje limitu), query `page` (default 1);
-- filtry opcjonalne: `status`, `taskType`, `platform`, `userId` (inicjator);
-- pozycja listy: `runId`, `taskType`, `platform`, `language`, `status`, `createdAt`, `startedBy: { id, email }` (email = identyfikator wyświetlany w MVP);
+- filtry opcjonalne: `status`, `taskType` (w tym `reel_*` i `page_*`), `platform` (`SocialPlatform` **lub** `web`), `userId` (inicjator);
+- pozycja listy: `runId`, `taskType`, `platform`, `contentKind` (nullable), `language`, `status`, `createdAt`, `startedBy: { id, email }`;
 - odpowiedź zawiera `items`, `page`, `pageSize`, `total`.
 
 Zmiana względem wersji 1: wcześniej brak normy listingu kolekcji — obowiązkowe pod dashboard (`docs/ux_dashboard.md`).
 
-R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) **oraz** `conversationId`, `userRating`, `outputEdited`, `reviewFinalizedAt`, wynik SM gdy jest, metadane HITL.
+R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) **oraz** `conversationId`, `userRating`, `outputEdited`, `reviewFinalizedAt`, wynik addytywny gdy jest (`ideas` / `content` / `reelIdeas` / `reelScript` / `pageOutline` / `pageDocument`), metadane HITL (`options` wg `taskType`).
+
+R-3d. `POST /runs` — unia dyskryminowana (`taskType`): Social wymaga `platform` i **zakazuje** `contentKind`; Content wymaga `contentKind` i **zakazuje** `platform` (zapis kolumny `platform='web'`). Walidacja Zod `discriminatedUnion` w application. `taskType` spoza enumu → HTTP **400** `VALIDATION_FAILED` (composite **nie** wołany).
+
+R-3e. Composite `RunExecutorPort` (klej procesu, np. `run-dispatch.executor.ts`): `taskType` Social → `SocialRunExecutor`; Content → `ContentRunExecutor`; gałąź nieznana → status `failed` + kod domenowy `UNKNOWN_TASK_TYPE` (log; nie cichy no-op). `assertNever` na unii. Composite `RunResultReader` składa snapshot addytywny. **Zakaz** `forwardRef`, self-register, importu `ContentModule` / `SocialModule` z `RunsModule`.
+
+R-3f. HITL `selectedIdeaIds` legalne dla `post_ideas_then_content`, `reel_ideas_then_scripts` i `page_outline_then_copy` (id z odpowiedniego `hitl.options`).
 
 Zmiana względem wersji 2: snapshot ma obowiązkowe pola przeglądu (`userRating` zawsze `null` \| `1`…`5`; `outputEdited`; `reviewFinalizedAt`) zgodnie z `docs/dokumentacja_komunikacji.md`.
 
@@ -98,7 +109,7 @@ R-9. Recovery po brutalnym przerwaniu `running` (restart / crash procesu api):
 
 1. Przy starcie api, **zanim** pump claimuje `queued`: leftover `running` → `interrupted` (albo od razu `failed` przy capie). `POST` / HITL **nie** ustawiają `interrupted`.
 2. `recoveryAttempts++` tylko gdy leftover był `running` (faktycznie przerwany execute). Leftover już `interrupted` (nie zdążył dostać slotu) — **bez** inkrementu; wraca do pompy.
-3. Wznowienie execute wyłącznie przez claim `interrupted → running` pod `MAX_CONCURRENT_RUNS` (R-6). Zakaz startu wszystkich leftover naraz z pominięciem semafora. Po powrocie do `running`: do **3** prób wznowienia **fazy** z trwałego stanu w DB (model B z `SPEC-SOCIAL.md` — re-invoke, nie checkpointer, nie dokończenie przerwanego hopu LLM w locie).
+3. Wznowienie execute wyłącznie przez claim `interrupted → running` pod `MAX_CONCURRENT_RUNS` (R-6). Zakaz startu wszystkich leftover naraz z pominięciem semafora. Po powrocie do `running`: do **3** prób wznowienia **fazy** z trwałego stanu w DB (model B z `SPEC-SOCIAL.md` / `SPEC-CONTENT.md` — re-invoke właściwego BC po `taskType`, nie checkpointer).
 4. Przed każdą próbą / przy klasyfikacji błędu: `isRetryable(...)` — retry m.in. dla recovery po crashu, timeoutów / rate-limit gateway (zgodnie z polityką); **bez** retry dla błędów walidacji, wyczerpanego refine verifiera, błędów konfiguracji klucza gateway itd.
 5. Po wyczerpaniu 3 prób (`recoveryAttempts >= 3`) → `failed` + czytelny wpis logu (powód recovery / exhausted); bez execute.
 6. Run w `awaiting_hitl` po restarcie **pozostaje** `awaiting_hitl` — bez zużywania puli recovery i bez przejścia do `interrupted`. HITL (`awaiting_hitl → running`) **nie** jest tym wymaganiem.
@@ -137,8 +148,8 @@ Wolno wydzielić kernel Nest (lifecycle + repo + hub) od HTTP/workera **w tym sa
 | Idempotencja HITL | Tylko ze statusu `awaiting_hitl` |
 | Przegląd | `userRating` + `outputEdited` + `reviewFinalizedAt`; lock po finalize |
 | Port lifecycle | Token + interfejs `appendLog` + `transition` w `domain/`; graf zależy od portu, nie od klasy `RunLifecycleService` |
-| Port executor | Token `RunExecutorPort` w Runs; klasa implementująca — w BC grafu; **binding w `AppModule` / `registerAsync`** |
-| Odczyt snapshotu `result`/`hitl` | Port odczytu (reader) albo cienkie złożenie HTTP; **zakaz** wstrzykiwania store Social do use-case’u Runs przez `imports: [SocialModule]` |
+| Port executor | Token `RunExecutorPort` w Runs; **composite** w kleju wpinający Social i Content; **binding w `AppModule` / `registerAsync`** |
+| Odczyt snapshotu `result`/`hitl` | Composite reader; **zakaz** wstrzykiwania store Social/Content do use-case’u Runs przez `imports: [SocialModule]` / `ContentModule` |
 
 Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnienia lifecycle vs executor vs reader; binding executora nie był unormowany (feature plan Fazy 4 wstawiał `forwardRef`).
 
@@ -151,8 +162,8 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Domykać i usuwać subject huba wyłącznie po `completed` / `failed` (R-4a).
 - `startedBy` nullable wyłącznie dla historycznych / pre-auth przebiegów testowych; po domknięciu auth na api nowe runy zawsze z inicjatorem.
 - Trzymać `userRating: null` jako jawny brak oceny (nie pomijać pola w snapshotcie).
-- `RunsModule.registerAsync` (lub równoważny klej w `AppModule`) wpinające implementację `RunExecutorPort` z BC grafu — bez `forwardRef`.
-- Domyślną (pustą) implementację portu odczytu wyniku w Runs, podmienianą w kleju na adapter Social.
+- `RunsModule.registerAsync` (lub równoważny klej w `AppModule`) wpinające **composite** `RunExecutorPort` (Social + Content) — bez `forwardRef`.
+- Domyślną (pustą) implementację portu odczytu wyniku w Runs, podmienianą w kleju na composite reader.
 
 ### Nie wolno
 
@@ -177,11 +188,12 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Zmiany `userRating` / `outputEdited` po `reviewFinalizedAt`.
 - Mylenia finalize / Edytuj z HITL.
 - Umieszczania opinii tekstowych w tym BC (to `SPEC-FEEDBACK.md`).
-- `forwardRef` między `RunsModule` a modułem grafu (Social / przyszły Mail).
-- Importu `SocialModule` (ani innego BC grafu) z `RunsModule` jako sposobu na `RUN_EXECUTOR` albo snapshot `result`.
+- `forwardRef` między `RunsModule` a modułem grafu (Social / Content / przyszły Mail).
+- Importu `SocialModule` albo `ContentModule` z `RunsModule` jako sposobu na `RUN_EXECUTOR` albo snapshot `result`.
+- Self-register grafów (`OnModuleInit` → rejestr) jako wymogu MVP.
+- Cichego no-op przy nieznanym `taskType` w composite (obowiązuje `UNKNOWN_TASK_TYPE` + `failed`).
 - Eksportu tokenu `RUN_EXECUTOR` z modułu Social **po to**, by Runs musiał ten moduł zaimportować.
 - `@Global()` na BC grafu albo na całym Runs jako ukrycia cyklu.
-- Self-register grafów (`OnModuleInit` → rejestr) jako wymogu MVP.
 - Zależności grafu od **klasy** `RunLifecycleService` zamiast portu (token + interfejs `appendLog` / `transition`).
 - Umieszczania portu lifecycle / executora w `packages/shared`.
 
@@ -189,8 +201,8 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 
 | Element | Status |
 |---------|--------|
-| BC Runs + porty używane przez Social | obowiązkowe |
-| Port lifecycle + binding `RunExecutorPort` w kleju procesu (bez cyklu Nest) | obowiązkowe |
+| BC Runs + porty używane przez Social i Content | obowiązkowe |
+| Port lifecycle + binding composite `RunExecutorPort` w kleju procesu (bez cyklu Nest) | obowiązkowe |
 | Append-only logi w DB + SSE Nest | obowiązkowe |
 | Hub SSE: `complete` + evikcja subjectu po `completed`/`failed` (R-4a) | obowiązkowe |
 | `RUN_SSE_SUBJECT_TTL_MS` (env, default `600_000`) — TTL automatu ewikcji Subject | obowiązkowe |
@@ -213,9 +225,10 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - [ ] Ocena i Edytuj działają na `completed` i `failed` tylko dla autora; po finalize → `REVIEW_LOCKED`.
 - [ ] Przy zajętych slotach nowy run jest `queued` i startuje po zwolnieniu slotu (globalny limit, default 3); `interrupted` ma priorytet nad `queued`.
 - [ ] Po restarcie api: `awaiting_hitl` bez zmian; leftover `running` → `interrupted` (claim pod `MAX_CONCURRENT_RUNS`); po 3 przerwanych execute → `failed` z logiem. N leftover przy `MAX=1` → jeden execute naraz, reszta zostaje `interrupted`.
-- [ ] Social nie emituje SSE omijając Runs.
+- [ ] Social / Content nie emitują SSE omijając Runs.
 - [ ] `/metrics` nie jest używane jako podgląd przebiegu runu.
-- [ ] Brak cyklu Nest Runs ↔ Social; worker dostaje executor z kleju, nie z `imports: [SocialModule]`.
+- [ ] Brak cyklu Nest Runs ↔ Social / Content; worker dostaje composite executor z kleju.
+- [ ] `POST /runs` z `page_*` bez `platform` i z `contentKind` → 202; page + `platform: linkedin` → 400; `taskType` spoza enumu → 400.
 
 ## Poza zakresem
 

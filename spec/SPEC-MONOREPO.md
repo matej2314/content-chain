@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 4
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-15
+data_modyfikacji: 2026-08-31
 ---
 
 # SPEC — Monorepo
@@ -56,21 +56,22 @@ M-8. `apps/api/src/shared/` (jeśli używany) służy wyłącznie cross-cuttingo
 ### Wolno
 
 - Deklarować `@content-chain/shared` jako zależność `apps/api` i `apps/frontend` przez `workspace:`.
-- Trzymać w `packages/shared` typy request/response, enumy ról / statusów runu / platform SM / języków oraz brand types zgodne z `docs/brand_types.md`.
+- Trzymać w `packages/shared` typy request/response, enumy ról / statusów runu / `RunTaskType` (post_*, reel_*, page_*) / `SocialPlatform` / `RunPlatform` / `ContentKind` / języków oraz brand types zgodne z `docs/brand_types.md`.
 - Uruchamiać pakiety skryptami root (`pnpm --filter api …`, `pnpm -r …`).
-- Rozszerzać drzewo wewnątrz `apps/*/src` zgodnie z BC i warstwami — szczegóły BC w osobnych SPEC.
+- Rozszerzać drzewo wewnątrz `apps/*/src` zgodnie z BC i warstwami — w tym `apps/api/src/content/` (nie łamie M-1: nadal trzy aplikacje runtime). Szczegóły BC w osobnych SPEC.
 
 ### Nie wolno
 
-- Umieszczać use-case’ów, Prisma, promptów, reguł Social / bramki kontekstu w `packages/shared`.
+- Umieszczać use-case’ów, Prisma, promptów, reguł Social / Content / bramki kontekstu w `packages/shared`.
 - Importować kod źródłowy `apps/ai-provider-gateway` z `apps/api` (lub odwrotnie) jako moduł TS.
 - Importować kod źródłowy `apps/api` z `apps/frontend` (tylko HTTP do API).
 - Tworzyć drugiego pakietu „shared” z logiką biznesową poza `packages/shared`.
 - Opakowywać aplikacje w rootowy katalog `src/apps/`.
 - Wprowadzać Nx lub Turborepo jako wymóg DX w MVP.
-- Przenosić domenę Content Chain (kontekst firmy, Social, auth produktu, Feedback, przegląd runu) do `apps/ai-provider-gateway` lub do `apps/frontend`.
+- Przenosić domenę Content Chain (kontekst firmy, Social, Content, auth produktu, Feedback, przegląd runu) do `apps/ai-provider-gateway` lub do `apps/frontend`.
 
 Zmiana względem wersji 1: lista zakazu obejmuje Feedback i przegląd runu.
+Zmiana względem wersji 3: folder `apps/api/src/content/` nie łamie M-1; shared obejmuje `ContentKind` / `RunPlatform` / pełne `RunTaskType` (bez Zod).
 
 ### Zatwierdzony stack (obszar)
 
@@ -95,7 +96,7 @@ Zmiana względem wersji 1: lista zakazu obejmuje Feedback i przegląd runu.
 
 ## Poza zakresem
 
-- Treść i wzorce BC: Auth, Company Context, Social, Runs → osobne `SPEC-*.md`.
+- Treść i wzorce BC: Auth, Company Context, Social, Content, Runs → osobne `SPEC-*.md`.
 - Kontrakt HTTP/SSE i klient gateway → `SPEC-KOMUNIKACJA.md` / `docs/dokumentacja_komunikacji.md`.
 - Schema Prisma, adaptery persistence → `SPEC-PERSISTENCE.md`.
 - Docker Compose, env produkcyjne → docs deployment / `SPEC-BEZPIECZENSTWO.md`.

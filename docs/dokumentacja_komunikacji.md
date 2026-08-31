@@ -11,6 +11,8 @@ Zmiana względem wcześniejszej wersji tego dokumentu (korelacja): **`Conversati
 
 Zmiana względem wcześniejszego grafu statusów: dopisano `interrupted` (recovery po crashu procesu). `POST /runs` nadal zwraca wyłącznie `queued` \| `running`. Filtr `GET /runs?status=` i SSE `run.status` obejmują pełny zbiór `RunStatus` ze słownika.
 
+Zmiana względem kontraktu startu (tylko 3 taski post_*, `platform` zawsze wymagane, `result: { ideas, content }`): unia `taskType` (post_* / reel_* / page_*), `contentKind` przy page_*, snapshot addytywny (`reelIdeas`, `reelScript`, `pageOutline`, `pageDocument`), sentinel `platform: web` w DB dla Content.
+
 ---
 
 ## Powierzchnia 1 — HTTP API (`apps/api`)
@@ -50,6 +52,8 @@ Wybrane kody domenowe:
 | `RUN_NOT_REVIEWABLE` | 409 | Ocena / edycja / finalize gdy status inny niż `completed` \| `failed` |
 | `CONFLICT` | 409 | Niedozwolone przejście statusu runu |
 | `INTERNAL_ERROR` | 500 | Błąd nieobsłużony |
+
+`UNKNOWN_TASK_TYPE` nie jest kodem HTTP startu: `taskType` spoza enumu → **400** `VALIDATION_FAILED`. Composite executor używa `UNKNOWN_TASK_TYPE` wyłącznie przy wewnętrznym `execute` z typem poza unią (status `failed`, nie cichy no-op).
 
 ### Kanały odczytu vs live
 
@@ -141,10 +145,28 @@ Zapis sekcji kontekstu. **403** dla `user`.
 
 **200** — `{ "complete": boolean, "missing": string[] }` — wygodne dla UI bramki.
 
-### Runs / Social
+### Runs (Social i Content)
 
-Typy tasków MVP: `post_ideas` \| `post_content` \| `post_ideas_then_content` (dwuetapowy + HITL).  
-Platformy: `linkedin` \| `facebook` \| `instagram`. Język: `pl` \| `en`.
+Typy tasków MVP:
+
+| `taskType` | Kanał | Zachowanie |
+|------------|-------|------------|
+| `post_ideas` | Social | full-auto → `result.ideas` |
+| `post_content` | Social | full-auto → `result.content` |
+| `post_ideas_then_content` | Social | ideas → HITL → content |
+| `reel_ideas` | Social | full-auto → `result.reelIdeas` |
+| `reel_script` | Social | full-auto → `result.reelScript` |
+| `reel_ideas_then_scripts` | Social | reel ideas → HITL → scenariusz |
+| `page_copy` | Content | full-auto → `result.pageDocument` |
+| `page_outline_then_copy` | Content | outline → HITL → dokument |
+
+Platformy Social: `linkedin` \| `facebook` \| `instagram`. Język: `pl` \| `en`.  
+`ContentKind`: `blog` \| `service_page` \| `landing`.
+
+Unia `POST /runs` (application Zod + DTO):
+
+- `taskType` ∈ post_* \| reel_* → `platform` **wymagane** (`SocialPlatform`); `contentKind` **zakazane**;
+- `taskType` ∈ page_* → `contentKind` **wymagane**; `platform` **zakazane** (nie wysyłać). DB: `Run.platform` = sentinel `'web'` (nie jest wartością `SocialPlatform`). Filtr listy `platform=web` jest legalny jako wartość kolumny.
 
 Zakres listy: **runy całej instancji** (jedna firma) — nie tylko runy bieżącego użytkownika. Każdy run ma inicjatora (`startedBy`) oraz status.
 
@@ -157,7 +179,7 @@ Lista runów pod dashboard (widok tabeli → klik → szczegóły).
 | `page` | number | nie (default **1**) | Numer strony (1-based) |
 | `status` | enum statusu runu | nie | Filtr statusu (`RunStatus`, w tym `interrupted`) |
 | `taskType` | enum tasku | nie | Filtr typu tasku |
-| `platform` | enum platformy | nie | Filtr platformy |
+| `platform` | `SocialPlatform` **lub** `web` | nie | Filtr kolumny platformy (w tym sentinel `web` dla page_*) |
 | `userId` | string (id użytkownika) | nie | Filtr: kto uruchomił run |
 
 **Paginacja MVP:** stały rozmiar strony **10** (klient **nie** nadpisuje `limit`). Sortowanie: **`createdAt` malejąco** (najnowsze pierwsze).
@@ -171,6 +193,7 @@ Lista runów pod dashboard (widok tabeli → klik → szczegóły).
       "runId": "run_…",
       "taskType": "post_ideas",
       "platform": "linkedin",
+      "contentKind": null,
       "language": "pl",
       "status": "completed",
       "createdAt": "2026-08-12T10:00:00.000Z",
@@ -193,11 +216,14 @@ Przy chronionej sesji zapisuje **inicjatora** (`startedBy` = bieżący użytkown
 
 | Pole | Typ | Wymagane | Opis |
 |------|-----|----------|------|
-| `taskType` | enum | tak | patrz wyżej |
-| `platform` | enum | tak | |
+| `taskType` | enum (tabela wyżej) | tak | dyskryminator unii |
+| `platform` | `SocialPlatform` | tak przy post_* / reel_*; **zakazane** przy page_* | |
+| `contentKind` | `ContentKind` | tak przy page_*; **zakazane** przy Social | |
 | `language` | enum | tak | |
 | `brief` | object | tak | temat, grupa docelowa, cel, liczba pomysłów itd. |
-| `selectedIdeaIds` | string[] | nie | przy starcie samego `post_content` z już znanym wyborem |
+| `selectedIdeaIds` | string[] | nie | `post_content` / resume HITL: id pomysłów postu, rolek albo outline’u |
+
+Page + `platform: linkedin` → **400** `VALIDATION_FAILED`. Post/reel bez `platform` → **400**. `taskType` spoza enumu → **400** `VALIDATION_FAILED`.
 
 **202** — `{ "runId", "conversationId", "status": "queued" \| "running" }`.
 
@@ -219,6 +245,7 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
   "conversationId": "conv_…",
   "taskType": "post_ideas",
   "platform": "linkedin",
+  "contentKind": null,
   "language": "pl",
   "status": "completed",
   "createdAt": "2026-08-12T10:00:00.000Z",
@@ -226,17 +253,25 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
   "userRating": null,
   "outputEdited": false,
   "reviewFinalizedAt": null,
-  "result": { "ideas": [], "content": null },
+  "result": {
+    "ideas": [],
+    "content": null,
+    "reelIdeas": [],
+    "reelScript": null,
+    "pageOutline": null,
+    "pageDocument": null
+  },
   "hitl": null
 }
 ```
 
-- Meta jak pozycja listy + `conversationId`.
+- Meta jak pozycja listy + `conversationId`. Snapshot **addytywny**: posty zostawiają `ideas` / `content` jak Milestone 4; rolki wypełniają `reelIdeas` / `reelScript`; Content — `pageOutline` / `pageDocument`. Brak kanału = pusta tablica / `null` (reader nie null-crashuje).
+- `contentKind` — `null` dla Social; ustawione dla `page_*`.
+- `platform` — enum SM albo `'web'` (page_*).
 - `userRating` — **zawsze** w JSON: `null` (brak gwiazdek) albo `1`…`5`. Pozytywna wartość tylko gdy autor faktycznie ocenił.
 - `outputEdited` — `true` po użyciu Edytuj (flaga; bez diff w MVP).
 - `reviewFinalizedAt` — `null` dopóki autor nie zatwierdzi przeglądu; po finalize ISO8601 i pola oceny/edycji niemutowalne.
-- `result` — ideas/content gdy zapisane (kształt payloadu SM doprecyzowuje implementacja Social); puste / `null` gdy brak.
-- `hitl` — metadane pauzy gdy `awaiting_hitl`; inaczej `null` (w tym przy `interrupted`).
+- `hitl` — metadane pauzy gdy `awaiting_hitl`; `options` zależne od `taskType` (post ideas / `reelIdeas` / outline); inaczej `null` (w tym przy `interrupted`).
 
 `startedBy` jak na liście (`null` wyłącznie era pre-auth).
 
@@ -322,11 +357,11 @@ Ocena / Edytuj / finalize oraz HITL na `interrupted` → istniejące **409** (`R
 
 #### `POST /api/v1/runs/:runId/hitl`
 
-Wznowienie po wyborze z listy (task dwuetapowy).
+Wznowienie po wyborze z listy (task dwuetapowy: post ideas, reel ideas albo outline).
 
 | Pole | Typ | Wymagane |
 |------|-----|----------|
-| `selectedIdeaIds` | string[] | tak (≥1) |
+| `selectedIdeaIds` | string[] | tak (≥1); id z `hitl.options` danego `taskType` |
 
 **200** / **202** — run wraca do `running`.  
 **409** `HITL_REQUIRED` / `CONFLICT` gdy run nie jest w `awaiting_hitl`.
@@ -345,7 +380,7 @@ Wymaga sesji. Append-only.
 |------|-----|----------|------|
 | `targetType` | `application` \| `agent` \| `run` | tak | Co dotyczy opinia |
 | `body` | string | tak | Treść (limit długości — SPEC; bez sekretów) |
-| `agentKey` | enum agentów | gdy `targetType = agent` | `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier` |
+| `agentKey` | enum agentów | gdy `targetType = agent` | `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier` \| `PageWriterAgent` |
 | `runId` | `RunId` | gdy `targetType = run` | Run **autora** (sesja = `startedBy`); inaczej **403** |
 
 **201:**

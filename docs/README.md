@@ -1,6 +1,6 @@
 # Dokumentacja Content Chain
 
-**Content Chain** to publiczna, self-hostowalna (MIT) aplikacja agentowa do generowania treści social media: brief → orchestracja agentów (post ideas / post content) → weryfikacja względem kontekstu firmy → zapis w DB i czytelne logi runu. Monorepo obejmuje `apps/frontend`, `apps/api` oraz `apps/ai-provider-gateway` (jedyna droga do modeli LLM). Jedna instalacja = jedna firma = jeden wspólny kontekst; MVP domyka też auth i dashboard, przy kolejności budowy backend-first.
+**Content Chain** to publiczna, self-hostowalna (MIT) aplikacja agentowa do generowania treści **Social** (post ideas / post content / rolki) oraz **Content** (copy stron i artykułów w podstawowej formie): brief → orchestracja agentów → weryfikacja względem kontekstu firmy → zapis w DB i czytelne logi runu. Monorepo obejmuje `apps/frontend`, `apps/api` oraz `apps/ai-provider-gateway` (jedyna droga do modeli LLM). Jedna instalacja = jedna firma = jeden wspólny kontekst; MVP domyka też auth i dashboard, przy kolejności budowy backend-first.
 
 ## Jak czytać (kolejność)
 
@@ -21,7 +21,7 @@
 | API, SSE, metrics, integracja gateway | `dokumentacja_komunikacji.md` |
 | Brand types / korelacja ID | `brand_types.md` |
 | Słownik pojęć i kodów błędów | `dictionary.md` |
-| Przepływy + schematy agentów A/B/C | `data_flow.md` |
+| Przepływy + schematy agentów (posty, rolki, page copy) | `data_flow.md` |
 | Pułapki stacku / projektu | `anty_patterny.md` |
 | Strategia testów | `testy.md` |
 | `local` / `production`, compose, backup | `deployment.md` |
@@ -41,12 +41,12 @@ flowchart LR
   GW --> LLM[Vendors LLM]
 ```
 
-### Run SM (uproszczenie)
+### Run produktowy (uproszczenie)
 
 ```mermaid
 flowchart TB
   Brief[Brief + kompletny kontekst] --> Run[Async run]
-  Run --> Agents[Agenci: ideation / content / verifier]
+  Run --> Agents[Agenci: Social post/reel albo Content page]
   Agents --> GW[gateway LLM]
   Agents --> Logs[run.log + SSE]
   Crash{Crash procesu?} -->|tak| Int[interrupted]

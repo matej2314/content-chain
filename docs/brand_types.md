@@ -14,6 +14,7 @@ Zmiana względem wcześniejszych wersji tego dokumentu:
 - **nie** reużywamy jednego `RequestId` na cały run;
 - przy wywołaniach LLM **nie** generujemy ani nie wysyłamy własnego `x-request-id` do gateway — kanoniczny `RequestId` hopu LLM pochodzi z **odpowiedzi** `ai-provider-gateway`;
 - **usunięto** dopuszczenie Zod / `src/branded/zod.ts` w `packages/shared` (norma: shared bez runtime walidacji).
+- **`RunTaskType`** rozszerzony o `reel_*` i `page_*`; dodano `ContentKind` i `RunPlatform` (`'web'` **nie** jest `SocialPlatform`); `FeedbackAgentKey` += `PageWriterAgent` (kontrakt pod Fazę 6).
 
 ## Infrastruktura (wzorzec)
 
@@ -47,7 +48,7 @@ Docelowe pliki (propozycja):
 | `RequestId` | `req_<uuid>` — `/^req_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i` | **Źródła odpowiedzi, nie klienta:** (1) HTTP — `apps/api` nadaje `RequestId` i zwraca w envelope / `x-request-id`; frontend **nie** musi go generować. (2) Hop LLM — wyłącznie `requestId` z odpowiedzi gateway. Oś korelacji runu agentowego = `ConversationId` (+ `RunId`), nie seria HTTP-`RequestId`. |
 | `ConversationId` | `conv_<uuid>` — `/^conv_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i` | **Jeden na cały run agentowy.** Wspólna oś korelacji wszystkich wywołań LLM; CC tworzy przy starcie runu i przekazuje w body `POST .../chat`. |
 | `UserId` | `usr_<uuid>` | ID użytkownika w DB / JWT po zmapowaniu |
-| `RunId` | `run_<uuid>` | Jeden async run pipeline’u SM |
+| `RunId` | `run_<uuid>` | Jeden async run pipeline’u (Social albo Content) |
 | `FeedbackId` | `fbk_<uuid>` | Jeden wpis opinii tekstowej |
 | `GatewayModelAlias` | string brand (bez sztywnego prefiksu) | Alias modelu z konfiguracji gateway; walidacja „niepusty” na granicy api→gateway |
 
@@ -59,11 +60,13 @@ Docelowe pliki (propozycja):
 |-----|-------------|
 | `UserRole` | `admin` \| `user` |
 | `RunStatus` | `queued` \| `running` \| `interrupted` \| `awaiting_hitl` \| `completed` \| `failed` |
-| `RunTaskType` | `post_ideas` \| `post_content` \| `post_ideas_then_content` |
-| `SocialPlatform` | `linkedin` \| `facebook` \| `instagram` |
+| `RunTaskType` | `post_ideas` \| `post_content` \| `post_ideas_then_content` \| `reel_ideas` \| `reel_script` \| `reel_ideas_then_scripts` \| `page_copy` \| `page_outline_then_copy` |
+| `SocialPlatform` | `linkedin` \| `facebook` \| `instagram` — **nie** zawiera `'web'` |
+| `RunPlatform` | `SocialPlatform` \| `'web'` (unia w shared; `'web'` = sentinel kolumny `Run.platform` przy `page_*`, nie wartość `SocialPlatform`) |
+| `ContentKind` | `blog` \| `service_page` \| `landing` |
 | `ContentLanguage` | `pl` \| `en` |
 | `FeedbackTargetType` | `application` \| `agent` \| `run` |
-| `FeedbackAgentKey` | `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier` |
+| `FeedbackAgentKey` | `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier` \| `PageWriterAgent` |
 | `RunUserRating` | `1` \| `2` \| `3` \| `4` \| `5` (w JSON runu pole jest `number \| null`; `null` = brak oceny) |
 
 Enumy wolno modelować jako `Brand<string, 'RunStatus'>` z whitelistą w `createRunStatus` **albo** jako wąskie string union w shared. Schemy Zod dla tych enumów — w `apps/api` (application), nie w `packages/shared`. Jedna konwencja nazw w shared; brak magicznych stringów w feature kodzie.

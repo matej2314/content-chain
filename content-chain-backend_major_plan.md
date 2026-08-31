@@ -1,10 +1,10 @@
 # Content Chain — major plan (backend)
 
-**Zakres tego pliku:** fundament monorepo, boilerplate frontu (wyłącznie struktura i pakiety) oraz **backend** aż do zielonego pipeline’u SM, auth API **oraz fundamentu zapisu feedbacku** (opinie, ocena runu, flaga edycji).  
+**Zakres tego pliku:** fundament monorepo, boilerplate frontu (wyłącznie struktura i pakiety) oraz **backend** aż do zielonego pipeline’u SM (Milestone 4), **dopełnienia Social o rolki (Faza 4.1)** i **BC Content + klej (Faza 4.2 / Milestone 4.2)**, auth API **oraz fundamentu zapisu feedbacku** (opinie, ocena runu, flaga edycji).  
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
-**Źródła:** `docs/`, `spec/SPEC-*.md`, `content-chain_brief.md` (kontekst kolejności budowy).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, 5 i 6 oraz osiągnięciu Milestone 4–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
+**Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31).  
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), potem **Faza 4.1** (rolki) / **Faza 4.2** (Content + klej) / Milestone 4.2, potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, **4.1, 4.2**, 5 i 6 oraz osiągnięciu Milestone 4, **4.2**, 5–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -411,11 +411,154 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 
 ---
 
+## Faza 4.1 — Dopełnienie Social: rolki
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Po Milestone 4 (`OSIĄGNIĘTY`); **nie zmienia Fazy 4**. Mapowanie rolek z `Proces_SM` na istniejący BC Social: ten sam graf, model B, verifier `max N=2`, worker, SSE. HTTP nadal Runs. Taski `reel_ideas`, `reel_script`, `reel_ideas_then_scripts`. Snapshot addytywny (`reelIdeas` / `reelScript`). **Bez** `apps/api/src/content/`, **bez** composite dwugrafowego (nadal jeden `SocialRunExecutor`). Źródło: `SPEC-SOCIAL.md` (od v6), `docs/data_flow.md` §4b–4c, `mvp_v1_range_plan.md`.
+
+**Kontrakty typów:** `RunTaskType` += trzy `reel_*` w shared (bez Zod w shared). Domain: `ReelIdea`, `ReelScript`, `ReelDurationSeconds` = `15 \| 30 \| 90` (unia, nie brand). Zod application: `reelIdeaSchema` / `reelScriptSchema`. Port reader: `listReelIdeas`, `getReelScript`. Prisma → domain przez `isRunTaskType`. tsconfig **bez zmian**.
+
+**DoD (faza):**
+
+- Trzy taski `reel_*` działają E2E (Jest fake LLM) i Postman (żywy gateway) — D-15, D-16.
+- D-4/D-5 postów nadal zielone.
+- `pnpm --filter api test` (unit) + e2e api zielone.
+- Brak katalogu `apps/api/src/content/`.
+
+### Krok 4.1.1 — Shared, Prisma, porty, domain Social
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Enum `reel_*`; modele `SocialReelIdea` / `SocialReelScript` (append, P-7); port store i `RunResultReader` o sygnaturach reel; `PipelinePhase` zostaje `'ideas' \| 'content'`.
+
+**DoD (krok):**
+
+- Migracja w repo; tabele z `runId`, JSON payload, index `runId`.
+- Port kompletny; unit nie wymaga DB.
+
+### Krok 4.1.2 — Schemy Zod, prompty, węzły, graf, fasada, executor
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Prompty `reel-*.prompt.md` / `refine-reel-*.prompt.md`; węzły ładują szablon po `taskType`; persist reel (dyskryminacja); `resolvePhase` analogicznie do postów (`reel_script` → `'content'`; HITL + selection → `'content'`); `storedPhase` pierwszym fallbackiem (jak Krok 4.4, bez edycji tamtego kroku). Fake LLM rozróżnia reel vs post.
+
+**DoD (krok):**
+
+- Structured output rolek walidowany; refine N=2.
+- Executor: analogiczne testy do `social-run.executor.spec.ts` dla trzech `reel_*`.
+- Fasada: HITL tylko `reel_ideas_then_scripts` w fazie ideas.
+
+### Krok 4.1.3 — HTTP Runs: DTO, Zod startu, snapshot, lista
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** DTO/Zod przyjmują `reel_*`; `platform` nadal wymagane; snapshot addytywny; lista filtr `taskType=reel_ideas`; adapter Prisma mapuje `taskType` przez `isRunTaskType`.
+
+**DoD (krok):**
+
+- `POST /runs` z `reel_*` + `platform` → 202.
+- Snapshot: `reelIdeas` / `reelScript`; posty: `ideas` / `content` jak Milestone 4.
+- HITL: `selectedIdeaIds` z `reelIdeas`.
+
+### Krok 4.1.4 — Testy unit, e2e, Postman
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Unit (executor, fasada, schemy, persist, węzły promptów). E2E: D-15, D-16 + regresja D-4…D-8. Postman: foldery **C. reel_ideas**, **D. reel_ideas_then_scripts** w `social-pipeline.postman-collection.json`. `reel_script` solo — Jest, nie obowiązkowy Postman.
+
+**DoD (krok):**
+
+- Jest unit + e2e zielone.
+- README Postman opisuje C/D; kolekcja importowalna.
+- Milestone 4 A/B bez regresji.
+
+---
+
+## Faza 4.2 — BC Content + orkiestracja
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Po Fazie 4.1; **nie zmienia Fazy 4**. Drugi bounded context `apps/api/src/content/` (`page_copy`, `page_outline_then_copy`, `ContentKind`). Composite kleju w composition root (ręczny `switch` + `assertNever`). Testy, że Runs nie zna katalogu grafów. Źródło: `SPEC-CONTENT.md`, `SPEC-RUNY.md` (R-3d/e/f), `docs/architektura.md`.
+
+**Kontrakty typów:** `RunTaskType` += `page_*`; `ContentKind` + `isContentKind`; `RunPlatform = SocialPlatform | 'web'` w shared (**nie** jako `SocialPlatform`). `StartRunCommand`: unia dyskryminowana TS + Zod `discriminatedUnion('taskType')`. Domain: `PageOutline`, `PageDocument`; faza `'outline' \| 'copy'`. Port `ContentResultStore` osobny. Zakaz `any`.
+
+**DoD (faza):**
+
+- `page_copy` i `page_outline_then_copy` zielone (Jest + Postman) — D-17, D-18.
+- Posty i rolki bez regresji.
+- Nieznany `taskType` w HTTP → `400` `VALIDATION_FAILED`; composite nie wołany.
+- `UNKNOWN_TASK_TYPE` pokryty unitem composite.
+- Faza 9 **nie** startuje (Zod 3).
+
+### Krok 4.2.1 — Shared, Prisma Content, `Run.contentKind`, walidacja startu
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Enumy; `Run.contentKind`; tabele `ContentOutline` / `ContentDocument`; sentinel `platform: 'web'` dla page_*; Zod unia (page bez platform OK; page z `linkedin` → fail; post bez platform → fail).
+
+**DoD (krok):**
+
+- Page run: DB `platform='web'`, `contentKind` ustawione.
+- Social run: `contentKind` null, `platform` z enumu SM.
+- Unit Zod pokrywa unię.
+
+### Krok 4.2.2 — Moduł `apps/api/src/content/` (graf podstawowy)
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Drzewo application / domain / infrastructure (graph, prompts, persistence). Węzły: `LoadContext`, `NormalizeBrief`, `OutlineAgent`, `PageWriterAgent`, `ConsistencyVerifier`, `Refine*`, `Persist*`, `FailRun`. `compile()` bez checkpoinetera. Refine `max N=2`. `ContentModule` bez `controllers[]`; nie importuje Social/Runs (tylko port lifecycle).
+
+**DoD (krok):**
+
+- Moduł eksportuje `ContentRunExecutor` + store.
+- Unit fasady + executor analogiczne do Social.
+
+### Krok 4.2.3 — Klej: composite executor + reader + `AppModule`
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** `run-dispatch.executor.ts` (nie `utils.ts`); composite reader; `registerAsync` inject obu executorów i store’ów; `GetRunUseCase` wypełnia `pageOutline` / `pageDocument`. Worker nadal jeden `RUN_EXECUTOR`. Recovery `interrupted` → właściwy BC po `taskType`.
+
+**DoD (krok):**
+
+- SocialModule nie importuje ContentModule; RunsModule nie importuje żadnego grafu.
+- HITL page: `awaiting_hitl` + options z outline; resume `selectedIdeaIds`.
+- Unit dispatchera: social vs content vs default.
+
+### Krok 4.2.4 — Testy unit, e2e, Postman Content, regresja Social
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Unit domain/schemy/dispatcher/GetRun. E2E `content-pipeline.e2e-spec.ts` (D-17, D-18, refine, korelacja); lista `taskType=page_copy`, `platform=web`; start page + `linkedin` → 400. Postman: `content-pipeline.postman-collection.json` (A/B); Setup = `PUT /company-context`.
+
+**DoD (krok):**
+
+- Unit + e2e zielone.
+- Postman Content + Social A–D opisane w README.
+
+---
+
+## MILESTONE 4.2 — Zespoły agentowe kompletne (podstawowa forma)
+
+**Opis:** Bramka mapowania po Fazach 4.1 i 4.2. **Nie** mylić z Milestone 4 (posty) ani z publicznym MVP. Auth nadal Faza 5.
+
+**DoD (milestone):**
+
+- Faza 4.1 i 4.2 spełniają DoD (lub `WYKONANY`).
+- Postman Social A–D + Content A–B zielone (żywy gateway).
+- Jest e2e D-4, D-5, D-15…D-18 zielone (fake LLM).
+- Klej: dwa BC, jeden worker; graf Nest acykliczny.
+- Akceptacja przejścia do Fazy 5 (Auth).
+
+---
+
 ## Faza 5 — Auth API (forma docelowa)
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Auth w formie docelowej na api: bootstrap jednego admina (status + sesja po bootstrapie), sesja cookie, **`GET /auth/me`**, role, zarządzanie użytkownikami (lista/create + soft-delete w API), zabezpieczenie powierzchni kontekstu i runów oraz wypełnianie `startedBy` przy starcie. Zgodnie z `SPEC-AUTH.md`, `docs/security.md` — po zielonym pipeline (order of attack).
+**Opis:** Auth w formie docelowej na api: bootstrap jednego admina (status + sesja po bootstrapie), sesja cookie, **`GET /auth/me`**, role, zarządzanie użytkownikami (lista/create + soft-delete w API), zabezpieczenie powierzchni kontekstu i runów oraz wypełnianie `startedBy` przy starcie. Zgodnie z `SPEC-AUTH.md`, `docs/security.md` — po zielonym pipeline (order of attack).  
+Dopisek: **start po Fazie 4.2 / Milestone 4.2** (nie bezpośrednio po Milestone 4). DoD auth **bez** przepisu.
 
 **DoD (faza):**
 
@@ -682,7 +825,7 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Kiedy start:** **wyłącznie na końcu tego majoru** — po `WYKONANY` Fazy 4, 5 i 6 oraz `OSIĄGNIĘTY` Milestone 4, 5 i 6. Fazy 7 i 8 są już `WYKONANY`. Zakaz startu tej fazy w trakcie pipeline’u Social, auth albo fundamentu feedbacku.
+**Kiedy start:** **wyłącznie na końcu tego majoru** — po `WYKONANY` Fazy 4, **4.1, 4.2**, 5 i 6 oraz `OSIĄGNIĘTY` Milestone 4, **4.2**, 5 i 6. Fazy 7 i 8 są już `WYKONANY`. Zakaz startu tej fazy w trakcie pipeline’u Social / Content, auth albo fundamentu feedbacku. Schemy rolek i Content migrują na Zod 4 w tej fazie (świadomy koszt: 4.1/4.2 na Zod 3).
 
 **Opis:** Refaktor względem: **Faza 1 / Krok 1.4** (`WYKONANY`) — Zod jako zależność walidacji application w `apps/api`; oraz świadomy pin **Zod 3** w `feature-plans/content-chain_feature_plan_faza-4-pipeline-social.md` (graf `z.object` / Interop Zod 3, **nie** Zod 4.x w tamtym wycinku). Cel: jedna linia Zod **4.4.x** w `apps/api` i `apps/ai-provider-gateway` (gateway ma `zod@^4.4.3`). Peer `@langchain/langgraph` (`zod@^3.25.32 || ^4.2.0`) obejmuje 4.4.x. Docs/SPEC wymagają Zod w application, **bez** pinu major — `packages/shared` nadal bez Zod.
 
@@ -737,7 +880,9 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 | Kontekst firmy | `SPEC-KONTEKST-FIRMY.md`, `docs/dokumentacja_koncepcyjna.md` |
 | Runy / logi / listing / przegląd (ocena, edycja) / `interrupted` / cykl życia SSE | `SPEC-RUNY.md` (w tym R-4a), `SPEC-KOMUNIKACJA.md` (K-3a, K-3b), `docs/observability.md`, `docs/data_flow.md` (recovery), `docs/dokumentacja_komunikacji.md` |
 | Opinie tekstowe | `SPEC-FEEDBACK.md` |
-| Social | `SPEC-SOCIAL.md`, `docs/data_flow.md` |
+| Social (posty i rolki) | `SPEC-SOCIAL.md`, `docs/data_flow.md` |
+| Content (BC) | `SPEC-CONTENT.md`, `docs/architektura.md` |
+| Klej composite | `SPEC-RUNY.md` (R-3d/e), `docs/architektura.md` |
 | Zod (api vs gateway) | `SPEC-KOMUNIKACJA.md` (Zod w application, bez pinu major); Faza 9 — `zod@^4.4.x` w `apps/api` jak `apps/ai-provider-gateway` |
 | Auth | `SPEC-AUTH.md` |
 | Kolejność budowy | `docs/dokumentacja_koncepcyjna.md`, `content-chain_brief.md` |

@@ -1,5 +1,7 @@
 # Content Chain — publiczny self-host dowód aplikacji agentowej do Social Media
 
+> **Nota (2026-08-31):** zakres kanałów MVP/V1 z tego briefu jest **nadpisany** przez `docs/dokumentacja_koncepcyjna.md` (legalizacja). MVP obejmuje posty **i** rolki oraz Content (BC) w podstawowej formie; V1 = PostgreSQL + panel opinii + publikacja portali + audytorzy Content + YouTube — nie „kolejne workflowy”. Historia ustaleń poniżej zostaje jako zapis rozmowy; przy konflikcie kanałów wygrywa docs.
+
 - Data: 2026-08-10
 - Projekt: content-chain
 - Kategoria: greenfield

@@ -27,7 +27,7 @@ Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_
 | Widok | Kto | Cel |
 |-------|-----|-----|
 | **Kontekst firmy** | admin: edycja; user: podgląd | Uzupełnienie sekcji bramki; podgląd completeness |
-| **Runy SM** | admin, user | Lista runów całej instancji + start nowego; klik wiersza → szczegóły |
+| **Runy** | admin, user | Lista runów całej instancji + start nowego (Social i Content); klik wiersza → szczegóły |
 | **Run (szczegóły)** | admin, user | Podstrona po kliknięciu w liście: live status, logi, HITL, wynik |
 | **Użytkownicy** | tylko admin | Lista + tworzenie `user` (bez edycji / dezaktywacji w UI MVP) |
 | **Konto** | każdy | Wylogowanie |
@@ -40,7 +40,7 @@ Stały element UI (np. pasek pod headerem / chip w sidebarze), widoczny na wszys
 
 | Stan | Warunek | Przekaz (PL) |
 |------|---------|--------------|
-| **Agenci aktywni** | `completeness.complete === true` | Można uruchamiać flow’y SM |
+| **Agenci aktywni** | `completeness.complete === true` | Można uruchamiać runy produktowe (Social i Content) |
 | **Agenci nieaktywni / zablokowani** | kontekst niekompletny | Start runów zablokowany; lista brakujących sekcji + link do Kontekstu |
 | **Run w toku** (uzupełnienie) | istnieje run w `running` / `awaiting_hitl` / `interrupted` | Opcjonalny drugi sygnał: przy `running` / `awaiting_hitl` — „Trwa run…”; przy `interrupted` — **inne copy** („Przerwany — wznowienie przy wolnym slocie”), z linkiem do szczegółów |
 
@@ -53,15 +53,17 @@ CTA „Start runu” disabled + tooltip, gdy agenci nieaktywni — zgodnie z **4
 - Widoczny status kompletności per sekcja.
 - Zapis: tylko admin; user — read-only z komunikatem.
 
-## Widok: Runy SM
+## Widok: Runy
 
 - Źródło: `GET /api/v1/runs` — **runy całej instancji**.
-- Kolumny listy: `runId`, typ tasku, platforma, język, status, `createdAt`, email inicjatora (`startedBy.email`).
+- Kolumny listy: `runId`, typ tasku, platforma (lub `web` przy page_*), `contentKind` gdy page_*, język, status, `createdAt`, email inicjatora (`startedBy.email`).
 - Paginacja: **10** na stronę, najnowsze pierwsze; stały rozmiar strony.
-- Filtry MVP: status (w tym `interrupted`), `taskType`, platforma, użytkownik inicjujący (`userId`).
-- Akcja: nowy run (brief, `taskType`, platforma, język, ewent. `selectedIdeaIds` dla samego content).
+- Filtry MVP: status (w tym `interrupted`), `taskType` (post_*, reel_*, page_*), platforma (w tym `web`), użytkownik inicjujący (`userId`).
+- Akcja: nowy run — select `taskType` obejmuje rolki i page_*; **`contentKind` widoczne gdy page_***; **platforma ukryta/disabled gdy page_***; język; ewent. `selectedIdeaIds` dla samego content/script.
 - Start zablokowany wizualnie, gdy globalnie agenci nieaktywni.
-- **Nawigacja:** klik wiersza → podstrona **Run (szczegóły)** dla tego `runId` (podstawowe info z listy; pełny live / logi / HITL / wynik na szczegółach).
+- **Nawigacja:** klik wiersza → podstrona **Run (szczegóły)** dla tego `runId`.
+
+Major FE implementuje widoki; ten dokument ustala **kontrakt** formularza i wyniku (rolka vs post vs strona).
 
 ## Widok: Run (szczegóły) — obowiązkowy live
 
@@ -72,8 +74,8 @@ Wejście: z listy Runy SM (klik) lub bezpośredni deep-link po `runId`.
 | **Nagłówek / meta** | Te same podstawowe pola co wiersz listy + ewent. `conversationId` (ops light) |
 | **Status live** | Subskrypcja SSE `.../events`; zmiana statusu **natychmiast**; prezentacja **animowana / atrakcyjna** (np. pulsacja / progress przy `running`, wyraźny stan `awaiting_hitl`, **czytelny przestój `interrupted`** — nie ta sama pulsacja co `running`, sukces/fail) — nie tylko szary label |
 | **Logi** | Przyrostowo z SSE `run.log` + możliwość dociągnięcia historii GET logs |
-| **HITL** | Panel wyboru pomysłów, gdy `awaiting_hitl` + `run.hitl`; submit → `POST .../hitl` |
-| **Wynik** | Ideas / content po `completed` (czytelny podgląd, kopiowanie); przy `failed` — to, co zdążyło się zapisać |
+| **HITL** | Panel wyboru: pomysły postu, pomysły rolek albo outline strony — wg `taskType` i `hitl.options`; submit → `POST .../hitl` |
+| **Wynik** | Po `completed`: widok **postu** (`ideas` / `content`), **rolki** (`reelIdeas` / `reelScript.segments`) albo **strony** (`pageOutline` / `pageDocument`) — nie jeden szablon na wszystko; przy `failed` — to, co zdążyło się zapisać |
 | **Edytuj** | Widoczny gdy jest wynik i przegląd **nie** jest zatwierdzony **oraz** sesja = `startedBy`. Klik → użytkownik edytuje treść w UI; api ustawia **wyłącznie flagę** `outputEdited: true` (bez diff / % w MVP; oryginał agentów w DB bez nadpisu w MVP) |
 | **Ocena gwiazdkowa (1–5)** | Po `completed` **albo** `failed`, tylko autor runu. Dobrowolna: brak wyboru = w DB zostaje `userRating: null`. Do zatwierdzenia można zmieniać wybór (w tym wrócić do braku oceny). Czytelne gwiazdki, nie sam numeric input |
 | **Zamknij / zapisz przegląd** | Zatwierdza aktualną ocenę (`null` albo `1–5`) i flagę edycji. Po sukcesie kontrolki oceny i Edytuj są zablokowane |
@@ -84,7 +86,7 @@ Reconnect SSE: odtworzyć subskrypcję wyłącznie po nieoczekiwanym zerwaniu, g
 
 Zmiana względem wcześniejszego zapisu: reconnect był ogólny, bez rozróżnienia terminal vs. awaria i bez obowiązku `close()` / braku subskrypcji skończonego runu.
 
-Ocena i Edytuj **nie** są HITL (HITL = wybór pomysłów w trakcie pipeline).
+Ocena i Edytuj **nie** są HITL (HITL = wybór z listy w trakcie pipeline).
 
 ## Formularz: Zostaw opinię (zapis MVP)
 
@@ -93,7 +95,7 @@ Modal / panel z layoutu (CTA globalny). Wymaga sesji.
 | Pole | Zachowanie |
 |------|------------|
 | **Co oceniasz** | Wybór: **aplikacja** \| **agent** \| **run** |
-| **Agent** | Gdy target = agent: **obowiązkowy** select stałego enumu: `IdeationAgent`, `ContentWriterAgent`, `ConsistencyVerifier` (labelki PL w UI) |
+| **Agent** | Gdy target = agent: **obowiązkowy** select stałego enumu: `IdeationAgent`, `ContentWriterAgent`, `ConsistencyVerifier`, `PageWriterAgent` (labelki PL w UI) |
 | **Run** | Gdy target = run: **obowiązkowy** select runów **zalogowanego** użytkownika — źródło `GET /api/v1/runs/user/:userId` (`:userId` = id z `/auth/me`). Lista **wszystkich** jego runów (bez paginacji 10 z dashboardu) |
 | **Treść** | Pole tekstowe opinii |
 

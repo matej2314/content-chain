@@ -44,11 +44,11 @@ flowchart LR
   API -->|GET completeness| Admin
   DB -->|complete?| Gate{Bramka}
   Gate -->|nie| Block[Start runu 409 CONTEXT_INCOMPLETE]
-  Gate -->|tak| Allow[POST /runs dozwolony]
+  Gate -->|tak| Allow[POST /runs dozwolony — Social i Content]
 ```
 
 Sekcje bramki: tożsamość, oferta, głos SM, CTA/kanały, odbiorca (`dokumentacja_koncepcyjna.md`).  
-`user` tylko czyta / korzysta; edycja wyłącznie `admin`.
+`user` tylko czyta / korzysta; edycja wyłącznie `admin`. **Jedna** bramka na cały `POST /runs` (C-5), także dla `page_*` i rolek.
 
 ---
 
@@ -116,6 +116,61 @@ flowchart TB
 Zmiana względem: wcześniejszy mermaid skracał pętlę do `VerI -->|fail refine max 2| Idea` oraz `VerC -->|fail refine max 2| Write` (powrót do generatora, bez węzła Refine*). Teraz jak §3 i graf: Refine* → ten sam ConsistencyVerifier.
 
 HITL nie woła LLM; nowe `RequestId` pojawia się w odpowiedzi HTTP `.../hitl`. Po resume kolejne hopy LLM nadal z tym samym `ConversationId`.
+
+---
+
+## 4b. Run jednoetapowy — `reel_ideas` (full-auto)
+
+Ten sam graf Social, **routing po `taskType` + `phase`**: `IdeationAgent` ładuje `reel-ideas.prompt.md`. Faza DB: `'ideas'`. Wynik: `result.reelIdeas` (nie `result.ideas`).
+
+Przepływ jak §3 (`LoadContext` → `NormalizeBrief` → `IdeationAgent` → `ConsistencyVerifier` → `Refine*` `max N=2` → `PersistReelIdeas` → `completed`). Platforma: `linkedin` \| `facebook` \| `instagram`. Język: `pl` \| `en`.
+
+`ReelIdea`: `id` (`idea_<uuid>`), `title`, `description`, `hook`, `durationSeconds` (`15` \| `30` \| `90`).
+
+Analogicznie **`reel_script` (full-auto):** faza `'content'` **znaczy** fazę scenariusza (`SocialRunExecutor.resolvePhase`: `reel_script` → `'content'`). `ContentWriterAgent` ładuje `reel-script.prompt.md`. Wynik: `result.reelScript` (nie `SocialContent`). Persist: `SocialReelScript`.
+
+`ReelScript`: `segments` (`startSeconds`, `endSeconds`, `onScreen`, `voiceover`), `cta`, `notes?`.
+
+---
+
+## 4c. Run dwuetapowy — `reel_ideas_then_scripts` (HITL)
+
+Jak §4, z polami rolek:
+
+```text
+invoke A (reel ideas + verifier + persist) → awaiting_hitl
+  hitl.options = reelIdeas (nie post-ideas)
+POST .../hitl  { selectedIdeaIds }   # id z reelIdeas
+invoke B (phase 'content' = scenariusz + verifier + persist) → completed | failed
+```
+
+`resolvePhase`: `reel_ideas_then_scripts` + niepuste `selectedIdeaIds` → `'content'`. `storedPhase` z DB zostaje pierwszym fallbackiem.
+
+---
+
+## 4d. Run jednoetapowy — `page_copy` (full-auto)
+
+BC **Content** (`apps/api/src/content/`). Wejście: brief + `contentKind` (`blog` \| `service_page` \| `landing`); **bez** `platform` (kolumna DB = sentinel `'web'`). Faza: `'copy'`. Wynik: `result.pageDocument`.
+
+```text
+LoadContext → NormalizeBrief → PageWriterAgent → ConsistencyVerifier
+  → Refine* (max N=2, z powrotem do verifiera) → PersistDocument → completed | failed
+```
+
+Verifier: ten sam wzorzec `max N=2` (fakty firmy + język). Recovery `interrupted` → re-invoke Content.
+
+---
+
+## 4e. Run dwuetapowy — `page_outline_then_copy` (HITL)
+
+HITL model B: outline w tabeli `ContentOutline`; po HITL faza `'copy'`. `pipelinePhase` na `Run`: `'outline'` \| `'copy'` (wartość `'copy'` / `'outline'` tylko `page_*`). Payload HITL: `selectedIdeaIds` = id sekcji/wariantu outline’u **albo** jeden id zaakceptowanego outline’u (kanon: tablica id jak SM).
+
+```text
+invoke A (OutlineAgent + verifier + persist outline) → awaiting_hitl
+  hitl.options = pageOutline
+POST .../hitl  { selectedIdeaIds }
+invoke B (PageWriterAgent + verifier + persist document) → completed | failed
+```
 
 ---
 
@@ -189,6 +244,8 @@ Szczegóły: `dictionary.md` (hasła `interrupted`, Recovery runu), `SPEC-RUNY.m
 | Błąd / timeout gateway | Log kroku (bez `requestId` przy braku odpowiedzi); po polityce retry lub **`failed`** + SSE `run.failed` |
 | Verifier fail po `max N=2` | **`failed`**; w logach czytelny powód (kontekst i/lub język) |
 | HITL na runie nie w `awaiting_hitl` | **409** `HITL_REQUIRED` / `CONFLICT` |
+| `taskType` spoza enumu HTTP | **400** `VALIDATION_FAILED` (composite nie wołany) |
+| Nieznany `taskType` w composite (wewnętrznie) | status `failed` + `UNKNOWN_TASK_TYPE` |
 | Crash procesu przy `running` | Boot: `interrupted` (lub `failed` przy capie); claim pod `MAX_CONCURRENT_RUNS`; SSE `run.status` |
 | Ocena / Edytuj / finalize gdy nie `completed`/`failed` | **409** `RUN_NOT_REVIEWABLE` |
 | Zmiana oceny lub flagi po finalize | **409** `REVIEW_LOCKED` |
@@ -242,8 +299,8 @@ Na obszarze języka: **nie** odrzucać haczyka ani tytułu za brak kropki na ko�
 ## Poza zakresem tego dokumentu
 
 - Osobny węzeł `LanguageQualityVerifier`
-- Rolki, Web/blog, YouTube
-- Pełne szablony promptów (treść plików w `social/infrastructure/prompts/`)
+- YouTube, WordPress, łańcuch 6 specjalistów Content, `Reels_performance`
+- Pełne szablony promptów (treść plików w `social/infrastructure/prompts/` i `content/infrastructure/prompts/`)
 - OpenTelemetry jako wymóg MVP
 - Szczegóły scrapowania Prometheus / alerty → `deployment.md`, `observability.md`
 - Widoki UI → `ux_dashboard.md`

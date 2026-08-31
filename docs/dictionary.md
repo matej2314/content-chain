@@ -6,6 +6,8 @@ Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `architektura_kata
 
 Zmiana względem wcześniejszej wersji tego dokumentu: lista BC uzupełniona o **Feedback**; HITL uściślony do **modelu B** (stan pauzy w DB); port LLM zlokalizowany w `apps/api/src/llm/`; Health rozróżnia api vs gateway; `DB kanoniczna` obejmuje opinie i metadane przeglądu; dopisano hasła cross-cutting, workera, recovery, korelacji hopu LLM oraz przeglądu. `FeedbackId` / `FeedbackTargetType` / `FeedbackAgentKey` / `RunUserRating` = kontrakt MVP w docs/spec (w `packages/shared` przy implementacji BC Feedback / przeglądu).
 
+Zmiana względem definicji **MVP** / **V1 — rozbudowa** oraz kanałów: MVP obejmuje **Social (posty i rolki)** oraz **Content (BC)** w podstawowej formie (auth, dashboard, gateway, SQLite, fundament feedbacku zostają). **V1 — rozbudowa** = cutover PostgreSQL + panel odczytu opinii + publikacja na portalach SM + łańcuch audytorów Content + YouTube — **nie** „kolejne workflowy / rolki / blog”. Źródło: `dokumentacja_koncepcyjna.md` (legalizacja 2026-08-31).
+
 Zmiana względem poprzedniego zbioru `RunStatus` (pięć wartości, recovery jako ponowne execute na leftover `running`): dopisano status **`interrupted`**. `MAX_CONCURRENT_RUNS` tnie **każdy** claim do `running` z `queued` oraz z `interrupted` (priorytet recovery nad nowymi POST). Burst execute wszystkich leftover `running` ponad cap **unieważniony**. HITL (`awaiting_hitl`) pozostaje osobnym use-casem.
 
 ---
@@ -14,30 +16,36 @@ Zmiana względem poprzedniego zbioru `RunStatus` (pięć wartości, recovery jak
 
 | Pojęcie | Definicja |
 |---------|-----------|
-| **Content Chain** | Publiczna, self-hostowalna aplikacja agentowa do generowania treści SM z weryfikacją względem kontekstu firmy, zapisem wyników i obserwowalnymi runami. |
+| **Content Chain** | Publiczna, self-hostowalna aplikacja agentowa do generowania treści **Social** (posty i rolki) oraz **Content (BC)** (copy stron / long-form) z weryfikacją względem kontekstu firmy, zapisem wyników i obserwowalnymi runami. |
 | **Kontekst firmy** (`Company Context`) | Kanoniczny zestaw informacji o organizacji w DB (jedna instancja = jedna firma); wejście do generowania i weryfikacji spójności. |
-| **Bramka kontekstu** / kompletność | Programowy warunek: wymagane sekcje kontekstu uzupełnione → flow’y SM odblokowane; inaczej start runu zablokowany (`CONTEXT_INCOMPLETE`). Werdykt: `isComplete`. |
+| **Bramka kontekstu** / kompletność | Programowy warunek: wymagane sekcje kontekstu uzupełnione → start **każdego** `POST /runs` odblokowany (Social i Content); inaczej start runu zablokowany (`CONTEXT_INCOMPLETE`). Werdykt: `isComplete`. Jedna bramka na cały produkt w MVP (w tym głos SM dla page_* — świadome). |
 | **`isComplete`** | Czysta funkcja domeny kontekstu: `{ complete, missing }` (`missing` = klucze niespełnionych sekcji bramki). Jedyny werdykt programowy przed startem runu; unit-testowalna bez DB/HTTP. |
 | **Sekcje bramki** | Tożsamość, oferta (≥1 usługa + korzyść), głos SM, CTA/kanały, odbiorca — patrz docs koncepcyjne. |
-| **Post ideas** | Lista pomysłów na posty SM (task / etap pipeline’u). |
+| **Post ideas** | Lista pomysłów na posty SM (task / etap pipeline’u Social). |
 | **Post content** | Gotowe copy posta (hook, body, CTA itd.). |
-| **Brief SM** | Wejście użytkownika do runu: temat, grupa docelowa, cel, platforma, język, liczba pomysłów itd. |
+| **Reel ideas** | Lista pomysłów na rolki (`result.reelIdeas`; `ReelIdea`: `id`, `title`, `description`, `hook`, `durationSeconds`). |
+| **Reel script** | Scenariusz rolki (`result.reelScript`; `ReelScript`: `segments`, `cta`, `notes?`). **Nie** jest `SocialContent`. |
+| **Page outline** | Szkic dokumentu strony (`result.pageOutline`) — faza HITL tasku `page_outline_then_copy`. |
+| **Page document** | Pełny dokument copy strony/artykułu (`result.pageDocument`). |
+| **Content (BC)** | Bounded context generowania copy stron / long-form (`page_copy`, `page_outline_then_copy`). **Nie** mylić z nazwą produktu Content Chain. |
+| **`ContentKind`** | Rodzaj dokumentu Content: `blog` \| `service_page` \| `landing`. Wymagane przy taskach `page_*`; **zakazane** przy taskach Social. |
+| **Brief SM** | Wejście użytkownika do runu Social: temat, grupa docelowa, cel, platforma, język, liczba pomysłów itd. |
 | **Weryfikacja spójności** | Krok pipeline’u sprawdzający treść względem kontekstu firmy przed uznaniem wyniku. W MVP = węzeł `ConsistencyVerifier` (także język). |
 | **HITL** | Human-in-the-loop: pauza runu na wybór z listy, gdy kolejny krok zależy od selekcji (task dwuetapowy). W MVP: **HITL model B**. |
 | **HITL model B** | Faza ideas kończy **invoke** grafu; stan pauzy (draft, `conversationId`, metadane fazy) kanonicznie w **DB**; `POST .../hitl` startuje **nowy invoke** fazy content. Zakaz checkpoinetera LangGraph jako store pauzy w MVP. Zmiana względem: wcześniejsze hasło HITL bez modelu persistence. |
 | **Full-auto** | Wykonanie tasku jednoetapowego bez wymuszonej pauzy selekcji. |
 | **Self-host** | Uruchomienie we własnej infrastrukturze operatora; licencja MIT. |
 | **First-run** | Stan pustej instancji: `GET /api/v1/auth/bootstrap-status` → `available: true` → jednorazowy `POST .../bootstrap-admin`. Potem endpoint bootstrap trwale niedostępny. |
-| **Agenci aktywni** | Sygnał UX: bramka `complete === true` (można startować flow’y SM). **Nie** oznacza „run w toku” (`running` / `awaiting_hitl` / `interrupted`). Odwrotnie: agenci nieaktywni / zablokowani = kontekst niekompletny. |
-| **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, post ideas/content, gateway, **SQLite**, logi, SSE. |
-| **V1 — rozbudowa** | Faza **po MVP**: kolejne workflowy / agenci poza pierwszym slice Social; obowiązkowy cutover persistence na **PostgreSQL** (`spec/SPEC-PERSISTENCE.md`). Nie mylić z prefiksem HTTP `/api/v1`. |
+| **Agenci aktywni** | Sygnał UX: bramka `complete === true` (można startować runy produktowe: Social i Content). **Nie** oznacza „run w toku” (`running` / `awaiting_hitl` / `interrupted`). Odwrotnie: agenci nieaktywni / zablokowani = kontekst niekompletny. |
+| **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, gateway, **SQLite**, logi, SSE, fundament feedbacku, **Social (posty i rolki)** oraz **Content (BC) w podstawowej formie**. |
+| **V1 — rozbudowa** | Faza **po MVP**: cutover persistence na **PostgreSQL** + panel odczytu opinii + publikacja na portalach SM + łańcuch audytorów Content + YouTube. **Nie** oznacza „kolejne workflowy / rolki / blog” (te kanały są w MVP). Nie mylić z prefiksem HTTP `/api/v1`. SQLite pozostaje silnikiem MVP **także** po dodaniu Content. |
 
 ## Role i tenancy
 
 | Pojęcie | Definicja |
 |---------|-----------|
 | **`admin`** | Jedyny administrator (bootstrap); wyłączne prawo edycji kontekstu firmy; może generować treści jak `user`. Norma: `security.md`. |
-| **`user`** | Rola uruchamiająca flow’y SM i przeglądająca wyniki/logi; bez edycji kontekstu. |
+| **`user`** | Rola uruchamiająca runy produktowe (Social i Content) i przeglądająca wyniki/logi; bez edycji kontekstu. |
 | **Jedna firma / instancja** | Brak multi-tenant SaaS: wszyscy użytkownicy instancji dzielą jeden kontekst. |
 | **Bootstrap admin** | Utworzenie pierwszego konta administratora przy starcie self-host (first-run). |
 
@@ -46,16 +54,17 @@ Zmiana względem poprzedniego zbioru `RunStatus` (pięć wartości, recovery jak
 | Pojęcie | Definicja |
 |---------|-----------|
 | **Modularny monolit** | Trzy procesy w jednym monorepo (`apps/api`, `apps/frontend`, `apps/ai-provider-gateway`) ze wspólnym `packages/shared`. |
-| **Cienki klient** | `apps/frontend`: UI + HTTP/SSE; **bez** reguł bramki, grafu SM, Prisma i sekretów LLM. |
+| **Cienki klient** | `apps/frontend`: UI + HTTP/SSE; **bez** reguł bramki, grafu Social / Content, Prisma i sekretów LLM. |
 | **Port / adapter** | Granica I/O: domain/application zależą od portu. Prisma = adapter w `infrastructure` BC. Klient gateway = adapter HTTP w `apps/api/src/llm/` (port `LlmGateway`). Zmiana względem: wcześniejszy opis bez lokalizacji adaptera LLM. |
 | **Port `LlmGateway`** | Port chat (i opcjonalnie stream) do `apps/ai-provider-gateway`; jedyna droga `apps/api` do LLM. Wołają go BC (np. Social), nie kontrolery HTTP. |
-| **Bounded context (BC)** | Obszar odpowiedzialności w `apps/api` z układem warstw HTTP → application → domain + porty → adaptery: **Auth**, **Company Context**, **Social**, **Runs / Logs**, **Feedback**. **Nie** to samo co jeden plik `*.module.ts` Nest — jeden BC może mieć kernel + HTTP. Zmiana względem: wcześniejsza lista bez Feedback oraz milczące 1:1 BC↔moduł Nest. |
+| **Bounded context (BC)** | Obszar odpowiedzialności w `apps/api` z układem warstw HTTP → application → domain + porty → adaptery: **Auth**, **Company Context**, **Social**, **Content**, **Runs / Logs**, **Feedback**. **Nie** to samo co jeden plik `*.module.ts` Nest — jeden BC może mieć kernel + HTTP. Zmiana względem: lista bez Content (Content wchodzi w MVP, nie V1). |
 | **Moduł Nest** | Jednostka DI (`@Module`). Import w **jedną** stronę jest legalny (Social → kernel lifecycle). Pętla `forwardRef` między BC grafu a Runs — zakaz (`architektura.md`, `anty_patterny.md`). |
 | **Port lifecycle runu** | Port Runs: `appendLog` + `transition`. Wołają go węzły/fasada grafu. Token w `runs/domain/`; **nie** w `packages/shared`. |
-| **Port `RunExecutor`** | Port Runs: `execute(run)`. Implementacja w BC grafu (MVP: Social). Binding tokenu = klej procesu, nie import `SocialModule` z `RunsModule`. |
+| **Port `RunExecutor`** | Port Runs: `execute(run)`. W MVP: **composite** w kleju procesu — `taskType` Social → `SocialRunExecutor`; `taskType` Content → `ContentRunExecutor`; nieznany → `failed` z kodem `UNKNOWN_TASK_TYPE`. Binding tokenu = klej procesu, nie import grafu z `RunsModule`. |
+| **Port `RunResultReader`** | Port odczytu wyniku runu (snapshot GET). W MVP: **composite** w kleju — składa **addytywny** snapshot: `ideas` / `content` (posty), `reelIdeas` / `reelScript` (rolki), `pageOutline` / `pageDocument` (Content). Brak kanału = pusta tablica / `null` (nie null-crash). Binding jak executora — composition root, nie import grafu z `RunsModule`. |
 | **Klej procesu (composition root)** | Spięcie tokenów Nest przy starcie `apps/api` (`AppModule` / `registerAsync`). **Nie** bounded context i **nie** `health/` / `llm/`. |
 | **Feedback (BC)** | Bounded context zapisu opinii tekstowych (`application` \| `agent` \| `run`). Bez LangGraph; panel odczytu = **V1 — rozbudowa**. **Nie** ocena gwiazdkowa, flaga edycji ani finalize (to Runs). |
-| **LangGraph / graf** | Orchestracja pipeline’u Social za fasadą application service (nie w controllerze). |
+| **LangGraph / graf** | Orchestracja pipeline’u za fasadą application service (nie w controllerze). MVP: osobny graf Social i osobny graf Content; **zakaz** fat Social (strony w `social/`). |
 | **Async run** | Asynchroniczne wykonanie pipeline’u; klient dostaje `RunId`, postęp przez SSE. |
 | **Worker in-process** | Wykonanie runu w procesie `apps/api` po `202`. Zakaz osobnego always-on workera OS i spawnu procesu per run w MVP. |
 | **Limit współbieżności** | Globalny `MAX_CONCURRENT_RUNS` (domyślnie **3**) = maksymalna liczba równoległych **execute** w procesie api. Wejście w `running` z `queued` **oraz** z `interrupted` tylko przy wolnym slocie. Nowe POST ponad limit zostają `queued` (FIFO). W drain: najpierw `interrupted`, potem `queued`. `awaiting_hitl → running` (HITL) jest osobnym use-casem i **nie** jest tym capem w MVP. Brak limitu per-user w MVP. Zmiana względem: wcześniejszy opis capu wyłącznie dla nowych runów w `queued`. |
@@ -64,8 +73,8 @@ Zmiana względem poprzedniego zbioru `RunStatus` (pięć wartości, recovery jak
 | **`apps/api/src/shared/`** | Cross-cutting wyłącznie wewnątrz api (env, envelope, interceptory). **Nie** zastępuje `packages/shared` i **nie** trzyma reguł Social / kontekstu firmy. |
 | **Moduły ops / LLM (nie-BC)** | `apps/api/src/health/`, `metrics/`, `llm/` — powierzchnia ops i klient gateway. **Nie** bounded contexty: brak układu `application` / `domain` / `infrastructure` jak w BC. |
 | **Prisma / SQLite** | Adapter persistence **MVP**; ORM tylko w infrastructure. |
-| **PostgreSQL** | Silnik od fazy **V1 — rozbudowa** (nie MVP). |
-| **DB kanoniczna** | Baza jako źródło prawdy dla kontekstu firmy, userów, sesji refresh, runów, wyników SM, logów UI, **opinii tekstowych** oraz metadanych przeglądu (`userRating`, `outputEdited`, `reviewFinalizedAt`). Nie cichy fallback z plików. Zmiana względem: wcześniejszy opis bez opinii i przeglądu. |
+| **PostgreSQL** | Silnik od fazy **V1 — rozbudowa** (ops / skala). **Nie** jest warunkiem dodania Content — Content działa na SQLite w MVP. |
+| **DB kanoniczna** | Baza jako źródło prawdy dla kontekstu firmy, userów, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów UI, **opinii tekstowych** oraz metadanych przeglądu (`userRating`, `outputEdited`, `reviewFinalizedAt`). Nie cichy fallback z plików. |
 
 ## Run, statusy, taski
 
@@ -73,8 +82,9 @@ Zmiana względem poprzedniego zbioru `RunStatus` (pięć wartości, recovery jak
 |---------|-----------|
 | **`RunId`** | Brandowany ID runu; format `run_<uuid>`. |
 | **`RunStatus`** | `queued` \| `running` \| `interrupted` \| `awaiting_hitl` \| `completed` \| `failed`. |
-| **`RunTaskType`** | `post_ideas` \| `post_content` \| `post_ideas_then_content`. |
-| **`SocialPlatform`** | `linkedin` \| `facebook` \| `instagram`. |
+| **`RunTaskType`** | Social: `post_ideas` \| `post_content` \| `post_ideas_then_content` \| `reel_ideas` \| `reel_script` \| `reel_ideas_then_scripts`. Content: `page_copy` \| `page_outline_then_copy`. |
+| **`SocialPlatform`** | `linkedin` \| `facebook` \| `instagram`. **Nie** zawiera `'web'`. |
+| **`RunPlatform`** | `SocialPlatform` \| `'web'`. Kolumna `Run.platform` (NOT NULL): przy `page_*` sentinel **`web`** (wartość kolumny, nie wartość enumu SM). Application nigdy nie traktuje `'web'` jako `SocialPlatform`. |
 | **`ContentLanguage`** | `pl` \| `en`. |
 | **`interrupted`** | Status recovery: execute w procesie api zostało przerwane (crash/restart); pipeline **nie leci**, ale to **nie** jest nowa pozycja FIFO z `POST /runs`. Powstaje wyłącznie na bootcie z leftover `running`. Legalne wyjścia: `interrupted → running` (wolny slot) albo `interrupted → failed` (cap recovery). Zakaz `interrupted → queued`. Nie mylić z `queued` ani z `awaiting_hitl`. |
 | **`startedBy`** | Inicjator runu (sesja). Lista/snapshot; authz oceny, Edytuj, opinii o runie i `GET /runs/user/:userId`. Po auth nowe runy zawsze z inicjatorem. |
@@ -88,10 +98,10 @@ Zmiana względem poprzedniego zbioru `RunStatus` (pięć wartości, recovery jak
 | **`reviewFinalizedAt`** | Timestamp zamknięcia przeglądu. `null` = otwarty; po ustawieniu ocena i flaga edycji niemutowalne (`REVIEW_LOCKED`). |
 | **Opinia (Feedback)** | Append-only wpis tekstowy BC Feedback: target `FeedbackTargetType`; metadane `authorId`, `createdAt`; panel odczytu = V1. **Nie** gwiazdki / `outputEdited` / finalize (to Runs). Zmiana względem: wcześniejsze hasło bez rozróżnienia rekordu vs BC vs przegląd. |
 | **`FeedbackTargetType`** | `application` \| `agent` \| `run`. Przy `agent` obowiązkowe `agentKey`; przy `run` obowiązkowe `runId` autora (`startedBy`). Kontrakt MVP w docs/spec; w shared przy implementacji BC Feedback. |
-| **`FeedbackAgentKey`** | Stały enum MVP: `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier`. Węzły `LoadContext`, `NormalizeBrief`, `Persist*`, `Refine*` **nie** są pozycjami tego katalogu. Kontrakt MVP w docs/spec; w shared przy implementacji BC Feedback. |
+| **`FeedbackAgentKey`** | Stały enum MVP: `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier` \| `PageWriterAgent`. Węzły `LoadContext`, `NormalizeBrief`, `Persist*`, `Refine*`, `OutlineAgent` **nie** są pozycjami tego katalogu. Kontrakt MVP w docs/spec; implementacja enumu w shared = Faza 6 (feedback). |
 | **SSE runu** | Strumień zdarzeń: `run.status`, `run.log`, `run.hitl`, `run.completed`, `run.failed`. Po `run.completed` \| `run.failed` serwer **kończy** strumień. `awaiting_hitl` / `interrupted` nie kończą SSE. Reconnect tylko po nieoczekiwanym zerwaniu przy statusie nieterminalnym. Zmiana względem: wcześniejsze hasło wymieniało eventy bez cyklu życia połączenia. |
 | **Snapshot logów** | `GET .../runs/:runId/logs` — historia; nie zastępuje SSE dla statusu live. |
-| **Agent (węzeł pipeline’u)** | Krok grafu Social. Katalog bazowy: `LoadContext`, `NormalizeBrief`, `IdeationAgent`, `ContentWriterAgent`, `ConsistencyVerifier`, `Refine*`, `Persist*`. Wywołanie LLM (gdy dotyczy) = osobny hop do gateway. Zmiana względem: wcześniejszy opis bez kanonicznych nazw węzłów. |
+| **Agent (węzeł pipeline’u)** | Krok grafu Social albo Content. Katalog bazowy Social: `LoadContext`, `NormalizeBrief`, `IdeationAgent`, `ContentWriterAgent`, `ConsistencyVerifier`, `Refine*`, `Persist*`. Katalog bazowy Content: `LoadContext`, `NormalizeBrief`, `OutlineAgent`, `PageWriterAgent`, `ConsistencyVerifier`, `Refine*`, `Persist*`. Wywołanie LLM (gdy dotyczy) = osobny hop do gateway. |
 | **`ConsistencyVerifier`** | Jeden węzeł, dwa obszary: (1) spójność z kontekstem firmy, (2) język — gramatyka, interpunkcja, składnia dla `pl`/`en`. Osobny `LanguageQualityVerifier` = poza MVP. Fail → Refine*. |
 | **Refine** | Ponowne wywołanie agenta po negatywnym werdykcie `ConsistencyVerifier`. Twardy limit **`max N=2`**, potem `failed`. Zakaz nieskończonej pętli. Zmiana względem: wcześniejsze „ograniczone `max N`” bez liczby. |
 | **Structured output** | Wyjście węzła LLM walidowane schemą (Zod) zanim pójdzie dalej w grafie. Porażka parse = błąd kroku / refine / `failed` — nie cichy tekst do UI. |
@@ -104,7 +114,7 @@ Zmiana względem wcześniejszego, zbyt uproszczonego opisu: **`RequestId` nie je
 
 | Pojęcie | Definicja |
 |---------|-----------|
-| **`RunId`** | Jeden na async run SM (`run_<uuid>`). |
+| **`RunId`** | Jeden na async run produktowy (`run_<uuid>`). |
 | **`ConversationId`** | Brand; format jak w gateway: `conv_<uuid>`. **Jeden wspólny na cały run agentowy** — nim spinamy wszystkie wywołania LLM i wpisy logów runu (aplikacyjne + gateway). |
 | **`RequestId`** | Brand; format jak w gateway: `req_<uuid>`. Nadawany w **odpowiedzi**: przez `apps/api` (HTTP) albo przez gateway (hop LLM). Klient / kroki runu **nie** generują go z góry. Oś korelacji pipeline’u SM = `ConversationId` (+ `RunId`). |
 | **`UserId`** | Brand; rekomendowany format `usr_<uuid>`. |
@@ -149,6 +159,7 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 | `FORBIDDEN` | Brak uprawnień (np. `user` edytuje kontekst). |
 | `VALIDATION_FAILED` | Błąd walidacji wejścia. |
 | `CONTEXT_INCOMPLETE` | Bramka kontekstu niespełniona — start runu zablokowany. |
+| `UNKNOWN_TASK_TYPE` | Composite executor dostał `taskType` poza unią Social \| Content (log + status `failed`; nie cichy no-op). HTTP spoza enumu → `VALIDATION_FAILED` (400), composite nie jest wołany. |
 | `HITL_REQUIRED` | Konflikt względem oczekiwanego stanu HITL. |
 | `NOT_FOUND` | Nieznana ścieżka HTTP / zasób na poziomie routera (np. goły HTTP 404). **Nie** mylić z `RUN_NOT_FOUND`. |
 | `RUN_NOT_FOUND` | Nieznany `RunId` (wyłącznie z `DomainException` w BC Runs). |

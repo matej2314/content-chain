@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-15
+data_modyfikacji: 2026-08-31
 ---
 
 # SPEC — Auth
@@ -16,7 +16,7 @@ Uszczegóławia `docs/security.md` oraz endpointy auth/users z `docs/dokumentacj
 
 Wiążące (`docs/architektura.md`): klasyczne warstwy Nest — HTTP → application / use-case → domain + porty → adaptery (Prisma). Auth **nie** używa LangGraph.
 
-**Wyjątek względem stylu globalnego:** brak (wyjątek grafu dotyczy wyłącznie Social).
+**Wyjątek względem stylu globalnego:** brak (wyjątek grafu dotyczy Social i Content — nie Auth).
 
 ## Role i uprawnienia (norma)
 
@@ -24,7 +24,7 @@ Wiążące (`docs/architektura.md`): klasyczne warstwy Nest — HTTP → applica
 |-------|---------|--------|
 | Bootstrap pierwszego admina | jednorazowy (gdy brak admina) + status publiczny | — |
 | Edycja kontekstu firmy | tak (egzekucja w BC kontekstu) | nie → `FORBIDDEN` |
-| Start runów SM / HITL / odczyt logów / lista runów | tak | tak |
+| Start runów produktowych (Social i Content) / HITL / odczyt logów / lista runów | tak | tak |
 | Ocena / flaga edycji / finalize **własnego** runu; `GET /runs/user/:userId` tylko własny id; `POST /feedback` | tak | tak |
 | To samo na cudzym runie / cudzym `:userId` | nie → `FORBIDDEN` | nie → `FORBIDDEN` |
 | `GET` / `POST` użytkowników | tak (tylko tworzenie `role = user`) | nie |
@@ -32,7 +32,7 @@ Wiążące (`docs/architektura.md`): klasyczne warstwy Nest — HTTP → applica
 
 W systemie MVP jest **co najwyżej jeden** `admin` — ten z bootstrapu. Tworzenie / awans kolejnego admina → odrzucenie (`403` / `400`).
 
-Zmiana względem wersji 3: dopisano authz przeglądu runu i `POST /feedback` (tylko własny run / własny `:userId`).
+Zmiana względem wersji 4: dopisano, że te same guardy obejmują runy Content (nie tylko SM).
 
 ## Wymagania (egzekwowalne)
 

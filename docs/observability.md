@@ -14,7 +14,7 @@ Powiązane: `dokumentacja_komunikacji.md`, `data_flow.md`, `deployment.md`, `bra
 | Metryki Prometheus | `GET /metrics` na `apps/api` | Ops / Grafana | Snapshot procesu |
 | Metryki gateway | opcjonalnie `GET /metrics` gateway | Ops LLM | Upstream; scrape osobno |
 
-**Logi procesu vs logi runu:** Pino / `nestjs-pino` = strukturalne logi procesu i requestów HTTP na stdout. Przebieg domenowy SM (kroki agentów, HITL) pozostaje w DB + SSE — jak niżej. Nie mylić tych kanałów.
+**Logi procesu vs logi runu:** Pino / `nestjs-pino` = strukturalne logi procesu i requestów HTTP na stdout. Przebieg domenowy (kroki agentów Social/Content, HITL) pozostaje w DB + SSE — jak niżej. Nie mylić tych kanałów.
 
 ### Dump hopu gateway (tylko `development`)
 
@@ -57,7 +57,7 @@ Kanoniczny wpis w DB, emitowany też jako SSE `run.log`.
 | `at` | tak | timestamp ISO8601 |
 | `level` | tak | np. `info` \| `warn` \| `error` |
 | `message` | tak | **czytelny** opis kroku (ludzki język) |
-| `step` | zalecane | nazwa węzła (np. `IdeationAgent`, `ConsistencyVerifier`) |
+| `step` | zalecane | nazwa węzła (np. `IdeationAgent`, `ContentWriterAgent`, `PageWriterAgent`, `ConsistencyVerifier`) |
 | `requestId` | gdy dotyczy | HTTP: z odpowiedzi api; LLM: z **odpowiedzi** gateway; brak przy timeoutie bez odpowiedzi |
 
 Zakaz w `message`: sekrety (`X-Gateway-Key`, JWT, hasła, klucze vendorów), pełne prompty z danymi wrażliwymi ponad potrzebę debugu MVP.
@@ -65,7 +65,7 @@ Zakaz w `message`: sekrety (`X-Gateway-Key`, JWT, hasła, klucze vendorów), pe�
 ### Korelacja (ops)
 
 ```text
-RunId + ConversationId  →  cały przebieg SM
+RunId + ConversationId  →  cały przebieg (Social lub Content)
 requestId (gateway)     →  pojedynczy hop LLM w logach gateway / CC
 requestId (HTTP api)    →  pojedyncze wywołanie REST (start, HITL, …)
 ```
@@ -82,7 +82,7 @@ Szczegóły: `brand_types.md`, `dictionary.md`.
 
 ## DoD obserwowalności (MVP)
 
-- Happy path runu: w UI/API widać czytelne logi kroków ze `step` i `conversationId`.
+- Happy path runu: w UI/API widać czytelne logi kroków ze `step` i `conversationId` (post, reel i page).
 - Po każdym udanym hopie LLM w logu jest `requestId` z gateway.
 - `/metrics` zwraca HTTP i run status counters bez auth w sieci ops.
 - Brak sekretów w logach runu i w metrykach (labelach).

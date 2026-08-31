@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-15
+data_modyfikacji: 2026-08-31
 ---
 
 # SPEC — Persistence
@@ -22,8 +22,8 @@ Wiążące: porty w domain/application; Prisma **wyłącznie** w `infrastructure
 
 | Faza | Silnik | Znaczenie |
 |------|--------|-----------|
-| **MVP** | **Wyłącznie SQLite** | Pierwszy slice (Social + auth + dashboard + gateway wg docs). Jedyny dozwolony provider Prisma w tej fazie. |
-| **V1 — rozbudowa** (kolejne workflowy poza pierwszym slice Social) | **Przejście na PostgreSQL** | Obowiązkowa zmiana silnika przed / wraz z rozbudową o kolejne workflowy. SQLite nie pozostaje docelowym silnikiem po wejściu w tę fazę. |
+| **MVP** | **Wyłącznie SQLite** | Slice produktowy (Social posty+rolki + Content podstawowa forma + auth + dashboard + gateway wg docs). Jedyny dozwolony provider Prisma w tej fazie. Nowe modele reel/page **append** na SQLite (P-7). |
+| **V1 — rozbudowa** | **Przejście na PostgreSQL** | Obowiązkowa zmiana silnika (ops / skala). **Zmiana względem** wersji 2: V1 **nie** oznacza „kolejne workflowy poza pierwszym slice Social” — Content jest w MVP; Postgres jest niezależny od tego, że Content już istnieje. SQLite nie pozostaje docelowym silnikiem po wejściu w tę fazę. |
 
 Uściślenie względem potocznego „1:1 config”:
 
@@ -31,7 +31,7 @@ Uściślenie względem potocznego „1:1 config”:
 - **Prisma:** zmiana `provider` + `DATABASE_URL` + **nowa historia** `prisma/migrations` pod PostgreSQL (stare migracje SQLite → archiwum). Oficjalnie nie da się użyć tych samych plików SQL migracji na obu providerach ([Prisma Migrate — switch providers](https://docs.prisma.io/docs/orm/prisma-migrate/understanding-prisma-migrate/limitations-and-known-issues)).
 - **Dane:** nowa baza PostgreSQL startuje **pusta**. Rekordy z pliku SQLite **nie** migrują się automatycznie; ewentualny eksport/import = osobna procedura ops (poza automatyzmem Prisma). Plik SQLite nie jest kasowany przez samą zmianę providera — po prostu przestaje być kanonicznym store’em po cutoverze.
 
-W tym SPEC nazwa **„V1 — rozbudowa”** oznacza fazę **po MVP** (kolejne workflowy). Nie mylić z czasem używanym w docs określeniem „v1” jako synonimem zakresu produktowego MVP.
+W tym SPEC nazwa **„V1 — rozbudowa”** oznacza fazę **po MVP** (PostgreSQL + panel opinii + publikacja + audytorzy Content + YouTube). Nie mylić z prefiksem HTTP `/api/v1`.
 
 ## Wymagania (egzekwowalne)
 
@@ -43,9 +43,11 @@ P-3. Identyfikatory w kolumnach: **brandowane stringi** zgodnie z `docs/brand_ty
 
 P-4. ORM / SQL / Prisma **zakazane** w `domain/` oraz w `packages/shared`. Application zależy od **portów**.
 
-P-5. DB jest kanoniczna dla kontekstu firmy, userów, sesji refresh, runów, wyników SM, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
+P-5. DB jest kanoniczna dla kontekstu firmy, userów, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
 
-Zmiana względem wersji 1: kanon obejmuje Feedback i pola przeglądu (fundament zapisu MVP).
+Kanon tabel (append, P-7): istniejące + `SocialReelIdea`, `SocialReelScript`, `ContentOutline`, `ContentDocument`; `Run.contentKind` nullable; `Run.platform` zostaje `String` NOT NULL (sentinel `'web'` przy page_*).
+
+Zmiana względem wersji 2: kanon obejmuje reel i Content; V1 = Postgres niezależnie od kanałów w MVP.
 
 P-6. W MVP `datasource.provider = "sqlite"`. Wprowadzenie PostgreSQL jako providera aplikacji = sygnał wejścia w fazę **V1 — rozbudowa** (patrz tabela wyżej), z nową historią migracji.
 
@@ -85,7 +87,7 @@ apps/api/
 - Prisma / SQL w `domain/` lub w `packages/shared`.
 - Cichego odczytu kontekstu z `.md` przy dziurawej DB.
 - PostgreSQL jako providera **w MVP**.
-- Pozostawania przy SQLite jako kanonie po wejściu w V1 — rozbudowę (kolejne workflowy).
+- Pozostawania przy SQLite jako kanonie po wejściu w V1 — rozbudowę (ops/skala; **nie** mylić z „po dodaniu Content” — Content jest w MVP na SQLite).
 - Obiecywać w kodzie/docs wewnętrznych, że te same pliki migracji SQLite zadziałają na PostgreSQL bez nowej historii.
 - Drugiego ORM równolegle do Prisma.
 - Przenoszenia reguł domenowych do UI przy zmianie silnika.
@@ -97,7 +99,7 @@ apps/api/
 | Prisma + **SQLite** | obowiązkowe w **MVP** |
 | Prisma Migrate | obowiązkowe od MVP |
 | Brandowane ID w DB | obowiązkowe |
-| Prisma + **PostgreSQL** | obowiązkowe od fazy **V1 — rozbudowa** (kolejne workflowy); poza MVP |
+| Prisma + **PostgreSQL** | obowiązkowe od fazy **V1 — rozbudowa** (ops/skala); poza MVP; **nie** warunek Content |
 | Automatyczny transfer danych SQLite → PostgreSQL | poza zakresem automatyzmu (ops / osobna procedura) |
 | Szyfrowanie at-rest SQLite | poza MVP |
 
@@ -117,4 +119,4 @@ apps/api/
 - Backup/restore volume (docs deployment / ops).
 - Eksport kontekstu do `.md` / checksum (tuż po MVP wg docs produktowych — nie ten SPEC).
 - Konfiguracja WAL/busy_timeout (implementacja).
-- Szczegóły schematu każdej tabeli BC (doprecyzowują Auth / Kontekst / Runy / Social / Feedback przy implementacji, byle norma port/adapter i silników była zachowana).
+- Szczegóły schematu każdej tabeli BC (doprecyzowują Auth / Kontekst / Runy / Social / Content / Feedback przy implementacji, byle norma port/adapter i silników była zachowana).

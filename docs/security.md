@@ -15,7 +15,7 @@ Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, 
 | Akcja | `admin` | `user` |
 |-------|---------|--------|
 | Edycja kontekstu firmy | tak | nie |
-| Start runów SM / HITL / odczyt logów / lista runów instancji | tak | tak |
+| Start runów produktowych (Social i Content) / HITL / odczyt logów / lista runów instancji | tak | tak |
 | Ocena gwiazdkowa / flaga edycji / finalize przeglądu **własnego** runu | tak | tak |
 | To samo na runie obcego `startedBy` | nie | nie |
 | `GET /runs/user/:userId` tylko gdy `:userId` = sesja | tak (własne) | tak (własne) |

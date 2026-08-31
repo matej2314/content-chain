@@ -1,5 +1,5 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-08-31
 ---
@@ -62,10 +62,15 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-12 | Ocena `null` \| 1–5 na `completed`/`failed` tylko autora; po finalize → `REVIEW_LOCKED`; flaga `outputEdited` |
 | D-13 | `GET /runs/user/:userId`: własne wszystkie; cudzy id → `403` |
 | D-14 | SSE: hub nie zatrzymuje subjectu po `completed`/`failed`; `GET .../events` na skończonym runie emituje `run.status` i kończy stream |
+| D-15 | `reel_ideas` full-auto: `running` → `completed`; `result.reelIdeas[0].id` |
+| D-16 | `reel_ideas_then_scripts`: `awaiting_hitl` (`options` = reelIdeas) → resume → `result.reelScript.segments` → `completed` |
+| D-17 | `page_copy` full-auto: completed + `pageDocument` |
+| D-18 | `page_outline_then_copy`: HITL outline → dokument → `completed` |
+| D-19 | `taskType` spoza enumu HTTP → **400** `VALIDATION_FAILED`; composite: nieznany typ wewnętrzny → `failed` / `UNKNOWN_TASK_TYPE` (unit `execute` / `assertNever`) |
 
-Zmiana względem wersji 1: dopisano D-11…D-13 (fundament zapisu feedbacku).
-Zmiana względem wersji 2: D-10 to `interrupted` + cap claimu (wcześniej retry na leftover `running` bez statusu pośredniego); dopisano D-9b (priorytet `interrupted` nad `queued`).
-Zmiana względem wersji 3: dopisano D-14 (cykl życia SSE / evikcja huba — `SPEC-KOMUNIKACJA.md` K-3a, `SPEC-RUNY.md` R-4a).
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page.
+
+Zmiana względem wersji 6: dopisano D-15…D-19 (rolki, Content, orkiestracja). D-4…D-14 bez zmiany semantyki.
 
 ## Norma implementacji
 
@@ -83,7 +88,7 @@ Zmiana względem wersji 3: dopisano D-14 (cykl życia SSE / evikcja huba — `SP
 - Kontrolowane generatory czasu / UUID w testach domain.
 - Osobna baza SQLite na suite integration.
 - Opcjonalny smoke przeciw prawdziwemu gateway **poza PR** (staging).
-- Kolekcja Postman v2.1 w `apps/api/test/postman/` jako artefakt E2E poza CI PR; Setup happy path przez `PUT /company-context` i weryfikację completeness. Plik kolekcji: `social-pipeline.postman-collection.json`.
+- Kolekcja Postman v2.1 w `apps/api/test/postman/` jako artefakt E2E poza CI PR; Setup happy path przez `PUT /company-context` i weryfikację completeness. Pliki: `social-pipeline.postman-collection.json` (foldery A–D: posty + rolki); `content-pipeline.postman-collection.json` (A `page_copy`, B `page_outline_then_copy`). `reel_script` solo — E2E Jest, nie obowiązkowy Postman (jak `post_content` w Milestone 4).
 - Unit helpera logu hopu gateway (redakcja `GATEWAY_KEY`) oraz preprocess zarzutów verifiera (obiekt `{ itemId, issue }` → `string`).
 
 Zmiana względem: dotychczasowa norma mówiła tylko „narzędzie E2E bez pinu” i „opcjonalny smoke poza PR” — bez kanonicznej ścieżki artefaktu i bez zakazu mylenia kolekcji z modułem Nest. T-5, tabela stacku (bez pinu runnera) i poza zakresem „wybór konkretnego runnera” zostają.
@@ -114,7 +119,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-14 (w tym D-9b) pokryte testami (warstwa adekwatna do przypadku).
+- [ ] Przypadki D-1…D-19 (w tym D-9b, D-15…D-19) pokryte testami (warstwa adekwatna do przypadku).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

@@ -32,9 +32,9 @@ Powiązane: `architektura.md`, `data_flow.md`, `anty_patterny.md`, `spec/SPEC-TE
 | E2E API | **bez pinu** — Postman/Newman, skrypt lub równoważne; byle pokrycie use-case / error / edge |
 | FE | poza MVP (np. Playwright później) |
 
-Warstwa „E2E API — bez pinu narzędzia” zostaje. W **tym** repo happy path Milestone 4 (żywy gateway, poza CI PR) leży w `apps/api/test/postman/` — wybrany artefakt, nie jedyny dozwolony runner w SPEC. Setup = `PUT /company-context` + asercja `GET /company-context/completeness` (nie seed Prisma). Jak odpalić: `apps/api/test/postman/README.md`. Nazwa pliku kolekcji: `social-pipeline.postman-collection.json` (myślnik, nie `_collection`).
+Nazwa pliku kolekcji Social: `social-pipeline.postman-collection.json` (myślnik, nie `_collection`) — foldery A/B (posty, Milestone 4) **oraz** C (`reel_ideas`) / D (`reel_ideas_then_scripts`) w tym samym pliku. Content = osobny JSON: `content-pipeline.postman-collection.json` (foldery A `page_copy`, B `page_outline_then_copy`). Setup obu = `PUT /company-context` + asercja `GET /company-context/completeness` (nie seed Prisma). Jak odpalić: `apps/api/test/postman/README.md`.
 
-Unit uzupełniające (nie zastępują D-4…D-8): redakcja `GATEWAY_KEY` w helperze logu hopu (`llm-gateway-chat.log.spec.ts`); preprocess zarzutów verifiera z obiektu `{ itemId, issue }` do `string[]` (`social.schemas.spec.ts`).
+Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATEWAY_KEY` w helperze logu hopu (`llm-gateway-chat.log.spec.ts`); preprocess zarzutów verifiera z obiektu `{ itemId, issue }` do `string[]` (`social.schemas.spec.ts`).
 
 ## Zasady
 
@@ -62,6 +62,9 @@ Unit uzupełniające (nie zastępują D-4…D-8): redakcja `GATEWAY_KEY` w helpe
 - Cookie auth: chronione trasy bez sesji → `UNAUTHORIZED`.
 - `post_ideas` full-auto: queued→running→completed; logi + wynik w DB.
 - `post_ideas_then_content`: `awaiting_hitl` → resume → content → completed.
+- `reel_ideas` full-auto (D-15); `reel_ideas_then_scripts` HITL (D-16).
+- `page_copy` full-auto (D-17); `page_outline_then_copy` HITL (D-18).
+- Orkiestracja: `taskType` spoza enumu HTTP → `400` `VALIDATION_FAILED`; nieznany typ wewnętrzny composite → `failed` / `UNKNOWN_TASK_TYPE` (D-19).
 - Verifier + refine: sukces po poprawce; fail po `max N=2`.
 - Błąd gateway (stub): run `failed` / retry wg polityki — czytelny log bez wycieku `X-Gateway-Key`.
 - Kolejka współbieżności i recovery runu — wg `spec/SPEC-RUNY.md` / `spec/SPEC-TESTY.md`: nowy run ponad cap → `queued`; leftover `running` → `interrupted` → claim pod `MAX_CONCURRENT_RUNS` (priorytet nad `queued`); 3× przerwany execute → `failed` + log.

@@ -1,5 +1,5 @@
 ---
-wersja: 10
+wersja: 11
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-08-31
 ---
@@ -60,9 +60,13 @@ K-1. Każda odpowiedź błędu HTTP z `apps/api` ma envelope:
 
 `requestId` nadaje **`apps/api`** w ramach obsługi tego żądania (middleware / interceptor) i zwraca w envelope oraz (zalecane) nagłówku `x-request-id`. Klient **nie musi** przysyłać `RequestId`.
 
-K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId` i statusem `queued` | `running` — bez synchronicznego czekania na wynik LLM. `interrupted` **nie** jest statusem odpowiedzi POST.
+K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId` i statusem `queued` | `running` — bez synchronicznego czekania na wynik LLM. `interrupted` **nie** jest statusem odpowiedzi POST. Body: unia dyskryminowana `taskType` (`platform` XOR `contentKind`) — `docs/dokumentacja_komunikacji.md`. Walidacja Zod `discriminatedUnion` w application; DTO HTTP zsynchronizowane. `taskType` spoza enumu → **400** `VALIDATION_FAILED`.
 
-K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`. Filtr `status` obejmuje pełny `RunStatus` (w tym `interrupted`).
+K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry w tym nowe `taskType` i `platform=web`, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`. Filtr `status` obejmuje pełny `RunStatus` (w tym `interrupted`).
+
+K-2c. Snapshot `GET /runs/:id` — `result` addytywny: `ideas`, `content`, `reelIdeas`, `reelScript`, `pageOutline`, `pageDocument`. HITL `options` zależne od `taskType`.
+
+Zmiana względem wersji 10: unia startu (K-2), listing `platform=web` / nowe `taskType` (K-2a), snapshot addytywny (K-2c).
 
 K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora pod select opinii (`SPEC-RUNY.md` R-3c). `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`). Ocena / flaga edycji / finalize — `SPEC-RUNY.md` R-10. Payloady w `docs/dokumentacja_komunikacji.md`.
 
@@ -109,7 +113,7 @@ K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CO
 | Warstwa | Norma |
 |---------|--------|
 | Controller | DTO + **class-validator** + globalny `ValidationPipe` (whitelist); mapowanie HTTP ↔ komendy use-case; bez ORM, bez promptów, bez klienta gateway |
-| Application | use-case’y; walidacja / parsing wewnętrzny **Zod**; orkiestracja startu/wznowienia runu; odczyt snapshotów (meta runu z Runs + wycinek `result`/`hitl` z portu odczytu BC grafu — bez `imports: [SocialModule]` w `RunsModule`) |
+| Application | use-case’y; walidacja / parsing wewnętrzny **Zod** (w tym `discriminatedUnion` startu runu); orkiestracja startu/wznowienia runu; odczyt snapshotów (meta runu z Runs + wycinek `result`/`hitl` z composite readera — bez `imports: [SocialModule]` / `ContentModule` w `RunsModule`) |
 | Błędy HTTP | jeden wspólny **exception filter** (ew. interceptor korelacji) → envelope K-1 |
 | SSE | oficjalny mechanizm Nest: dekorator `@Sse()`, handler zwraca `Observable<MessageEvent>` ([NestJS SSE](https://docs.nestjs.com/techniques/server-sent-events)); Observable **kończy się** po terminalu runu; teardown (`complete` / `finalize`) przy disconnect i po `completed`/`failed` |
 | LLM | port (np. `LlmGatewayPort`) w domain/application + **osobny adapter HTTP** w `infrastructure` |
@@ -186,7 +190,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 ## Kryteria akceptacji
 
 - [ ] Błędy HTTP mają envelope z `code`, `message`, `requestId` (format `req_<uuid>`).
-- [ ] `POST /api/v1/runs` kończy się 202 z `runId` + `conversationId` bez czekania na LLM.
+- [ ] `POST /api/v1/runs` kończy się 202 z `runId` + `conversationId` bez czekania na LLM; unia `platform` / `contentKind` egzekwowana (400 przy konflikcie).
 - [ ] `GET /api/v1/runs` listuje runy instancji zgodnie z docs (paginacja 10, filtry, `startedBy`).
 - [ ] `GET /api/v1/runs/user/:userId` i `POST /feedback` oraz rating/edit/finalize istnieją w kontrakcie docs; kody `REVIEW_LOCKED` / `RUN_NOT_REVIEWABLE` w envelope.
 - [ ] Klient otrzymuje live status wyłącznie przez SSE; GET run/logs = snapshot.
@@ -202,7 +206,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 
 - Pełne skopiowanie OpenAPI `ai-provider-gateway`.
 - Traktowanie `/docs` jako kontraktu produktowego FE (to DX / ops lokalne).
-- Definicja grafu Social, refine `max N`, treść promptów → `SPEC-SOCIAL.md`.
+- Definicja grafu Social / Content, refine `max N`, treść promptów → `SPEC-SOCIAL.md` / `SPEC-CONTENT.md`.
 - Polityka przejść statusów runu, przegląd (ocena/edycja) i kanoniczny model logów DB → `SPEC-RUNY.md`.
 - Opinie tekstowe → `SPEC-FEEDBACK.md`.
 - Implementacja UI EventSource / animacji statusu → `SPEC-FRONTEND.md`.

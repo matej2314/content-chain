@@ -24,6 +24,7 @@ content-chain/
 │   │       ├── auth/
 │   │       ├── company-context/
 │   │       ├── social/
+│   │       ├── content/             # BC Content (copy stron; bez HTTP controllera)
 │   │       ├── runs/
 │   │       ├── feedback/            # opinie tekstowe (zapis MVP)
 │   │       ├── health/              # liveness / readiness procesu
@@ -54,14 +55,16 @@ content-chain/
 | Port/adapter (persistence, LLM) | Porty w `domain` / `application`; adaptery w `infrastructure` (+ Prisma w `apps/api/prisma`); klient gateway w `apps/api/src/llm/` |
 | Health / metrics (ops) | `apps/api/src/health/`, `apps/api/src/metrics/` — nie BC |
 | Social = LangGraph za fasadą | `apps/api/src/social/infrastructure/graph/` |
-| Prompty przy BC Social | `apps/api/src/social/infrastructure/prompts/` |
+| Prompty przy BC Social (posty **i** rolki) | `apps/api/src/social/infrastructure/prompts/` |
+| Content = LangGraph za fasadą | `apps/api/src/content/infrastructure/graph/` |
+| Prompty przy BC Content | `apps/api/src/content/infrastructure/prompts/` |
 | Cienki frontend | Moduły UI w `apps/frontend/src/modules/`; brak `domain/` SM |
 | Gateway bez domeny CC | Tylko kod providerów / routingu w `apps/ai-provider-gateway` |
 | Shared typy kontraktu | `packages/shared` — bez use-case’ów i bez Prisma |
 
 ## `apps/api` — bounded contexty (~1 poziom w głąb)
 
-Każdy BC (`auth`, `company-context`, `social`, `runs`, `feedback`) trzyma spójny układ warstw:
+Każdy BC (`auth`, `company-context`, `social`, `content`, `runs`, `feedback`) trzyma spójny układ warstw:
 
 ```text
 apps/api/src/<context>/
@@ -83,11 +86,26 @@ apps/api/src/social/
 ├── domain/
 └── infrastructure/
     ├── graph/                       # LangGraph — definicja i węzły pipeline’u
-    ├── prompts/                     # szablony promptów SM
+    ├── prompts/                     # szablony promptów SM (posty **i** rolki)
     └── persistence/                 # adaptery zapisu wyników SM (via Prisma)
 ```
 
 Zmiana względem wcześniejszego drzewa z `social.controller.ts`: plik i rejestracja Nest nie istnieją. Wejście produktowe = `POST /runs` i `POST .../hitl` w BC Runs (`architektura.md`).
+
+### Content (wyjątek orchestracji — analogicznie do Social)
+
+```text
+apps/api/src/content/
+├── content.module.ts                # bez controllers[] — HTTP start/HITL jest w Runs
+├── application/                     # fasada invoke fazy + ContentRunExecutor
+├── domain/                          # PageOutline, PageDocument, refine, port store
+└── infrastructure/
+    ├── graph/                       # LangGraph — węzły outline / writer / verifier
+    ├── prompts/                     # page-outline, page-writer, refine-*, verifier
+    └── persistence/                 # ContentOutline / ContentDocument via Prisma
+```
+
+`ContentModule` nie importuje `SocialModule` / `RunsModule` (tylko kernel lifecycle port jak Social). **Zakaz** fat Social: strony nie żyją w `social/`.
 
 ### Runs / Logs
 
@@ -100,7 +118,7 @@ apps/api/src/runs/
 └── infrastructure/
 ```
 
-Port lifecycle (`appendLog`, `transition`) i port executora (`execute`) żyją w `domain/`. Implementacja executora SM **nie** należy do tego drzewa — jest w `social/application/`. Binding tokenu — klej procesu, nie `imports: [SocialModule]` w `runs.module.ts`.
+Port lifecycle (`appendLog`, `transition`) i port executora (`execute`) żyją w `domain/`. Implementacje executora **nie** należą do tego drzewa — są w `social/application/` i `content/application/`. Binding tokenu — klej procesu (composite), nie `imports: [SocialModule]` ani `imports: [ContentModule]` w `runs.module.ts`.
 
 ### Feedback (opinie tekstowe)
 
@@ -122,7 +140,7 @@ Ten sam szkielet warstw; w `company-context` — reguła bramki kompletności w 
 - Schema i migracje: `apps/api/prisma/`.
 - Użycie ORM **tylko** w `infrastructure` (adapter); application/domain zależą od **portów**, nie od klienta Prisma bezpośrednio.
 - **SQLite** jako jedyny provider **MVP**.
-- **PostgreSQL** — od fazy **V1 — rozbudowa** (kolejne workflowy): zmiana providera + nowa historia Migrate; nie przenoszenie reguł do UI. Szczegóły: `spec/SPEC-PERSISTENCE.md`.
+- **PostgreSQL** — od fazy **V1 — rozbudowa** (ops / skala, **nie** warunek dodania Content): zmiana providera + nowa historia Migrate; nie przenoszenie reguł do UI. Szczegóły: `spec/SPEC-PERSISTENCE.md`.
 
 ### `apps/api/src/shared/`
 
@@ -134,14 +152,14 @@ To **nie** są bounded contexty — brak układu `application` / `domain` / `inf
 
 - `health/` — liveness i readiness procesu (`GET /api/v1/health`, `GET /api/v1/health/ready`; kontrakt: `dokumentacja_komunikacji.md`).
 - `metrics/` — eksporter Prometheus (`GET /metrics` poza `/api/v1`; `observability.md`).
-- `llm/` — port LLM i adapter HTTP do `apps/ai-provider-gateway`. Wołają go BC (np. Social), nie kontrolery HTTP. Helper kształtu logu hopu: `llm-gateway-chat.log.ts` (stdout tylko w `development`, z redakcją `GATEWAY_KEY` — `observability.md`). **Nie** umieszczać tu domeny Content Chain ani kluczy vendorów.
+- `llm/` — port LLM i adapter HTTP do `apps/ai-provider-gateway`. Wołają go BC (Social, Content), nie kontrolery HTTP. Helper kształtu logu hopu: `llm-gateway-chat.log.ts` (stdout tylko w `development`, z redakcją `GATEWAY_KEY` — `observability.md`). **Nie** umieszczać tu domeny Content Chain ani kluczy vendorów.
 
 ## `apps/frontend`
 
 ```text
 apps/frontend/src/
 ├── app/                             # App Router (routes, layouts)
-├── modules/                         # np. auth, company-context, social, runs, feedback
+├── modules/                         # np. auth, company-context, social, content, runs, feedback
 ├── shared/                          # UI kit / utils frontu (nie domena api)
 └── ...
 ```
@@ -172,7 +190,7 @@ Tylko kontrakt typów/enumów/brand; **bez** Zod, Nest/Next/Prisma/LangGraph, us
 | Prompty i graf w `social/infrastructure/` | Prompty i wywołania LLM w controllerze |
 | Typy publiczne w `packages/shared` (**bez Zod**) | Use-case’y, DB, Zod/runtime w `packages/shared` |
 | Aplikacje pod `apps/` | Rootowy katalog `src/` opakowujący wszystkie app |
-| Kernel lifecycle Runs + klej `RUN_EXECUTOR` w `AppModule` | `forwardRef` Runs ↔ Social; port lifecycle w `packages/shared` |
+| Kernel lifecycle Runs + klej composite `RUN_EXECUTOR` w `AppModule` | `forwardRef` Runs ↔ Social / Content; port lifecycle w `packages/shared`; fat Social (page copy w `social/`); `'web'` jako `SocialPlatform` |
 | Kolekcja E2E pod `apps/api/test/postman/` | `apps/api/postman/` ani `apps/api/src/postman/` (wygląda jak moduł produktu) |
 
 ## Poza zakresem tego dokumentu

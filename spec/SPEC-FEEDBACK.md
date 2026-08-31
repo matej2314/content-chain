@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 3
 data_utworzenia: 2026-08-15
-data_modyfikacji: 2026-08-15
+data_modyfikacji: 2026-08-31
 ---
 
 # SPEC — Feedback (opinie tekstowe)
@@ -28,9 +28,12 @@ Wiążące (`docs/architektura.md`): klasyczne warstwy Nest — controller → a
 | `agent` | `agentKey` **obowiązkowe** | stały enum (nie tabela Agent) |
 | `run` | `runId` **obowiązkowe** | `GET /api/v1/runs/user/:userId` — wyłącznie runy **zalogowanego** (`SPEC-RUNY.md`) |
 
-`FeedbackAgentKey` (stały enum MVP): `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier`.
+`FeedbackAgentKey` (stały enum MVP): `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier` \| `PageWriterAgent`.
 
-Poza selectem: węzły `LoadContext`, `NormalizeBrief`, `Persist*`, `Refine*` — nie są osobnymi pozycjami katalogu.
+Poza selectem: węzły `LoadContext`, `NormalizeBrief`, `Persist*`, `Refine*`, `OutlineAgent` — nie są osobnymi pozycjami katalogu.
+
+Zmiana względem wersji 1: dopisano `PageWriterAgent` (kontrakt pod Fazę 6; implementacja enumu w shared = Faza 6, nie 4.2).
+Zmiana względem wersji 2: zakaz wołania grafu obejmuje też Content; Feedback nie mutuje wyniku Social / Content.
 
 ## Wymagania (egzekwowalne)
 
@@ -46,7 +49,7 @@ Fbk-5. MVP: **brak** obowiązkowego `GET` kolekcji opinii i panelu admina. Funda
 
 Fbk-6. `body` niepusty; górny limit **4000** znaków. Zakaz sekretów w treści (jak logi runu).
 
-Fbk-7. Controller nie woła LangGraph i nie ładuje promptów. Feedback nie zmienia statusu runu ani wyniku SM.
+Fbk-7. Controller nie woła LangGraph i nie ładuje promptów. Feedback nie zmienia statusu runu ani wyniku Social / Content.
 
 ## Norma implementacji
 
@@ -76,7 +79,7 @@ apps/api/src/feedback/
 ### Nie wolno
 
 - Panelu odczytu / średnich / eksportu opinii w MVP (V1 — rozbudowa).
-- Wołać graf Social z tego BC.
+- Wołać graf Social albo Content z tego BC.
 - Przyjmować `authorId` z body (tylko sesja).
 - Pozwalać `user`/`admin` zapisać opinię o **cudzym** runie.
 - Łamać `GET /runs` `pageSize=10` zamiast `GET /runs/user/:userId`.

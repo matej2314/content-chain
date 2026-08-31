@@ -1,14 +1,14 @@
 ---
-wersja: 6
+wersja: 8
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-18
+data_modyfikacji: 2026-08-31
 ---
 
 # SPEC — Frontend
 
 ## Cel / zakres względem dokumentacji
 
-Norma `apps/frontend`: cienki klient self-host (first-run, login, dashboard, flow’y SM, HITL, logi, **zapis opinii / oceny / flagi edycji**), spójny z `docs/ux_dashboard.md` i kontraktem `SPEC-KOMUNIKACJA.md` / `SPEC-AUTH.md` / `SPEC-FEEDBACK.md` / `SPEC-RUNY.md`.
+Norma `apps/frontend`: cienki klient self-host (first-run, login, dashboard, flow’y Social i Content, HITL, logi, **zapis opinii / oceny / flagi edycji**), spójny z `docs/ux_dashboard.md` i kontraktem `SPEC-KOMUNIKACJA.md` / `SPEC-AUTH.md` / `SPEC-FEEDBACK.md` / `SPEC-RUNY.md`.
 
 Bez reguł domenowych pipeline’u, bez bramki kompletności jako jedynej egzekucji, bez sekretów LLM.
 
@@ -49,12 +49,13 @@ F-7. Język UI: **polski**. Treści SM: PL/EN wg briefu runu.
 F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 
 - First-run (bootstrap), Logowanie;
-- Kontekst firmy, Runy SM (lista instancji + filtry + paginacja 10), Run szczegóły (live) po kliknięciu wiersza;
+- Kontekst firmy, Runy (lista instancji + filtry + paginacja 10; select `taskType` obejmuje rolki i page_*; `contentKind` gdy page_*; platforma ukryta/disabled gdy page_*), Run szczegóły (live) po kliknięciu wiersza — widok wyniku **post vs rolka vs strona**;
 - Użytkownicy (admin: **tylko** lista + tworzenie);
 - Konto (**tylko** logout);
 - Globalny CTA **„Zostaw opinię”** + formularz (aplikacja / agent / run); na szczegółach runu: **Edytuj** (flaga), **gwiazdki 1–5** (dobrowolne, `null` gdy brak), **Zamknij / zapisz przegląd**.
 
 Zmiana względem wersji 3: dopisano kontrolki **zapisu** feedbacku (`docs/ux_dashboard.md`). Panel administracyjny odczytu opinii / analityka = **V1 — rozbudowa**, nie ten SPEC.
+Zmiana względem wersji 7: zakaz logiki pipeline w FE obejmuje Social **i** Content (wcześniej sformułowanie „pipeline SM”).
 
 F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. Select agentów = enum z shared (labelki PL). Ocena i Edytuj tylko gdy snapshot mówi, że sesja jest `startedBy` i przegląd niezamknięty.
 
@@ -67,7 +68,7 @@ Zmiana względem wersji 1: Konto nie obejmuje zmiany hasła; dodano first-run; l
 ```text
 apps/frontend/src/
 ├── app/                    # App Router: routes, layouts
-├── modules/                # moduły UI: auth, company-context, runs, users, feedback, …
+├── modules/                # moduły UI: auth, company-context, social, content, runs, users, feedback, …
 │   └── <module>/
 │       ├── components/
 │       ├── api/            # fetch wrappers do endpointów modułu
@@ -99,7 +100,7 @@ apps/frontend/src/
 - Otwierania SSE, gdy snapshot już jest `completed` \| `failed`.
 - Prezentowania `interrupted` tą samą animacją / copy co `running`.
 - Egzekucji bramki kompletności **tylko** w UI.
-- Logiki pipeline SM / verifiera / promptów w FE.
+- Logiki pipeline Social / Content / verifiera / promptów w FE.
 - Płaskiego `components/` bez podziału na moduły (`modules/`) przy rozroście ekranów MVP.
 - Bearer access jako domyślnego transportu auth w MVP.
 - Self-service konta w MVP (zmiana hasła / email / usuwanie siebie).

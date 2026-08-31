@@ -63,7 +63,7 @@ Lokalna instancja gateway w tym repo: `apps/ai-provider-gateway/gateway.config.y
 
 | Sygnał | Gdzie | Uwagi |
 |--------|-------|--------|
-| Logi runu (domena) | DB + SSE | Źródło prawdy przebiegu SM |
+| Logi runu (domena) | DB + SSE | Źródło prawdy przebiegu Social / Content |
 | Stdout/stderr | kontenery / procesy | Ops, błędy procesu |
 | Metryki | `GET /metrics` na **`apps/api`** | Prometheus; nie mylić z logami runu |
 | Metryki gateway | opcjonalnie scrape gateway `/metrics` | Jak w projekcie upstream |
@@ -74,14 +74,14 @@ W `production`: zalecany Prometheus (lub agent) scrapujący api; alerty poza MVP
 
 - Plik DB na **nazwanym volume** (compose) lub wskazanej ścieżce (`local`).
 - Backup MVP: spójna kopia pliku SQLite przy zatrzymanym zapisie lub z użyciem bezpiecznej procedury kopiowania (np. `sqlite3 .backup`) — szczegóły w runbooku implementacji.
-- W **MVP**: wyłącznie SQLite (volume). **PostgreSQL** — obowiązkowo od fazy **V1 — rozbudowa** (kolejne workflowy): nowa historia migracji, pusta baza, ew. osobny import danych — `spec/SPEC-PERSISTENCE.md`.
+- W **MVP**: wyłącznie SQLite (volume), w tym modele reel i Content. **PostgreSQL** — obowiązkowo od fazy **V1 — rozbudowa** (ops / skala, **nie** warunek dodania Content): nowa historia migracji, pusta baza, ew. osobny import danych — `spec/SPEC-PERSISTENCE.md`.
 - Eksport kontekstu do `.md` / checksum — **nie** w pierwszym dowodzie agentów (tuż po MVP).
 
 ## Kolejność wdrożenia vs produkt
 
 Zgodna z docs koncepcyjnymi:
 
-1. api + gateway + pipeline + SQLite (`apps/api/test/postman/`)  
+1. api + gateway + **oba** pipeline’y (Social posty/rolki + Content) + SQLite (`apps/api/test/postman/` — kolekcja Social A–D i Content A–B)  
 2. auth  
 3. frontend  
 
@@ -94,7 +94,7 @@ Compose może od początku definiować wszystkie trzy usługi; „puste” UI do
 3. Sprawdź `GET /api/v1/health` (api) oraz readiness gateway (wewnętrznie).  
 4. Bootstrap admin.  
 5. Uzupełnij kontekst → completeness.  
-6. Smoke: start runu SM (`apps/api/test/postman/` albo UI).  
+6. Smoke: start runu Social i Content (`apps/api/test/postman/` albo UI).  
 7. Podłącz scrape `/metrics` (opcjonalnie od razu).  
 8. Zaplanuj backup volume SQLite.
 
@@ -108,6 +108,6 @@ Compose może od początku definiować wszystkie trzy usługi; „puste” UI do
 ## Poza zakresem MVP
 
 - Kubernetes / multi-region  
-- Managed Postgres **w MVP** (Postgres = faza **V1 — rozbudowa**)  
+- Managed Postgres **w MVP** (Postgres = faza **V1 — rozbudowa**, ops/skala — nie warunek Content)  
 - Automatyczny certyfikat / pełny ingress guide (można dodać później)  
 - Multi-tenant SaaS
