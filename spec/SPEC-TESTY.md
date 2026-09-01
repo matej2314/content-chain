@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-31
+data_modyfikacji: 2026-09-01
 ---
 
 # SPEC — Testy
@@ -65,12 +65,14 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-15 | `reel_ideas` full-auto: `running` → `completed`; `result.reelIdeas[0].id` |
 | D-16 | `reel_ideas_then_scripts`: `awaiting_hitl` (`options` = reelIdeas) → resume → `result.reelScript.segments` → `completed` |
 | D-17 | `page_copy` full-auto: completed + `pageDocument` |
-| D-18 | `page_outline_then_copy`: HITL outline → dokument → `completed` |
+| D-18 | `page_outline_then_copy`: HITL outline → dokument → `completed`; HITL z obcym id → **400** `HITL_INVALID_SELECTION`, status zostaje `awaiting_hitl` |
 | D-19 | `taskType` spoza enumu HTTP → **400** `VALIDATION_FAILED`; composite: nieznany typ wewnętrzny → `failed` / `UNKNOWN_TASK_TYPE` (unit `execute` / `assertNever`) |
 
 D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page.
 
 Zmiana względem wersji 6: dopisano D-15…D-19 (rolki, Content, orkiestracja). D-4…D-14 bez zmiany semantyki.
+
+Zmiana względem wersji 7 / D-18: dopisano negatyw HITL (obce id outline).
 
 ## Norma implementacji
 

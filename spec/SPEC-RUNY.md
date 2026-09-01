@@ -1,7 +1,7 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-31
+data_modyfikacji: 2026-09-01
 ---
 
 # SPEC — Runy / logi
@@ -75,7 +75,9 @@ R-3d. `POST /runs` — unia dyskryminowana (`taskType`): Social wymaga `platform
 
 R-3e. Composite `RunExecutorPort` (klej procesu, np. `run-dispatch.executor.ts`): `taskType` Social → `SocialRunExecutor`; Content → `ContentRunExecutor`; gałąź nieznana → status `failed` + kod domenowy `UNKNOWN_TASK_TYPE` (log; nie cichy no-op). `assertNever` na unii. Composite `RunResultReader` składa snapshot addytywny. **Zakaz** `forwardRef`, self-register, importu `ContentModule` / `SocialModule` z `RunsModule`.
 
-R-3f. HITL `selectedIdeaIds` legalne dla `post_ideas_then_content`, `reel_ideas_then_scripts` i `page_outline_then_copy` (id z odpowiedniego `hitl.options`).
+R-3f. HITL `selectedIdeaIds` legalne dla `post_ideas_then_content`, `reel_ideas_then_scripts` i `page_outline_then_copy` (id z odpowiedniego `hitl.options`). Dla `page_outline_then_copy` egzekucja na HTTP: dokładnie `[outline.id]`; inaczej **400** `HITL_INVALID_SELECTION` (Runs, reader `getPageOutline` — bez importu `ContentModule`); status nie schodzi z `awaiting_hitl`. `POST /runs` z `page_*` + `selectedIdeaIds` → **400** `VALIDATION_FAILED`.
+
+Zmiana względem wersji 9 / R-3f: „id z options” było dokumentacyjne; dla page brakowało 400 i zakazu selekcji na starcie (`SPEC-CONTENT.md` Ctn-5 od v3).
 
 Zmiana względem wersji 2: snapshot ma obowiązkowe pola przeglądu (`userRating` zawsze `null` \| `1`…`5`; `outputEdited`; `reviewFinalizedAt`) zgodnie z `docs/dokumentacja_komunikacji.md`.
 
@@ -192,6 +194,8 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Importu `SocialModule` albo `ContentModule` z `RunsModule` jako sposobu na `RUN_EXECUTOR` albo snapshot `result`.
 - Self-register grafów (`OnModuleInit` → rejestr) jako wymogu MVP.
 - Cichego no-op przy nieznanym `taskType` w composite (obowiązuje `UNKNOWN_TASK_TYPE` + `failed`).
+- Resume HITL `page_outline_then_copy` przy `selectedIdeaIds` innym niż `[outline.id]` (obowiązuje **400** `HITL_INVALID_SELECTION`; status zostaje `awaiting_hitl`).
+- Przyjęcia `selectedIdeaIds` na `POST /runs` dla `page_*`.
 - Eksportu tokenu `RUN_EXECUTOR` z modułu Social **po to**, by Runs musiał ten moduł zaimportować.
 - `@Global()` na BC grafu albo na całym Runs jako ukrycia cyklu.
 - Zależności grafu od **klasy** `RunLifecycleService` zamiast portu (token + interfejs `appendLog` / `transition`).
@@ -229,6 +233,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - [ ] `/metrics` nie jest używane jako podgląd przebiegu runu.
 - [ ] Brak cyklu Nest Runs ↔ Social / Content; worker dostaje composite executor z kleju.
 - [ ] `POST /runs` z `page_*` bez `platform` i z `contentKind` → 202; page + `platform: linkedin` → 400; `taskType` spoza enumu → 400.
+- [ ] HITL `page_outline_then_copy` z id ≠ `outline.id` → 400 `HITL_INVALID_SELECTION`; run zostaje `awaiting_hitl`.
 
 ## Poza zakresem
 

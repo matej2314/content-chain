@@ -6,6 +6,7 @@ import type { RunRecord } from '../../runs/domain/run.types';
 import type { SocialResultStore } from '../domain/social-result.port';
 import type {
   PipelineState,
+  ReelIdea,
   SocialContent,
   SocialIdea,
   SocialPipelineOutcome,
@@ -47,6 +48,7 @@ function makeRun(overrides: Partial<RunRecord> = {}): RunRecord {
 function fakeStore(
   overrides: {
     ideas?: SocialIdea[];
+    reelIdeas?: ReelIdea[];
     pipeline?: PipelineState;
   } = {},
 ): jest.Mocked<SocialResultStore> {
@@ -54,13 +56,23 @@ function fakeStore(
     replaceIdeas: jest
       .fn()
       .mockRejectedValue(new Error('unexpected replaceIdeas')),
+    replaceReelIdeas: jest
+      .fn()
+      .mockRejectedValue(new Error('unexpected replaceReelIdeas')),
+    replaceReelScript: jest
+      .fn()
+      .mockRejectedValue(new Error('unexpected replaceReelScript')),
     replaceContent: jest
       .fn()
       .mockRejectedValue(new Error('unexpected replaceContent')),
     getContent: jest
       .fn()
       .mockRejectedValue(new Error('unexpected getContent')),
+    getReelScript: jest
+      .fn()
+      .mockRejectedValue(new Error('unexpected getReelScript')),
     listIdeas: jest.fn().mockResolvedValue(overrides.ideas ?? []),
+    listReelIdeas: jest.fn().mockResolvedValue(overrides.reelIdeas ?? []),
     getPipelineState: jest.fn().mockResolvedValue(
       overrides.pipeline ?? {
         phase: null,
@@ -119,6 +131,8 @@ describe('SocialRunExecutor', () => {
         kind: 'completed',
         ideas,
         content: null,
+        reelIdeas: [],
+        reelScript: null,
       });
       const executor = makeExecutor({ facade, lifecycle, store });
 
@@ -153,6 +167,8 @@ describe('SocialRunExecutor', () => {
         kind: 'completed',
         ideas: [],
         content,
+        reelIdeas: [],
+        reelScript: null,
       });
       const executor = makeExecutor({ facade, lifecycle, store });
 
@@ -194,6 +210,8 @@ describe('SocialRunExecutor', () => {
         kind: 'completed',
         ideas,
         content,
+        reelIdeas: [],
+        reelScript: null,
       });
       const executor = makeExecutor({ facade, lifecycle, store });
 
@@ -223,6 +241,8 @@ describe('SocialRunExecutor', () => {
         kind: 'completed',
         ideas,
         content,
+        reelIdeas: [],
+        reelScript: null,
       });
       const executor = makeExecutor({ facade, lifecycle, store });
 
@@ -251,6 +271,8 @@ describe('SocialRunExecutor', () => {
         kind: 'completed',
         ideas,
         content: null,
+        reelIdeas: [],
+        reelScript: null,
       });
       const executor = makeExecutor({ facade, lifecycle, store });
 
@@ -274,6 +296,8 @@ describe('SocialRunExecutor', () => {
         kind: 'completed',
         ideas,
         content: null,
+        reelIdeas: [],
+        reelScript: null,
       });
       const executor = makeExecutor({ facade, lifecycle, store });
 
@@ -292,7 +316,11 @@ describe('SocialRunExecutor', () => {
       });
       const store = fakeStore({ ideas: [] });
       const lifecycle = fakeLifecycle();
-      const facade = fakeFacade({ kind: 'awaiting_hitl', ideas });
+      const facade = fakeFacade({
+        kind: 'awaiting_hitl',
+        ideas,
+        reelIdeas: [],
+      });
       const executor = makeExecutor({ facade, lifecycle, store });
 
       await executor.execute(run);
@@ -435,6 +463,8 @@ describe('SocialRunExecutor', () => {
         kind: 'completed',
         ideas,
         content: null,
+        reelIdeas: [],
+        reelScript: null,
       });
       const executor = makeExecutor({ facade, lifecycle, store });
 

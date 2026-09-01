@@ -93,11 +93,13 @@ export function toOutcome(
   }
 
   if (phase === 'ideas' && run.taskType === 'post_ideas_then_content') {
-    return { kind: 'awaiting_hitl', ideas: final.ideas };
+    return { kind: 'awaiting_hitl', ideas: final.ideas, reelIdeas: [] };
   }
   return {
     kind: 'completed',
     ideas: final.ideas,
     content: final.content,
+    reelIdeas: [],
+    reelScript: null,
   };
 }

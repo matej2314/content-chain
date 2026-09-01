@@ -6,7 +6,13 @@
 export type UserRole = 'admin' | 'user';
 export type RunStatus =
   'queued' | 'running' | 'interrupted' | 'awaiting_hitl' | 'completed' | 'failed';
-export type RunTaskType = 'post_ideas' | 'post_content' | 'post_ideas_then_content';
+export type RunTaskType =
+  | 'post_ideas'
+  | 'post_content'
+  | 'post_ideas_then_content'
+  | 'reel_ideas'
+  | 'reel_script'
+  | 'reel_ideas_then_scripts';
 export type SocialPlatform = 'linkedin' | 'facebook' | 'instagram';
 export type ContentLanguage = 'pl' | 'en';
 
@@ -23,6 +29,9 @@ export const RUN_TASK_TYPES = [
   'post_ideas',
   'post_content',
   'post_ideas_then_content',
+  'reel_ideas',
+  'reel_script',
+  'reel_ideas_then_scripts',
 ] as const satisfies readonly RunTaskType[];
 export const SOCIAL_PLATFORMS = [
   'linkedin',

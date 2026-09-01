@@ -25,7 +25,7 @@ describe('toOutcome', () => {
   it('returns awaiting_hitl for ideas phase of post_ideas_then_content', () => {
     expect(
       toOutcome({ taskType: 'post_ideas_then_content' }, 'ideas', makeFinal()),
-    ).toEqual({ kind: 'awaiting_hitl', ideas });
+    ).toEqual({ kind: 'awaiting_hitl', ideas, reelIdeas: [] });
   });
 
   it('returns completed for post_ideas without HITL', () => {
@@ -33,6 +33,8 @@ describe('toOutcome', () => {
       kind: 'completed',
       ideas,
       content: null,
+      reelIdeas: [],
+      reelScript: null,
     });
   });
 
@@ -44,7 +46,13 @@ describe('toOutcome', () => {
         'content',
         makeFinal({ content }),
       ),
-    ).toEqual({ kind: 'completed', ideas, content });
+    ).toEqual({
+      kind: 'completed',
+      ideas,
+      content,
+      reelIdeas: [],
+      reelScript: null,
+    });
   });
 
   it('returns failed when graph set failedCode, even if HITL would apply', () => {

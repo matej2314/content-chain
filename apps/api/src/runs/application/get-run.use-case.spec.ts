@@ -57,6 +57,8 @@ function fakeReader(overrides: Partial<RunResultReader> = {}): RunResultReader {
   return {
     listIdeas: async () => ideas,
     getContent: async () => null,
+    listReelIdeas: async () => [],
+    getReelScript: async () => null,
     ...overrides,
   };
 }

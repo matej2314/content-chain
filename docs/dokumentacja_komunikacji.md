@@ -47,6 +47,7 @@ Wybrane kody domenowe:
 | `VALIDATION_FAILED` | 400 | Błąd walidacji DTO |
 | `CONTEXT_INCOMPLETE` | 409 | Bramka kontekstu — start runu zablokowany |
 | `HITL_REQUIRED` | 409 | Operacja wymaga stanu oczekiwania na wybór / odwrotnie |
+| `HITL_INVALID_SELECTION` | 400 | `page_outline_then_copy`: `selectedIdeaIds` ≠ dokładnie `[outline.id]` |
 | `RUN_NOT_FOUND` | 404 | Nieznany `runId` |
 | `REVIEW_LOCKED` | 409 | Przegląd runu zatwierdzony — zmiana oceny / flagi edycji zabroniona |
 | `RUN_NOT_REVIEWABLE` | 409 | Ocena / edycja / finalize gdy status inny niż `completed` \| `failed` |
@@ -221,9 +222,9 @@ Przy chronionej sesji zapisuje **inicjatora** (`startedBy` = bieżący użytkown
 | `contentKind` | `ContentKind` | tak przy page_*; **zakazane** przy Social | |
 | `language` | enum | tak | |
 | `brief` | object | tak | temat, grupa docelowa, cel, liczba pomysłów itd. |
-| `selectedIdeaIds` | string[] | nie | `post_content` / resume HITL: id pomysłów postu, rolek albo outline’u |
+| `selectedIdeaIds` | string[] | nie | `post_content` / start z wyborem SM; **zakazane** przy `page_*` (selekcja outline tylko `POST .../hitl`) |
 
-Page + `platform: linkedin` → **400** `VALIDATION_FAILED`. Post/reel bez `platform` → **400**. `taskType` spoza enumu → **400** `VALIDATION_FAILED`.
+Page + `platform: linkedin` → **400** `VALIDATION_FAILED`. Page + `selectedIdeaIds` → **400** `VALIDATION_FAILED`. Post/reel bez `platform` → **400**. `taskType` spoza enumu → **400** `VALIDATION_FAILED`.
 
 **202** — `{ "runId", "conversationId", "status": "queued" \| "running" }`.
 
@@ -362,6 +363,8 @@ Wznowienie po wyborze z listy (task dwuetapowy: post ideas, reel ideas albo outl
 | Pole | Typ | Wymagane |
 |------|-----|----------|
 | `selectedIdeaIds` | string[] | tak (≥1); id z `hitl.options` danego `taskType` |
+
+Dla `page_outline_then_copy`: dokładnie **jeden** id = `hitl.options[0].id` (= `result.pageOutline.id`). Inaczej **400** `HITL_INVALID_SELECTION` (bez zapisu selekcji, status zostaje `awaiting_hitl`). Brak zapisanego outline → **409** `CONFLICT`. Post/reel: bez nowej walidacji id w tym wycinku (jak Milestone 4).
 
 **200** / **202** — run wraca do `running`.  
 **409** `HITL_REQUIRED` / `CONFLICT` gdy run nie jest w `awaiting_hitl`.

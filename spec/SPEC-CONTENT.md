@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 3
 data_utworzenia: 2026-08-31
-data_modyfikacji: 2026-08-31
+data_modyfikacji: 2026-09-01
 ---
 
 # SPEC — Content (BC)
@@ -31,7 +31,7 @@ Wiążące:
 | `taskType` | Zachowanie |
 |------------|------------|
 | `page_copy` | full-auto → dokument (wg `contentKind`) |
-| `page_outline_then_copy` | outline → **HITL** (wybór/akceptacja outline’u; `POST .../hitl`, `selectedIdeaIds` = tablica id jak SM) → pełny dokument |
+| `page_outline_then_copy` | outline → **HITL** (akceptacja całego outline’u; `POST .../hitl`, `selectedIdeaIds` = dokładnie `[outline.id]`) → pełny dokument |
 
 `ContentKind`: `blog` \| `service_page` \| `landing`. Język: `pl` \| `en`.
 
@@ -51,9 +51,11 @@ Ctn-5. HITL (**model B**):
 
 1. Faza outline kończy **invoke** grafu po persist outline.
 2. Application ustawia run `awaiting_hitl` i zapisuje stan w DB (`ContentOutline`, `conversationId`, metadane fazy) — **nie** checkpointer LangGraph.
-3. `POST .../hitl` waliduje `awaiting_hitl`, zapisuje `selectedIdeaIds`, uruchamia **nowy invoke** fazy `'copy'`.
+3. `POST .../hitl` waliduje `awaiting_hitl` **oraz** selekcję: `selectedIdeaIds.length === 1` i `selectedIdeaIds[0] ===` id zapisanego `PageOutline`. Sukces: zapis selekcji, nowy invoke fazy `'copy'`. Porażka: **400** `HITL_INVALID_SELECTION`, bez zapisu, status zostaje `awaiting_hitl`. Brak outline w store → **409** `CONFLICT`. `POST /runs` dla `page_*` **nie** przyjmuje `selectedIdeaIds` (Zod / `.strict()`).
 4. Idempotencja HITL jak `SPEC-SOCIAL.md` S-6.4.
 5. Crash podczas execute → Runs `interrupted`; po `interrupted → running` Content re-invoke **fazy** z DB. Pauza HITL nie przechodzi w `interrupted`.
+
+Zmiana względem wersji 1–2 / pkt 3: wcześniej „zapisuje `selectedIdeaIds`” bez sprawdzenia id; `docs/data_flow.md` §4e dopuszczał id sekcji. Od tej wersji kanon = wyłącznie `[outline.id]` (`docs/data_flow.md`, `docs/dokumentacja_komunikacji.md`).
 
 Ctn-6. Task `page_copy` — bez pauzy HITL. `pipelinePhase` w kolumnie `Run`: `'outline'` \| `'copy'` (tylko `page_*`; **nie** reuse `'ideas'`).
 
@@ -62,6 +64,10 @@ Ctn-7. Każdy hop LLM: ten sam `ConversationId` runu; `requestId` z odpowiedzi g
 Ctn-8. W MVP **zakaz** checkpoinetera LangGraph jako store pauzy.
 
 Ctn-9. Port `ContentResultStore` jest **osobny** od Social. Tabele kanoniczne: `ContentOutline`, `ContentDocument` (`runId`, payload JSON, index `runId`). Snapshot HTTP: `result.pageOutline` / `result.pageDocument` (addytywne; nie łamać pól Social).
+
+Ctn-10. Liczniki refine Content na `Run`: kolumny `outlineRefineCount` i `copyRefineCount` (`Int`, default `0`). `savePipelineState` / `getPipelineState` mapują domain **1:1** na te kolumny (update tylko `pipelinePhase` + te dwa pola — bez zapisu `ideasRefineCount` / `contentRefineCount`). Analogia do Ctn-6: osobny słownik stanu, bez reuse etykiet Social.
+
+Zmiana względem wersji 1: SPEC milczał o kolumnach refine; szkic feature planu 4.2 zakładał reuse `ideasRefineCount` = outline i `contentRefineCount` = copy. Ta norma to unieważnia (`SPEC-PERSISTENCE.md` P-5 od v4).
 
 ## Norma implementacji
 
@@ -123,6 +129,9 @@ page_copy:
 - Checkpoinetera LangGraph jako store HITL.
 - Traktować `'web'` jako `SocialPlatform`.
 - Re-invoke grafu z powodu oceny / flagi edycji / opinii (to Runs / Feedback).
+- Zapisu refine fazy `'outline'` / `'copy'` do `Run.ideasRefineCount` / `Run.contentRefineCount` (Ctn-10).
+- Invoke fazy `'copy'` przy `page_outline_then_copy`, gdy `selectedIdeaIds` nie jest dokładnie `[outline.id]` (Ctn-5).
+- Przyjęcia `selectedIdeaIds` na `POST /runs` dla `page_*`.
 
 ### Zatwierdzony stack (obszar)
 
@@ -139,12 +148,13 @@ page_copy:
 ## Kryteria akceptacji
 
 - [ ] `page_copy` full-auto: completed + `pageDocument` w DB + logi z `conversationId` / `requestId` hopów.
-- [ ] `page_outline_then_copy`: po outline status `awaiting_hitl` + draft w `ContentOutline`; po HITL dokument → completed; restart api nie gubi outline’u (stan w DB).
+- [ ] `page_outline_then_copy`: po outline status `awaiting_hitl` + draft w `ContentOutline`; HITL z `[outline.id]` → dokument → completed; restart api nie gubi outline’u (stan w DB). HITL z obcym id → **400** `HITL_INVALID_SELECTION`, run zostaje `awaiting_hitl`.
 - [ ] Verifier fail → refine ≤ 2, potem `failed` z czytelnym powodem.
 - [ ] Węzły LLM zwracają dane po walidacji Zod; złamany kształt nie trafia do wyniku „sukces”.
 - [ ] Recovery `interrupted` → re-invoke Content (właściwy BC po `taskType`).
 - [ ] `ContentModule` bez `forwardRef(RunsModule)` i bez `controllers[]`; brak importu Social.
 - [ ] Page run: DB `platform='web'`, `contentKind` ustawione.
+- [ ] Refine page: kolumny `outlineRefineCount` / `copyRefineCount`; brak zapisu tych liczników do `ideasRefineCount` / `contentRefineCount`.
 
 ## Poza zakresem
 

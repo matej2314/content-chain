@@ -1,7 +1,7 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-31
+data_modyfikacji: 2026-09-01
 ---
 
 # SPEC — Persistence
@@ -45,9 +45,11 @@ P-4. ORM / SQL / Prisma **zakazane** w `domain/` oraz w `packages/shared`. Appli
 
 P-5. DB jest kanoniczna dla kontekstu firmy, userów, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
 
-Kanon tabel (append, P-7): istniejące + `SocialReelIdea`, `SocialReelScript`, `ContentOutline`, `ContentDocument`; `Run.contentKind` nullable; `Run.platform` zostaje `String` NOT NULL (sentinel `'web'` przy page_*).
+Kanon tabel (append, P-7): istniejące + `SocialReelIdea`, `SocialReelScript`, `ContentOutline`, `ContentDocument`; `Run.contentKind` nullable; `Run.platform` zostaje `String` NOT NULL (sentinel `'web'` przy page_*); na `Run` osobne liczniki refine Content: `outlineRefineCount`, `copyRefineCount` (`Int`, default `0`). Kolumny `ideasRefineCount` / `contentRefineCount` zostają **wyłącznie** Social (posty i rolki). Content **nie** zapisuje stanu refine do kolumn Social.
 
 Zmiana względem wersji 2: kanon obejmuje reel i Content; V1 = Postgres niezależnie od kanałów w MVP.
+
+Zmiana względem wersji 3: kanon nie rozdzielał liczników refine — Content mógłby reuse’ować `ideasRefineCount` / `contentRefineCount`. Od tej wersji refine page ma własne kolumny (P-7 append; bez kasowania kolumn Social).
 
 P-6. W MVP `datasource.provider = "sqlite"`. Wprowadzenie PostgreSQL jako providera aplikacji = sygnał wejścia w fazę **V1 — rozbudowa** (patrz tabela wyżej), z nową historią migracji.
 
@@ -91,6 +93,9 @@ apps/api/
 - Obiecywać w kodzie/docs wewnętrznych, że te same pliki migracji SQLite zadziałają na PostgreSQL bez nowej historii.
 - Drugiego ORM równolegle do Prisma.
 - Przenoszenia reguł domenowych do UI przy zmianie silnika.
+- Zapisu refine outline/copy (BC Content) do `Run.ideasRefineCount` / `Run.contentRefineCount`.
+
+Zmiana względem wersji 3 / „Nie wolno”: dopisano zakaz reuse kolumn refine Social na Content.
 
 ### Zatwierdzony stack (obszar)
 

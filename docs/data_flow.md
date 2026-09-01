@@ -163,12 +163,16 @@ Verifier: ten sam wzorzec `max N=2` (fakty firmy + język). Recovery `interrupte
 
 ## 4e. Run dwuetapowy — `page_outline_then_copy` (HITL)
 
-HITL model B: outline w tabeli `ContentOutline`; po HITL faza `'copy'`. `pipelinePhase` na `Run`: `'outline'` \| `'copy'` (wartość `'copy'` / `'outline'` tylko `page_*`). Payload HITL: `selectedIdeaIds` = id sekcji/wariantu outline’u **albo** jeden id zaakceptowanego outline’u (kanon: tablica id jak SM).
+HITL model B: outline w tabeli `ContentOutline`; po HITL faza `'copy'`. `pipelinePhase` na `Run`: `'outline'` \| `'copy'` (wartość `'copy'` / `'outline'` tylko `page_*`).
+
+Kanon payloadu HITL (MVP): `hitl.options` = tablica z **jednym** elementem (cały `pageOutline`); `selectedIdeaIds` = dokładnie `[outline.id]`. Id sekcji (`osec_…`) **nie** są legalnym wyborem. Niezgodność → **400** `HITL_INVALID_SELECTION`; status zostaje `awaiting_hitl`. `POST /runs` dla `page_*` **nie** przyjmuje `selectedIdeaIds` (selekcja tylko na HITL — inaczej dałoby się pominąć fazę outline).
+
+Zmiana względem: wcześniejszy zapis dopuszczał „id sekcji/wariantu **albo** id całego outline’u”. Obowiązuje wyłącznie id całego outline’u, z walidacją.
 
 ```text
 invoke A (OutlineAgent + verifier + persist outline) → awaiting_hitl
-  hitl.options = pageOutline
-POST .../hitl  { selectedIdeaIds }
+  hitl.options = [pageOutline]
+POST .../hitl  { selectedIdeaIds: [outline.id] }
 invoke B (PageWriterAgent + verifier + persist document) → completed | failed
 ```
 

@@ -23,6 +23,29 @@ export type SocialContent = {
   cta?: string;
 };
 
+export type ReelDurationSeconds = 15 | 30 | 90;
+
+export type ReelIdea = {
+  id: string;
+  title: string;
+  description: string;
+  hook: string;
+  durationSeconds: ReelDurationSeconds;
+};
+
+export type ReelScriptSegment = {
+  startSeconds: number;
+  endSeconds: number;
+  onScreen: string;
+  voiceover: string;
+};
+
+export type ReelScript = {
+  segments: ReelScriptSegment[];
+  cta: string;
+  notes?: string;
+};
+
 export type VerifierVerdict = {
   ok: boolean;
   contextIssues: string[];
@@ -46,12 +69,20 @@ export type SocialPipelineInput = {
   phase: PipelinePhase;
   company: CompanyContext;
   ideas: SocialIdea[];
+  reelIdeas: ReelIdea[];
+  reelScript: ReelScript | null;
   content: SocialContent | null;
 };
 
 export type SocialPipelineOutcome =
-  | { kind: 'completed'; ideas: SocialIdea[]; content: SocialContent | null }
-  | { kind: 'awaiting_hitl'; ideas: SocialIdea[] }
+  | {
+      kind: 'completed';
+      ideas: SocialIdea[];
+      content: SocialContent | null;
+      reelIdeas: ReelIdea[];
+      reelScript: ReelScript | null;
+    }
+  | { kind: 'awaiting_hitl'; ideas: SocialIdea[]; reelIdeas: ReelIdea[] }
   | {
       kind: 'failed';
       code: string;

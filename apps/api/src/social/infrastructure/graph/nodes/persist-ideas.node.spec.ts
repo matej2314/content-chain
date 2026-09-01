@@ -32,9 +32,13 @@ function makeState(
 function fakeStore(): jest.Mocked<SocialResultStore> {
   return {
     replaceIdeas: jest.fn().mockResolvedValue(undefined),
+    replaceReelIdeas: jest.fn().mockResolvedValue(undefined),
+    replaceReelScript: jest.fn().mockResolvedValue(undefined),
     replaceContent: jest.fn().mockResolvedValue(undefined),
     listIdeas: jest.fn().mockResolvedValue([]),
+    listReelIdeas: jest.fn().mockResolvedValue([]),
     getContent: jest.fn().mockResolvedValue(null),
+    getReelScript: jest.fn().mockResolvedValue(null),
     savePipelineState: jest.fn().mockResolvedValue(undefined),
     getPipelineState: jest.fn().mockResolvedValue({
       phase: null,

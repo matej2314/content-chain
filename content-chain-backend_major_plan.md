@@ -495,19 +495,20 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Enumy; `Run.contentKind`; tabele `ContentOutline` / `ContentDocument`; sentinel `platform: 'web'` dla page_*; Zod unia (page bez platform OK; page z `linkedin` → fail; post bez platform → fail).
+**Opis:** Enumy; `Run.contentKind`; tabele `ContentOutline` / `ContentDocument`; na `Run` kolumny `outlineRefineCount` / `copyRefineCount` (default 0; **nie** reuse `ideasRefineCount` / `contentRefineCount`); sentinel `platform: 'web'` dla page_*; Zod unia (page bez platform OK; page z `linkedin` → fail; post bez platform → fail).
 
 **DoD (krok):**
 
 - Page run: DB `platform='web'`, `contentKind` ustawione.
-- Social run: `contentKind` null, `platform` z enumu SM.
+- Social run: `contentKind` null, `platform` z enumu SM; kolumny refine Social bez zmian semantyki.
+- Migracja dokłada `outlineRefineCount` / `copyRefineCount`; Content zapisuje refine wyłącznie tam (`SPEC-CONTENT.md` Ctn-10, `SPEC-PERSISTENCE.md` P-5).
 - Unit Zod pokrywa unię.
 
 ### Krok 4.2.2 — Moduł `apps/api/src/content/` (graf podstawowy)
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Drzewo application / domain / infrastructure (graph, prompts, persistence). Węzły: `LoadContext`, `NormalizeBrief`, `OutlineAgent`, `PageWriterAgent`, `ConsistencyVerifier`, `Refine*`, `Persist*`, `FailRun`. `compile()` bez checkpoinetera. Refine `max N=2`. `ContentModule` bez `controllers[]`; nie importuje Social/Runs (tylko port lifecycle).
+**Opis:** Drzewo application / domain / infrastructure (graph, prompts, persistence). Węzły: `LoadContext`, `NormalizeBrief`, `OutlineAgent`, `PageWriterAgent`, `ConsistencyVerifier`, `Refine*`, `Persist*`, `FailRun`. `compile()` bez checkpoinetera. Refine `max N=2` (polityka w `content/domain`, kopia Social). Hop LLM / `parseLlmJson` / loader promptów — `apps/api/src/shared/llm/` (osobna instancja `LlmHopService` w `ContentModule`; **nie** kopia klasy, **nie** import Social). `ContentModule` bez `controllers[]`; nie importuje Social/Runs (tylko port lifecycle).
 
 **DoD (krok):**
 
@@ -518,12 +519,12 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** `run-dispatch.executor.ts` (nie `utils.ts`); composite reader; `registerAsync` inject obu executorów i store’ów; `GetRunUseCase` wypełnia `pageOutline` / `pageDocument`. Worker nadal jeden `RUN_EXECUTOR`. Recovery `interrupted` → właściwy BC po `taskType`.
+**Opis:** `run-dispatch.executor.ts` (nie `utils.ts`); composite reader; `registerAsync` inject obu executorów i store’ów; `GetRunUseCase` wypełnia `pageOutline` / `pageDocument`. Worker nadal jeden `RUN_EXECUTOR`. Recovery `interrupted` → właściwy BC po `taskType`. HITL page: `ResumeHitlUseCase` waliduje `selectedIdeaIds === [outline.id]` (400 `HITL_INVALID_SELECTION`).
 
 **DoD (krok):**
 
 - SocialModule nie importuje ContentModule; RunsModule nie importuje żadnego grafu.
-- HITL page: `awaiting_hitl` + options z outline; resume `selectedIdeaIds`.
+- HITL page: `awaiting_hitl` + options z outline; resume tylko `[outline.id]`; obce id → 400, status bez zmian.
 - Unit dispatchera: social vs content vs default.
 
 ### Krok 4.2.4 — Testy unit, e2e, Postman Content, regresja Social
