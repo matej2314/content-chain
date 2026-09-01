@@ -25,7 +25,7 @@ Segmenty:
 - `onScreen` — krótki tekst / overlay.
 - `voiceover` — to, co mówimy; może być puste w sensie „cisza + tekst”, ale pole string niepuste (np. krótka didaskalia).
 
-`cta` — jedna akcja z `cta.items`. `notes` — opcjonalne didaskalia produkcyjne (bez nowych faktów o firmie).
+`cta` — jedna akcja z `cta.items` (ten sam sens co `label`; parafraza i dowolny case OK; nie wymyślaj nowej akcji). `notes` — opcjonalne didaskalia produkcyjne (bez nowych faktów ani liczb o firmie).
 
 ## Zakazy
 

@@ -16,7 +16,7 @@ Wygeneruj dokładnie {{ideaCount}} pomysłów na posty pod wskazaną platformę 
 
 Mapowanie pól (zamiast dawnego „hook + opis + CTA”):
 - `title` — krótki tytuł roboczy (nie clickbait).
-- `angle` — 1–2 zdania: o czym post, jaka wartość, jaki kąt/format; wpleć kierunek jednej akcji CTA wyłącznie z `cta.items` kontekstu firmy.
+- `angle` — 1–2 zdania: o czym post, jaka wartość, jaki kąt/format; wpleć **jedną** akcję CTA z `cta.items` (ten sam sens co `label`; parafraza, odmiana i dowolny case OK — nie wymyślaj nowej akcji).
 - `hook` — jedno zdanie lub krótka fraza, która zatrzymuje scroll (pierwsza linia posta).
 
 ## Hook i kąty (craft)
@@ -28,9 +28,9 @@ Hook ma skłonić do przeczytania kolejnej linii. Preferuj:
 - news angle,
 - how-to: „jak osiągnąć X bez Y”.
 
-Gdy `brief.goal` to lead lub sprzedaż: kąty mogą celować w obiekcje Trust / Fit / Price / Timing / Effort i mieć spójne jedno CTA (jedna akcja, jasna wartość). W postach świadomości / zaangażowania CTA może być lżejsze (komentarz, follow), ale nadal z listy `cta.items` gdy pasuje.
+Gdy `brief.goal` to lead lub sprzedaż: kąty mogą adresować obiekcję (zaufanie, dopasowanie, cena, timing, wysiłek) i mieć spójne jedno CTA — **tę samą akcję** co jeden `cta.items[].label`. Nazw kategorii obiekcji **nie wstawiaj** do `title` / `angle` / `hook`. W postach świadomości / zaangażowania CTA nadal musi być jedną z akcji z listy (nie „komentarz” / „follow”, chyba że taki `label` jest w JSON).
 
-Korzyść przed funkcją. Konkret zamiast ogólnika. Nie zgaduj wyników — tylko to, co jest w JSON kontekstu (`offer.items`, `identity`, `extras`).
+Korzyść przed funkcją. Konkret zamiast ogólnika. Liczby i fakty **tylko** z JSON kontekstu (`offer.items`, `identity`, `extras`, `audience.profiles`) i w **oryginalnym sensie** (nie odwracaj metryki, nie dopisuj nowych ilości). Fakty z profilu odbiorcy wolno wpleść; zakres (np. 8–40 osób) nie uprawnia do zmyślania wyników firmy.
 
 ## Platforma
 
@@ -42,7 +42,7 @@ Grupa docelowa: `brief.audience` jeśli podane, inaczej `audience.profiles` z ko
 
 ## Zakazy
 
-- Nie wymyślaj usług, liczb, case’ów, hashtagów ani CTA spoza kontekstu firmy.
+- Nie wymyślaj usług, liczb, case’ów, hashtagów ani CTA spoza kontekstu firmy. Narzędzia i marki spoza JSON (np. Slack) — zakaz.
 - Nie używaj nazw konkurentów, chyba że są w JSON kontekstu.
 - Nie kopiuj cudzych postów; nie zaczynaj hooków od „W dzisiejszym poście…”, „Wszyscy wiedzą, że…”, „Chciałbym opowiedzieć…”.
 - Nie mieszaj wielu celów w jednym pomyśle.

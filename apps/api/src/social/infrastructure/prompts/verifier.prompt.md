@@ -10,20 +10,33 @@ Materiał do oceny (JSON — pomysły na post, treść posta, pomysły na rolki 
 
 ## Obszar 1 — spójność z kontekstem firmy
 
-Sprawdź, czy materiał nie wykracza poza JSON kontekstu i nie przeczy mu.
+Oceniaj **znaczenie** (ten sam claim / ta sama akcja / ta sama grupa / ten sam ton), nie odwzorowanie tekstu 1:1. Forma, wielkość liter, odmiana, kolejność słów i wplecenie w zdanie są dowolne.
 
 Odrzuć (wpis w `contextIssues`, konkretna fraza / zdanie + powód), gdy:
-- pada nazwa usługi, produktu lub oferty spoza `offer.items` / `identity`;
-- liczby, wyniki, case’y, cytaty lub „przed/po” nie występują w kontekście;
-- CTA nie pochodzi z `cta.items` (albo jest wiele sprzecznych akcji);
+- pada nazwa usługi, produktu lub oferty, której nie da się zmapować na `offer.items` / `identity` (to nie jest parafraza istniejącej nazwy);
+- liczba, wynik, case, cytat lub „przed/po” **nie występuje w JSON** albo **zmienia sens** liczby/faktu z JSON (np. „6 godzin odzyskane po rekomendacjach” ≠ „6 godzin tracone na pożary”; nowa liczba jako wynik firmy);
+- CTA to **inna akcja** niż którykolwiek `cta.items[].label` (Kup, Follow, DM, „zostaw komentarz”, gdy nie ma takiego labelu) albo w materiale są dwie sprzeczne akcje;
 - hashtagi / brandowane nazwy są wymyślone (nie wynikają z kontekstu);
 - ton łamie `voice.weDont` albo udaje korporacyjny ogólnik zamiast `voice.weDo`;
-- pojawiają się nazwy konkurentów lub obce marki, których nie ma w JSON;
+- pojawiają się nazwy konkurentów, narzędzi lub obcych marek, których nie ma w JSON;
 - treść adresuje inną grupę niż `audience.profiles` / brief w payloadzie, w sposób sprzeczny z kontekstem;
 - obietnica w hooku/title nie ma pokrycia w ofercie (clickbait względem faktów firmy).
 
-Nie karz za parafrazę faktów z kontekstu, jeśli treść pozostaje prawdziwa. Nie wymagaj cytowania pól JSON.
-Fakty z `audience.profiles` (np. seed / seria A, wielkość zespołu, rola foundera) **wolno** wpleść w hook, title i angle jako perspektywę czytelnika. To nie jest wymyślony case firmy. Odrzuć dopiero, gdy treść **przeczy** profilowi albo opisuje inną grupę.
+Nie karz za parafrazę faktów, nazw oferty, głosu ani CTA, jeśli **ten sam claim** zostaje prawdziwy względem JSON. Nie wymagaj cytowania pól JSON ani pola `target` z CTA w copy.
+
+CTA — porównuj wyłącznie `cta.items[].label` (nie `target`):
+- Pass: inny case (`umów` / `Umów` / `UMÓW`), odmiana, wplecenie w zdanie, dopisek benefitu z oferty przy **tej samej** akcji (`«napisz do nas po listę usprawnień»` ≈ `«Napisz do nas»`).
+- Fail: nowa rodzina CTA, której nie da się uznać za żaden label.
+- Jeśli jedyne zarzuty to wielkość liter, cudzysłów albo brak URL `target` → `ok: true`, puste tablice.
+
+Liczby i fakty — **tylko te zapisane w JSON** (w tym `offer`, `identity`, `extras`, `audience.profiles`). Parafraza sformułowania wolna; nowa liczba, nowy case podany jako wynik firmy albo odwrócony sens metryki → odrzut.
+Fakty z `audience.profiles` (seed / seria A, wielkość zespołu, rola foundera) **wolno** wpleść w hook, title i angle. Liczba **wewnątrz zakresu** profilu (np. 20 przy 8–40) to nie jest wymyślony case. Scenka retoryczna bez twierdzenia „to wynik / case Acme” — pass. Odrzuć, gdy treść **przeczy** profilowi albo opisuje inną grupę.
+
+Przykłady (obszar 1):
+- Pass: «umów 20 minut na wstępny zakres audytu» przy labelu «Umów 20 minut na wstępny zakres audytu».
+- Pass: «Twój zespół urósł do 20 osób» przy profilu 8–40.
+- Fail: «15 godzin tygodniowo» gdy JSON podaje tylko 6 godzin odzyskane.
+- Fail: «Kup teraz» gdy `cta.items` ma tylko kontakt / umówienie audytu.
 
 ## Obszar 2 — język
 
@@ -38,6 +51,7 @@ Odrzuć (wpis w `languageIssues`, cytat + błąd), gdy:
 
 Nie czepiaj się świadomego stylu SM (równoważniki, krótkie linie, pytanie bez pełnego zdania), o ile jest poprawne i czytelne. Nie oceniaj „czy mi się podoba” — tylko poprawność.
 **Nie odrzucaj** haczyka ani tytułu za brak kropki na końcu, za pytanie retoryczne bez kropki (`Co z tym robią?`) ani za wielokropek / pauzę zamiast kropki. Interpunkcja w `languageIssues` tylko gdy **utrudnia odczyt** (zlepione zdania, brak znaku w środku, który psuje sens).
+Wielkość liter w CTA to **nie** błąd językowy.
 
 ## Werdykt
 

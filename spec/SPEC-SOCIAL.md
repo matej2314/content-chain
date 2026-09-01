@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-31
+data_modyfikacji: 2026-09-01
 ---
 
 # SPEC — Social
@@ -53,9 +53,9 @@ S-3. Każdy węzeł LLM produkuje **structured output** walidowany schemą (Zod 
 
 Zmiana względem wersji 4 / S-3: dotychczas wyłącznie `z.array(z.string())` — żywy model często zwraca obiekty zarzutów; preprocess nie zmienia kontraktu domeny.
 
-S-4. `ConsistencyVerifier` — **jeden** węzeł, dwa obszary: (1) spójność z kontekstem firmy, (2) język (gramatyka, interpunkcja, składnia dla `pl`/`en`). Osobny `LanguageQualityVerifier` — **poza MVP**. Na (1): fakty z `audience.profiles` wolno wpleść w hook / title / angle; odrzut dopiero przy sprzeczności z profilem albo gdy treść opisuje inną grupę. Na (2): brak kropki na końcu haczyka / tytułu, pytanie retoryczne oraz pauza albo wielokropek **nie** są same w sobie podstawą odrzutu; interpunkcja w `languageIssues` tylko gdy utrudnia odczyt.
+S-4. `ConsistencyVerifier` — **jeden** węzeł, dwa obszary: (1) spójność z kontekstem firmy, (2) język (gramatyka, interpunkcja, składnia dla `pl`/`en`). Osobny `LanguageQualityVerifier` — **poza MVP**. Na (1): oceniaj **znaczenie** (ten sam claim / ta sama akcja / ta sama grupa / ten sam ton), nie cytat 1:1. Fakty i **liczby wyłącznie z JSON kontekstu** — parafraza sformułowania wolna; nowa liczba, nowy case jako wynik firmy albo odwrócony sens metryki → odrzut. CTA: ta sama akcja co `cta.items[].label` (dowolny case, odmiana, parafraza tej akcji); odrzut gdy to inna akcja albo dwie sprzeczne. Fakty z `audience.profiles` wolno wpleść w hook / title / angle (liczba wewnątrz zakresu profilu jest OK); odrzut dopiero przy sprzeczności z profilem albo gdy treść opisuje inną grupę. Na (2): brak kropki na końcu haczyka / tytułu, pytanie retoryczne, pauza albo wielokropek oraz wielkość liter w CTA **nie** są same w sobie podstawą odrzutu; interpunkcja w `languageIssues` tylko gdy utrudnia odczyt.
 
-Zmiana względem wersji 4 / S-4: doprecyzowanie dwóch obszarów względem żywego werdyktu i szablonu `verifier.prompt.md` (`docs/data_flow.md`). Treść copy promptu nadal poza tym SPEC.
+Zmiana względem wersji 7 / S-4: dotychczas obszar (1) nie rozstrzygał CTA vs exact string — żywy sędzia odrzucał case i parafrazę tej samej akcji. Teraz: ten sam claim, nie 1:1; liczby nadal tylko z kontekstu. Treść copy promptu nadal poza tym SPEC (`verifier.prompt.md`). Zmiana względem wersji 4 / S-4 (dwa obszary, audience.profiles, interpunkcja SM) zostaje w mocy.
 
 S-5. Po fail verifiera: Refine* z twardym limitem **`max N=2`**, potem `failed`. Zakaz nieskończonej pętli.
 

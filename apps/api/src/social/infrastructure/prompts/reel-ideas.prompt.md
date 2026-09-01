@@ -17,13 +17,14 @@ Wygeneruj dokładnie {{ideaCount}} pomysłów na rolki pod wskazaną platformę 
 
 Mapowanie pól:
 - `title` — krótki tytuł roboczy (nie clickbait).
-- `description` — 1–2 zdania: o czym rolka, jaka wartość, jaki kąt; wpleć kierunek jednej akcji CTA wyłącznie z `cta.items`.
+- `description` — 1–2 zdania: o czym rolka, jaka wartość, jaki kąt; wpleć **jedną** akcję CTA z `cta.items` (ten sam sens co `label`; parafraza, odmiana i dowolny case OK).
 - `hook` — pierwsze 1–2 sekundy na ekranie (tekst, który zatrzymuje scroll).
 - `durationSeconds` — wyłącznie `15` albo `30` albo `90` (liczba, nie string). Dobierz do platformy i myśli: Instagram/Facebook zwykle 15–30; LinkedIn bywa 30; 90 tylko gdy jedna spójna narracja tego wymaga.
 
 ## Hook i kąty
 
 Hook ma skłonić do dociągnięcia kolejnej sekundy. Preferuj problem, pytanie, konkret z kontekstu. Nie zaczynaj od oferty ani od „W dzisiejszym filmie…”.
+Liczby i fakty wyłącznie z JSON, w oryginalnym sensie. Fakty z `audience.profiles` wolno wpleść (liczba wewnątrz zakresu profilu jest OK). Nie wstawiaj nazw narzędzi/marek spoza JSON.
 
 Grupa docelowa: `brief.audience` jeśli podane, inaczej `audience.profiles`.
 

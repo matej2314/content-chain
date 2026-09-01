@@ -26,7 +26,7 @@ Struktura treści w `body`:
 
 ## CTA i hashtagi
 
-- CTA wyłącznie z `cta.items` kontekstu firmy. Benefit-oriented (np. „Zobacz jak” zamiast „Kup / Kliknij tutaj”). Obniżaj barierę („porozmawiajmy”, „bez zobowiązań”) gdy pasuje do `voice`. CTA ma odpowiadać obietnicy z posta (match to promise).
+- CTA = **ta sama akcja** co jeden `cta.items[].label` (porównuj `label`, nie `target`). Wolna parafraza, odmiana i dowolny case. Benefit i obniżenie bariery — w `body` wokół CTA, nie jako nowa rodzina akcji („Zobacz jak”, „Kup”, Follow), której nie ma na liście. CTA ma odpowiadać obietnicy z posta (match to promise).
 - Jedno CTA. Nie dawaj drugiej akcji „na wszelki wypadek”.
 - Hashtagi: tylko te, które wynikają z kontekstu firmy (`extras`, nazwy oferty, dopuszczalny ton). Nie wymyślaj brandowanych tagów spoza JSON. Na LinkedIn 2–5; na Instagramie umiarkowany blok na końcu; na Facebooku z umiarem.
 
@@ -40,8 +40,8 @@ Pisz dla skanujących: krótkie akapity, ewentualnie lista. Emoji z umiarem — 
 
 ## Perswazja (gdy goal = lead / sprzedaż)
 
-- Krótko adresuj jedną obiekcję (Trust, Fit, Price, Timing, Effort) jednym zdaniem lub jednym dowodem z kontekstu.
-- Jedna forma dowodu, jeśli jest w JSON (liczba, case, cytat). Hierarchia: konkretny wynik z kontekstu > nazwany case > ogólna statystyka z kontekstu. Nie zmyślaj proofu.
+- Krótko adresuj jedną obiekcję jednym zdaniem lub jednym dowodem z kontekstu. Nazw kategorii obiekcji nie wstawiaj do `body`.
+- Jedna forma dowodu, jeśli jest w JSON (liczba, case, cytat). Hierarchia: konkretny wynik z kontekstu > nazwany case > ogólna statystyka z kontekstu. Nie zmyślaj proofu. Liczby tylko te z JSON, w oryginalnym sensie.
 - Proof sandwich: claim → dowód z kontekstu → wzmocnienie. Nie rozwlekaj.
 
 ## Zakazy

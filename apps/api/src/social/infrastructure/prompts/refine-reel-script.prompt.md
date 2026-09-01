@@ -17,7 +17,7 @@ Zarzuty języka:
 
 ## Zadanie
 
-Wdróż zarzuty. Zachowaj strukturę `segments` + `cta`. Nie dodawaj faktów spoza kontekstu.
+Wdróż zarzuty. Zachowaj strukturę `segments` + `cta`. Nie dodawaj faktów ani liczb spoza kontekstu. CTA: ta sama akcja co `cta.items[].label` (parafraza i dowolny case OK).
 
 ## Wyjście
 

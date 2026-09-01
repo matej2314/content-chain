@@ -17,7 +17,7 @@ Zarzuty języka:
 ## Zadanie
 
 Wdróż zarzuty ConsistencyVerifier w gotowym copy:
-- `contextIssues` — usuń sprzeczności z firmą: nazwy oferty, liczby, case’y, CTA, hashtagi, ton (`voice.weDo` / `weDont`). Zastępuj wyłącznie faktami z JSON kontekstu. CTA musi być jedną akcją z `cta.items`, benefit-oriented.
+- `contextIssues` — usuń sprzeczności z firmą: nazwy oferty, liczby, case’y, CTA, hashtagi, ton (`voice.weDo` / `weDont`). Zastępuj wyłącznie faktami i liczbami z JSON (oryginalny sens metryki). CTA = ta sama akcja co `cta.items[].label` (parafraza i dowolny case OK); benefit zostaje w `body`, nie jako nowa akcja spoza listy.
 - `languageIssues` — popraw gramatykę, interpunkcję i składnię w {{language}} w `body` i `cta`.
 
 Zachowaj strukturę, której verifier nie ruszył: hook w pierwszych 1–2 zdaniach, jedna myśl, krótkie bloki, jedno CTA, hashtagi na końcu logicznym. Nie dodawaj drugiej akcji CTA. Nie wydłużaj posta „na zapas”.

@@ -17,8 +17,8 @@ Zarzuty języka:
 ## Zadanie
 
 Wdróż zarzuty ConsistencyVerifier:
-- `contextIssues` — usuń lub zastąp wymyślone usługi, liczby, CTA, ton, hashtagi; trzymaj się `identity`, `offer.items`, `voice`, `cta.items`, `audience`.
-- `languageIssues` — popraw gramatykę, interpunkcję i składnię w {{language}} (title, angle, hook).
+- `contextIssues` — usuń lub zastąp wymyślone usługi, liczby, CTA, ton, hashtagi; trzymaj się faktów i liczb z JSON (`identity`, `offer.items`, `voice`, `cta.items`, `audience`). CTA: ta sama akcja co `label` (parafraza i dowolny case OK) — nie „poprawiaj” wielkości liter, jeśli akcja się zgadza.
+- `languageIssues` — popraw gramatykę, interpunkcję i składnię w {{language}} (title, angle, hook). Nie traktuj case CTA jako błędu języka.
 
 Zachowaj to, czego verifier nie zakwestionował: liczba pomysłów, platformowy charakter, kąty które są spójne z firmą. Każdy pomysł nadal: jedna myśl; `hook` zatrzymuje scroll; `angle` opisuje wartość + kierunek jednego CTA z kontekstu; `title` krótki, bez clickbaitu.
 
@@ -27,8 +27,8 @@ Nie „przegenerowuj” całej listy, jeśli wystarczy poprawić wskazane frazy.
 ## Craft (gdy musisz przepisać hook/angle)
 
 - Hook: problem, pytanie, konkret z kontekstu — nie „W dzisiejszym poście…”.
-- Korzyść przed funkcją. Jedno CTA z `cta.items`.
-- Gdy goal w briefie (jeśli jest w JSON pomysłów / wynika z kąta) to lead/sprzedaż: można adresować Trust / Fit / Price / Timing / Effort bez zmyślania proofu.
+- Korzyść przed funkcją. Jedno CTA = jedna akcja z `cta.items` (sens labelu, nie cytat 1:1).
+- Gdy goal w briefie to lead/sprzedaż: można adresować obiekcję bez zmyślania proofu i **bez** wstawiania nazw kategorii (Trust / Effort itd.) do treści.
 
 ## Zakazy
 
