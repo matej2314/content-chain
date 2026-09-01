@@ -7,6 +7,7 @@ import type { SocialResultStore } from '../domain/social-result.port';
 import type {
   PipelineState,
   ReelIdea,
+  ReelScript,
   SocialContent,
   SocialIdea,
   SocialPipelineOutcome,
@@ -22,6 +23,35 @@ const ideas: SocialIdea[] = [
 const content: SocialContent = {
   body: 'Gotowy post.',
   hashtags: ['#acme'],
+  cta: 'Napisz do nas',
+};
+
+const reelIdeas: ReelIdea[] = [
+  {
+    id: 'idea_1',
+    title: 'R1',
+    description: 'D1',
+    hook: 'H1',
+    durationSeconds: 15,
+  },
+  {
+    id: 'idea_2',
+    title: 'R2',
+    description: 'D2',
+    hook: 'H2',
+    durationSeconds: 30,
+  },
+];
+
+const reelScript: ReelScript = {
+  segments: [
+    {
+      startSeconds: 0,
+      endSeconds: 15,
+      onScreen: 'Hook',
+      voiceover: 'Powiedz problem.',
+    },
+  ],
   cta: 'Napisz do nas',
 };
 
@@ -65,9 +95,7 @@ function fakeStore(
     replaceContent: jest
       .fn()
       .mockRejectedValue(new Error('unexpected replaceContent')),
-    getContent: jest
-      .fn()
-      .mockRejectedValue(new Error('unexpected getContent')),
+    getContent: jest.fn().mockRejectedValue(new Error('unexpected getContent')),
     getReelScript: jest
       .fn()
       .mockRejectedValue(new Error('unexpected getReelScript')),
@@ -97,15 +125,14 @@ function fakeLifecycle(): jest.Mocked<RunLifecyclePort> {
 }
 
 function fakeFacade(
-  result: SocialPipelineOutcome | Error | (() => Promise<SocialPipelineOutcome>),
+  result:
+    SocialPipelineOutcome | Error | (() => Promise<SocialPipelineOutcome>),
 ): Pick<SocialPipelineFacade, 'invokePhase'> {
-  const invokePhase = jest.fn(
-    async (): Promise<SocialPipelineOutcome> => {
-      if (typeof result === 'function') return result();
-      if (result instanceof Error) throw result;
-      return result;
-    },
-  );
+  const invokePhase = jest.fn(async (): Promise<SocialPipelineOutcome> => {
+    if (typeof result === 'function') return result();
+    if (result instanceof Error) throw result;
+    return result;
+  });
   return { invokePhase };
 }
 
@@ -115,7 +142,7 @@ function makeExecutor(args: {
   store: SocialResultStore;
 }): SocialRunExecutor {
   return new SocialRunExecutor(
-    args.facade as unknown as SocialPipelineFacade,
+    args.facade,
     args.lifecycle,
     args.store,
   );
@@ -259,6 +286,143 @@ describe('SocialRunExecutor', () => {
         resultSummary: 'content',
       });
     });
+
+    it('invokes ideas for reel_ideas and completes with reelIdeas summary', async () => {
+      const run = makeRun({ taskType: 'reel_ideas' });
+      const store = fakeStore();
+      const lifecycle = fakeLifecycle();
+      const facade = fakeFacade({
+        kind: 'completed',
+        ideas: [],
+        content: null,
+        reelIdeas,
+        reelScript: null,
+      });
+      const executor = makeExecutor({ facade, lifecycle, store });
+
+      await executor.execute(run);
+
+      expect(store.savePipelineState).toHaveBeenCalledWith(run.id, {
+        phase: 'ideas',
+        ideasRefineCount: 0,
+        contentRefineCount: 0,
+      });
+      expect(facade.invokePhase).toHaveBeenCalledWith(run, 'ideas', {
+        ideas: [],
+        reelIdeas: [],
+        ideasRefineCount: 0,
+        contentRefineCount: 0,
+      });
+      expect(lifecycle.transition).toHaveBeenCalledWith(run, 'completed', {
+        resultSummary: 'reelIdeas:2',
+      });
+    });
+
+    it('invokes content for reel_script even when stored phase is ideas', async () => {
+      const run = makeRun({ taskType: 'reel_script' });
+      const store = fakeStore({
+        pipeline: {
+          phase: 'ideas',
+          ideasRefineCount: 1,
+          contentRefineCount: 0,
+        },
+      });
+      const lifecycle = fakeLifecycle();
+      const facade = fakeFacade({
+        kind: 'completed',
+        ideas: [],
+        content: null,
+        reelIdeas: [],
+        reelScript,
+      });
+      const executor = makeExecutor({ facade, lifecycle, store });
+
+      await executor.execute(run);
+
+      expect(store.savePipelineState).toHaveBeenCalledWith(run.id, {
+        phase: 'content',
+        ideasRefineCount: 1,
+        contentRefineCount: 0,
+      });
+      expect(facade.invokePhase).toHaveBeenCalledWith(
+        run,
+        'content',
+        expect.objectContaining({
+          ideasRefineCount: 1,
+          contentRefineCount: 0,
+        }),
+      );
+      expect(lifecycle.transition).toHaveBeenCalledWith(run, 'completed', {
+        resultSummary: 'reelScript',
+      });
+    });
+
+    it('invokes content after HITL when then_scripts has selectedIdeaIds', async () => {
+      const run = makeRun({
+        taskType: 'reel_ideas_then_scripts',
+        selectedIdeaIds: ['idea_1'],
+      });
+      const store = fakeStore({
+        reelIdeas,
+        pipeline: {
+          phase: 'ideas',
+          ideasRefineCount: 0,
+          contentRefineCount: 0,
+        },
+      });
+      const lifecycle = fakeLifecycle();
+      const facade = fakeFacade({
+        kind: 'completed',
+        ideas: [],
+        content: null,
+        reelIdeas,
+        reelScript,
+      });
+      const executor = makeExecutor({ facade, lifecycle, store });
+
+      await executor.execute(run);
+
+      expect(facade.invokePhase).toHaveBeenCalledWith(run, 'content', {
+        ideas: [],
+        reelIdeas,
+        ideasRefineCount: 0,
+        contentRefineCount: 0,
+      });
+      expect(lifecycle.transition).toHaveBeenCalledWith(run, 'completed', {
+        resultSummary: 'reelScript',
+      });
+    });
+
+    it('uses stored phase when reel_ideas does not force content', async () => {
+      const run = makeRun({ taskType: 'reel_ideas' });
+      const store = fakeStore({
+        pipeline: {
+          phase: 'content',
+          ideasRefineCount: 0,
+          contentRefineCount: 2,
+        },
+      });
+      const lifecycle = fakeLifecycle();
+      const facade = fakeFacade({
+        kind: 'completed',
+        ideas: [],
+        content: null,
+        reelIdeas,
+        reelScript,
+      });
+      const executor = makeExecutor({ facade, lifecycle, store });
+
+      await executor.execute(run);
+
+      expect(facade.invokePhase).toHaveBeenCalledWith(
+        run,
+        'content',
+        expect.objectContaining({ contentRefineCount: 2 }),
+      );
+      expect(lifecycle.transition).toHaveBeenCalledWith(run, 'completed', {
+        resultSummary: 'reelScript',
+      });
+    });
   });
 
   describe('HITL', () => {
@@ -311,6 +475,55 @@ describe('SocialRunExecutor', () => {
       });
     });
 
+    it('pauses on stored reel ideas without selection and skips the facade (recovery)', async () => {
+      const run = makeRun({
+        taskType: 'reel_ideas_then_scripts',
+        selectedIdeaIds: null,
+      });
+      const store = fakeStore({ reelIdeas });
+      const lifecycle = fakeLifecycle();
+      const facade = fakeFacade({
+        kind: 'completed',
+        ideas: [],
+        content: null,
+        reelIdeas,
+        reelScript: null,
+      });
+      const executor = makeExecutor({ facade, lifecycle, store });
+
+      await executor.execute(run);
+
+      expect(facade.invokePhase).not.toHaveBeenCalled();
+      expect(store.savePipelineState).not.toHaveBeenCalled();
+      expect(lifecycle.transition).toHaveBeenCalledWith(run, 'awaiting_hitl', {
+        hitlOptions: reelIdeas,
+      });
+    });
+
+    it('treats an empty selectedIdeaIds list as no selection for reel HITL', async () => {
+      const run = makeRun({
+        taskType: 'reel_ideas_then_scripts',
+        selectedIdeaIds: [],
+      });
+      const store = fakeStore({ reelIdeas });
+      const lifecycle = fakeLifecycle();
+      const facade = fakeFacade({
+        kind: 'completed',
+        ideas: [],
+        content: null,
+        reelIdeas,
+        reelScript: null,
+      });
+      const executor = makeExecutor({ facade, lifecycle, store });
+
+      await executor.execute(run);
+
+      expect(facade.invokePhase).not.toHaveBeenCalled();
+      expect(lifecycle.transition).toHaveBeenCalledWith(run, 'awaiting_hitl', {
+        hitlOptions: reelIdeas,
+      });
+    });
+
     it('awaits HITL from the facade after generating ideas', async () => {
       const run = makeRun({
         taskType: 'post_ideas_then_content',
@@ -340,6 +553,38 @@ describe('SocialRunExecutor', () => {
       });
       expect(lifecycle.transition).toHaveBeenCalledWith(run, 'awaiting_hitl', {
         hitlOptions: ideas,
+      });
+    });
+
+    it('awaits HITL from the facade after generating reel ideas', async () => {
+      const run = makeRun({
+        taskType: 'reel_ideas_then_scripts',
+        selectedIdeaIds: null,
+      });
+      const store = fakeStore({ ideas: [], reelIdeas: [] });
+      const lifecycle = fakeLifecycle();
+      const facade = fakeFacade({
+        kind: 'awaiting_hitl',
+        ideas: [],
+        reelIdeas,
+      });
+      const executor = makeExecutor({ facade, lifecycle, store });
+
+      await executor.execute(run);
+
+      expect(store.savePipelineState).toHaveBeenCalledWith(run.id, {
+        phase: 'ideas',
+        ideasRefineCount: 0,
+        contentRefineCount: 0,
+      });
+      expect(facade.invokePhase).toHaveBeenCalledWith(run, 'ideas', {
+        ideas: [],
+        reelIdeas: [],
+        ideasRefineCount: 0,
+        contentRefineCount: 0,
+      });
+      expect(lifecycle.transition).toHaveBeenCalledWith(run, 'awaiting_hitl', {
+        hitlOptions: reelIdeas,
       });
     });
   });

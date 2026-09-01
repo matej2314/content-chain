@@ -406,5 +406,20 @@
   "404": "Jest",
   "405": "No Automatic FE Tests in MVP",
   "406": "Test Pyramid MVP",
-  "407": "supertest"
+  "407": "supertest",
+  "408": ".createMessage",
+  "409": ".completions",
+  "410": "NoopAppMetricsAdapter",
+  "411": "social.schemas.ts",
+  "412": "SPEC — Content (BC)",
+  "413": "HttpMethod",
+  "414": "openai-messages-provider.mapper.ts",
+  "415": "ListRunsQueryDto",
+  "416": "chat-params.dto.ts",
+  "417": "resolve-provider-call-options.ts",
+  "418": "ActiveStreamsTracker",
+  "419": "ResponseFormatDto",
+  "420": "auth.module.ts",
+  "421": "openai-chat-message.dto.ts",
+  "422": "gateway-key.guard.branded-types.test-d.ts"
 }

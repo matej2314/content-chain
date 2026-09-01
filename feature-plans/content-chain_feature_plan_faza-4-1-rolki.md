@@ -956,7 +956,7 @@ Testy węzłów: ideation przy `taskType: 'reel_ideas'` woła `reelIdeasOutputSc
 
 ### KROK 6 — Executor `resolvePhase` i fake LLM
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Trzy `reel_*` w `SocialRunExecutor`; fake LLM rozróżnia reel vs post. Major 4.1.2.
 

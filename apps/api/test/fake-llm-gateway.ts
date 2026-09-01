@@ -1,7 +1,10 @@
 import { createRequestId } from '@content-chain/shared';
 import { LlmGatewayError } from '../src/llm/llm-gateway.errors';
 import type { LlmGatewayPort } from '../src/llm/llm-gateway.port';
-import type { LlmChatCommand, LlmChatResult } from '../src/llm/llm-gateway.types';
+import type {
+  LlmChatCommand,
+  LlmChatResult,
+} from '../src/llm/llm-gateway.types';
 
 export const FAKE_LLM_REQUEST_ID = 'req_123e4567-e89b-12d3-a456-426614174000';
 
@@ -67,6 +70,15 @@ export function contentJson(): string {
 
 function inferReply(command: LlmChatCommand): string {
   const userContent = command.messages[0]?.content ?? '';
+
+  if (userContent.includes('(ścieżka rolek: reel_script)')) {
+    return reelScriptJson();
+  }
+
+  if (userContent.includes('(ścieżka rolek: reel_ideas)')) {
+    return reelIdeasJson();
+  }
+
   if (userContent.includes('ConsistencyVerifier')) {
     return verifierOk();
   }
@@ -77,4 +89,39 @@ function inferReply(command: LlmChatCommand): string {
     return contentJson();
   }
   return ideasJson();
+}
+
+export function reelIdeasJson(): string {
+  return JSON.stringify({
+    ideas: [
+      {
+        id: 'idea_1',
+        title: 'R1',
+        description: 'D1',
+        hook: 'H1',
+        durationSeconds: 15,
+      },
+      {
+        id: 'idea_2',
+        title: 'R2',
+        description: 'D2',
+        hook: 'H2',
+        durationSeconds: 30,
+      },
+    ],
+  });
+}
+
+export function reelScriptJson(): string {
+  return JSON.stringify({
+    segments: [
+      {
+        startSeconds: 0,
+        endSeconds: 15,
+        onScreen: 'hook na ekranie',
+        voiceover: 'jedno zdanie problemu.',
+      },
+    ],
+    cta: 'Napisz do nas',
+  });
 }

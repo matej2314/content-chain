@@ -9,6 +9,7 @@ import {
   RUN_LIFECYCLE,
   type RunLifecyclePort,
 } from '../../runs/domain/run-lifecycle.port';
+import { isReelTaskType } from '../domain/reel-task';
 import { SocialPipelineFacade } from './social-pipeline.facade';
 import type { PipelinePhase } from '../domain/social.types';
 import type { RunExecutorPort } from '../../runs/domain/run-executor.port';
@@ -17,7 +18,8 @@ import type { RunRecord } from '../../runs/domain/run.types';
 @Injectable()
 export class SocialRunExecutor implements RunExecutorPort {
   constructor(
-    private readonly facade: SocialPipelineFacade,
+    @Inject(SocialPipelineFacade)
+    private readonly facade: Pick<SocialPipelineFacade, 'invokePhase'>,
     @Inject(RUN_LIFECYCLE) private readonly lifecycle: RunLifecyclePort,
     @Inject(SOCIAL_RESULT_STORE)
     private readonly resultStore: SocialResultStore,
@@ -27,9 +29,13 @@ export class SocialRunExecutor implements RunExecutorPort {
     run: RunRecord,
     storedPhase: PipelinePhase | null,
   ): PipelinePhase {
-    if (run.taskType === 'post_content') return 'content';
+    if (run.taskType === 'post_content' || run.taskType === 'reel_script') {
+      return 'content';
+    }
+
     if (
-      run.taskType === 'post_ideas_then_content' &&
+      (run.taskType === 'post_ideas_then_content' ||
+        run.taskType === 'reel_ideas_then_scripts') &&
       run.selectedIdeaIds &&
       run.selectedIdeaIds.length > 0
     ) {
@@ -41,15 +47,30 @@ export class SocialRunExecutor implements RunExecutorPort {
 
   async execute(run: RunRecord): Promise<void> {
     const ideas = await this.resultStore.listIdeas(run.id);
+    const reelIdeas = await this.resultStore.listReelIdeas(run.id);
     const pipeline = await this.resultStore.getPipelineState(run.id);
+
+    const noSelection =
+      run.selectedIdeaIds == null || run.selectedIdeaIds.length === 0;
 
     if (
       run.taskType === 'post_ideas_then_content' &&
       ideas.length > 0 &&
-      (run.selectedIdeaIds == null || run.selectedIdeaIds.length === 0)
+      noSelection
     ) {
       await this.lifecycle.transition(run, 'awaiting_hitl', {
         hitlOptions: ideas,
+      });
+      return;
+    }
+
+    if (
+      run.taskType === 'reel_ideas_then_scripts' &&
+      reelIdeas.length > 0 &&
+      noSelection
+    ) {
+      await this.lifecycle.transition(run, 'awaiting_hitl', {
+        hitlOptions: reelIdeas,
       });
       return;
     }
@@ -64,7 +85,7 @@ export class SocialRunExecutor implements RunExecutorPort {
     try {
       const outcome = await this.facade.invokePhase(run, phase, {
         ideas,
-        reelIdeas: [],
+        reelIdeas,
         ideasRefineCount: pipeline.ideasRefineCount,
         contentRefineCount: pipeline.contentRefineCount,
       });
@@ -72,7 +93,8 @@ export class SocialRunExecutor implements RunExecutorPort {
       switch (outcome.kind) {
         case 'awaiting_hitl':
           await this.lifecycle.transition(run, 'awaiting_hitl', {
-            hitlOptions: outcome.ideas,
+            hitlOptions:
+              outcome.reelIdeas.length > 0 ? outcome.reelIdeas : outcome.ideas,
           });
           return;
         case 'failed':
@@ -84,8 +106,13 @@ export class SocialRunExecutor implements RunExecutorPort {
       }
 
       await this.lifecycle.transition(run, 'completed', {
-        resultSummary:
-          phase === 'ideas' ? `ideas:${outcome.ideas.length}` : 'content',
+        resultSummary: isReelTaskType(run.taskType)
+          ? phase === 'ideas'
+            ? `reelIdeas:${outcome.reelIdeas.length}`
+            : 'reelScript'
+          : phase === 'ideas'
+            ? `ideas:${outcome.ideas.length}`
+            : 'content',
       });
     } catch (error) {
       const failedCode =
