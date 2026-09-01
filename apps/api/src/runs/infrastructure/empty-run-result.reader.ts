@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import type { RunId } from '@content-chain/shared';
 import type {
   ReelIdea,
-  ReelScript,
   SocialContent,
   SocialIdea,
   VerifierVerdict,
@@ -26,10 +25,7 @@ export class EmptyRunResultReader implements RunResultReader {
     return [];
   }
 
-  async getReelScript(_runId: RunId): Promise<{
-    script: ReelScript | null;
-    verification: VerifierVerdict | null;
-  } | null> {
+  async getReelScript(_runId: RunId) {
     return null;
   }
 }

@@ -3,7 +3,19 @@ import { DomainException } from '../../shared/exceptions/domain.exception';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { parseWithZod } from './parse-with-zod';
 import { runIdSchema } from './run.schemas';
-import type { RunId } from '@content-chain/shared';
+import type { ConversationId, RunId } from '@content-chain/shared';
+import { RunLogLevel } from '../domain/run.types';
+
+interface GetRunLogsOutput {
+  items: {
+    at: string;
+    level: RunLogLevel;
+    message: string;
+    step: string | undefined;
+    requestId: string | undefined;
+    conversationId: ConversationId | null;
+  }[];
+}
 
 @Injectable()
 export class GetRunLogsUseCase {

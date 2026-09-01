@@ -1158,7 +1158,7 @@ Verifier i `GATEWAY_FAIL` bez zmian. Token `(ścieżka rolek: …)` jest w promp
 
 ### KROK 7 — HTTP Runs: DTO, Zod, snapshot, lista
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Start `reel_*` + `platform`; snapshot addytywny; HITL z `reelIdeas`; lista filtruje `taskType=reel_ideas`; Prisma mapuje `taskType` przez `isRunTaskType`. Major 4.1.3; `SPEC-RUNY.md` R-3f.
 

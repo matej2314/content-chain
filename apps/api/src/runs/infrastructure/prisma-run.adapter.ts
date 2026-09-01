@@ -5,11 +5,11 @@ import {
   createConversationId,
   createRunId,
   createUserId,
+  isRunTaskType,
   isUserId,
   type ContentLanguage,
   type RunId,
   type RunStatus,
-  type RunTaskType,
   type SocialPlatform,
 } from '@content-chain/shared';
 import { PrismaService } from '../../shared/persistence/prisma.service';
@@ -225,10 +225,13 @@ export class PrismaRunAdapter implements RunRepository {
   }
 
   private toSnapshot(row: RunRow): RunSnapshot {
+    if (!isRunTaskType(row.taskType)) {
+      throw new Error(`Run.taskType is not a RunTaskType: ${row.taskType}`);
+    }
     return {
       id: createRunId(row.id),
       conversationId: createConversationId(row.conversationId),
-      taskType: row.taskType as RunTaskType,
+      taskType: row.taskType,
       platform: row.platform as SocialPlatform,
       language: row.language as ContentLanguage,
       status: row.status as RunStatus,

@@ -1,13 +1,50 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DomainException } from '../../shared/exceptions/domain.exception';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
+import {
+  RUN_REPOSITORY,
+  RunStartedBy,
+  type RunRepository,
+} from '../domain/run.port';
 import {
   RUN_RESULT_READER,
   type RunResultReader,
 } from '../domain/run-result-reader.port';
 import { parseWithZod } from './parse-with-zod';
 import { runIdSchema } from './run.schemas';
-import type { RunId } from '@content-chain/shared';
+import type {
+  RunId,
+  RunTaskType,
+  SocialPlatform,
+  ContentLanguage,
+  RunStatus,
+  ConversationId,
+} from '@content-chain/shared';
+import type {
+  ReelIdea,
+  ReelScript,
+  SocialContent,
+  SocialIdea,
+} from '../../social/domain/social.types';
+
+interface GetRunOutput {
+  runId: RunId;
+  taskType: RunTaskType;
+  platform: SocialPlatform;
+  language: ContentLanguage;
+  status: RunStatus;
+  conversationId: ConversationId;
+  createdAt: string;
+  startedBy: RunStartedBy | null;
+  result: {
+    ideas: SocialIdea[];
+    content: SocialContent | null;
+    reelIdeas: ReelIdea[];
+    reelScript: ReelScript | null;
+  };
+  hitl: {
+    options: SocialIdea[] | ReelIdea[];
+  } | null;
+}
 
 @Injectable()
 export class GetRunUseCase {
@@ -22,9 +59,18 @@ export class GetRunUseCase {
     if (!run) {
       throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
     }
-    const ideas = await this.results.listIdeas(run.id);
-    const stored = await this.results.getContent(run.id);
-    const hitl = run.status === 'awaiting_hitl' ? { options: ideas } : null;
+
+    const [ideas, reelIdeas, stored, storedReel] = await Promise.all([
+      this.results.listIdeas(run.id),
+      this.results.listReelIdeas(run.id),
+      this.results.getContent(run.id),
+      this.results.getReelScript(run.id),
+    ]);
+
+    const hitlOptions =
+      run.taskType === 'reel_ideas_then_scripts' ? reelIdeas : ideas;
+    const hitl =
+      run.status === 'awaiting_hitl' ? { options: hitlOptions } : null;
     return {
       runId: run.id,
       taskType: run.taskType,
@@ -37,6 +83,8 @@ export class GetRunUseCase {
       result: {
         ideas,
         content: stored?.content ?? null,
+        reelIdeas,
+        reelScript: storedReel?.script ?? null,
       },
       hitl,
     };

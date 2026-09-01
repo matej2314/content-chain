@@ -3,12 +3,38 @@ import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import type { RunResultReader } from '../domain/run-result-reader.port';
 import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import type { RunRecord } from '../domain/run.types';
-import type { SocialIdea } from '../../social/domain/social.types';
+import type {
+  ReelIdea,
+  ReelScript,
+  SocialIdea,
+} from '../../social/domain/social.types';
 import { GetRunUseCase } from './get-run.use-case';
 
 const ideas: SocialIdea[] = [
   { id: 'idea_1', title: 'T1', angle: 'A1', hook: 'H1' },
 ];
+
+const reelIdeas: ReelIdea[] = [
+  {
+    id: 'idea_1',
+    title: 'R1',
+    description: 'D1',
+    hook: 'H1',
+    durationSeconds: 15,
+  },
+];
+
+const reelScript: ReelScript = {
+  segments: [
+    {
+      startSeconds: 0,
+      endSeconds: 15,
+      onScreen: 'Hook',
+      voiceover: 'Powiedz problem.',
+    },
+  ],
+  cta: 'Napisz do nas',
+};
 
 function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
   const unexpected = async () => {
@@ -30,7 +56,10 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
   };
 }
 
-function makeRun(status: RunRecord['status']): RunRecord {
+function makeRun(
+  status: RunRecord['status'],
+  overrides: Partial<RunRecord> = {},
+): RunRecord {
   return {
     id: newRunId(),
     conversationId: newConversationId(),
@@ -46,6 +75,7 @@ function makeRun(status: RunRecord['status']): RunRecord {
     contentRefineCount: 0,
     recoveryAttempts: 0,
     createdAt: new Date('2026-08-18T12:00:00.000Z'),
+    ...overrides,
   };
 }
 
@@ -80,8 +110,39 @@ describe('GetRunUseCase', () => {
       conversationId: run.conversationId,
       createdAt: run.createdAt.toISOString(),
       startedBy: null,
-      result: { ideas, content: null },
+      result: { ideas, content: null, reelIdeas: [], reelScript: null },
       hitl: { options: ideas },
+    });
+  });
+
+  it('returns hitl.options from reelIdeas when reel_ideas_then_scripts awaits HITL', async () => {
+    const run = makeRun('awaiting_hitl', {
+      taskType: 'reel_ideas_then_scripts',
+    });
+    const useCase = new GetRunUseCase(
+      unusedRepo({ getById: async () => asSnapshot(run) }),
+      fakeReader({
+        listIdeas: async () => [],
+        listReelIdeas: async () => reelIdeas,
+      }),
+    );
+
+    await expect(useCase.execute(run.id)).resolves.toEqual({
+      runId: run.id,
+      taskType: 'reel_ideas_then_scripts',
+      platform: run.platform,
+      language: run.language,
+      status: 'awaiting_hitl',
+      conversationId: run.conversationId,
+      createdAt: run.createdAt.toISOString(),
+      startedBy: null,
+      result: {
+        ideas: [],
+        content: null,
+        reelIdeas,
+        reelScript: null,
+      },
+      hitl: { options: reelIdeas },
     });
   });
 
@@ -94,7 +155,12 @@ describe('GetRunUseCase', () => {
 
     const snapshot = await useCase.execute(run.id);
     expect(snapshot.hitl).toBeNull();
-    expect(snapshot.result.ideas).toEqual(ideas);
+    expect(snapshot.result).toEqual({
+      ideas,
+      content: null,
+      reelIdeas: [],
+      reelScript: null,
+    });
   });
 
   it('maps stored content into result', async () => {
@@ -111,7 +177,35 @@ describe('GetRunUseCase', () => {
     );
 
     const snapshot = await useCase.execute(run.id);
-    expect(snapshot.result).toEqual({ ideas, content });
+    expect(snapshot.result).toEqual({
+      ideas,
+      content,
+      reelIdeas: [],
+      reelScript: null,
+    });
+    expect(snapshot.hitl).toBeNull();
+  });
+
+  it('maps stored reel script into result', async () => {
+    const run = makeRun('completed', { taskType: 'reel_script' });
+    const useCase = new GetRunUseCase(
+      unusedRepo({ getById: async () => asSnapshot(run) }),
+      fakeReader({
+        listIdeas: async () => [],
+        getReelScript: async () => ({
+          script: reelScript,
+          verification: { ok: true, contextIssues: [], languageIssues: [] },
+        }),
+      }),
+    );
+
+    const snapshot = await useCase.execute(run.id);
+    expect(snapshot.result).toEqual({
+      ideas: [],
+      content: null,
+      reelIdeas: [],
+      reelScript,
+    });
     expect(snapshot.hitl).toBeNull();
   });
 

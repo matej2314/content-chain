@@ -174,6 +174,76 @@ describe('StartRunUseCase', () => {
     });
   });
 
+  it.each([
+    'reel_ideas',
+    'reel_script',
+    'reel_ideas_then_scripts',
+  ] as const)(
+    'parses %s with platform and persists a queued run',
+    async (taskType) => {
+      const created: RunRecord[] = [];
+      const create = jest.fn(async (run: RunRecord) => {
+        created.push(run);
+      });
+      const getById = jest.fn(async (id: RunRecord['id']) => {
+        const run = created.find((row) => row.id === id);
+        return run ? asSnapshot(run) : null;
+      });
+      const { useCase, completeness, notifyQueued } = makeUseCase({
+        runs: unusedRepo({ create, getById }),
+      });
+
+      const result = await useCase.execute(
+        validCommand({ taskType, platform: 'linkedin' }),
+      );
+
+      expect(completeness.execute).toHaveBeenCalledTimes(1);
+      expect(created).toHaveLength(1);
+      const run = created[0]!;
+      expect(run).toEqual(
+        expect.objectContaining({
+          taskType,
+          platform: 'linkedin',
+          language: 'pl',
+          status: 'queued',
+        }),
+      );
+      expect(notifyQueued).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({
+        id: run.id,
+        conversationId: run.conversationId,
+        status: 'queued',
+      });
+    },
+  );
+
+  it('rejects a reel command without platform with VALIDATION_FAILED and skips the gate and persist', async () => {
+    const create = jest.fn();
+    const { useCase, completeness, notifyQueued } = makeUseCase({
+      runs: unusedRepo({ create }),
+    });
+
+    await expect(
+      useCase.execute({
+        taskType: 'reel_ideas',
+        language: 'pl',
+        brief: { topic: 'Q3' },
+      } as unknown as StartRunCommand),
+    ).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'VALIDATION_FAILED',
+      httpStatus: 400,
+      message: 'Application command validation failed',
+      details: expect.arrayContaining([
+        expect.objectContaining({ path: 'platform' }),
+      ]),
+    });
+
+    expect(completeness.execute).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(notifyQueued).not.toHaveBeenCalled();
+  });
+
   it('stores selectedIdeaIds when the command includes them', async () => {
     const created: RunRecord[] = [];
     const { useCase } = makeUseCase({
