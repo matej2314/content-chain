@@ -5,7 +5,7 @@ Język, w którym materiał powinien być napisany: {{language}}.
 Kontekst firmy (JSON — jedyne źródło prawdy o firmie):
 {{company}}
 
-Materiał do oceny (JSON — pomysły albo treść posta):
+Materiał do oceny (JSON — pomysły na post, treść posta, pomysły na rolki albo scenariusz rolki):
 {{payload}}
 
 ## Obszar 1 — spójność z kontekstem firmy
@@ -48,7 +48,7 @@ Nie czepiaj się świadomego stylu SM (równoważniki, krótkie linie, pytanie b
 ## Zakazy
 
 - Nie sugeruj nowych usług ani liczb spoza kontekstu jako „poprawki”.
-- Nie oceniaj rolek / wideo — to posty.
+- Oceniaj ten payload, który dostałeś (post albo rolka). Nie wymagaj pól z drugiego formatu.
 - Nie zwracaj poprawionego tekstu. Tylko werdykt.
 - Nie odwołuj się do plików repo.
 

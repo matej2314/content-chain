@@ -421,7 +421,7 @@ Mapowanie `payload as ReelIdea` jest **tym samym** wzorcem co żywy `listIdeas` 
 
 ### KROK 4 — Zod rolek i prompty
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Structured output LLM dla rolek + szablony. Major 4.1.2; `SPEC-SOCIAL.md` S-3, S-7c.
 

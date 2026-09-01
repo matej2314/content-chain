@@ -1,9 +1,15 @@
-import { ideasOutputSchema, verifierOutputSchema } from './social.schemas';
+import {
+  ideasOutputSchema,
+  reelIdeasOutputSchema,
+  reelScriptOutputSchema,
+  verifierOutputSchema,
+} from './social.schemas';
 import { parseLlmJson } from './parse-llm-json';
 
 describe('parseLlmJson', () => {
   it('parses fenced JSON ideas', () => {
-    const raw = '```json\n{"ideas":[{"title":"A","angle":"B","hook":"C"}]}\n```';
+    const raw =
+      '```json\n{"ideas":[{"title":"A","angle":"B","hook":"C"}]}\n```';
     const out = parseLlmJson(ideasOutputSchema, raw);
     expect(out.ideas).toHaveLength(1);
   });
@@ -102,5 +108,44 @@ describe('parseLlmJson', () => {
         code: 'STRUCTURED_OUTPUT_INVALID',
       }),
     );
+  });
+
+  it('parses reel ideas with numeric durationSeconds', () => {
+    const out = parseLlmJson(
+      reelIdeasOutputSchema,
+      '{"ideas":[{"title":"R1","description":"D1","hook":"H1","durationSeconds":15}]}',
+    );
+    expect(out.ideas[0]?.durationSeconds).toBe(15);
+  });
+
+  it('coerces durationSeconds from string 30', () => {
+    const out = parseLlmJson(
+      reelIdeasOutputSchema,
+      '{"ideas":[{"title":"R1","description":"D1","hook":"H1","durationSeconds":"30"}]}',
+    );
+    expect(out.ideas[0]?.durationSeconds).toBe(30);
+  });
+
+  it('rejects durationSeconds 45', () => {
+    expect(() =>
+      parseLlmJson(
+        reelIdeasOutputSchema,
+        '{"ideas":[{"title":"R1","description":"D1","hook":"H1","durationSeconds":45}]}',
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        name: 'DomainException',
+        code: 'STRUCTURED_OUTPUT_INVALID',
+      }),
+    );
+  });
+
+  it('parses reel script segments', () => {
+    const out = parseLlmJson(
+      reelScriptOutputSchema,
+      '{"segments":[{"startSeconds":0,"endSeconds":15,"onScreen":"Tekst","voiceover":"Powiedz"}],"cta":"Napisz do nas"}',
+    );
+    expect(out.segments).toHaveLength(1);
+    expect(out.cta).toBe('Napisz do nas');
   });
 });

@@ -17,6 +17,41 @@ export const contentOutputSchema = z.object({
   cta: z.string().min(1).optional(),
 });
 
+export const reelDurationSecondsSchema = z.preprocess(
+  (value: unknown) => {
+    if (typeof value === 'string' && /^(15|30|90)$/.test(value)) {
+      return Number(value);
+    }
+    return value;
+  },
+  z.union([z.literal(15), z.literal(30), z.literal(90)]),
+);
+
+export const reelIdeaSchema = z.object({
+  id: z.string().min(1).optional(),
+  title: z.string().min(1),
+  description: z.string().min(1),
+  hook: z.string().min(1),
+  durationSeconds: reelDurationSecondsSchema,
+});
+
+export const reelIdeasOutputSchema = z.object({
+  ideas: z.array(reelIdeaSchema).min(1),
+});
+
+export const reelScriptSegmentSchema = z.object({
+  startSeconds: z.number(),
+  endSeconds: z.number(),
+  onScreen: z.string().min(1),
+  voiceover: z.string().min(1),
+});
+
+export const reelScriptOutputSchema = z.object({
+  segments: z.array(reelScriptSegmentSchema).min(1),
+  cta: z.string().min(1),
+  notes: z.string().min(1).optional(),
+});
+
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -56,3 +91,5 @@ export const verifierOutputSchema = z.object({
 export type IdeasOutput = z.infer<typeof ideasOutputSchema>;
 export type ContentOutput = z.infer<typeof contentOutputSchema>;
 export type VerifierOutput = z.infer<typeof verifierOutputSchema>;
+export type ReelIdeasOutput = z.infer<typeof reelIdeasOutputSchema>;
+export type ReelScriptOutput = z.infer<typeof reelScriptOutputSchema>;
