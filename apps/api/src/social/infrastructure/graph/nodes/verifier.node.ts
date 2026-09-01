@@ -1,10 +1,18 @@
 import { unbrand } from '@content-chain/shared';
 import { verifierOutputSchema } from '../../../application/social.schemas';
+import { isReelTaskType } from '../../../domain/reel-task';
 import { loadPrompt, renderPrompt } from '../../prompts/load-prompt';
 import type { RunLifecyclePort } from '../../../../runs/domain/run-lifecycle.port';
 import type { SocialGraphState } from '../state';
 import type { LlmHopService } from '../llm-hop';
 import type { VerifierVerdict } from '../../../domain/social.types';
+
+function verifierPayload(state: SocialGraphState): unknown {
+  if (isReelTaskType(state.taskType)) {
+    return state.phase === 'content' ? state.reelScript : state.reelIdeas;
+  }
+  return state.phase === 'content' ? state.content : state.ideas;
+}
 
 export function createVerifierNode(
   hop: LlmHopService,
@@ -14,7 +22,7 @@ export function createVerifierNode(
   return async (
     state: SocialGraphState,
   ): Promise<Partial<SocialGraphState>> => {
-    const payload = state.phase === 'content' ? state.content : state.ideas;
+    const payload = verifierPayload(state);
     const { data, requestId } = await hop.chatJson({
       runId: state.runId,
       conversationId: state.conversationId,

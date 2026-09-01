@@ -33,6 +33,8 @@ function makeState(
       hashtags: ['#acme'],
       cta: 'Napisz do nas',
     },
+    reelIdeas: [],
+    reelScript: null,
     verdict: { ok: true, contextIssues: [], languageIssues: [] },
     ideasRefineCount: 0,
     contentRefineCount: 0,
@@ -110,6 +112,60 @@ describe('createVerifierNode', () => {
     const { userContent } = (hop.chatJson as jest.Mock).mock.calls[0][0];
     expect(userContent).toContain(JSON.stringify(state.content));
     expect(userContent).not.toContain(state.ideas[0].title);
+  });
+
+  it('sends reelIdeas as payload when taskType is reel and phase is ideas', async () => {
+    const hop = fakeHop({
+      data: { ok: true, contextIssues: [], languageIssues: [] },
+    });
+    const reelIdeas = [
+      {
+        id: 'idea_1',
+        title: 'R1',
+        description: 'D1',
+        hook: 'H1',
+        durationSeconds: 15 as const,
+      },
+    ];
+    const state = makeState({
+      taskType: 'reel_ideas',
+      phase: 'ideas',
+      reelIdeas,
+    });
+
+    await createVerifierNode(hop, fakeAppendLog())(state);
+
+    const { userContent } = (hop.chatJson as jest.Mock).mock.calls[0][0];
+    expect(userContent).toContain(JSON.stringify(reelIdeas));
+    expect(userContent).not.toContain(state.ideas[0].title);
+  });
+
+  it('sends reelScript as payload when taskType is reel and phase is content', async () => {
+    const hop = fakeHop({
+      data: { ok: true, contextIssues: [], languageIssues: [] },
+    });
+    const reelScript = {
+      segments: [
+        {
+          startSeconds: 0,
+          endSeconds: 15,
+          onScreen: 'Hook',
+          voiceover: 'Powiedz problem.',
+        },
+      ],
+      cta: 'Napisz do nas',
+    };
+    const state = makeState({
+      taskType: 'reel_script',
+      phase: 'content',
+      reelScript,
+    });
+
+    await createVerifierNode(hop, fakeAppendLog())(state);
+
+    const { userContent } = (hop.chatJson as jest.Mock).mock.calls[0][0];
+    expect(userContent).toContain(JSON.stringify(reelScript));
+    expect(userContent).not.toContain(state.content?.body);
   });
 
   it('logs context and language issues separately when the verdict fails', async () => {

@@ -1,7 +1,7 @@
 import { emptyCompanyContext } from '../../../../company-context/domain/company-context.types';
 import { newConversationId, newRunId } from '../../../../shared/http/new-ids';
 import type { SocialResultStore } from '../../../domain/social-result.port';
-import type { SocialIdea } from '../../../domain/social.types';
+import type { SocialIdea, ReelIdea } from '../../../domain/social.types';
 import type { SocialGraphState } from '../state';
 import { createPersistIdeasNode } from './persist-ideas.node';
 
@@ -20,6 +20,8 @@ function makeState(
     company: emptyCompanyContext(),
     ideas: [],
     content: { body: 'placeholder', hashtags: [] },
+    reelIdeas: [],
+    reelScript: null,
     verdict: { ok: true, contextIssues: [], languageIssues: [] },
     ideasRefineCount: 0,
     contentRefineCount: 0,
@@ -62,6 +64,28 @@ describe('createPersistIdeasNode', () => {
     expect(store.replaceIdeas).toHaveBeenCalledTimes(1);
     expect(store.replaceIdeas).toHaveBeenCalledWith(state.runId, ideas);
     expect(store.replaceContent).not.toHaveBeenCalled();
+    expect(store.replaceReelIdeas).not.toHaveBeenCalled();
+    expect(out).toEqual({});
+  });
+
+  it('replaces reel ideas and does not call replaceIdeas', async () => {
+    const reelIdeas: ReelIdea[] = [
+      {
+        id: 'idea_1',
+        title: 'R1',
+        description: 'D1',
+        hook: 'H1',
+        durationSeconds: 15,
+      },
+    ];
+    const store = fakeStore();
+    const state = makeState({ taskType: 'reel_ideas', reelIdeas });
+
+    const out = await createPersistIdeasNode(store)(state);
+
+    expect(store.replaceReelIdeas).toHaveBeenCalledTimes(1);
+    expect(store.replaceReelIdeas).toHaveBeenCalledWith(state.runId, reelIdeas);
+    expect(store.replaceIdeas).not.toHaveBeenCalled();
     expect(out).toEqual({});
   });
 

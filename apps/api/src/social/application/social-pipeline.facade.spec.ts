@@ -1,13 +1,30 @@
 import type { SocialGraphState } from '../infrastructure/graph/state';
+import type { ReelIdea } from '../domain/social.types';
 import { toOutcome } from './social-pipeline.facade';
 
 const ideas = [{ id: 'idea_1', title: 'T1', angle: 'A1', hook: 'H1' }];
+
+const reelIdeas: ReelIdea[] = [
+  {
+    id: 'idea_r1',
+    title: 'R1',
+    description: 'D1',
+    hook: 'H1',
+    durationSeconds: 15,
+  },
+];
 
 function makeFinal(
   overrides: Partial<
     Pick<
       SocialGraphState,
-      'failedCode' | 'failedMessage' | 'verdict' | 'ideas' | 'content'
+      | 'failedCode'
+      | 'failedMessage'
+      | 'verdict'
+      | 'ideas'
+      | 'content'
+      | 'reelIdeas'
+      | 'reelScript'
     >
   > = {},
 ) {
@@ -17,6 +34,8 @@ function makeFinal(
     verdict: null,
     ideas,
     content: null,
+    reelIdeas: [] as ReelIdea[],
+    reelScript: null,
     ...overrides,
   };
 }
@@ -51,6 +70,32 @@ describe('toOutcome', () => {
       ideas,
       content,
       reelIdeas: [],
+      reelScript: null,
+    });
+  });
+
+  it('returns awaiting_hitl for ideas phase of reel_ideas_then_scripts', () => {
+    expect(
+      toOutcome(
+        { taskType: 'reel_ideas_then_scripts' },
+        'ideas',
+        makeFinal({ reelIdeas }),
+      ),
+    ).toEqual({ kind: 'awaiting_hitl', ideas: [], reelIdeas });
+  });
+
+  it('returns completed for reel_ideas without HITL', () => {
+    expect(
+      toOutcome(
+        { taskType: 'reel_ideas' },
+        'ideas',
+        makeFinal({ reelIdeas }),
+      ),
+    ).toEqual({
+      kind: 'completed',
+      ideas,
+      content: null,
+      reelIdeas,
       reelScript: null,
     });
   });

@@ -18,6 +18,7 @@ import {
 } from '../../runs/domain/run-lifecycle.port';
 import type {
   PipelinePhase,
+  ReelIdea,
   SocialIdea,
   SocialPipelineOutcome,
 } from '../domain/social.types';
@@ -50,6 +51,7 @@ export class SocialPipelineFacade {
       ideasRefineCount: number;
       contentRefineCount: number;
       ideas: SocialIdea[];
+      reelIdeas: ReelIdea[];
     },
   ): Promise<SocialPipelineOutcome> {
     const final = await this.graph.invoke({
@@ -64,6 +66,8 @@ export class SocialPipelineFacade {
       company: null,
       ideas: extras.ideas,
       content: null,
+      reelIdeas: extras.reelIdeas,
+      reelScript: null,
       verdict: null,
       ideasRefineCount: extras.ideasRefineCount,
       contentRefineCount: extras.contentRefineCount,
@@ -79,7 +83,13 @@ export function toOutcome(
   phase: PipelinePhase,
   final: Pick<
     SocialGraphState,
-    'failedCode' | 'failedMessage' | 'verdict' | 'ideas' | 'content'
+    | 'failedCode'
+    | 'failedMessage'
+    | 'verdict'
+    | 'ideas'
+    | 'content'
+    | 'reelIdeas'
+    | 'reelScript'
   >,
 ): SocialPipelineOutcome {
   if (final.failedCode) {
@@ -95,11 +105,18 @@ export function toOutcome(
   if (phase === 'ideas' && run.taskType === 'post_ideas_then_content') {
     return { kind: 'awaiting_hitl', ideas: final.ideas, reelIdeas: [] };
   }
+  if (phase === 'ideas' && run.taskType === 'reel_ideas_then_scripts') {
+    return {
+      kind: 'awaiting_hitl',
+      ideas: [],
+      reelIdeas: final.reelIdeas,
+    };
+  }
   return {
     kind: 'completed',
     ideas: final.ideas,
     content: final.content,
-    reelIdeas: [],
-    reelScript: null,
+    reelIdeas: final.reelIdeas,
+    reelScript: final.reelScript,
   };
 }

@@ -2,8 +2,8 @@ import { createRequestId } from '@content-chain/shared';
 import { emptyCompanyContext } from '../../../../company-context/domain/company-context.types';
 import { DomainException } from '../../../../shared/exceptions/domain.exception';
 import { newConversationId, newRunId } from '../../../../shared/http/new-ids';
-import { contentOutputSchema } from '../../../application/social.schemas';
-import type { SocialIdea } from '../../../domain/social.types';
+import { contentOutputSchema, reelScriptOutputSchema } from '../../../application/social.schemas';
+import type { SocialIdea, ReelIdea } from '../../../domain/social.types';
 import type { LlmHopService } from '../llm-hop';
 import type { SocialGraphState } from '../state';
 import { createContentWriterNode } from './content-writer.node';
@@ -43,6 +43,8 @@ function makeState(
     company: emptyCompanyContext(),
     ideas: [],
     content: null,
+    reelIdeas: [],
+    reelScript: null,
     verdict: { ok: true, contextIssues: [], languageIssues: [] },
     ideasRefineCount: 0,
     contentRefineCount: 0,
@@ -177,6 +179,127 @@ describe('createContentWriterNode', () => {
         name: 'DomainException',
         code: 'STRUCTURED_OUTPUT_INVALID',
       }),
+    );
+  });
+
+  it('maps hop output to reelScript when taskType is reel_script', async () => {
+    const reelIdea: ReelIdea = {
+      id: 'idea_1',
+      title: 'R1',
+      description: 'D1',
+      hook: 'H1',
+      durationSeconds: 15,
+    };
+    const hop = fakeHop({
+      data: {
+        segments: [
+          {
+            startSeconds: 0,
+            endSeconds: 15,
+            onScreen: 'Hook',
+            voiceover: 'Powiedz problem.',
+          },
+        ],
+        cta: 'Napisz do nas',
+      },
+    });
+    const state = makeState({
+      taskType: 'reel_script',
+      reelIdeas: [reelIdea],
+    });
+
+    const out = await createContentWriterNode(hop)(state);
+
+    expect(out).toEqual({
+      reelScript: {
+        segments: [
+          {
+            startSeconds: 0,
+            endSeconds: 15,
+            onScreen: 'Hook',
+            voiceover: 'Powiedz problem.',
+          },
+        ],
+        cta: 'Napisz do nas',
+      },
+    });
+    expect(hop.chatJson).toHaveBeenCalledWith({
+      runId: state.runId,
+      conversationId: state.conversationId,
+      step: 'ContentWriterAgent',
+      schema: reelScriptOutputSchema,
+      userContent: expect.stringContaining('(ścieżka rolek: reel_script)'),
+    });
+    expect(hopUserContent(hop)).toContain(JSON.stringify(reelIdea));
+  });
+
+  it('injects the empty-reel-ideas instruction when reelIdeas is []', async () => {
+    const hop = fakeHop({
+      data: {
+        segments: [
+          {
+            startSeconds: 0,
+            endSeconds: 15,
+            onScreen: 'Hook',
+            voiceover: 'Powiedz problem.',
+          },
+        ],
+        cta: 'Napisz do nas',
+      },
+    });
+
+    await createContentWriterNode(hop)(
+      makeState({ taskType: 'reel_script', reelIdeas: [] }),
+    );
+
+    const userContent = hopUserContent(hop);
+    expect(userContent).toContain(
+      '[] — brak wybranych pomysłów; generuj scenariusz wyłącznie z brief.topic, brief.goal i kontekstu firmy',
+    );
+  });
+
+  it('filters reel ideas by selectedIdeaIds when the selection is non-empty', async () => {
+    const reelIdea: ReelIdea = {
+      id: 'idea_1',
+      title: 'R1',
+      description: 'D1',
+      hook: 'H1',
+      durationSeconds: 15,
+    };
+    const otherReel: ReelIdea = {
+      id: 'idea_2',
+      title: 'R2',
+      description: 'D2',
+      hook: 'H2',
+      durationSeconds: 30,
+    };
+    const hop = fakeHop({
+      data: {
+        segments: [
+          {
+            startSeconds: 0,
+            endSeconds: 15,
+            onScreen: 'Hook',
+            voiceover: 'Powiedz problem.',
+          },
+        ],
+        cta: 'Napisz do nas',
+      },
+    });
+
+    await createContentWriterNode(hop)(
+      makeState({
+        taskType: 'reel_script',
+        reelIdeas: [reelIdea, otherReel],
+        selectedIdeaIds: [otherReel.id],
+      }),
+    );
+
+    const userContent = hopUserContent(hop);
+    expect(userContent).toContain(JSON.stringify([otherReel]));
+    expect(userContent).not.toContain(JSON.stringify(reelIdea));
+    expect(userContent).not.toContain(
+      '[] — brak wybranych pomysłów; generuj scenariusz wyłącznie z brief.topic, brief.goal i kontekstu firmy',
     );
   });
 });

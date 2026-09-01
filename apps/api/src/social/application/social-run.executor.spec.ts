@@ -145,6 +145,7 @@ describe('SocialRunExecutor', () => {
       });
       expect(facade.invokePhase).toHaveBeenCalledWith(run, 'ideas', {
         ideas: [],
+        reelIdeas: [],
         ideasRefineCount: 0,
         contentRefineCount: 0,
       });
@@ -219,6 +220,7 @@ describe('SocialRunExecutor', () => {
 
       expect(facade.invokePhase).toHaveBeenCalledWith(run, 'content', {
         ideas,
+        reelIdeas: [],
         ideasRefineCount: 0,
         contentRefineCount: 0,
       });
@@ -332,6 +334,7 @@ describe('SocialRunExecutor', () => {
       });
       expect(facade.invokePhase).toHaveBeenCalledWith(run, 'ideas', {
         ideas: [],
+        reelIdeas: [],
         ideasRefineCount: 0,
         contentRefineCount: 0,
       });

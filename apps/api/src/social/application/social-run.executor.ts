@@ -64,6 +64,7 @@ export class SocialRunExecutor implements RunExecutorPort {
     try {
       const outcome = await this.facade.invokePhase(run, phase, {
         ideas,
+        reelIdeas: [],
         ideasRefineCount: pipeline.ideasRefineCount,
         contentRefineCount: pipeline.contentRefineCount,
       });

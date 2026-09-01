@@ -727,7 +727,7 @@ Reszta S-4 (dwa obszary, interpunkcja haczyka) bez zmian.
 
 ### KROK 5 — Węzły, graf, fasada
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Routing po `taskType` + `phase`; HITL tylko `reel_ideas_then_scripts` w fazie ideas. Major 4.1.2; S-6 / S-7.
 

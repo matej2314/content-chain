@@ -29,6 +29,8 @@ const SocialState = z.object({
   company: z.custom<SocialGraphState['company']>(),
   ideas: z.custom<SocialGraphState['ideas']>(),
   content: z.custom<SocialGraphState['content']>(),
+  reelIdeas: z.custom<SocialGraphState['reelIdeas']>(),
+  reelScript: z.custom<SocialGraphState['reelScript']>(),
   verdict: z.custom<SocialGraphState['verdict']>(),
   ideasRefineCount: z.number(),
   contentRefineCount: z.number(),

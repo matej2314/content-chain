@@ -2,7 +2,7 @@ import { createRequestId } from '@content-chain/shared';
 import { emptyCompanyContext } from '../../../../company-context/domain/company-context.types';
 import { DomainException } from '../../../../shared/exceptions/domain.exception';
 import { newConversationId, newRunId } from '../../../../shared/http/new-ids';
-import { ideasOutputSchema } from '../../../application/social.schemas';
+import { ideasOutputSchema, reelIdeasOutputSchema } from '../../../application/social.schemas';
 import type { LlmHopService } from '../llm-hop';
 import type { SocialGraphState } from '../state';
 import { createIdeationNode } from './ideation.node';
@@ -22,6 +22,8 @@ function makeState(
     company: emptyCompanyContext(),
     ideas: [],
     content: { body: 'placeholder', hashtags: [] },
+    reelIdeas: [],
+    reelScript: null,
     verdict: { ok: true, contextIssues: [], languageIssues: [] },
     ideasRefineCount: 0,
     contentRefineCount: 0,
@@ -120,6 +122,42 @@ describe('createIdeationNode', () => {
 
     const { userContent } = (hop.chatJson as jest.Mock).mock.calls[0][0];
     expect(userContent).toContain('Liczba pomysłów: 5.');
+  });
+
+  it('returns reelIdeas and uses reelIdeasOutputSchema when taskType is reel_ideas', async () => {
+    const hop = fakeHop({
+      data: {
+        ideas: [
+          {
+            title: 'R1',
+            description: 'D1',
+            hook: 'H1',
+            durationSeconds: 15,
+          },
+        ],
+      },
+    });
+    const node = createIdeationNode(hop);
+    const state = makeState({ taskType: 'reel_ideas' });
+
+    const out = await node(state);
+
+    expect(out.ideas).toBeUndefined();
+    expect(out.reelIdeas).toHaveLength(1);
+    expect(out.reelIdeas?.[0]).toEqual({
+      id: expect.stringMatching(/^idea_[0-9a-f-]{36}$/i),
+      title: 'R1',
+      description: 'D1',
+      hook: 'H1',
+      durationSeconds: 15,
+    });
+    expect(hop.chatJson).toHaveBeenCalledWith({
+      runId: state.runId,
+      conversationId: state.conversationId,
+      step: 'IdeationAgent',
+      schema: reelIdeasOutputSchema,
+      userContent: expect.stringContaining('(ścieżka rolek: reel_ideas)'),
+    });
   });
 
   it('propagates STRUCTURED_OUTPUT_INVALID from the hop', async () => {

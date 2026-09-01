@@ -2,6 +2,8 @@ import type { CompanyContext } from '../../../company-context/domain/company-con
 import type { RunBrief } from '../../../runs/domain/run.types';
 import type {
   PipelinePhase,
+  ReelIdea,
+  ReelScript,
   SocialContent,
   SocialIdea,
   VerifierVerdict,
@@ -26,6 +28,8 @@ export type SocialGraphState = {
   company: CompanyContext | null;
   ideas: SocialIdea[];
   content: SocialContent | null;
+  reelIdeas: ReelIdea[];
+  reelScript: ReelScript | null;
   verdict: VerifierVerdict | null;
   ideasRefineCount: number;
   contentRefineCount: number;
