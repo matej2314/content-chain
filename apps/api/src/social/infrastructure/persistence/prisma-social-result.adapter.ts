@@ -9,6 +9,8 @@ import type {
   SocialContent,
   SocialIdea,
   VerifierVerdict,
+  ReelIdea,
+  ReelScript,
 } from '../../domain/social.types';
 
 @Injectable()
@@ -19,6 +21,19 @@ export class PrismaSocialResultAdapter implements SocialResultStore {
     await this.prisma.$transaction([
       this.prisma.socialIdea.deleteMany({ where: { runId } }),
       this.prisma.socialIdea.createMany({
+        data: ideas.map((idea) => ({
+          id: idea.id,
+          runId,
+          payload: toInputJson(idea),
+        })),
+      }),
+    ]);
+  }
+
+  async replaceReelIdeas(runId: RunId, ideas: ReelIdea[]): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.socialReelIdea.deleteMany({ where: { runId } }),
+      this.prisma.socialReelIdea.createMany({
         data: ideas.map((idea) => ({
           id: idea.id,
           runId,
@@ -46,9 +61,34 @@ export class PrismaSocialResultAdapter implements SocialResultStore {
     ]);
   }
 
+  async replaceReelScript(
+    runId: RunId,
+    script: ReelScript,
+    verification: VerifierVerdict,
+  ): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.socialReelScript.deleteMany({ where: { runId } }),
+      this.prisma.socialReelScript.create({
+        data: {
+          id: `srs_${uuidv4()}`,
+          runId,
+          payload: toInputJson(script),
+          verification: toInputJson(verification),
+        },
+      }),
+    ]);
+  }
+
   async listIdeas(runId: RunId): Promise<SocialIdea[]> {
     const rows = await this.prisma.socialIdea.findMany({ where: { runId } });
     return rows.map((row) => row.payload as SocialIdea);
+  }
+
+  async listReelIdeas(runId: RunId): Promise<ReelIdea[]> {
+    const ideasRows = await this.prisma.socialReelIdea.findMany({
+      where: { runId },
+    });
+    return ideasRows.map((row) => row.payload as ReelIdea);
   }
 
   async getContent(runId: RunId) {
@@ -60,6 +100,23 @@ export class PrismaSocialResultAdapter implements SocialResultStore {
     return {
       content: row.payload as SocialContent,
       verification: (row.verification as VerifierVerdict | null) ?? null,
+    };
+  }
+
+  async getReelScript(
+    runId: RunId,
+  ): Promise<{
+    script: ReelScript;
+    verification: VerifierVerdict | null;
+  } | null> {
+    const scriptRow = await this.prisma.socialReelScript.findFirst({
+      where: { runId },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!scriptRow) return null;
+    return {
+      script: scriptRow.payload as ReelScript,
+      verification: (scriptRow.verification as VerifierVerdict | null) ?? null,
     };
   }
 

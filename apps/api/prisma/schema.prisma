@@ -44,7 +44,7 @@ model CompanyContext {
 }
 
 model Run {
-  id                 String          @id
+  id                 String             @id
   conversationId     String
   taskType           String
   platform           String
@@ -54,15 +54,17 @@ model Run {
   selectedIdeaIds    Json?
   startedByUserId    String?
   pipelinePhase      String?
-  ideasRefineCount   Int             @default(0)
-  contentRefineCount Int             @default(0)
-  recoveryAttempts   Int             @default(0)
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  startedBy          User?           @relation("RunStartedBy", fields: [startedByUserId], references: [id])
+  ideasRefineCount   Int                @default(0)
+  contentRefineCount Int                @default(0)
+  recoveryAttempts   Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  startedBy          User?              @relation("RunStartedBy", fields: [startedByUserId], references: [id])
   logs               RunLog[]
   ideas              SocialIdea[]
   contents           SocialContent[]
+  reelIdeas          SocialReelIdea[]
+  reelScripts        SocialReelScript[]
 
   @@index([createdAt])
   @@index([status])
@@ -96,6 +98,27 @@ model SocialIdea {
 }
 
 model SocialContent {
+  id           String   @id
+  runId        String
+  payload      Json
+  verification Json?
+  createdAt    DateTime @default(now())
+  run          Run      @relation(fields: [runId], references: [id])
+
+  @@index([runId])
+}
+
+model SocialReelIdea {
+  id        String   @id
+  runId     String
+  payload   Json
+  createdAt DateTime @default(now())
+  run       Run      @relation(fields: [runId], references: [id])
+
+  @@index([runId])
+}
+
+model SocialReelScript {
   id           String   @id
   runId        String
   payload      Json

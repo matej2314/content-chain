@@ -276,7 +276,7 @@ Każdy `jest.Mocked<SocialResultStore>` w repo musi dostać te cztery metody w t
 
 ### KROK 3 — Prisma: `SocialReelIdea` / `SocialReelScript` + adapter
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Append-only tabele rolek (P-7); adapter implementuje nowe metody portu. Major 4.1.1.
 
