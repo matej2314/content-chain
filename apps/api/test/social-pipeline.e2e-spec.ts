@@ -12,6 +12,8 @@ import {
   FakeLlmGateway,
   contentJson,
   ideasJson,
+  reelIdeasJson,
+  reelScriptJson,
   verifierFail,
   verifierOk,
   type FakeLlmScriptItem,
@@ -47,13 +49,37 @@ type SocialContentBody = {
   cta?: string;
 };
 
+type ReelIdeaBody = {
+  id: string;
+  title: string;
+  description: string;
+  hook: string;
+  durationSeconds: 15 | 30 | 90;
+};
+
+type ReelScriptBody = {
+  segments: Array<{
+    startSeconds: number;
+    endSeconds: number;
+    onScreen: string;
+    voiceover: string;
+  }>;
+  cta: string;
+  notes?: string;
+};
+
 type RunSnapshotBody = {
   runId: string;
   taskType: string;
   status: string;
   conversationId: string;
-  result: { ideas: SocialIdeaBody[]; content: SocialContentBody | null };
-  hitl: { options: SocialIdeaBody[] } | null;
+  result: {
+    ideas: SocialIdeaBody[];
+    content: SocialContentBody | null;
+    reelIdeas: ReelIdeaBody[];
+    reelScript: ReelScriptBody | null;
+  };
+  hitl: { options: SocialIdeaBody[] | ReelIdeaBody[] } | null;
 };
 
 type RunLogItem = {
@@ -83,6 +109,8 @@ function deployTestDb(): void {
 }
 
 async function wipeRuns(prisma: PrismaService): Promise<void> {
+  await prisma.socialReelScript.deleteMany();
+  await prisma.socialReelIdea.deleteMany();
   await prisma.socialContent.deleteMany();
   await prisma.socialIdea.deleteMany();
   await prisma.runLog.deleteMany();
@@ -126,7 +154,12 @@ async function putCompleteContext(app: INestApplication): Promise<void> {
 
 async function postRun(
   app: INestApplication,
-  taskType: 'post_ideas' | 'post_ideas_then_content',
+  taskType:
+    | 'post_ideas'
+    | 'post_ideas_then_content'
+    | 'reel_ideas'
+    | 'reel_script'
+    | 'reel_ideas_then_scripts',
 ): Promise<{ runId: string; conversationId: string; status: string }> {
   const response = await request(app.getHttpServer())
     .post('/api/v1/runs')
@@ -374,6 +407,115 @@ describe('Social pipeline (e2e, fake LLM)', () => {
             entry.requestId === FAKE_LLM_REQUEST_ID,
         ),
       ).toBe(true);
+    });
+  });
+
+  describe('D-15 reel_ideas full-auto', () => {
+    it('completes with reelIdeas, persists two rows, and lists only reel_ideas', async () => {
+      useScript([reelIdeasJson(), verifierOk()]);
+      const created = await postRun(app, 'reel_ideas');
+
+      const snapshot = await waitForRunStatus(app, created.runId, 'completed');
+      expect(snapshot.taskType).toBe('reel_ideas');
+      expect(snapshot.hitl).toBeNull();
+      expect(snapshot.result.content).toBeNull();
+      expect(snapshot.result.reelScript).toBeNull();
+      expect(snapshot.result.reelIdeas[0]?.id).toBe('idea_1');
+      expect(snapshot.result.reelIdeas).toEqual([
+        {
+          id: 'idea_1',
+          title: 'R1',
+          description: 'D1',
+          hook: 'H1',
+          durationSeconds: 15,
+        },
+        {
+          id: 'idea_2',
+          title: 'R2',
+          description: 'D2',
+          hook: 'H2',
+          durationSeconds: 30,
+        },
+      ]);
+      expect(
+        await prisma.socialReelIdea.count({ where: { runId: created.runId } }),
+      ).toBe(2);
+
+      const listed = await request(app.getHttpServer())
+        .get('/api/v1/runs')
+        .query({ taskType: 'reel_ideas' })
+        .expect(200);
+      const items = (
+        listed.body as { items: Array<{ runId: string; taskType: string }> }
+      ).items;
+      expect(items.every((item) => item.taskType === 'reel_ideas')).toBe(true);
+      expect(items.some((item) => item.runId === created.runId)).toBe(true);
+    });
+  });
+
+  describe('D-16 reel_ideas_then_scripts HITL', () => {
+    it('pauses with reel HITL options, then writes reelScript and completes', async () => {
+      useScript([reelIdeasJson(), verifierOk()]);
+      const created = await postRun(app, 'reel_ideas_then_scripts');
+
+      const paused = await waitForRunStatus(
+        app,
+        created.runId,
+        'awaiting_hitl',
+      );
+      expect(paused.hitl?.options).toEqual(paused.result.reelIdeas);
+      expect(paused.result.reelIdeas[0]?.id).toBe('idea_1');
+      expect(paused.result.reelScript).toBeNull();
+
+      useScript([reelScriptJson(), verifierOk()]);
+      const resume = await request(app.getHttpServer())
+        .post(`/api/v1/runs/${created.runId}/hitl`)
+        .send({ selectedIdeaIds: ['idea_1'] })
+        .expect(202);
+      expect(resume.body).toEqual({
+        runId: created.runId,
+        status: 'running',
+      });
+
+      const done = await waitForRunStatus(app, created.runId, 'completed');
+      expect(done.hitl).toBeNull();
+      expect(done.result.reelScript?.segments).toEqual([
+        {
+          startSeconds: 0,
+          endSeconds: 15,
+          onScreen: 'hook na ekranie',
+          voiceover: 'jedno zdanie problemu.',
+        },
+      ]);
+      expect(done.result.reelScript?.cta).toBe('Napisz do nas');
+      expect(
+        await prisma.socialReelScript.count({
+          where: { runId: created.runId },
+        }),
+      ).toBe(1);
+    });
+  });
+
+  describe('reel_script solo', () => {
+    it('completes with reelScript segments without HITL', async () => {
+      useScript([reelScriptJson(), verifierOk()]);
+      const created = await postRun(app, 'reel_script');
+
+      const snapshot = await waitForRunStatus(app, created.runId, 'completed');
+      expect(snapshot.taskType).toBe('reel_script');
+      expect(snapshot.hitl).toBeNull();
+      expect(snapshot.result.reelScript?.segments.length).toBeGreaterThan(0);
+      expect(snapshot.result.reelScript).toEqual({
+        segments: [
+          {
+            startSeconds: 0,
+            endSeconds: 15,
+            onScreen: 'hook na ekranie',
+            voiceover: 'jedno zdanie problemu.',
+          },
+        ],
+        cta: 'Napisz do nas',
+      });
     });
   });
 });

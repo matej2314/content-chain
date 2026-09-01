@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "7c2e1f4a-9b3d-4e8f-a1c5-6d0e9f2b8a47",
     "name": "Content Chain — Social pipeline (Milestone 4)",
-    "description": "Happy path Milestone 4: Setup kontekstu przez HTTP, potem `post_ideas` i `post_ideas_then_content`.\n\nWymaga żywego `apps/api` (`:3001`) i lokalnego gateway. Auth nie jest wymagany (Faza 5 później). Kolekcja nie woła gateway — klient uderza wyłącznie w api.\n\nNie jest to suite `pnpm test:e2e`. Jak odpalić: `apps/api/test/postman/README.md`.",
+    "description": "Happy path Milestone 4 + 4.1: Setup kontekstu przez HTTP, potem posty (A/B) i rolki (C `reel_ideas`, D `reel_ideas_then_scripts`).\n\nFoldery: Setup → A. post_ideas → B. post_ideas_then_content → C. reel_ideas → D. reel_ideas_then_scripts. Dowód rolek: Milestone 4.1.\n\nWymaga żywego `apps/api` (`:3001`) i lokalnego gateway. Auth nie jest wymagany (Faza 5 później). Kolekcja nie woła gateway — klient uderza wyłącznie w api.\n\nNie jest to suite `pnpm test:e2e`. Jak odpalić: `apps/api/test/postman/README.md`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -488,6 +488,421 @@
                   "  pm.expect(body.result.content.body).to.be.a('string').that.is.not.empty;",
                   "});",
                   "pm.collectionVariables.set('pollCountB', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{runId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "C. reel_ideas",
+      "description": "Full-auto rolek: `POST /runs` (`reel_ideas`) → poll `GET /runs/:runId` aż `completed` (nie `awaiting_hitl`) → `result.reelIdeas[0].id` → `GET .../logs`.",
+      "item": [
+        {
+          "name": "POST runs (reel_ideas)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 202', function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "pm.test('runId present', function () {",
+                  "  pm.expect(body.runId).to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status is a run enum', function () {",
+                  "  pm.expect(RUN_STATUSES).to.include(body.status);",
+                  "});",
+                  "pm.collectionVariables.set('runId', body.runId);",
+                  "pm.collectionVariables.set('pollCountC', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskType\": \"reel_ideas\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": { \"topic\": \"Q3\" }\n}\n"
+            },
+            "url": "{{baseUrl}}/runs"
+          }
+        },
+        {
+          "name": "GET run until completed (C)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const IN_FLIGHT = ['queued', 'running', 'interrupted'];",
+                  "const MAX_POLLS = 120;",
+                  "const POLL_MS = 3000;",
+                  "",
+                  "function wait(ms) {",
+                  "  const until = Date.now() + ms;",
+                  "  while (Date.now() < until) {",
+                  "    /* delay between Collection Runner / Newman retries */",
+                  "  }",
+                  "}",
+                  "",
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('status is a run enum', function () {",
+                  "  pm.expect(RUN_STATUSES).to.include(body.status);",
+                  "});",
+                  "",
+                  "const polls = Number(pm.collectionVariables.get('pollCountC') || 0) + 1;",
+                  "pm.collectionVariables.set('pollCountC', String(polls));",
+                  "",
+                  "if (body.status === 'failed') {",
+                  "  pm.test('run did not fail', function () {",
+                  "    pm.expect.fail('run failed: ' + pm.response.text());",
+                  "  });",
+                  "  return;",
+                  "}",
+                  "",
+                  "if (body.status === 'awaiting_hitl') {",
+                  "  pm.test('reel_ideas does not pause for HITL', function () {",
+                  "    pm.expect.fail('unexpected awaiting_hitl on reel_ideas');",
+                  "  });",
+                  "  return;",
+                  "}",
+                  "",
+                  "if (body.status !== 'completed') {",
+                  "  pm.test('status is still in-flight or completed', function () {",
+                  "    pm.expect(IN_FLIGHT).to.include(body.status);",
+                  "  });",
+                  "  if (polls >= MAX_POLLS) {",
+                  "    pm.test('completed within poll budget', function () {",
+                  "      pm.expect.fail('timeout waiting for completed (last: ' + body.status + ')');",
+                  "    });",
+                  "    return;",
+                  "  }",
+                  "  wait(POLL_MS);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "  return;",
+                  "}",
+                  "",
+                  "pm.test('result.reelIdeas is non-empty', function () {",
+                  "  pm.expect(body.result).to.be.an('object');",
+                  "  pm.expect(body.result.reelIdeas).to.be.an('array').that.is.not.empty;",
+                  "});",
+                  "pm.test('result.reelIdeas[0].id present', function () {",
+                  "  pm.expect(body.result.reelIdeas[0].id).to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('pollCountC', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{runId}}"
+          }
+        },
+        {
+          "name": "GET run logs (C)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const raw = pm.response.text();",
+                  "const body = pm.response.json();",
+                  "pm.test('items is a non-empty array', function () {",
+                  "  pm.expect(body.items).to.be.an('array').that.is.not.empty;",
+                  "});",
+                  "pm.test('some hop has conversationId', function () {",
+                  "  const hit = body.items.some(function (entry) {",
+                  "    return typeof entry.conversationId === 'string' && entry.conversationId.length > 0;",
+                  "  });",
+                  "  pm.expect(hit).to.eql(true);",
+                  "});",
+                  "pm.test('some hop has requestId', function () {",
+                  "  const hit = body.items.some(function (entry) {",
+                  "    return typeof entry.requestId === 'string' && entry.requestId.length > 0;",
+                  "  });",
+                  "  pm.expect(hit).to.eql(true);",
+                  "});",
+                  "pm.test('no gateway secret in body', function () {",
+                  "  pm.expect(raw).to.not.match(/X-Gateway-Key/i);",
+                  "  pm.expect(raw).to.not.match(/GATEWAY_KEY/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{runId}}/logs"
+          }
+        }
+      ]
+    },
+    {
+      "name": "D. reel_ideas_then_scripts",
+      "description": "`POST /runs` → poll aż `awaiting_hitl` → `result.reelIdeas[0].id` (nie `result.ideas`) → `POST .../hitl` → poll aż `completed` + niepuste `result.reelScript.segments`.",
+      "item": [
+        {
+          "name": "POST runs (reel_ideas_then_scripts)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 202', function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "pm.test('runId present', function () {",
+                  "  pm.expect(body.runId).to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status is a run enum', function () {",
+                  "  pm.expect(RUN_STATUSES).to.include(body.status);",
+                  "});",
+                  "pm.collectionVariables.set('runId', body.runId);",
+                  "pm.collectionVariables.set('ideaId', '');",
+                  "pm.collectionVariables.set('pollCountHitlD', '0');",
+                  "pm.collectionVariables.set('pollCountD', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskType\": \"reel_ideas_then_scripts\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": { \"topic\": \"Q3\" }\n}\n"
+            },
+            "url": "{{baseUrl}}/runs"
+          }
+        },
+        {
+          "name": "GET run until awaiting_hitl (D)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const IN_FLIGHT = ['queued', 'running', 'interrupted'];",
+                  "const MAX_POLLS = 120;",
+                  "const POLL_MS = 3000;",
+                  "",
+                  "function wait(ms) {",
+                  "  const until = Date.now() + ms;",
+                  "  while (Date.now() < until) {",
+                  "    /* delay between Collection Runner / Newman retries */",
+                  "  }",
+                  "}",
+                  "",
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('status is a run enum', function () {",
+                  "  pm.expect(RUN_STATUSES).to.include(body.status);",
+                  "});",
+                  "",
+                  "const polls = Number(pm.collectionVariables.get('pollCountHitlD') || 0) + 1;",
+                  "pm.collectionVariables.set('pollCountHitlD', String(polls));",
+                  "",
+                  "if (body.status === 'failed') {",
+                  "  pm.test('run did not fail before HITL', function () {",
+                  "    pm.expect.fail('run failed: ' + pm.response.text());",
+                  "  });",
+                  "  return;",
+                  "}",
+                  "",
+                  "if (body.status === 'completed') {",
+                  "  pm.test('reel_ideas_then_scripts pauses for HITL', function () {",
+                  "    pm.expect.fail('completed before HITL');",
+                  "  });",
+                  "  return;",
+                  "}",
+                  "",
+                  "if (body.status !== 'awaiting_hitl') {",
+                  "  pm.test('status is still in-flight or awaiting_hitl', function () {",
+                  "    pm.expect(IN_FLIGHT).to.include(body.status);",
+                  "  });",
+                  "  if (polls >= MAX_POLLS) {",
+                  "    pm.test('awaiting_hitl within poll budget', function () {",
+                  "      pm.expect.fail('timeout waiting for awaiting_hitl (last: ' + body.status + ')');",
+                  "    });",
+                  "    return;",
+                  "  }",
+                  "  wait(POLL_MS);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "  return;",
+                  "}",
+                  "",
+                  "pm.test('result.reelIdeas[0].id present', function () {",
+                  "  pm.expect(body.result).to.be.an('object');",
+                  "  pm.expect(body.result.reelIdeas).to.be.an('array').that.is.not.empty;",
+                  "  pm.expect(body.result.reelIdeas[0].id).to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('hitl.options matches reelIdeas', function () {",
+                  "  pm.expect(body.hitl).to.be.an('object');",
+                  "  pm.expect(body.hitl.options).to.eql(body.result.reelIdeas);",
+                  "});",
+                  "pm.collectionVariables.set('ideaId', body.result.reelIdeas[0].id);",
+                  "pm.collectionVariables.set('pollCountHitlD', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{runId}}"
+          }
+        },
+        {
+          "name": "POST hitl (D)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 202', function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('status running', function () {",
+                  "  pm.expect(body.status).to.eql('running');",
+                  "});",
+                  "pm.collectionVariables.set('pollCountD', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedIdeaIds\": [\"{{ideaId}}\"]\n}\n"
+            },
+            "url": "{{baseUrl}}/runs/{{runId}}/hitl"
+          }
+        },
+        {
+          "name": "GET run until completed (D)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const IN_FLIGHT = ['queued', 'running', 'interrupted', 'awaiting_hitl'];",
+                  "const MAX_POLLS = 120;",
+                  "const POLL_MS = 3000;",
+                  "",
+                  "function wait(ms) {",
+                  "  const until = Date.now() + ms;",
+                  "  while (Date.now() < until) {",
+                  "    /* delay between Collection Runner / Newman retries */",
+                  "  }",
+                  "}",
+                  "",
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('status is a run enum', function () {",
+                  "  pm.expect(RUN_STATUSES).to.include(body.status);",
+                  "});",
+                  "",
+                  "const polls = Number(pm.collectionVariables.get('pollCountD') || 0) + 1;",
+                  "pm.collectionVariables.set('pollCountD', String(polls));",
+                  "",
+                  "if (body.status === 'failed') {",
+                  "  pm.test('run did not fail after HITL', function () {",
+                  "    pm.expect.fail('run failed: ' + pm.response.text());",
+                  "  });",
+                  "  return;",
+                  "}",
+                  "",
+                  "if (body.status !== 'completed') {",
+                  "  pm.test('status is still in-flight or completed', function () {",
+                  "    pm.expect(IN_FLIGHT).to.include(body.status);",
+                  "  });",
+                  "  if (polls >= MAX_POLLS) {",
+                  "    pm.test('completed within poll budget', function () {",
+                  "      pm.expect.fail('timeout waiting for completed (last: ' + body.status + ')');",
+                  "    });",
+                  "    return;",
+                  "  }",
+                  "  wait(POLL_MS);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "  return;",
+                  "}",
+                  "",
+                  "pm.test('result.reelScript.segments is non-empty', function () {",
+                  "  pm.expect(body.result).to.be.an('object');",
+                  "  pm.expect(body.result.reelScript).to.be.an('object');",
+                  "  pm.expect(body.result.reelScript.segments).to.be.an('array').that.is.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('pollCountD', '0');"
                 ]
               }
             }

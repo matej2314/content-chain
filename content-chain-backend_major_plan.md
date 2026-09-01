@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), potem **Faza 4.1** (rolki) / **Faza 4.2** (Content + klej) / Milestone 4.2, potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, **4.1, 4.2**, 5 i 6 oraz osiągnięciu Milestone 4, **4.2**, 5–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), potem **Faza 4.2** (Content + klej) / Milestone 4.2, potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, **4.1, 4.2**, 5 i 6 oraz osiągnięciu Milestone 4, **4.2**, 5–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -413,9 +413,11 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 
 ## Faza 4.1 — Dopełnienie Social: rolki
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Po Milestone 4 (`OSIĄGNIĘTY`); **nie zmienia Fazy 4**. Mapowanie rolek z `Proces_SM` na istniejący BC Social: ten sam graf, model B, verifier `max N=2`, worker, SSE. HTTP nadal Runs. Taski `reel_ideas`, `reel_script`, `reel_ideas_then_scripts`. Snapshot addytywny (`reelIdeas` / `reelScript`). **Bez** `apps/api/src/content/`, **bez** composite dwugrafowego (nadal jeden `SocialRunExecutor`). Źródło: `SPEC-SOCIAL.md` (od v6), `docs/data_flow.md` §4b–4c, `mvp_v1_range_plan.md`.
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-4-1-rolki.md` (KROK 1–8 `WYKONANY` → major 4.1.1–4.1.4). Shared `reel_*`, domain/porty, Prisma, Zod 3 + prompty, węzły/graf/fasada, executor (`resolvePhase` jak żywy kod Fazy 4: `reel_script` / HITL+selekcja wymuszają `'content'` **przed** `storedPhase`), HTTP snapshot addytywny, e2e D-15/D-16 + Postman C/D. **MILESTONE 4.2 nie oznaczać** — wymaga Fazy 4.2 (`feature-plans/content-chain_feature_plan_faza-4-2-content.md`). Faza 4.2 pozostaje `NIE_ROZPOCZĘTY`.
 
 **Kontrakty typów:** `RunTaskType` += trzy `reel_*` w shared (bez Zod w shared). Domain: `ReelIdea`, `ReelScript`, `ReelDurationSeconds` = `15 \| 30 \| 90` (unia, nie brand). Zod application: `reelIdeaSchema` / `reelScriptSchema`. Port reader: `listReelIdeas`, `getReelScript`. Prisma → domain przez `isRunTaskType`. tsconfig **bez zmian**.
 
@@ -428,7 +430,7 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 
 ### Krok 4.1.1 — Shared, Prisma, porty, domain Social
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Enum `reel_*`; modele `SocialReelIdea` / `SocialReelScript` (append, P-7); port store i `RunResultReader` o sygnaturach reel; `PipelinePhase` zostaje `'ideas' \| 'content'`.
 
@@ -439,7 +441,7 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 
 ### Krok 4.1.2 — Schemy Zod, prompty, węzły, graf, fasada, executor
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Prompty `reel-*.prompt.md` / `refine-reel-*.prompt.md`; węzły ładują szablon po `taskType`; persist reel (dyskryminacja); `resolvePhase` analogicznie do postów (`reel_script` → `'content'`; HITL + selection → `'content'`); `storedPhase` pierwszym fallbackiem (jak Krok 4.4, bez edycji tamtego kroku). Fake LLM rozróżnia reel vs post.
 
@@ -451,7 +453,7 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 
 ### Krok 4.1.3 — HTTP Runs: DTO, Zod startu, snapshot, lista
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** DTO/Zod przyjmują `reel_*`; `platform` nadal wymagane; snapshot addytywny; lista filtr `taskType=reel_ideas`; adapter Prisma mapuje `taskType` przez `isRunTaskType`.
 
@@ -463,7 +465,7 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 
 ### Krok 4.1.4 — Testy unit, e2e, Postman
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Unit (executor, fasada, schemy, persist, węzły promptów). E2E: D-15, D-16 + regresja D-4…D-8. Postman: foldery **C. reel_ideas**, **D. reel_ideas_then_scripts** w `social-pipeline.postman-collection.json`. `reel_script` solo — Jest, nie obowiązkowy Postman.
 

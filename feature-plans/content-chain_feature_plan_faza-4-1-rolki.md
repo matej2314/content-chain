@@ -1253,7 +1253,7 @@ import { isRunTaskType } from '@content-chain/shared';
 
 ### KROK 8 — Testy unit/e2e D-15/D-16, Postman C/D, regresja
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Major 4.1.4; `SPEC-TESTY.md` D-15, D-16; regresja D-4…D-8; Postman foldery C/D.
 
