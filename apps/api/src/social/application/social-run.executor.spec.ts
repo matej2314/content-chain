@@ -1,8 +1,8 @@
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { LlmGatewayError } from '../../llm/llm-gateway.errors';
-import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import type { RunLifecyclePort } from '../../runs/domain/run-lifecycle.port';
 import type { RunRecord } from '../../runs/domain/run.types';
+import { makeContentRun, makeSocialRun } from '../../runs/run-record.test-helpers';
 import type { SocialResultStore } from '../domain/social-result.port';
 import type {
   PipelineState,
@@ -54,29 +54,6 @@ const reelScript: ReelScript = {
   ],
   cta: 'Napisz do nas',
 };
-
-function makeRun(overrides: Partial<RunRecord> = {}): RunRecord {
-  return {
-    id: newRunId(),
-    conversationId: newConversationId(),
-    taskType: 'post_ideas',
-    platform: 'linkedin',
-    language: 'pl',
-    status: 'running',
-    brief: { topic: 'Q3' },
-    selectedIdeaIds: null,
-    startedByUserId: null,
-    contentKind: null,
-    pipelinePhase: null,
-    ideasRefineCount: 0,
-    contentRefineCount: 0,
-    outlineRefineCount: 0,
-    copyRefineCount: 0,
-    recoveryAttempts: 0,
-    createdAt: new Date(),
-    ...overrides,
-  };
-}
 
 function fakeStore(
   overrides: {
@@ -150,7 +127,7 @@ function makeExecutor(args: {
 describe('SocialRunExecutor', () => {
   describe('phase resolution', () => {
     it('invokes ideas for post_ideas and completes with ideas summary', async () => {
-      const run = makeRun({ taskType: 'post_ideas' });
+      const run = makeSocialRun({ taskType: 'post_ideas' });
       const store = fakeStore();
       const lifecycle = fakeLifecycle();
       const facade = fakeFacade({
@@ -181,7 +158,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('invokes content for post_content even when stored phase is ideas', async () => {
-      const run = makeRun({ taskType: 'post_content' });
+      const run = makeSocialRun({ taskType: 'post_content' });
       const store = fakeStore({
         pipeline: {
           phase: 'ideas',
@@ -220,7 +197,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('invokes content after HITL when then_content has selectedIdeaIds', async () => {
-      const run = makeRun({
+      const run = makeSocialRun({
         taskType: 'post_ideas_then_content',
         selectedIdeaIds: ['idea_1'],
       });
@@ -256,7 +233,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('uses stored phase when task type does not force content', async () => {
-      const run = makeRun({ taskType: 'post_ideas' });
+      const run = makeSocialRun({ taskType: 'post_ideas' });
       const store = fakeStore({
         pipeline: {
           phase: 'content',
@@ -287,7 +264,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('invokes ideas for reel_ideas and completes with reelIdeas summary', async () => {
-      const run = makeRun({ taskType: 'reel_ideas' });
+      const run = makeSocialRun({ taskType: 'reel_ideas' });
       const store = fakeStore();
       const lifecycle = fakeLifecycle();
       const facade = fakeFacade({
@@ -318,7 +295,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('invokes content for reel_script even when stored phase is ideas', async () => {
-      const run = makeRun({ taskType: 'reel_script' });
+      const run = makeSocialRun({ taskType: 'reel_script' });
       const store = fakeStore({
         pipeline: {
           phase: 'ideas',
@@ -357,7 +334,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('invokes content after HITL when then_scripts has selectedIdeaIds', async () => {
-      const run = makeRun({
+      const run = makeSocialRun({
         taskType: 'reel_ideas_then_scripts',
         selectedIdeaIds: ['idea_1'],
       });
@@ -393,7 +370,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('uses stored phase when reel_ideas does not force content', async () => {
-      const run = makeRun({ taskType: 'reel_ideas' });
+      const run = makeSocialRun({ taskType: 'reel_ideas' });
       const store = fakeStore({
         pipeline: {
           phase: 'content',
@@ -426,7 +403,7 @@ describe('SocialRunExecutor', () => {
 
   describe('HITL', () => {
     it('pauses on stored ideas without selection and skips the facade (recovery)', async () => {
-      const run = makeRun({
+      const run = makeSocialRun({
         taskType: 'post_ideas_then_content',
         selectedIdeaIds: null,
       });
@@ -451,7 +428,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('treats an empty selectedIdeaIds list as no selection', async () => {
-      const run = makeRun({
+      const run = makeSocialRun({
         taskType: 'post_ideas_then_content',
         selectedIdeaIds: [],
       });
@@ -475,7 +452,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('pauses on stored reel ideas without selection and skips the facade (recovery)', async () => {
-      const run = makeRun({
+      const run = makeSocialRun({
         taskType: 'reel_ideas_then_scripts',
         selectedIdeaIds: null,
       });
@@ -500,7 +477,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('treats an empty selectedIdeaIds list as no selection for reel HITL', async () => {
-      const run = makeRun({
+      const run = makeSocialRun({
         taskType: 'reel_ideas_then_scripts',
         selectedIdeaIds: [],
       });
@@ -524,7 +501,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('awaits HITL from the facade after generating ideas', async () => {
-      const run = makeRun({
+      const run = makeSocialRun({
         taskType: 'post_ideas_then_content',
         selectedIdeaIds: null,
       });
@@ -556,7 +533,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('awaits HITL from the facade after generating reel ideas', async () => {
-      const run = makeRun({
+      const run = makeSocialRun({
         taskType: 'reel_ideas_then_scripts',
         selectedIdeaIds: null,
       });
@@ -590,7 +567,7 @@ describe('SocialRunExecutor', () => {
 
   describe('failed outcomes', () => {
     it('transitions failed when the facade returns a failed outcome', async () => {
-      const run = makeRun();
+      const run = makeSocialRun();
       const store = fakeStore();
       const lifecycle = fakeLifecycle();
       const facade = fakeFacade({
@@ -614,7 +591,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('maps DomainException to failedCode from the exception', async () => {
-      const run = makeRun();
+      const run = makeSocialRun();
       const store = fakeStore();
       const lifecycle = fakeLifecycle();
       const facade = fakeFacade(
@@ -631,7 +608,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('maps LlmGatewayError to gatewayCode', async () => {
-      const run = makeRun();
+      const run = makeSocialRun();
       const store = fakeStore();
       const lifecycle = fakeLifecycle();
       const facade = fakeFacade(
@@ -653,7 +630,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('falls back to GATEWAY_ERROR when LlmGatewayError has no code', async () => {
-      const run = makeRun();
+      const run = makeSocialRun();
       const store = fakeStore();
       const lifecycle = fakeLifecycle();
       const facade = fakeFacade(
@@ -670,7 +647,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('maps a generic Error to EXECUTOR_FAILED', async () => {
-      const run = makeRun();
+      const run = makeSocialRun();
       const store = fakeStore();
       const lifecycle = fakeLifecycle();
       const facade = fakeFacade(new Error('graph exploded'));
@@ -685,7 +662,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('maps a non-Error throw to EXECUTOR_FAILED with a default message', async () => {
-      const run = makeRun();
+      const run = makeSocialRun();
       const store = fakeStore();
       const lifecycle = fakeLifecycle();
       const facade = fakeFacade(async () => {
@@ -702,7 +679,7 @@ describe('SocialRunExecutor', () => {
     });
 
     it('does not catch store failures before invoke', async () => {
-      const run = makeRun();
+      const run = makeSocialRun();
       const store = fakeStore();
       store.listIdeas.mockRejectedValue(new Error('db down'));
       const lifecycle = fakeLifecycle();
@@ -729,7 +706,7 @@ describe('SocialRunExecutor', () => {
       fakeStore(),
     );
     await expect(
-      executor.execute(makeRun({ taskType: 'page_copy' })),
+      executor.execute(makeContentRun({ taskType: 'page_copy' })),
     ).rejects.toThrow(/non-social task/);
     expect(invokePhase).not.toHaveBeenCalled();
   });

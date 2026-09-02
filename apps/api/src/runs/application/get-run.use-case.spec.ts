@@ -1,8 +1,9 @@
 import { DomainException } from '../../shared/exceptions/domain.exception';
-import { newConversationId, newRunId } from '../../shared/http/new-ids';
+import { newRunId } from '../../shared/http/new-ids';
 import type { RunResultReader } from '../domain/run-result-reader.port';
 import type { RunRepository, RunSnapshot } from '../domain/run.port';
-import type { RunRecord } from '../domain/run.types';
+import type { RunRecord, SocialRunRecord } from '../domain/run.types';
+import { makeSocialRun } from '../run-record.test-helpers';
 import type {
   ReelIdea,
   ReelScript,
@@ -58,28 +59,15 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
 
 function makeRun(
   status: RunRecord['status'],
-  overrides: Partial<RunRecord> = {},
-): RunRecord {
-  return {
-    id: newRunId(),
-    conversationId: newConversationId(),
-    taskType: 'post_ideas_then_content',
-    platform: 'linkedin',
-    language: 'pl',
+  overrides: Partial<SocialRunRecord> = {},
+): SocialRunRecord {
+  return makeSocialRun({
     status,
-    brief: { topic: 'Q3' },
-    selectedIdeaIds: null,
-    startedByUserId: null,
-    contentKind: null,
+    taskType: 'post_ideas_then_content',
     pipelinePhase: 'ideas',
-    ideasRefineCount: 0,
-    contentRefineCount: 0,
-    outlineRefineCount: 0,
-    copyRefineCount: 0,
-    recoveryAttempts: 0,
     createdAt: new Date('2026-08-18T12:00:00.000Z'),
     ...overrides,
-  };
+  });
 }
 
 function asSnapshot(run: RunRecord): RunSnapshot {

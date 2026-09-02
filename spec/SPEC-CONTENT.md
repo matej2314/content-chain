@@ -1,7 +1,7 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-08-31
-data_modyfikacji: 2026-09-01
+data_modyfikacji: 2026-09-02
 ---
 
 # SPEC — Content (BC)
@@ -67,6 +67,10 @@ Ctn-9. Port `ContentResultStore` jest **osobny** od Social. Tabele kanoniczne: `
 
 Ctn-10. Liczniki refine Content na `Run`: kolumny `outlineRefineCount` i `copyRefineCount` (`Int`, default `0`). `savePipelineState` / `getPipelineState` mapują domain **1:1** na te kolumny (update tylko `pipelinePhase` + te dwa pola — bez zapisu `ideasRefineCount` / `contentRefineCount`). Analogia do Ctn-6: osobny słownik stanu, bez reuse etykiet Social.
 
+Ctn-11. Wejście pipeline’u: **`ContentBrief`** (`docs/dictionary.md`, `docs/dokumentacja_komunikacji.md`) — `topic` wymagane; `audience?`, `goal?` (string), `angle?`, `targetLength?` (integer ≥ 1). Import typu z `runs/domain/run.types` — **nie** `RunBrief`. `NormalizeBrief`: `topic.trim()` i ewent. trim `angle`; **zakaz** defaultu `ideaCount`. CTA **nie** jest polem briefu (`cta.items` kontekstu). `contentKind` na runie, nie w briefie.
+
+Zmiana względem wersji 3 / „Nie wolno — wystarczą `brief.topic` + kontekst”: to było jedyne dozwolone wejście poza kontekstem. Od tej wersji kanon pól to `ContentBrief`; nadal **zakaz** folderu `Materiały/` i CTA w briefie. `brief.topic` + kontekst pozostają minimum szkieletu (topic wymagane).
+
 Zmiana względem wersji 1: SPEC milczał o kolumnach refine; szkic feature planu 4.2 zakładał reuse `ideasRefineCount` = outline i `contentRefineCount` = copy. Ta norma to unieważnia (`SPEC-PERSISTENCE.md` P-5 od v4).
 
 ## Norma implementacji
@@ -92,7 +96,7 @@ apps/api/src/content/
 | HITL | granica między invoke; stan w DB (B) |
 | Węzły bazowe | `LoadContext`, `NormalizeBrief`, `OutlineAgent`, `PageWriterAgent`, `ConsistencyVerifier`, `Refine*`, `Persist*`, `FailRun` |
 | `compile()` | bez checkpoinetera |
-| Domain | `PageOutline`; `PageDocument` (np. `title`, `lead`, `body`, `metaTitle?`, `metaDescription?`); faza `'outline'` \| `'copy'` |
+| Domain | `PageOutline`; `PageDocument` (np. `title`, `lead`, `body`, `metaTitle?`, `metaDescription?`); faza `'outline'` \| `'copy'`; `brief: ContentBrief` |
 
 Odwołanie: [LangGraph Persistence](https://docs.langchain.com/oss/javascript/langgraph/persistence) (świadomie **niewykorzystane**); structured output: [LangChain structured output](https://docs.langchain.com/oss/javascript/langchain/structured-output) — transport LLM przez gateway.
 
@@ -112,14 +116,18 @@ page_copy:
 
 - Współdzielić wzorzec verifiera / refine `max N=2` ze Social (osobna instancja węzła w tym grafie).
 - Importować kernel / token lifecycle Runs (jednokierunkowo) oraz eksportować `ContentRunExecutor` do kleju procesu.
+- Importować `ContentBrief` z `runs/domain` (nie definiować drugiego literału w `content/domain`; nie importować `SocialBrief` w węzłach).
 - Implementować `RunExecutorPort` klasą w `content/application/` — bez rejestracji tokenu `RUN_EXECUTOR` **w** `RunsModule` przez import Content.
 
 ### Nie wolno
 
 - Łańcucha 6 specjalistów (psychologia / sprzedaż / SEO jako osobne węzły-audytory) — V1.
 - WordPress / eksportu `Jak_wrzucic_do_WordPressa.md`.
-- Materiałów z folderu `Materiały/` jako produktu (wystarczą `brief.topic` + kontekst firmy).
+- Materiałów z folderu `Materiały/` jako produktu. Wejście = `ContentBrief` + kontekst firmy (Ctn-11).
+  Zmiana względem: wcześniejsza reguła „wystarczą `brief.topic` + kontekst firmy” jako **jedyne** pola — unieważniona na rzecz `ContentBrief` (kąt / długość opcjonalne). Topic nadal wymagany.
 - Reklamy (krótki copy) jako `ContentKind`.
+- Pola `ideaCount` w briefie / stanie grafu Content oraz defaultu `ideaCount` w `NormalizeBrief` Content.
+- CTA jako pola `ContentBrief` (źródło: kontekst firmy).
 - Importu `SocialModule` / `RunsModule` (pełnego HTTP+worker) z `ContentModule`.
 - `forwardRef` Content ↔ Runs / Social.
 - Rejestrować controller HTTP w `ContentModule`.

@@ -60,6 +60,8 @@ CTA „Start runu” disabled + tooltip, gdy agenci nieaktywni — zgodnie z **4
 - Paginacja: **10** na stronę, najnowsze pierwsze; stały rozmiar strony.
 - Filtry MVP: status (w tym `interrupted`), `taskType` (post_*, reel_*, page_*), platforma (w tym `web`), użytkownik inicjujący (`userId`).
 - Akcja: nowy run — select `taskType` obejmuje rolki i page_*; **`contentKind` widoczne gdy page_***; **platforma ukryta/disabled gdy page_***; język; ewent. `selectedIdeaIds` dla samego content/script.
+- Brief formularza **zależny od `taskType`**: przy post_* / reel_* — temat + opcjonalnie grupa, cel, **liczba pomysłów**; **ukryć** kąt i długość. Przy `page_*` — temat + opcjonalnie grupa, cel, **kąt (Challenger)**, **długość (słowa)**; **ukryć** liczbę pomysłów. CTA nie jest polem briefu (kontekst firmy).
+- Zmiana względem: jeden zestaw pól briefu SM (w tym `ideaCount`) na start page.
 - Start zablokowany wizualnie, gdy globalnie agenci nieaktywni.
 - **Nawigacja:** klik wiersza → podstrona **Run (szczegóły)** dla tego `runId`.
 

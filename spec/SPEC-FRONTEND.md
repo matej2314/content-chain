@@ -1,7 +1,7 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-31
+data_modyfikacji: 2026-09-02
 ---
 
 # SPEC — Frontend
@@ -44,7 +44,9 @@ Zmiana względem wersji 5 / F-5: F-5 i „Wolno: Reconnect SSE” bez rozróżni
 
 F-6. Bramka „Agenci aktywni” i disable CTA startu runu — UX na bazie `GET .../completeness`; **egzekucja** nadal w api (`409` `CONTEXT_INCOMPLETE`).
 
-F-7. Język UI: **polski**. Treści SM: PL/EN wg briefu runu.
+F-7. Język UI: **polski**. Treści SM: PL/EN wg briefu runu. Formularz startu runu: pola briefu **wg `taskType`** — post/reel: liczba pomysłów, bez kąta/długości; `page_*`: kąt i długość opcjonalnie, **bez** liczby pomysłów (`docs/ux_dashboard.md`, `SocialBrief` / `ContentBrief`).
+
+Zmiana względem wersji 8 / F-7: język UI bez rozróżnienia pól briefu kanału.
 
 F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 

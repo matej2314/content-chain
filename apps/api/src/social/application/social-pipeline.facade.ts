@@ -12,7 +12,7 @@ import {
   compileSocialGraph,
 } from '../infrastructure/graph/social.graph';
 import { LlmHopService } from '../infrastructure/graph/llm-hop';
-import { isSocialPlatform, isSocialTaskType } from '@content-chain/shared';
+import { isSocialPlatform } from '@content-chain/shared';
 import {
   RUN_LIFECYCLE,
   type RunLifecyclePort,
@@ -23,7 +23,11 @@ import type {
   SocialIdea,
   SocialPipelineOutcome,
 } from '../domain/social.types';
-import type { RunRecord } from '../../runs/domain/run.types';
+import {
+  isSocialRunRecord,
+  type RunRecord,
+  type SocialRunRecord,
+} from '../../runs/domain/run.types';
 import type { SocialGraphState } from '../infrastructure/graph/state';
 
 @Injectable()
@@ -55,7 +59,7 @@ export class SocialPipelineFacade {
       reelIdeas: ReelIdea[];
     },
   ): Promise<SocialPipelineOutcome> {
-    if (!isSocialTaskType(run.taskType)) {
+    if (!isSocialRunRecord(run)) {
       throw new Error(
         `SocialPipelineFacade received non-social task type: ${run.taskType}`,
       );
@@ -66,14 +70,15 @@ export class SocialPipelineFacade {
       );
     }
 
+    const socialRun: SocialRunRecord = run;
     const final = await this.graph.invoke({
-      runId: run.id,
-      conversationId: run.conversationId,
-      taskType: run.taskType,
-      platform: run.platform,
-      language: run.language,
-      brief: run.brief,
-      selectedIdeaIds: run.selectedIdeaIds,
+      runId: socialRun.id,
+      conversationId: socialRun.conversationId,
+      taskType: socialRun.taskType,
+      platform: socialRun.platform,
+      language: socialRun.language,
+      brief: socialRun.brief,
+      selectedIdeaIds: socialRun.selectedIdeaIds,
       phase,
       company: null,
       ideas: extras.ideas,

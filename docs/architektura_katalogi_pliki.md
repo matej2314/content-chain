@@ -113,10 +113,13 @@ apps/api/src/content/
 apps/api/src/runs/
 ├── runs.module.ts
 ├── runs.controller.ts               # status, logi, HITL, lista user/:userId, ocena, flaga edycji, finalize
+├── run-record.test-helpers.ts       # unit: makeSocialRun / makeContentRun; nie e2e (`apps/api/test/`)
 ├── application/
 ├── domain/                          # statusy runu, polityka przejść, lock przeglądu, porty (executor, lifecycle, odczyt wyniku)
 └── infrastructure/
 ```
+
+`run-record.test-helpers.ts` jest wyłącznie dla Jest unit (`*.spec.ts` przy `src/`). Nie jest adapterem ani use-casem — po unii `RunRecord` unit nie może używać `Partial<RunRecord>`. E2E w `apps/api/test/` startuje runy przez HTTP, nie przez te fabryki.
 
 Port lifecycle (`appendLog`, `transition`) i port executora (`execute`) żyją w `domain/`. Implementacje executora **nie** należą do tego drzewa — są w `social/application/` i `content/application/`. Binding tokenu — klej procesu (composite), nie `imports: [SocialModule]` ani `imports: [ContentModule]` w `runs.module.ts`.
 

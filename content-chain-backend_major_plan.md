@@ -483,7 +483,19 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 
 **Opis:** Po Fazie 4.1; **nie zmienia Fazy 4**. Drugi bounded context `apps/api/src/content/` (`page_copy`, `page_outline_then_copy`, `ContentKind`). Composite kleju w composition root (ręczny `switch` + `assertNever`). Testy, że Runs nie zna katalogu grafów. Źródło: `SPEC-CONTENT.md`, `SPEC-RUNY.md` (R-3d/e/f), `docs/architektura.md`.
 
-**Kontrakty typów:** `RunTaskType` += `page_*`; `ContentKind` + `isContentKind`; `RunPlatform = SocialPlatform | 'web'` w shared (**nie** jako `SocialPlatform`). `StartRunCommand`: unia dyskryminowana TS + Zod `discriminatedUnion('taskType')`. Domain: `PageOutline`, `PageDocument`; faza `'outline' \| 'copy'`. Port `ContentResultStore` osobny. Zakaz `any`.
+**Kontrakty typów:** `RunTaskType` += `page_*`; `ContentKind` + `isContentKind`; `RunPlatform = SocialPlatform | 'web'` w shared (**nie** jako `SocialPlatform`). `StartRunCommand`: unia dyskryminowana TS + Zod `discriminatedUnion('taskType')`. `RunRecord` = `SocialRunRecord` | `ContentRunRecord` (`taskType` dyskryminuje `brief`). `SocialBrief` / `ContentBrief` w `runs/domain` — **zakaz** płaskiego `RunBrief` i definicji w `packages/shared` / `apps/api/src/shared/`. Odczyt JSON `Run.brief`: parse Zod wg `taskType` (nie `as`). Domain: `PageOutline`, `PageDocument`; faza `'outline' \| 'copy'`. Port `ContentResultStore` osobny. Zakaz `any`.
+
+Dopisek (2026-09-02): brief kanałowy — `docs/dokumentacja_komunikacji.md`, `run_type_fixture_plan.md`. Refaktor Social (`SocialBrief`, fixture’y `makeSocialRun`) **przed** grafem Content (krok 4.2.1b / feature KROK 2b).
+
+**Mapa etykiet → feature plan** (`content-chain_feature_plan_faza-4-2-content.md`). Obowiązuje ta kolejność, nie „wszystko walidacji w 4.2.1”:
+
+| Major | Feature | Zakres |
+|-------|---------|--------|
+| 4.2.1 | KROK 1–2 | Shared enumy + Prisma Content. HTTP `page_*` **zamknięte**. |
+| 4.2.1b | KROK 2b | Unia `RunRecord` + `SocialBrief` + `socialBriefSchema`. HTTP `page_*` nadal zamknięte. |
+| 4.2.2 | KROK 3–5 | Domain Content, kernel hopu, graf/fasada/executor. |
+| 4.2.3 | KROK 6 | Klej + Zod unia startu (`socialBriefSchema` / `contentBriefSchema`) + otwarcie HTTP `page_*` + snapshot `brief`. |
+| 4.2.4 | KROK 7 | Unit / e2e D-17…D-19a / Postman Content / regresja Social. |
 
 **DoD (faza):**
 
@@ -491,49 +503,74 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 - Posty i rolki bez regresji.
 - Nieznany `taskType` w HTTP → `400` `VALIDATION_FAILED`; composite nie wołany.
 - `UNKNOWN_TASK_TYPE` pokryty unitem composite.
+- **D-19a:** page + `brief.ideaCount` → 400; Social + `brief.angle` → 400.
 - Faza 9 **nie** startuje (Zod 3).
 
-### Krok 4.2.1 — Shared, Prisma Content, `Run.contentKind`, walidacja startu
+### Krok 4.2.1 — Shared, Prisma Content, `Run.contentKind`
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Enumy; `Run.contentKind`; tabele `ContentOutline` / `ContentDocument`; na `Run` kolumny `outlineRefineCount` / `copyRefineCount` (default 0; **nie** reuse `ideasRefineCount` / `contentRefineCount`); sentinel `platform: 'web'` dla page_*; Zod unia (page bez platform OK; page z `linkedin` → fail; post bez platform → fail).
+**Etykieta feature:** KROK 1–2.
+
+**Opis:** Enumy; `Run.contentKind`; tabele `ContentOutline` / `ContentDocument`; na `Run` kolumny `outlineRefineCount` / `copyRefineCount` (default 0; **nie** reuse `ideasRefineCount` / `contentRefineCount`); sentinel `platform: 'web'` dla page_* w **schemacie** (zapis adaptera). **Nie** otwierać HTTP `page_*` i **nie** wstawiać tu Zod `discriminatedUnion` startu — to krok 4.2.3. Zmiana względem wcześniejszej etykiety tego kroku („walidacja startu” + oba briefy Zod): walidacja HTTP i `contentBriefSchema` są w 4.2.3, nie tutaj.
 
 **DoD (krok):**
 
-- Page run: DB `platform='web'`, `contentKind` ustawione.
+- Page run (persistencja): DB `platform='web'`, `contentKind` ustawione, gdy run page powstanie później przez HTTP (4.2.3).
 - Social run: `contentKind` null, `platform` z enumu SM; kolumny refine Social bez zmian semantyki.
 - Migracja dokłada `outlineRefineCount` / `copyRefineCount`; Content zapisuje refine wyłącznie tam (`SPEC-CONTENT.md` Ctn-10, `SPEC-PERSISTENCE.md` P-5).
-- Unit Zod pokrywa unię.
+
+### Krok 4.2.1b — Unia `RunRecord` + `SocialBrief`
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Etykieta feature:** KROK 2b.
+
+**Refaktor względem:** Faza 4 / żywy Social (`import type { RunBrief }`); feature KROK 2 (`WYKONANY` — płaski `RunBrief` na `RunRecord`).
+
+**Opis:** `RunRecord` = `SocialRunRecord` \| `ContentRunRecord`; `SocialBrief` / `ContentBrief` w `runs/domain`; usunąć publiczny `RunBrief`. Social domain/state importuje `SocialBrief`. Fixture’y `makeSocialRun` / `makeContentRun` — **zakaz** `Partial<RunRecord>` i `makeRun` na unii. Zod: przemianować `runBriefSchema` → `socialBriefSchema`; command startu nadal wymaga `platform` (HTTP page zamknięte). **Zakaz** otwierania `page_*` i **zakaz** `contentBriefSchema` w HTTP do kroku 4.2.3.
+
+**DoD (krok):**
+
+- Kompilacja Social + Runs na unii; brak eksportu `RunBrief`.
+- `startRunCommandSchema` nadal wymaga `platform`; e2e `page_*` nieotwarte.
 
 ### Krok 4.2.2 — Moduł `apps/api/src/content/` (graf podstawowy)
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Drzewo application / domain / infrastructure (graph, prompts, persistence). Węzły: `LoadContext`, `NormalizeBrief`, `OutlineAgent`, `PageWriterAgent`, `ConsistencyVerifier`, `Refine*`, `Persist*`, `FailRun`. `compile()` bez checkpoinetera. Refine `max N=2` (polityka w `content/domain`, kopia Social). Hop LLM / `parseLlmJson` / loader promptów — `apps/api/src/shared/llm/` (osobna instancja `LlmHopService` w `ContentModule`; **nie** kopia klasy, **nie** import Social). `ContentModule` bez `controllers[]`; nie importuje Social/Runs (tylko port lifecycle).
+**Etykieta feature:** KROK 3–5 (domain → kernel hopu → graf/fasada/executor).
+
+**Opis:** Drzewo application / domain / infrastructure (graph, prompts, persistence). Węzły: `LoadContext`, `NormalizeBrief`, `OutlineAgent`, `PageWriterAgent`, `ConsistencyVerifier`, `Refine*`, `Persist*`, `FailRun`. `compile()` bez checkpoinetera. Refine `max N=2` (polityka w `content/domain`, kopia Social). Hop LLM / `parseLlmJson` / loader promptów — `apps/api/src/shared/llm/` (osobna instancja `LlmHopService` w `ContentModule`; **nie** kopia klasy, **nie** import Social). `ContentModule` bez `controllers[]`; nie importuje Social/Runs (tylko port lifecycle). Domain Content: `brief: ContentBrief`. Wejście: krok 4.2.1b (`SocialBrief` / unia `RunRecord`) już zrobiony — **nie** importować `RunBrief`.
 
 **DoD (krok):**
 
 - Moduł eksportuje `ContentRunExecutor` + store.
 - Unit fasady + executor analogiczne do Social.
 
-### Krok 4.2.3 — Klej: composite executor + reader + `AppModule`
+### Krok 4.2.3 — Klej, Zod unia startu, otwarcie HTTP `page_*`
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** `run-dispatch.executor.ts` (nie `utils.ts`); composite reader; `registerAsync` inject obu executorów i store’ów; `GetRunUseCase` wypełnia `pageOutline` / `pageDocument`. Worker nadal jeden `RUN_EXECUTOR`. Recovery `interrupted` → właściwy BC po `taskType`. HITL page: `ResumeHitlUseCase` waliduje `selectedIdeaIds === [outline.id]` (400 `HITL_INVALID_SELECTION`).
+**Etykieta feature:** KROK 6.
+
+**Opis:** `run-dispatch.executor.ts` (nie `utils.ts`); composite reader; `registerAsync` inject obu executorów i store’ów; `GetRunUseCase` wypełnia `pageOutline` / `pageDocument` **oraz** `brief` w kształcie kanału (Social vs Content). Worker nadal jeden `RUN_EXECUTOR`. Recovery `interrupted` → właściwy BC po `taskType`. HITL page: `ResumeHitlUseCase` waliduje `selectedIdeaIds === [outline.id]` (400 `HITL_INVALID_SELECTION`). **Tu** (nie w 4.2.1): Zod `discriminatedUnion('taskType')` — page bez platform OK, page z `linkedin` → fail, post bez platform → fail; brief per gałąź `socialBriefSchema` vs `contentBriefSchema` (`.strict()`); page + `ideaCount` → 400; Social + `angle` → 400. Parse JSON `Run.brief` wg `taskType` (nie `as`). Zmiana względem wcześniejszej etykiety 4.2.1: walidacja startu i otwarcie `page_*` są tym krokiem.
 
 **DoD (krok):**
 
 - SocialModule nie importuje ContentModule; RunsModule nie importuje żadnego grafu.
 - HITL page: `awaiting_hitl` + options z outline; resume tylko `[outline.id]`; obce id → 400, status bez zmian.
 - Unit dispatchera: social vs content vs default.
+- Unit Zod pokrywa unię taskType + D-19a (page/`ideaCount`, Social/`angle`).
+- GET snapshot zwraca `brief` zgodny z `taskType`.
 
 ### Krok 4.2.4 — Testy unit, e2e, Postman Content, regresja Social
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Unit domain/schemy/dispatcher/GetRun. E2E `content-pipeline.e2e-spec.ts` (D-17, D-18, refine, korelacja); lista `taskType=page_copy`, `platform=web`; start page + `linkedin` → 400. Postman: `content-pipeline.postman-collection.json` (A/B); Setup = `PUT /company-context`.
+**Etykieta feature:** KROK 7.
+
+**Opis:** Unit domain/schemy/dispatcher/GetRun. E2E `content-pipeline.e2e-spec.ts` (D-17, D-18, refine, korelacja); lista `taskType=page_copy`, `platform=web`; start page + `linkedin` → 400. **D-19a:** page + `brief.ideaCount` → 400; Social + `brief.angle` → 400. Postman: `content-pipeline.postman-collection.json` (A/B); Setup = `PUT /company-context`. Body page **bez** `ideaCount`.
 
 **DoD (krok):**
 
@@ -550,7 +587,7 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 
 - Faza 4.1 i 4.2 spełniają DoD (lub `WYKONANY`).
 - Postman Social A–D + Content A–B zielone (żywy gateway).
-- Jest e2e D-4, D-5, D-15…D-18 zielone (fake LLM).
+- Jest e2e D-4, D-5, D-15…D-18, D-19a zielone (fake LLM).
 - Klej: dwa BC, jeden worker; graf Nest acykliczny.
 - Akceptacja przejścia do Fazy 5 (Auth).
 

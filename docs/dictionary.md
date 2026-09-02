@@ -10,6 +10,8 @@ Zmiana względem definicji **MVP** / **V1 — rozbudowa** oraz kanałów: MVP ob
 
 Zmiana względem poprzedniego zbioru `RunStatus` (pięć wartości, recovery jako ponowne execute na leftover `running`): dopisano status **`interrupted`**. `MAX_CONCURRENT_RUNS` tnie **każdy** claim do `running` z `queued` oraz z `interrupted` (priorytet recovery nad nowymi POST). Burst execute wszystkich leftover `running` ponad cap **unieważniony**. HITL (`awaiting_hitl`) pozostaje osobnym use-casem.
 
+Zmiana względem jednego „Brief SM” na cały `POST /runs`: kanon to **`SocialBrief`** vs **`ContentBrief`**; `Run.brief` to JSON unii, nie jeden obiekt z `ideaCount` dla `page_*`.
+
 ---
 
 ## Produkt i domena
@@ -29,7 +31,10 @@ Zmiana względem poprzedniego zbioru `RunStatus` (pięć wartości, recovery jak
 | **Page document** | Pełny dokument copy strony/artykułu (`result.pageDocument`). |
 | **Content (BC)** | Bounded context generowania copy stron / long-form (`page_copy`, `page_outline_then_copy`). **Nie** mylić z nazwą produktu Content Chain. |
 | **`ContentKind`** | Rodzaj dokumentu Content: `blog` \| `service_page` \| `landing`. Wymagane przy taskach `page_*`; **zakazane** przy taskach Social. |
-| **Brief SM** | Wejście użytkownika do runu Social: temat, grupa docelowa, cel, platforma, język, liczba pomysłów itd. |
+| **`SocialBrief`** | Brief runu Social (post_* / reel_*): `topic` (wymagane), `audience?`, `goal?`, `ideaCount?` (integer ≥ 1). **Nie** zawiera `angle` / `targetLength`. Definicja TypeScript: `apps/api/src/runs/domain/run.types.ts` — **nie** `packages/shared`. |
+| **`ContentBrief`** | Brief runu Content (page_*): `topic` (wymagane), `audience?`, `goal?` (string, bez enumu w shared), `angle?` (kąt / Challenger), `targetLength?` (słowa, integer ≥ 1). **Nie** zawiera `ideaCount`. CTA **nie** jest polem briefu — źródło akcji: `cta.items` kontekstu firmy. `contentKind` jest na runie, nie w briefie. Definicja: ten sam plik `run.types.ts`. |
+| **`Run.brief`** | Kolumna JSON na agregacie Run: **unia** `SocialBrief` \| `ContentBrief` rozróżniana `taskType` (nie jeden kształt SM). Jeden byt runtime; dwa kontrakty TypeScript / Zod. |
+| **Brief SM** | Potocznie = **`SocialBrief`** + platforma + język na starcie runu Social. Zmiana względem: wcześniejsze hasło mieszało platformę/język z polami briefu i sugerowało jeden brief na wszystkie `taskType`. |
 | **Weryfikacja spójności** | Krok pipeline’u sprawdzający treść względem kontekstu firmy przed uznaniem wyniku. W MVP = węzeł `ConsistencyVerifier` (także język). |
 | **HITL** | Human-in-the-loop: pauza runu na wybór z listy, gdy kolejny krok zależy od selekcji (task dwuetapowy). W MVP: **HITL model B**. |
 | **HITL model B** | Faza ideas kończy **invoke** grafu; stan pauzy (draft, `conversationId`, metadane fazy) kanonicznie w **DB**; `POST .../hitl` startuje **nowy invoke** fazy content. Zakaz checkpoinetera LangGraph jako store pauzy w MVP. Zmiana względem: wcześniejsze hasło HITL bez modelu persistence. |

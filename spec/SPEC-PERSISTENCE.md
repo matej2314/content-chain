@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-01
+data_modyfikacji: 2026-09-02
 ---
 
 # SPEC — Persistence
@@ -44,6 +44,10 @@ P-3. Identyfikatory w kolumnach: **brandowane stringi** zgodnie z `docs/brand_ty
 P-4. ORM / SQL / Prisma **zakazane** w `domain/` oraz w `packages/shared`. Application zależy od **portów**.
 
 P-5. DB jest kanoniczna dla kontekstu firmy, userów, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
+
+Kolumna `Run.brief` (Json): **unia** `SocialBrief` | `ContentBrief` rozróżniana `taskType` — **bez nowej migracji** przy zmianie kształtu TypeScript. Semantyka i parse przy mapowaniu wiersza → `RunRecord`: `SPEC-RUNY.md` R-3d1.
+
+Zmiana względem wersji 4 / P-5: milcząco jeden JSON briefu SM; od tej wersji unia kanałowa bez zmiany schemy Prisma.
 
 Kanon tabel (append, P-7): istniejące + `SocialReelIdea`, `SocialReelScript`, `ContentOutline`, `ContentDocument`; `Run.contentKind` nullable; `Run.platform` zostaje `String` NOT NULL (sentinel `'web'` przy page_*); na `Run` osobne liczniki refine Content: `outlineRefineCount`, `copyRefineCount` (`Int`, default `0`). Kolumny `ideasRefineCount` / `contentRefineCount` zostają **wyłącznie** Social (posty i rolki). Content **nie** zapisuje stanu refine do kolumn Social.
 
@@ -94,8 +98,10 @@ apps/api/
 - Drugiego ORM równolegle do Prisma.
 - Przenoszenia reguł domenowych do UI przy zmianie silnika.
 - Zapisu refine outline/copy (BC Content) do `Run.ideasRefineCount` / `Run.contentRefineCount`.
+- Migracji Prisma wyłącznie po to, by rozdzielić `SocialBrief` / `ContentBrief` (kolumna Json zostaje; zmiana to parse, nie DDL).
 
 Zmiana względem wersji 3 / „Nie wolno”: dopisano zakaz reuse kolumn refine Social na Content.
+Zmiana względem wersji 4 / „Nie wolno”: dopisano zakaz zbędnej migracji `brief`.
 
 ### Zatwierdzony stack (obszar)
 

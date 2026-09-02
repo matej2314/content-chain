@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-31
+data_modyfikacji: 2026-09-02
 ---
 
 # SPEC — README
@@ -32,7 +32,7 @@ SPEC **uszczegóławia** docs; nie zastępuje ich i nie tworzy równoległej dok
 | `SPEC-KONTEKST-FIRMY.md` | Company context, bramka kompletności |
 | `SPEC-SOCIAL.md` | Pipeline Social (posty **i** rolki), LangGraph, HITL model B |
 | `SPEC-CONTENT.md` | Pipeline Content (page copy / outline), LangGraph, HITL model B |
-| `SPEC-RUNY.md` | Cykl życia runu, logi, SSE, kolejka, recovery, ocena / edycja outputu, composite executor |
+| `SPEC-RUNY.md` | Cykl życia runu, logi, SSE, kolejka, recovery, ocena / edycja outputu, composite executor, unia `SocialBrief` / `ContentBrief` na `RunRecord` |
 | `SPEC-FEEDBACK.md` | Opinie tekstowe (zapis MVP; panel odczytu = V1) |
 | `SPEC-PERSISTENCE.md` | Prisma; SQLite w MVP; PostgreSQL od V1 — rozbudowa |
 | `SPEC-FRONTEND.md` | Next.js, modules/, shadcn, SSE UI |

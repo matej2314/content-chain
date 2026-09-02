@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-31
+data_modyfikacji: 2026-09-02
 ---
 
 # SPEC — Monorepo
@@ -38,7 +38,7 @@ M-6. Każda aplikacja i `packages/shared` ma **własny** `tsconfig` (osobne plik
 
 M-7. Jedyny obowiązkowy DX startu lokalnego to **skrypty w rootcie** (`pnpm`, filtry `--filter`, ewentualnie `pnpm -r`). Nx i Turborepo są poza MVP.
 
-M-8. `apps/api/src/shared/` (jeśli używany) służy wyłącznie cross-cuttingowi **wewnątrz api** i **nie** zastępuje ani nie dubluje `packages/shared` regułami domenowymi.
+M-8. `apps/api/src/shared/` (jeśli używany) służy wyłącznie cross-cuttingowi **wewnątrz api** i **nie** zastępuje ani nie dubluje `packages/shared` regułami domenowymi. Typy `SocialBrief` / `ContentBrief` **nie** należą do `apps/api/src/shared/` ani do `packages/shared` — żyją w `apps/api/src/runs/domain/` (`docs/dictionary.md`, `SPEC-RUNY.md` R-3d).
 
 ## Norma implementacji
 
@@ -57,12 +57,16 @@ M-8. `apps/api/src/shared/` (jeśli używany) służy wyłącznie cross-cuttingo
 
 - Deklarować `@content-chain/shared` jako zależność `apps/api` i `apps/frontend` przez `workspace:`.
 - Trzymać w `packages/shared` typy request/response, enumy ról / statusów runu / `RunTaskType` (post_*, reel_*, page_*) / `SocialPlatform` / `RunPlatform` / `ContentKind` / języków oraz brand types zgodne z `docs/brand_types.md`.
+- Trzymać `SocialBrief` / `ContentBrief` w BC Runs (`run.types.ts`) — to payload agregatu, nie publiczny enum FE/BE.
 - Uruchamiać pakiety skryptami root (`pnpm --filter api …`, `pnpm -r …`).
 - Rozszerzać drzewo wewnątrz `apps/*/src` zgodnie z BC i warstwami — w tym `apps/api/src/content/` (nie łamie M-1: nadal trzy aplikacje runtime). Szczegóły BC w osobnych SPEC.
+
+Zmiana względem wersji 4 / Wolno: dopisano lokalizację briefów kanałowych (nie shared).
 
 ### Nie wolno
 
 - Umieszczać use-case’ów, Prisma, promptów, reguł Social / Content / bramki kontekstu w `packages/shared`.
+- Umieszczać `SocialBrief` / `ContentBrief` w `packages/shared` albo `apps/api/src/shared/types`.
 - Importować kod źródłowy `apps/ai-provider-gateway` z `apps/api` (lub odwrotnie) jako moduł TS.
 - Importować kod źródłowy `apps/api` z `apps/frontend` (tylko HTTP do API).
 - Tworzyć drugiego pakietu „shared” z logiką biznesową poza `packages/shared`.
@@ -70,6 +74,7 @@ M-8. `apps/api/src/shared/` (jeśli używany) służy wyłącznie cross-cuttingo
 - Wprowadzać Nx lub Turborepo jako wymóg DX w MVP.
 - Przenosić domenę Content Chain (kontekst firmy, Social, Content, auth produktu, Feedback, przegląd runu) do `apps/ai-provider-gateway` lub do `apps/frontend`.
 
+Zmiana względem wersji 4 / „Nie wolno”: dopisano zakaz briefów kanałowych w shared (M-8).
 Zmiana względem wersji 1: lista zakazu obejmuje Feedback i przegląd runu.
 Zmiana względem wersji 3: folder `apps/api/src/content/` nie łamie M-1; shared obejmuje `ContentKind` / `RunPlatform` / pełne `RunTaskType` (bez Zod).
 

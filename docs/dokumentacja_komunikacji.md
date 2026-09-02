@@ -13,6 +13,8 @@ Zmiana względem wcześniejszego grafu statusów: dopisano `interrupted` (recove
 
 Zmiana względem kontraktu startu (tylko 3 taski post_*, `platform` zawsze wymagane, `result: { ideas, content }`): unia `taskType` (post_* / reel_* / page_*), `contentKind` przy page_*, snapshot addytywny (`reelIdeas`, `reelScript`, `pageOutline`, `pageDocument`), sentinel `platform: web` w DB dla Content.
 
+Zmiana względem jednego obiektu `brief` („temat, grupa, cel, liczba pomysłów” dla każdego `taskType`): kształt `brief` zależy od kanału — **`SocialBrief`** (post_* / reel_*) vs **`ContentBrief`** (page_*). Dyskryminator zostaje `taskType`. `ideaCount` legalne tylko w Social; `angle` / `targetLength` tylko w Content. Szczegóły: tabele pod `POST /runs`; typy w `dictionary.md`.
+
 ---
 
 ## Powierzchnia 1 — HTTP API (`apps/api`)
@@ -221,10 +223,55 @@ Przy chronionej sesji zapisuje **inicjatora** (`startedBy` = bieżący użytkown
 | `platform` | `SocialPlatform` | tak przy post_* / reel_*; **zakazane** przy page_* | |
 | `contentKind` | `ContentKind` | tak przy page_*; **zakazane** przy Social | |
 | `language` | enum | tak | |
-| `brief` | object | tak | temat, grupa docelowa, cel, liczba pomysłów itd. |
+| `brief` | object | tak | kształt **zależny od `taskType`** (tabele niżej); nie jeden uniwersalny obiekt SM |
 | `selectedIdeaIds` | string[] | nie | `post_content` / start z wyborem SM; **zakazane** przy `page_*` (selekcja outline tylko `POST .../hitl`) |
 
-Page + `platform: linkedin` → **400** `VALIDATION_FAILED`. Page + `selectedIdeaIds` → **400** `VALIDATION_FAILED`. Post/reel bez `platform` → **400**. `taskType` spoza enumu → **400** `VALIDATION_FAILED`.
+`brief` — **Social** (`taskType` ∈ post_* \| reel_*), `SocialBrief`:
+
+| Pole | Typ | Wymagane | Opis |
+|------|-----|----------|------|
+| `topic` | string | tak | temat |
+| `audience` | string | nie | grupa docelowa |
+| `goal` | string | nie | cel |
+| `ideaCount` | integer ≥ 1 | nie | liczba pomysłów (ideation / reel ideas) |
+
+Klucze `angle`, `targetLength`, `contentKind` na tym obiekcie → **400** `VALIDATION_FAILED` (`.strict()`).
+
+Przykład Social:
+
+```json
+{
+  "taskType": "post_ideas",
+  "platform": "linkedin",
+  "language": "pl",
+  "brief": { "topic": "Q3 launch", "audience": "founderzy", "goal": "lead", "ideaCount": 5 }
+}
+```
+
+`brief` — **Content** (`taskType` ∈ page_*), `ContentBrief`:
+
+| Pole | Typ | Wymagane | Opis |
+|------|-----|----------|------|
+| `topic` | string | tak | temat |
+| `audience` | string | nie | odbiorca |
+| `goal` | string | nie | cel (np. edukacja / lead / autorytet / sprzedaż — string, bez enumu w shared) |
+| `angle` | string | nie | kąt / Challenger |
+| `targetLength` | integer ≥ 1 | nie | orientacyjna długość w słowach |
+
+`contentKind` jest **obok** briefu, nie w środku. CTA **nie** jest polem briefu (źródło: `cta.items` kontekstu firmy). Klucz `ideaCount` na tym obiekcie → **400** `VALIDATION_FAILED` (`.strict()`).
+
+Przykład page:
+
+```json
+{
+  "taskType": "page_copy",
+  "contentKind": "blog",
+  "language": "pl",
+  "brief": { "topic": "Audyt procesów", "angle": "CRM ≠ jeden przepływ od leada", "targetLength": 1800 }
+}
+```
+
+Page + `platform: linkedin` → **400** `VALIDATION_FAILED`. Page + `selectedIdeaIds` → **400** `VALIDATION_FAILED`. Page + `brief.ideaCount` → **400** `VALIDATION_FAILED`. Post/reel bez `platform` → **400**. Post/reel + `brief.angle` albo `brief.targetLength` → **400** `VALIDATION_FAILED`. `taskType` spoza enumu → **400** `VALIDATION_FAILED`.
 
 **202** — `{ "runId", "conversationId", "status": "queued" \| "running" }`.
 
@@ -248,6 +295,7 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
   "platform": "linkedin",
   "contentKind": null,
   "language": "pl",
+  "brief": { "topic": "Q3 launch" },
   "status": "completed",
   "createdAt": "2026-08-12T10:00:00.000Z",
   "startedBy": { "id": "usr_…", "email": "user@example.com" },
@@ -269,6 +317,7 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
 - Meta jak pozycja listy + `conversationId`. Snapshot **addytywny**: posty zostawiają `ideas` / `content` jak Milestone 4; rolki wypełniają `reelIdeas` / `reelScript`; Content — `pageOutline` / `pageDocument`. Brak kanału = pusta tablica / `null` (reader nie null-crashuje).
 - `contentKind` — `null` dla Social; ustawione dla `page_*`.
 - `platform` — enum SM albo `'web'` (page_*).
+- `brief` — zwracany w **kształcie zapisanym** (unia): `SocialBrief` albo `ContentBrief` wg `taskType`. Snapshot nie spłaszcza obu kształtów do jednego obiektu SM.
 - `userRating` — **zawsze** w JSON: `null` (brak gwiazdek) albo `1`…`5`. Pozytywna wartość tylko gdy autor faktycznie ocenił.
 - `outputEdited` — `true` po użyciu Edytuj (flaga; bez diff w MVP).
 - `reviewFinalizedAt` — `null` dopóki autor nie zatwierdzi przeglądu; po finalize ISO8601 i pola oceny/edycji niemutowalne.

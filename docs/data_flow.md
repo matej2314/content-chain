@@ -54,7 +54,7 @@ Sekcje bramki: tożsamość, oferta, głos SM, CTA/kanały, odbiorca (`dokumenta
 
 ## 3. Run jednoetapowy — `post_ideas` (full-auto)
 
-Wejście: brief + platforma + język. Brak HITL.
+Wejście: **`SocialBrief`** + platforma + język (`docs/dokumentacja_komunikacji.md`, `dictionary.md`). Brak HITL.
 
 ```mermaid
 flowchart TB
@@ -75,7 +75,7 @@ flowchart TB
 | Węzeł | Dane in | Dane out | LLM |
 |-------|---------|----------|-----|
 | `LoadContext` | — | kontekst z DB | nie |
-| `NormalizeBrief` | brief HTTP | brief znormalizowany | nie / lekko |
+| `NormalizeBrief` | `SocialBrief` z HTTP | brief znormalizowany (`topic.trim()`, `ideaCount` default 5 gdy puste) | nie / lekko |
 | `IdeationAgent` | kontekst + brief | lista pomysłów | tak → gateway |
 | `ConsistencyVerifier` | pomysły + kontekst | ok / lista poprawek (kontekst **i** język) | tak → gateway |
 | `RefineIdeas` | pomysły + feedback | poprawione pomysły | tak → gateway |
@@ -150,7 +150,11 @@ invoke B (phase 'content' = scenariusz + verifier + persist) → completed | fai
 
 ## 4d. Run jednoetapowy — `page_copy` (full-auto)
 
-BC **Content** (`apps/api/src/content/`). Wejście: brief + `contentKind` (`blog` \| `service_page` \| `landing`); **bez** `platform` (kolumna DB = sentinel `'web'`). Faza: `'copy'`. Wynik: `result.pageDocument`.
+BC **Content** (`apps/api/src/content/`). Wejście: **`ContentBrief`** + `contentKind` (`blog` \| `service_page` \| `landing`); **bez** `platform` (kolumna DB = sentinel `'web'`). Faza: `'copy'`. Wynik: `result.pageDocument`.
+
+`NormalizeBrief` (Content): `topic.trim()` oraz ewent. trim `angle` — **bez** defaultu `ideaCount` (to pole nie należy do `ContentBrief`). CTA z kontekstu firmy, nie z briefu.
+
+Zmiana względem: wcześniejsze „brief + `contentKind`” bez rozróżnienia kształtu od `SocialBrief` (jeden obiekt SM z `ideaCount`).
 
 ```text
 LoadContext → NormalizeBrief → PageWriterAgent → ConsistencyVerifier
@@ -163,7 +167,7 @@ Verifier: ten sam wzorzec `max N=2` (fakty firmy + język). Recovery `interrupte
 
 ## 4e. Run dwuetapowy — `page_outline_then_copy` (HITL)
 
-HITL model B: outline w tabeli `ContentOutline`; po HITL faza `'copy'`. `pipelinePhase` na `Run`: `'outline'` \| `'copy'` (wartość `'copy'` / `'outline'` tylko `page_*`).
+HITL model B: outline w tabeli `ContentOutline`; po HITL faza `'copy'`. `pipelinePhase` na `Run`: `'outline'` \| `'copy'` (wartość `'copy'` / `'outline'` tylko `page_*`). Wejście startu: **`ContentBrief`** + `contentKind` (jak §4d).
 
 Kanon payloadu HITL (MVP): `hitl.options` = tablica z **jednym** elementem (cały `pageOutline`); `selectedIdeaIds` = dokładnie `[outline.id]`. Id sekcji (`osec_…`) **nie** są legalnym wyborem. Niezgodność → **400** `HITL_INVALID_SELECTION`; status zostaje `awaiting_hitl`. `POST /runs` dla `page_*` **nie** przyjmuje `selectedIdeaIds` (selekcja tylko na HITL — inaczej dałoby się pominąć fazę outline).
 

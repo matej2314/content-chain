@@ -34,7 +34,7 @@ Powiązane: `architektura.md`, `data_flow.md`, `anty_patterny.md`, `spec/SPEC-TE
 
 Nazwa pliku kolekcji Social: `social-pipeline.postman-collection.json` (myślnik, nie `_collection`) — foldery A/B (posty, Milestone 4) **oraz** C (`reel_ideas`) / D (`reel_ideas_then_scripts`) w tym samym pliku. Content = osobny JSON: `content-pipeline.postman-collection.json` (foldery A `page_copy`, B `page_outline_then_copy`). Setup obu = `PUT /company-context` + asercja `GET /company-context/completeness` (nie seed Prisma). Jak odpalić: `apps/api/test/postman/README.md`.
 
-Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATEWAY_KEY` w helperze logu hopu (`llm-gateway-chat.log.spec.ts`); preprocess zarzutów verifiera z obiektu `{ itemId, issue }` do `string[]` (`social.schemas.spec.ts`).
+Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATEWAY_KEY` w helperze logu hopu (`llm-gateway-chat.log.spec.ts`); preprocess zarzutów verifiera z obiektu `{ itemId, issue }` do `string[]` (`social.schemas.spec.ts`). Unia `RunRecord`: fabryki `makeSocialRun` / `makeContentRun` w `apps/api/src/runs/run-record.test-helpers.ts` (unit `*.spec.ts` przy `src/`); **nie** `Partial<RunRecord>`. `apps/api/test/` (e2e) tego pliku nie używa.
 
 ## Zasady
 

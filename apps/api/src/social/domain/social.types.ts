@@ -1,5 +1,5 @@
 import type { CompanyContext } from '../../company-context/domain/company-context.types';
-import type { RunBrief } from '../../runs/domain/run.types';
+import type { SocialBrief } from '../../runs/domain/run.types';
 import type {
   ContentLanguage,
   ConversationId,
@@ -7,7 +7,6 @@ import type {
   SocialPlatform,
   SocialTaskType,
 } from '@content-chain/shared';
-
 
 export type PipelinePhase = 'ideas' | 'content';
 
@@ -65,7 +64,7 @@ export type SocialPipelineInput = {
   taskType: SocialTaskType;
   platform: SocialPlatform;
   language: ContentLanguage;
-  brief: RunBrief;
+  brief: SocialBrief;
   selectedIdeaIds: string[] | null;
   phase: PipelinePhase;
   company: CompanyContext;

@@ -1,28 +1,10 @@
-import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import type { RunRecord } from '../domain/run.types';
 import type { RunLifecycleService } from '../application/run-lifecycle.service';
+import { makeSocialRun } from '../run-record.test-helpers';
 import { StubRunExecutor } from './stub-run.executor';
 
 function makeRun(): RunRecord {
-  return {
-    id: newRunId(),
-    conversationId: newConversationId(),
-    taskType: 'post_ideas',
-    platform: 'linkedin',
-    language: 'pl',
-    status: 'running',
-    brief: { topic: 'Q3' },
-    selectedIdeaIds: null,
-    startedByUserId: null,
-    contentKind: null,
-    pipelinePhase: null,
-    ideasRefineCount: 0,
-    contentRefineCount: 0,
-    outlineRefineCount: 0,
-    copyRefineCount: 0,
-    recoveryAttempts: 0,
-    createdAt: new Date(),
-  };
+  return makeSocialRun();
 }
 
 describe('StubRunExecutor', () => {

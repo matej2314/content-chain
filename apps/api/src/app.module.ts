@@ -26,6 +26,7 @@ import { RequestIdMiddleware } from './shared/http/request-id.middleware';
 import { PrismaModule } from './shared/persistence/prisma.module';
 import { LlmModule } from './llm/llm.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { ContentModule } from './content/content.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { MetricsModule } from './metrics/metrics.module';
     HealthModule,
     LlmModule,
     MetricsModule,
+    ContentModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })

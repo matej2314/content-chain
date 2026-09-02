@@ -1,5 +1,5 @@
 import type { CompanyContext } from '../../../company-context/domain/company-context.types';
-import type { RunBrief } from '../../../runs/domain/run.types';
+import type { SocialBrief } from '../../../runs/domain/run.types';
 import type {
   PipelinePhase,
   ReelIdea,
@@ -22,7 +22,7 @@ export type SocialGraphState = {
   taskType: SocialTaskType;
   platform: SocialPlatform;
   language: ContentLanguage;
-  brief: RunBrief;
+  brief: SocialBrief;
   selectedIdeaIds: string[] | null;
   phase: PipelinePhase;
   company: CompanyContext | null;

@@ -2,9 +2,9 @@
 
 **Lokalizacja:** `feature-plans/content-chain_feature_plan_faza-4-2-content.md`  
 **Kotwica major:** Faza 4.2 (kroki 4.2.1–4.2.4) + ślad **MILESTONE 4.2**.  
-**Źródła:** `docs/architektura.md`, `docs/data_flow.md` §4d–4e, `docs/dokumentacja_komunikacji.md`, `docs/brand_types.md`, `docs/testy.md`, `SPEC-CONTENT.md` (w tym Ctn-10), `SPEC-RUNY.md` (R-3d / R-3e / R-3f), `SPEC-PERSISTENCE.md` (P-5 / P-7), `SPEC-TESTY.md` (D-17, D-18, D-19), `SPEC-SOCIAL.md` (zakaz importu Content).  
+**Źródła:** `docs/architektura.md`, `docs/data_flow.md` §4d–4e, `docs/dokumentacja_komunikacji.md`, `docs/brand_types.md`, `docs/testy.md`, `SPEC-CONTENT.md` (w tym Ctn-10, Ctn-11), `SPEC-RUNY.md` (R-3d / R-3d1 / R-3e / R-3f), `SPEC-PERSISTENCE.md` (P-5 / P-7), `SPEC-TESTY.md` (D-17, D-18, D-19, D-19a), `SPEC-SOCIAL.md` (zakaz importu Content). `run_type_fixture_plan.md` (unia briefu).  
 **Założenie wejścia:** FAZA 1 rolek (`feature-plans/content-chain_feature_plan_faza-4-1-rolki.md`) już zaimplementowana — `reel_*` w `RunTaskType`, porty reel, snapshot `reelIdeas` / `reelScript`.  
-**Kolejność `KROK` ≠ etykietom major 4.2.1–4.2.4** — pass rozwojowy: shared + zawężenie Social **przed** `page_*` w unii; kernel hopu **przed** grafem Content; Zod HTTP startu **razem z klejem** (nie w izolowanym Prisma).
+**Kolejność `KROK` ≠ etykietom major 4.2.1–4.2.4** — pass rozwojowy: shared + zawężenie Social **przed** `page_*` w unii; **KROK 2b** (`RunRecord` unia + `SocialBrief`) **przed** domain Content; kernel hopu **przed** grafem Content; Zod HTTP startu **razem z klejem** (nie w izolowanym Prisma).
 
 **Statusy kroków feature:** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`
 
@@ -38,12 +38,14 @@
 - `parseLlmJson`, `LlmHopService` i algorytm `loadPrompt` / `renderPrompt` żyją w `apps/api/src/shared/llm/` (KROK 4). `refine-policy` **zostaje** w `domain/` każdego BC (kopia 1:1 — drzewo SPEC). `packages/shared` bez Zod. `LlmModule` bez zmian (hop nie spina `llm/` z Runs).
   Zmiana względem: wcześniejsze założenie „tylko parseLlmJson do shared, hop/load-prompt kopia w Content”.
 - ValidationPipe: `forbidNonWhitelisted: true` — DTO **musi** zadeklarować opcjonalne `contentKind` i opcjonalne `platform`; prawdziwa unia = Zod w application.
+- Brief kanałowy: `SocialBrief` (post/reel, `ideaCount?`) vs `ContentBrief` (page: `angle?`, `targetLength?`, **bez** `ideaCount`). `RunRecord` = unia `taskType`. **Jeden** `runBriefSchema` na obie gałęzie **nie obowiązuje**. Typy w `runs/domain` — nie `packages/shared` / `apps/api/src/shared/`. CTA nie w `ContentBrief`. Źródło: `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-3d, `SPEC-CONTENT.md` Ctn-11.
+  Zmiana względem: wcześniejsze założenie tego planu (jeden `RunBrief` / `runBriefSchema` na Social i page, `ideaCount` default 5 w Content).
 
 ---
 
 ## Biblioteki / API
 
-Weryfikacja 2026-09-01. Context7 Zod `/colinhacks/zod/v3.24.2`: `z.discriminatedUnion('taskType', [z.object({ taskType: z.enum(...) }), …])`; `z.enum` jest legalnym dyskryminatorem; `.strict()` odrzuca nieznane klucze (`platform` na gałęzi page, `contentKind` na gałęzi Social). LangGraph: ten sam wzorzec co Social (`StateGraph(z.object)`, `compile()` bez checkpoinetera). Prisma 6 SQLite: append P-7. Nest: `registerAsync` inject obu executorów; bez `forwardRef`.
+Weryfikacja 2026-09-01. Context7 Zod `/colinhacks/zod/v3.24.2`: `z.discriminatedUnion('taskType', [z.object({ taskType: z.enum(...) }), …])`; `z.enum` jest legalnym dyskryminatorem; `.strict()` odrzuca nieznane klucze (`platform` / `ideaCount` na gałęzi page, `contentKind` / `angle` na gałęzi Social). LangGraph: ten sam wzorzec co Social (`StateGraph(z.object)`, `compile()` bez checkpoinetera). Prisma 6 SQLite: append P-7. Nest: `registerAsync` inject obu executorów; bez `forwardRef`.
 
 ---
 
@@ -345,6 +347,97 @@ Wszystkie `makeRun` / `RunRecord` w testach: `contentKind: null`, `outlineRefine
 
 ---
 
+### KROK 2b — Refaktor: `RunRecord` unia + `SocialBrief`
+
+**Status:** `WYKONANY`
+
+**Refaktor względem:** KROK 2 (WYKONANY) — płaski `RunBrief` na `RunRecord`; Faza 4 / żywy `apps/api/src/social/` — `import type { RunBrief } from '../../runs/domain/run.types'`.  
+**Cel:** kompilujący się Social i Runs **zanim** KROK 3 wklei `ContentBrief` w domain Content. Major: ślad 4.2.1 / 4.2.2. Kanon: `run_type_fixture_plan.md` §0, `SPEC-RUNY.md` R-3d / R-3d1, `SPEC-SOCIAL.md`.  
+**Zakaz:** otwierania HTTP `page_*` (DTO nadal wymaga `platform` — KROK 6). **Zakaz** `Partial<RunRecord>` na unii.
+
+**Artefakty:**
+
+- Zmiana: `apps/api/src/runs/domain/run.types.ts`
+- Zmiana: `apps/api/src/runs/application/run.schemas.ts` (`socialBriefSchema`; jeszcze bez `contentBriefSchema` / bez otwarcia page HTTP)
+- Zmiana: `apps/api/src/runs/application/start-run.use-case.ts` — `brief: SocialBrief`; konstrukcja `SocialRunRecord` (`contentKind: null`)
+- Zmiana: `apps/api/src/runs/infrastructure/prisma-run.adapter.ts` — parse `socialBriefSchema` po `isSocialTaskType`; inny `taskType` w DB → throw (jak zły enum), nie `as`
+- Zmiana: `apps/api/src/social/domain/social.types.ts`, `social/infrastructure/graph/state.ts`
+- Zmiana: `social-pipeline.facade.ts`, `social-run.executor.ts`
+- Zmiana: fixture’y `makeRun` → `makeSocialRun` / `makeContentRun` (Social specy + specy Runs)
+
+#### `run.types.ts` (szkic)
+
+Usunąć eksport `RunBrief`. Wstawić `SocialBrief`, `ContentBrief`, `RunRecordBase`, `SocialRunRecord`, `ContentRunRecord`, `RunRecord` jak w `run_type_fixture_plan.md` §0.
+
+`ContentBrief` w tym kroku **już** istnieje w domain Runs (żeby unia się spięła), ale HTTP page i graf Content **nie** startują.
+
+#### Social — domain / graf
+
+`social.types.ts` / `state.ts`: `import type { SocialBrief } from '../../runs/domain/run.types'`; `brief: SocialBrief`. Węzły **nie** importują `RunBrief`; zostają na `SocialGraphState['brief']`. `normalize-brief` Social **zostawia** `ideaCount ?? 5`.
+
+Fasada: po `isSocialTaskType` / `isSocialPlatform` — `brief: run.brief` (`SocialBrief`).  
+Executor: `execute(run: RunRecord)`; po guardzie dalszy kod na `SocialRunRecord`.
+
+#### Fixture’y
+
+```typescript
+function makeSocialRun(
+  overrides: Partial<SocialRunRecord> = {},
+): SocialRunRecord { /* taskType post_*, platform SM, contentKind: null, brief: SocialBrief */ }
+
+function makeContentRun(
+  overrides: Partial<ContentRunRecord> = {},
+): ContentRunRecord { /* taskType page_*, platform: 'web', contentKind ustawione, brief: ContentBrief */ }
+```
+
+Lokalnie w specach **albo** jeden helper testowy w `runs/` współdzielony. Zamienić `makeRun` w `social/` i specach Runs (`run-lifecycle`, `start-run`, `in-process-run.worker`, `recover-interrupted`, `stub-run.executor`, `get-run`, …).
+
+`social-run.executor.spec.ts`: przypadek `page_copy` → `makeContentRun({ taskType: 'page_copy' })` (nie `Partial<RunRecord>` + `linkedin`).  
+Węzły `*.spec.ts`: `brief: { topic: '…' }` zostaje (strukturalnie `SocialBrief`).
+
+#### Runs application (bez otwarcia page HTTP)
+
+`run.schemas.ts`: przemianować `runBriefSchema` → `socialBriefSchema`; `ParsedSocialBrief`. `startRunCommandSchema` nadal wymaga `platform` (KROK 1).  
+`start-run.use-case.ts`: command `brief: SocialBrief` **do KROK 6**.  
+`start-run.dto.ts`: **bez** `angle` / `targetLength` w 2b.
+
+E2E Social / `runs-list` / `runs-lifecycle`: body `{ topic }` bez zmian.
+
+**Testy:** `pnpm --filter api test` — unit Social + Runs. Grep `RunBrief` = 0 (poza komentarzem historycznym w planach).
+
+**DoD (krok):**
+
+- `social.types.ts` / `state.ts` importują `SocialBrief`.
+- `RunRecord` jest unią; brak eksportu `RunBrief`.
+- Fixture’y nie używają `Partial<RunRecord>` na unii.
+- HTTP `page_*` nadal nielegalne (DTO `platform` required).
+- Unit Social + Runs zielone.
+
+---
+
+### KROK 2c — Nazwa helpera unit `RunRecord`
+
+**Status:** `WYKONANY`
+
+**Refaktor względem:** KROK 2b (`WYKONANY`) — wspólny helper `makeSocialRun` / `makeContentRun` w `runs/` (w implementacji 2b plik chwilowo jako `run-record.fixture.ts`).  
+**Cel:** kanoniczna ścieżka **`apps/api/src/runs/run-record.test-helpers.ts`**. „Fixture” w nazwie pliku myli z łatą; to wyłącznie fabryki unit pod unię `RunRecord`. **Nie** e2e w `apps/api/test/`.
+
+**Artefakty:**
+
+- Zmiana nazwy: `apps/api/src/runs/run-record.fixture.ts` → `apps/api/src/runs/run-record.test-helpers.ts`
+- Zmiana: importy unit speców Runs i Social (`from '…/run-record.test-helpers'`)
+- Docs (już ujęte poza tym krokiem HOW): `architektura_katalogi_pliki.md`, `testy.md`, `anty_patterny.md`
+
+KROK 2b zostaje: treść HOW (`makeSocialRun` / `makeContentRun`, zakaz `Partial<RunRecord>`) bez zmian. Ten krok tylko **nazwa pliku** i importy.
+
+**DoD (krok):**
+
+- Brak `run-record.fixture.ts`; grep `run-record.fixture` = 0 w `apps/api`.
+- Specy unit importują `run-record.test-helpers`.
+- Semantyka fabryk bez zmian (Social vs Content).
+
+---
+
 ### KROK 3 — Domain Content + port `ContentResultStore`
 
 **Status:** `NIE_ROZPOCZĘTY`
@@ -362,7 +455,7 @@ Wszystkie `makeRun` / `RunRecord` w testach: `contentKind: null`, `outlineRefine
 
 ```typescript
 import type { CompanyContext } from '../../company-context/domain/company-context.types';
-import type { RunBrief } from '../../runs/domain/run.types';
+import type { ContentBrief } from '../../runs/domain/run.types';
 import type {
   ContentKind,
   ContentLanguage,
@@ -426,7 +519,7 @@ export type ContentPipelineInput = {
   taskType: ContentTaskType;
   contentKind: ContentKind;
   language: ContentLanguage;
-  brief: RunBrief;
+  brief: ContentBrief;
   selectedIdeaIds: string[] | null;
   phase: ContentPipelinePhase;
   company: CompanyContext;
@@ -478,6 +571,7 @@ export interface ContentResultStore {
 **DoD (krok):**
 
 - Domain kompletny; port bez Prisma.
+- `ContentPipelineInput.brief: ContentBrief` (import z `runs/domain`, nie `RunBrief`).
 - Unit refine zielony.
 - Brak importu Social.
 
@@ -662,7 +756,7 @@ Brief (JSON):
 
 ## Zadanie
 
-Zwróć szkic: `title` + `sections` (każda: `heading`, `summary` 1–2 zdania). Jedna spójna narracja pod `contentKind`. Fakty wyłącznie z kontekstu i briefu.
+Zwróć szkic: `title` + `sections` (każda: `heading`, `summary` 1–2 zdania). Jedna spójna narracja pod `contentKind`. Fakty wyłącznie z kontekstu i `ContentBrief` (topic, angle, goal, targetLength — nie `ideaCount`).
 
 ## Zakazy
 
@@ -697,7 +791,7 @@ Zaakceptowany outline (JSON; może być pusty przy page_copy bez HITL):
 
 ## Zadanie
 
-Napisz jeden dokument. Jeśli outline niepusty — zrealizuj jego sekcje. Jeśli pusty — struktura z brief.topic + contentKind. CTA / oferty wyłącznie z kontekstu.
+Napisz jeden dokument. Jeśli outline niepusty — zrealizuj jego sekcje. Jeśli pusty — struktura z `brief.topic` + `contentKind` (+ `angle` / `goal` / `targetLength` gdy podane). CTA / oferty wyłącznie z kontekstu.
 
 ## Wyjście
 
@@ -725,7 +819,7 @@ export type ContentGraphState = {
   taskType: ContentTaskType;
   contentKind: ContentKind;
   language: ContentLanguage;
-  brief: RunBrief;
+  brief: ContentBrief;
   selectedIdeaIds: string[] | null;
   phase: ContentPipelinePhase;
   company: CompanyContext | null;
@@ -776,9 +870,9 @@ function routeAfterConsistencyVerifier(
 #### Węzły (wzorzec Social, pełna semantyka)
 
 - `load-context.node.ts` — `context.get()` → `{ company }` (port `CompanyContextRepository`).
-- `normalize-brief.node.ts` — `topic.trim()`, `ideaCount` default 5 (nieużywane w copy, nieszkodliwe).
+- `normalize-brief.node.ts` — `topic.trim()` oraz ewent. trim `angle`; **bez** defaultu `ideaCount` (Ctn-11).
 - `outline.node.ts` — hop `OutlineAgent`, `pageOutlineOutputSchema`, id `outl_${uuid}` / sekcje `osec_${uuid}`.
-- `page-writer.node.ts` — hop `PageWriterAgent`; `outline` w prompcie = `JSON.stringify(state.outline)` albo instrukcja „brak outline — pisz z brief”.
+- `page-writer.node.ts` — hop `PageWriterAgent`; `outline` w prompcie = `JSON.stringify(state.outline)` albo instrukcja „brak outline — pisz z `ContentBrief` (`topic` / `angle` / `goal` / `targetLength`)”. Fasada: po `isContentTaskType` `run.brief` jest `ContentBrief`.
 - `verifier.node.ts` — payload `phase === 'copy' ? document : outline`.
 - `refine-outline.node.ts` / `refine-document.node.ts` — `nextRefineCount` na odpowiednim liczniku.
 - `persist-outline.node.ts` / `persist-document.node.ts`.
@@ -889,6 +983,7 @@ Bez `controllers[]`. Bez `SocialModule` / `RunsModule`.
 
 - Moduł eksportuje `ContentRunExecutor` + store.
 - `compile()` bez checkpoinetera; refine N=2.
+- `ContentGraphState.brief: ContentBrief`; `NormalizeBrief` bez `ideaCount`.
 - Unit fasady + executor analogiczne do Social.
 - Content nie importuje Social.
 
@@ -1011,17 +1106,36 @@ Import typów Content z `content/domain` — Runs reader **już** zależy od typ
 
 #### Zod — `run.schemas.ts`
 
-**Teraz:** `z.object({ taskType: z.enum(RUN_TASK_TYPES), platform: z.enum(SOCIAL_PLATFORMS), … })`.
+**Teraz (po KROK 2b):** `socialBriefSchema` + `startRunCommandSchema` z wymaganym `platform` (HTTP page jeszcze zamknięte).
 
 **Zamień na** (Context7 `discriminatedUnion` + `.strict()`):
 
 ```typescript
+export const socialBriefSchema = z
+  .object({
+    topic: z.string(),
+    audience: z.string().optional(),
+    goal: z.string().optional(),
+    ideaCount: z.number().int().min(1).optional(),
+  })
+  .strict();
+
+export const contentBriefSchema = z
+  .object({
+    topic: z.string(),
+    audience: z.string().optional(),
+    goal: z.string().optional(),
+    angle: z.string().optional(),
+    targetLength: z.number().int().min(1).optional(),
+  })
+  .strict();
+
 const socialStartRunSchema = z
   .object({
     taskType: z.enum(SOCIAL_TASK_TYPES),
     platform: z.enum(SOCIAL_PLATFORMS),
     language: z.enum(CONTENT_LANGUAGES),
-    brief: runBriefSchema,
+    brief: socialBriefSchema,
     selectedIdeaIds: z.array(z.string()).optional(),
   })
   .strict();
@@ -1031,7 +1145,7 @@ const pageStartRunSchema = z
     taskType: z.enum(CONTENT_TASK_TYPES),
     contentKind: z.enum(CONTENT_KINDS),
     language: z.enum(CONTENT_LANGUAGES),
-    brief: runBriefSchema,
+    brief: contentBriefSchema,
   })
   .strict();
 
@@ -1041,31 +1155,34 @@ export const startRunCommandSchema = z.discriminatedUnion('taskType', [
 ]);
 ```
 
-`.strict()` na page odrzuca `platform: 'linkedin'` **oraz** `selectedIdeaIds`. Na social odrzuca `contentKind`. `taskType` spoza enumów → Zod fail → `VALIDATION_FAILED` (D-19 HTTP).
+`.strict()` na page odrzuca `platform: 'linkedin'`, `selectedIdeaIds` **oraz** `brief.ideaCount`. Na social odrzuca `contentKind` **oraz** `brief.angle` / `brief.targetLength`. `taskType` spoza enumów → Zod fail → `VALIDATION_FAILED` (D-19 HTTP).
 
-Unit: plik `run.schemas.spec.ts` (nowy) — page bez platform OK; page + linkedin fail; page + `selectedIdeaIds` fail; post bez platform fail; post + contentKind fail; `taskType: 'nope'` fail.
+Unit: plik `run.schemas.spec.ts` (nowy) — page bez platform OK; page + linkedin fail; page + `selectedIdeaIds` fail; page + `ideaCount` fail (D-19a); post bez platform fail; post + contentKind fail; post + `angle` fail (D-19a); `taskType: 'nope'` fail.
+
+Adapter `toSnapshot`: po `isSocialTaskType` parse `socialBriefSchema`; po `isContentTaskType` parse `contentBriefSchema`. Zakaz `as`.
 
 #### `StartRunCommand` + use-case
 
-Unia dyskryminowana TS jak w założeniach. `execute`:
+Unia TS (`SocialBrief` vs `ContentBrief`) jak `run_type_fixture_plan.md` §0 / `SPEC-RUNY.md` R-3d. `execute`:
 
 ```typescript
     const parsedCommand = parseWithZod(startRunCommandSchema, command);
     // gate completeness bez zmian
     const isPage = isContentTaskType(parsedCommand.taskType);
-    const run: RunRecord = {
+    const run = {
       // …
       taskType: parsedCommand.taskType,
       platform: isPage ? 'web' : parsedCommand.platform,
       contentKind: isPage ? parsedCommand.contentKind : null,
+      brief: parsedCommand.brief,
       outlineRefineCount: 0,
       copyRefineCount: 0,
       // ideasRefineCount / contentRefineCount nadal 0 jak dziś
       // …
-    };
+    } satisfies RunRecord;
 ```
 
-Narrowing: w gałęzi `isPage` Zod daje `contentKind`; w social — `platform`. Nie używać `as`.
+Narrowing: w gałęzi `isPage` Zod daje `contentKind` + `ContentBrief`; w social — `platform` + `SocialBrief`. Nie używać `as`.
 
 Testy start-run: page_copy persist `platform: 'web'`, `contentKind: 'blog'`; social nadal `contentKind: null`; page + platform w command → VALIDATION_FAILED.
 
@@ -1073,11 +1190,13 @@ Testy start-run: page_copy persist `platform: 'web'`, `contentKind: 'blog'`; soc
 
 `StartRunDto`: `@IsIn([...RUN_TASK_TYPES])`; `platform` `@IsOptional() @IsIn([...SOCIAL_PLATFORMS])`; `contentKind` `@IsOptional() @IsIn([...CONTENT_KINDS])`. **Nie** wymagaj platformy na DTO — Zod jest bramką.
 
+`RunBriefDto` (jeden zagnieżdżony obiekt, class-validator luźny): `topic` + opcjonalne `audience`, `goal`, `ideaCount`, **`angle`**, **`targetLength`**. Prawda XOR = Zod.
+
 `ListRunsQueryDto`: `taskType` `RUN_TASK_TYPES`; `platform` `RUN_PLATFORMS` (w tym `web`).
 
 #### GetRun / lista
 
-GetRun: `contentKind: run.contentKind`; `result.pageOutline` / `pageDocument`; HITL:
+GetRun: `contentKind: run.contentKind`; `brief` w kształcie zapisanym (unia); `result.pageOutline` / `pageDocument`; HITL:
 
 ```typescript
     const hitlOptions =
@@ -1128,6 +1247,8 @@ Wstrzyknij `RUN_RESULT_READER` (ten sam co GetRun). **Nie** importuj `ContentMod
 - Unit dispatchera: social vs content vs default.
 - Page run: DB `platform='web'`, `contentKind` ustawione.
 - Nieznany `taskType` HTTP → 400, composite nie wołany.
+- D-19a: page + `brief.ideaCount` → 400; Social + `brief.angle` → 400 (unit Zod).
+- Adapter parse `socialBriefSchema` / `contentBriefSchema` wg `taskType` (nie `as`).
 
 ---
 
@@ -1189,11 +1310,13 @@ Setup jak Social: `deployTestDb`, override `LLM_GATEWAY_PORT`, `PUT` kontekstu.
 
 `wipeRuns`: `contentDocument`, `contentOutline`, potem reel/social/runLog/run.
 
-**D-17** `page_copy`: skrypt `[pageDocumentJson(), verifierOk()]`; `POST` `{ taskType, contentKind: 'blog', language: 'pl', brief }` **bez** `platform`; 202; `completed`; `result.pageDocument.title`; `contentKind === 'blog'`; `platform === 'web'`; hop logi `PageWriterAgent` + `ConsistencyVerifier`; brak sekretu.
+**D-17** `page_copy`: skrypt `[pageDocumentJson(), verifierOk()]`; `POST` `{ taskType, contentKind: 'blog', language: 'pl', brief: { topic } }` **bez** `platform` i **bez** `ideaCount`; 202; `completed`; `result.pageDocument.title`; `contentKind === 'blog'`; `platform === 'web'`; hop logi `PageWriterAgent` + `ConsistencyVerifier`; brak sekretu.
 
 **D-18** `page_outline_then_copy`: outline+verifier → `awaiting_hitl`; `hitl.options[0].id`; HITL z tym id; document+verifier → `completed` + `pageDocument.body`. Negatyw: `POST .../hitl` z `['not-the-outline-id']` → 400 `HITL_INVALID_SELECTION`; GET snapshot nadal `awaiting_hitl`.
 
 **D-19 HTTP:** `POST` `{ taskType: 'not-a-task', platform: 'linkedin', language: 'pl', brief }` → 400 `VALIDATION_FAILED`.
+
+**D-19a:** `page_copy` + `brief.ideaCount` → 400. Social e2e / unit: post + `brief.angle` → 400. Social e2e happy path zostaje `{ topic }` (`SocialBrief`).
 
 **Walidacja unii:** `page_copy` + `platform: 'linkedin'` → 400. Lista `GET /runs?taskType=page_copy` oraz `?platform=web`.
 
@@ -1210,7 +1333,7 @@ Korelacja: `conversationId` stały, `requestId` fake w logu.
 Kolekcja v2.1: zmienna `baseUrl` jak Social. Foldery:
 
 - **Setup** — te same PUT/GET completeness (można skopiować body z kolekcji Social).
-- **A. page_copy** — POST bez `platform`, z `contentKind: "blog"`; poll `completed`; `result.pageDocument.body`; logi.
+- **A. page_copy** — POST bez `platform`, z `contentKind: "blog"`, `brief` bez `ideaCount`; poll `completed`; `result.pageDocument.body`; logi.
 - **B. page_outline_then_copy** — poll `awaiting_hitl`; `ideaId` z `hitl.options[0].id` albo `result.pageOutline.id`; HITL; poll `completed` + `pageDocument`.
 
 #### README Postman
@@ -1219,7 +1342,7 @@ Dopisz drugą kolekcję. Tabela: Social A–D (z planu 4.1) + Content A/B. Setup
 
 **DoD (krok):**
 
-- Unit + e2e zielone (D-17, D-18, D-19 + regresja Social A–D / D-4, D-5, D-15…D-16).
+- Unit + e2e zielone (D-17, D-18, D-19, D-19a + regresja Social A–D / D-4, D-5, D-15…D-16).
 - Postman Content + Social A–D opisane w README.
 - Faza 9 nie startuje (Zod 3 w `apps/api/package.json`).
 
@@ -1232,6 +1355,8 @@ Dopisz drugą kolekcję. Tabela: Social A–D (z planu 4.1) + Content A/B. Setup
 | `page_copy` / `page_outline_then_copy` Jest + Postman | KROK 7 D-17/D-18, kolekcja Content |
 | Posty i rolki bez regresji | KROK 7 e2e Social |
 | HTTP nieznany `taskType` → 400; composite `UNKNOWN_TASK_TYPE` | KROK 6–7 D-19 |
+| Page + `ideaCount` / Social + `angle` → 400 | KROK 6–7 D-19a |
+| `RunRecord` unia; Social: `SocialBrief`; Content: `ContentBrief` | KROK 2b, 3, 5–6 |
 | Klej: dwa BC, jeden worker; graf Nest acykliczny | KROK 6 |
 | Page: `platform='web'`, `contentKind` ustawione | KROK 6–7 |
 | Refine page: kolumny `outlineRefineCount` / `copyRefineCount` (nie reuse Social) | KROK 2–3, 5; Ctn-10 |
@@ -1244,10 +1369,12 @@ Dopisz drugą kolekcję. Tabela: Social A–D (z planu 4.1) + Content A/B. Setup
 
 ## Ślad do major (informacyjnie, poza tym skillem)
 
-Po implementacji **tego** pliku **oraz** zatwierdzonego planu rolek:
+Po implementacji **tego** pliku **oraz** zatwierdzonego planu rolek (statusy w `content-chain-backend_major_plan.md` — poza tym skillem):
 
-- Faza 4.2 i kroki 4.2.1–4.2.4 → `WYKONANY`
-- MILESTONE 4.2 → `OSIĄGNIĘTY` gdy: DoD 4.1 i 4.2 spełnione; Postman Social A–D + Content A–B (żywy gateway); Jest e2e D-4, D-5, D-15…D-18; klej dwa BC / jeden worker; graf Nest acykliczny
+- Faza 4.2 i kroki **4.2.1, 4.2.1b, 4.2.2, 4.2.3, 4.2.4** → `WYKONANY`
+- MILESTONE 4.2 → `OSIĄGNIĘTY` gdy (DoD z majoru): Faza 4.1 i 4.2 spełniają DoD (lub `WYKONANY`); Postman Social A–D + Content A–B zielone (żywy gateway); Jest e2e D-4, D-5, D-15…D-18, **D-19a** zielone (fake LLM); klej: dwa BC, jeden worker; graf Nest acykliczny; akceptacja przejścia do Fazy 5 (Auth)
+
+KROK → major: 1–2 → 4.2.1; 2b / **2c** → 4.2.1b; 3–5 → 4.2.2; 6 → 4.2.3; 7 → 4.2.4.
 
 Faza 5 (Auth) nie startuje z tego skilla.
 
@@ -1262,5 +1389,6 @@ Przesunięcia (zatwierdzone przed hierarchią, tu utrwalone):
 3. Kernel `parseLlmJson` / hop / loader w `shared/llm/` **przed** grafem Content (KROK 4); Content importuje, nie kopiuje (KROK 5). `refine-policy` zostaje w `domain/` (KROK 3).
 4. Osobne kolumny `outlineRefineCount` / `copyRefineCount` zamiast reuse `ideasRefineCount` / `contentRefineCount` (Ctn-10 / P-5 v4) — KROK 2–3, 5.
 5. HITL page: walidacja `[outline.id]` na `ResumeHitlUseCase` + zakaz `selectedIdeaIds` na starcie `page_*` (Ctn-5 v3 / R-3f v10) — KROK 5–7.
+6. Unia `SocialBrief` / `ContentBrief` na `RunRecord` (KROK 2b) **przed** domain Content; Zod brief per gałąź w KROK 6 — `run_type_fixture_plan.md`. **Nie** jeden `runBriefSchema` na page.
 
 Kolejność faz major bez zmian: 4.1 (osobny plik) przed 4.2.

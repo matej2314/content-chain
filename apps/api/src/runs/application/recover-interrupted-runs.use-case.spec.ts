@@ -1,31 +1,8 @@
-import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import type { RunRepository } from '../domain/run.port';
 import type { RunLogEntry, RunRecord } from '../domain/run.types';
+import { makeSocialRun } from '../run-record.test-helpers';
 import { RecoverInterruptedRunsUseCase } from './recover-interrupted-runs.use-case';
 import type { RunLifecycleService } from './run-lifecycle.service';
-
-function makeRun(overrides: Partial<RunRecord> = {}): RunRecord {
-  return {
-    id: newRunId(),
-    conversationId: newConversationId(),
-    taskType: 'post_ideas',
-    platform: 'linkedin',
-    language: 'pl',
-    status: 'running',
-    brief: { topic: 'Q3' },
-    selectedIdeaIds: null,
-    startedByUserId: null,
-    contentKind: null,
-    pipelinePhase: null,
-    ideasRefineCount: 0,
-    contentRefineCount: 0,
-    outlineRefineCount: 0,
-    copyRefineCount: 0,
-    recoveryAttempts: 0,
-    createdAt: new Date(),
-    ...overrides,
-  };
-}
 
 function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
   const unexpected = async () => {
@@ -53,7 +30,7 @@ describe('RecoverInterruptedRunsUseCase', () => {
   });
 
   it('fails a running run at recovery cap 3 with a log and empty resume list', async () => {
-    const exhausted = makeRun({ recoveryAttempts: 3 });
+    const exhausted = makeSocialRun({ recoveryAttempts: 3 });
     const saveRecoveryAttempt = jest.fn();
     const appendLog = jest.fn<
       Promise<void>,
@@ -94,7 +71,7 @@ describe('RecoverInterruptedRunsUseCase', () => {
   });
 
   it('increments attempts and returns the run when under the cap', async () => {
-    const interrupted = makeRun({ recoveryAttempts: 0 });
+    const interrupted = makeSocialRun({ recoveryAttempts: 0 });
     const saveRecoveryAttempt = jest.fn();
     const appendLog = jest.fn();
     const transition = jest.fn();
@@ -116,8 +93,8 @@ describe('RecoverInterruptedRunsUseCase', () => {
   });
 
   it('leaves awaiting_hitl runs untouched when the repo only returns running', async () => {
-    const running = makeRun({ recoveryAttempts: 0 });
-    const hitl = makeRun({
+    const running = makeSocialRun({ recoveryAttempts: 0 });
+    const hitl = makeSocialRun({
       status: 'awaiting_hitl',
       recoveryAttempts: 0,
     });
@@ -155,11 +132,11 @@ describe('RecoverInterruptedRunsUseCase', () => {
   });
 
   it('does not increment recoveryAttempts for leftover already interrupted', async () => {
-    const leftoverInterrupted = makeRun({
+    const leftoverInterrupted = makeSocialRun({
       status: 'interrupted',
       recoveryAttempts: 1,
     });
-    const leftoverRunning = makeRun({
+    const leftoverRunning = makeSocialRun({
       status: 'running',
       recoveryAttempts: 0,
     });

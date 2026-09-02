@@ -4,9 +4,10 @@ import {
   createConversationId,
   createRunId,
   createUserId,
-  isContentKind,
   isRunPlatform,
   isRunTaskType,
+  isSocialPlatform,
+  isSocialTaskType,
   isUserId,
   type ContentLanguage,
   type RunId,
@@ -22,7 +23,12 @@ import {
   type RunRepository,
   type RunSnapshot,
 } from '../domain/run.port';
-import type { RunLogEntry, RunRecord } from '../domain/run.types';
+import type {
+  RunLogEntry,
+  RunRecord,
+  SocialRunRecord,
+} from '../domain/run.types';
+import { socialBriefSchema } from '../application/run.schemas';
 
 type RunRow = {
   id: string;
@@ -239,34 +245,34 @@ export class PrismaRunAdapter implements RunRepository {
     if (!isRunTaskType(row.taskType)) {
       throw new Error(`Run.taskType is not a RunTaskType: ${row.taskType}`);
     }
+    if (!isSocialTaskType(row.taskType)) {
+      throw new Error(`Run.taskType is not a SocialTaskType: ${row.taskType}`);
+    }
     if (!isRunPlatform(row.platform)) {
       throw new Error(`Run.platform is not a RunPlatform: ${row.platform}`);
     }
-    const contentKind =
-      row.contentKind == null || row.contentKind === ''
-        ? null
-        : isContentKind(row.contentKind)
-          ? row.contentKind
-          : (() => {
-              throw new Error(
-                `Run.contentKind is not a ContentKind: ${row.contentKind}`,
-              );
-            })();
+    if (!isSocialPlatform(row.platform)) {
+      throw new Error(`Run.platform is not a SocialPlatform: ${row.platform}`);
+    }
+    const briefParsed = socialBriefSchema.safeParse(row.brief);
+    if (!briefParsed.success) {
+      throw new Error(`Run.brief is not a SocialBrief: ${row.taskType}`);
+    }
 
-    return {
+    const snapshot: SocialRunRecord & Pick<RunSnapshot, 'startedBy'> = {
       id: createRunId(row.id),
       conversationId: createConversationId(row.conversationId),
       taskType: row.taskType,
       platform: row.platform,
       language: row.language as ContentLanguage,
       status: row.status as RunStatus,
-      brief: row.brief as RunRecord['brief'],
+      brief: briefParsed.data,
       selectedIdeaIds: (row.selectedIdeaIds as string[] | null) ?? null,
       startedByUserId:
         row.startedByUserId && isUserId(row.startedByUserId)
           ? createUserId(row.startedByUserId)
           : null,
-      contentKind,
+      contentKind: null,
       pipelinePhase: toPipelinePhase(row.pipelinePhase),
       ideasRefineCount: row.ideasRefineCount,
       contentRefineCount: row.contentRefineCount,
@@ -276,5 +282,6 @@ export class PrismaRunAdapter implements RunRepository {
       createdAt: row.createdAt,
       startedBy: row.startedBy,
     };
+    return snapshot;
   }
 }

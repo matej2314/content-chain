@@ -1,7 +1,7 @@
 ---
-wersja: 10
+wersja: 11
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-01
+data_modyfikacji: 2026-09-02
 ---
 
 # SPEC — Runy / logi
@@ -69,9 +69,13 @@ R-3a. `GET /api/v1/runs` — lista **całej instancji** (nie tylko bieżącego u
 
 Zmiana względem wersji 1: wcześniej brak normy listingu kolekcji — obowiązkowe pod dashboard (`docs/ux_dashboard.md`).
 
-R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) **oraz** `conversationId`, `userRating`, `outputEdited`, `reviewFinalizedAt`, wynik addytywny gdy jest (`ideas` / `content` / `reelIdeas` / `reelScript` / `pageOutline` / `pageDocument`), metadane HITL (`options` wg `taskType`).
+R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) **oraz** `conversationId`, `brief` (kształt zapisany: `SocialBrief` albo `ContentBrief` wg `taskType`), `userRating`, `outputEdited`, `reviewFinalizedAt`, wynik addytywny gdy jest (`ideas` / `content` / `reelIdeas` / `reelScript` / `pageOutline` / `pageDocument`), metadane HITL (`options` wg `taskType`).
 
-R-3d. `POST /runs` — unia dyskryminowana (`taskType`): Social wymaga `platform` i **zakazuje** `contentKind`; Content wymaga `contentKind` i **zakazuje** `platform` (zapis kolumny `platform='web'`). Walidacja Zod `discriminatedUnion` w application. `taskType` spoza enumu → HTTP **400** `VALIDATION_FAILED` (composite **nie** wołany).
+R-3d. `POST /runs` — unia dyskryminowana (`taskType`): Social wymaga `platform` i **zakazuje** `contentKind`; Content wymaga `contentKind` i **zakazuje** `platform` (zapis kolumny `platform='web'`). **Kształt `brief` XOR:** Social → `SocialBrief` (`ideaCount?`; zakaz `angle` / `targetLength`); Content → `ContentBrief` (`angle?` / `targetLength?`; zakaz `ideaCount`). Pola: `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`. Walidacja Zod `discriminatedUnion` w application + `.strict()` na gałęzi briefu. DTO HTTP może mieć sumę kluczy briefu; prawda = Zod. `taskType` spoza enumu → HTTP **400** `VALIDATION_FAILED` (composite **nie** wołany). Page + `brief.ideaCount` albo Social + `brief.angle` → **400** `VALIDATION_FAILED`.
+
+Zmiana względem wersji 10 / R-3d: unia dotyczyła `platform` XOR `contentKind` przy **jednym** obiekcie briefu SM (`RunBrief` z `ideaCount`). Od tej wersji brief jest kanałowy; `RunRecord` = `SocialRunRecord` | `ContentRunRecord` (`taskType` dyskryminuje `brief`). Definicje `SocialBrief` / `ContentBrief` w `runs/domain` — **nie** w `packages/shared` ani `apps/api/src/shared/`.
+
+R-3d1. Odczyt `Run.brief` (Json) w adapterze: parse Zod **wg `taskType`**. Zakaz `as RunRecord['brief']` / `as SocialBrief`. Śmieć w JSON → błąd adaptera (jak nielegalny `taskType`), nie cichy cast. Kolumna Json **bez** nowej migracji (`SPEC-PERSISTENCE.md`).
 
 R-3e. Composite `RunExecutorPort` (klej procesu, np. `run-dispatch.executor.ts`): `taskType` Social → `SocialRunExecutor`; Content → `ContentRunExecutor`; gałąź nieznana → status `failed` + kod domenowy `UNKNOWN_TASK_TYPE` (log; nie cichy no-op). `assertNever` na unii. Composite `RunResultReader` składa snapshot addytywny. **Zakaz** `forwardRef`, self-register, importu `ContentModule` / `SocialModule` z `RunsModule`.
 
@@ -135,8 +139,8 @@ R-10. Przegląd runu (po pipeline; **nie** HITL):
 apps/api/src/runs/
 ├── runs.module.ts
 ├── runs.controller.ts           # list, snapshot, logs, events SSE, hitl, user/:userId, rating, output-edited, finalize
-├── application/                 # list, start, enqueue, resume hitl, recovery on boot
-├── domain/                      # status transitions, isRetryable, porty (executor, lifecycle, result reader)
+├── application/                 # list, start, enqueue, resume hitl, recovery on boot; StartRunCommand unia
+├── domain/                      # status transitions, isRetryable, porty; SocialBrief / ContentBrief; RunRecord unia taskType
 └── infrastructure/              # Prisma run/log, SSE hub / subject
 ```
 
@@ -166,6 +170,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Trzymać `userRating: null` jako jawny brak oceny (nie pomijać pola w snapshotcie).
 - `RunsModule.registerAsync` (lub równoważny klej w `AppModule`) wpinające **composite** `RunExecutorPort` (Social + Content) — bez `forwardRef`.
 - Domyślną (pustą) implementację portu odczytu wyniku w Runs, podmienianą w kleju na composite reader.
+- Trzymać `SocialBrief` / `ContentBrief` w `runs/domain/run.types.ts` (payload Run, nie shared kernel).
 
 ### Nie wolno
 
@@ -200,6 +205,11 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - `@Global()` na BC grafu albo na całym Runs jako ukrycia cyklu.
 - Zależności grafu od **klasy** `RunLifecycleService` zamiast portu (token + interfejs `appendLog` / `transition`).
 - Umieszczania portu lifecycle / executora w `packages/shared`.
+- Umieszczania `SocialBrief` / `ContentBrief` w `packages/shared` albo `apps/api/src/shared/` (M-8; `docs/brand_types.md`).
+- Płaskiego `RunBrief` (jeden kształt SM) jako jedynego typu `Run.brief` / `StartRunCommand.brief`.
+- Mapowania JSON `Run.brief` przez `as` bez parse Zod wg `taskType` (R-3d1).
+
+Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz jednego `RunBrief` i `as` na JSON briefu (`docs/dokumentacja_komunikacji.md`).
 
 ### Zatwierdzony stack (obszar)
 

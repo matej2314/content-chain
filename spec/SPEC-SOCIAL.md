@@ -1,7 +1,7 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-01
+data_modyfikacji: 2026-09-02
 ---
 
 # SPEC — Social
@@ -130,6 +130,7 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 - Współdzielić węzeł `ConsistencyVerifier` między ideas i content.
 - Logować w `run.log` rozróżnienie faila verifiera: kontekst vs język.
 - Importować kernel / token lifecycle Runs (jednokierunkowo) oraz eksportować `SocialRunExecutor` do kleju procesu.
+- Importować `SocialBrief` z `runs/domain`; po `isSocialTaskType` traktować run jako `SocialRunRecord` (narrowing). Domain / graf: `brief: SocialBrief` — **nie** płaski `RunBrief`, **nie** `ContentBrief`.
 - Implementować `RunExecutorPort` klasą w `social/application/` — bez rejestracji tokenu `RUN_EXECUTOR` **w** `RunsModule` przez import Social.
 
 ### Nie wolno
@@ -148,9 +149,12 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 - Re-invoke grafu ani zmiany węzłów z powodu oceny gwiazdkowej, flagi edycji outputu lub opinii tekstowej (to Runs / Feedback po `completed`/`failed`).
 - `forwardRef(() => RunsModule)` ani importu pełnego `RunsModule` (HTTP + worker + stub executor) z `SocialModule`.
 - Importu `ContentModule` z `SocialModule` (i odwrotnie — `SPEC-CONTENT.md`).
+- Importu `ContentBrief` / `ContentRunRecord` w węzłach grafu Social (wyjątek: test guarda executora na obcym `taskType` — fixture `makeContentRun`).
+- Pola `brief: RunBrief` (jeden kształt SM bez unii) w `social.types.ts` / `SocialGraphState`.
 - Eksportu `{ provide: RUN_EXECUTOR }` z Social **jako** powodu, by `RunsModule` robił `imports: [SocialModule]`.
 - Zależności węzłów / hopu / fasady od klasy `RunLifecycleService` zamiast portu (`SPEC-RUNY.md`).
 
+Zmiana względem wersji 8 / domain: import `RunBrief` z `runs/domain` w Social był legalnym skrótem przy jednym briefie. Od tej wersji obowiązuje `SocialBrief` i unia `RunRecord` (`SPEC-RUNY.md` R-3d).
 Zmiana względem wersji 3: dopisano zakaz cyklu Nest z Runs (wcześniej tylko zakaz re-invoke z powodu oceny / edycji / opinii).
 Zmiana względem wersji 6: dopisano zakaz importu `ContentModule` (rolki są w Social; page copy pozostaje w `SPEC-CONTENT.md`).
 

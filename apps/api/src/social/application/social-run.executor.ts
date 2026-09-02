@@ -10,11 +10,14 @@ import {
   type RunLifecyclePort,
 } from '../../runs/domain/run-lifecycle.port';
 import { isReelTaskType } from '../domain/reel-task';
-import { isSocialTaskType } from '@content-chain/shared';
 import { SocialPipelineFacade } from './social-pipeline.facade';
 import type { PipelinePhase } from '../domain/social.types';
 import type { RunExecutorPort } from '../../runs/domain/run-executor.port';
-import type { RunRecord } from '../../runs/domain/run.types';
+import {
+  isSocialRunRecord,
+  type RunRecord,
+  type SocialRunRecord,
+} from '../../runs/domain/run.types';
 
 @Injectable()
 export class SocialRunExecutor implements RunExecutorPort {
@@ -27,7 +30,7 @@ export class SocialRunExecutor implements RunExecutorPort {
   ) {}
 
   private resolvePhase(
-    run: RunRecord,
+    run: SocialRunRecord,
     storedPhase: PipelinePhase | null,
   ): PipelinePhase {
     if (run.taskType === 'post_content' || run.taskType === 'reel_script') {
@@ -47,50 +50,52 @@ export class SocialRunExecutor implements RunExecutorPort {
   }
 
   async execute(run: RunRecord): Promise<void> {
-    if (!isSocialTaskType(run.taskType)) {
+    if (!isSocialRunRecord(run)) {
       throw new Error(
         `SocialRunExecutor received non-social task type: ${run.taskType}`,
       );
     }
 
-    const ideas = await this.resultStore.listIdeas(run.id);
-    const reelIdeas = await this.resultStore.listReelIdeas(run.id);
-    const pipeline = await this.resultStore.getPipelineState(run.id);
+    const socialRun: SocialRunRecord = run;
+    const ideas = await this.resultStore.listIdeas(socialRun.id);
+    const reelIdeas = await this.resultStore.listReelIdeas(socialRun.id);
+    const pipeline = await this.resultStore.getPipelineState(socialRun.id);
 
     const noSelection =
-      run.selectedIdeaIds == null || run.selectedIdeaIds.length === 0;
+      socialRun.selectedIdeaIds == null ||
+      socialRun.selectedIdeaIds.length === 0;
 
     if (
-      run.taskType === 'post_ideas_then_content' &&
+      socialRun.taskType === 'post_ideas_then_content' &&
       ideas.length > 0 &&
       noSelection
     ) {
-      await this.lifecycle.transition(run, 'awaiting_hitl', {
+      await this.lifecycle.transition(socialRun, 'awaiting_hitl', {
         hitlOptions: ideas,
       });
       return;
     }
 
     if (
-      run.taskType === 'reel_ideas_then_scripts' &&
+      socialRun.taskType === 'reel_ideas_then_scripts' &&
       reelIdeas.length > 0 &&
       noSelection
     ) {
-      await this.lifecycle.transition(run, 'awaiting_hitl', {
+      await this.lifecycle.transition(socialRun, 'awaiting_hitl', {
         hitlOptions: reelIdeas,
       });
       return;
     }
 
-    const phase = this.resolvePhase(run, pipeline.phase);
-    await this.resultStore.savePipelineState(run.id, {
+    const phase = this.resolvePhase(socialRun, pipeline.phase);
+    await this.resultStore.savePipelineState(socialRun.id, {
       phase,
       ideasRefineCount: pipeline.ideasRefineCount,
       contentRefineCount: pipeline.contentRefineCount,
     });
 
     try {
-      const outcome = await this.facade.invokePhase(run, phase, {
+      const outcome = await this.facade.invokePhase(socialRun, phase, {
         ideas,
         reelIdeas,
         ideasRefineCount: pipeline.ideasRefineCount,
@@ -99,21 +104,21 @@ export class SocialRunExecutor implements RunExecutorPort {
 
       switch (outcome.kind) {
         case 'awaiting_hitl':
-          await this.lifecycle.transition(run, 'awaiting_hitl', {
+          await this.lifecycle.transition(socialRun, 'awaiting_hitl', {
             hitlOptions:
               outcome.reelIdeas.length > 0 ? outcome.reelIdeas : outcome.ideas,
           });
           return;
         case 'failed':
-          await this.lifecycle.transition(run, 'failed', {
+          await this.lifecycle.transition(socialRun, 'failed', {
             failedCode: outcome.code,
             failedMessage: outcome.message,
           });
           return;
       }
 
-      await this.lifecycle.transition(run, 'completed', {
-        resultSummary: isReelTaskType(run.taskType)
+      await this.lifecycle.transition(socialRun, 'completed', {
+        resultSummary: isReelTaskType(socialRun.taskType)
           ? phase === 'ideas'
             ? `reelIdeas:${outcome.reelIdeas.length}`
             : 'reelScript'
@@ -130,7 +135,7 @@ export class SocialRunExecutor implements RunExecutorPort {
             : 'EXECUTOR_FAILED';
       const failedMessage =
         error instanceof Error ? error.message : 'pipeline failed';
-      await this.lifecycle.transition(run, 'failed', {
+      await this.lifecycle.transition(socialRun, 'failed', {
         failedCode,
         failedMessage,
       });

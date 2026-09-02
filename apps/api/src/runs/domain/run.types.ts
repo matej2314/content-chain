@@ -1,27 +1,34 @@
-import type {
-  ConversationId,
-  ContentKind,
-  ContentLanguage,
-  RunId,
-  RunPlatform,
-  RunStatus,
-  RunTaskType,
-  UserId,
+import {
+  isSocialTaskType,
+  type ConversationId,
+  type ContentKind,
+  type ContentLanguage,
+  type ContentTaskType,
+  type RunId,
+  type RunStatus,
+  type SocialPlatform,
+  type SocialTaskType,
+  type UserId,
 } from '@content-chain/shared';
 
-export type RunBrief = {
+export type SocialBrief = {
   topic: string;
   audience?: string;
   goal?: string;
   ideaCount?: number;
 };
 
-export type RunRecord = {
+export type ContentBrief = {
+  topic: string;
+  audience?: string;
+  goal?: string;
+  angle?: string;
+  targetLength?: number;
+};
+
+export type RunRecordBase = {
   id: RunId;
   conversationId: ConversationId;
-  taskType: RunTaskType;
-  platform: RunPlatform;
-  contentKind: ContentKind | null;
   language: ContentLanguage;
   pipelinePhase: 'ideas' | 'content' | 'outline' | 'copy' | null;
   ideasRefineCount: number;
@@ -29,12 +36,31 @@ export type RunRecord = {
   outlineRefineCount: number;
   copyRefineCount: number;
   status: RunStatus;
-  brief: RunBrief;
   selectedIdeaIds: string[] | null;
   startedByUserId: UserId | null;
   recoveryAttempts: number;
   createdAt: Date;
 };
+
+export type SocialRunRecord = RunRecordBase & {
+  taskType: SocialTaskType;
+  platform: SocialPlatform;
+  contentKind: null;
+  brief: SocialBrief;
+};
+
+export type ContentRunRecord = RunRecordBase & {
+  taskType: ContentTaskType;
+  platform: 'web';
+  contentKind: ContentKind;
+  brief: ContentBrief;
+};
+
+export type RunRecord = SocialRunRecord | ContentRunRecord;
+
+export function isSocialRunRecord(run: RunRecord): run is SocialRunRecord {
+  return isSocialTaskType(run.taskType);
+}
 
 export type RunLogLevel = 'info' | 'warn' | 'error';
 

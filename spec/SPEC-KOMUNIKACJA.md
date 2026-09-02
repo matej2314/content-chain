@@ -1,7 +1,7 @@
 ---
-wersja: 12
+wersja: 13
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-01
+data_modyfikacji: 2026-09-02
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -60,11 +60,13 @@ K-1. Każda odpowiedź błędu HTTP z `apps/api` ma envelope:
 
 `requestId` nadaje **`apps/api`** w ramach obsługi tego żądania (middleware / interceptor) i zwraca w envelope oraz (zalecane) nagłówku `x-request-id`. Klient **nie musi** przysyłać `RequestId`.
 
-K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId` i statusem `queued` | `running` — bez synchronicznego czekania na wynik LLM. `interrupted` **nie** jest statusem odpowiedzi POST. Body: unia dyskryminowana `taskType` (`platform` XOR `contentKind`) — `docs/dokumentacja_komunikacji.md`. Walidacja Zod `discriminatedUnion` w application; DTO HTTP zsynchronizowane. `taskType` spoza enumu → **400** `VALIDATION_FAILED`.
+K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId` i statusem `queued` | `running` — bez synchronicznego czekania na wynik LLM. `interrupted` **nie** jest statusem odpowiedzi POST. Body: unia dyskryminowana `taskType` (`platform` XOR `contentKind` **oraz** kształt `brief` XOR: `SocialBrief` vs `ContentBrief`) — `docs/dokumentacja_komunikacji.md`. Walidacja Zod `discriminatedUnion` w application + `.strict()` na gałęzi briefu. DTO HTTP może deklarować sumę kluczy briefu (`topic`, `audience`, `goal`, `ideaCount`, `angle`, `targetLength`); prawda = Zod. `taskType` spoza enumu → **400** `VALIDATION_FAILED`. Page + `brief.ideaCount` / Social + `brief.angle` → **400** `VALIDATION_FAILED`.
 
 K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry w tym nowe `taskType` i `platform=web`, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`. Filtr `status` obejmuje pełny `RunStatus` (w tym `interrupted`).
 
-K-2c. Snapshot `GET /runs/:id` — `result` addytywny: `ideas`, `content`, `reelIdeas`, `reelScript`, `pageOutline`, `pageDocument`. HITL `options` zależne od `taskType`.
+K-2c. Snapshot `GET /runs/:id` — `brief` w kształcie zapisanym (unia); `result` addytywny: `ideas`, `content`, `reelIdeas`, `reelScript`, `pageOutline`, `pageDocument`. HITL `options` zależne od `taskType`.
+
+Zmiana względem wersji 12 / K-2: unia startu dotyczyła `platform` XOR `contentKind` przy jednym obiekcie briefu SM. Od tej wersji Zod rozdziela `socialBriefSchema` / `contentBriefSchema` (`SPEC-RUNY.md` R-3d).
 
 Zmiana względem wersji 10: unia startu (K-2), listing `platform=web` / nowe `taskType` (K-2a), snapshot addytywny (K-2c).
 

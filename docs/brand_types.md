@@ -103,7 +103,10 @@ RequestId LLM₃                    ──► z odpowiedzi gateway po kolejnym a
 ## Poza zakresem MVP tego dokumentu
 
 - Pełny katalog brandów gateway (tokeny, `GatewayKey`, metryki) — docs upstream; CC bierze formaty ID + to, czego potrzebuje do wywołań.
-- Brandowanie każdego pola briefu SM.
+- Brandowanie każdego pola briefu SM **ani** briefu Content (`SocialBrief` / `ContentBrief` to zwykłe obiekty, nie brand types).
+- Umieszczanie kształtów `SocialBrief` / `ContentBrief` w `packages/shared` — to payload agregatu Run (`apps/api/src/runs/domain/run.types.ts`), nie publiczny enum/brand FE/BE. Zod briefu żyje w application api.
 - OpenTelemetry jako wymóg MVP (korelacja ID wystarcza na start).
+
+Zmiana względem: „brandowanie każdego pola briefu SM” milcząco zakładało jeden brief; kształty kanałowe nadal poza shared.
 
 Szczegóły pojęć: `dictionary.md`. Kontrakt HTTP: `dokumentacja_komunikacji.md`. Przepływy: `data_flow.md`. Bezpieczeństwo ID/sekretów: `security.md`. Norma shared: `spec/SPEC-MONOREPO.md`.

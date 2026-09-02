@@ -126,7 +126,7 @@ flowchart TB
 
 Pipeline produktowy działa jako **asynchroniczny run**:
 
-1. Klient tworzy run (brief, typ tasku, `platform` **albo** `contentKind`, język) → otrzymuje `runId`.
+1. Klient tworzy run (brief **w kształcie kanału** — `SocialBrief` albo `ContentBrief` wg `taskType`, typ tasku, `platform` **albo** `contentKind`, język) → otrzymuje `runId`. Nie ma jednego uniwersalnego obiektu briefu SM na `page_*` (`dokumentacja_komunikacji.md`).
 2. Worker / kontynuacja w `apps/api` wykonuje graf (Social albo Content wg `taskType`); każdy istotny krok dopisuje **czytelny wpis logu** w DB.
 3. Live postęp (status, logi przyrostowe, sygnał HITL, completed/failed) idzie do klienta przez **SSE** (`GET /api/v1/runs/:runId/events`). Po `run.completed` / `run.failed` serwer **kończy** strumień; dalszy odczyt = GET. **GET** równolegle: snapshot logów runu oraz `GET /api/v1/health` — bez pollingu statusu jako kanału live. Szczegóły cyklu życia SSE: `dokumentacja_komunikacji.md`.
 4. Przy tasku dwuetapowym run przechodzi w stan oczekiwania na **HITL** (wybór z listy pomysłów / rolek / outline’u); wznowienie osobnym wywołaniem API.

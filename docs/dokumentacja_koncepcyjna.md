@@ -29,7 +29,7 @@ Zmiana względem wcześniejszego zapisu „świadomie ograniczony pierwszym slic
 - **Auth** w formie docelowej: konto admina (bootstrap) + konta użytkowników.
 - **Dashboard**: uzupełnianie / podgląd kontekstu firmy (edycja tylko admin), widoki charakterystyczne per flow SM.
 - **Social — posty** (`post_ideas`, `post_content`, `post_ideas_then_content`) oraz **rolki** (`reel_ideas`, `reel_script`, `reel_ideas_then_scripts`) na platformach: LinkedIn, Facebook, Instagram.
-- **Content (BC) — podstawowa forma:** `page_copy` (full-auto) oraz `page_outline_then_copy` (outline → HITL → dokument) dla `contentKind`: `blog` \| `service_page` \| `landing`.
+- **Content (BC) — podstawowa forma:** `page_copy` (full-auto) oraz `page_outline_then_copy` (outline → HITL → dokument) dla `contentKind`: `blog` \| `service_page` \| `landing`. Brief wejściowy stron (`ContentBrief`: temat, opcjonalnie kąt / Challenger, długość, odbiorca, cel) **nie** jest briefem SM (`SocialBrief` z liczbą pomysłów). Nadal bez łańcucha 6 specjalistów, WordPress i folderu materiałów jako produktu.
 - Języki generowanych treści: **PL i EN**.
 - Orchestracja agentów z deterministyczną dekompozycją tasków i szablonami promptów (osobny graf Social, osobny graf Content; klej composite w procesie api).
 - Weryfikacja wygenerowanej treści względem kontekstu firmy.

@@ -36,6 +36,9 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | Osobne „mikroserwisy agentów” w MVP | Overengineering względem modularnego monolitu | Węzły w grafie BC w `apps/api` |
 | `forwardRef` Runs ↔ Social / Content (albo `RunsModule` importuje każdy graf) jako klej pipeline’u | Cykl Nest; orkiestrator zna katalog agentów | Graf woła port lifecycle Runs; composite `RUN_EXECUTOR` wiązany w `AppModule` / `registerAsync`; bez self-register w MVP |
 | Import `ContentModule` z `SocialModule` (lub odwrotnie) | Sprzężenie kanałów; fat granice | Dwa BC; klej wyłącznie w composition root |
+| Jeden typ `RunBrief` SM (`ideaCount`) na `page_*` / `angle` w Social | Content dziedziczy język postów; Zod nie odcina obcych pól kanału | Unia na `taskType`: `SocialBrief` vs `ContentBrief`; `.strict()`; `RunRecord` dyskryminowany (`dokumentacja_komunikacji.md`) |
+| `Partial<RunRecord>` w unitach po unii `taskType` | Miesza warianty (np. `page_copy` + `linkedin`) | `makeSocialRun` / `makeContentRun` w `apps/api/src/runs/run-record.test-helpers.ts` |
+| `SocialBrief` / `ContentBrief` w `packages/shared` albo `apps/api/src/shared/types` | Shared kernel / śmietnik cross-cutting zamiast payloadu Run | Definicje w `runs/domain/run.types.ts`; Zod w application Runs |
 
 ---
 

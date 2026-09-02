@@ -1,7 +1,7 @@
-import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import type { CompanyContextRepository } from '../../company-context/domain/company-context.port';
 import type { RunLifecyclePort } from '../../runs/domain/run-lifecycle.port';
-import type { RunRecord } from '../../runs/domain/run.types';
+import type { RunRecord, SocialRunRecord } from '../../runs/domain/run.types';
+import { makeContentRun, makeSocialRun } from '../../runs/run-record.test-helpers';
 import type { SocialResultStore } from '../domain/social-result.port';
 import type { ReelIdea, SocialIdea } from '../domain/social.types';
 import type { SocialGraphState } from '../infrastructure/graph/state';
@@ -99,32 +99,11 @@ function unusedHop(): LlmHopService {
   } as LlmHopService;
 }
 
-function makeRun(overrides: Partial<RunRecord> = {}): RunRecord {
-  return {
-    id: newRunId(),
-    conversationId: newConversationId(),
-    taskType: 'post_ideas',
-    platform: 'linkedin',
-    language: 'pl',
-    status: 'running',
-    brief: { topic: 'Q3' },
-    selectedIdeaIds: null,
-    startedByUserId: null,
-    contentKind: null,
-    pipelinePhase: null,
-    ideasRefineCount: 0,
-    contentRefineCount: 0,
-    outlineRefineCount: 0,
-    copyRefineCount: 0,
-    recoveryAttempts: 0,
-    createdAt: new Date(),
-    ...overrides,
-  };
-}
-
-function makeFacade(invoke: jest.MockedFunction<
-  (input: SocialGraphState) => Promise<SocialGraphState>
->) {
+function makeFacade(
+  invoke: jest.MockedFunction<
+    (input: SocialGraphState) => Promise<SocialGraphState>
+  >,
+) {
   compileSocialGraphMock.mockReturnValue({ invoke });
   return new SocialPipelineFacade(
     unusedContext(),
@@ -142,13 +121,15 @@ describe('toOutcome', () => {
   });
 
   it('returns completed for post_ideas without HITL', () => {
-    expect(toOutcome({ taskType: 'post_ideas' }, 'ideas', makeFinal())).toEqual({
-      kind: 'completed',
-      ideas,
-      content: null,
-      reelIdeas: [],
-      reelScript: null,
-    });
+    expect(toOutcome({ taskType: 'post_ideas' }, 'ideas', makeFinal())).toEqual(
+      {
+        kind: 'completed',
+        ideas,
+        content: null,
+        reelIdeas: [],
+        reelScript: null,
+      },
+    );
   });
 
   it('returns completed for content phase after HITL', () => {
@@ -180,11 +161,7 @@ describe('toOutcome', () => {
 
   it('returns completed for reel_ideas without HITL', () => {
     expect(
-      toOutcome(
-        { taskType: 'reel_ideas' },
-        'ideas',
-        makeFinal({ reelIdeas }),
-      ),
+      toOutcome({ taskType: 'reel_ideas' }, 'ideas', makeFinal({ reelIdeas })),
     ).toEqual({
       kind: 'completed',
       ideas,
@@ -254,7 +231,7 @@ describe('SocialPipelineFacade.invokePhase', () => {
   it('rejects a non-social task type before invoking the graph', async () => {
     const invoke = jest.fn();
     const facade = makeFacade(invoke);
-    const run = makeRun({ taskType: 'page_copy', platform: 'web' });
+    const run = makeContentRun({ taskType: 'page_copy' });
 
     await expect(
       facade.invokePhase(run, 'ideas', {
@@ -272,7 +249,11 @@ describe('SocialPipelineFacade.invokePhase', () => {
   it('rejects a non-social platform before invoking the graph', async () => {
     const invoke = jest.fn();
     const facade = makeFacade(invoke);
-    const run = makeRun({ taskType: 'post_ideas', platform: 'web' });
+    const run: RunRecord = {
+      ...makeSocialRun({ taskType: 'post_ideas' }),
+      // persistence garbage outside SocialPlatform — tests the isSocialPlatform guard
+      platform: 'web' as SocialRunRecord['platform'],
+    };
 
     await expect(
       facade.invokePhase(run, 'ideas', {
@@ -281,14 +262,12 @@ describe('SocialPipelineFacade.invokePhase', () => {
         ideasRefineCount: 0,
         contentRefineCount: 0,
       }),
-    ).rejects.toThrow(
-      'SocialPipelineFacade received non-social platform: web',
-    );
+    ).rejects.toThrow('SocialPipelineFacade received non-social platform: web');
     expect(invoke).not.toHaveBeenCalled();
   });
 
   it('invokes the graph with run fields, extras, and social platform', async () => {
-    const run = makeRun({
+    const run = makeSocialRun({
       taskType: 'post_ideas_then_content',
       platform: 'instagram',
       language: 'en',
