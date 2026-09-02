@@ -12,14 +12,14 @@ import type {
   ContentLanguage,
   ConversationId,
   RunId,
-  RunTaskType,
   SocialPlatform,
+  SocialTaskType,
 } from '@content-chain/shared';
 
 export type SocialGraphState = {
   runId: RunId;
   conversationId: ConversationId;
-  taskType: RunTaskType;
+  taskType: SocialTaskType;
   platform: SocialPlatform;
   language: ContentLanguage;
   brief: RunBrief;

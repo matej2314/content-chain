@@ -4,9 +4,10 @@ import type {
   ContentLanguage,
   ConversationId,
   RunId,
-  RunTaskType,
   SocialPlatform,
+  SocialTaskType,
 } from '@content-chain/shared';
+
 
 export type PipelinePhase = 'ideas' | 'content';
 
@@ -61,7 +62,7 @@ export type PipelineState = {
 export type SocialPipelineInput = {
   runId: RunId;
   conversationId: ConversationId;
-  taskType: RunTaskType;
+  taskType: SocialTaskType;
   platform: SocialPlatform;
   language: ContentLanguage;
   brief: RunBrief;

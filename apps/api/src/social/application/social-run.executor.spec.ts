@@ -141,11 +141,7 @@ function makeExecutor(args: {
   lifecycle: RunLifecyclePort;
   store: SocialResultStore;
 }): SocialRunExecutor {
-  return new SocialRunExecutor(
-    args.facade,
-    args.lifecycle,
-    args.store,
-  );
+  return new SocialRunExecutor(args.facade, args.lifecycle, args.store);
 }
 
 describe('SocialRunExecutor', () => {
@@ -720,5 +716,18 @@ describe('SocialRunExecutor', () => {
       expect(facade.invokePhase).not.toHaveBeenCalled();
       expect(lifecycle.transition).not.toHaveBeenCalled();
     });
+  });
+
+  it('throws when taskType is not social and does not invoke the facade', async () => {
+    const invokePhase = jest.fn();
+    const executor = new SocialRunExecutor(
+      { invokePhase } as Pick<SocialPipelineFacade, 'invokePhase'>,
+      fakeLifecycle(),
+      fakeStore(),
+    );
+    await expect(
+      executor.execute(makeRun({ taskType: 'page_copy' })),
+    ).rejects.toThrow(/non-social task/);
+    expect(invokePhase).not.toHaveBeenCalled();
   });
 });

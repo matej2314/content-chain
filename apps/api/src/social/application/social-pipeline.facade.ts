@@ -12,6 +12,7 @@ import {
   compileSocialGraph,
 } from '../infrastructure/graph/social.graph';
 import { LlmHopService } from '../infrastructure/graph/llm-hop';
+import { isSocialTaskType } from '@content-chain/shared';
 import {
   RUN_LIFECYCLE,
   type RunLifecyclePort,
@@ -54,6 +55,12 @@ export class SocialPipelineFacade {
       reelIdeas: ReelIdea[];
     },
   ): Promise<SocialPipelineOutcome> {
+    if (!isSocialTaskType(run.taskType)) {
+      throw new Error(
+        `SocialPipelineFacade received non-social task type: ${run.taskType}`,
+      );
+    }
+
     const final = await this.graph.invoke({
       runId: run.id,
       conversationId: run.conversationId,

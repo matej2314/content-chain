@@ -10,6 +10,7 @@ import {
   type RunLifecyclePort,
 } from '../../runs/domain/run-lifecycle.port';
 import { isReelTaskType } from '../domain/reel-task';
+import { isSocialTaskType } from '@content-chain/shared';
 import { SocialPipelineFacade } from './social-pipeline.facade';
 import type { PipelinePhase } from '../domain/social.types';
 import type { RunExecutorPort } from '../../runs/domain/run-executor.port';
@@ -46,6 +47,12 @@ export class SocialRunExecutor implements RunExecutorPort {
   }
 
   async execute(run: RunRecord): Promise<void> {
+    if (!isSocialTaskType(run.taskType)) {
+      throw new Error(
+        `SocialRunExecutor received non-social task type: ${run.taskType}`,
+      );
+    }
+
     const ideas = await this.resultStore.listIdeas(run.id);
     const reelIdeas = await this.resultStore.listReelIdeas(run.id);
     const pipeline = await this.resultStore.getPipelineState(run.id);
