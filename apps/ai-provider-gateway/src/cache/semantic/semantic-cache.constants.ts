@@ -9,6 +9,7 @@ export const SEMANTIC_CACHE_PROJECT_ID = 'ai-provider-gateway';
 const SEMANTIC_SCHEMA_TAG_FIELDS = [
   'modelAlias',
   'clientId',
+  'conversationId',
   'embeddingModel',
   'systemSignature',
   'callParams',

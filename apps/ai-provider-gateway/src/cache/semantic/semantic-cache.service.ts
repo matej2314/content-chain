@@ -18,7 +18,10 @@ import {
 import type { CachedChatResponse } from '../types/cached-chat-response.type';
 import type { ChatCacheIdentity } from '../types/chat-cache-identity.type';
 import type { EmbeddingBackend } from './embedding-backend.interface';
-import type { VectorStore } from './vector-store.interface';
+import type {
+  VectorStore,
+  VectorStorePartition,
+} from './vector-store.interface';
 
 export type SemanticLookupResult = {
   reply: CachedChatResponse | null;
@@ -55,6 +58,20 @@ export class SemanticCacheService {
     this.logger = this.loggingService.child({ module: 'SemanticCacheService' });
   }
 
+  private vectorPartition(
+    identity: ChatCacheIdentity,
+    systemSignature: string,
+    callParams: string,
+  ): VectorStorePartition {
+    return {
+      modelAlias: identity.modelAlias,
+      clientId: identity.clientId,
+      conversationId: identity.conversationId,
+      systemSignature,
+      callParams,
+    };
+  }
+
   private recordLookupSkip(identity: ChatCacheIdentity): SemanticLookupResult {
     this.appMetrics.recordSemanticCacheLookup(identity.modelAlias, 'skip');
     return EMBED_NOT_ATTEMPTED;
@@ -75,10 +92,7 @@ export class SemanticCacheService {
 
     const identityReply = await this.vectorStore.getByTextIdentity({
       text,
-      modelAlias: identity.modelAlias,
-      clientId: identity.clientId,
-      systemSignature: systemSig,
-      callParams: callParamsSig,
+      ...this.vectorPartition(identity, systemSig, callParamsSig),
     });
     if (identityReply) {
       this.appMetrics.recordSemanticCacheLookup(
@@ -107,10 +121,7 @@ export class SemanticCacheService {
     try {
       const hits = await this.vectorStore.knn({
         vector,
-        modelAlias: identity.modelAlias,
-        clientId: identity.clientId,
-        systemSignature: systemSig,
-        callParams: callParamsSig,
+        ...this.vectorPartition(identity, systemSig, callParamsSig),
         k: cfg.k,
       });
       const best = hits.find((hit) => hit.similarity >= cfg.minSimilarity);
@@ -167,10 +178,7 @@ export class SemanticCacheService {
       await this.vectorStore.upsert({
         vector,
         text,
-        modelAlias: identity.modelAlias,
-        clientId: identity.clientId,
-        systemSignature: systemSig,
-        callParams: callParamsSig,
+        ...this.vectorPartition(identity, systemSig, callParamsSig),
         reply,
         ttlSeconds: cfg.ttl,
       });

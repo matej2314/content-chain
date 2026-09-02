@@ -14,6 +14,7 @@ import { createMockCacheBackend } from '../common/mocks/createMockCacheBackend';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { createMockConfigService } from '../common/mocks/createMockConfigService';
 import {
+  TEST_CONVERSATION_ID,
   TEST_MODEL_ALIAS_BRANDED,
   TEST_CACHED_RESPONSE_ID,
   TEST_INPUT_TOKENS,
@@ -23,16 +24,24 @@ import {
   TEST_FALLBACK_MODEL_ALIAS,
   TEST_CACHE_TTL_SECONDS,
 } from '../common/mocks/test-constants';
-import { asClientId, asModelAlias } from '../common/types/branded.types';
+import {
+  asClientId,
+  asConversationId,
+  asModelAlias,
+} from '../common/types/branded.types';
 
 const TEST_CLIENT_ID = asClientId('test-client');
 const OTHER_CLIENT_ID = asClientId('other-client');
+const OTHER_CONVERSATION_ID = asConversationId(
+  'conv_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+);
 
 function cacheIdentity(
   overrides: Partial<ChatCacheIdentity> = {},
 ): ChatCacheIdentity {
   return {
     modelAlias: TEST_MODEL_ALIAS_BRANDED,
+    conversationId: TEST_CONVERSATION_ID,
     clientId: TEST_CLIENT_ID,
     messages: [{ role: 'user', content: 'Hello' }],
     ...overrides,
@@ -533,6 +542,15 @@ describe('ResponseCacheService', () => {
       const first = service.buildIdentityKey(cacheIdentity());
       const second = service.buildIdentityKey(
         cacheIdentity({ clientId: OTHER_CLIENT_ID }),
+      );
+
+      expect(first).not.toBe(second);
+    });
+
+    it('returns a different key for a different conversationId', () => {
+      const first = service.buildIdentityKey(cacheIdentity());
+      const second = service.buildIdentityKey(
+        cacheIdentity({ conversationId: OTHER_CONVERSATION_ID }),
       );
 
       expect(first).not.toBe(second);

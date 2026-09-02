@@ -55,8 +55,9 @@ Wielkość liter w CTA to **nie** błąd językowy.
 
 ## Werdykt
 
-- `ok` = true tylko gdy OBA obszary przechodzą (obie tablice puste).
-- `ok` = false gdy którykolwiek obszar ma zarzuty. Wtedy odpowiednia tablica MUSI być niepusta i zawierać konkretne zarzuty (nie „jest źle”, tylko co i gdzie).
+- `ok` = true i obie tablice puste, gdy nie ma **żadnego odrzutu**. Nie wpisuj do tablic zdań „pass”, „OK”, „to nie jest błąd”, „poprawne mapowanie”.
+- Jeśli w draftcie zarzutu sam piszesz pass — **nie wrzucaj** tego stringa do tablicy. Same pass-notatki → `ok: true`, `[]`, `[]`.
+- `ok` = false tylko przy prawdziwym odrzucie. Wtedy tablica MUSI być niepusta i zawierać konkret (fraza + powód), bez słowa „pass” w tym samym wpisie.
 - Rozróżniaj: fakt/oferta/CTA/ton → `contextIssues`; gramatyka/interpunkcja/składnia → `languageIssues`. Nie duplikuj tego samego zarzutu w obu tablicach.
 
 ## Zakazy

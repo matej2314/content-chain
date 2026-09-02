@@ -31,6 +31,7 @@ import { createMockConfigService } from '../common/mocks/createMockConfigService
 import {
   asGatewayKey,
   asClientId,
+  asCacheKey,
   asModelAlias,
   asResponseId,
   asProviderInstanceId,
@@ -42,6 +43,7 @@ import {
   type ProviderInstanceId,
   type ResponseId,
 } from '../common/types/branded.types';
+import type { ChatRequestDto } from './dto/chat-request.dto';
 import {
   TEST_CONVERSATION_ID,
   TEST_GATEWAY_KEY_BRANDED,
@@ -54,6 +56,7 @@ import type { ResolvedProviderConfig } from '../providers/provider-registry.serv
 import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
 import type { StreamCacheHit } from './types/stream-cache-decision.types';
 import type { CachedChatResponse } from '../cache/types/cached-chat-response.type';
+import { INGRESS_LIMITS } from './validation/chat-ingress.constants';
 
 describe('ChatService', () => {
   let service: ChatService;
@@ -127,8 +130,10 @@ describe('ChatService', () => {
       getCachedIfAllowed: jest.fn().mockResolvedValue({ cached: null }),
       setCachedIfAllowed: jest.fn().mockResolvedValue(undefined),
       buildIdentityKey: jest.fn(
-        (req: { modelAlias: string; messages: unknown }) =>
-          `id:${req.modelAlias}:${JSON.stringify(req.messages)}`,
+        (requestBody: ChatRequestDto, conversationId: ConversationId) =>
+          asCacheKey(
+            `id:${requestBody.modelAlias}:${conversationId}:${JSON.stringify(requestBody.messages)}`,
+          ),
       ),
     };
 
@@ -371,6 +376,7 @@ describe('ChatService', () => {
 
       expect(mockCachePipeline.getCachedIfAllowed).toHaveBeenCalledWith(
         baseRequest,
+        TEST_CONVERSATION_ID,
         expect.any(Object),
         TEST_CLIENT_ID,
         TEST_GATEWAY_KEY_BRANDED,
@@ -540,10 +546,15 @@ describe('ChatService', () => {
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalled();
     });
 
-    it('should reject native ingress when user content exceeds 3000 characters', async () => {
+    it('should reject native ingress when user content exceeds the native limit', async () => {
       const longContentRequest = {
         ...baseRequest,
-        messages: [{ role: 'user' as const, content: 'a'.repeat(3001) }],
+        messages: [
+          {
+            role: 'user' as const,
+            content: 'a'.repeat(INGRESS_LIMITS.native.maxContentUser + 1),
+          },
+        ],
       };
 
       await expect(
@@ -609,6 +620,7 @@ describe('ChatService', () => {
         expect.objectContaining({
           output: { type: 'text', text: 'Fresh answer' },
         }),
+        TEST_CONVERSATION_ID,
         expect.any(Object),
         TEST_CLIENT_ID,
         TEST_GATEWAY_KEY_BRANDED,
@@ -637,6 +649,7 @@ describe('ChatService', () => {
         expect.objectContaining({
           output: { type: 'text', text: 'Fresh answer' },
         }),
+        TEST_CONVERSATION_ID,
         expect.any(Object),
         TEST_CLIENT_ID,
         TEST_GATEWAY_KEY_BRANDED,
@@ -999,6 +1012,7 @@ describe('ChatService', () => {
       });
       expect(mockCachePipeline.getCachedIfAllowed).toHaveBeenCalledWith(
         baseRequest,
+        TEST_CONVERSATION_ID,
         expect.any(Object),
         TEST_CLIENT_ID,
         TEST_GATEWAY_KEY_BRANDED,
@@ -1188,6 +1202,7 @@ describe('ChatService', () => {
           id: TEST_RESPONSE_ID_PREFIX,
           output: { type: 'text', text: 'Hello streamed' },
         }),
+        TEST_CONVERSATION_ID,
         expect.any(Object),
         TEST_CLIENT_ID,
         TEST_GATEWAY_KEY_BRANDED,
@@ -1271,6 +1286,7 @@ describe('ChatService', () => {
         expect.objectContaining({
           output: { type: 'text', text: 'Hello' },
         }),
+        TEST_CONVERSATION_ID,
         expect.any(Object),
         TEST_CLIENT_ID,
         TEST_GATEWAY_KEY_BRANDED,

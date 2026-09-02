@@ -1,6 +1,7 @@
 import type { CachedChatResponse } from '../types/cached-chat-response.type';
 import type {
   ClientId,
+  ConversationId,
   ModelAlias,
   SemanticCacheTtlSeconds,
 } from '../../common/types/branded.types';
@@ -15,32 +16,29 @@ export type VectorStoreProbeResult = {
   message: string;
 };
 
-export interface VectorStoreKnnInput {
-  vector: number[];
+/** TAG / HASH partition shared by KNN, HASH identity, and upsert. */
+export interface VectorStorePartition {
   modelAlias: ModelAlias;
   clientId: ClientId;
+  conversationId: ConversationId;
   systemSignature: string;
   callParams: string;
+}
+
+export interface VectorStoreKnnInput extends VectorStorePartition {
+  vector: number[];
   k: number;
 }
 
-export interface VectorStoreUpsertInput {
+export interface VectorStoreUpsertInput extends VectorStorePartition {
   vector: number[];
   text: string;
-  modelAlias: ModelAlias;
-  clientId: ClientId;
-  systemSignature: string;
-  callParams: string;
   reply: CachedChatResponse;
   ttlSeconds: SemanticCacheTtlSeconds;
 }
 
-export interface VectorStoreTextIdentityInput {
+export interface VectorStoreTextIdentityInput extends VectorStorePartition {
   text: string;
-  modelAlias: ModelAlias;
-  clientId: ClientId;
-  systemSignature: string;
-  callParams: string;
 }
 
 export interface VectorStore {

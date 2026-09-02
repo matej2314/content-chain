@@ -1,4 +1,8 @@
-import type { ClientId, ModelAlias } from '../../common/types/branded.types';
+import type {
+  ClientId,
+  ConversationId,
+  ModelAlias,
+} from '../../common/types/branded.types';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 
 /**
@@ -21,6 +25,7 @@ export type CacheIdentityMessage = {
  */
 export type ChatCacheIdentity = {
   modelAlias: ModelAlias;
+  conversationId: ConversationId;
   clientId: ClientId;
   messages: readonly CacheIdentityMessage[];
   callParams?: ProviderCallOptions;

@@ -146,6 +146,7 @@ describe('ChatCachePipelineService', () => {
 
         const result = await service.getCachedIfAllowed(
           baseRequest,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -156,12 +157,45 @@ describe('ChatCachePipelineService', () => {
           cacheSource: 'exact',
         });
         expect(mockCache.getCachedResponse).toHaveBeenCalledWith(
-          toChatCacheIdentity(baseRequest, TEST_CLIENT_ID, providerOptions),
+          toChatCacheIdentity(
+            baseRequest,
+            TEST_CONVERSATION_ID,
+            TEST_CLIENT_ID,
+            providerOptions,
+          ),
         );
         expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
         expect(mockAppMetrics.recordCachePipelineAccess).toHaveBeenCalledWith(
           TEST_MODEL_ALIAS_BRANDED,
           true,
+        );
+      });
+
+      it('uses the conversationId argument, not a different body field', async () => {
+        (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(null);
+        const bodyConversationId = asConversationId(
+          'conv_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        );
+        const request = {
+          ...baseRequest,
+          conversationId: bodyConversationId,
+        };
+
+        await service.getCachedIfAllowed(
+          request,
+          TEST_CONVERSATION_ID,
+          providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+        );
+
+        expect(mockCache.getCachedResponse).toHaveBeenCalledWith(
+          toChatCacheIdentity(
+            request,
+            TEST_CONVERSATION_ID,
+            TEST_CLIENT_ID,
+            providerOptions,
+          ),
         );
       });
 
@@ -175,6 +209,7 @@ describe('ChatCachePipelineService', () => {
 
         const result = await service.getCachedIfAllowed(
           baseRequest,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -185,7 +220,12 @@ describe('ChatCachePipelineService', () => {
           cacheSource: 'semantic',
         });
         expect(mockSemanticCache.lookup).toHaveBeenCalledWith(
-          toChatCacheIdentity(baseRequest, TEST_CLIENT_ID, providerOptions),
+          toChatCacheIdentity(
+            baseRequest,
+            TEST_CONVERSATION_ID,
+            TEST_CLIENT_ID,
+            providerOptions,
+          ),
         );
         expect(mockAppMetrics.recordCachePipelineAccess).toHaveBeenCalledWith(
           TEST_MODEL_ALIAS_BRANDED,
@@ -205,6 +245,7 @@ describe('ChatCachePipelineService', () => {
 
         const result = await service.getCachedIfAllowed(
           toolingRequest,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -245,6 +286,7 @@ describe('ChatCachePipelineService', () => {
 
         const result = await service.getCachedIfAllowed(
           baseRequest,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -271,6 +313,7 @@ describe('ChatCachePipelineService', () => {
 
         const result = await service.getCachedIfAllowed(
           baseRequest,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -296,6 +339,7 @@ describe('ChatCachePipelineService', () => {
 
         const result = await service.getCachedIfAllowed(
           request,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -306,7 +350,12 @@ describe('ChatCachePipelineService', () => {
           embedState: { vector: undefined, embedAttempted: false },
         });
         expect(mockSemanticCache.lookup).toHaveBeenCalledWith(
-          toChatCacheIdentity(request, TEST_CLIENT_ID, providerOptions),
+          toChatCacheIdentity(
+            request,
+            TEST_CONVERSATION_ID,
+            TEST_CLIENT_ID,
+            providerOptions,
+          ),
         );
       });
 
@@ -328,6 +377,7 @@ describe('ChatCachePipelineService', () => {
 
         const result = await service.getCachedIfAllowed(
           multiTurn,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -338,7 +388,12 @@ describe('ChatCachePipelineService', () => {
           embedState: { vector: undefined, embedAttempted: false },
         });
         expect(mockSemanticCache.lookup).toHaveBeenCalledWith(
-          toChatCacheIdentity(multiTurn, TEST_CLIENT_ID, providerOptions),
+          toChatCacheIdentity(
+            multiTurn,
+            TEST_CONVERSATION_ID,
+            TEST_CLIENT_ID,
+            providerOptions,
+          ),
         );
       });
 
@@ -348,6 +403,7 @@ describe('ChatCachePipelineService', () => {
 
         const result = await service.getCachedIfAllowed(
           baseRequest,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -364,6 +420,7 @@ describe('ChatCachePipelineService', () => {
         await expect(
           service.getCachedIfAllowed(
             baseRequest,
+            TEST_CONVERSATION_ID,
             providerOptions,
             TEST_CLIENT_ID,
             TEST_GATEWAY_KEY_BRANDED,
@@ -384,6 +441,7 @@ describe('ChatCachePipelineService', () => {
 
         const result = await service.getCachedIfAllowed(
           baseRequest,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -409,6 +467,7 @@ describe('ChatCachePipelineService', () => {
 
         const result = await service.getCachedIfAllowed(
           baseRequest,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -430,6 +489,7 @@ describe('ChatCachePipelineService', () => {
 
         const result = await service.getCachedIfAllowed(
           baseRequest,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -450,6 +510,7 @@ describe('ChatCachePipelineService', () => {
         await expect(
           service.getCachedIfAllowed(
             baseRequest,
+            TEST_CONVERSATION_ID,
             providerOptions,
             TEST_CLIENT_ID,
             TEST_GATEWAY_KEY_BRANDED,
@@ -465,6 +526,7 @@ describe('ChatCachePipelineService', () => {
         await service.setCachedIfAllowed(
           baseRequest,
           chatResponse,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -472,7 +534,12 @@ describe('ChatCachePipelineService', () => {
         );
 
         expect(mockCache.setCachedResponse).toHaveBeenCalledWith(
-          toChatCacheIdentity(baseRequest, TEST_CLIENT_ID, providerOptions),
+          toChatCacheIdentity(
+            baseRequest,
+            TEST_CONVERSATION_ID,
+            TEST_CLIENT_ID,
+            providerOptions,
+          ),
           expect.objectContaining({
             id: chatResponse.id,
             cached: true,
@@ -480,7 +547,12 @@ describe('ChatCachePipelineService', () => {
           }),
         );
         expect(mockSemanticCache.storeReply).toHaveBeenCalledWith(
-          toChatCacheIdentity(baseRequest, TEST_CLIENT_ID, providerOptions),
+          toChatCacheIdentity(
+            baseRequest,
+            TEST_CONVERSATION_ID,
+            TEST_CLIENT_ID,
+            providerOptions,
+          ),
           expect.objectContaining({
             id: chatResponse.id,
             cached: true,
@@ -496,6 +568,7 @@ describe('ChatCachePipelineService', () => {
         await service.setCachedIfAllowed(
           baseRequest,
           { ...chatResponse, finishReason: 'length' },
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -510,6 +583,7 @@ describe('ChatCachePipelineService', () => {
         await service.setCachedIfAllowed(
           baseRequest,
           { ...chatResponse, finishReason: 'content_filter' },
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -524,6 +598,7 @@ describe('ChatCachePipelineService', () => {
         await service.setCachedIfAllowed(
           baseRequest,
           { ...chatResponse, output: { type: 'text', text: '  ' } },
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -542,6 +617,7 @@ describe('ChatCachePipelineService', () => {
               { id: TEST_TOOL_CALL_ID, name: 'search', arguments: '{}' },
             ],
           },
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -564,6 +640,7 @@ describe('ChatCachePipelineService', () => {
         await service.setCachedIfAllowed(
           toolingRequest,
           chatResponse,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -614,6 +691,7 @@ describe('ChatCachePipelineService', () => {
         await service.setCachedIfAllowed(
           multiTurn,
           chatResponse,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -622,7 +700,12 @@ describe('ChatCachePipelineService', () => {
 
         expect(mockCache.setCachedResponse).toHaveBeenCalled();
         expect(mockSemanticCache.storeReply).toHaveBeenCalledWith(
-          toChatCacheIdentity(multiTurn, TEST_CLIENT_ID, providerOptions),
+          toChatCacheIdentity(
+            multiTurn,
+            TEST_CONVERSATION_ID,
+            TEST_CLIENT_ID,
+            providerOptions,
+          ),
           expect.objectContaining({ cached: true }),
           { vector: FIXED_VECTOR, embedAttempted: true },
         );
@@ -646,6 +729,7 @@ describe('ChatCachePipelineService', () => {
         await service.setCachedIfAllowed(
           baseRequest,
           chatResponse,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -668,6 +752,7 @@ describe('ChatCachePipelineService', () => {
         await service.setCachedIfAllowed(
           baseRequest,
           chatResponse,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -688,6 +773,7 @@ describe('ChatCachePipelineService', () => {
         await service.setCachedIfAllowed(
           request,
           chatResponse,
+          TEST_CONVERSATION_ID,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
@@ -706,6 +792,7 @@ describe('ChatCachePipelineService', () => {
           service.setCachedIfAllowed(
             baseRequest,
             chatResponse,
+            TEST_CONVERSATION_ID,
             providerOptions,
             TEST_CLIENT_ID,
             TEST_GATEWAY_KEY_BRANDED,
@@ -721,13 +808,57 @@ describe('ChatCachePipelineService', () => {
 
       const key = service.buildIdentityKey(
         baseRequest,
+        TEST_CONVERSATION_ID,
         TEST_CLIENT_ID,
         providerOptions,
       );
 
       expect(key).toBe('identity-key');
       expect(mockCache.buildIdentityKey).toHaveBeenCalledWith(
-        toChatCacheIdentity(baseRequest, TEST_CLIENT_ID, providerOptions),
+        toChatCacheIdentity(
+          baseRequest,
+          TEST_CONVERSATION_ID,
+          TEST_CLIENT_ID,
+          providerOptions,
+        ),
+      );
+    });
+
+    it('passes distinct conversationId into the exact identity', () => {
+      const otherConversationId = asConversationId(
+        'conv_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      );
+
+      service.buildIdentityKey(
+        baseRequest,
+        TEST_CONVERSATION_ID,
+        TEST_CLIENT_ID,
+        providerOptions,
+      );
+      service.buildIdentityKey(
+        baseRequest,
+        otherConversationId,
+        TEST_CLIENT_ID,
+        providerOptions,
+      );
+
+      expect(mockCache.buildIdentityKey).toHaveBeenNthCalledWith(
+        1,
+        toChatCacheIdentity(
+          baseRequest,
+          TEST_CONVERSATION_ID,
+          TEST_CLIENT_ID,
+          providerOptions,
+        ),
+      );
+      expect(mockCache.buildIdentityKey).toHaveBeenNthCalledWith(
+        2,
+        toChatCacheIdentity(
+          baseRequest,
+          otherConversationId,
+          TEST_CLIENT_ID,
+          providerOptions,
+        ),
       );
     });
   });

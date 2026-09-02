@@ -4,6 +4,7 @@ import { createMockConfigService } from '../../src/common/mocks/createMockConfig
 import { createMockLoggingService } from '../../src/common/mocks/createMockLoggingService';
 import {
   TEST_CACHED_RESPONSE_ID,
+  TEST_CONVERSATION_ID,
   TEST_INPUT_TOKENS,
   TEST_MODEL_ALIAS,
   TEST_MODEL_ALIAS_BRANDED,
@@ -109,6 +110,7 @@ function cacheIdentity(
 ): ChatCacheIdentity {
   return {
     modelAlias: TEST_MODEL_ALIAS_BRANDED,
+    conversationId: TEST_CONVERSATION_ID,
     clientId: CLIENT_A,
     messages: [{ role: 'user', content }],
     ...extras,
@@ -319,6 +321,7 @@ const shouldRunSemanticVector =
     it('multi-turn request skips lookup embed (B2)', async () => {
       const multiTurn: ChatCacheIdentity = {
         modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        conversationId: TEST_CONVERSATION_ID,
         clientId: CLIENT_A,
         messages: [
           { role: 'user', content: 'Explain topic A' },
@@ -407,6 +410,7 @@ const shouldRunSemanticVector =
         vector: [...FIXED_VECTOR],
         modelAlias: TEST_MODEL_ALIAS_BRANDED,
         clientId: CLIENT_A,
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: computeSystemSignature(prompts, TEST_MODEL_ALIAS),
         callParams: hashCallParams(undefined),
         k: 3,
@@ -433,6 +437,7 @@ const shouldRunSemanticVector =
         text,
         modelAlias: TEST_MODEL_ALIAS_BRANDED,
         clientId: CLIENT_A,
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature,
         callParams,
         reply: cachedReply('TTL will expire'),
@@ -443,6 +448,7 @@ const shouldRunSemanticVector =
         vector: [...FIXED_VECTOR],
         modelAlias: TEST_MODEL_ALIAS_BRANDED,
         clientId: CLIENT_A,
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature,
         callParams,
         k: 3,
@@ -540,6 +546,7 @@ const shouldRunSemanticVector =
         text,
         modelAlias: TEST_MODEL_ALIAS_BRANDED,
         clientId: CLIENT_A,
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: 'sys-sig-a',
         callParams,
         reply: cachedReply('Stored under sys-sig-a'),
@@ -550,6 +557,7 @@ const shouldRunSemanticVector =
         vector: [...FIXED_VECTOR],
         modelAlias: TEST_MODEL_ALIAS_BRANDED,
         clientId: CLIENT_A,
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: 'sys-sig-b',
         callParams,
         k: 3,
@@ -574,6 +582,7 @@ const shouldRunSemanticVector =
         text,
         modelAlias: TEST_MODEL_ALIAS_BRANDED,
         clientId: CLIENT_A,
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature,
         callParams,
         reply: cachedReply('Will be corrupted'),
@@ -591,6 +600,7 @@ const shouldRunSemanticVector =
         vector: [...FIXED_VECTOR],
         modelAlias: TEST_MODEL_ALIAS_BRANDED,
         clientId: CLIENT_A,
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature,
         callParams,
         k: 3,

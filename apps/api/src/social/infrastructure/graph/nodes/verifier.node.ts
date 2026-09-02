@@ -1,4 +1,5 @@
 import { unbrand } from '@content-chain/shared';
+import { coercePassNoteVerdict } from '../../../application/coerce-pass-note-verdict';
 import { verifierOutputSchema } from '../../../application/social.schemas';
 import { isReelTaskType } from '../../../domain/reel-task';
 import { loadPrompt, renderPrompt } from '../../prompts/load-prompt';
@@ -34,13 +35,23 @@ export function createVerifierNode(
         payload: JSON.stringify(payload),
       }),
     });
-    const verdict: VerifierVerdict = {
+    const parsed: VerifierVerdict = {
       ok: data.ok,
       contextIssues: data.contextIssues,
       languageIssues: data.languageIssues,
     };
+    const { verdict, coerced } = coercePassNoteVerdict(parsed);
 
-    if (!verdict.ok) {
+    if (coerced) {
+      await appendLog({
+        runId: state.runId,
+        conversationId: state.conversationId,
+        level: 'warn',
+        message: `ConsistencyVerifier returned ok:false with pass-only issue notes; treating as ok. Context issues: ${JSON.stringify(parsed.contextIssues)}. Language issues: ${JSON.stringify(parsed.languageIssues)}`,
+        step: 'ConsistencyVerifier',
+        requestId: unbrand(requestId),
+      });
+    } else if (!verdict.ok) {
       await appendLog({
         runId: state.runId,
         conversationId: state.conversationId,

@@ -173,10 +173,11 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     const semCache = getAppConfigOrThrow(this.config, 'semanticCache');
     const modelAlias = escapeRedisSearchTag(input.modelAlias);
     const clientId = escapeRedisSearchTag(input.clientId);
+    const conversationId = escapeRedisSearchTag(input.conversationId);
     const embeddingModel = escapeRedisSearchTag(semCache.embeddingModel);
     const systemSig = escapeRedisSearchTag(input.systemSignature);
     const callParams = escapeRedisSearchTag(input.callParams);
-    return `(@modelAlias:{${modelAlias}} @clientId:{${clientId}} @embeddingModel:{${embeddingModel}} @systemSignature:{${systemSig}} @callParams:{${callParams}})=>[KNN ${input.k} @vector $blob AS dist]`;
+    return `(@modelAlias:{${modelAlias}} @clientId:{${clientId}} @conversationId:{${conversationId}} @embeddingModel:{${embeddingModel}} @systemSignature:{${systemSig}} @callParams:{${callParams}})=>[KNN ${input.k} @vector $blob AS dist]`;
   }
 
   private async searchKnn(
@@ -251,6 +252,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
 
   private entryKey(
     clientId: string,
+    conversationId: string,
     modelAlias: string,
     text: string,
     systemSignature: string,
@@ -259,6 +261,8 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     const semCache = getAppConfigOrThrow(this.config, 'semanticCache');
     const hash = createHash('sha256')
       .update(clientId)
+      .update('|')
+      .update(conversationId)
       .update('|')
       .update(modelAlias)
       .update('|')
@@ -282,6 +286,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
 
     const key = this.entryKey(
       input.clientId,
+      input.conversationId,
       input.modelAlias,
       input.text,
       input.systemSignature,
@@ -325,6 +330,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     return {
       modelAlias: input.modelAlias,
       clientId: input.clientId,
+      conversationId: input.conversationId,
       embeddingModel,
       systemSignature: input.systemSignature,
       callParams: input.callParams,
@@ -373,6 +379,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       const semCache = getAppConfigOrThrow(this.config, 'semanticCache');
       const key = this.entryKey(
         input.clientId,
+        input.conversationId,
         input.modelAlias,
         input.text,
         input.systemSignature,

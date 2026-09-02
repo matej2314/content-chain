@@ -19,7 +19,11 @@ import type { ChatResponseData } from './chat-response-builder.service';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 import type { CachedChatResponse } from '../../cache/response-cache.service';
 import type { ChatCacheSource } from '../../cache/types/chat-cache-source.type';
-import type { ClientId, GatewayKey } from '../../common/types/branded.types';
+import type {
+  ClientId,
+  ConversationId,
+  GatewayKey,
+} from '../../common/types/branded.types';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 
 export type ChatCacheLookupResult =
@@ -44,6 +48,7 @@ export class ChatCachePipelineService {
 
   async getCachedIfAllowed(
     requestBody: ChatRequestDto,
+    conversationId: ConversationId,
     options: ProviderCallOptions,
     clientId: ClientId,
     gatewayKey: GatewayKey,
@@ -63,7 +68,12 @@ export class ChatCachePipelineService {
     }
 
     const alias = asModelAlias(modelAlias);
-    const identity = toChatCacheIdentity(requestBody, clientId, options);
+    const identity = toChatCacheIdentity(
+      requestBody,
+      conversationId,
+      clientId,
+      options,
+    );
     const exact = await this.cacheService.getCachedResponse(identity);
     if (exact) {
       this.appMetrics.recordCachePipelineAccess(alias, true);
@@ -91,17 +101,19 @@ export class ChatCachePipelineService {
 
   buildIdentityKey(
     requestBody: ChatRequestDto,
+    conversationId: ConversationId,
     clientId: ClientId,
     options: ProviderCallOptions,
   ) {
     return this.cacheService.buildIdentityKey(
-      toChatCacheIdentity(requestBody, clientId, options),
+      toChatCacheIdentity(requestBody, conversationId, clientId, options),
     );
   }
 
   async setCachedIfAllowed(
     requestBody: ChatRequestDto,
     response: ChatResponseData,
+    conversationId: ConversationId,
     options: ProviderCallOptions,
     clientId: ClientId,
     gatewayKey: GatewayKey,
@@ -124,7 +136,12 @@ export class ChatCachePipelineService {
       return;
     }
 
-    const identity = toChatCacheIdentity(requestBody, clientId, options);
+    const identity = toChatCacheIdentity(
+      requestBody,
+      conversationId,
+      clientId,
+      options,
+    );
     const cached = toCachedChatResponse(response);
     await this.cacheService.setCachedResponse(identity, cached);
     // Single-turn / last-user gates live in SemanticCacheService.

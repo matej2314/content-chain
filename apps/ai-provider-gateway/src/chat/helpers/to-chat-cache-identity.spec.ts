@@ -1,6 +1,7 @@
 import { toChatCacheIdentity } from './to-chat-cache-identity';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import {
+  TEST_CONVERSATION_ID,
   TEST_MODEL_ALIAS,
   TEST_MODEL_ALIAS_BRANDED,
   TEST_TOOL_CALL_ID,
@@ -10,18 +11,24 @@ import { asClientId } from '../../common/types/branded.types';
 const TEST_CLIENT_ID = asClientId('test-client');
 
 describe('toChatCacheIdentity', () => {
-  it('maps alias, client, messages and optional call params', () => {
+  it('maps alias, conversation, client, messages and optional call params', () => {
     const request: ChatRequestDto = {
       modelAlias: TEST_MODEL_ALIAS,
       messages: [{ role: 'user', content: 'Hello' }],
     };
 
-    const identity = toChatCacheIdentity(request, TEST_CLIENT_ID, {
-      temperature: 0.2,
-    });
+    const identity = toChatCacheIdentity(
+      request,
+      TEST_CONVERSATION_ID,
+      TEST_CLIENT_ID,
+      {
+        temperature: 0.2,
+      },
+    );
 
     expect(identity).toEqual({
       modelAlias: TEST_MODEL_ALIAS_BRANDED,
+      conversationId: TEST_CONVERSATION_ID,
       clientId: TEST_CLIENT_ID,
       messages: [{ role: 'user', content: 'Hello' }],
       callParams: { temperature: 0.2 },
@@ -48,7 +55,11 @@ describe('toChatCacheIdentity', () => {
       ],
     };
 
-    const identity = toChatCacheIdentity(request, TEST_CLIENT_ID);
+    const identity = toChatCacheIdentity(
+      request,
+      TEST_CONVERSATION_ID,
+      TEST_CLIENT_ID,
+    );
 
     expect(identity.messages).toEqual([
       { role: 'user', content: 'call it' },

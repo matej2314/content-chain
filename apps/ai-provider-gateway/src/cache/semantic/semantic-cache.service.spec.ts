@@ -13,13 +13,18 @@ import { createMockConfigService } from '../../common/mocks/createMockConfigServ
 import { createMockLoggingService } from '../../common/mocks/createMockLoggingService';
 import {
   TEST_CACHED_RESPONSE_ID,
+  TEST_CONVERSATION_ID,
   TEST_INPUT_TOKENS,
   TEST_MODEL_ALIAS,
   TEST_MODEL_ALIAS_BRANDED,
   TEST_OUTPUT_TOKENS_SMALL,
   TEST_PROVIDER_INSTANCE_BRANDED,
 } from '../../common/mocks/test-constants';
-import { asClientId, asResponseId } from '../../common/types/branded.types';
+import {
+  asClientId,
+  asConversationId,
+  asResponseId,
+} from '../../common/types/branded.types';
 import { computeSystemSignature, hashCallParams } from '../cache-identity';
 import type { ChatCacheIdentity } from '../types/chat-cache-identity.type';
 import type { CachedChatResponse } from '../types/cached-chat-response.type';
@@ -38,6 +43,7 @@ function cacheIdentity(
 ): ChatCacheIdentity {
   return {
     modelAlias: TEST_MODEL_ALIAS_BRANDED,
+    conversationId: TEST_CONVERSATION_ID,
     clientId: TEST_CLIENT_ID,
     messages,
     ...extras,
@@ -162,6 +168,7 @@ describe('SemanticCacheService', () => {
         vector: FIXED_VECTOR,
         modelAlias: TEST_MODEL_ALIAS_BRANDED,
         clientId: TEST_CLIENT_ID,
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: expect.any(String),
         callParams: expect.any(String),
         k: DEFAULT_K,
@@ -188,6 +195,7 @@ describe('SemanticCacheService', () => {
         text: 'Hello semantic',
         modelAlias: TEST_MODEL_ALIAS_BRANDED,
         clientId: TEST_CLIENT_ID,
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: expect.any(String),
         callParams: expect.any(String),
       });
@@ -478,6 +486,7 @@ describe('SemanticCacheService', () => {
         text: 'Hello semantic',
         modelAlias: TEST_MODEL_ALIAS_BRANDED,
         clientId: TEST_CLIENT_ID,
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: expect.any(String),
         callParams: expect.any(String),
         reply: cachedReply,
@@ -882,6 +891,50 @@ describe('SemanticCacheService', () => {
 
       expect(result.reply).toEqual(cachedReply);
       expect(result.embedAttempted).toBe(true);
+    });
+  });
+
+  describe('partition by conversationId', () => {
+    const otherConversationId = asConversationId(
+      'conv_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+    );
+
+    it('should pass conversationId to HASH, KNN and upsert', async () => {
+      await service.lookup(userIdentity);
+      expect(mockVectorStore.getByTextIdentity).toHaveBeenCalledWith(
+        expect.objectContaining({ conversationId: TEST_CONVERSATION_ID }),
+      );
+      expect(mockVectorStore.knn).toHaveBeenCalledWith(
+        expect.objectContaining({ conversationId: TEST_CONVERSATION_ID }),
+      );
+
+      await service.storeReply(userIdentity, cachedReply, {
+        vector: FIXED_VECTOR,
+        embedAttempted: true,
+      });
+      expect(mockVectorStore.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ conversationId: TEST_CONVERSATION_ID }),
+      );
+    });
+
+    it('should miss KNN when last-user text matches a different conversation', async () => {
+      mockVectorStore.knn.mockImplementation((input) => {
+        if (input.conversationId === TEST_CONVERSATION_ID) {
+          return Promise.resolve([{ similarity: 0.95, reply: cachedReply }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const result = await service.lookup({
+        ...userIdentity,
+        conversationId: otherConversationId,
+      });
+
+      expect(result.reply).toBeNull();
+      expect(result.embedAttempted).toBe(true);
+      expect(mockVectorStore.knn).toHaveBeenLastCalledWith(
+        expect.objectContaining({ conversationId: otherConversationId }),
+      );
     });
   });
 

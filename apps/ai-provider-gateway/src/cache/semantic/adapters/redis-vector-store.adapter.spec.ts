@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import {
   asClientId,
+  asConversationId,
   asModelAlias,
   asSemanticCacheTtlSeconds,
 } from '../../../common/types/branded.types';
@@ -9,6 +10,7 @@ import { createMockConfigService } from '../../../common/mocks/createMockConfigS
 import { createMockLoggingService } from '../../../common/mocks/createMockLoggingService';
 import {
   TEST_CACHED_RESPONSE_ID,
+  TEST_CONVERSATION_ID,
   TEST_INPUT_TOKENS,
   TEST_MODEL_ALIAS_BRANDED,
   TEST_OUTPUT_TOKENS_SMALL,
@@ -127,6 +129,9 @@ describe('RedisVectorStoreAdapter', () => {
           'clientId',
           'TAG',
           'CASESENSITIVE',
+          'conversationId',
+          'TAG',
+          'CASESENSITIVE',
         ]),
       );
       expect(createCall).not.toEqual(
@@ -230,6 +235,7 @@ describe('RedisVectorStoreAdapter', () => {
         vector,
         modelAlias: asModelAlias('test-model'),
         clientId: asClientId('client-a'),
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: 'sys-sig',
         callParams: 'params-sig',
         k: 3,
@@ -245,6 +251,7 @@ describe('RedisVectorStoreAdapter', () => {
       const query = searchCall![2] as string;
       expect(query).toContain('@modelAlias:');
       expect(query).toContain('@clientId:');
+      expect(query).toContain('@conversationId:');
       expect(query).toContain('@embeddingModel:');
       expect(query).toContain('@systemSignature:');
       expect(query).toContain('@callParams:');
@@ -264,6 +271,7 @@ describe('RedisVectorStoreAdapter', () => {
         vector: [0.1],
         modelAlias: asModelAlias('chat-default'),
         clientId: asClientId('Team-A'),
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: 'sys:v1',
         callParams: 'params-hash',
         k: 1,
@@ -274,6 +282,9 @@ describe('RedisVectorStoreAdapter', () => {
       const query = searchCall![2] as string;
       expect(query).toContain('@modelAlias:{chat\\-default}');
       expect(query).toContain('@clientId:{Team\\-A}');
+      expect(query).toContain(
+        '@conversationId:{conv_123e4567\\-e89b\\-12d3\\-a456\\-426614174000}',
+      );
       expect(query).toContain('@systemSignature:{sys\\:v1}');
       expect(query).toContain('@callParams:{params\\-hash}');
     });
@@ -287,6 +298,7 @@ describe('RedisVectorStoreAdapter', () => {
         vector,
         modelAlias: asModelAlias('test-model'),
         clientId: asClientId('client-a'),
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: 'sys',
         callParams: 'params',
         k: 1,
@@ -312,6 +324,7 @@ describe('RedisVectorStoreAdapter', () => {
         vector: [0.1],
         modelAlias: asModelAlias('test-model'),
         clientId: asClientId('client-a'),
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: 'sys',
         callParams: 'params',
         k: 15,
@@ -337,6 +350,7 @@ describe('RedisVectorStoreAdapter', () => {
         vector: [0.1],
         modelAlias: asModelAlias('test-model'),
         clientId: asClientId('client-a'),
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: 'sys',
         callParams: 'params',
         k: 1,
@@ -373,6 +387,7 @@ describe('RedisVectorStoreAdapter', () => {
         vector: [0.1],
         modelAlias: asModelAlias('test-model'),
         clientId: asClientId('client-a'),
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: 'sys',
         callParams: 'params',
         k: 4,
@@ -406,6 +421,7 @@ describe('RedisVectorStoreAdapter', () => {
         vector: [0.1],
         modelAlias: asModelAlias('test-model'),
         clientId: asClientId('client-a'),
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: 'sys',
         callParams: 'params',
         k: 1,
@@ -428,6 +444,7 @@ describe('RedisVectorStoreAdapter', () => {
         vector: [0.1],
         modelAlias: asModelAlias('test-model'),
         clientId: asClientId('client-a'),
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: 'sys',
         callParams: 'params',
         k: 1,
@@ -447,6 +464,7 @@ describe('RedisVectorStoreAdapter', () => {
         vector: [0.1],
         modelAlias: asModelAlias('test-model'),
         clientId: asClientId('client-a'),
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: 'sys',
         callParams: 'params',
         k: 1,
@@ -463,6 +481,7 @@ describe('RedisVectorStoreAdapter', () => {
         vector: [0.1],
         modelAlias: asModelAlias('test-model'),
         clientId: asClientId('client-a'),
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: 'sys',
         callParams: 'params',
         k: 1,
@@ -486,6 +505,7 @@ describe('RedisVectorStoreAdapter', () => {
         vector: [0.1],
         modelAlias: asModelAlias('test-model'),
         clientId: asClientId('client-a'),
+        conversationId: TEST_CONVERSATION_ID,
         systemSignature: 'sys',
         callParams: 'params',
         k: 1,
@@ -521,6 +541,7 @@ describe('RedisVectorStoreAdapter', () => {
       text: 'hi',
       modelAlias: asModelAlias('test-model'),
       clientId: asClientId('client-a'),
+      conversationId: TEST_CONVERSATION_ID,
       systemSignature: 'sys',
       callParams: 'params',
     };
@@ -660,6 +681,7 @@ describe('RedisVectorStoreAdapter', () => {
         text: identity.text,
         modelAlias: identity.modelAlias,
         clientId: identity.clientId,
+        conversationId: identity.conversationId,
         systemSignature: identity.systemSignature,
         callParams: identity.callParams,
         reply: validReply,
@@ -692,6 +714,7 @@ describe('RedisVectorStoreAdapter', () => {
       text: 'hi',
       modelAlias: asModelAlias('test-model'),
       clientId: asClientId('client-a'),
+      conversationId: TEST_CONVERSATION_ID,
       systemSignature: 'sys',
       callParams: 'params',
       reply,
@@ -829,6 +852,7 @@ describe('RedisVectorStoreAdapter', () => {
         expect.objectContaining({
           modelAlias: 'test-model',
           clientId: 'client-a',
+          conversationId: TEST_CONVERSATION_ID,
           embeddingModel,
           systemSignature: 'sys',
           callParams: 'params',
@@ -877,6 +901,7 @@ describe('RedisVectorStoreAdapter', () => {
       ];
       expect(hsetArgs[1].modelAlias).toBe('chat-default');
       expect(hsetArgs[1].clientId).toBe('Team-A');
+      expect(hsetArgs[1].conversationId).toBe(TEST_CONVERSATION_ID);
       const vectorBlob = hsetArgs[1].vector as Buffer;
       expect(Buffer.isBuffer(vectorBlob)).toBe(true);
       expect(vectorBlob.byteLength).toBe(8);
@@ -927,6 +952,26 @@ describe('RedisVectorStoreAdapter', () => {
 
       const keys = client.hsetnx.mock.calls.map((c) => c[0] as string);
       expect(new Set(keys).size).toBe(3);
+    });
+
+    it('should use a different entryKey when conversationId changes', async () => {
+      const client = mockMultiClient();
+      await initAdapter(client);
+
+      await adapter.upsert({
+        ...baseUpsert,
+        ttlSeconds: asSemanticCacheTtlSeconds(60),
+      });
+      await adapter.upsert({
+        ...baseUpsert,
+        conversationId: asConversationId(
+          'conv_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        ),
+        ttlSeconds: asSemanticCacheTtlSeconds(60),
+      });
+
+      const keys = client.hsetnx.mock.calls.map((c) => c[0] as string);
+      expect(new Set(keys).size).toBe(2);
     });
 
     it('should skip upsert when ttlSeconds < 1 (no eternal vectors)', async () => {

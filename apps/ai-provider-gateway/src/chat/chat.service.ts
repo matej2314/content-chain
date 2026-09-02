@@ -142,6 +142,7 @@ export class ChatService {
 
     const lookup = await this.cachePipelineService.getCachedIfAllowed(
       requestBody,
+      prep.responseConversationId,
       prep.options,
       clientId,
       gatewayKey,
@@ -209,6 +210,7 @@ export class ChatService {
     if (gatewayKey) {
       const lookup = await this.cachePipelineService.getCachedIfAllowed(
         requestBody,
+        responseConversationId,
         options,
         clientId,
         gatewayKey,
@@ -254,6 +256,7 @@ export class ChatService {
     if (mayCoalesce) {
       const key = this.cachePipelineService.buildIdentityKey(
         requestBody,
+        responseConversationId,
         clientId,
         options,
       );
@@ -340,6 +343,7 @@ export class ChatService {
         await this.cachePipelineService.setCachedIfAllowed(
           requestBody,
           chatResult,
+          responseConversationId,
           options,
           clientId,
           gatewayKey,
@@ -512,6 +516,7 @@ export class ChatService {
         await this.cachePipelineService.setCachedIfAllowed(
           requestBody,
           chatResult,
+          responseConversationId,
           options,
           clientId,
           gatewayKey,

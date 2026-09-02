@@ -97,6 +97,7 @@ function createInMemoryVectorStore(): VectorStore & { clear(): void } {
       const idx = entries.findIndex(
         (e) =>
           e.clientId === input.clientId &&
+          e.conversationId === input.conversationId &&
           e.modelAlias === input.modelAlias &&
           e.systemSignature === input.systemSignature &&
           e.callParams === input.callParams &&
@@ -116,6 +117,7 @@ function createInMemoryVectorStore(): VectorStore & { clear(): void } {
       const found = entries.find(
         (e) =>
           e.clientId === input.clientId &&
+          e.conversationId === input.conversationId &&
           e.modelAlias === input.modelAlias &&
           e.systemSignature === input.systemSignature &&
           e.callParams === input.callParams &&
@@ -131,16 +133,15 @@ function createInMemoryVectorStore(): VectorStore & { clear(): void } {
           .filter(
             (e) =>
               e.clientId === input.clientId &&
+              e.conversationId === input.conversationId &&
               e.modelAlias === input.modelAlias &&
               e.systemSignature === input.systemSignature &&
               e.callParams === input.callParams,
           )
-          .map(
-            (e): VectorSearchHit => ({
-              similarity: 1,
-              reply: { ...e.reply, cached: true as const },
-            }),
-          )
+          .map((e): VectorSearchHit => ({
+            similarity: 1,
+            reply: { ...e.reply, cached: true as const },
+          }))
           .slice(0, input.k),
       );
     },

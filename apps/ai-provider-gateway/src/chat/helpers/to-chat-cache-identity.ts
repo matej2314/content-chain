@@ -4,10 +4,15 @@ import type {
   ChatCacheIdentity,
 } from '../../cache/types/chat-cache-identity.type';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
-import { asModelAlias, type ClientId } from '../../common/types/branded.types';
+import {
+  asModelAlias,
+  type ClientId,
+  type ConversationId,
+} from '../../common/types/branded.types';
 
 export function toChatCacheIdentity(
   request: ChatRequestDto,
+  conversationId: ConversationId,
   clientId: ClientId,
   callParams?: ProviderCallOptions,
 ): ChatCacheIdentity {
@@ -31,6 +36,7 @@ export function toChatCacheIdentity(
 
   return {
     modelAlias: asModelAlias(request.modelAlias),
+    conversationId,
     clientId,
     messages,
     ...(callParams !== undefined && { callParams }),

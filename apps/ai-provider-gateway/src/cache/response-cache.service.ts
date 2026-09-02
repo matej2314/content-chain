@@ -49,6 +49,7 @@ export class ResponseCacheService {
     const payload = JSON.stringify({
       modelAlias: identity.modelAlias,
       clientId: identity.clientId,
+      conversationId: identity.conversationId,
       messages: identity.messages,
       systemSignature,
       callParams: serializeCallParamsForCache(identity.callParams),

@@ -168,6 +168,37 @@ describe('createVerifierNode', () => {
     expect(userContent).not.toContain(state.content?.body);
   });
 
+  it('coerces pass-only issue notes into an ok verdict and logs a warn', async () => {
+    const hop = fakeHop({
+      data: {
+        ok: false,
+        contextIssues: [
+          'idea_1: CTA «Napisz do nas» — poprawne mapowanie na cta.items[].label, pass.',
+        ],
+        languageIssues: [],
+      },
+    });
+    const appendLog = fakeAppendLog();
+    const state = makeState();
+
+    const out = await createVerifierNode(hop, appendLog)(state);
+
+    expect(out.verdict).toEqual({
+      ok: true,
+      contextIssues: [],
+      languageIssues: [],
+    });
+    expect(appendLog).toHaveBeenCalledTimes(1);
+    expect(appendLog).toHaveBeenCalledWith({
+      runId: state.runId,
+      conversationId: state.conversationId,
+      level: 'warn',
+      step: 'ConsistencyVerifier',
+      requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+      message: expect.stringMatching(/pass-only issue notes; treating as ok/),
+    });
+  });
+
   it('logs context and language issues separately when the verdict fails', async () => {
     const hop = fakeHop({
       data: {

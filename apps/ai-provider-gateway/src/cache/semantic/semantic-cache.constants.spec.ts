@@ -21,6 +21,7 @@ describe('canonicalSemanticSchema / semanticSchemaFtCreateArgs', () => {
     const ftArgs = semanticSchemaFtCreateArgs(dim);
 
     expect(canonical).toContain('modelAlias:TAG:CASESENSITIVE');
+    expect(canonical).toContain('conversationId:TAG:CASESENSITIVE');
     expect(canonical).toContain(`vector:VECTOR:FLAT:FLOAT32:${dim}:COSINE`);
     expect(ftArgs).toEqual(
       expect.arrayContaining([
