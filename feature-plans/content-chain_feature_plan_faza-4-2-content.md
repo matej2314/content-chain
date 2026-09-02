@@ -55,7 +55,7 @@ Odpowiada major **Faza 4.2**. Jedna faza w tym pliku.
 
 ### KROK 1 — Shared: `SocialTaskType` / `ContentTaskType` / `page_*` / `ContentKind` / `RunPlatform`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Zamknięta unia tasków + zawężenie Social **zanim** `page_*` wejdzie do `RunTaskType`, którego Social przełącza. Major 4.2.1 (shared); `docs/brand_types.md`; `SPEC-RUNY.md` R-3d.
 
