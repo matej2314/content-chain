@@ -9,16 +9,16 @@ import {
 import {
   ContentLanguage,
   RunId,
+  RunPlatform,
   RunStatus,
   RunTaskType,
-  SocialPlatform,
 } from '@content-chain/shared';
 
 interface ListRunsOutput {
   items: {
     runId: RunId;
     taskType: RunTaskType;
-    platform: SocialPlatform;
+    platform: RunPlatform;
     language: ContentLanguage;
     status: RunStatus;
     createdAt: string;

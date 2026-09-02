@@ -14,7 +14,7 @@ import { runIdSchema } from './run.schemas';
 import type {
   RunId,
   RunTaskType,
-  SocialPlatform,
+  RunPlatform,
   ContentLanguage,
   RunStatus,
   ConversationId,
@@ -29,7 +29,7 @@ import type {
 interface GetRunOutput {
   runId: RunId;
   taskType: RunTaskType;
-  platform: SocialPlatform;
+  platform: RunPlatform;
   language: ContentLanguage;
   status: RunStatus;
   conversationId: ConversationId;

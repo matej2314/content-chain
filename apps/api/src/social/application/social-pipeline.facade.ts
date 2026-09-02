@@ -12,7 +12,7 @@ import {
   compileSocialGraph,
 } from '../infrastructure/graph/social.graph';
 import { LlmHopService } from '../infrastructure/graph/llm-hop';
-import { isSocialTaskType } from '@content-chain/shared';
+import { isSocialPlatform, isSocialTaskType } from '@content-chain/shared';
 import {
   RUN_LIFECYCLE,
   type RunLifecyclePort,
@@ -58,6 +58,11 @@ export class SocialPipelineFacade {
     if (!isSocialTaskType(run.taskType)) {
       throw new Error(
         `SocialPipelineFacade received non-social task type: ${run.taskType}`,
+      );
+    }
+    if (!isSocialPlatform(run.platform)) {
+      throw new Error(
+        `SocialPipelineFacade received non-social platform: ${run.platform}`,
       );
     }
 

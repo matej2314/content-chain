@@ -54,6 +54,9 @@ model Run {
   selectedIdeaIds    Json?
   startedByUserId    String?
   pipelinePhase      String?
+  contentKind        String?
+  outlineRefineCount Int                @default(0)
+  copyRefineCount    Int                @default(0)
   ideasRefineCount   Int                @default(0)
   contentRefineCount Int                @default(0)
   recoveryAttempts   Int                @default(0)
@@ -65,6 +68,8 @@ model Run {
   contents           SocialContent[]
   reelIdeas          SocialReelIdea[]
   reelScripts        SocialReelScript[]
+  outlines           ContentOutline[]
+  documents          ContentDocument[]
 
   @@index([createdAt])
   @@index([status])
@@ -119,6 +124,27 @@ model SocialReelIdea {
 }
 
 model SocialReelScript {
+  id           String   @id
+  runId        String
+  payload      Json
+  verification Json?
+  createdAt    DateTime @default(now())
+  run          Run      @relation(fields: [runId], references: [id])
+
+  @@index([runId])
+}
+
+model ContentOutline {
+  id        String   @id
+  runId     String
+  payload   Json
+  createdAt DateTime @default(now())
+  run       Run      @relation(fields: [runId], references: [id])
+
+  @@index([runId])
+}
+
+model ContentDocument {
   id           String   @id
   runId        String
   payload      Json

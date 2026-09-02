@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import {
   createConversationId,
   createRunId,
   createUserId,
+  isContentKind,
+  isRunPlatform,
   isRunTaskType,
   isUserId,
   type ContentLanguage,
   type RunId,
   type RunStatus,
-  type SocialPlatform,
 } from '@content-chain/shared';
 import { PrismaService } from '../../shared/persistence/prisma.service';
 import { assertTransition } from '../domain/status-transitions';
@@ -34,9 +34,12 @@ type RunRow = {
   brief: unknown;
   selectedIdeaIds: unknown;
   startedByUserId: string | null;
+  contentKind: string | null;
   pipelinePhase: string | null;
   ideasRefineCount: number;
   contentRefineCount: number;
+  outlineRefineCount: number;
+  copyRefineCount: number;
   recoveryAttempts: number;
   createdAt: Date;
   startedBy: { id: string; email: string } | null;
@@ -53,7 +56,12 @@ type RunLogRow = {
 };
 
 function toPipelinePhase(value: string | null): RunRecord['pipelinePhase'] {
-  if (value === 'ideas' || value === 'content') {
+  if (
+    value === 'ideas' ||
+    value === 'content' ||
+    value === 'outline' ||
+    value === 'copy'
+  ) {
     return value;
   }
   return null;
@@ -78,9 +86,12 @@ export class PrismaRunAdapter implements RunRepository {
             ? undefined
             : toInputJson(run.selectedIdeaIds),
         startedByUserId: run.startedByUserId,
+        contentKind: run.contentKind,
         pipelinePhase: run.pipelinePhase,
         ideasRefineCount: run.ideasRefineCount,
         contentRefineCount: run.contentRefineCount,
+        outlineRefineCount: run.outlineRefineCount,
+        copyRefineCount: run.copyRefineCount,
         recoveryAttempts: run.recoveryAttempts,
         createdAt: run.createdAt,
       },
@@ -228,11 +239,25 @@ export class PrismaRunAdapter implements RunRepository {
     if (!isRunTaskType(row.taskType)) {
       throw new Error(`Run.taskType is not a RunTaskType: ${row.taskType}`);
     }
+    if (!isRunPlatform(row.platform)) {
+      throw new Error(`Run.platform is not a RunPlatform: ${row.platform}`);
+    }
+    const contentKind =
+      row.contentKind == null || row.contentKind === ''
+        ? null
+        : isContentKind(row.contentKind)
+          ? row.contentKind
+          : (() => {
+              throw new Error(
+                `Run.contentKind is not a ContentKind: ${row.contentKind}`,
+              );
+            })();
+
     return {
       id: createRunId(row.id),
       conversationId: createConversationId(row.conversationId),
       taskType: row.taskType,
-      platform: row.platform as SocialPlatform,
+      platform: row.platform,
       language: row.language as ContentLanguage,
       status: row.status as RunStatus,
       brief: row.brief as RunRecord['brief'],
@@ -241,9 +266,12 @@ export class PrismaRunAdapter implements RunRepository {
         row.startedByUserId && isUserId(row.startedByUserId)
           ? createUserId(row.startedByUserId)
           : null,
+      contentKind,
       pipelinePhase: toPipelinePhase(row.pipelinePhase),
       ideasRefineCount: row.ideasRefineCount,
       contentRefineCount: row.contentRefineCount,
+      outlineRefineCount: row.outlineRefineCount,
+      copyRefineCount: row.copyRefineCount,
       recoveryAttempts: row.recoveryAttempts,
       createdAt: row.createdAt,
       startedBy: row.startedBy,

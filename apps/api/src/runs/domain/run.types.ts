@@ -1,10 +1,11 @@
 import type {
   ConversationId,
+  ContentKind,
+  ContentLanguage,
   RunId,
+  RunPlatform,
   RunStatus,
   RunTaskType,
-  SocialPlatform,
-  ContentLanguage,
   UserId,
 } from '@content-chain/shared';
 
@@ -19,11 +20,14 @@ export type RunRecord = {
   id: RunId;
   conversationId: ConversationId;
   taskType: RunTaskType;
-  platform: SocialPlatform;
+  platform: RunPlatform;
+  contentKind: ContentKind | null;
   language: ContentLanguage;
-  pipelinePhase: 'ideas' | 'content' | null;
+  pipelinePhase: 'ideas' | 'content' | 'outline' | 'copy' | null;
   ideasRefineCount: number;
   contentRefineCount: number;
+  outlineRefineCount: number;
+  copyRefineCount: number;
   status: RunStatus;
   brief: RunBrief;
   selectedIdeaIds: string[] | null;

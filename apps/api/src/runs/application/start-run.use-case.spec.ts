@@ -150,9 +150,12 @@ describe('StartRunUseCase', () => {
         brief: command.brief,
         selectedIdeaIds: null,
         startedByUserId: null,
+        contentKind: null,
         pipelinePhase: null,
         ideasRefineCount: 0,
         contentRefineCount: 0,
+        outlineRefineCount: 0,
+        copyRefineCount: 0,
         recoveryAttempts: 0,
       }),
     );
@@ -174,11 +177,7 @@ describe('StartRunUseCase', () => {
     });
   });
 
-  it.each([
-    'reel_ideas',
-    'reel_script',
-    'reel_ideas_then_scripts',
-  ] as const)(
+  it.each(['reel_ideas', 'reel_script', 'reel_ideas_then_scripts'] as const)(
     'parses %s with platform and persists a queued run',
     async (taskType) => {
       const created: RunRecord[] = [];

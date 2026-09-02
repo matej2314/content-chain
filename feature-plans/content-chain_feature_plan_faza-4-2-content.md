@@ -185,7 +185,7 @@ Fasada: po guardzie `run.taskType` jest `SocialTaskType`; przekaż do `graph.inv
 
 ### KROK 2 — Prisma: `contentKind`, tabele Content, `RunRecord`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Persistencja page runów. Major 4.2.1; Ctn-9 / Ctn-10; P-5 / P-7.
 
