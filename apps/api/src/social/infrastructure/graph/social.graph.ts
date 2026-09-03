@@ -14,7 +14,7 @@ import { createFailRunNode } from './nodes/fail-run.node';
 import type { RunLifecyclePort } from '../../../runs/domain/run-lifecycle.port';
 import type { SocialGraphState } from './state';
 import type { CompanyContextRepository } from '../../../company-context/domain/company-context.port';
-import type { LlmHopService } from './llm-hop';
+import type { LlmHopService } from '../../../shared/llm/llm-hop';
 import type { SocialResultStore } from '../../domain/social-result.port';
 
 const SocialState = z.object({

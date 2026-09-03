@@ -4,7 +4,7 @@ import {
   reelScriptOutputSchema,
   verifierOutputSchema,
 } from './social.schemas';
-import { parseLlmJson } from './parse-llm-json';
+import { parseLlmJson } from '../../shared/llm/parse-llm-json';
 
 describe('parseLlmJson', () => {
   it('parses fenced JSON ideas', () => {

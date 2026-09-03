@@ -4,7 +4,7 @@ import { DomainException } from '../../../../shared/exceptions/domain.exception'
 import { newConversationId, newRunId } from '../../../../shared/http/new-ids';
 import type { RunLifecyclePort } from '../../../../runs/domain/run-lifecycle.port';
 import { verifierOutputSchema } from '../../../application/social.schemas';
-import type { LlmHopService } from '../llm-hop';
+import type { LlmHopService } from '../../../../shared/llm/llm-hop';
 import type { SocialGraphState } from '../state';
 import { createVerifierNode } from './verifier.node';
 

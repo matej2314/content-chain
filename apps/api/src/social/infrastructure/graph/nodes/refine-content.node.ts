@@ -5,7 +5,7 @@ import {
 import { isReelTaskType } from '../../../domain/reel-task';
 import { nextRefineCount } from '../../../domain/refine-policy';
 import { loadPrompt, renderPrompt } from '../../prompts/load-prompt';
-import type { LlmHopService } from '../llm-hop';
+import type { LlmHopService } from '../../../../shared/llm/llm-hop';
 import type { SocialGraphState } from '../state';
 import type { ReelScript, SocialContent } from '../../../domain/social.types';
 

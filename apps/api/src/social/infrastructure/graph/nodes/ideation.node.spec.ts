@@ -3,7 +3,7 @@ import { emptyCompanyContext } from '../../../../company-context/domain/company-
 import { DomainException } from '../../../../shared/exceptions/domain.exception';
 import { newConversationId, newRunId } from '../../../../shared/http/new-ids';
 import { ideasOutputSchema, reelIdeasOutputSchema } from '../../../application/social.schemas';
-import type { LlmHopService } from '../llm-hop';
+import type { LlmHopService } from '../../../../shared/llm/llm-hop';
 import type { SocialGraphState } from '../state';
 import { createIdeationNode } from './ideation.node';
 

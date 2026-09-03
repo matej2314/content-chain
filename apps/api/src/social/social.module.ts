@@ -5,7 +5,7 @@ import { RunLifecycleModule } from '../runs/run-lifecycle.module';
 import { SOCIAL_RESULT_STORE } from './domain/social-result.port';
 import { SocialPipelineFacade } from './application/social-pipeline.facade';
 import { SocialRunExecutor } from './application/social-run.executor';
-import { LlmHopService } from './infrastructure/graph/llm-hop';
+import { LlmHopService } from '../shared/llm/llm-hop';
 import { PrismaSocialResultAdapter } from './infrastructure/persistence/prisma-social-result.adapter';
 
 @Module({

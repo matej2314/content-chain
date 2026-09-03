@@ -1,16 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { loadPromptFromDir, renderPrompt } from '../../../shared/llm/load-prompt';
+
+export { renderPrompt };
 
 export function loadPrompt(fileName: string): string {
-  return readFileSync(join(__dirname, fileName), 'utf-8');
-}
-
-export function renderPrompt(
-  template: string,
-  vars: Record<string, string>,
-): string {
-  return template.replace(
-    /\{\{(\w+)\}\}/g,
-    (_, key: string) => vars[key] ?? '',
-  );
+  return loadPromptFromDir(__dirname, fileName);
 }

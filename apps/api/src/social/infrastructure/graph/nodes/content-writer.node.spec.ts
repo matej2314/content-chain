@@ -4,7 +4,7 @@ import { DomainException } from '../../../../shared/exceptions/domain.exception'
 import { newConversationId, newRunId } from '../../../../shared/http/new-ids';
 import { contentOutputSchema, reelScriptOutputSchema } from '../../../application/social.schemas';
 import type { SocialIdea, ReelIdea } from '../../../domain/social.types';
-import type { LlmHopService } from '../llm-hop';
+import type { LlmHopService } from '../../../../shared/llm/llm-hop';
 import type { SocialGraphState } from '../state';
 import { createContentWriterNode } from './content-writer.node';
 

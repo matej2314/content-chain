@@ -5,7 +5,7 @@ import { makeContentRun, makeSocialRun } from '../../runs/run-record.test-helper
 import type { SocialResultStore } from '../domain/social-result.port';
 import type { ReelIdea, SocialIdea } from '../domain/social.types';
 import type { SocialGraphState } from '../infrastructure/graph/state';
-import { LlmHopService } from '../infrastructure/graph/llm-hop';
+import { LlmHopService } from '../../shared/llm/llm-hop';
 import { compileSocialGraph } from '../infrastructure/graph/social.graph';
 import { SocialPipelineFacade, toOutcome } from './social-pipeline.facade';
 

@@ -5,7 +5,7 @@ import { isReelTaskType } from '../../../domain/reel-task';
 import { loadPrompt, renderPrompt } from '../../prompts/load-prompt';
 import type { RunLifecyclePort } from '../../../../runs/domain/run-lifecycle.port';
 import type { SocialGraphState } from '../state';
-import type { LlmHopService } from '../llm-hop';
+import type { LlmHopService } from '../../../../shared/llm/llm-hop';
 import type { VerifierVerdict } from '../../../domain/social.types';
 
 function verifierPayload(state: SocialGraphState): unknown {

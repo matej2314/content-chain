@@ -440,7 +440,7 @@ KROK 2b zostaje: treść HOW (`makeSocialRun` / `makeContentRun`, zakaz `Partial
 
 ### KROK 3 — Domain Content + port `ContentResultStore`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Kontrakt BC bez LangGraph i bez Nest. Major 4.2.2 (fundament domain).
 
@@ -579,7 +579,7 @@ export interface ContentResultStore {
 
 ### KROK 4 — Refaktor: kernel hopu LLM do `apps/api/src/shared/llm/`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jedna implementacja `parseLlmJson` / `LlmHopService` / `loadPrompt`+`renderPrompt`, zanim powstanie graf Content. Refaktor względem: Faza 4 / żywy `social/infrastructure/graph/llm-hop.ts`, `social/application/parse-llm-json.ts`, `social/infrastructure/prompts/load-prompt.ts`. Content **nie** kopiuje tych plików (KROK 5). `refine-policy` **poza** tym krokiem (zostaje w `domain/` — KROK 3).
 
