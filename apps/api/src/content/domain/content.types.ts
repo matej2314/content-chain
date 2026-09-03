@@ -42,20 +42,28 @@ export type ContentPipelineState = {
   copyRefineCount: number;
 };
 
+export type ContentRefineSnapshot = {
+  outlineRefineCount: number;
+  copyRefineCount: number;
+};
+
 export type ContentPipelineOutcome =
-  | {
+  | (ContentRefineSnapshot & {
       kind: 'completed';
       outline: PageOutline | null;
       document: PageDocument | null;
-    }
-  | { kind: 'awaiting_hitl'; outline: PageOutline }
-  | {
+    })
+  | (ContentRefineSnapshot & {
+      kind: 'awaiting_hitl';
+      outline: PageOutline;
+    })
+  | (ContentRefineSnapshot & {
       kind: 'failed';
       code: string;
       message: string;
       contextIssues?: string[];
       languageIssues?: string[];
-    };
+    });
 
 export type ContentPipelineInput = {
   runId: RunId;

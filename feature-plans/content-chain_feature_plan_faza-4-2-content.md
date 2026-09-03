@@ -662,7 +662,7 @@ Węzły Social **bez** zmiany importu `from '../../prompts/load-prompt'`. `nest-
 
 ### KROK 5 — Moduł `apps/api/src/content/` (graf, prompty, fasada, executor)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `W_TRAKCIE`
 
 **Cel:** Pełny BC analogiczny do Social. Major 4.2.2; Ctn-1…Ctn-10. Kernel hopu już w `shared/llm/` (KROK 4).
 

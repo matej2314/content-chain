@@ -9,6 +9,7 @@ import {
   type SocialPlatform,
   type SocialTaskType,
   type UserId,
+  isContentTaskType,
 } from '@content-chain/shared';
 
 export type SocialBrief = {
@@ -60,6 +61,10 @@ export type RunRecord = SocialRunRecord | ContentRunRecord;
 
 export function isSocialRunRecord(run: RunRecord): run is SocialRunRecord {
   return isSocialTaskType(run.taskType);
+}
+
+export function isContentRunRecord(run: RunRecord): run is ContentRunRecord {
+  return isContentTaskType(run.taskType);
 }
 
 export type RunLogLevel = 'info' | 'warn' | 'error';
