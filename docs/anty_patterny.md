@@ -39,6 +39,8 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | Jeden typ `RunBrief` SM (`ideaCount`) na `page_*` / `angle` w Social | Content dziedziczy język postów; Zod nie odcina obcych pól kanału | Unia na `taskType`: `SocialBrief` vs `ContentBrief`; `.strict()`; `RunRecord` dyskryminowany (`dokumentacja_komunikacji.md`) |
 | `Partial<RunRecord>` w unitach po unii `taskType` | Miesza warianty (np. `page_copy` + `linkedin`) | `makeSocialRun` / `makeContentRun` w `apps/api/src/runs/run-record.test-helpers.ts` |
 | `SocialBrief` / `ContentBrief` w `packages/shared` albo `apps/api/src/shared/types` | Shared kernel / śmietnik cross-cutting zamiast payloadu Run | Definicje w `runs/domain/run.types.ts`; Zod w application Runs |
+| Luźny blob `extras` kontekstu bez schematu | Drift kształtu; nieznane klucze w DB; brak kontraktu FE/Postman | Typowany `CompanyContextExtras` + Zod `.strict()`; poza bramką (`dokumentacja_komunikacji.md`) |
+| Multi-select HITL SM bez semantyki wyniku | N→N fan-out nieobsługiwany; niejasny content/script | Dokładnie 1 `selectedIdeaId`; inaczej **400** `HITL_INVALID_SELECTION` |
 
 ---
 

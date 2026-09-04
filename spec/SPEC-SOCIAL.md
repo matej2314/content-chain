@@ -1,7 +1,7 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-02
+data_modyfikacji: 2026-09-04
 ---
 
 # SPEC — Social
@@ -53,7 +53,7 @@ S-3. Każdy węzeł LLM produkuje **structured output** walidowany schemą (Zod 
 
 Zmiana względem wersji 4 / S-3: dotychczas wyłącznie `z.array(z.string())` — żywy model często zwraca obiekty zarzutów; preprocess nie zmienia kontraktu domeny.
 
-S-4. `ConsistencyVerifier` — **jeden** węzeł, dwa obszary: (1) spójność z kontekstem firmy, (2) język (gramatyka, interpunkcja, składnia dla `pl`/`en`). Osobny `LanguageQualityVerifier` — **poza MVP**. Na (1): oceniaj **znaczenie** (ten sam claim / ta sama akcja / ta sama grupa / ten sam ton), nie cytat 1:1. Fakty i **liczby wyłącznie z JSON kontekstu** — parafraza sformułowania wolna; nowa liczba, nowy case jako wynik firmy albo odwrócony sens metryki → odrzut. CTA: ta sama akcja co `cta.items[].label` (dowolny case, odmiana, parafraza tej akcji); odrzut gdy to inna akcja albo dwie sprzeczne. Fakty z `audience.profiles` wolno wpleść w hook / title / angle (liczba wewnątrz zakresu profilu jest OK); odrzut dopiero przy sprzeczności z profilem albo gdy treść opisuje inną grupę. Na (2): brak kropki na końcu haczyka / tytułu, pytanie retoryczne, pauza albo wielokropek oraz wielkość liter w CTA **nie** są same w sobie podstawą odrzutu; interpunkcja w `languageIssues` tylko gdy utrudnia odczyt.
+S-4. `ConsistencyVerifier` — **jeden** węzeł, dwa obszary: (1) spójność z kontekstem firmy, (2) język (gramatyka, interpunkcja, składnia dla `pl`/`en`). Osobny `LanguageQualityVerifier` — **poza MVP**. Na (1): oceniaj **znaczenie** (ten sam claim / ta sama akcja / ta sama grupa / ten sam ton), nie cytat 1:1. Fakty i **liczby wyłącznie z JSON kontekstu** — parafraza sformułowania wolna; nowa liczba, nowy case jako wynik firmy albo odwrócony sens metryki → odrzut. Gdy obecne, wolno korzystać z `extras.caseStudies` / `extras.objections` (nadal tylko JSON kontekstu). CTA: ta sama akcja co `cta.items[].label` (dowolny case, odmiana, parafraza tej akcji); odrzut gdy to inna akcja albo dwie sprzeczne. Fakty z `audience.profiles` wolno wpleść w hook / title / angle (liczba wewnątrz zakresu profilu jest OK); odrzut dopiero przy sprzeczności z profilem albo gdy treść opisuje inną grupę. Na (2): brak kropki na końcu haczyka / tytułu, pytanie retoryczne, pauza albo wielokropek oraz wielkość liter w CTA **nie** są same w sobie podstawą odrzutu; interpunkcja w `languageIssues` tylko gdy utrudnia odczyt.
 
 Zmiana względem wersji 7 / S-4: dotychczas obszar (1) nie rozstrzygał CTA vs exact string — żywy sędzia odrzucał case i parafrazę tej samej akcji. Teraz: ten sam claim, nie 1:1; liczby nadal tylko z kontekstu. Treść copy promptu nadal poza tym SPEC (`verifier.prompt.md`). Zmiana względem wersji 4 / S-4 (dwa obszary, audience.profiles, interpunkcja SM) zostaje w mocy.
 
@@ -63,17 +63,26 @@ S-6. HITL (**model B** — samodzielne zarządzanie pauzą):
 
 1. Faza ideas kończy **invoke** grafu po `PersistIdeasDraft`.
 2. Application ustawia run `awaiting_hitl` i zapisuje w DB stan potrzebny do resume (draft pomysłów, `conversationId`, metadane fazy, liczniki refine itd.) — **kanonicznie w Run / powiązanych tabelach Prisma**, nie w pliku JSON i nie w checkpointerze LangGraph.
-3. `POST .../hitl` waliduje stan `awaiting_hitl`, zapisuje wybór, uruchamia **nowy invoke** fazy content (osobny graf lub ten sam z jawnym entry fazy).
+3. `POST .../hitl` waliduje stan `awaiting_hitl` **oraz** selekcję jak Content: `selectedIdeaIds.length === 1` i id ∈ draftu / `hitl.options` dla `post_ideas_then_content` / `reel_ideas_then_scripts`. Sukces: zapis wyboru, **nowy invoke** fazy content. Porażka: **400** `HITL_INVALID_SELECTION`, bez zapisu, status zostaje `awaiting_hitl`.
 4. Idempotencja: ponowny HITL gdy run nie jest w `awaiting_hitl` → `409` `HITL_REQUIRED` / `CONFLICT`.
 5. Crash procesu podczas **execute** (nie pauzy HITL) należy do Runs: leftover `running` → `interrupted` (`SPEC-RUNY.md` R-9). Po `interrupted → running` Social re-invoke **fazy** z trwałego stanu w DB (model B). Pauza HITL **nie** przechodzi w `interrupted`.
 
 Zmiana względem wersji 2 / S-6: recovery procesu było milcząco poza Social; tu jawny podział — `interrupted` = Runs, re-invoke fazy po powrocie do `running` = Social.
 
+Zmiana względem wersji 9 / S-6 pkt 3: wcześniejsze dopuszczenie multi `selectedIdeaIds` bez walidacji długości — od tej wersji dokładnie 1 id (jak Content); wspólny kod `HITL_INVALID_SELECTION`.
+
 S-7. Taski jednoetapowe (`post_ideas`, `post_content`, `reel_ideas`, `reel_script`) — bez pauzy HITL.
 
 S-7a. Fazy invoke — **bez** nowej wartości `pipelinePhase` w DB. Unia zostaje `'ideas' \| 'content'`: dla rolek `'content'` **znaczy** fazę scenariusza. `resolvePhase`: `reel_script` → `'content'`; `reel_ideas_then_scripts` + niepuste `selectedIdeaIds` → `'content'`; analogia 1:1 do postów. `storedPhase` z DB zostaje pierwszym fallbackiem.
 
-S-7b. Snapshot addytywny: posty — `result.ideas` / `result.content` **bez zmian** (`SocialIdea`, `SocialContent`). Rolki — `result.reelIdeas` / `result.reelScript` (nie wpychać scenariusza w `SocialContent`). `hitl.options` przy `reel_ideas_then_scripts` = `reelIdeas`. `ReelIdea`: `id`, `title`, `description`, `hook`, `durationSeconds` (`15` \| `30` \| `90`). `ReelScript`: `segments` (`startSeconds`, `endSeconds`, `onScreen`, `voiceover`), `cta`, `notes?`. Id pomysłu rolki: `idea_<uuid>` (bez nowego brandu w shared).
+S-7b. Snapshot addytywny: posty — `result.ideas` / `result.content`; rolki — `result.reelIdeas` / `result.reelScript` (nie wpychać scenariusza w `SocialContent`). `hitl.options` przy `reel_ideas_then_scripts` = `reelIdeas`.
+
+- `SocialIdea`: `id`, `title`, `angle`, `hook`, **`cta?`** (sugerowane CTA; ideation może wypełniać z `cta.items`).
+- `SocialContent`: `body`, `hashtags`, `cta?`, **`characterCount`** (integer ≥ 0). Kanon: ustawiane w Persist* / mapperze po sukcesie writer/refine z `body.length`; writer **nie** musi emitować pola; wartość z LLM ignorowana / nadpisywana. Przy odczycie starego JSON bez klucza → `characterCount = body.length`.
+- `ReelIdea`: `id`, `title`, `description`, `hook`, `durationSeconds` (`15` \| `30` \| `90`), **`cta?`**.
+- `ReelScript`: `segments` (`startSeconds`, `endSeconds`, `onScreen`, `voiceover`), `cta`, `notes?`. Id pomysłu rolki: `idea_<uuid>` (bez nowego brandu w shared).
+
+Zmiana względem wersji 9 / S-7b: addytywne `cta?` na pomysłach i `characterCount` na content (`docs/dokumentacja_komunikacji.md`).
 
 S-7c. Persistence rolek: **nie** reuse tabeli `SocialContent` na skrypt. Modele Prisma `SocialReelIdea`, `SocialReelScript` (payload JSON + `runId`). Port `SocialResultStore` rozszerzony (`listReelIdeas`, `getReelScript`). Prompty: `reel-ideas.prompt.md`, `reel-script.prompt.md`, `refine-reel-ideas.prompt.md`, `refine-reel-script.prompt.md`. Ten sam skompilowany graf; routing po `taskType` + `phase`. Katalog `FeedbackAgentKey` **bez** nowych kluczy w 4.1.
 
@@ -174,7 +183,8 @@ Zmiana względem wersji 6: dopisano zakaz importu `ContentModule` (rolki są w S
 
 - [ ] `post_ideas` full-auto: completed + ideas w DB + logi z `conversationId` / `requestId` hopów.
 - [ ] `reel_ideas` full-auto: completed + `reelIdeas` w DB; `reel_ideas_then_scripts`: HITL na `reelIdeas`, potem `reelScript`.
-- [ ] `post_ideas_then_content`: po ideas status `awaiting_hitl` + draft w DB; po HITL content → completed; restart procesu api nie gubi draftu HITL (stan w DB; status zostaje `awaiting_hitl`, nie `interrupted`).
+- [ ] `post_ideas_then_content`: po ideas status `awaiting_hitl` + draft w DB; HITL z dokładnie 1 poprawnym id → content → completed; HITL z 0 lub 2+ id → **400** `HITL_INVALID_SELECTION`, status zostaje `awaiting_hitl`; restart procesu api nie gubi draftu HITL.
+- [ ] GET result: `characterCount` na content (= `body.length`); `cta?` na ideas / reelIdeas gdy model zwróci.
 - [ ] Verifier fail → refine ≤ 2, potem `failed` z czytelnym powodem (kontekst i/lub język).
 - [ ] Węzły LLM zwracają dane po walidacji Zod (lub równoważnej); złamany kształt nie trafia do wyniku „sukces”.
 - [ ] Brak checkpoinetera LangGraph i brak JSON-pliku jako store HITL.

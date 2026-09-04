@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-08-31
-data_modyfikacji: 2026-09-02
+data_modyfikacji: 2026-09-04
 ---
 
 # SPEC — Content (BC)
@@ -43,7 +43,9 @@ Ctn-1. Start / wznowienie pipeline’u wyłącznie przez **application service**
 
 Ctn-2. Graf i węzły żyją w `apps/api/src/content/infrastructure/graph/`. Szablony promptów w `.../infrastructure/prompts/` — **wymagane** jako pliki szablonów.
 
-Ctn-3. Każdy węzeł LLM produkuje **structured output** walidowany schemą Zod przed dalszym krokiem. Porażka parse = błąd kroku / refine / `failed` — nie cichy tekst do UI. Semantyka jak S-3 w `SPEC-SOCIAL.md`.
+Ctn-3. Każdy węzeł LLM produkuje **structured output** walidowany schemą Zod przed dalszym krokiem. Porażka parse = błąd kroku / refine / `failed` — nie cichy tekst do UI. Semantyka jak S-3 w `SPEC-SOCIAL.md`. Domain `PageOutlineSection`: opcjonalne **`role?`** z enumem `audience_world` \| `pain` \| `challenger` \| `insight` \| `proof` \| `objection` \| `cta` \| `other`. Nieznana wartość → fail parse. OutlineAgent / refine outline / PageWriter respektują `role` gdy obecne; **nie** wymagać wszystkich ról w każdym outline; brak `role` = OK.
+
+Zmiana względem wersji 4 / Ctn-3: sekcje outline bez pola narracyjnego — od tej wersji opcjonalne `role` (`docs/data_flow.md` §4e).
 
 Ctn-4. `ConsistencyVerifier` — **jeden** węzeł, dwa obszary: (1) fakty firmy z kontekstu, (2) język (`pl`/`en`). Osobny `LanguageQualityVerifier` — **poza** tym SPEC. Refine* z twardym limitem **`max N=2`**, potem `failed`.
 
@@ -96,7 +98,7 @@ apps/api/src/content/
 | HITL | granica między invoke; stan w DB (B) |
 | Węzły bazowe | `LoadContext`, `NormalizeBrief`, `OutlineAgent`, `PageWriterAgent`, `ConsistencyVerifier`, `Refine*`, `Persist*`, `FailRun` |
 | `compile()` | bez checkpoinetera |
-| Domain | `PageOutline`; `PageDocument` (np. `title`, `lead`, `body`, `metaTitle?`, `metaDescription?`); faza `'outline'` \| `'copy'`; `brief: ContentBrief` |
+| Domain | `PageOutline` (sekcje: `id`, `heading`, `summary`, `role?`); `PageDocument` (np. `title`, `lead`, `body`, `metaTitle?`, `metaDescription?`); faza `'outline'` \| `'copy'`; `brief: ContentBrief` |
 
 Odwołanie: [LangGraph Persistence](https://docs.langchain.com/oss/javascript/langgraph/persistence) (świadomie **niewykorzystane**); structured output: [LangChain structured output](https://docs.langchain.com/oss/javascript/langchain/structured-output) — transport LLM przez gateway.
 
@@ -157,6 +159,7 @@ page_copy:
 
 - [ ] `page_copy` full-auto: completed + `pageDocument` w DB + logi z `conversationId` / `requestId` hopów.
 - [ ] `page_outline_then_copy`: po outline status `awaiting_hitl` + draft w `ContentOutline`; HITL z `[outline.id]` → dokument → completed; restart api nie gubi outline’u (stan w DB). HITL z obcym id → **400** `HITL_INVALID_SELECTION`, run zostaje `awaiting_hitl`.
+- [ ] Outline z `role` na sekcjach przechodzi verifier + HITL; outline bez `role` — regresja zielona.
 - [ ] Verifier fail → refine ≤ 2, potem `failed` z czytelnym powodem.
 - [ ] Węzły LLM zwracają dane po walidacji Zod; złamany kształt nie trafia do wyniku „sukces”.
 - [ ] Recovery `interrupted` → re-invoke Content (właściwy BC po `taskType`).
@@ -167,7 +170,7 @@ page_copy:
 ## Poza zakresem
 
 - Cykl życia statusów runu, SSE, klej composite → `SPEC-RUNY.md`.
-- Treść merytoryczna promptów (copy szablonów); źródło legacy `deprecated/` **nie** jest runtime.
+- Treść merytoryczna promptów (copy szablonów).
 - LanguageQualityVerifier jako osobny węzeł.
 - YouTube, publikacja portali, WordPress, łańcuch 6 specjalistów.
 - UI HITL / widok dokumentu → `SPEC-FRONTEND.md`.

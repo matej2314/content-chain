@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-02
+data_modyfikacji: 2026-09-04
 ---
 
 # SPEC — Persistence
@@ -46,6 +46,10 @@ P-4. ORM / SQL / Prisma **zakazane** w `domain/` oraz w `packages/shared`. Appli
 P-5. DB jest kanoniczna dla kontekstu firmy, userów, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
 
 Kolumna `Run.brief` (Json): **unia** `SocialBrief` | `ContentBrief` rozróżniana `taskType` — **bez nowej migracji** przy zmianie kształtu TypeScript. Semantyka i parse przy mapowaniu wiersza → `RunRecord`: `SPEC-RUNY.md` R-3d1.
+
+`CompanyContext.extras` (Json?): semantyka typowana w application (`CompanyContextExtras`, Zod `.strict()`) — **nie** nowe tabele per case study w MVP. Payload JSON `SocialIdea` / `SocialContent` / `ContentOutline` — addytywne klucze (`cta?`, `characterCount`, `role?`); migracja danych **nie** wymagana (stare wiersze OK).
+
+Zmiana względem wersji 5 / P-5: milcząco brak normy typowanych extras i addytywnych kluczy wyniku SM/outline.
 
 Zmiana względem wersji 4 / P-5: milcząco jeden JSON briefu SM; od tej wersji unia kanałowa bez zmiany schemy Prisma.
 
@@ -99,9 +103,11 @@ apps/api/
 - Przenoszenia reguł domenowych do UI przy zmianie silnika.
 - Zapisu refine outline/copy (BC Content) do `Run.ideasRefineCount` / `Run.contentRefineCount`.
 - Migracji Prisma wyłącznie po to, by rozdzielić `SocialBrief` / `ContentBrief` (kolumna Json zostaje; zmiana to parse, nie DDL).
+- Osobnych tabel `case_studies` / równoważnych per sekcja extras w tym wycinku MVP (Json `extras` + Zod).
 
 Zmiana względem wersji 3 / „Nie wolno”: dopisano zakaz reuse kolumn refine Social na Content.
 Zmiana względem wersji 4 / „Nie wolno”: dopisano zakaz zbędnej migracji `brief`.
+Zmiana względem wersji 5 / „Nie wolno”: dopisano zakaz osobnych tabel case studies zamiast `extras` Json.
 
 ### Zatwierdzony stack (obszar)
 

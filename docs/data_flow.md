@@ -117,6 +117,10 @@ Zmiana względem: wcześniejszy mermaid skracał pętlę do `VerI -->|fail refin
 
 HITL nie woła LLM; nowe `RequestId` pojawia się w odpowiedzi HTTP `.../hitl`. Po resume kolejne hopy LLM nadal z tym samym `ConversationId`.
 
+Kanon selekcji (MVP): **`selectedIdeaIds.length === 1`** i id z draftu / `hitl.options` — jeden wybrany pomysł → jeden `content`. Inaczej **400** `HITL_INVALID_SELECTION`; status zostaje `awaiting_hitl`.
+
+Zmiana względem: multi-select bez walidacji długości (Milestone 4).
+
 ---
 
 ## 4b. Run jednoetapowy — `reel_ideas` (full-auto)
@@ -125,7 +129,7 @@ Ten sam graf Social, **routing po `taskType` + `phase`**: `IdeationAgent` ładuj
 
 Przepływ jak §3 (`LoadContext` → `NormalizeBrief` → `IdeationAgent` → `ConsistencyVerifier` → `Refine*` `max N=2` → `PersistReelIdeas` → `completed`). Platforma: `linkedin` \| `facebook` \| `instagram`. Język: `pl` \| `en`.
 
-`ReelIdea`: `id` (`idea_<uuid>`), `title`, `description`, `hook`, `durationSeconds` (`15` \| `30` \| `90`).
+`ReelIdea`: `id` (`idea_<uuid>`), `title`, `description`, `hook`, `durationSeconds` (`15` \| `30` \| `90`), opcjonalnie **`cta?`**.
 
 Analogicznie **`reel_script` (full-auto):** faza `'content'` **znaczy** fazę scenariusza (`SocialRunExecutor.resolvePhase`: `reel_script` → `'content'`). `ContentWriterAgent` ładuje `reel-script.prompt.md`. Wynik: `result.reelScript` (nie `SocialContent`). Persist: `SocialReelScript`.
 
@@ -140,11 +144,11 @@ Jak §4, z polami rolek:
 ```text
 invoke A (reel ideas + verifier + persist) → awaiting_hitl
   hitl.options = reelIdeas (nie post-ideas)
-POST .../hitl  { selectedIdeaIds }   # id z reelIdeas
+POST .../hitl  { selectedIdeaIds }   # dokładnie 1 id z reelIdeas
 invoke B (phase 'content' = scenariusz + verifier + persist) → completed | failed
 ```
 
-`resolvePhase`: `reel_ideas_then_scripts` + niepuste `selectedIdeaIds` → `'content'`. `storedPhase` z DB zostaje pierwszym fallbackiem.
+`resolvePhase`: `reel_ideas_then_scripts` + niepuste `selectedIdeaIds` → `'content'`. `storedPhase` z DB zostaje pierwszym fallbackiem. Semantyka jak §4: jeden wybrany pomysł → jeden scenariusz; ≠1 id → **400** `HITL_INVALID_SELECTION`.
 
 ---
 
@@ -179,6 +183,10 @@ invoke A (OutlineAgent + verifier + persist outline) → awaiting_hitl
 POST .../hitl  { selectedIdeaIds: [outline.id] }
 invoke B (PageWriterAgent + verifier + persist document) → completed | failed
 ```
+
+Sekcje outline mogą nieść opcjonalne **`role`** (`audience_world` \| `pain` \| `challenger` \| `insight` \| `proof` \| `objection` \| `cta` \| `other`). OutlineAgent / PageWriter respektują katalog, gdy `role` obecne; brak `role` = OK (writer domyśla z `contentKind`). Nie wymaga się wszystkich ról w każdym outline.
+
+Zmiana względem: sekcje outline bez pola narracyjnego `role`.
 
 ---
 
@@ -282,7 +290,7 @@ Nie mylić z HITL (wybór pomysłów w trakcie pipeline).
 
 Jeden węzeł, dwa obszary (opcja B — bez osobnego LanguageQualityVerifier w MVP):
 
-1. **Kontekst firmy** — nazwy / oferta / ton / CTA / brak sprzeczności z DB. Sędzia ocenia **znaczenie** (ten sam claim / ta sama akcja), nie cytat 1:1. Fakty i liczby wyłącznie z JSON kontekstu (parafraza sformułowania wolna; nowa liczba albo odwrócony sens metryki → odrzut). CTA: ta sama akcja co `cta.items[].label` (dowolny case, parafraza tej akcji); inna akcja → odrzut.  
+1. **Kontekst firmy** — nazwy / oferta / ton / CTA / brak sprzeczności z DB. Sędzia ocenia **znaczenie** (ten sam claim / ta sama akcja), nie cytat 1:1. Fakty i liczby wyłącznie z JSON kontekstu (parafraza sformułowania wolna; nowa liczba albo odwrócony sens metryki → odrzut). CTA: ta sama akcja co `cta.items[].label` (dowolny case, parafraza tej akcji); inna akcja → odrzut. Gdy obecne, fakty mogą pochodzić także z `extras.caseStudies` / `extras.objections` — **nadal** tylko JSON kontekstu, bez plików.  
 2. **Język** — gramatyka, interpunkcja, składnia (dla `pl` / `en` runu). Wielkość liter w CTA to nie błąd językowy.
 
 Werdykt: `ok` albo konkretne poprawki dla Refine*. W logu / SSE rozróżnialne powody faila (kontekst vs język), nawet gdy to jeden hop LLM.

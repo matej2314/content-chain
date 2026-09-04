@@ -49,8 +49,9 @@ CTA „Start runu” disabled + tooltip, gdy agenci nieaktywni — zgodnie z **4
 
 ## Widok: Kontekst firmy
 
-- Formularze / sekcje: tożsamość, oferta, głos SM, CTA/kanały, odbiorca.
-- Widoczny status kompletności per sekcja.
+- Formularze / sekcje bramki: tożsamość, oferta, głos SM, CTA/kanały, odbiorca.
+- Opcjonalne sekcje **`extras`** (case studies, obiekcje, hashtagi, catalogNotes, performanceNotes) — admin może edytować; **nie** blokują „Agenci aktywni”.
+- Widoczny status kompletności per sekcja bramki.
 - Zapis: tylko admin; user — read-only z komunikatem.
 
 ## Widok: Runy
@@ -76,8 +77,8 @@ Wejście: z listy Runy SM (klik) lub bezpośredni deep-link po `runId`.
 | **Nagłówek / meta** | Te same podstawowe pola co wiersz listy + ewent. `conversationId` (ops light) |
 | **Status live** | Subskrypcja SSE `.../events`; zmiana statusu **natychmiast**; prezentacja **animowana / atrakcyjna** (np. pulsacja / progress przy `running`, wyraźny stan `awaiting_hitl`, **czytelny przestój `interrupted`** — nie ta sama pulsacja co `running`, sukces/fail) — nie tylko szary label |
 | **Logi** | Przyrostowo z SSE `run.log` + możliwość dociągnięcia historii GET logs |
-| **HITL** | Panel wyboru: pomysły postu, pomysły rolek albo outline strony — wg `taskType` i `hitl.options`; submit → `POST .../hitl` |
-| **Wynik** | Po `completed`: widok **postu** (`ideas` / `content`), **rolki** (`reelIdeas` / `reelScript.segments`) albo **strony** (`pageOutline` / `pageDocument`) — nie jeden szablon na wszystko; przy `failed` — to, co zdążyło się zapisać |
+| **HITL** | Panel wyboru: pomysły postu, pomysły rolek albo outline strony — wg `taskType` i `hitl.options`. Social dwuetapowy: **single select** (radio / jeden chip), nie multi; Content: akceptacja outline’u. Submit → `POST .../hitl` |
+| **Wynik** | Po `completed`: widok **postu** (`ideas` / `content` — na liście pomysłów `cta` gdy jest; przy content pokaż `characterCount`), **rolki** (`reelIdeas` / `reelScript.segments` — `cta` na pomyśle gdy jest) albo **strony** (`pageOutline` / `pageDocument` — etykieta `role` przy sekcji, gdy ustawione); przy `failed` — to, co zdążyło się zapisać |
 | **Edytuj** | Widoczny gdy jest wynik i przegląd **nie** jest zatwierdzony **oraz** sesja = `startedBy`. Klik → użytkownik edytuje treść w UI; api ustawia **wyłącznie flagę** `outputEdited: true` (bez diff / % w MVP; oryginał agentów w DB bez nadpisu w MVP) |
 | **Ocena gwiazdkowa (1–5)** | Po `completed` **albo** `failed`, tylko autor runu. Dobrowolna: brak wyboru = w DB zostaje `userRating: null`. Do zatwierdzenia można zmieniać wybór (w tym wrócić do braku oceny). Czytelne gwiazdki, nie sam numeric input |
 | **Zamknij / zapisz przegląd** | Zatwierdza aktualną ocenę (`null` albo `1–5`) i flagę edycji. Po sukcesie kontrolki oceny i Edytuj są zablokowane |

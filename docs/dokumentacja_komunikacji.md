@@ -15,6 +15,8 @@ Zmiana względem kontraktu startu (tylko 3 taski post_*, `platform` zawsze wymag
 
 Zmiana względem jednego obiektu `brief` („temat, grupa, cel, liczba pomysłów” dla każdego `taskType`): kształt `brief` zależy od kanału — **`SocialBrief`** (post_* / reel_*) vs **`ContentBrief`** (page_*). Dyskryminator zostaje `taskType`. `ideaCount` legalne tylko w Social; `angle` / `targetLength` tylko w Content. Szczegóły: tabele pod `POST /runs`; typy w `dictionary.md`.
 
+Zmiana względem Milestone 4 (HITL post/reel bez walidacji długości; luźne poza-bramką): typowane `extras`; HITL Social = dokładnie 1 id (`HITL_INVALID_SELECTION`); addytywne `cta?` / `characterCount` / `role?` w wyniku.
+
 ---
 
 ## Powierzchnia 1 — HTTP API (`apps/api`)
@@ -49,7 +51,7 @@ Wybrane kody domenowe:
 | `VALIDATION_FAILED` | 400 | Błąd walidacji DTO |
 | `CONTEXT_INCOMPLETE` | 409 | Bramka kontekstu — start runu zablokowany |
 | `HITL_REQUIRED` | 409 | Operacja wymaga stanu oczekiwania na wybór / odwrotnie |
-| `HITL_INVALID_SELECTION` | 400 | `page_outline_then_copy`: `selectedIdeaIds` ≠ dokładnie `[outline.id]` |
+| `HITL_INVALID_SELECTION` | 400 | Selekcja HITL niezgodna z kanonem: Content — `selectedIdeaIds` ≠ `[outline.id]`; Social dwuetapowy — `selectedIdeaIds.length !== 1` albo id spoza draftu / `hitl.options` |
 | `RUN_NOT_FOUND` | 404 | Nieznany `runId` |
 | `REVIEW_LOCKED` | 409 | Przegląd runu zatwierdzony — zmiana oceny / flagi edycji zabroniona |
 | `RUN_NOT_REVIEWABLE` | 409 | Ocena / edycja / finalize gdy status inny niż `completed` \| `failed` |
@@ -134,19 +136,29 @@ Zmiana względem „DELETE = dezaktywacja / usunięcie wg polityki”: w MVP DEL
 
 **UI MVP (dashboard):** admin tylko **listuje** i **tworzy** użytkowników — bez edycji / dezaktywacji w UI (endpointy PATCH/DELETE zostają w api pod płynne V1).
 ### Company context
-Bramka kompletności: sekcje z dokumentacji koncepcyjnej (tożsamość, oferta, głos SM, CTA/kanały, odbiorca).
+Bramka kompletności: sekcje z dokumentacji koncepcyjnej (tożsamość, oferta, głos SM, CTA/kanały, odbiorca). Opcjonalnie **`extras`** (`CompanyContextExtras`) — poza bramką.
 
 #### `GET /api/v1/company-context`
 
-**200** — aktualny kontekst + flaga / obiekt `completeness` (które sekcje spełnione).
+**200** — aktualny kontekst (w tym `extras`: obiekt albo `null`) + flaga / obiekt `completeness` (które sekcje **bramki** spełnione). `extras` nie wpływa na `complete`.
 
 #### `PUT` lub `PATCH /api/v1/company-context` — tylko `admin`
 
-Zapis sekcji kontekstu. **403** dla `user`.
+Zapis sekcji bramki + opcjonalne `extras`. **403** dla `user`.
+
+| Pole `extras` | Typ | Wymagane | Opis |
+|---------------|-----|----------|------|
+| `caseStudies` | `{ title: string; summary: string; metrics?: string[] }[]` | nie | Case studies |
+| `objections` | `{ label: string; response: string }[]` | nie | Obiekcje i odpowiedzi |
+| `hashtags` | `string[]` | nie | Zestawy hashtagów |
+| `catalogNotes` | `string` | nie | Skrót katalogu (nie zastępuje `offer.items`) |
+| `performanceNotes` | `string` | nie | Luźne notatki performance |
+
+Walidacja: Zod `.strict()` na obiekcie `extras` — nieznane klucze → **400** `VALIDATION_FAILED`. Brak `extras` / `null` = OK (omit preferowane względem pustych tablic). Jakość merytoryczna po stronie admina; programowo tylko kształt.
 
 #### `GET /api/v1/company-context/completeness`
 
-**200** — `{ "complete": boolean, "missing": string[] }` — wygodne dla UI bramki.
+**200** — `{ "complete": boolean, "missing": string[] }` — wygodne dla UI bramki (`missing` wyłącznie sekcje bramki; bez kluczy `extras`).
 
 ### Runs (Social i Content)
 
@@ -323,7 +335,18 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
 - `reviewFinalizedAt` — `null` dopóki autor nie zatwierdzi przeglądu; po finalize ISO8601 i pola oceny/edycji niemutowalne.
 - `hitl` — metadane pauzy gdy `awaiting_hitl`; `options` zależne od `taskType` (post ideas / `reelIdeas` / outline); inaczej `null` (w tym przy `interrupted`).
 
+**Pola wyniku (addytywne względem Milestone 4):**
+
+| Ścieżka | Pola | Uwagi |
+|---------|------|-------|
+| `result.ideas[]` | `id`, `title`, `angle`, `hook`, **`cta?`** | Sugerowane CTA z ideation (gdy model zwróci) |
+| `result.content` | `body`, `hashtags`, `cta?`, **`characterCount`** | `characterCount`: integer ≥ 0; **kanon:** pipeline ustawia po sukcesie writer/refine z `body.length`; jeśli LLM zwróci osobne pole — ignorować / nadpisać. Przy odczycie starego wiersza bez klucza → mapper: `characterCount = body.length` |
+| `result.reelIdeas[]` | jak wcześniej + **`cta?`** | Opcjonalne; spójność z post ideas |
+| `result.pageOutline.sections[]` | `id`, `heading`, `summary`, **`role?`** | Enum: `audience_world` \| `pain` \| `challenger` \| `insight` \| `proof` \| `objection` \| `cta` \| `other` |
+
 `startedBy` jak na liście (`null` wyłącznie era pre-auth).
+
+Zmiana względem: wynik SM bez `cta` / `characterCount`; sekcje outline bez `role`; HITL Social bez reguły 1 id.
 
 #### `GET /api/v1/runs/user/:userId`
 
@@ -411,9 +434,13 @@ Wznowienie po wyborze z listy (task dwuetapowy: post ideas, reel ideas albo outl
 
 | Pole | Typ | Wymagane |
 |------|-----|----------|
-| `selectedIdeaIds` | string[] | tak (≥1); id z `hitl.options` danego `taskType` |
+| `selectedIdeaIds` | string[] | tak; id z `hitl.options` danego `taskType` |
 
-Dla `page_outline_then_copy`: dokładnie **jeden** id = `hitl.options[0].id` (= `result.pageOutline.id`). Inaczej **400** `HITL_INVALID_SELECTION` (bez zapisu selekcji, status zostaje `awaiting_hitl`). Brak zapisanego outline → **409** `CONFLICT`. Post/reel: bez nowej walidacji id w tym wycinku (jak Milestone 4).
+Dla `page_outline_then_copy`: dokładnie **jeden** id = `hitl.options[0].id` (= `result.pageOutline.id`). Inaczej **400** `HITL_INVALID_SELECTION` (bez zapisu selekcji, status zostaje `awaiting_hitl`). Brak zapisanego outline → **409** `CONFLICT`.
+
+Dla `post_ideas_then_content` / `reel_ideas_then_scripts`: **`selectedIdeaIds.length === 1`** i id ∈ draftu / `hitl.options`. Inaczej **400** `HITL_INVALID_SELECTION` (ten sam kod co Content; spójny envelope; status zostaje `awaiting_hitl`). Semantyka wyniku: jeden wybrany pomysł → jeden content / jeden scenariusz.
+
+Zmiana względem: „Post/reel: bez nowej walidacji id” (Milestone 4).
 
 **200** / **202** — run wraca do `running`.  
 **409** `HITL_REQUIRED` / `CONFLICT` gdy run nie jest w `awaiting_hitl`.

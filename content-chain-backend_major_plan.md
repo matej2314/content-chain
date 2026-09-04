@@ -1,10 +1,10 @@
 # Content Chain — major plan (backend)
 
-**Zakres tego pliku:** fundament monorepo, boilerplate frontu (wyłącznie struktura i pakiety) oraz **backend** aż do zielonego pipeline’u SM (Milestone 4), **dopełnienia Social o rolki (Faza 4.1)** i **BC Content + klej (Faza 4.2 / Milestone 4.2)**, auth API **oraz fundamentu zapisu feedbacku** (opinie, ocena runu, flaga edycji).  
+**Zakres tego pliku:** fundament monorepo, boilerplate frontu (wyłącznie struktura i pakiety) oraz **backend** aż do zielonego pipeline’u SM (Milestone 4), **dopełnienia Social o rolki (Faza 4.1)** i **BC Content + klej (Faza 4.2 / Milestone 4.2)**, **rozszerzenia kontraktu MVP (Faza 4.3 / Milestone 4.3)**, auth API **oraz fundamentu zapisu feedbacku** (opinie, ocena runu, flaga edycji).  
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
-**Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), potem **Faza 4.2** (Content + klej) / Milestone 4.2, potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, **4.1, 4.2**, 5 i 6 oraz osiągnięciu Milestone 4, **4.2**, 5–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
+**Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31), `update-mvp-contract-plan.md` (Faza 4.3).  
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** / Milestone 4.3, potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, **4.1, 4.2, 4.3**, 5 i 6 oraz osiągnięciu Milestone 4, **4.2, 4.3**, 5–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -479,9 +479,11 @@ Zgodne z oryginalnym projektem (`deprecated/…/post_content.prompt.md`): „Pom
 
 ## Faza 4.2 — BC Content + orkiestracja
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Po Fazie 4.1; **nie zmienia Fazy 4**. Drugi bounded context `apps/api/src/content/` (`page_copy`, `page_outline_then_copy`, `ContentKind`). Composite kleju w composition root (ręczny `switch` + `assertNever`). Testy, że Runs nie zna katalogu grafów. Źródło: `SPEC-CONTENT.md`, `SPEC-RUNY.md` (R-3d/e/f), `docs/architektura.md`.
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-4-2-content.md` (KROK 1–7 `WYKONANY` → major 4.2.1, 4.2.1b, 4.2.2, 4.2.3, 4.2.4). Shared `page_*` / `ContentKind` / `RunPlatform`, Prisma Content + `outlineRefineCount` / `copyRefineCount`, unia `RunRecord` + `SocialBrief` / `ContentBrief` (KROK 2b) + helper `run-record.test-helpers.ts` (KROK 2c), domain/port Content, kernel hopu w `shared/llm/`, graf/fasada/executor, klej composite + Zod `discriminatedUnion`, e2e D-17…D-19a + Postman Content A–B. **MILESTONE 4.2** → `OSIĄGNIĘTY`. Faza 5 pozostaje `NIE_ROZPOCZĘTY`.
 
 **Kontrakty typów:** `RunTaskType` += `page_*`; `ContentKind` + `isContentKind`; `RunPlatform = SocialPlatform | 'web'` w shared (**nie** jako `SocialPlatform`). `StartRunCommand`: unia dyskryminowana TS + Zod `discriminatedUnion('taskType')`. `RunRecord` = `SocialRunRecord` | `ContentRunRecord` (`taskType` dyskryminuje `brief`). `SocialBrief` / `ContentBrief` w `runs/domain` — **zakaz** płaskiego `RunBrief` i definicji w `packages/shared` / `apps/api/src/shared/`. Odczyt JSON `Run.brief`: parse Zod wg `taskType` (nie `as`). Domain: `PageOutline`, `PageDocument`; faza `'outline' \| 'copy'`. Port `ContentResultStore` osobny. Zakaz `any`.
 
@@ -492,7 +494,7 @@ Dopisek (2026-09-02): brief kanałowy — `docs/dokumentacja_komunikacji.md`, `r
 | Major | Feature | Zakres |
 |-------|---------|--------|
 | 4.2.1 | KROK 1–2 | Shared enumy + Prisma Content. HTTP `page_*` **zamknięte**. |
-| 4.2.1b | KROK 2b | Unia `RunRecord` + `SocialBrief` + `socialBriefSchema`. HTTP `page_*` nadal zamknięte. |
+| 4.2.1b | KROK 2b / 2c | Unia `RunRecord` + `SocialBrief` + `socialBriefSchema`; nazwa helpera unit. HTTP `page_*` nadal zamknięte. |
 | 4.2.2 | KROK 3–5 | Domain Content, kernel hopu, graf/fasada/executor. |
 | 4.2.3 | KROK 6 | Klej + Zod unia startu (`socialBriefSchema` / `contentBriefSchema`) + otwarcie HTTP `page_*` + snapshot `brief`. |
 | 4.2.4 | KROK 7 | Unit / e2e D-17…D-19a / Postman Content / regresja Social. |
@@ -508,7 +510,7 @@ Dopisek (2026-09-02): brief kanałowy — `docs/dokumentacja_komunikacji.md`, `r
 
 ### Krok 4.2.1 — Shared, Prisma Content, `Run.contentKind`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Etykieta feature:** KROK 1–2.
 
@@ -522,13 +524,13 @@ Dopisek (2026-09-02): brief kanałowy — `docs/dokumentacja_komunikacji.md`, `r
 
 ### Krok 4.2.1b — Unia `RunRecord` + `SocialBrief`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
-**Etykieta feature:** KROK 2b.
+**Etykieta feature:** KROK 2b / 2c.
 
 **Refaktor względem:** Faza 4 / żywy Social (`import type { RunBrief }`); feature KROK 2 (`WYKONANY` — płaski `RunBrief` na `RunRecord`).
 
-**Opis:** `RunRecord` = `SocialRunRecord` \| `ContentRunRecord`; `SocialBrief` / `ContentBrief` w `runs/domain`; usunąć publiczny `RunBrief`. Social domain/state importuje `SocialBrief`. Fixture’y `makeSocialRun` / `makeContentRun` — **zakaz** `Partial<RunRecord>` i `makeRun` na unii. Zod: przemianować `runBriefSchema` → `socialBriefSchema`; command startu nadal wymaga `platform` (HTTP page zamknięte). **Zakaz** otwierania `page_*` i **zakaz** `contentBriefSchema` w HTTP do kroku 4.2.3.
+**Opis:** `RunRecord` = `SocialRunRecord` \| `ContentRunRecord`; `SocialBrief` / `ContentBrief` w `runs/domain`; usunąć publiczny `RunBrief`. Social domain/state importuje `SocialBrief`. Fixture’y `makeSocialRun` / `makeContentRun` — **zakaz** `Partial<RunRecord>` i `makeRun` na unii. Zod: przemianować `runBriefSchema` → `socialBriefSchema`; command startu nadal wymaga `platform` (HTTP page zamknięte). **Zakaz** otwierania `page_*` i **zakaz** `contentBriefSchema` w HTTP do kroku 4.2.3. Helper unit: kanoniczna ścieżka `apps/api/src/runs/run-record.test-helpers.ts` (feature KROK 2c — tylko nazwa pliku i importy).
 
 **DoD (krok):**
 
@@ -537,7 +539,7 @@ Dopisek (2026-09-02): brief kanałowy — `docs/dokumentacja_komunikacji.md`, `r
 
 ### Krok 4.2.2 — Moduł `apps/api/src/content/` (graf podstawowy)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Etykieta feature:** KROK 3–5 (domain → kernel hopu → graf/fasada/executor).
 
@@ -550,7 +552,7 @@ Dopisek (2026-09-02): brief kanałowy — `docs/dokumentacja_komunikacji.md`, `r
 
 ### Krok 4.2.3 — Klej, Zod unia startu, otwarcie HTTP `page_*`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Etykieta feature:** KROK 6.
 
@@ -566,7 +568,7 @@ Dopisek (2026-09-02): brief kanałowy — `docs/dokumentacja_komunikacji.md`, `r
 
 ### Krok 4.2.4 — Testy unit, e2e, Postman Content, regresja Social
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Etykieta feature:** KROK 7.
 
@@ -581,6 +583,8 @@ Dopisek (2026-09-02): brief kanałowy — `docs/dokumentacja_komunikacji.md`, `r
 
 ## MILESTONE 4.2 — Zespoły agentowe kompletne (podstawowa forma)
 
+**Status:** `OSIĄGNIĘTY`
+
 **Opis:** Bramka mapowania po Fazach 4.1 i 4.2. **Nie** mylić z Milestone 4 (posty) ani z publicznym MVP. Auth nadal Faza 5.
 
 **DoD (milestone):**
@@ -593,12 +597,96 @@ Dopisek (2026-09-02): brief kanałowy — `docs/dokumentacja_komunikacji.md`, `r
 
 ---
 
+## Faza 4.3 — Rozszerzenie kontraktu MVP (extras, HITL SM 1 id, pola SM, role outline)
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Po Fazie 4.2 / Milestone 4.2; **przed** Fazą 5 (Auth). Legalizacja i implementacja rozszerzeń kontraktu MVP:
+(1) typowane `CompanyContext.extras`,
+(2) HITL Social — dokładnie jeden `selectedIdeaId`,
+(3) `SocialIdea.cta?` / `ReelIdea.cta?` + `SocialContent.characterCount`,
+(4) opcjonalne `PageOutlineSection.role`.
+Źródło: zaktualizowane `docs/*` + `SPEC-KONTEKST-FIRMY` / `SPEC-SOCIAL` / `SPEC-CONTENT` / `SPEC-RUNY` / `SPEC-FRONTEND` (plan `update-mvp-contract-plan.md`).
+**Nie** zmienia semantyki Fazy 4 / 4.1 / 4.2 `WYKONANY` — wyłącznie dopisek kontraktu i kod.
+**Poza fazą:** załączniki runu, Reels_performance produkt, N→N fan-out, WP, 6 audytorów, case_study kind.
+
+**DoD (faza):**
+- PUT/PATCH extras waliduje kształt; bramka `isComplete` bez extras.
+- HITL post/reel z ≠1 id → 400 `HITL_INVALID_SELECTION`; z 1 poprawnym id → content/script.
+- Snapshot: `cta` na pomysłach (gdy model zwróci), `characterCount` na content, `role` na sekcjach outline (gdy obecne).
+- Unit + e2e + Postman (regresja Social A–D, Content A–B + nowe case’y).
+- Auth nadal Faza 5 — ta faza **nie** wymaga sesji (jak 4.x), chyba że e2e już chronione (wtedy po 5 — **nie:** kolejność = 4.3 przed 5, testy jak dotychczasowy pre-auth Postman 4.x).
+
+### Krok 4.3.1 — Docs/SPEC już zsynchronizowane (gate)
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Gate: Fazy 1–2 planu `update-mvp-contract-plan.md` wykonane. Brak implementacji bez zielonego kontraktu.
+
+**DoD:**
+- PR/commit docs+SPEC zmergowany lub zaakceptowany lokalnie.
+- Checklista pól A–D zgodna między komunikacją a SPEC.
+
+### Krok 4.3.2 — Company Context: Zod extras + mapper + testy
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Typ `CompanyContextExtras`; schema Zod; PUT/PATCH; Prisma `extras` Json bez migracji tabel. Unit `isComplete` bez regresji.
+
+**DoD:**
+- Zapis/odczyt extras round-trip.
+- Nieznane klucze → 400.
+- Completeness ignoruje extras.
+
+### Krok 4.3.3 — Social: schema, prompty, HITL 1 id, characterCount
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Zod ideas/content/reel ideas; prompty ideation (cta); Persist/mapper `characterCount = body.length`; `ResumeHitlUseCase` (lub równoważny) waliduje length === 1 dla tasków SM dwuetapowych. Refine* zachowuje nowe pola.
+
+**DoD:**
+- e2e / unit HITL 0 id, 2 id → 400; 1 id → completed.
+- GET result zawiera characterCount.
+
+### Krok 4.3.4 — Content: `role` na outline + prompty + Zod
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Enum role; outline/refine/page-writer prompty; persistence JSON addytywny; HITL outline bez zmian (`[outline.id]`).
+
+**DoD:**
+- Outline z role przechodzi pipeline; bez role — regresja zielona.
+
+### Krok 4.3.5 — Postman / e2e regresja + dokumentacja testów
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Nowe requesty / asercje; `SPEC-TESTY` DoD; README Postman.
+
+**DoD:**
+- Social A–D + Content A–B zielone.
+- Nowe case’y extras + HITL 1 id + role + characterCount opisane.
+
+## MILESTONE 4.3 — Kontrakt MVP rozszerzony (pre-auth)
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Bramka po Fazie 4.3. Auth = Faza 5.
+
+**DoD (milestone):**
+- Faza 4.3 `WYKONANY` (lub spełnia DoD).
+- Milestone 4 i 4.2 pozostają `OSIĄGNIĘTY` bez edycji.
+- Akceptacja przejścia do Fazy 5.
+
+---
+
 ## Faza 5 — Auth API (forma docelowa)
 
 **Status:** `NIE_ROZPOCZĘTY`
 
 **Opis:** Auth w formie docelowej na api: bootstrap jednego admina (status + sesja po bootstrapie), sesja cookie, **`GET /auth/me`**, role, zarządzanie użytkownikami (lista/create + soft-delete w API), zabezpieczenie powierzchni kontekstu i runów oraz wypełnianie `startedBy` przy starcie. Zgodnie z `SPEC-AUTH.md`, `docs/security.md` — po zielonym pipeline (order of attack).  
-Dopisek: **start po Fazie 4.2 / Milestone 4.2** (nie bezpośrednio po Milestone 4). DoD auth **bez** przepisu.
+Dopisek: **start po Fazie 4.2 / Milestone 4.2** (nie bezpośrednio po Milestone 4). DoD auth **bez** przepisu.  
+Dopisek (addytywny): **start po Fazie 4.3 / Milestone 4.3** (zmiana względem: start po 4.2).
 
 **DoD (faza):**
 
@@ -865,7 +953,7 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Kiedy start:** **wyłącznie na końcu tego majoru** — po `WYKONANY` Fazy 4, **4.1, 4.2**, 5 i 6 oraz `OSIĄGNIĘTY` Milestone 4, **4.2**, 5 i 6. Fazy 7 i 8 są już `WYKONANY`. Zakaz startu tej fazy w trakcie pipeline’u Social / Content, auth albo fundamentu feedbacku. Schemy rolek i Content migrują na Zod 4 w tej fazie (świadomy koszt: 4.1/4.2 na Zod 3).
+**Kiedy start:** **wyłącznie na końcu tego majoru** — po `WYKONANY` Fazy 4, **4.1, 4.2, 4.3**, 5 i 6 oraz `OSIĄGNIĘTY` Milestone 4, **4.2, 4.3**, 5 i 6. Fazy 7 i 8 są już `WYKONANY`. Zakaz startu tej fazy w trakcie pipeline’u Social / Content, auth albo fundamentu feedbacku. Schemy rolek i Content migrują na Zod 4 w tej fazie (świadomy koszt: 4.1/4.2/4.3 na Zod 3).
 
 **Opis:** Refaktor względem: **Faza 1 / Krok 1.4** (`WYKONANY`) — Zod jako zależność walidacji application w `apps/api`; oraz świadomy pin **Zod 3** w `feature-plans/content-chain_feature_plan_faza-4-pipeline-social.md` (graf `z.object` / Interop Zod 3, **nie** Zod 4.x w tamtym wycinku). Cel: jedna linia Zod **4.4.x** w `apps/api` i `apps/ai-provider-gateway` (gateway ma `zod@^4.4.3`). Peer `@langchain/langgraph` (`zod@^3.25.32 || ^4.2.0`) obejmuje 4.4.x. Docs/SPEC wymagają Zod w application, **bez** pinu major — `packages/shared` nadal bez Zod.
 
@@ -923,6 +1011,7 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 | Social (posty i rolki) | `SPEC-SOCIAL.md`, `docs/data_flow.md` |
 | Content (BC) | `SPEC-CONTENT.md`, `docs/architektura.md` |
 | Klej composite | `SPEC-RUNY.md` (R-3d/e), `docs/architektura.md` |
+| Faza 4.3 — kontrakt MVP (extras, HITL SM 1 id, pola SM, role) | `update-mvp-contract-plan.md`, `SPEC-KONTEKST-FIRMY.md`, `SPEC-SOCIAL.md`, `SPEC-CONTENT.md`, `SPEC-RUNY.md`, `SPEC-FRONTEND.md` |
 | Zod (api vs gateway) | `SPEC-KOMUNIKACJA.md` (Zod w application, bez pinu major); Faza 9 — `zod@^4.4.x` w `apps/api` jak `apps/ai-provider-gateway` |
 | Auth | `SPEC-AUTH.md` |
 | Kolejność budowy | `docs/dokumentacja_koncepcyjna.md`, `content-chain_brief.md` |

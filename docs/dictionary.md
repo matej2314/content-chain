@@ -12,6 +12,8 @@ Zmiana względem poprzedniego zbioru `RunStatus` (pięć wartości, recovery jak
 
 Zmiana względem jednego „Brief SM” na cały `POST /runs`: kanon to **`SocialBrief`** vs **`ContentBrief`**; `Run.brief` to JSON unii, nie jeden obiekt z `ideaCount` dla `page_*`.
 
+Zmiana względem luźnej listy „poza bramką”: kanon **`CompanyContextExtras`** (typowane `extras`); HITL Social dwuetapowy = dokładnie 1 id; addytywne pola wyniku SM (`cta?`, `characterCount`) i opcjonalne `role` na sekcji outline.
+
 ---
 
 ## Produkt i domena
@@ -23,11 +25,12 @@ Zmiana względem jednego „Brief SM” na cały `POST /runs`: kanon to **`Socia
 | **Bramka kontekstu** / kompletność | Programowy warunek: wymagane sekcje kontekstu uzupełnione → start **każdego** `POST /runs` odblokowany (Social i Content); inaczej start runu zablokowany (`CONTEXT_INCOMPLETE`). Werdykt: `isComplete`. Jedna bramka na cały produkt w MVP (w tym głos SM dla page_* — świadome). |
 | **`isComplete`** | Czysta funkcja domeny kontekstu: `{ complete, missing }` (`missing` = klucze niespełnionych sekcji bramki). Jedyny werdykt programowy przed startem runu; unit-testowalna bez DB/HTTP. |
 | **Sekcje bramki** | Tożsamość, oferta (≥1 usługa + korzyść), głos SM, CTA/kanały, odbiorca — patrz docs koncepcyjne. |
-| **Post ideas** | Lista pomysłów na posty SM (task / etap pipeline’u Social). |
-| **Post content** | Gotowe copy posta (hook, body, CTA itd.). |
-| **Reel ideas** | Lista pomysłów na rolki (`result.reelIdeas`; `ReelIdea`: `id`, `title`, `description`, `hook`, `durationSeconds`). |
+| **`CompanyContextExtras`** | Opcjonalny obiekt `extras` kontekstu firmy **poza bramką**: `caseStudies?`, `objections?`, `hashtags?`, `catalogNotes?`, `performanceNotes?`. Walidacja kształtu (Zod `.strict()`); **nie** wchodzi do `missing` / `isComplete`. Brak danych = `null` / omit całego `extras` (preferowane względem pustych tablic). |
+| **Post ideas** | Lista pomysłów na posty SM (`result.ideas`; `SocialIdea`: `id`, `title`, `angle`, `hook`, **`cta?`** — sugerowane CTA). |
+| **Post content** | Gotowe copy posta (`result.content`; `SocialContent`: `body`, `hashtags`, `cta?`, **`characterCount`** — integer ≥ 0; kanon: pipeline ustawia z `body.length` po sukcesie writer/refine; wartość z LLM ignorowana / nadpisywana). |
+| **Reel ideas** | Lista pomysłów na rolki (`result.reelIdeas`; `ReelIdea`: `id`, `title`, `description`, `hook`, `durationSeconds`, **`cta?`**). |
 | **Reel script** | Scenariusz rolki (`result.reelScript`; `ReelScript`: `segments`, `cta`, `notes?`). **Nie** jest `SocialContent`. |
-| **Page outline** | Szkic dokumentu strony (`result.pageOutline`) — faza HITL tasku `page_outline_then_copy`. |
+| **Page outline** | Szkic dokumentu strony (`result.pageOutline`) — faza HITL tasku `page_outline_then_copy`. Sekcja (`PageOutlineSection`): `id`, `heading`, `summary`, opcjonalnie **`role?`** (`audience_world` \| `pain` \| `challenger` \| `insight` \| `proof` \| `objection` \| `cta` \| `other`). |
 | **Page document** | Pełny dokument copy strony/artykułu (`result.pageDocument`). |
 | **Content (BC)** | Bounded context generowania copy stron / long-form (`page_copy`, `page_outline_then_copy`). **Nie** mylić z nazwą produktu Content Chain. |
 | **`ContentKind`** | Rodzaj dokumentu Content: `blog` \| `service_page` \| `landing`. Wymagane przy taskach `page_*`; **zakazane** przy taskach Social. |
@@ -36,13 +39,13 @@ Zmiana względem jednego „Brief SM” na cały `POST /runs`: kanon to **`Socia
 | **`Run.brief`** | Kolumna JSON na agregacie Run: **unia** `SocialBrief` \| `ContentBrief` rozróżniana `taskType` (nie jeden kształt SM). Jeden byt runtime; dwa kontrakty TypeScript / Zod. |
 | **Brief SM** | Potocznie = **`SocialBrief`** + platforma + język na starcie runu Social. Zmiana względem: wcześniejsze hasło mieszało platformę/język z polami briefu i sugerowało jeden brief na wszystkie `taskType`. |
 | **Weryfikacja spójności** | Krok pipeline’u sprawdzający treść względem kontekstu firmy przed uznaniem wyniku. W MVP = węzeł `ConsistencyVerifier` (także język). |
-| **HITL** | Human-in-the-loop: pauza runu na wybór z listy, gdy kolejny krok zależy od selekcji (task dwuetapowy). W MVP: **HITL model B**. |
+| **HITL** | Human-in-the-loop: pauza runu na wybór z listy, gdy kolejny krok zależy od selekcji (task dwuetapowy). W MVP: **HITL model B**. Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): **dokładnie jeden** `selectedIdeaId` ∈ draftu / `hitl.options`; inaczej **400** `HITL_INVALID_SELECTION`. Content: jak wcześniej — `[outline.id]`. Zmiana względem: Social bez walidacji długości selekcji (multi bez semantyki wyniku). |
 | **HITL model B** | Faza ideas kończy **invoke** grafu; stan pauzy (draft, `conversationId`, metadane fazy) kanonicznie w **DB**; `POST .../hitl` startuje **nowy invoke** fazy content. Zakaz checkpoinetera LangGraph jako store pauzy w MVP. Zmiana względem: wcześniejsze hasło HITL bez modelu persistence. |
 | **Full-auto** | Wykonanie tasku jednoetapowego bez wymuszonej pauzy selekcji. |
 | **Self-host** | Uruchomienie we własnej infrastrukturze operatora; licencja MIT. |
 | **First-run** | Stan pustej instancji: `GET /api/v1/auth/bootstrap-status` → `available: true` → jednorazowy `POST .../bootstrap-admin`. Potem endpoint bootstrap trwale niedostępny. |
 | **Agenci aktywni** | Sygnał UX: bramka `complete === true` (można startować runy produktowe: Social i Content). **Nie** oznacza „run w toku” (`running` / `awaiting_hitl` / `interrupted`). Odwrotnie: agenci nieaktywni / zablokowani = kontekst niekompletny. |
-| **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, gateway, **SQLite**, logi, SSE, fundament feedbacku, **Social (posty i rolki)** oraz **Content (BC) w podstawowej formie**. |
+| **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, gateway, **SQLite**, logi, SSE, fundament feedbacku, **Social (posty i rolki)** oraz **Content (BC) w podstawowej formie**; w kontrakcie slice’u także typowane `extras`, HITL SM = 1 id, pola wyniku SM (`cta?`, `characterCount`) oraz opcjonalne `role` outline — **nie** kolejne workflowy. |
 | **V1 — rozbudowa** | Faza **po MVP**: cutover persistence na **PostgreSQL** + panel odczytu opinii + publikacja na portalach SM + łańcuch audytorów Content + YouTube. **Nie** oznacza „kolejne workflowy / rolki / blog” (te kanały są w MVP). Nie mylić z prefiksem HTTP `/api/v1`. SQLite pozostaje silnikiem MVP **także** po dodaniu Content. |
 
 ## Role i tenancy

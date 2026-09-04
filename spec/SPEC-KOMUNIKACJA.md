@@ -1,7 +1,7 @@
 ---
-wersja: 13
+wersja: 14
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-02
+data_modyfikacji: 2026-09-04
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -109,6 +109,10 @@ Zmiana względem wersji 9 / K-7: wcześniejsza norma mówiła o logach produktow
 K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, `HITL_REQUIRED`, `HITL_INVALID_SELECTION`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, `CONFLICT`, `INTERNAL_ERROR`, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach.
 
 Zmiana względem wersji 11 / K-8: dopisano `HITL_INVALID_SELECTION` (HITL page — `docs/dokumentacja_komunikacji.md`).
+
+Zmiana względem wersji 13 / K-8: ten sam kod obowiązuje też Social dwuetapowy (≠1 id / id spoza draftu) — kanon pól wyniku i envelope: `docs/dokumentacja_komunikacji.md` (bez dublowania tabel w tym SPEC).
+
+K-9. Kontrakt GET result pól addytywnych (`cta?`, `characterCount`, `role?`) oraz body `extras` kontekstu — egzekwowalne jak docs; ten SPEC nie redefiniuje tabel payloadów.
 
 ## Norma implementacji
 

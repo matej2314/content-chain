@@ -1,7 +1,7 @@
 ---
-wersja: 11
+wersja: 12
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-02
+data_modyfikacji: 2026-09-04
 ---
 
 # SPEC — Runy / logi
@@ -79,9 +79,20 @@ R-3d1. Odczyt `Run.brief` (Json) w adapterze: parse Zod **wg `taskType`**. Zakaz
 
 R-3e. Composite `RunExecutorPort` (klej procesu, np. `run-dispatch.executor.ts`): `taskType` Social → `SocialRunExecutor`; Content → `ContentRunExecutor`; gałąź nieznana → status `failed` + kod domenowy `UNKNOWN_TASK_TYPE` (log; nie cichy no-op). `assertNever` na unii. Composite `RunResultReader` składa snapshot addytywny. **Zakaz** `forwardRef`, self-register, importu `ContentModule` / `SocialModule` z `RunsModule`.
 
-R-3f. HITL `selectedIdeaIds` legalne dla `post_ideas_then_content`, `reel_ideas_then_scripts` i `page_outline_then_copy` (id z odpowiedniego `hitl.options`). Dla `page_outline_then_copy` egzekucja na HTTP: dokładnie `[outline.id]`; inaczej **400** `HITL_INVALID_SELECTION` (Runs, reader `getPageOutline` — bez importu `ContentModule`); status nie schodzi z `awaiting_hitl`. `POST /runs` z `page_*` + `selectedIdeaIds` → **400** `VALIDATION_FAILED`.
+R-3f. HITL `selectedIdeaIds` legalne dla `post_ideas_then_content`, `reel_ideas_then_scripts` i `page_outline_then_copy` (id z odpowiedniego `hitl.options`).
+
+- `page_outline_then_copy`: dokładnie `[outline.id]`; inaczej **400** `HITL_INVALID_SELECTION` (Runs, reader `getPageOutline` — bez importu `ContentModule`); status nie schodzi z `awaiting_hitl`.
+- `post_ideas_then_content` / `reel_ideas_then_scripts`: **`selectedIdeaIds.length === 1`** i id ∈ draftu / `hitl.options`; inaczej **400** `HITL_INVALID_SELECTION` (ten sam kod co Content); status zostaje `awaiting_hitl`.
+
+`POST /runs` z `page_*` + `selectedIdeaIds` → **400** `VALIDATION_FAILED`.
 
 Zmiana względem wersji 9 / R-3f: „id z options” było dokumentacyjne; dla page brakowało 400 i zakazu selekcji na starcie (`SPEC-CONTENT.md` Ctn-5 od v3).
+
+Zmiana względem wersji 11 / R-3f: „Post/reel bez nowej walidacji id” — od tej wersji Social jak Content dla długości selekcji (1 id).
+
+R-3g. Snapshot addytywny pól wyniku: `ideas[].cta?`, `content.characterCount`, `reelIdeas[].cta?`, `pageOutline.sections[].role?`. Reader nie null-crashuje przy braku klucza w starym wierszu DB. Kanon `characterCount` przy odczycie: jeśli brak w JSON → `characterCount = body.length` w mapperze wyniku.
+
+Zmiana względem wersji 11: pola wyniku SM/outline bez addytywnych kluczy kontraktu.
 
 Zmiana względem wersji 2: snapshot ma obowiązkowe pola przeglądu (`userRating` zawsze `null` \| `1`…`5`; `outputEdited`; `reviewFinalizedAt`) zgodnie z `docs/dokumentacja_komunikacji.md`.
 
@@ -200,6 +211,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Self-register grafów (`OnModuleInit` → rejestr) jako wymogu MVP.
 - Cichego no-op przy nieznanym `taskType` w composite (obowiązuje `UNKNOWN_TASK_TYPE` + `failed`).
 - Resume HITL `page_outline_then_copy` przy `selectedIdeaIds` innym niż `[outline.id]` (obowiązuje **400** `HITL_INVALID_SELECTION`; status zostaje `awaiting_hitl`).
+- Resume HITL Social dwuetapowy przy `selectedIdeaIds.length !== 1` lub id spoza draftu (obowiązuje **400** `HITL_INVALID_SELECTION`; status zostaje `awaiting_hitl`).
 - Przyjęcia `selectedIdeaIds` na `POST /runs` dla `page_*`.
 - Eksportu tokenu `RUN_EXECUTOR` z modułu Social **po to**, by Runs musiał ten moduł zaimportować.
 - `@Global()` na BC grafu albo na całym Runs jako ukrycia cyklu.
@@ -244,6 +256,8 @@ Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz jednego `RunBrief` 
 - [ ] Brak cyklu Nest Runs ↔ Social / Content; worker dostaje composite executor z kleju.
 - [ ] `POST /runs` z `page_*` bez `platform` i z `contentKind` → 202; page + `platform: linkedin` → 400; `taskType` spoza enumu → 400.
 - [ ] HITL `page_outline_then_copy` z id ≠ `outline.id` → 400 `HITL_INVALID_SELECTION`; run zostaje `awaiting_hitl`.
+- [ ] HITL Social (`post_ideas_then_content` / `reel_ideas_then_scripts`) z 0 lub 2+ id → 400 `HITL_INVALID_SELECTION`; z 1 poprawnym id → content/script.
+- [ ] Snapshot: brak `characterCount` w starym JSON → mapper ustawia `body.length`; brak `cta` / `role` nie crashuje readera.
 
 ## Poza zakresem
 

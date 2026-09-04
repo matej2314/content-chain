@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-02
+data_modyfikacji: 2026-09-04
 ---
 
 # SPEC — README
@@ -43,9 +43,11 @@ SPEC **uszczegóławia** docs; nie zastępuje ich i nie tworzy równoległej dok
 
 | Faza | Znaczenie |
 |------|-----------|
-| **MVP** | Pierwszy slice: Social (posty i rolki) + Content (BC, podstawowa forma) + auth + dashboard + gateway + **fundament zapisu feedbacku**; silnik DB = **SQLite** |
+| **MVP** | Pierwszy slice: Social (posty i rolki) + Content (BC, podstawowa forma) + auth + dashboard + gateway + **fundament zapisu feedbacku**; silnik DB = **SQLite**; w kontrakcie slice’u także typowane `extras` + HITL SM 1 id + pola wyniku SM + `role` outline (nie V1) |
 | **V1 — rozbudowa** | Po MVP: PostgreSQL (ops/skala) + panel odczytu opinii + publikacja portali SM + audytorzy Content + YouTube. **Nie** „kolejne workflowy / rolki / blog” |
 | **`/api/v1`** | Prefiks HTTP API — **nie** to samo co „V1 — rozbudowa” |
+
+Zmiana względem wersji 5: dopisano kontrakt extras / HITL SM 1 id / pola SM / role outline jako część MVP (nie V1).
 
 Szczegóły: `docs/dictionary.md`, `SPEC-PERSISTENCE.md`.
 

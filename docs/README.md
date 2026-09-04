@@ -56,4 +56,4 @@ flowchart TB
   Hitl -->|nie / po wyborze| Done[completed + wynik w DB]
 ```
 
-Szczegóły węzłów, refine i korelacji ID: `data_flow.md` + `brand_types.md`. Kontrakt endpointów: `dokumentacja_komunikacji.md`.
+Szczegóły węzłów, refine i korelacji ID: `data_flow.md` + `brand_types.md`. Kontrakt endpointów: `dokumentacja_komunikacji.md`. Rozszerzony kontrakt kontekstu (`extras`) oraz wyników SM/outline (`cta?`, `characterCount`, `role?`) — szczegóły w komunikacji + `data_flow.md`.

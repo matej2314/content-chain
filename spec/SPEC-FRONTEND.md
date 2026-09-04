@@ -1,7 +1,7 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-02
+data_modyfikacji: 2026-09-04
 ---
 
 # SPEC — Frontend
@@ -51,13 +51,16 @@ Zmiana względem wersji 8 / F-7: język UI bez rozróżnienia pól briefu kanał
 F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 
 - First-run (bootstrap), Logowanie;
-- Kontekst firmy, Runy (lista instancji + filtry + paginacja 10; select `taskType` obejmuje rolki i page_*; `contentKind` gdy page_*; platforma ukryta/disabled gdy page_*), Run szczegóły (live) po kliknięciu wiersza — widok wyniku **post vs rolka vs strona**;
+- Kontekst firmy (sekcje bramki + opcjonalne **extras**), Runy (lista instancji + filtry + paginacja 10; select `taskType` obejmuje rolki i page_*; `contentKind` gdy page_*; platforma ukryta/disabled gdy page_*), Run szczegóły (live) po kliknięciu wiersza — widok wyniku **post vs rolka vs strona**;
+- HITL Social: **single-select** (nie multi); Content: akceptacja outline’u;
+- Wynik: pokaż `characterCount` na post content; `cta` na pomysłach gdy jest; etykieta `role` przy sekcji outline gdy ustawione;
 - Użytkownicy (admin: **tylko** lista + tworzenie);
 - Konto (**tylko** logout);
 - Globalny CTA **„Zostaw opinię”** + formularz (aplikacja / agent / run); na szczegółach runu: **Edytuj** (flaga), **gwiazdki 1–5** (dobrowolne, `null` gdy brak), **Zamknij / zapisz przegląd**.
 
 Zmiana względem wersji 3: dopisano kontrolki **zapisu** feedbacku (`docs/ux_dashboard.md`). Panel administracyjny odczytu opinii / analityka = **V1 — rozbudowa**, nie ten SPEC.
 Zmiana względem wersji 7: zakaz logiki pipeline w FE obejmuje Social **i** Content (wcześniej sformułowanie „pipeline SM”).
+Zmiana względem wersji 9 / F-8: single-select HITL SM, formularz extras, pola wyniku `characterCount` / `cta` / `role`.
 
 F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. Select agentów = enum z shared (labelki PL). Ocena i Edytuj tylko gdy snapshot mówi, że sesja jest `startedBy` i przegląd niezamknięty.
 
