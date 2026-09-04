@@ -289,6 +289,44 @@ describe('StartRunUseCase', () => {
     });
   });
 
+  it('accepts page_copy when Nest DTO leaves social-only keys as undefined', async () => {
+    const created: RunRecord[] = [];
+    const create = jest.fn(async (run: RunRecord) => {
+      created.push(run);
+    });
+    const getById = jest.fn(async (id: RunRecord['id']) => {
+      const run = created.find((row) => row.id === id);
+      return run ? asSnapshot(run) : null;
+    });
+    const { useCase } = makeUseCase({
+      runs: unusedRepo({ create, getById }),
+    });
+
+    const command = {
+      taskType: 'page_copy' as const,
+      contentKind: 'blog' as const,
+      platform: undefined,
+      language: 'pl' as const,
+      brief: {
+        topic: 'Audyt procesów',
+        ideaCount: undefined,
+        angle: undefined,
+      },
+      selectedIdeaIds: undefined,
+    };
+    const result = await useCase.execute(command);
+
+    expect(created[0]).toEqual(
+      expect.objectContaining({
+        taskType: 'page_copy',
+        platform: 'web',
+        contentKind: 'blog',
+        brief: { topic: 'Audyt procesów' },
+      }),
+    );
+    expect(result.status).toBe('queued');
+  });
+
   it('rejects page_copy with platform with VALIDATION_FAILED and skips the gate and persist', async () => {
     const create = jest.fn();
     const { useCase, completeness, notifyQueued } = makeUseCase({

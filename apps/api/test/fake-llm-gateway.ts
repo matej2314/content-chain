@@ -71,6 +71,13 @@ export function contentJson(): string {
 function inferReply(command: LlmChatCommand): string {
   const userContent = command.messages[0]?.content ?? '';
 
+  if (userContent.includes('(ścieżka content: page_copy)')) {
+    return pageDocumentJson();
+  }
+  if (userContent.includes('(ścieżka content: page_outline)')) {
+    return pageOutlineJson();
+  }
+
   if (userContent.includes('(ścieżka rolek: reel_script)')) {
     return reelScriptJson();
   }
@@ -79,7 +86,10 @@ function inferReply(command: LlmChatCommand): string {
     return reelIdeasJson();
   }
 
-  if (userContent.includes('ConsistencyVerifier')) {
+  if (
+    userContent.includes('ConsistencyVerifier') ||
+    userContent.includes('sędzią spójności')
+  ) {
     return verifierOk();
   }
   if (
@@ -123,5 +133,25 @@ export function reelScriptJson(): string {
       },
     ],
     cta: 'Napisz do nas',
+  });
+}
+
+export function pageOutlineJson(): string {
+  return JSON.stringify({
+    title: 'Audyt w 10 dni',
+    sections: [
+      { heading: 'Problem', summary: 'Chaos ops po seedzie.' },
+      { heading: 'Oferta', summary: 'Audyt procesów Acme.' },
+    ],
+  });
+}
+
+export function pageDocumentJson(): string {
+  return JSON.stringify({
+    title: 'Audyt procesów',
+    lead: 'Founderzy odzyskują czas.',
+    body: 'Pełny tekst strony na bazie briefu i kontekstu.',
+    metaTitle: 'Audyt procesów Acme',
+    metaDescription: 'Przegląd ops w 10 dni.',
   });
 }

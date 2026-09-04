@@ -62,6 +62,10 @@ function deployTestDb(): void {
 }
 
 async function wipeRuns(prisma: PrismaService): Promise<void> {
+  await prisma.contentDocument.deleteMany();
+  await prisma.contentOutline.deleteMany();
+  await prisma.socialReelScript.deleteMany();
+  await prisma.socialReelIdea.deleteMany();
   await prisma.socialContent.deleteMany();
   await prisma.socialIdea.deleteMany();
   await prisma.runLog.deleteMany();

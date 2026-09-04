@@ -1254,7 +1254,7 @@ Wstrzyknij `RUN_RESULT_READER` (ten sam co GetRun). **Nie** importuj `ContentMod
 
 ### KROK 7 — Testy D-17/D-18/D-19, Postman Content, regresja Social
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Major 4.2.4; Milestone 4.2 DoD testowe.
 

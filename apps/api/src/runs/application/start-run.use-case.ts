@@ -47,6 +47,26 @@ function isContentStartCommand(
   return isContentTaskType(command.taskType);
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Nest DTO trzyma opcjonalne pola jako `undefined`; Zod `.strict()` odrzuca sam klucz. */
+function omitUndefinedDeep(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(omitUndefinedDeep);
+  }
+  if (!isPlainRecord(value)) {
+    return value;
+  }
+  const result: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (entry === undefined) continue;
+    result[key] = omitUndefinedDeep(entry);
+  }
+  return result;
+}
+
 @Injectable()
 export class StartRunUseCase {
   constructor(
@@ -58,7 +78,10 @@ export class StartRunUseCase {
   async execute(
     command: StartRunCommand,
   ): Promise<Pick<RunRecord, 'id' | 'conversationId' | 'status'>> {
-    const parsedCommand = parseWithZod(startRunCommandSchema, command);
+    const parsedCommand = parseWithZod(
+      startRunCommandSchema,
+      omitUndefinedDeep(command),
+    );
     const gate = await this.completeness.execute();
     if (!gate.complete) {
       throw new DomainException(

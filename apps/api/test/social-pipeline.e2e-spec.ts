@@ -109,6 +109,8 @@ function deployTestDb(): void {
 }
 
 async function wipeRuns(prisma: PrismaService): Promise<void> {
+  await prisma.contentDocument.deleteMany();
+  await prisma.contentOutline.deleteMany();
   await prisma.socialReelScript.deleteMany();
   await prisma.socialReelIdea.deleteMany();
   await prisma.socialContent.deleteMany();
@@ -259,9 +261,9 @@ describe('Social pipeline (e2e, fake LLM)', () => {
       ]);
       expect(snapshot.result.content).toBeNull();
       expect(snapshot.hitl).toBeNull();
-      expect(await prisma.socialIdea.count({ where: { runId: created.runId } })).toBe(
-        2,
-      );
+      expect(
+        await prisma.socialIdea.count({ where: { runId: created.runId } }),
+      ).toBe(2);
 
       const logs = await getLogs(app, created.runId);
       expect(logs.length).toBeGreaterThan(0);
@@ -493,6 +495,22 @@ describe('Social pipeline (e2e, fake LLM)', () => {
           where: { runId: created.runId },
         }),
       ).toBe(1);
+    });
+  });
+
+  describe('D-19a brief XOR', () => {
+    it('rejects post_ideas with brief.angle', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/runs')
+        .send({
+          taskType: 'post_ideas',
+          platform: 'linkedin',
+          language: 'pl',
+          brief: { topic: 'Q3', angle: 'ops' },
+        })
+        .expect(400);
+
+      expect(response.body.code).toBe('VALIDATION_FAILED');
     });
   });
 
