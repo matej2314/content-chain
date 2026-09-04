@@ -5,6 +5,7 @@ export const socialIdeaSchema = z.object({
   title: z.string().min(1),
   angle: z.string().min(1),
   hook: z.string().min(1),
+  cta: z.string().min(1).optional(),
 });
 
 export const ideasOutputSchema = z.object({
@@ -33,6 +34,7 @@ export const reelIdeaSchema = z.object({
   description: z.string().min(1),
   hook: z.string().min(1),
   durationSeconds: reelDurationSecondsSchema,
+  cta: z.string().min(1).optional(),
 });
 
 export const reelIdeasOutputSchema = z.object({

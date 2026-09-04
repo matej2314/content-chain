@@ -177,7 +177,12 @@ describe('GetRunUseCase', () => {
 
   it('maps stored content into result', async () => {
     const run = makeRun('completed');
-    const content = { body: 'Post', hashtags: ['#acme'], cta: 'CTA' };
+    const content = {
+      body: 'Post',
+      hashtags: ['#acme'],
+      cta: 'CTA',
+      characterCount: 4,
+    };
     const useCase = new GetRunUseCase(
       unusedRepo({ getById: async () => asSnapshot(run) }),
       fakeReader({

@@ -24,6 +24,7 @@ const content: SocialContent = {
   body: 'Gotowy post.',
   hashtags: ['#acme'],
   cta: 'Napisz do nas',
+  characterCount: 'Gotowy post.'.length,
 };
 
 const reelIdeas: ReelIdea[] = [

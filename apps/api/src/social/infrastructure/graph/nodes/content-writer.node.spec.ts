@@ -90,6 +90,7 @@ describe('createContentWriterNode', () => {
         body: CONTENT_DATA.body,
         hashtags: CONTENT_DATA.hashtags,
         cta: CONTENT_DATA.cta,
+        characterCount: CONTENT_DATA.body.length,
       },
     });
     expect(hop.chatJson).toHaveBeenCalledWith({

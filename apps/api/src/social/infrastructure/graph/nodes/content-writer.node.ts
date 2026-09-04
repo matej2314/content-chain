@@ -74,7 +74,8 @@ export function createContentWriterNode(hop: LlmHopService) {
     const content: SocialContent = {
       body: data.body,
       hashtags: data.hashtags,
-      cta: data.cta,
+      ...(data.cta !== undefined ? { cta: data.cta } : {}),
+      characterCount: data.body.length,
     };
     return { content };
   };

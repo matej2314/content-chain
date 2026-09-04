@@ -133,7 +133,12 @@ describe('toOutcome', () => {
   });
 
   it('returns completed for content phase after HITL', () => {
-    const content = { body: 'Post', hashtags: ['#acme'], cta: 'CTA' };
+    const content = {
+      body: 'Post',
+      hashtags: ['#acme'],
+      cta: 'CTA',
+      characterCount: 4,
+    };
     expect(
       toOutcome(
         { taskType: 'post_ideas_then_content' },
@@ -285,7 +290,12 @@ describe('SocialPipelineFacade.invokePhase', () => {
       phase: 'content',
       company: null,
       ideas,
-      content: { body: 'Post', hashtags: ['#acme'], cta: 'CTA' },
+      content: {
+        body: 'Post',
+        hashtags: ['#acme'],
+        cta: 'CTA',
+        characterCount: 4,
+      },
       reelIdeas: [],
       reelScript: null,
       verdict: null,

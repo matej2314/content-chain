@@ -21,7 +21,7 @@ function makeState(
     phase: 'ideas',
     company: emptyCompanyContext(),
     ideas: [],
-    content: { body: 'placeholder', hashtags: [] },
+    content: { body: 'placeholder', hashtags: [], characterCount: 11 },
     reelIdeas: [],
     reelScript: null,
     verdict: { ok: true, contextIssues: [], languageIssues: [] },
@@ -68,6 +68,24 @@ describe('createIdeationNode', () => {
       title: 'T1',
       angle: 'A1',
       hook: 'H1',
+    });
+  });
+
+  it('maps optional cta when the model returns it', async () => {
+    const hop = fakeHop({
+      data: {
+        ideas: [{ title: 'T1', angle: 'A1', hook: 'H1', cta: 'Napisz' }],
+      },
+    });
+
+    const out = await createIdeationNode(hop)(makeState());
+
+    expect(out.ideas?.[0]).toEqual({
+      id: expect.stringMatching(/^idea_[0-9a-f-]{36}$/i),
+      title: 'T1',
+      angle: 'A1',
+      hook: 'H1',
+      cta: 'Napisz',
     });
   });
 

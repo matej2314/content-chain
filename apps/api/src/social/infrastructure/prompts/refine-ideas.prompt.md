@@ -42,6 +42,6 @@ Nie „przegenerowuj” całej listy, jeśli wystarczy poprawić wskazane frazy.
 
 Zwróć WYŁĄCZNIE JSON (bez markdown, bez komentarza, bez tekstu przed/po):
 
-{"ideas":[{"title":"...","angle":"...","hook":"..."}]}
+{"ideas":[{"title":"...","angle":"...","hook":"...","cta":"..."}]}
 
-Tablica `ideas` = poprawiona pełna lista (ten sam zestaw, po korekcie).
+Tablica `ideas` = poprawiona pełna lista (ten sam zestaw, po korekcie). Pole `cta` opcjonalne — krótka fraza akcji zgodna z `cta.items[].label`; pomiń klucz gdy brak sensu.

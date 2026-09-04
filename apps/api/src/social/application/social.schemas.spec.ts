@@ -1,4 +1,5 @@
 import {
+  contentOutputSchema,
   ideasOutputSchema,
   reelIdeasOutputSchema,
   reelScriptOutputSchema,
@@ -12,6 +13,56 @@ describe('parseLlmJson', () => {
       '```json\n{"ideas":[{"title":"A","angle":"B","hook":"C"}]}\n```';
     const out = parseLlmJson(ideasOutputSchema, raw);
     expect(out.ideas).toHaveLength(1);
+  });
+
+  it('parses ideas with optional cta and without cta', () => {
+    expect(
+      parseLlmJson(
+        ideasOutputSchema,
+        '{"ideas":[{"title":"A","angle":"B","hook":"C","cta":"Napisz"}]}',
+      ).ideas[0],
+    ).toEqual({
+      title: 'A',
+      angle: 'B',
+      hook: 'C',
+      cta: 'Napisz',
+    });
+    expect(
+      parseLlmJson(
+        ideasOutputSchema,
+        '{"ideas":[{"title":"A","angle":"B","hook":"C"}]}',
+      ).ideas[0],
+    ).toEqual({
+      title: 'A',
+      angle: 'B',
+      hook: 'C',
+    });
+  });
+
+  it('parses content without characterCount (LLM is not the source)', () => {
+    const out = parseLlmJson(
+      contentOutputSchema,
+      '{"body":"Gotowy post.","hashtags":["#acme"],"cta":"Napisz"}',
+    );
+    expect(out).toEqual({
+      body: 'Gotowy post.',
+      hashtags: ['#acme'],
+      cta: 'Napisz',
+    });
+    expect('characterCount' in out).toBe(false);
+  });
+
+  it('parses reel ideas with optional cta', () => {
+    const withCta = parseLlmJson(
+      reelIdeasOutputSchema,
+      '{"ideas":[{"title":"R1","description":"D1","hook":"H1","durationSeconds":15,"cta":"Napisz"}]}',
+    );
+    expect(withCta.ideas[0]?.cta).toBe('Napisz');
+    const withoutCta = parseLlmJson(
+      reelIdeasOutputSchema,
+      '{"ideas":[{"title":"R1","description":"D1","hook":"H1","durationSeconds":15}]}',
+    );
+    expect(withoutCta.ideas[0]?.cta).toBeUndefined();
   });
 
   it('rejects broken shape', () => {

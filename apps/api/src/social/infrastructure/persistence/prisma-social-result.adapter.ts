@@ -12,6 +12,7 @@ import type {
   ReelIdea,
   ReelScript,
 } from '../../domain/social.types';
+import { mapStoredSocialContent } from './map-stored-social-content';
 
 @Injectable()
 export class PrismaSocialResultAdapter implements SocialResultStore {
@@ -98,7 +99,7 @@ export class PrismaSocialResultAdapter implements SocialResultStore {
     });
     if (!row) return null;
     return {
-      content: row.payload as SocialContent,
+      content: mapStoredSocialContent(row.payload),
       verification: (row.verification as VerifierVerdict | null) ?? null,
     };
   }

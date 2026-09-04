@@ -19,7 +19,7 @@ function makeState(
     phase: 'ideas',
     company: emptyCompanyContext(),
     ideas: [],
-    content: { body: 'placeholder', hashtags: [] },
+    content: { body: 'placeholder', hashtags: [], characterCount: 11 },
     reelIdeas: [],
     reelScript: null,
     verdict: { ok: true, contextIssues: [], languageIssues: [] },

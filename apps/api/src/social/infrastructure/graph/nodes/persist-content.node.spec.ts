@@ -19,7 +19,7 @@ function makeState(
     phase: 'content',
     company: emptyCompanyContext(),
     ideas: [{ id: 'idea_1', title: 'T1', angle: 'A1', hook: 'H1' }],
-    content: { body: 'placeholder', hashtags: [] },
+    content: { body: 'placeholder', hashtags: [], characterCount: 11 },
     reelIdeas: [],
     reelScript: null,
     verdict: { ok: true, contextIssues: [], languageIssues: [] },
@@ -56,6 +56,7 @@ describe('createPersistContentNode', () => {
       body: 'Gotowy post.',
       hashtags: ['#acme'],
       cta: 'Napisz do nas',
+      characterCount: 999,
     };
     const verdict: VerifierVerdict = {
       ok: true,
@@ -70,7 +71,10 @@ describe('createPersistContentNode', () => {
     expect(store.replaceContent).toHaveBeenCalledTimes(1);
     expect(store.replaceContent).toHaveBeenCalledWith(
       state.runId,
-      content,
+      {
+        ...content,
+        characterCount: content.body.length,
+      },
       verdict,
     );
     expect(store.replaceIdeas).not.toHaveBeenCalled();

@@ -15,12 +15,14 @@ export type SocialIdea = {
   title: string;
   angle: string;
   hook: string;
+  cta?: string;
 };
 
 export type SocialContent = {
   body: string;
   hashtags: string[];
   cta?: string;
+  characterCount: number;
 };
 
 export type ReelDurationSeconds = 15 | 30 | 90;
@@ -31,6 +33,7 @@ export type ReelIdea = {
   description: string;
   hook: string;
   durationSeconds: ReelDurationSeconds;
+  cta?: string;
 };
 
 export type ReelScriptSegment = {

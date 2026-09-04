@@ -35,4 +35,6 @@ Nie „przegenerowuj” całej listy, jeśli wystarczy poprawić wskazane frazy.
 
 Zwróć WYŁĄCZNIE JSON (bez markdown, bez komentarza, bez tekstu przed/po):
 
-{"ideas":[{"title":"...","description":"...","hook":"...","durationSeconds":15}]}
+{"ideas":[{"title":"...","description":"...","hook":"...","durationSeconds":15,"cta":"..."}]}
+
+Pole `cta` opcjonalne — krótka fraza akcji zgodna z `cta.items[].label`; pomiń klucz gdy brak sensu.

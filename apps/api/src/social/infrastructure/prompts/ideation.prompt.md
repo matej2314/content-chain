@@ -53,6 +53,6 @@ Grupa docelowa: `brief.audience` jeśli podane, inaczej `audience.profiles` z ko
 
 Zwróć WYŁĄCZNIE JSON (bez markdown, bez komentarza, bez tekstu przed/po):
 
-{"ideas":[{"title":"...","angle":"...","hook":"..."}]}
+{"ideas":[{"title":"...","angle":"...","hook":"...","cta":"..."}]}
 
-Tablica `ideas` ma mieć dokładnie {{ideaCount}} elementów. Pole `id` pomiń (nadaje je pipeline).
+Tablica `ideas` ma mieć dokładnie {{ideaCount}} elementów. Pole `id` pomiń (nadaje je pipeline). Pole `cta` opcjonalne — krótka fraza akcji zgodna z `cta.items[].label`; pomiń klucz gdy brak sensu.

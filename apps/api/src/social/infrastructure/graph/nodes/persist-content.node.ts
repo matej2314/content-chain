@@ -1,5 +1,6 @@
 import { isReelTaskType } from '../../../domain/reel-task';
 import type { SocialResultStore } from '../../../domain/social-result.port';
+import type { SocialContent } from '../../../domain/social.types';
 import type { SocialGraphState } from '../state';
 
 export function createPersistContentNode(store: SocialResultStore) {
@@ -20,7 +21,11 @@ export function createPersistContentNode(store: SocialResultStore) {
     if (state.content == null || state.verdict == null) {
       throw new Error('Content and verdict are required before persist.');
     }
-    await store.replaceContent(state.runId, state.content, state.verdict);
+    const content: SocialContent = {
+      ...state.content,
+      characterCount: state.content.body.length,
+    };
+    await store.replaceContent(state.runId, content, state.verdict);
     return {};
   };
 }

@@ -358,7 +358,7 @@ Uzupełnić normę lokalizacji helpera i separatora ścieżki w `details` — **
 
 ### KROK 3 — Social: `cta?` na ideas/reelIdeas, `characterCount`, Zod, prompty, Persist/mapper
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Addytywne pola wyniku SM zgodnie z S-7b / R-3g / komunikacją. Część major 4.3.3 (bez HITL — to KROK 4). **Wejście:** po KROK 2.1 — application Zod komend Runs nadal przez `import { parseWithZod } from '../../shared/parse-with-zod'` (ten krok nie dodaje lokalnej kopii; LLM hop = `parseLlmJson` w shared/llm, bez zmian lokalizacji).
 

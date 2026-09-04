@@ -37,6 +37,7 @@ export function createIdeationNode(hop: LlmHopService) {
         description: idea.description,
         hook: idea.hook,
         durationSeconds: idea.durationSeconds,
+        ...(idea.cta !== undefined ? { cta: idea.cta } : {}),
       }));
       return { reelIdeas };
     }
@@ -53,6 +54,7 @@ export function createIdeationNode(hop: LlmHopService) {
       title: idea.title,
       angle: idea.angle,
       hook: idea.hook,
+      ...(idea.cta !== undefined ? { cta: idea.cta } : {}),
     }));
     return { ideas };
   };
