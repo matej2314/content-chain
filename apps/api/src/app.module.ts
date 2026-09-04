@@ -27,6 +27,18 @@ import { PrismaModule } from './shared/persistence/prisma.module';
 import { LlmModule } from './llm/llm.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { ContentModule } from './content/content.module';
+import { RunLifecycleModule } from './runs/run-lifecycle.module';
+import { ContentRunExecutor } from './content/application/content-run.executor';
+import {
+  RUN_LIFECYCLE,
+  RunLifecyclePort,
+} from './runs/domain/run-lifecycle.port';
+import { RunDispatchExecutor } from './runs/application/run-dispatch.executor';
+import {
+  CONTENT_RESULT_STORE,
+  ContentResultStore,
+} from './content/domain/content-result.port';
+import { CompositeRunResultReader } from './runs/application/composite-run-result.reader';
 
 @Module({
   imports: [
@@ -54,20 +66,27 @@ import { ContentModule } from './content/content.module';
     AuthModule,
     CompanyContextModule,
     SocialModule,
+    ContentModule,
     RunsModule.registerAsync({
-      imports: [SocialModule],
-      inject: [SocialRunExecutor],
-      useFactory: (executor: SocialRunExecutor): RunExecutorPort => executor,
+      imports: [SocialModule, ContentModule, RunLifecycleModule],
+      inject: [SocialRunExecutor, ContentRunExecutor, RUN_LIFECYCLE],
+      useFactory: (
+        social: SocialRunExecutor,
+        content: ContentRunExecutor,
+        lifecycle: RunLifecyclePort,
+      ): RunExecutorPort => new RunDispatchExecutor(social, content, lifecycle),
       resultReader: {
-        inject: [SOCIAL_RESULT_STORE],
-        useFactory: (store: SocialResultStore): RunResultReader => store,
+        inject: [SOCIAL_RESULT_STORE, CONTENT_RESULT_STORE],
+        useFactory: (
+          social: SocialResultStore,
+          content: ContentResultStore,
+        ): RunResultReader => new CompositeRunResultReader(social, content),
       },
     }),
     PrismaModule,
     HealthModule,
     LlmModule,
     MetricsModule,
-    ContentModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })

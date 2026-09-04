@@ -5,23 +5,47 @@ import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { InProcessRunWorker } from './in-process-run.worker';
 import { parseWithZod } from './parse-with-zod';
-import { startRunCommandSchema } from './run.schemas';
 import {
-  isSocialTaskType,
+  startRunCommandSchema,
+  type ParsedStartRunCommand,
+} from './run.schemas';
+import {
+  isContentTaskType,
+  type ContentKind,
   type ContentLanguage,
+  type ContentTaskType,
   type RunTaskType,
   type SocialPlatform,
-  type SocialTaskType,
 } from '@content-chain/shared';
-import type { SocialBrief, SocialRunRecord } from '../domain/run.types';
+import type {
+  ContentRunRecord,
+  RunRecord,
+  SocialRunRecord,
+} from '../domain/run.types';
+
+export type StartRunBriefInput = {
+  topic: string;
+  audience?: string;
+  goal?: string;
+  ideaCount?: number;
+  angle?: string;
+  targetLength?: number;
+};
 
 export type StartRunCommand = {
   taskType: RunTaskType;
-  platform: SocialPlatform;
+  platform?: SocialPlatform;
+  contentKind?: ContentKind;
   language: ContentLanguage;
-  brief: SocialBrief;
+  brief: StartRunBriefInput;
   selectedIdeaIds?: string[];
 };
+
+function isContentStartCommand(
+  command: ParsedStartRunCommand,
+): command is Extract<ParsedStartRunCommand, { taskType: ContentTaskType }> {
+  return isContentTaskType(command.taskType);
+}
 
 @Injectable()
 export class StartRunUseCase {
@@ -33,13 +57,8 @@ export class StartRunUseCase {
 
   async execute(
     command: StartRunCommand,
-  ): Promise<Pick<SocialRunRecord, 'id' | 'conversationId' | 'status'>> {
+  ): Promise<Pick<RunRecord, 'id' | 'conversationId' | 'status'>> {
     const parsedCommand = parseWithZod(startRunCommandSchema, command);
-    if (!isSocialTaskType(parsedCommand.taskType)) {
-      throw new Error(
-        `StartRunUseCase received non-social taskType: ${parsedCommand.taskType}`,
-      );
-    }
     const gate = await this.completeness.execute();
     if (!gate.complete) {
       throw new DomainException(
@@ -50,25 +69,48 @@ export class StartRunUseCase {
       );
     }
 
-    const run = {
-      id: newRunId(),
-      conversationId: newConversationId(),
-      taskType: parsedCommand.taskType,
-      platform: parsedCommand.platform,
-      contentKind: null,
-      language: parsedCommand.language,
-      pipelinePhase: null,
-      ideasRefineCount: 0,
-      contentRefineCount: 0,
-      outlineRefineCount: 0,
-      copyRefineCount: 0,
-      status: 'queued',
-      brief: parsedCommand.brief,
-      selectedIdeaIds: parsedCommand.selectedIdeaIds ?? null,
-      startedByUserId: null,
-      recoveryAttempts: 0,
-      createdAt: new Date(),
-    } satisfies SocialRunRecord;
+    let run: RunRecord;
+    if (isContentStartCommand(parsedCommand)) {
+      run = {
+        id: newRunId(),
+        conversationId: newConversationId(),
+        taskType: parsedCommand.taskType,
+        platform: 'web',
+        contentKind: parsedCommand.contentKind,
+        language: parsedCommand.language,
+        pipelinePhase: null,
+        ideasRefineCount: 0,
+        contentRefineCount: 0,
+        outlineRefineCount: 0,
+        copyRefineCount: 0,
+        status: 'queued',
+        brief: parsedCommand.brief,
+        selectedIdeaIds: null,
+        startedByUserId: null,
+        recoveryAttempts: 0,
+        createdAt: new Date(),
+      } satisfies ContentRunRecord;
+    } else {
+      run = {
+        id: newRunId(),
+        conversationId: newConversationId(),
+        taskType: parsedCommand.taskType,
+        platform: parsedCommand.platform,
+        contentKind: null,
+        language: parsedCommand.language,
+        pipelinePhase: null,
+        ideasRefineCount: 0,
+        contentRefineCount: 0,
+        outlineRefineCount: 0,
+        copyRefineCount: 0,
+        status: 'queued',
+        brief: parsedCommand.brief,
+        selectedIdeaIds: parsedCommand.selectedIdeaIds ?? null,
+        startedByUserId: null,
+        recoveryAttempts: 0,
+        createdAt: new Date(),
+      } satisfies SocialRunRecord;
+    }
     await this.runs.create(run);
     this.worker.notifyQueued();
     const fresh = await this.runs.getById(run.id);

@@ -10,6 +10,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import {
+  CONTENT_KINDS,
   CONTENT_LANGUAGES,
   RUN_TASK_TYPES,
   SOCIAL_PLATFORMS,
@@ -32,6 +33,16 @@ export class RunBriefDto {
   @Min(1)
   @Type(() => Number)
   ideaCount?: number;
+
+  @IsOptional()
+  @IsString()
+  angle?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  targetLength?: number;
 }
 
 export class StartRunDto {
@@ -39,9 +50,15 @@ export class StartRunDto {
   @IsIn([...RUN_TASK_TYPES])
   taskType!: (typeof RUN_TASK_TYPES)[number];
 
-  @ApiProperty({ enum: SOCIAL_PLATFORMS })
+  @ApiProperty({ enum: SOCIAL_PLATFORMS, required: false })
+  @IsOptional()
   @IsIn([...SOCIAL_PLATFORMS])
-  platform!: (typeof SOCIAL_PLATFORMS)[number];
+  platform?: (typeof SOCIAL_PLATFORMS)[number];
+
+  @ApiProperty({ enum: CONTENT_KINDS, required: false })
+  @IsOptional()
+  @IsIn([...CONTENT_KINDS])
+  contentKind?: (typeof CONTENT_KINDS)[number];
 
   @ApiProperty({ enum: CONTENT_LANGUAGES })
   @IsIn([...CONTENT_LANGUAGES])

@@ -1,5 +1,9 @@
 import type { RunId } from '@content-chain/shared';
 import type {
+  PageDocument,
+  PageOutline,
+} from '../../content/domain/content.types';
+import type {
   SocialContent,
   SocialIdea,
   VerifierVerdict,
@@ -18,6 +22,11 @@ export interface RunResultReader {
   listReelIdeas(runId: RunId): Promise<ReelIdea[]>;
   getReelScript(runId: RunId): Promise<{
     script: ReelScript | null;
+    verification: VerifierVerdict | null;
+  } | null>;
+  getPageOutline(runId: RunId): Promise<PageOutline | null>;
+  getPageDocument(runId: RunId): Promise<{
+    document: PageDocument | null;
     verification: VerifierVerdict | null;
   } | null>;
 }

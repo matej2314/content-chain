@@ -6,7 +6,8 @@ import {
   type ListRunsQuery,
   type RunRepository,
 } from '../domain/run.port';
-import {
+import type {
+  ContentKind,
   ContentLanguage,
   RunId,
   RunPlatform,
@@ -19,6 +20,7 @@ interface ListRunsOutput {
     runId: RunId;
     taskType: RunTaskType;
     platform: RunPlatform;
+    contentKind: ContentKind | null;
     language: ContentLanguage;
     status: RunStatus;
     createdAt: string;
@@ -40,6 +42,7 @@ export class ListRunsUseCase {
         runId: item.id,
         taskType: item.taskType,
         platform: item.platform,
+        contentKind: item.contentKind,
         language: item.language,
         status: item.status,
         createdAt: item.createdAt.toISOString(),

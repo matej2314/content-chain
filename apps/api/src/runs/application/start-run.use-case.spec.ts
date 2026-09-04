@@ -243,6 +243,78 @@ describe('StartRunUseCase', () => {
     expect(notifyQueued).not.toHaveBeenCalled();
   });
 
+  it('persists page_copy with platform web and contentKind', async () => {
+    const created: RunRecord[] = [];
+    const create = jest.fn(async (run: RunRecord) => {
+      created.push(run);
+    });
+    const getById = jest.fn(async (id: RunRecord['id']) => {
+      const run = created.find((row) => row.id === id);
+      return run ? asSnapshot(run) : null;
+    });
+    const { useCase, completeness, notifyQueued } = makeUseCase({
+      runs: unusedRepo({ create, getById }),
+    });
+
+    const command: StartRunCommand = {
+      taskType: 'page_copy',
+      contentKind: 'blog',
+      language: 'pl',
+      brief: { topic: 'Audyt procesów', angle: 'ops', targetLength: 800 },
+    };
+    const result = await useCase.execute(command);
+
+    expect(completeness.execute).toHaveBeenCalledTimes(1);
+    expect(created).toHaveLength(1);
+    const run = created[0]!;
+    expect(run).toEqual(
+      expect.objectContaining({
+        taskType: 'page_copy',
+        platform: 'web',
+        contentKind: 'blog',
+        language: 'pl',
+        status: 'queued',
+        brief: command.brief,
+        selectedIdeaIds: null,
+        startedByUserId: null,
+        outlineRefineCount: 0,
+        copyRefineCount: 0,
+      }),
+    );
+    expect(notifyQueued).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      id: run.id,
+      conversationId: run.conversationId,
+      status: 'queued',
+    });
+  });
+
+  it('rejects page_copy with platform with VALIDATION_FAILED and skips the gate and persist', async () => {
+    const create = jest.fn();
+    const { useCase, completeness, notifyQueued } = makeUseCase({
+      runs: unusedRepo({ create }),
+    });
+
+    await expect(
+      useCase.execute({
+        taskType: 'page_copy',
+        contentKind: 'blog',
+        platform: 'linkedin',
+        language: 'pl',
+        brief: { topic: 'Audyt procesów' },
+      }),
+    ).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'VALIDATION_FAILED',
+      httpStatus: 400,
+      message: 'Application command validation failed',
+    });
+
+    expect(completeness.execute).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(notifyQueued).not.toHaveBeenCalled();
+  });
+
   it('stores selectedIdeaIds when the command includes them', async () => {
     const created: RunRecord[] = [];
     const { useCase } = makeUseCase({

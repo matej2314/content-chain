@@ -41,6 +41,7 @@ import { ParseRunIdPipe } from './http/parse-run-id.pipe';
 import { createUserId, isUserId } from '@content-chain/shared';
 import type { RunId, RunStatus } from '@content-chain/shared';
 import type { ListRunsQuery } from './domain/run.port';
+import type { GetRunOutput } from './application/get-run.use-case';
 
 function isTerminalStatus(status: RunStatus): boolean {
   return status === 'completed' || status === 'failed';

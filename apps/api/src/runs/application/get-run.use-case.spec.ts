@@ -3,7 +3,11 @@ import { newRunId } from '../../shared/http/new-ids';
 import type { RunResultReader } from '../domain/run-result-reader.port';
 import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import type { RunRecord, SocialRunRecord } from '../domain/run.types';
-import { makeSocialRun } from '../run-record.test-helpers';
+import { makeContentRun, makeSocialRun } from '../run-record.test-helpers';
+import type {
+  PageDocument,
+  PageOutline,
+} from '../../content/domain/content.types';
 import type {
   ReelIdea,
   ReelScript,
@@ -80,6 +84,8 @@ function fakeReader(overrides: Partial<RunResultReader> = {}): RunResultReader {
     getContent: async () => null,
     listReelIdeas: async () => [],
     getReelScript: async () => null,
+    getPageOutline: async () => null,
+    getPageDocument: async () => null,
     ...overrides,
   };
 }
@@ -96,12 +102,21 @@ describe('GetRunUseCase', () => {
       runId: run.id,
       taskType: run.taskType,
       platform: run.platform,
+      contentKind: run.contentKind,
       language: run.language,
+      brief: run.brief,
       status: 'awaiting_hitl',
       conversationId: run.conversationId,
       createdAt: run.createdAt.toISOString(),
       startedBy: null,
-      result: { ideas, content: null, reelIdeas: [], reelScript: null },
+      result: {
+        ideas,
+        content: null,
+        reelIdeas: [],
+        reelScript: null,
+        pageOutline: null,
+        pageDocument: null,
+      },
       hitl: { options: ideas },
     });
   });
@@ -122,7 +137,9 @@ describe('GetRunUseCase', () => {
       runId: run.id,
       taskType: 'reel_ideas_then_scripts',
       platform: run.platform,
+      contentKind: run.contentKind,
       language: run.language,
+      brief: run.brief,
       status: 'awaiting_hitl',
       conversationId: run.conversationId,
       createdAt: run.createdAt.toISOString(),
@@ -132,6 +149,8 @@ describe('GetRunUseCase', () => {
         content: null,
         reelIdeas,
         reelScript: null,
+        pageOutline: null,
+        pageDocument: null,
       },
       hitl: { options: reelIdeas },
     });
@@ -151,6 +170,8 @@ describe('GetRunUseCase', () => {
       content: null,
       reelIdeas: [],
       reelScript: null,
+      pageOutline: null,
+      pageDocument: null,
     });
   });
 
@@ -173,6 +194,8 @@ describe('GetRunUseCase', () => {
       content,
       reelIdeas: [],
       reelScript: null,
+      pageOutline: null,
+      pageDocument: null,
     });
     expect(snapshot.hitl).toBeNull();
   });
@@ -196,8 +219,89 @@ describe('GetRunUseCase', () => {
       content: null,
       reelIdeas: [],
       reelScript,
+      pageOutline: null,
+      pageDocument: null,
     });
     expect(snapshot.hitl).toBeNull();
+  });
+
+  it('returns hitl.options from page outline when page_outline_then_copy awaits HITL', async () => {
+    const run = makeContentRun({
+      status: 'awaiting_hitl',
+      taskType: 'page_outline_then_copy',
+      pipelinePhase: 'outline',
+      createdAt: new Date('2026-08-18T12:00:00.000Z'),
+    });
+    const outline: PageOutline = {
+      id: 'outl_1',
+      title: 'Audyt w 10 dni',
+      sections: [{ id: 'osec_1', heading: 'Problem', summary: 'Chaos ops.' }],
+    };
+    const useCase = new GetRunUseCase(
+      unusedRepo({ getById: async () => asSnapshot(run) }),
+      fakeReader({
+        listIdeas: async () => [],
+        getPageOutline: async () => outline,
+      }),
+    );
+
+    await expect(useCase.execute(run.id)).resolves.toEqual({
+      runId: run.id,
+      taskType: 'page_outline_then_copy',
+      platform: 'web',
+      contentKind: 'blog',
+      language: run.language,
+      brief: run.brief,
+      status: 'awaiting_hitl',
+      conversationId: run.conversationId,
+      createdAt: run.createdAt.toISOString(),
+      startedBy: null,
+      result: {
+        ideas: [],
+        content: null,
+        reelIdeas: [],
+        reelScript: null,
+        pageOutline: outline,
+        pageDocument: null,
+      },
+      hitl: { options: [outline] },
+    });
+  });
+
+  it('maps stored page document into result', async () => {
+    const run = makeContentRun({
+      status: 'completed',
+      taskType: 'page_copy',
+      createdAt: new Date('2026-08-18T12:00:00.000Z'),
+    });
+    const document: PageDocument = {
+      title: 'Audyt procesów',
+      lead: 'Founderzy odzyskują czas.',
+      body: 'Pełny tekst strony.',
+    };
+    const useCase = new GetRunUseCase(
+      unusedRepo({ getById: async () => asSnapshot(run) }),
+      fakeReader({
+        listIdeas: async () => [],
+        getPageDocument: async () => ({
+          document,
+          verification: { ok: true, contextIssues: [], languageIssues: [] },
+        }),
+      }),
+    );
+
+    const snapshot = await useCase.execute(run.id);
+    expect(snapshot.result).toEqual({
+      ideas: [],
+      content: null,
+      reelIdeas: [],
+      reelScript: null,
+      pageOutline: null,
+      pageDocument: document,
+    });
+    expect(snapshot.hitl).toBeNull();
+    expect(snapshot.brief).toEqual(run.brief);
+    expect(snapshot.contentKind).toBe('blog');
   });
 
   it('throws RUN_NOT_FOUND when the run is missing', async () => {

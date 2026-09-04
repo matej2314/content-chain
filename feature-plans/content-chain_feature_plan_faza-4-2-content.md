@@ -991,7 +991,7 @@ Bez `controllers[]`. Bez `SocialModule` / `RunsModule`.
 
 ### KROK 6 — Klej composite, Zod unia startu, snapshot, lista
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jeden worker, dwa BC; HTTP otwiera `page_*` dopiero tu. Major 4.2.1 (walidacja — **przesunięta**) + 4.2.3; R-3d / R-3e / R-3f.
 

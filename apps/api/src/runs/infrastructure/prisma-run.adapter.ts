@@ -4,12 +4,14 @@ import {
   createConversationId,
   createRunId,
   createUserId,
-  isRunPlatform,
+  isContentKind,
+  isContentLanguage,
+  isContentTaskType,
+  isRunStatus,
   isRunTaskType,
   isSocialPlatform,
   isSocialTaskType,
   isUserId,
-  type ContentLanguage,
   type RunId,
   type RunStatus,
 } from '@content-chain/shared';
@@ -24,11 +26,15 @@ import {
   type RunSnapshot,
 } from '../domain/run.port';
 import type {
+  ContentRunRecord,
   RunLogEntry,
   RunRecord,
   SocialRunRecord,
 } from '../domain/run.types';
-import { socialBriefSchema } from '../application/run.schemas';
+import {
+  contentBriefSchema,
+  socialBriefSchema,
+} from '../application/run.schemas';
 
 type RunRow = {
   id: string;
@@ -71,6 +77,17 @@ function toPipelinePhase(value: string | null): RunRecord['pipelinePhase'] {
     return value;
   }
   return null;
+}
+
+function toSelectedIdeaIds(value: unknown): string[] | null {
+  if (value == null) return null;
+  if (
+    !Array.isArray(value) ||
+    !value.every((item): item is string => typeof item === 'string')
+  ) {
+    throw new Error('Run.selectedIdeaIds is not a string array');
+  }
+  return value;
 }
 
 @Injectable()
@@ -245,34 +262,23 @@ export class PrismaRunAdapter implements RunRepository {
     if (!isRunTaskType(row.taskType)) {
       throw new Error(`Run.taskType is not a RunTaskType: ${row.taskType}`);
     }
-    if (!isSocialTaskType(row.taskType)) {
-      throw new Error(`Run.taskType is not a SocialTaskType: ${row.taskType}`);
+    if (!isContentLanguage(row.language)) {
+      throw new Error(`Run.language is not a ContentLanguage: ${row.language}`);
     }
-    if (!isRunPlatform(row.platform)) {
-      throw new Error(`Run.platform is not a RunPlatform: ${row.platform}`);
-    }
-    if (!isSocialPlatform(row.platform)) {
-      throw new Error(`Run.platform is not a SocialPlatform: ${row.platform}`);
-    }
-    const briefParsed = socialBriefSchema.safeParse(row.brief);
-    if (!briefParsed.success) {
-      throw new Error(`Run.brief is not a SocialBrief: ${row.taskType}`);
+    if (!isRunStatus(row.status)) {
+      throw new Error(`Run.status is not a RunStatus: ${row.status}`);
     }
 
-    const snapshot: SocialRunRecord & Pick<RunSnapshot, 'startedBy'> = {
+    const base = {
       id: createRunId(row.id),
       conversationId: createConversationId(row.conversationId),
-      taskType: row.taskType,
-      platform: row.platform,
-      language: row.language as ContentLanguage,
-      status: row.status as RunStatus,
-      brief: briefParsed.data,
-      selectedIdeaIds: (row.selectedIdeaIds as string[] | null) ?? null,
+      language: row.language,
+      status: row.status,
+      selectedIdeaIds: toSelectedIdeaIds(row.selectedIdeaIds),
       startedByUserId:
         row.startedByUserId && isUserId(row.startedByUserId)
           ? createUserId(row.startedByUserId)
           : null,
-      contentKind: null,
       pipelinePhase: toPipelinePhase(row.pipelinePhase),
       ideasRefineCount: row.ideasRefineCount,
       contentRefineCount: row.contentRefineCount,
@@ -282,6 +288,50 @@ export class PrismaRunAdapter implements RunRepository {
       createdAt: row.createdAt,
       startedBy: row.startedBy,
     };
-    return snapshot;
+
+    if (isSocialTaskType(row.taskType)) {
+      if (!isSocialPlatform(row.platform)) {
+        throw new Error(`Run.platform is not a SocialPlatform: ${row.platform}`);
+      }
+      const briefParsed = socialBriefSchema.safeParse(row.brief);
+      if (!briefParsed.success) {
+        throw new Error(`Run.brief is not a SocialBrief: ${row.taskType}`);
+      }
+      const snapshot: SocialRunRecord & Pick<RunSnapshot, 'startedBy'> = {
+        ...base,
+        taskType: row.taskType,
+        platform: row.platform,
+        contentKind: null,
+        brief: briefParsed.data,
+      };
+      return snapshot;
+    }
+
+    if (isContentTaskType(row.taskType)) {
+      if (row.platform !== 'web') {
+        throw new Error(
+          `Run.platform is not web for content task: ${row.platform}`,
+        );
+      }
+      if (row.contentKind == null || !isContentKind(row.contentKind)) {
+        throw new Error(
+          `Run.contentKind is not a ContentKind: ${row.contentKind}`,
+        );
+      }
+      const briefParsed = contentBriefSchema.safeParse(row.brief);
+      if (!briefParsed.success) {
+        throw new Error(`Run.brief is not a ContentBrief: ${row.taskType}`);
+      }
+      const snapshot: ContentRunRecord & Pick<RunSnapshot, 'startedBy'> = {
+        ...base,
+        taskType: row.taskType,
+        platform: 'web',
+        contentKind: row.contentKind,
+        brief: briefParsed.data,
+      };
+      return snapshot;
+    }
+
+    throw new Error(`Run.taskType is not a RunTaskType: ${row.taskType}`);
   }
 }

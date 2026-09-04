@@ -1,9 +1,9 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import {
+  RUN_PLATFORMS,
   RUN_STATUSES,
   RUN_TASK_TYPES,
-  SOCIAL_PLATFORMS,
 } from '@content-chain/shared';
 
 export class ListRunsQueryDto {
@@ -22,8 +22,8 @@ export class ListRunsQueryDto {
   taskType?: (typeof RUN_TASK_TYPES)[number];
 
   @IsOptional()
-  @IsIn([...SOCIAL_PLATFORMS])
-  platform?: (typeof SOCIAL_PLATFORMS)[number];
+  @IsIn([...RUN_PLATFORMS])
+  platform?: (typeof RUN_PLATFORMS)[number];
 
   @IsOptional()
   @IsString()
