@@ -9,7 +9,7 @@ import {
   RUN_RESULT_READER,
   type RunResultReader,
 } from '../domain/run-result-reader.port';
-import { parseWithZod } from './parse-with-zod';
+import { parseWithZod } from '../../shared/parse-with-zod';
 import { runIdSchema } from './run.schemas';
 import type {
   ContentKind,

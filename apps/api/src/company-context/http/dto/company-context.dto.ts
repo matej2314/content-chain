@@ -138,6 +138,8 @@ export class PutCompanyContextDto {
     type: 'object',
     additionalProperties: true,
     nullable: true,
+    description:
+      'CompanyContextExtras (Zod .strict() w application). Nieznane klucze → VALIDATION_FAILED. DTO = cienka bramka Nest (@IsObject).',
   })
   @IsOptional()
   @IsObject()
@@ -179,6 +181,8 @@ export class PatchCompanyContextDto {
     type: 'object',
     additionalProperties: true,
     nullable: true,
+    description:
+      'CompanyContextExtras (Zod .strict() w application). Nieznane klucze → VALIDATION_FAILED. DTO = cienka bramka Nest (@IsObject).',
   })
   @IsOptional()
   @IsObject()

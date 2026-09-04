@@ -143,4 +143,44 @@ describe('Company context (e2e)', () => {
     expect(context.body.offer.items).toEqual(completeBody.offer.items);
     expectNoFileFallback(context.body);
   });
+
+  it('PUT known extras shape round-trips on GET', async () => {
+    const extras = {
+      caseStudies: [
+        { title: 'Acme', summary: 'Wynik', metrics: ['+20%'] },
+      ],
+      objections: [{ label: 'Cena', response: 'ROI w 3 mies.' }],
+      hashtags: ['#acme'],
+      catalogNotes: 'Pakiet Pro',
+      performanceNotes: 'LI > IG',
+    };
+
+    await request(app.getHttpServer())
+      .put('/api/v1/company-context')
+      .send({ ...completeBody, extras })
+      .expect(200);
+
+    const context = await request(app.getHttpServer())
+      .get('/api/v1/company-context')
+      .expect(200);
+
+    expect(context.body.extras).toEqual(extras);
+    expect(context.body.completeness).toEqual({ complete: true, missing: [] });
+    expectNoFileFallback(context.body);
+  });
+
+  it('PUT unknown key in extras → 400 VALIDATION_FAILED', async () => {
+    const response = await request(app.getHttpServer())
+      .put('/api/v1/company-context')
+      .send({
+        ...completeBody,
+        extras: { hashtags: ['#x'], unknownBag: true },
+      })
+      .expect(400);
+
+    expect(response.body.code).toBe('VALIDATION_FAILED');
+    expect(Array.isArray(response.body.details)).toBe(true);
+    expect(response.body.details.length).toBeGreaterThan(0);
+    expectNoFileFallback(response.body);
+  });
 });

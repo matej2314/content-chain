@@ -1,4 +1,4 @@
-import { parseWithZod } from './parse-with-zod';
+import { parseWithZod } from '../../shared/parse-with-zod';
 import { startRunCommandSchema } from './run.schemas';
 
 const pageCommand = {

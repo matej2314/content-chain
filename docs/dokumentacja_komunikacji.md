@@ -42,6 +42,8 @@ Zmiana względem Milestone 4 (HITL post/reel bez walidacji długości; luźne po
 
 `requestId` w envelope dotyczy **tego** żądania HTTP do `apps/api` (nie „wszystkich” wywołań LLM w runie).
 
+Gdy `code` = `VALIDATION_FAILED` pochodzi z application Zod (`parseWithZod` w `apps/api/src/shared/`), elementy `details` mają `path` = ścieżkę Zod (`issue.path`) z separatorem `'.'` (spójnie Runs i company-context `extras`). Tabela kodów HTTP bez zmian.
+
 Wybrane kody domenowe:
 
 | `code` | Typowe HTTP | Znaczenie |

@@ -1,5 +1,5 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-09-04
 ---
@@ -54,7 +54,9 @@ C-2. `GET /api/v1/company-context` zwraca aktualny kontekst (w tym `extras`: obi
 
 C-3. `GET /api/v1/company-context/completeness` zwraca `{ complete, missing }` — ten sam werdykt co C-1.
 
-C-4. Zapis kontekstu: **`PUT` oraz `PATCH`** `/api/v1/company-context` w MVP — **tylko `admin`**. `user` → `403` `FORBIDDEN`. Body może zawierać `extras`; nieznane klucze w `extras` → **400** `VALIDATION_FAILED` (Zod `.strict()`).
+C-4. Zapis kontekstu: **`PUT` oraz `PATCH`** `/api/v1/company-context` w MVP — **tylko `admin`**. `user` → `403` `FORBIDDEN`. Body może zawierać `extras`; nieznane klucze w `extras` → **400** `VALIDATION_FAILED` (Zod `.strict()` przez wspólny `parseWithZod` z `apps/api/src/shared/parse-with-zod.ts` — nie lokalna kopia w module).
+
+Zmiana względem wersji 3 / C-4: walidacja extras przez wspólny helper api shared (refaktor względem lokalnej kopii w `company-context/application/`).
 
 C-5. Start runu (`POST /api/v1/runs`) w `apps/api` **musi** sprawdzić bramkę — **każdy** taskType (post_*, reel_*, page_*); przy `complete === false` → `409` `CONTEXT_INCOMPLETE` z `details` (np. brakujące sekcje). UI nie jest jedyną bramką. Jedna bramka na cały produkt (w tym głos SM dla page_* — świadome).
 

@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-02
+data_modyfikacji: 2026-09-04
 ---
 
 # SPEC — Monorepo
@@ -38,7 +38,9 @@ M-6. Każda aplikacja i `packages/shared` ma **własny** `tsconfig` (osobne plik
 
 M-7. Jedyny obowiązkowy DX startu lokalnego to **skrypty w rootcie** (`pnpm`, filtry `--filter`, ewentualnie `pnpm -r`). Nx i Turborepo są poza MVP.
 
-M-8. `apps/api/src/shared/` (jeśli używany) służy wyłącznie cross-cuttingowi **wewnątrz api** i **nie** zastępuje ani nie dubluje `packages/shared` regułami domenowymi. Typy `SocialBrief` / `ContentBrief` **nie** należą do `apps/api/src/shared/` ani do `packages/shared` — żyją w `apps/api/src/runs/domain/` (`docs/dictionary.md`, `SPEC-RUNY.md` R-3d).
+M-8. `apps/api/src/shared/` (jeśli używany) służy wyłącznie cross-cuttingowi **wewnątrz api** i **nie** zastępuje ani nie dubluje `packages/shared` regułami domenowymi. Typy `SocialBrief` / `ContentBrief` **nie** należą do `apps/api/src/shared/` ani do `packages/shared` — żyją w `apps/api/src/runs/domain/` (`docs/dictionary.md`, `SPEC-RUNY.md` R-3d). Dopuszczalny cienki helper walidacji Zod → `DomainException` (`VALIDATION_FAILED`): `apps/api/src/shared/parse-with-zod.ts` — **bez** reguł BC; runtime Zod nadal **zakazany** w `packages/shared` (M-5).
+
+Zmiana względem wersji 5 / M-8: wcześniejsze brzmienie dopuszczało cross-cutting bez dublowania `packages/shared` regułami domenowymi, ale **nie** wymieniało jawnie helpera `parse-with-zod.ts`. Od tej wersji lokalizacja wspólnego `parseWithZod` w api shared jest legalna i kanoniczna.
 
 ## Norma implementacji
 
@@ -60,8 +62,10 @@ M-8. `apps/api/src/shared/` (jeśli używany) służy wyłącznie cross-cuttingo
 - Trzymać `SocialBrief` / `ContentBrief` w BC Runs (`run.types.ts`) — to payload agregatu, nie publiczny enum FE/BE.
 - Uruchamiać pakiety skryptami root (`pnpm --filter api …`, `pnpm -r …`).
 - Rozszerzać drzewo wewnątrz `apps/*/src` zgodnie z BC i warstwami — w tym `apps/api/src/content/` (nie łamie M-1: nadal trzy aplikacje runtime). Szczegóły BC w osobnych SPEC.
+- Trzymać w `apps/api/src/shared/` cienki helper `parse-with-zod.ts` (Zod → `VALIDATION_FAILED`) współdzielony przez BC — bez przenoszenia reguł domenowych ani Zod do `packages/shared`.
 
 Zmiana względem wersji 4 / Wolno: dopisano lokalizację briefów kanałowych (nie shared).
+Zmiana względem wersji 5 / Wolno: jawnie dopuszczono `parse-with-zod.ts` w api shared (M-8).
 
 ### Nie wolno
 

@@ -4,7 +4,7 @@ import { DomainException } from '../../shared/exceptions/domain.exception';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { InProcessRunWorker } from './in-process-run.worker';
-import { parseWithZod } from './parse-with-zod';
+import { parseWithZod } from '../../shared/parse-with-zod';
 import {
   startRunCommandSchema,
   type ParsedStartRunCommand,

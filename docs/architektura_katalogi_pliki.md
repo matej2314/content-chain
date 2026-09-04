@@ -147,7 +147,9 @@ Ten sam szkielet warstw; w `company-context` — reguła bramki kompletności w 
 
 ### `apps/api/src/shared/`
 
-Pomocnicze elementy wyłącznie API (np. konfiguracja, interceptory, mapping błędów). **Nie** dublować `packages/shared` i **nie** umieszczać tu reguł Social / kontekstu firmy.
+Pomocnicze elementy wyłącznie API (np. konfiguracja, interceptory, mapping błędów, `parse-with-zod.ts`). **Nie** dublować `packages/shared` i **nie** umieszczać tu reguł Social / kontekstu firmy.
+
+`parse-with-zod.ts` — cienki helper cross-cutting: application Zod → `DomainException` (`VALIDATION_FAILED`, 400); `details[].path` = segmenty Zod `issue.path` połączone `'.'`. Używany przez BC (Runs, company-context) — **bez** reguł domenowych w tym pliku. Obok: `config/`, `http/`, `exceptions/`, `llm/`, `persistence/`.
 
 ### `apps/api/src/health/`, `metrics/`, `llm/`
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException } from './exceptions/domain.exception';
 
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import { parseWithZod } from './parse-with-zod';
+import { parseWithZod } from '../../shared/parse-with-zod';
 import { runIdSchema } from './run.schemas';
 import type { ConversationId, RunId } from '@content-chain/shared';
 import { RunLogLevel } from '../domain/run.types';

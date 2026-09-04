@@ -1,3 +1,5 @@
+import { parseWithZod } from '../../shared/parse-with-zod';
+import { companyContextExtrasInputSchema } from './company-context.schemas';
 import type {
   Completeness,
   CompanyContext,
@@ -18,7 +20,10 @@ export function toCompanyContext(dto: PutCompanyContextDto): CompanyContext {
     voice: { weDo: dto.voice.weDo, weDont: dto.voice.weDont },
     cta: { items: dto.cta.items },
     audience: { profiles: dto.audience.profiles },
-    extras: dto.extras ?? null,
+    extras:
+      dto.extras === undefined
+        ? null
+        : parseWithZod(companyContextExtrasInputSchema, dto.extras),
   };
 }
 
@@ -31,7 +36,9 @@ export function toPartialCompanyContext(
     ...(dto.voice ? { voice: dto.voice } : {}),
     ...(dto.cta ? { cta: dto.cta } : {}),
     ...(dto.audience ? { audience: dto.audience } : {}),
-    ...(dto.extras !== undefined ? { extras: dto.extras } : {}),
+    ...(dto.extras !== undefined
+      ? { extras: parseWithZod(companyContextExtrasInputSchema, dto.extras) }
+      : {}),
   };
 }
 

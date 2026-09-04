@@ -7,7 +7,7 @@ import {
 } from '../domain/run-result-reader.port';
 import { InProcessRunWorker } from './in-process-run.worker';
 import { RunLifecycleService } from './run-lifecycle.service';
-import { parseWithZod } from './parse-with-zod';
+import { parseWithZod } from '../../shared/parse-with-zod';
 import { runIdSchema, hitlSelectedIdeaIdsSchema } from './run.schemas';
 import type { RunId } from '@content-chain/shared';
 

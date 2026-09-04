@@ -1,5 +1,5 @@
 ---
-wersja: 12
+wersja: 13
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-09-04
 ---
@@ -71,9 +71,11 @@ Zmiana względem wersji 1: wcześniej brak normy listingu kolekcji — obowiązk
 
 R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) **oraz** `conversationId`, `brief` (kształt zapisany: `SocialBrief` albo `ContentBrief` wg `taskType`), `userRating`, `outputEdited`, `reviewFinalizedAt`, wynik addytywny gdy jest (`ideas` / `content` / `reelIdeas` / `reelScript` / `pageOutline` / `pageDocument`), metadane HITL (`options` wg `taskType`).
 
-R-3d. `POST /runs` — unia dyskryminowana (`taskType`): Social wymaga `platform` i **zakazuje** `contentKind`; Content wymaga `contentKind` i **zakazuje** `platform` (zapis kolumny `platform='web'`). **Kształt `brief` XOR:** Social → `SocialBrief` (`ideaCount?`; zakaz `angle` / `targetLength`); Content → `ContentBrief` (`angle?` / `targetLength?`; zakaz `ideaCount`). Pola: `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`. Walidacja Zod `discriminatedUnion` w application + `.strict()` na gałęzi briefu. DTO HTTP może mieć sumę kluczy briefu; prawda = Zod. `taskType` spoza enumu → HTTP **400** `VALIDATION_FAILED` (composite **nie** wołany). Page + `brief.ideaCount` albo Social + `brief.angle` → **400** `VALIDATION_FAILED`.
+R-3d. `POST /runs` — unia dyskryminowana (`taskType`): Social wymaga `platform` i **zakazuje** `contentKind`; Content wymaga `contentKind` i **zakazuje** `platform` (zapis kolumny `platform='web'`). **Kształt `brief` XOR:** Social → `SocialBrief` (`ideaCount?`; zakaz `angle` / `targetLength`); Content → `ContentBrief` (`angle?` / `targetLength?`; zakaz `ideaCount`). Pola: `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`. Walidacja Zod `discriminatedUnion` w application + `.strict()` na gałęzi briefu — przez wspólny `parseWithZod` z `apps/api/src/shared/parse-with-zod.ts` (refaktor względem wcześniejszej lokalizacji `runs/application/parse-with-zod.ts`). DTO HTTP może mieć sumę kluczy briefu; prawda = Zod. `taskType` spoza enumu → HTTP **400** `VALIDATION_FAILED` (composite **nie** wołany). Page + `brief.ideaCount` albo Social + `brief.angle` → **400** `VALIDATION_FAILED`.
 
 Zmiana względem wersji 10 / R-3d: unia dotyczyła `platform` XOR `contentKind` przy **jednym** obiekcie briefu SM (`RunBrief` z `ideaCount`). Od tej wersji brief jest kanałowy; `RunRecord` = `SocialRunRecord` | `ContentRunRecord` (`taskType` dyskryminuje `brief`). Definicje `SocialBrief` / `ContentBrief` w `runs/domain` — **nie** w `packages/shared` ani `apps/api/src/shared/`.
+
+Zmiana względem wersji 12 / R-3d: `parseWithZod` importowany z `apps/api/src/shared/parse-with-zod.ts` (nie lokalny plik w `runs/application/`).
 
 R-3d1. Odczyt `Run.brief` (Json) w adapterze: parse Zod **wg `taskType`**. Zakaz `as RunRecord['brief']` / `as SocialBrief`. Śmieć w JSON → błąd adaptera (jak nielegalny `taskType`), nie cichy cast. Kolumna Json **bez** nowej migracji (`SPEC-PERSISTENCE.md`).
 
@@ -182,6 +184,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - `RunsModule.registerAsync` (lub równoważny klej w `AppModule`) wpinające **composite** `RunExecutorPort` (Social + Content) — bez `forwardRef`.
 - Domyślną (pustą) implementację portu odczytu wyniku w Runs, podmienianą w kleju na composite reader.
 - Trzymać `SocialBrief` / `ContentBrief` w `runs/domain/run.types.ts` (payload Run, nie shared kernel).
+- Importować `parseWithZod` z `apps/api/src/shared/parse-with-zod.ts` dla walidacji komend application (start / HITL / id) — bez lokalnej kopii w `runs/application/`.
 
 ### Nie wolno
 

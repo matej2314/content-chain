@@ -1,5 +1,5 @@
 ---
-wersja: 10
+wersja: 11
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-09-04
 ---
@@ -68,12 +68,13 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-18 | `page_outline_then_copy`: HITL outline → dokument → `completed`; HITL z obcym id → **400** `HITL_INVALID_SELECTION`, status zostaje `awaiting_hitl` |
 | D-19 | `taskType` spoza enumu HTTP → **400** `VALIDATION_FAILED`; composite: nieznany typ wewnętrzny → `failed` / `UNKNOWN_TASK_TYPE` (unit `execute` / `assertNever`) |
 | D-19a | Unit Zod / HTTP: `page_*` + `brief.ideaCount` → **400** `VALIDATION_FAILED`; Social + `brief.angle` (lub `targetLength`) → **400** `VALIDATION_FAILED` |
-| D-20 | Unit Zod `CompanyContextExtras`: znany kształt OK; nieznany klucz → fail; `isComplete` ignoruje extras |
+| D-20 | Unit Zod `CompanyContextExtras`: znany kształt OK; nieznany klucz → fail; `isComplete` ignoruje extras. Unit/e2e unknown key → **400**; ścieżki w `details` zgodne z separatorem `'.'` wspólnego `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`). Bez wymogu osobnego testu wyłącznie na lokalizację pliku helpera. |
 | D-21 | HITL Social: 0 id lub 2+ id → **400** `HITL_INVALID_SELECTION`; 1 poprawny id → `completed` z content/script |
 | D-22 | GET result: `characterCount === body.length`; outline z `role` enum przechodzi parse; nieznany `role` → fail |
 
 D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page.
 
+Zmiana względem wersji 10 / D-20: doprecyzowano separator `details[].path` = `'.'` wspólnego helpera (po wyniesieniu `parseWithZod` do api shared).
 Zmiana względem wersji 9: dopisano D-20…D-22 (extras, HITL SM 1 id, characterCount / role) — norma, że muszą istnieć; szczegóły case’ów = Faza 4.3 major.
 Zmiana względem wersji 8: D-17 uściślone (brief page bez `ideaCount`); dopisano D-19a (XOR kształtu briefu).
 Zmiana względem wersji 6: dopisano D-15…D-19 (rolki, Content, orkiestracja). D-4…D-14 bez zmiany semantyki.

@@ -4,7 +4,7 @@
 **Kotwica major:** Faza 4.3 (kroki 4.3.1–4.3.5) + ślad **MILESTONE 4.3**.  
 **Źródła:** `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`, `docs/data_flow.md` §4 / §4c / §4e, `docs/brand_types.md`, `SPEC-KONTEKST-FIRMY.md`, `SPEC-SOCIAL.md` (S-6, S-7b), `SPEC-CONTENT.md` (Ctn-3), `SPEC-RUNY.md` (R-3f, R-3g), `SPEC-KOMUNIKACJA.md` (K-8, K-9), `SPEC-TESTY.md` (D-20…D-22), `content-chain-backend_major_plan.md` Faza 4.3.  
 **Założenie wejścia:** Faza 4.2 / Milestone 4.2 `WYKONANY` / `OSIĄGNIĘTY`; docs+SPEC kontraktu 4.3 już zsynchronizowane (gate KROK 1).  
-**Kolejność `KROK` ≠ etykietom major 4.3.1–4.3.5 1:1** — pass rozwojowy: major 4.3.3 rozbity na **KROK 3** (schema/persist) → **KROK 4** (HITL 1 id).
+**Kolejność `KROK` ≠ etykietom major 4.3.1–4.3.5 1:1** — pass rozwojowy: major 4.3.3 rozbity na **KROK 3** (schema/persist) → **KROK 4** (HITL 1 id); po KROK 2 idzie **KROK 2.1** (wyniesienie `parseWithZod` do `apps/api/src/shared/`).
 
 **Statusy kroków feature:** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`
 
@@ -24,7 +24,7 @@
 ## Założenia
 
 - Zod **3** (`apps/api` `^3.25.76`). `packages/shared` bez Zod. Bez migracji Prisma (kolumna `extras Json?` już jest; payloady Social/Content = Json).
-- Walidacja `extras`: **application Zod `.strict()`** → `VALIDATION_FAILED` (jak `parseWithZod` w Runs). DTO class-validator zostaje cienką bramką Nest (`@IsObject()`); **nie** polegać na DTO jako jedynym kontrakcie extras.
+- Walidacja `extras`: **application Zod `.strict()`** → `VALIDATION_FAILED` przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, separator ścieżki `details[].path` = `'.'`). Do czasu **KROK 2.1** dopuszczalna lokalna kopia w company-context (KROK 2); po 2.1 — **jeden** helper, import z `shared` (Runs + company-context). DTO class-validator zostaje cienką bramką Nest (`@IsObject()`); **nie** polegać na DTO jako jedynym kontrakcie extras. **Nie** umieszczać Zod/`parseWithZod` w `packages/shared` (M-5).
 - HITL Social: kod **`HITL_INVALID_SELECTION`** (400), status zostaje `awaiting_hitl`. **Nie** zaostrzać `hitlSelectedIdeaIdsSchema` do `.length(1)` — to dałoby `VALIDATION_FAILED` zamiast kanonu docs. Schema: `z.array(z.string())` (dopuszcza `[]`); egzekucja długości + członkostwa w `ResumeHitlUseCase`.
 - `characterCount`: integer ≥ 0; **kanon** = `body.length` po sukcesie writer/refine; wartość z LLM **nie** jest źródłem prawdy (nie dodawać wymaganego pola do `contentOutputSchema`). Ustawić przy budowie `SocialContent` w writer/refine **oraz** twarde nadpisanie w Persist; przy odczycie starego JSON bez klucza → mapper `body.length` (`SPEC-RUNY.md` R-3g).
 - `cta?` na `SocialIdea` / `ReelIdea`: opcjonalne; refine zachowuje gdy model zwróci. HITL page bez zmian (`[outline.id]`).
@@ -54,7 +54,7 @@ Odpowiada major **Faza 4.3**. Jedna faza w tym pliku. Po DoD — ślad **MILESTO
 
 ### KROK 1 — Gate: checklista docs/SPEC (major 4.3.1)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Potwierdzić, że kontrakt A–D jest spójny między komunikacją a SPEC — **bez** implementacji kodu. Major 4.3.1; `update-mvp-contract-plan.md` może nie istnieć na dysku — źródłem jest bieżący zestaw docs/SPEC.
 
@@ -78,7 +78,7 @@ Odpowiada major **Faza 4.3**. Jedna faza w tym pliku. Po DoD — ślad **MILESTO
 
 ### KROK 2 — Company Context: `CompanyContextExtras` + Zod + PUT/PATCH
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Typowany kształt `extras`, walidacja Zod przy zapisie, round-trip, completeness bez regresji. Major 4.3.2; `SPEC-KONTEKST-FIRMY`; `SPEC-TESTY` D-20.
 
@@ -86,13 +86,13 @@ Odpowiada major **Faza 4.3**. Jedna faza w tym pliku. Po DoD — ślad **MILESTO
 
 - Nowy: `apps/api/src/company-context/application/company-context.schemas.ts`
 - Nowy: `apps/api/src/company-context/application/company-context.schemas.spec.ts`
-- Nowy: `apps/api/src/company-context/application/parse-company-context-extras.ts` (cienki wrapper jak Runs `parseWithZod` **albo** reuse istniejącego `runs/application/parse-with-zod` przez import z `shared` — **preferuj** wyniesienie / lokalną kopię w company-context **bez** importu company-context → runs; najprościej: lokalny `parseWithZod` w `company-context/application/parse-with-zod.ts` skopiowany 1:1 z Runs **albo** wspólny helper w `apps/api/src/shared/validation/parse-with-zod.ts` jeśli już istnieje ścieżka shared — **w tym wycinku:** nowy plik lokalny w company-context, identyczny kontrakt `VALIDATION_FAILED`, żeby nie otwierać refaktoru Runs).
+- Nowy: `apps/api/src/company-context/application/parse-with-zod.ts` — **tymczasowa** lokalna kopia 1:1 względem Runs (`issue.path.join('.')`, `VALIDATION_FAILED`); **bez** importu company-context → runs. Wyniesienie do `apps/api/src/shared/parse-with-zod.ts` = **KROK 2.1** (nie otwierać refaktoru Runs w tym kroku).
 - Zmiana: `company-context.types.ts`, `company-context.mapper.ts`, controller (parse przed use-case), ewent. DTO komentarz Swagger.
 - Testy: unit schema; e2e `company-context.e2e-spec.ts` — nieznany klucz → 400; round-trip znanego kształtu.
 
-**Kolejność:** typy → schema → parse w controller/mapper → unit → e2e.
+**Kolejność:** typy → schema → parse w controller/mapper → unit → e2e. Po DoD tego kroku → **KROK 2.1**.
 
-#### Nowy plik — `apps/api/src/company-context/application/parse-with-zod.ts`
+#### Nowy plik — `apps/api/src/company-context/application/parse-with-zod.ts` (tymczasowy; usuwany w KROK 2.1)
 
 ```typescript
 import { z } from 'zod';
@@ -240,7 +240,7 @@ Plik: `apps/api/src/company-context/application/company-context.mapper.ts`
 **Zamień na:** (parse w mapperze — jedno miejsce dla PUT)
 
 ```typescript
-import { parseWithZod } from './parse-with-zod';
+import { parseWithZod } from './parse-with-zod'; // po KROK 2.1 → '../../shared/parse-with-zod'
 import { companyContextExtrasInputSchema } from './company-context.schemas';
 // ...
     extras:
@@ -267,6 +267,92 @@ Dla PATCH — gdy `dto.extras !== undefined`:
 - Nieznany klucz w `extras` → 400 `VALIDATION_FAILED`.
 - `isComplete` / completeness bez zmiany werdyktu przy obecności `extras`.
 - Unit schema zielony.
+- Lokalny `company-context/application/parse-with-zod.ts` istnieje (most do KROK 2.1); separator `'.'`.
+
+---
+
+### KROK 2.1 — Refaktor: wspólny `parseWithZod` w `apps/api/src/shared/`
+
+**Status:** `WYKONANY`
+
+**Cel:** Jedna definicja helpera walidacji application Zod → `DomainException` (`VALIDATION_FAILED`, 400); separator `details[].path` = `'.'`. Usunięcie duplikatów w Runs i company-context.
+
+**Refaktor względem:** KROK 2 (lokalny `company-context/application/parse-with-zod.ts`) oraz istniejący mechanizm `runs/application/parse-with-zod.ts` (Faza 4 / 4.2 — Runs). **Nie** zmienia kontraktu HTTP ani kodów błędów — tylko lokalizacja i jeden kanoniczny separator.
+
+**Artefakty (kod):**
+
+- Nowy: `apps/api/src/shared/parse-with-zod.ts`
+- Usunięcie: `apps/api/src/runs/application/parse-with-zod.ts`
+- Usunięcie: `apps/api/src/company-context/application/parse-with-zod.ts`
+- Zmiana importów na `from '../../shared/parse-with-zod'` (ścieżka względna z `*/application/`):
+  - `runs/application/start-run.use-case.ts`
+  - `runs/application/get-run.use-case.ts`
+  - `runs/application/get-run-logs.use-case.ts`
+  - `runs/application/resume-hitl.use-case.ts`
+  - `runs/application/run.schemas.spec.ts`
+  - `company-context/application/company-context.mapper.ts` (oraz inne pliki CC, jeśli importują lokalny helper)
+- Regresja: istniejące unit Runs (`run.schemas.spec`, start-run / resume-hitl) + schema CC — zielone bez zmiany asercji kodu/statusu.
+
+**Kolejność:** nowy plik shared → podmiana importów → usunięcie lokalnych kopii → testy → docs/SPEC (podkrok poniżej).
+
+#### Nowy plik — `apps/api/src/shared/parse-with-zod.ts`
+
+```typescript
+import { z } from 'zod';
+import { DomainException } from './exceptions/domain.exception';
+
+export function parseWithZod<T extends z.ZodTypeAny>(
+  schema: T,
+  input: unknown,
+): z.output<T> {
+  const result = schema.safeParse(input);
+  if (result.success) return result.data;
+  throw new DomainException(
+    'VALIDATION_FAILED',
+    'Application command validation failed',
+    400,
+    result.error.issues.map((issue) => ({
+      path: issue.path.join('.'),
+      message: issue.message,
+    })),
+  );
+}
+```
+
+Kanoniczny separator: **wyłącznie `'.'`** (jak Runs / `parseLlmJson`). Brak opcji `pathSeparator` w MVP tego kroku.
+
+#### Przykład importu (application BC)
+
+```typescript
+import { parseWithZod } from '../../shared/parse-with-zod';
+```
+
+#### Podkrok — docs + SPEC (obowiązkowy w tym kroku)
+
+**Status:** `WYKONANY`
+
+Uzupełnić normę lokalizacji helpera i separatora ścieżki w `details` — **bez** redefinicji reguł domenowych BC. Przy zapisie SPEC: frontmatter `wersja` +1, `data_modyfikacji` = dzień edycji (reguła `spec-artifacts-edit`).
+
+| Plik | Wymagana zmiana |
+|------|-----------------|
+| `docs/architektura_katalogi_pliki.md` | W sekcji `apps/api/src/shared/`: wymienić `parse-with-zod.ts` jako cross-cutting helper application Zod → `DomainException` (`VALIDATION_FAILED`); **nie** reguły Social / kontekstu firmy. Ewentualnie dopisać plik w opisie drzewa shared (obok config / http / exceptions / llm / persistence). |
+| `docs/dictionary.md` | Hasło `apps/api/src/shared/`: dopisać, że zawiera m.in. `parseWithZod` (runtime Zod **tylko** w api shared); `packages/shared` nadal **bez** Zod. Opcjonalnie: `details[].path` = segmenty Zod `issue.path` połączone `'.'`. |
+| `docs/anty_patterny.md` | Nowy wiersz anty-pattern: lokalna kopia `parseWithZod` / osobny adapter Zod→`VALIDATION_FAILED` w każdym BC — zamiast tego jeden helper w `apps/api/src/shared/parse-with-zod.ts`. |
+| `docs/dokumentacja_komunikacji.md` | Przy envelope / `VALIDATION_FAILED`: doprecyzować, że elementy `details` z application Zod mają `path` jako ścieżkę Zod z separatorem `'.'` (spójnie Runs + company-context extras). Bez zmiany tabeli kodów HTTP. |
+| `spec/SPEC-MONOREPO.md` | M-8 / Wolno: jawnie dopuścić cienki helper walidacji Zod w `apps/api/src/shared/` (`parse-with-zod.ts`); nadal zakaz reguł domenowych i zakaz Zod w `packages/shared` (M-5). Przy zmianie normy — odniesienie do wcześniejszego brzmienia M-8 (cross-cutting bez dublowania packages/shared). |
+| `spec/SPEC-KOMUNIKACJA.md` | Przy K-8 / envelope: `details[].path` z `parseWithZod` = `issue.path.join('.')`. Helper żyje w api shared, nie w BC. |
+| `spec/SPEC-KONTEKST-FIRMY.md` | Przy C-4 (Zod `.strict()` extras): walidacja przez wspólny `parseWithZod` z `apps/api/src/shared/parse-with-zod.ts` (nie lokalna kopia w module). |
+| `spec/SPEC-RUNY.md` | Przy walidacji application (R-3d / komendy): `parseWithZod` importowany z `apps/api/src/shared/parse-with-zod.ts` (refaktor względem wcześniejszej lokalizacji `runs/application/parse-with-zod.ts`). |
+| `spec/SPEC-TESTY.md` | Przy D-20 (lub nota obok): unit/e2e extras unknown key → 400; ścieżki w `details` zgodne z separatorem `'.'` wspólnego helpera. Bez wymogu osobnego testu wyłącznie na lokalizację pliku. |
+
+**Poza zakresem docs/SPEC tego podkroku:** zmiany UI FE, `packages/shared`, Faza 9 (Zod 4), semantyka HITL / `HITL_INVALID_SELECTION`.
+
+**DoD kroku:**
+
+- Istnieje dokładnie jedna definicja `parseWithZod` w `apps/api/src/shared/parse-with-zod.ts`; lokalne pliki w Runs i company-context **usunięte**.
+- Wszystkie call site’y application używają importu z `shared`; separator `'.'`.
+- Unit Runs + company-context schema (oraz e2e CC z KROK 2, jeśli już jest) zielone.
+- Tabela docs/SPEC powyżej zaktualizowana (wersje SPEC podbite).
 
 ---
 
@@ -274,7 +360,7 @@ Dla PATCH — gdy `dto.extras !== undefined`:
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Cel:** Addytywne pola wyniku SM zgodnie z S-7b / R-3g / komunikacją. Część major 4.3.3 (bez HITL — to KROK 4).
+**Cel:** Addytywne pola wyniku SM zgodnie z S-7b / R-3g / komunikacją. Część major 4.3.3 (bez HITL — to KROK 4). **Wejście:** po KROK 2.1 — application Zod komend Runs nadal przez `import { parseWithZod } from '../../shared/parse-with-zod'` (ten krok nie dodaje lokalnej kopii; LLM hop = `parseLlmJson` w shared/llm, bez zmian lokalizacji).
 
 **Artefakty:**
 
@@ -519,14 +605,22 @@ Dopisek: pole `cta` opcjonalne — krótka fraza akcji zgodna z `cta.items[].lab
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Cel:** Social dwuetapowy jak Content — dokładnie jeden id ∈ draftu / options. Major 4.3.3 (HITL); `SPEC-RUNY` R-3f; `SPEC-SOCIAL` S-6; D-21.
+**Cel:** Social dwuetapowy jak Content — dokładnie jeden id ∈ draftu / options. Major 4.3.3 (HITL); `SPEC-RUNY` R-3f; `SPEC-SOCIAL` S-6; D-21. **Wejście:** KROK 2.1 zakończony — `ResumeHitlUseCase` / schema tests importują `parseWithZod` wyłącznie z `../../shared/parse-with-zod` (nie z `./parse-with-zod`).
 
 **Artefakty:**
 
 - Zmiana: `apps/api/src/runs/application/run.schemas.ts` (`hitlSelectedIdeaIdsSchema`)
-- Zmiana: `apps/api/src/runs/application/resume-hitl.use-case.ts`
+- Zmiana: `apps/api/src/runs/application/resume-hitl.use-case.ts` (logika 1 id; **import** `parseWithZod` z `../../shared/parse-with-zod`)
 - Zmiana: `apps/api/src/runs/application/resume-hitl.use-case.spec.ts`
 - E2e: `social-pipeline.e2e-spec.ts` (0 id, 2 id → 400; 1 poprawny → completed) — może wejść też w KROK 6; **unit w tym kroku obowiązkowy**
+
+#### Import (po KROK 2.1 — bez lokalnego pliku)
+
+```typescript
+import { parseWithZod } from '../../shared/parse-with-zod';
+```
+
+Walidacja `runId` / `selectedIdeaIds` przez Zod nadal → `VALIDATION_FAILED`; egzekucja długości 1 id Social → `HITL_INVALID_SELECTION` (poniżej) — **nie** mylić tych kodów.
 
 #### Refaktor — schema HITL
 
@@ -605,7 +699,7 @@ Istniejący test „resumes social HITL without reading a page outline” → ro
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Cel:** Opcjonalne `role` na sekcjach outline; regresja bez `role` zielona. Major 4.3.4; `SPEC-CONTENT` Ctn-3; D-22 (część role).
+**Cel:** Opcjonalne `role` na sekcjach outline; regresja bez `role` zielona. Major 4.3.4; `SPEC-CONTENT` Ctn-3; D-22 (część role). Application Zod komend HTTP (jeśli używane) — wyłącznie `../../shared/parse-with-zod` (po KROK 2.1); ten krok dotyczy schema LLM Content / `parseLlmJson`, nie lokalnego `parseWithZod`.
 
 **Artefakty:**
 
@@ -733,16 +827,16 @@ Nie wymagać wszystkich ról w każdym outline.
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Cel:** Domknięcie DoD fazy i Milestone 4.3 od strony dowodu. D-20…D-22; Social A–D + Content A–B; nowe case’y.
+**Cel:** Domknięcie DoD fazy i Milestone 4.3 od strony dowodu. D-20…D-22; Social A–D + Content A–B; nowe case’y. **Wejście:** KROK 2.1 — brak lokalnych `parse-with-zod.ts` w BC; e2e extras unknown key oczekuje `VALIDATION_FAILED` z `details[].path` w konwencji `'.'`.
 
 **Artefakty:**
 
-- `apps/api/test/company-context.e2e-spec.ts` — extras round-trip + unknown key 400
+- `apps/api/test/company-context.e2e-spec.ts` — extras round-trip + unknown key 400 (`VALIDATION_FAILED`; path z shared `parseWithZod`)
 - `apps/api/test/social-pipeline.e2e-spec.ts` — HITL 0/2 id; assert `characterCount === body.length`; opcjonalnie `cta` gdy fake LLM zwróci
 - `apps/api/test/content-pipeline.e2e-spec.ts` — outline z `role` (fake LLM) przechodzi; bez `role` regresja
 - `apps/api/test/fake-llm-gateway.ts` — odpowiedzi z opcjonalnym `cta` / `role` (bez `characterCount` z LLM)
 - Postman: `social-pipeline.postman-collection.json`, `content-pipeline.postman-collection.json`, `README.md` — foldery/negatywne HITL + asercje wyniku; Setup może dodać poprawne `extras` (bez wpływu na completeness)
-- Nota w planie / README: D-20…D-22 pokryte (bez edycji `SPEC-TESTY.md` w tej sesji feature — SPEC już ma normy; implementacja testów = ten krok)
+- Nota w planie / README: D-20…D-22 pokryte (bez edycji `SPEC-TESTY.md` w tej sesji feature — SPEC już ma normy po KROK 2.1; implementacja testów = ten krok)
 
 **Szkic asercji e2e Social HITL negatyw:**
 
@@ -768,12 +862,13 @@ await expect(
 | Kryterium | Źródło |
 |-----------|--------|
 | PUT/PATCH extras kształt + unknown → 400; `isComplete` ignoruje extras | major 4.3 DoD; SPEC-KONTEKST-FIRMY |
+| Wspólny `parseWithZod` w `apps/api/src/shared/`; separator `'.'`; brak kopii w BC | KROK 2.1; SPEC-MONOREPO M-8 |
 | HITL post/reel ≠1 id → 400 `HITL_INVALID_SELECTION`; 1 id → content/script | SPEC-RUNY R-3f; SPEC-SOCIAL S-6 |
 | Snapshot: `cta?`, `characterCount`, `role?` | SPEC-RUNY R-3g; komunikacja |
 | Unit + e2e + Postman | SPEC-TESTY D-20…D-22; major 4.3.5 |
 | Bez auth / bez Fazy 5–6–9 | major poza zakresem |
 | Nagłówki wyłącznie `FAZA` / `KROK` | konwencja feature planu |
-| Pass rozwojowy: 4.3.3 = KROK 3→4 | ten dokument |
+| Pass rozwojowy: 4.3.3 = KROK 3→4; shared parse = KROK 2.1 | ten dokument |
 
 ---
 
@@ -794,5 +889,6 @@ Edycja pliku major **poza** tym skillem / poza sesją tworzenia feature planu.
 ## Pass rozwojowy (zapisany)
 
 - Major 4.3.3 rozbity: **schema/persist/prompty (KROK 3) przed HITL (KROK 4)** — HITL i e2e GET potrzebują typów `cta` / `characterCount` oraz draftów z readera.
+- Po KROK 2: **KROK 2.1** wynosi `parseWithZod` do `apps/api/src/shared/parse-with-zod.ts` (separator `'.'`), aktualizuje docs/SPEC, usuwa lokalne kopie; KROK 3–6 zakładają wspólny import.
 - Brak przenosin między fazami major.
-- Kolejność feature `KROK` ≠ numeracji major 4.3.x 1:1 (tylko ten split).
+- Kolejność feature `KROK` ≠ numeracji major 4.3.x 1:1 (split 4.3.3 + wstawka 2.1).
