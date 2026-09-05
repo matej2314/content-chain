@@ -31,6 +31,8 @@
 
 ### KROK 1 — Instalacja deps auth i cookie-parser w configureHttpApp
 
+**Status:** `WYKONANY`
+
 **Cel:** Zainstalować brakujące zależności auth i podpiąć `cookie-parser` pod NestJS — bez czego `JwtCookieStrategy` nie odczyta `req.cookies`.  
 Odwołanie: `SPEC-AUTH.md` norma implementacji, `docs/security.md` (bcrypt).
 
@@ -110,11 +112,11 @@ declare global {
 - `express.d.ts` rozszerza `Request.user` o `AuthUserContext` (typ z KROK 2)
 - TypeScript kompiluje się
 
-**Status:** `NIE_ROZPOCZĘTY`
-
 ---
 
 ### KROK 2 — Domain auth: typy, polityka haseł, porty
+
+**Status:** `WYKONANY`
 
 **Cel:** Zdefiniować typy domenowe auth i interfejsy portów — przed infrastrukturą i use-case'ami.  
 Odwołanie: `SPEC-AUTH.md` norma implementacji; `docs/brand_types.md` (`UserId`).
@@ -266,11 +268,11 @@ export interface RefreshSessionRepository {
 - `validatePasswordPolicy` rzuca `DomainException('VALIDATION_FAILED', ...)` przy niespełnieniu każdej reguły
 - Porty są czyste (brak importu Prisma / ORM)
 
-**Status:** `NIE_ROZPOCZĘTY`
-
 ---
 
 ### KROK 3 — Infrastructure: adaptery Prisma, JwtCookieStrategy, cookie helpers
+
+**Status:** `NIE_ROZPOCZĘTY`
 
 **Cel:** Implementacja portów w warstwie infrastructure: Prisma adaptery dla User i RefreshSession, strategia JWT z cookie extractorem, narzędzia cookie.  
 Odwołanie: `SPEC-AUTH.md` norma implementacji (cookie httpOnly, jwt cookie extractor).
@@ -568,11 +570,11 @@ export function clearAuthCookies(res: Response): void {
 - `setAuthCookies` ustawia `httpOnly: true`; `Secure` i `SameSite=strict` tylko w production
 - TypeScript bez błędów
 
-**Status:** `NIE_ROZPOCZĘTY`
-
 ---
 
 ### KROK 4 — Application: use-case'y auth + schemas Zod
+
+**Status:** `NIE_ROZPOCZĘTY`
 
 **Cel:** Zaimplementować use-case'y warstwy application: bootstrap-status, bootstrap-admin, login, logout, refresh, me.  
 Odwołanie: `SPEC-AUTH.md` A-1..A-4, A-3a; `docs/security.md`.
@@ -1000,11 +1002,11 @@ export class MeUseCase {
 - `MeUseCase` odświeża dane z DB (ochrona przed soft-deleted user z ważnym JWT)
 - Żaden use-case nie ujawnia `passwordHash` w odpowiedzi
 
-**Status:** `NIE_ROZPOCZĘTY`
-
 ---
 
 ### KROK 5 — AuthModule wiring, AuthController, guardy globalne, dekoratory
+
+**Status:** `NIE_ROZPOCZĘTY`
 
 **Cel:** Złożyć `AuthModule` z NestJS DI, zaimplementować `AuthController`, zdefiniować globalne guardy i dekoratory pomocnicze.  
 Odwołanie: `SPEC-AUTH.md` norma implementacji, `docs/security.md`.
@@ -1374,8 +1376,6 @@ export class MetricsController {
 - Wszystkie inne trasy API blokowane guardem do czasu FAZY 2 KROKU 3 (który dodaje guardi na runs/company-context)
 - `pnpm --filter api test` bez regresji
 
-**Status:** `NIE_ROZPOCZĘTY`
-
 ---
 
 ## FAZA 2 — Użytkownicy, soft-delete, zabezpieczenie API, `startedBy` ze sesji
@@ -1383,6 +1383,8 @@ export class MetricsController {
 > Odpowiada Krokowi 5.2 z major planu.
 
 ### KROK 1 — Application: CreateUser, ListUsers, SoftDeleteUser
+
+**Status:** `NIE_ROZPOCZĘTY`
 
 **Cel:** Zaimplementować use-case'y CRUD użytkowników (tylko `role = user`; soft-delete przez admin).  
 Odwołanie: `SPEC-AUTH.md` A-7, A-10; `docs/security.md` tabela uprawnień; `docs/dokumentacja_komunikacji.md` Users.
@@ -1517,11 +1519,11 @@ export class SoftDeleteUserUseCase {
 - `ListUsersUseCase` nie zwraca `passwordHash`
 - Brak importu Prisma w use-case'ach
 
-**Status:** `NIE_ROZPOCZĘTY`
-
 ---
 
 ### KROK 2 — UsersController + AuthModule.controllers update
+
+**Status:** `NIE_ROZPOCZĘTY`
 
 **Cel:** HTTP powierzchnia zarządzania użytkownikami — tylko dla admina. Dodanie `UsersController` do `AuthModule`.  
 Odwołanie: `docs/dokumentacja_komunikacji.md` Users; `SPEC-AUTH.md` A-7, A-10.
@@ -1616,11 +1618,11 @@ import { SoftDeleteUserUseCase } from './application/soft-delete-user.use-case';
 - `DELETE /api/v1/users/:id` → soft-delete; nieznany id → 404; `user` → 403
 - `JwtAuthGuard` global + `RolesGuard` global egzekwują reguły bez `@UseGuards` w kontrolerze
 
-**Status:** `NIE_ROZPOCZĘTY`
-
 ---
 
 ### KROK 3 — `@Public()` na trasach otwartych + weryfikacja guardów w runs/company-context
+
+**Status:** `NIE_ROZPOCZĘTY`
 
 **Cel:** Upewnić się, że wszystkie trasy nieautoryzowane mają `@Public()` i że `RunsController` oraz `CompanyContextController` poprawnie działają z globalnym guardem; PUT/PATCH company-context wymaga roli `admin`.  
 Odwołanie: `SPEC-AUTH.md` A-6; `docs/security.md` tabela uprawnień; `SPEC-RUNY.md` R-3a.
@@ -1684,11 +1686,11 @@ zamień na:
 - `GET /api/v1/runs`, `POST /api/v1/runs` itd. — wymagają ważnego `cc_access`; bez sesji → 401
 - `GET /api/v1/health` i `GET /metrics` — publiczne, bez sesji → 200
 
-**Status:** `NIE_ROZPOCZĘTY`
-
 ---
 
 ### KROK 4 — `startedBy` ze sesji: StartRunUseCase + RunsController
+
+**Status:** `NIE_ROZPOCZĘTY`
 
 **Cel:** Przekazać `userId` z uwierzytelnionej sesji do `StartRunUseCase`, by run miał inicjatora zamiast `null`.  
 Odwołanie: `SPEC-RUNY.md` R-3b; major Krok 5.2 DoD „nowe runy ze sesją mają `startedBy`".
@@ -1794,8 +1796,6 @@ zamień na:
 - `GET /api/v1/runs` → pozycje listy mają `startedBy: { id, email }`
 - TypeScript kompiluje się (sygnatura execute z opcjonalnym drugim parametrem)
 - Istniejące testy e2e D-4..D-22 nie psują się (test-helpers mogą wymagać drobnego update `startedByUserId` — bez regresji logiki)
-
-**Status:** `NIE_ROZPOCZĘTY`
 
 ---
 
