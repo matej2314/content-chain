@@ -1,7 +1,7 @@
 ---
-wersja: 13
+wersja: 14
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-04
+data_modyfikacji: 2026-09-05
 ---
 
 # SPEC — Runy / logi
@@ -69,7 +69,7 @@ R-3a. `GET /api/v1/runs` — lista **całej instancji** (nie tylko bieżącego u
 
 Zmiana względem wersji 1: wcześniej brak normy listingu kolekcji — obowiązkowe pod dashboard (`docs/ux_dashboard.md`).
 
-R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) **oraz** `conversationId`, `brief` (kształt zapisany: `SocialBrief` albo `ContentBrief` wg `taskType`), `userRating`, `outputEdited`, `reviewFinalizedAt`, wynik addytywny gdy jest (`ideas` / `content` / `reelIdeas` / `reelScript` / `pageOutline` / `pageDocument`), metadane HITL (`options` wg `taskType`).
+R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) **oraz** `conversationId`, `brief` (kształt zapisany: `SocialBrief` albo `ContentBrief` wg `taskType`), `userRating`, `outputEdited`, `reviewFinalizedAt`, wynik addytywny gdy jest (`ideas` / `content` / `contents` / `reelIdeas` / `reelScript` / `reelScripts` / `pageOutline` / `pageDocument`), metadane HITL (`options` wg `taskType`).
 
 R-3d. `POST /runs` — unia dyskryminowana (`taskType`): Social wymaga `platform` i **zakazuje** `contentKind`; Content wymaga `contentKind` i **zakazuje** `platform` (zapis kolumny `platform='web'`). **Kształt `brief` XOR:** Social → `SocialBrief` (`ideaCount?`; zakaz `angle` / `targetLength`); Content → `ContentBrief` (`angle?` / `targetLength?`; zakaz `ideaCount`). Pola: `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`. Walidacja Zod `discriminatedUnion` w application + `.strict()` na gałęzi briefu — przez wspólny `parseWithZod` z `apps/api/src/shared/parse-with-zod.ts` (refaktor względem wcześniejszej lokalizacji `runs/application/parse-with-zod.ts`). DTO HTTP może mieć sumę kluczy briefu; prawda = Zod. `taskType` spoza enumu → HTTP **400** `VALIDATION_FAILED` (composite **nie** wołany). Page + `brief.ideaCount` albo Social + `brief.angle` → **400** `VALIDATION_FAILED`.
 
@@ -83,16 +83,20 @@ R-3e. Composite `RunExecutorPort` (klej procesu, np. `run-dispatch.executor.ts`)
 
 R-3f. HITL `selectedIdeaIds` legalne dla `post_ideas_then_content`, `reel_ideas_then_scripts` i `page_outline_then_copy` (id z odpowiedniego `hitl.options`).
 
-- `page_outline_then_copy`: dokładnie `[outline.id]`; inaczej **400** `HITL_INVALID_SELECTION` (Runs, reader `getPageOutline` — bez importu `ContentModule`); status nie schodzi z `awaiting_hitl`.
-- `post_ideas_then_content` / `reel_ideas_then_scripts`: **`selectedIdeaIds.length === 1`** i id ∈ draftu / `hitl.options`; inaczej **400** `HITL_INVALID_SELECTION` (ten sam kod co Content); status zostaje `awaiting_hitl`.
+- `page_outline_then_copy`: dokładnie `[outline.id]`; inaczej **400** `HITL_INVALID_SELECTION` (Runs, reader `getPageOutline` — bez importu `ContentModule`); status nie schodzi z `awaiting_hitl`. **Bez zmian** względem v13.
+- `post_ideas_then_content` / `reel_ideas_then_scripts`: **`selectedIdeaIds.length >= 1`**, bez duplikatów, każdy id ∈ draftu / `hitl.options`; **nie** `length === 1`. Inaczej **400** `HITL_INVALID_SELECTION` (ten sam kod co Content); status zostaje `awaiting_hitl`. **2+ legalne**, gdy wszystkie ∈ options. Semantyka wyniku: każde id → osobny artefakt (`contents[]` / `reelScripts[]` + `sourceIdeaId`) — `SPEC-SOCIAL.md` S-6 / S-7b.
 
 `POST /runs` z `page_*` + `selectedIdeaIds` → **400** `VALIDATION_FAILED`.
 
 Zmiana względem wersji 9 / R-3f: „id z options” było dokumentacyjne; dla page brakowało 400 i zakazu selekcji na starcie (`SPEC-CONTENT.md` Ctn-5 od v3).
 
-Zmiana względem wersji 11 / R-3f: „Post/reel bez nowej walidacji id” — od tej wersji Social jak Content dla długości selekcji (1 id).
+Zmiana względem wersji 11 / R-3f: „Post/reel bez nowej walidacji id” — v13: Social jak Content dla długości selekcji (1 id).
 
-R-3g. Snapshot addytywny pól wyniku: `ideas[].cta?`, `content.characterCount`, `reelIdeas[].cta?`, `pageOutline.sections[].role?`. Reader nie null-crashuje przy braku klucza w starym wierszu DB. Kanon `characterCount` przy odczycie: jeśli brak w JSON → `characterCount = body.length` w mapperze wyniku.
+Zmiana względem wersji 13 / R-3f (nota v11: Social jak Content dla długości): **unieważnione** — Social = N→N (min. 1, unikalne, ⊆ options); Content Ctn-5 **bez** zmiany.
+
+R-3g. Snapshot addytywny pól wyniku: `ideas[].cta?`, `content.characterCount`, `contents[]` (kształt `SocialContent` + `sourceIdeaId`), `reelIdeas[].cta?`, `reelScripts[]` (kształt `ReelScript` + `sourceIdeaId`), `pageOutline.sections[].role?`. Reader nie null-crashuje przy braku klucza w starym wierszu DB. Kanon `characterCount` przy odczycie: jeśli brak w JSON → `characterCount = body.length` w mapperze wyniku (na skalarze i na każdej pozycji `contents[]`). Dwuetapowy Social po fazie 2: skalar `content` / `reelScript` = **`null`** (nie alias `contents[0]` / `reelScripts[0]`). Pusta tablica, gdy brak kanału / przed fazą 2.
+
+Zmiana względem wersji 13 / R-3g: enumeracja wyniku bez `contents` / `reelScripts`.
 
 Zmiana względem wersji 11: pola wyniku SM/outline bez addytywnych kluczy kontraktu.
 
@@ -214,7 +218,8 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Self-register grafów (`OnModuleInit` → rejestr) jako wymogu MVP.
 - Cichego no-op przy nieznanym `taskType` w composite (obowiązuje `UNKNOWN_TASK_TYPE` + `failed`).
 - Resume HITL `page_outline_then_copy` przy `selectedIdeaIds` innym niż `[outline.id]` (obowiązuje **400** `HITL_INVALID_SELECTION`; status zostaje `awaiting_hitl`).
-- Resume HITL Social dwuetapowy przy `selectedIdeaIds.length !== 1` lub id spoza draftu (obowiązuje **400** `HITL_INVALID_SELECTION`; status zostaje `awaiting_hitl`).
+- Resume HITL Social dwuetapowy przy `selectedIdeaIds` pustym, z duplikatami albo id spoza draftu / `hitl.options` (obowiązuje **400** `HITL_INVALID_SELECTION`; status zostaje `awaiting_hitl`). **2+ legalne** id ⊆ options **nie** jest błędem.
+- Aliasu `result.content` = `contents[0]` (ani `reelScript` = `reelScripts[0]`) na dwuetapowym Social po fazie 2 — skalar = `null`.
 - Przyjęcia `selectedIdeaIds` na `POST /runs` dla `page_*`.
 - Eksportu tokenu `RUN_EXECUTOR` z modułu Social **po to**, by Runs musiał ten moduł zaimportować.
 - `@Global()` na BC grafu albo na całym Runs jako ukrycia cyklu.
@@ -225,6 +230,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Mapowania JSON `Run.brief` przez `as` bez parse Zod wg `taskType` (R-3d1).
 
 Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz jednego `RunBrief` i `as` na JSON briefu (`docs/dokumentacja_komunikacji.md`).
+Zmiana względem wersji 13 / „Nie wolno”: zakaz `length !== 1` na Social zastąpiony zakazem pustej / duplikat / obcy id; dopisano zakaz aliasu skalar = `contents[0]`.
 
 ### Zatwierdzony stack (obszar)
 
@@ -259,8 +265,8 @@ Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz jednego `RunBrief` 
 - [ ] Brak cyklu Nest Runs ↔ Social / Content; worker dostaje composite executor z kleju.
 - [ ] `POST /runs` z `page_*` bez `platform` i z `contentKind` → 202; page + `platform: linkedin` → 400; `taskType` spoza enumu → 400.
 - [ ] HITL `page_outline_then_copy` z id ≠ `outline.id` → 400 `HITL_INVALID_SELECTION`; run zostaje `awaiting_hitl`.
-- [ ] HITL Social (`post_ideas_then_content` / `reel_ideas_then_scripts`) z 0 lub 2+ id → 400 `HITL_INVALID_SELECTION`; z 1 poprawnym id → content/script.
-- [ ] Snapshot: brak `characterCount` w starym JSON → mapper ustawia `body.length`; brak `cta` / `role` nie crashuje readera.
+- [ ] HITL Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): 0 id / duplikat / obcy id → 400 `HITL_INVALID_SELECTION`; K≥1 legalnych ⊆ options → K artefaktów (`contents[]` / `reelScripts[]`); 1 id → tablica długości 1. Page HITL bez zmian.
+- [ ] Snapshot: brak `characterCount` w starym JSON → mapper ustawia `body.length`; brak `cta` / `role` nie crashuje readera; dwuetapowy po fazie 2: `contents` / `reelScripts` + `sourceIdeaId`, skalar `content` / `reelScript` = `null`.
 
 ## Poza zakresem
 

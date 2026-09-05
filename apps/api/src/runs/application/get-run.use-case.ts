@@ -28,7 +28,9 @@ import type {
 import type {
   ReelIdea,
   ReelScript,
+  ReelScriptItem,
   SocialContent,
+  SocialContentItem,
   SocialIdea,
 } from '../../social/domain/social.types';
 
@@ -46,14 +48,37 @@ export interface GetRunOutput {
   result: {
     ideas: SocialIdea[];
     content: SocialContent | null;
+    contents: SocialContentItem[];
     reelIdeas: ReelIdea[];
     reelScript: ReelScript | null;
+    reelScripts: ReelScriptItem[];
     pageOutline: PageOutline | null;
     pageDocument: PageDocument | null;
   };
   hitl: {
     options: SocialIdea[] | ReelIdea[] | PageOutline[];
   } | null;
+}
+
+function orderItemsBySelectedIds<T extends { sourceIdeaId: string }>(
+  items: T[],
+  selectedIdeaIds: string[] | null,
+): T[] {
+  if (selectedIdeaIds == null || selectedIdeaIds.length === 0) {
+    return items;
+  }
+  const bySourceId = new Map<string, T>();
+  for (const item of items) {
+    bySourceId.set(item.sourceIdeaId, item);
+  }
+  const ordered: T[] = [];
+  for (const id of selectedIdeaIds) {
+    const item = bySourceId.get(id);
+    if (item !== undefined) {
+      ordered.push(item);
+    }
+  }
+  return ordered;
 }
 
 @Injectable()
@@ -70,15 +95,28 @@ export class GetRunUseCase {
       throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
     }
 
-    const [ideas, reelIdeas, stored, storedReel, outline, storedPage] =
-      await Promise.all([
-        this.results.listIdeas(run.id),
-        this.results.listReelIdeas(run.id),
-        this.results.getContent(run.id),
-        this.results.getReelScript(run.id),
-        this.results.getPageOutline(run.id),
-        this.results.getPageDocument(run.id),
-      ]);
+    const [
+      ideas,
+      reelIdeas,
+      stored,
+      storedReel,
+      outline,
+      storedPage,
+      listedContents,
+      listedReelScripts,
+    ] = await Promise.all([
+      this.results.listIdeas(run.id),
+      this.results.listReelIdeas(run.id),
+      this.results.getContent(run.id),
+      this.results.getReelScript(run.id),
+      this.results.getPageOutline(run.id),
+      this.results.getPageDocument(run.id),
+      this.results.listContents(run.id),
+      this.results.listReelScripts(run.id),
+    ]);
+
+    const thenContent = run.taskType === 'post_ideas_then_content';
+    const thenScripts = run.taskType === 'reel_ideas_then_scripts';
 
     const hitlOptions =
       run.taskType === 'reel_ideas_then_scripts'
@@ -103,9 +141,15 @@ export class GetRunUseCase {
       startedBy: run.startedBy,
       result: {
         ideas,
-        content: stored?.content ?? null,
+        content: thenContent ? null : (stored?.content ?? null),
+        contents: thenContent
+          ? orderItemsBySelectedIds(listedContents, run.selectedIdeaIds)
+          : [],
         reelIdeas,
-        reelScript: storedReel?.script ?? null,
+        reelScript: thenScripts ? null : (storedReel?.script ?? null),
+        reelScripts: thenScripts
+          ? orderItemsBySelectedIds(listedReelScripts, run.selectedIdeaIds)
+          : [],
         pageOutline: outline,
         pageDocument: storedPage?.document ?? null,
       },

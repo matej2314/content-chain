@@ -1,7 +1,7 @@
 ---
-wersja: 10
+wersja: 11
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-04
+data_modyfikacji: 2026-09-05
 ---
 
 # SPEC — Frontend
@@ -52,8 +52,8 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 
 - First-run (bootstrap), Logowanie;
 - Kontekst firmy (sekcje bramki + opcjonalne **extras**), Runy (lista instancji + filtry + paginacja 10; select `taskType` obejmuje rolki i page_*; `contentKind` gdy page_*; platforma ukryta/disabled gdy page_*), Run szczegóły (live) po kliknięciu wiersza — widok wyniku **post vs rolka vs strona**;
-- HITL Social: **single-select** (nie multi); Content: akceptacja outline’u;
-- Wynik: pokaż `characterCount` na post content; `cta` na pomysłach gdy jest; etykieta `role` przy sekcji outline gdy ustawione;
+- HITL Social: **multi-select** (min. 1 unikalne id ⊆ `hitl.options`; np. checkboxy / chipy); Content: akceptacja outline’u (**bez** zmian — `[outline.id]`);
+- Wynik: dwuetapowy Social — **lista** postów (`contents[]`) / scenariuszy (`reelScripts[]`) z `sourceIdeaId`, nie jeden blok; jednoetapowy: skalar `content` / `reelScript`; pokaż `characterCount` na każdej pozycji post content; `cta` na pomysłach gdy jest; etykieta `role` przy sekcji outline gdy ustawione;
 - Użytkownicy (admin: **tylko** lista + tworzenie);
 - Konto (**tylko** logout);
 - Globalny CTA **„Zostaw opinię”** + formularz (aplikacja / agent / run); na szczegółach runu: **Edytuj** (flaga), **gwiazdki 1–5** (dobrowolne, `null` gdy brak), **Zamknij / zapisz przegląd**.
@@ -61,6 +61,7 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 Zmiana względem wersji 3: dopisano kontrolki **zapisu** feedbacku (`docs/ux_dashboard.md`). Panel administracyjny odczytu opinii / analityka = **V1 — rozbudowa**, nie ten SPEC.
 Zmiana względem wersji 7: zakaz logiki pipeline w FE obejmuje Social **i** Content (wcześniej sformułowanie „pipeline SM”).
 Zmiana względem wersji 9 / F-8: single-select HITL SM, formularz extras, pola wyniku `characterCount` / `cta` / `role`.
+Zmiana względem wersji 10 / F-8 (nota v9: single-select): od tej wersji HITL Social = **multi-select** (min. 1); widok wyniku dwuetapowego = lista, nie jeden blok. Content: akceptacja outline bez zmian. Implementacja UI **nie** w Fazie 4.3 kodu api — norma FE spójna z `docs/ux_dashboard.md`.
 
 F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. Select agentów = enum z shared (labelki PL). Ocena i Edytuj tylko gdy snapshot mówi, że sesja jest `startedBy` i przegląd niezamknięty.
 
@@ -112,6 +113,8 @@ apps/frontend/src/
 - UI soft-delete / edycji użytkowników w MVP (tylko lista + create).
 - Panelu administracyjnego opinii / analityki ocen w MVP (V1 — rozbudowa).
 - Nadpisywania wyniku SM w api z FE poza flagą `outputEdited` w MVP.
+- Prezentowania wyniku dwuetapowego Social jako jednego bloku copy (obowiązuje lista `contents[]` / `reelScripts[]`).
+- Wymuszania single-select HITL Social (norma: multi-select, min. 1).
 
 ### Zatwierdzony stack (obszar)
 
@@ -135,6 +138,7 @@ apps/frontend/src/
 - [ ] Kod FE podzielony na `app/` + `modules/`; typy z shared.
 - [ ] Brak sekretów LLM w bundlu klienta.
 - [ ] CTA opinii + formularz zapisuje `POST /feedback`; gwiazdki/Edytuj/finalize wołają kontrakt Runs; select runów z `/runs/user/:userId`.
+- [ ] HITL Social: multi-select (min. 1); widok wyniku dwuetapowego = lista postów / scenariuszy (`contents[]` / `reelScripts[]`); Content: akceptacja outline.
 
 ## Poza zakresem
 

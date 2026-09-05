@@ -32,14 +32,18 @@ export function createRefineOutlineNode(
     const outline: PageOutline = {
       id: state.outline?.id ?? `outl_${uuidv4()}`,
       title: data.title,
-      sections: data.sections.map((section, index) => ({
-        id:
-          section.id ??
-          state.outline?.sections[index]?.id ??
-          `osec_${uuidv4()}`,
-        heading: section.heading,
-        summary: section.summary,
-      })),
+      sections: data.sections.map((section, index) => {
+        const role = section.role ?? state.outline?.sections[index]?.role;
+        return {
+          id:
+            section.id ??
+            state.outline?.sections[index]?.id ??
+            `osec_${uuidv4()}`,
+          heading: section.heading,
+          summary: section.summary,
+          ...(role !== undefined ? { role } : {}),
+        };
+      }),
     };
     const outlineRefineCount = nextRefineCount(state.outlineRefineCount);
     await store.savePipelineState(state.runId, {

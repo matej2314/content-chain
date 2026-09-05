@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a4d8c2e1-6f0b-4c9a-8e17-3b5d91f0c2aa",
     "name": "Content Chain — Content pipeline (Milestone 4.2)",
-    "description": "Happy path Milestone 4.2: Setup kontekstu przez HTTP, potem page_copy (A) i page_outline_then_copy (B).\n\nFoldery: Setup → A. page_copy → B. page_outline_then_copy. Body page bez platform i bez ideaCount; contentKind: blog.\n\nWymaga żywego `apps/api` (`:3001`) i lokalnego gateway. Auth nie jest wymagany (Faza 5 później). Kolekcja nie woła gateway — klient uderza wyłącznie w api.\n\nNie jest to suite `pnpm test:e2e`. Jak odpalić: `apps/api/test/postman/README.md`.",
+    "description": "Happy path Milestone 4.2 + kontrakt 4.3: Setup kontekstu przez HTTP (znane extras + PATCH unknown → 400), potem page_copy (A) i page_outline_then_copy (B). Outline: opcjonalne `sections[].role` z zamkniętego enumu; HITL nadal `[outline.id]`.\n\nFoldery: Setup → A. page_copy → B. page_outline_then_copy. Body page bez platform i bez ideaCount; contentKind: blog.\n\nWymaga żywego `apps/api` (`:3001`) i lokalnego gateway. Auth nie jest wymagany (Faza 5 później). Kolekcja nie woła gateway — klient uderza wyłącznie w api.\n\nNie jest to suite `pnpm test:e2e`. Jak odpalić: `apps/api/test/postman/README.md`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -55,7 +55,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"identity\": {\n    \"name\": \"Acme\",\n    \"description\": \"Acme pomaga founderom B2B SaaS ogarnąć chaos operacyjny, zanim skala sprzedaży rozjedzie się z delivery. Od 2019 robimy audyty procesów w zespołach 8–40 osób w Polsce i CEE — bez wdrożenia w cenie, z listą usprawnień do samodzielnego pociągnięcia.\"\n  },\n  \"offer\": {\n    \"items\": [\n      {\n        \"name\": \"Audyt procesów operacyjnych\",\n        \"benefit\": [\n          \"Średnio 6 godzin tygodniowo odzyskane u klientów po wdrożeniu rekomendacji\",\n          \"Mapa wąskich gardeł w 10 dni roboczych\",\n          \"Jedna lista priorytetów zamiast dwudziestu równoległych inicjatyw\"\n        ],\n        \"description\": \"Wywiady z founderem i 3–5 osobami z ops/CS/product, mapa as-is, lista usprawnień z szacunkiem wysiłku. Bez implementacji w cenie audytu.\"\n      },\n      {\n        \"name\": \"Sesja priorytetyzacji Q+1\",\n        \"benefit\": [\n          \"Trzy tematy na kolejny kwartał, reszta świadomie odłożona\"\n        ],\n        \"description\": \"Południowa jednodniówka po audycie: wybór trzech tematów na najbliższy kwartał i właścicieli. Opcja, nie pakiet obowiązkowy.\"\n      }\n    ]\n  },\n  \"voice\": {\n    \"weDo\": \"konkret, liczby z audytu, język founderski, krótkie zdania, bez slajdowego entuzjazmu\",\n    \"weDont\": \"żargon, puste obietnice wzrostu MRR, porównywanie z konkurencją, korpo-ogólniki w stylu synergia i transformacja\"\n  },\n  \"cta\": {\n    \"items\": [\n      { \"label\": \"Napisz do nas\", \"target\": \"/kontakt\" },\n      { \"label\": \"Umów 20 minut na wstępny zakres audytu\", \"target\": \"/kontakt\" }\n    ]\n  },\n  \"audience\": {\n    \"profiles\": [\n      {\n        \"description\": \"Founder SaaS B2B, zespół 8–40 osób, po seedzie lub serii A. Sprzedaż idzie, a onboarding, CS i handoff między product a ops się sypią. Szuka przeglądu procesów, nie kolejnego narzędzia.\"\n      }\n    ]\n  },\n  \"extras\": {\n    \"hashtags\": [\"#acme\", \"#saasops\", \"#founders\"],\n    \"proof\": \"Klienci po audycie najczęściej tną tygodniowy chaos spotkań i ręcznych handoffów; typowy trop to 6 godzin odzyskane tygodniowo, nie skok MRR.\"\n  }\n}\n"
+              "raw": "{\n  \"identity\": {\n    \"name\": \"Acme\",\n    \"description\": \"Acme pomaga founderom B2B SaaS ogarnąć chaos operacyjny, zanim skala sprzedaży rozjedzie się z delivery. Od 2019 robimy audyty procesów w zespołach 8–40 osób w Polsce i CEE — bez wdrożenia w cenie, z listą usprawnień do samodzielnego pociągnięcia.\"\n  },\n  \"offer\": {\n    \"items\": [\n      {\n        \"name\": \"Audyt procesów operacyjnych\",\n        \"benefit\": [\n          \"Średnio 6 godzin tygodniowo odzyskane u klientów po wdrożeniu rekomendacji\",\n          \"Mapa wąskich gardeł w 10 dni roboczych\",\n          \"Jedna lista priorytetów zamiast dwudziestu równoległych inicjatyw\"\n        ],\n        \"description\": \"Wywiady z founderem i 3–5 osobami z ops/CS/product, mapa as-is, lista usprawnień z szacunkiem wysiłku. Bez implementacji w cenie audytu.\"\n      },\n      {\n        \"name\": \"Sesja priorytetyzacji Q+1\",\n        \"benefit\": [\n          \"Trzy tematy na kolejny kwartał, reszta świadomie odłożona\"\n        ],\n        \"description\": \"Południowa jednodniówka po audycie: wybór trzech tematów na najbliższy kwartał i właścicieli. Opcja, nie pakiet obowiązkowy.\"\n      }\n    ]\n  },\n  \"voice\": {\n    \"weDo\": \"konkret, liczby z audytu, język founderski, krótkie zdania, bez slajdowego entuzjazmu\",\n    \"weDont\": \"żargon, puste obietnice wzrostu MRR, porównywanie z konkurencją, korpo-ogólniki w stylu synergia i transformacja\"\n  },\n  \"cta\": {\n    \"items\": [\n      { \"label\": \"Napisz do nas\", \"target\": \"/kontakt\" },\n      { \"label\": \"Umów 20 minut na wstępny zakres audytu\", \"target\": \"/kontakt\" }\n    ]\n  },\n  \"audience\": {\n    \"profiles\": [\n      {\n        \"description\": \"Founder SaaS B2B, zespół 8–40 osób, po seedzie lub serii A. Sprzedaż idzie, a onboarding, CS i handoff między product a ops się sypią. Szuka przeglądu procesów, nie kolejnego narzędzia.\"\n      }\n    ]\n  },\n  \"extras\": {\n    \"hashtags\": [\"#acme\", \"#saasops\", \"#founders\"],\n    \"performanceNotes\": \"Klienci po audycie najczęściej tną tygodniowy chaos spotkań i ręcznych handoffów; typowy trop to 6 godzin odzyskane tygodniowo, nie skok MRR.\"\n  }\n}\n"
             },
             "url": "{{baseUrl}}/company-context",
             "description": "Żywy fixture pod happy path Postmana (nadal przykładowe Acme). PUT jest upsertem singletona; ponowne odpalenie nie wymaga wipe tabeli. Po zmianie body zrób PUT zanim odpalisz page_copy."
@@ -88,6 +88,48 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/company-context/completeness"
+          }
+        },
+        {
+          "name": "PATCH extras unknown key (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('VALIDATION_FAILED', function () {",
+                  "  pm.expect(body.code).to.eql('VALIDATION_FAILED');",
+                  "});",
+                  "pm.test('details[].path uses dotted Zod paths', function () {",
+                  "  pm.expect(body.details).to.be.an('array').that.is.not.empty;",
+                  "  body.details.forEach(function (detail) {",
+                  "    pm.expect(detail.path).to.be.a('string');",
+                  "    pm.expect(detail.path).to.not.include('/');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"extras\": { \"hashtags\": [\"#x\"], \"unknownBag\": true }\n}\n"
+            },
+            "url": "{{baseUrl}}/company-context",
+            "description": "D-20: nieznany klucz w extras → 400. Completeness i wcześniej zapisany PUT pozostają nietknięte."
           }
         }
       ]
@@ -384,6 +426,16 @@
                   "  const outlineId = fromHitl || fromResult;",
                   "  pm.expect(outlineId).to.be.a('string').that.is.not.empty;",
                   "  pm.collectionVariables.set('ideaId', outlineId);",
+                  "});",
+                  "pm.test('optional section role is a known enum when present', function () {",
+                  "  const outline = body.result.pageOutline;",
+                  "  if (!outline || !Array.isArray(outline.sections)) return;",
+                  "  const roles = ['audience_world', 'pain', 'challenger', 'insight', 'proof', 'objection', 'cta', 'other'];",
+                  "  outline.sections.forEach(function (section) {",
+                  "    if (section.role != null) {",
+                  "      pm.expect(roles).to.include(section.role);",
+                  "    }",
+                  "  });",
                   "});",
                   "pm.collectionVariables.set('pollCountHitl', '0');"
                 ]

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "7c2e1f4a-9b3d-4e8f-a1c5-6d0e9f2b8a47",
     "name": "Content Chain — Social pipeline (Milestone 4)",
-    "description": "Happy path Milestone 4 + 4.1: Setup kontekstu przez HTTP, potem posty (A/B) i rolki (C `reel_ideas`, D `reel_ideas_then_scripts`).\n\nFoldery: Setup → A. post_ideas → B. post_ideas_then_content → C. reel_ideas → D. reel_ideas_then_scripts. Dowód rolek: Milestone 4.1.\n\nWymaga żywego `apps/api` (`:3001`) i lokalnego gateway. Auth nie jest wymagany (Faza 5 później). Kolekcja nie woła gateway — klient uderza wyłącznie w api.\n\nNie jest to suite `pnpm test:e2e`. Jak odpalić: `apps/api/test/postman/README.md`.",
+    "description": "Happy path Milestone 4 + 4.1 + kontrakt 4.3: Setup kontekstu przez HTTP (znane extras + PATCH unknown → 400), potem posty (A/B) i rolki (C `reel_ideas`, D `reel_ideas_then_scripts`). HITL B/D: negatywy 0/duplikat/obcy oraz 1 legalne id → `contents[]` / `reelScripts[]` (skalar then_* = null).\n\nFoldery: Setup → A. post_ideas → B. post_ideas_then_content → C. reel_ideas → D. reel_ideas_then_scripts.\n\nWymaga żywego `apps/api` (`:3001`) i lokalnego gateway. Auth nie jest wymagany (Faza 5 później). Kolekcja nie woła gateway — klient uderza wyłącznie w api.\n\nNie jest to suite `pnpm test:e2e`. Jak odpalić: `apps/api/test/postman/README.md`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -55,7 +55,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"identity\": {\n    \"name\": \"Acme\",\n    \"description\": \"Acme pomaga founderom B2B SaaS ogarnąć chaos operacyjny, zanim skala sprzedaży rozjedzie się z delivery. Od 2019 robimy audyty procesów w zespołach 8–40 osób w Polsce i CEE — bez wdrożenia w cenie, z listą usprawnień do samodzielnego pociągnięcia.\"\n  },\n  \"offer\": {\n    \"items\": [\n      {\n        \"name\": \"Audyt procesów operacyjnych\",\n        \"benefit\": [\n          \"Średnio 6 godzin tygodniowo odzyskane u klientów po wdrożeniu rekomendacji\",\n          \"Mapa wąskich gardeł w 10 dni roboczych\",\n          \"Jedna lista priorytetów zamiast dwudziestu równoległych inicjatyw\"\n        ],\n        \"description\": \"Wywiady z founderem i 3–5 osobami z ops/CS/product, mapa as-is, lista usprawnień z szacunkiem wysiłku. Bez implementacji w cenie audytu.\"\n      },\n      {\n        \"name\": \"Sesja priorytetyzacji Q+1\",\n        \"benefit\": [\n          \"Trzy tematy na kolejny kwartał, reszta świadomie odłożona\"\n        ],\n        \"description\": \"Południowa jednodniówka po audycie: wybór trzech tematów na najbliższy kwartał i właścicieli. Opcja, nie pakiet obowiązkowy.\"\n      }\n    ]\n  },\n  \"voice\": {\n    \"weDo\": \"konkret, liczby z audytu, język founderski, krótkie zdania, bez slajdowego entuzjazmu\",\n    \"weDont\": \"żargon, puste obietnice wzrostu MRR, porównywanie z konkurencją, korpo-ogólniki w stylu synergia i transformacja\"\n  },\n  \"cta\": {\n    \"items\": [\n      { \"label\": \"Napisz do nas\", \"target\": \"/kontakt\" },\n      { \"label\": \"Umów 20 minut na wstępny zakres audytu\", \"target\": \"/kontakt\" }\n    ]\n  },\n  \"audience\": {\n    \"profiles\": [\n      {\n        \"description\": \"Founder SaaS B2B, zespół 8–40 osób, po seedzie lub serii A. Sprzedaż idzie, a onboarding, CS i handoff między product a ops się sypią. Szuka przeglądu procesów, nie kolejnego narzędzia.\"\n      }\n    ]\n  },\n  \"extras\": {\n    \"hashtags\": [\"#acme\", \"#saasops\", \"#founders\"],\n    \"proof\": \"Klienci po audycie najczęściej tną tygodniowy chaos spotkań i ręcznych handoffów; typowy trop to 6 godzin odzyskane tygodniowo, nie skok MRR.\"\n  }\n}\n"
+              "raw": "{\n  \"identity\": {\n    \"name\": \"Acme\",\n    \"description\": \"Acme pomaga founderom B2B SaaS ogarnąć chaos operacyjny, zanim skala sprzedaży rozjedzie się z delivery. Od 2019 robimy audyty procesów w zespołach 8–40 osób w Polsce i CEE — bez wdrożenia w cenie, z listą usprawnień do samodzielnego pociągnięcia.\"\n  },\n  \"offer\": {\n    \"items\": [\n      {\n        \"name\": \"Audyt procesów operacyjnych\",\n        \"benefit\": [\n          \"Średnio 6 godzin tygodniowo odzyskane u klientów po wdrożeniu rekomendacji\",\n          \"Mapa wąskich gardeł w 10 dni roboczych\",\n          \"Jedna lista priorytetów zamiast dwudziestu równoległych inicjatyw\"\n        ],\n        \"description\": \"Wywiady z founderem i 3–5 osobami z ops/CS/product, mapa as-is, lista usprawnień z szacunkiem wysiłku. Bez implementacji w cenie audytu.\"\n      },\n      {\n        \"name\": \"Sesja priorytetyzacji Q+1\",\n        \"benefit\": [\n          \"Trzy tematy na kolejny kwartał, reszta świadomie odłożona\"\n        ],\n        \"description\": \"Południowa jednodniówka po audycie: wybór trzech tematów na najbliższy kwartał i właścicieli. Opcja, nie pakiet obowiązkowy.\"\n      }\n    ]\n  },\n  \"voice\": {\n    \"weDo\": \"konkret, liczby z audytu, język founderski, krótkie zdania, bez slajdowego entuzjazmu\",\n    \"weDont\": \"żargon, puste obietnice wzrostu MRR, porównywanie z konkurencją, korpo-ogólniki w stylu synergia i transformacja\"\n  },\n  \"cta\": {\n    \"items\": [\n      { \"label\": \"Napisz do nas\", \"target\": \"/kontakt\" },\n      { \"label\": \"Umów 20 minut na wstępny zakres audytu\", \"target\": \"/kontakt\" }\n    ]\n  },\n  \"audience\": {\n    \"profiles\": [\n      {\n        \"description\": \"Founder SaaS B2B, zespół 8–40 osób, po seedzie lub serii A. Sprzedaż idzie, a onboarding, CS i handoff między product a ops się sypią. Szuka przeglądu procesów, nie kolejnego narzędzia.\"\n      }\n    ]\n  },\n  \"extras\": {\n    \"hashtags\": [\"#acme\", \"#saasops\", \"#founders\"],\n    \"performanceNotes\": \"Klienci po audycie najczęściej tną tygodniowy chaos spotkań i ręcznych handoffów; typowy trop to 6 godzin odzyskane tygodniowo, nie skok MRR.\"\n  }\n}\n"
             },
             "url": "{{baseUrl}}/company-context",
             "description": "Żywy fixture pod happy path Postmana (nadal przykładowe Acme). Bogatszy niż `completeContextBody` w e2e Jest — ma liczby i fakty, z których Ideation może korzystać bez zmyślania. PUT jest upsertem singletona; ponowne odpalenie nie wymaga wipe tabeli. Po zmianie body zrób PUT zanim odpalisz `post_ideas`."
@@ -88,6 +88,48 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/company-context/completeness"
+          }
+        },
+        {
+          "name": "PATCH extras unknown key (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('VALIDATION_FAILED', function () {",
+                  "  pm.expect(body.code).to.eql('VALIDATION_FAILED');",
+                  "});",
+                  "pm.test('details[].path uses dotted Zod paths', function () {",
+                  "  pm.expect(body.details).to.be.an('array').that.is.not.empty;",
+                  "  body.details.forEach(function (detail) {",
+                  "    pm.expect(detail.path).to.be.a('string');",
+                  "    pm.expect(detail.path).to.not.include('/');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"extras\": { \"hashtags\": [\"#x\"], \"unknownBag\": true }\n}\n"
+            },
+            "url": "{{baseUrl}}/company-context",
+            "description": "D-20: nieznany klucz w extras → 400. Completeness i wcześniej zapisany PUT pozostają nietknięte."
           }
         }
       ]
@@ -263,7 +305,7 @@
     },
     {
       "name": "B. post_ideas_then_content",
-      "description": "`POST /runs` → poll aż `awaiting_hitl` → `result.ideas[0].id` → `POST .../hitl` → poll aż `completed` + `result.content.body`.",
+      "description": "`POST /runs` → poll aż `awaiting_hitl` → `result.ideas[0].id` → negatywy HITL (0 / duplikat / obcy → 400 `HITL_INVALID_SELECTION`) → `POST .../hitl` 1 legalne id → poll aż `completed`: `result.content === null`, `result.contents.length === 1`, `sourceIdeaId`, `characterCount === body.length`. Dwa legalne id → dwa artefakty: Jest e2e (D-21), nie ten folder.",
       "item": [
         {
           "name": "POST runs (post_ideas_then_content)",
@@ -390,6 +432,130 @@
           }
         },
         {
+          "name": "POST hitl empty (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('HITL_INVALID_SELECTION', function () {",
+                  "  pm.expect(pm.response.json().code).to.eql('HITL_INVALID_SELECTION');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedIdeaIds\": []\n}\n"
+            },
+            "url": "{{baseUrl}}/runs/{{runId}}/hitl",
+            "description": "D-21: puste selectedIdeaIds nie jest VALIDATION_FAILED — kod HITL_INVALID_SELECTION, status runu zostaje awaiting_hitl."
+          }
+        },
+        {
+          "name": "POST hitl duplicate (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('HITL_INVALID_SELECTION', function () {",
+                  "  pm.expect(pm.response.json().code).to.eql('HITL_INVALID_SELECTION');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedIdeaIds\": [\"{{ideaId}}\", \"{{ideaId}}\"]\n}\n"
+            },
+            "url": "{{baseUrl}}/runs/{{runId}}/hitl"
+          }
+        },
+        {
+          "name": "POST hitl foreign id (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('HITL_INVALID_SELECTION', function () {",
+                  "  pm.expect(pm.response.json().code).to.eql('HITL_INVALID_SELECTION');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedIdeaIds\": [\"not-in-draft\"]\n}\n"
+            },
+            "url": "{{baseUrl}}/runs/{{runId}}/hitl"
+          }
+        },
+        {
+          "name": "GET run still awaiting_hitl after negatives (B)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('still awaiting_hitl', function () {",
+                  "  pm.expect(pm.response.json().status).to.eql('awaiting_hitl');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{runId}}"
+          }
+        },
+        {
           "name": "POST hitl",
           "event": [
             {
@@ -482,10 +648,13 @@
                   "  return;",
                   "}",
                   "",
-                  "pm.test('result.content.body is non-empty', function () {",
+                  "pm.test('result.content is null and contents[0] has body + characterCount', function () {",
                   "  pm.expect(body.result).to.be.an('object');",
-                  "  pm.expect(body.result.content).to.be.an('object');",
-                  "  pm.expect(body.result.content.body).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(body.result.content).to.eql(null);",
+                  "  pm.expect(body.result.contents).to.be.an('array').that.has.lengthOf(1);",
+                  "  pm.expect(body.result.contents[0].body).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(body.result.contents[0].sourceIdeaId).to.eql(pm.collectionVariables.get('ideaId'));",
+                  "  pm.expect(body.result.contents[0].characterCount).to.eql(body.result.contents[0].body.length);",
                   "});",
                   "pm.collectionVariables.set('pollCountB', '0');"
                 ]
@@ -674,7 +843,7 @@
     },
     {
       "name": "D. reel_ideas_then_scripts",
-      "description": "`POST /runs` → poll aż `awaiting_hitl` → `result.reelIdeas[0].id` (nie `result.ideas`) → `POST .../hitl` → poll aż `completed` + niepuste `result.reelScript.segments`.",
+      "description": "`POST /runs` → poll aż `awaiting_hitl` → `result.reelIdeas[0].id` (nie `result.ideas`) → negatywy HITL (0 / duplikat / obcy → 400) → `POST .../hitl` 1 legalne id → poll aż `completed`: `result.reelScript === null`, `result.reelScripts.length === 1`, `sourceIdeaId`. Dwa legalne id → dwa skrypty: Jest e2e (D-16 / D-21).",
       "item": [
         {
           "name": "POST runs (reel_ideas_then_scripts)",
@@ -805,6 +974,129 @@
           }
         },
         {
+          "name": "POST hitl empty (400) (D)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('HITL_INVALID_SELECTION', function () {",
+                  "  pm.expect(pm.response.json().code).to.eql('HITL_INVALID_SELECTION');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedIdeaIds\": []\n}\n"
+            },
+            "url": "{{baseUrl}}/runs/{{runId}}/hitl"
+          }
+        },
+        {
+          "name": "POST hitl duplicate (400) (D)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('HITL_INVALID_SELECTION', function () {",
+                  "  pm.expect(pm.response.json().code).to.eql('HITL_INVALID_SELECTION');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedIdeaIds\": [\"{{ideaId}}\", \"{{ideaId}}\"]\n}\n"
+            },
+            "url": "{{baseUrl}}/runs/{{runId}}/hitl"
+          }
+        },
+        {
+          "name": "POST hitl foreign id (400) (D)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('HITL_INVALID_SELECTION', function () {",
+                  "  pm.expect(pm.response.json().code).to.eql('HITL_INVALID_SELECTION');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedIdeaIds\": [\"not-in-draft\"]\n}\n"
+            },
+            "url": "{{baseUrl}}/runs/{{runId}}/hitl"
+          }
+        },
+        {
+          "name": "GET run still awaiting_hitl after negatives (D)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('still awaiting_hitl', function () {",
+                  "  pm.expect(pm.response.json().status).to.eql('awaiting_hitl');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{runId}}"
+          }
+        },
+        {
           "name": "POST hitl (D)",
           "event": [
             {
@@ -897,10 +1189,12 @@
                   "  return;",
                   "}",
                   "",
-                  "pm.test('result.reelScript.segments is non-empty', function () {",
+                  "pm.test('result.reelScript is null and reelScripts[0] has segments + sourceIdeaId', function () {",
                   "  pm.expect(body.result).to.be.an('object');",
-                  "  pm.expect(body.result.reelScript).to.be.an('object');",
-                  "  pm.expect(body.result.reelScript.segments).to.be.an('array').that.is.not.empty;",
+                  "  pm.expect(body.result.reelScript).to.eql(null);",
+                  "  pm.expect(body.result.reelScripts).to.be.an('array').that.has.lengthOf(1);",
+                  "  pm.expect(body.result.reelScripts[0].sourceIdeaId).to.eql(pm.collectionVariables.get('ideaId'));",
+                  "  pm.expect(body.result.reelScripts[0].segments).to.be.an('array').that.is.not.empty;",
                   "});",
                   "pm.collectionVariables.set('pollCountD', '0');"
                 ]

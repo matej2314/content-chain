@@ -19,7 +19,12 @@ const SAMPLE_OUTLINE: PageOutline = {
   id: 'outl_1',
   title: 'Audyt w 10 dni',
   sections: [
-    { id: 'osec_1', heading: 'Problem', summary: 'Chaos ops po seedzie.' },
+    {
+      id: 'osec_1',
+      heading: 'Problem',
+      summary: 'Chaos ops po seedzie.',
+      role: 'pain',
+    },
   ],
 };
 

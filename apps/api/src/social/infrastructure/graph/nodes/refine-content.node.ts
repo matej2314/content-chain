@@ -37,6 +37,9 @@ export function createRefineContentNode(hop: LlmHopService) {
         segments: data.segments,
         cta: data.cta,
         ...(data.notes !== undefined ? { notes: data.notes } : {}),
+        ...(state.reelScript?.sourceIdeaId !== undefined
+          ? { sourceIdeaId: state.reelScript.sourceIdeaId }
+          : {}),
       };
       return {
         reelScript,
@@ -59,6 +62,9 @@ export function createRefineContentNode(hop: LlmHopService) {
       hashtags: data.hashtags,
       ...(data.cta !== undefined ? { cta: data.cta } : {}),
       characterCount: data.body.length,
+      ...(state.content?.sourceIdeaId !== undefined
+        ? { sourceIdeaId: state.content.sourceIdeaId }
+        : {}),
     };
 
     return {

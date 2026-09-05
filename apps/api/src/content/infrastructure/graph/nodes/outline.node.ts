@@ -29,6 +29,7 @@ export function createOutlineNode(hop: LlmHopService) {
         id: section.id ?? `osec_${uuidv4()}`,
         heading: section.heading,
         summary: section.summary,
+        ...(section.role !== undefined ? { role: section.role } : {}),
       })),
     };
     return { outline };

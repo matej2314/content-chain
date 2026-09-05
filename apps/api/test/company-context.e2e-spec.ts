@@ -181,6 +181,56 @@ describe('Company context (e2e)', () => {
     expect(response.body.code).toBe('VALIDATION_FAILED');
     expect(Array.isArray(response.body.details)).toBe(true);
     expect(response.body.details.length).toBeGreaterThan(0);
+    for (const detail of response.body.details as Array<{
+      path: unknown;
+      message: unknown;
+    }>) {
+      expect(typeof detail.path).toBe('string');
+      expect(typeof detail.message).toBe('string');
+      expect(detail.path).not.toMatch(/\//);
+    }
+    expectNoFileFallback(response.body);
+  });
+
+  it('PUT unknown key inside extras.caseStudies → 400 with dotted path', async () => {
+    const response = await request(app.getHttpServer())
+      .put('/api/v1/company-context')
+      .send({
+        ...completeBody,
+        extras: {
+          caseStudies: [{ title: 'A', summary: 'B', extra: 1 }],
+        },
+      })
+      .expect(400);
+
+    expect(response.body.code).toBe('VALIDATION_FAILED');
+    const details = response.body.details as Array<{
+      path: string;
+      message: string;
+    }>;
+    expect(details.some((detail) => detail.path === 'caseStudies.0')).toBe(
+      true,
+    );
+    expectNoFileFallback(response.body);
+  });
+
+  it('PATCH unknown key in extras → 400 VALIDATION_FAILED', async () => {
+    await request(app.getHttpServer())
+      .put('/api/v1/company-context')
+      .send(completeBody)
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .patch('/api/v1/company-context')
+      .send({ extras: { hashtags: ['#x'], unknownBag: true } })
+      .expect(400);
+
+    expect(response.body.code).toBe('VALIDATION_FAILED');
+    const details = response.body.details as Array<{ path: string }>;
+    expect(details.length).toBeGreaterThan(0);
+    expect(details.every((detail) => typeof detail.path === 'string')).toBe(
+      true,
+    );
     expectNoFileFallback(response.body);
   });
 });

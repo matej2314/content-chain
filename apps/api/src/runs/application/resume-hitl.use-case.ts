@@ -52,6 +52,26 @@ export class ResumeHitlUseCase {
           400,
         );
       }
+    } else if (
+      run.taskType === 'post_ideas_then_content' ||
+      run.taskType === 'reel_ideas_then_scripts'
+    ) {
+      const draftIds =
+        run.taskType === 'reel_ideas_then_scripts'
+          ? (await this.results.listReelIdeas(run.id)).map((idea) => idea.id)
+          : (await this.results.listIdeas(run.id)).map((idea) => idea.id);
+      const unique = new Set(parsedSelectedIdeaIds);
+      const valid =
+        parsedSelectedIdeaIds.length >= 1 &&
+        unique.size === parsedSelectedIdeaIds.length &&
+        parsedSelectedIdeaIds.every((id) => draftIds.includes(id));
+      if (!valid) {
+        throw new DomainException(
+          'HITL_INVALID_SELECTION',
+          'selectedIdeaIds must be a non-empty unique subset of hitl draft',
+          400,
+        );
+      }
     }
     await this.runs.saveSelectedIdeaIds(parsedRunId, parsedSelectedIdeaIds);
     const running = await this.lifeCycle.transition(run, 'running');

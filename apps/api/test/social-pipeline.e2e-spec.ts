@@ -2,7 +2,7 @@ import { execFileSync } from 'child_process';
 import { join } from 'path';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import request from 'supertest';
+import request, { type Response } from 'supertest';
 import { AppModule } from '../src/app.module';
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
@@ -41,13 +41,18 @@ type SocialIdeaBody = {
   title: string;
   angle: string;
   hook: string;
+  cta?: string;
 };
 
 type SocialContentBody = {
   body: string;
   hashtags: string[];
   cta?: string;
+  characterCount: number;
+  sourceIdeaId?: string;
 };
+
+type SocialContentItemBody = SocialContentBody & { sourceIdeaId: string };
 
 type ReelIdeaBody = {
   id: string;
@@ -55,6 +60,7 @@ type ReelIdeaBody = {
   description: string;
   hook: string;
   durationSeconds: 15 | 30 | 90;
+  cta?: string;
 };
 
 type ReelScriptBody = {
@@ -66,7 +72,10 @@ type ReelScriptBody = {
   }>;
   cta: string;
   notes?: string;
+  sourceIdeaId?: string;
 };
+
+type ReelScriptItemBody = ReelScriptBody & { sourceIdeaId: string };
 
 type RunSnapshotBody = {
   runId: string;
@@ -76,8 +85,10 @@ type RunSnapshotBody = {
   result: {
     ideas: SocialIdeaBody[];
     content: SocialContentBody | null;
+    contents: SocialContentItemBody[];
     reelIdeas: ReelIdeaBody[];
     reelScript: ReelScriptBody | null;
+    reelScripts: ReelScriptItemBody[];
   };
   hitl: { options: SocialIdeaBody[] | ReelIdeaBody[] } | null;
 };
@@ -198,6 +209,39 @@ function assertNoGatewaySecret(serialized: string): void {
   }
 }
 
+function assertCharacterCountMatchesBody(
+  items: Array<{ body: string; characterCount: number }>,
+): void {
+  for (const item of items) {
+    expect(item.characterCount).toBe(item.body.length);
+  }
+}
+
+async function postHitl(
+  app: INestApplication,
+  runId: string,
+  selectedIdeaIds: string[],
+): Promise<Response> {
+  return request(app.getHttpServer())
+    .post(`/api/v1/runs/${runId}/hitl`)
+    .send({ selectedIdeaIds });
+}
+
+async function expectHitlInvalidSelection(
+  app: INestApplication,
+  runId: string,
+  selectedIdeaIds: string[],
+): Promise<void> {
+  const response = await postHitl(app, runId, selectedIdeaIds);
+  expect(response.status).toBe(400);
+  expect(response.body).toMatchObject({ code: 'HITL_INVALID_SELECTION' });
+
+  const stillPaused = await request(app.getHttpServer())
+    .get(`/api/v1/runs/${runId}`)
+    .expect(200);
+  expect((stillPaused.body as RunSnapshotBody).status).toBe('awaiting_hitl');
+}
+
 describe('Social pipeline (e2e, fake LLM)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -301,11 +345,17 @@ describe('Social pipeline (e2e, fake LLM)', () => {
 
       const done = await waitForRunStatus(app, created.runId, 'completed');
       expect(done.hitl).toBeNull();
-      expect(done.result.content).toEqual({
-        body: 'Gotowy post.',
-        hashtags: ['#acme'],
-        cta: 'Napisz do nas',
-      });
+      expect(done.result.content).toBeNull();
+      expect(done.result.contents).toEqual([
+        {
+          body: 'Gotowy post.',
+          hashtags: ['#acme'],
+          cta: 'Napisz do nas',
+          characterCount: 'Gotowy post.'.length,
+          sourceIdeaId: 'idea_1',
+        },
+      ]);
+      assertCharacterCountMatchesBody(done.result.contents);
       expect(
         await prisma.socialContent.count({ where: { runId: created.runId } }),
       ).toBe(1);
@@ -322,6 +372,66 @@ describe('Social pipeline (e2e, fake LLM)', () => {
         .expect(409);
 
       expect(response.body.code).toBe('HITL_REQUIRED');
+    });
+  });
+
+  describe('D-21 HITL Social K z N (post)', () => {
+    async function pauseThenContent(): Promise<string> {
+      useScript([ideasJson({ cta: 'Napisz do nas' }), verifierOk()]);
+      const created = await postRun(app, 'post_ideas_then_content');
+      const paused = await waitForRunStatus(
+        app,
+        created.runId,
+        'awaiting_hitl',
+      );
+      expect(paused.result.ideas.map((idea) => idea.id)).toEqual([
+        'idea_1',
+        'idea_2',
+      ]);
+      expect(paused.result.ideas[0]?.cta).toBe('Napisz do nas');
+      return created.runId;
+    }
+
+    it('rejects empty selectedIdeaIds with 400 HITL_INVALID_SELECTION', async () => {
+      const runId = await pauseThenContent();
+      await expectHitlInvalidSelection(app, runId, []);
+    });
+
+    it('rejects duplicate ids with 400 HITL_INVALID_SELECTION', async () => {
+      const runId = await pauseThenContent();
+      await expectHitlInvalidSelection(app, runId, ['idea_1', 'idea_1']);
+    });
+
+    it('rejects an id outside the draft with 400 HITL_INVALID_SELECTION', async () => {
+      const runId = await pauseThenContent();
+      await expectHitlInvalidSelection(app, runId, ['not-in-draft']);
+    });
+
+    it('writes two contents for two legal ids, ordered by HITL, with characterCount', async () => {
+      const runId = await pauseThenContent();
+      useScript([
+        contentJson({ body: 'Post idea_1.' }),
+        verifierOk(),
+        contentJson({ body: 'Post idea_2.' }),
+        verifierOk(),
+      ]);
+
+      const resume = await postHitl(app, runId, ['idea_1', 'idea_2']);
+      expect(resume.status).toBe(202);
+      expect(resume.body).toEqual({ runId, status: 'running' });
+
+      const done = await waitForRunStatus(app, runId, 'completed');
+      expect(done.result.content).toBeNull();
+      expect(done.result.contents).toHaveLength(2);
+      expect(done.result.contents[0]?.sourceIdeaId).toBe('idea_1');
+      expect(done.result.contents[1]?.sourceIdeaId).toBe('idea_2');
+      expect(done.result.contents[0]?.body).toBe('Post idea_1.');
+      expect(done.result.contents[1]?.body).toBe('Post idea_2.');
+      assertCharacterCountMatchesBody(done.result.contents);
+      expect(
+        await prisma.socialContent.count({ where: { runId } }),
+      ).toBe(2);
+      expect(fakeLlm.calls.length).toBeGreaterThanOrEqual(6);
     });
   });
 
@@ -481,7 +591,10 @@ describe('Social pipeline (e2e, fake LLM)', () => {
 
       const done = await waitForRunStatus(app, created.runId, 'completed');
       expect(done.hitl).toBeNull();
-      expect(done.result.reelScript?.segments).toEqual([
+      expect(done.result.reelScript).toBeNull();
+      expect(done.result.reelScripts).toHaveLength(1);
+      expect(done.result.reelScripts[0]?.sourceIdeaId).toBe('idea_1');
+      expect(done.result.reelScripts[0]?.segments).toEqual([
         {
           startSeconds: 0,
           endSeconds: 15,
@@ -489,12 +602,70 @@ describe('Social pipeline (e2e, fake LLM)', () => {
           voiceover: 'jedno zdanie problemu.',
         },
       ]);
-      expect(done.result.reelScript?.cta).toBe('Napisz do nas');
+      expect(done.result.reelScripts[0]?.cta).toBe('Napisz do nas');
       expect(
         await prisma.socialReelScript.count({
           where: { runId: created.runId },
         }),
       ).toBe(1);
+    });
+  });
+
+  describe('D-21 HITL Social K z N (reel)', () => {
+    async function pauseThenScripts(): Promise<string> {
+      useScript([reelIdeasJson({ cta: 'Napisz do nas' }), verifierOk()]);
+      const created = await postRun(app, 'reel_ideas_then_scripts');
+      const paused = await waitForRunStatus(
+        app,
+        created.runId,
+        'awaiting_hitl',
+      );
+      expect(paused.result.reelIdeas.map((idea) => idea.id)).toEqual([
+        'idea_1',
+        'idea_2',
+      ]);
+      expect(paused.result.reelIdeas[0]?.cta).toBe('Napisz do nas');
+      return created.runId;
+    }
+
+    it('rejects empty selectedIdeaIds with 400 HITL_INVALID_SELECTION', async () => {
+      const runId = await pauseThenScripts();
+      await expectHitlInvalidSelection(app, runId, []);
+    });
+
+    it('rejects duplicate ids with 400 HITL_INVALID_SELECTION', async () => {
+      const runId = await pauseThenScripts();
+      await expectHitlInvalidSelection(app, runId, ['idea_1', 'idea_1']);
+    });
+
+    it('rejects an id outside the draft with 400 HITL_INVALID_SELECTION', async () => {
+      const runId = await pauseThenScripts();
+      await expectHitlInvalidSelection(app, runId, ['not-in-draft']);
+    });
+
+    it('writes two reelScripts for two legal ids, ordered by HITL', async () => {
+      const runId = await pauseThenScripts();
+      useScript([
+        reelScriptJson({ onScreen: 'hook 1' }),
+        verifierOk(),
+        reelScriptJson({ onScreen: 'hook 2' }),
+        verifierOk(),
+      ]);
+
+      const resume = await postHitl(app, runId, ['idea_1', 'idea_2']);
+      expect(resume.status).toBe(202);
+      expect(resume.body).toEqual({ runId, status: 'running' });
+
+      const done = await waitForRunStatus(app, runId, 'completed');
+      expect(done.result.reelScript).toBeNull();
+      expect(done.result.reelScripts).toHaveLength(2);
+      expect(done.result.reelScripts[0]?.sourceIdeaId).toBe('idea_1');
+      expect(done.result.reelScripts[1]?.sourceIdeaId).toBe('idea_2');
+      expect(done.result.reelScripts[0]?.segments[0]?.onScreen).toBe('hook 1');
+      expect(done.result.reelScripts[1]?.segments[0]?.onScreen).toBe('hook 2');
+      expect(
+        await prisma.socialReelScript.count({ where: { runId } }),
+      ).toBe(2);
     });
   });
 

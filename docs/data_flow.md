@@ -104,22 +104,25 @@ flowchart TB
   VerI -->|ok| Draft[PersistIdeasDraft]
   Draft --> Hitl[status awaiting_hitl + SSE run.hitl]
   Hitl --> User[POST .../hitl selectedIdeaIds]
-  User --> Write[ContentWriterAgent]
+  User --> Map[Map per wybrane id]
+  Map --> Write[ContentWriterAgent]
   Write --> VerC[ConsistencyVerifier content]
   VerC -->|fail i n less than max N| RefC[RefineContent]
   RefC --> VerC
   VerC -->|fail i n equals max N| FailC[status failed + SSE]
-  VerC -->|ok| Pers[PersistContent]
-  Pers --> Done[completed + SSE]
+  VerC -->|ok| Pers[PersistContent pozycji]
+  Pers --> Next{Kolejne wybrane id?}
+  Next -->|tak| Map
+  Next -->|nie| Done[completed + SSE]
 ```
 
 Zmiana względem: wcześniejszy mermaid skracał pętlę do `VerI -->|fail refine max 2| Idea` oraz `VerC -->|fail refine max 2| Write` (powrót do generatora, bez węzła Refine*). Teraz jak §3 i graf: Refine* → ten sam ConsistencyVerifier.
 
 HITL nie woła LLM; nowe `RequestId` pojawia się w odpowiedzi HTTP `.../hitl`. Po resume kolejne hopy LLM nadal z tym samym `ConversationId`.
 
-Kanon selekcji (MVP): **`selectedIdeaIds.length === 1`** i id z draftu / `hitl.options` — jeden wybrany pomysł → jeden `content`. Inaczej **400** `HITL_INVALID_SELECTION`; status zostaje `awaiting_hitl`.
+Kanon selekcji (MVP): **`selectedIdeaIds.length >= 1`**, unikalne, ⊆ draftu / `hitl.options`. Każde wybrane id → osobny hop writer → verifier → persist **pozycji** (N wierszy `SocialContent`, nie jeden zlepiony `content`). Kolejność tablicy wyniku = kolejność `selectedIdeaIds`. Inaczej **400** `HITL_INVALID_SELECTION`; status zostaje `awaiting_hitl`. Błąd writer/verifier/refine **jednej** pozycji → run `failed` (brak `completed` z dziurami). `resolvePhase`: niepuste `selectedIdeaIds` → `'content'`.
 
-Zmiana względem: multi-select bez walidacji długości (Milestone 4).
+Zmiana względem: `selectedIdeaIds.length === 1` i jeden `content` (kanon Fazy 4.3).
 
 ---
 
@@ -144,11 +147,14 @@ Jak §4, z polami rolek:
 ```text
 invoke A (reel ideas + verifier + persist) → awaiting_hitl
   hitl.options = reelIdeas (nie post-ideas)
-POST .../hitl  { selectedIdeaIds }   # dokładnie 1 id z reelIdeas
-invoke B (phase 'content' = scenariusz + verifier + persist) → completed | failed
+POST .../hitl  { selectedIdeaIds }   # min. 1 unikalne id ⊆ reelIdeas
+invoke B (phase 'content' = map wybranych id:
+  writer → verifier → persist pozycji scenariusza) → completed | failed
 ```
 
-`resolvePhase`: `reel_ideas_then_scripts` + niepuste `selectedIdeaIds` → `'content'`. `storedPhase` z DB zostaje pierwszym fallbackiem. Semantyka jak §4: jeden wybrany pomysł → jeden scenariusz; ≠1 id → **400** `HITL_INVALID_SELECTION`.
+`resolvePhase`: `reel_ideas_then_scripts` + niepuste `selectedIdeaIds` → `'content'`. `storedPhase` z DB zostaje pierwszym fallbackiem. Semantyka jak §4: min. 1 ⊆ options; każde id → osobny `ReelScript` (`result.reelScripts[]` + `sourceIdeaId`); 0 / duplikat / obcy id → **400** `HITL_INVALID_SELECTION`.
+
+Zmiana względem: „dokładnie 1 id z reelIdeas” / jeden scenariusz (kanon Fazy 4.3).
 
 ---
 
@@ -173,7 +179,7 @@ Verifier: ten sam wzorzec `max N=2` (fakty firmy + język). Recovery `interrupte
 
 HITL model B: outline w tabeli `ContentOutline`; po HITL faza `'copy'`. `pipelinePhase` na `Run`: `'outline'` \| `'copy'` (wartość `'copy'` / `'outline'` tylko `page_*`). Wejście startu: **`ContentBrief`** + `contentKind` (jak §4d).
 
-Kanon payloadu HITL (MVP): `hitl.options` = tablica z **jednym** elementem (cały `pageOutline`); `selectedIdeaIds` = dokładnie `[outline.id]`. Id sekcji (`osec_…`) **nie** są legalnym wyborem. Niezgodność → **400** `HITL_INVALID_SELECTION`; status zostaje `awaiting_hitl`. `POST /runs` dla `page_*` **nie** przyjmuje `selectedIdeaIds` (selekcja tylko na HITL — inaczej dałoby się pominąć fazę outline).
+Kanon payloadu HITL (MVP): `hitl.options` = tablica z **jednym** elementem (cały `pageOutline`); `selectedIdeaIds` = dokładnie `[outline.id]`. Id sekcji (`osec_…`) **nie** są legalnym wyborem. Niezgodność → **400** `HITL_INVALID_SELECTION`; status zostaje `awaiting_hitl`. `POST /runs` dla `page_*` **nie** przyjmuje `selectedIdeaIds` (selekcja tylko na HITL — inaczej dałoby się pominąć fazę outline). Social dwuetapowy **nie** jest izomorficzny z Content co do długości selekcji (Social: K≥1 z N; Content: nadal dokładnie `[outline.id]`).
 
 Zmiana względem: wcześniejszy zapis dopuszczał „id sekcji/wariantu **albo** id całego outline’u”. Obowiązuje wyłącznie id całego outline’u, z walidacją.
 

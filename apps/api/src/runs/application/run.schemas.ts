@@ -57,7 +57,8 @@ export const startRunCommandSchema = z.discriminatedUnion('taskType', [
   pageStartRunSchema,
 ]);
 
-export const hitlSelectedIdeaIdsSchema = z.array(z.string()).min(1);
+/** Długość, unikalność i członkostwo egzekwuje ResumeHitlUseCase → HITL_INVALID_SELECTION. */
+export const hitlSelectedIdeaIdsSchema = z.array(z.string());
 
 export type ParsedRunId = z.infer<typeof runIdSchema>;
 export type ParsedSocialBrief = z.infer<typeof socialBriefSchema>;

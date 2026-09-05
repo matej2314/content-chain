@@ -76,6 +76,20 @@ function fakeStore(
     replaceContent: jest
       .fn()
       .mockRejectedValue(new Error('unexpected replaceContent')),
+    clearContents: jest
+      .fn()
+      .mockRejectedValue(new Error('unexpected clearContents')),
+    appendContent: jest
+      .fn()
+      .mockRejectedValue(new Error('unexpected appendContent')),
+    listContents: jest.fn().mockResolvedValue([]),
+    clearReelScripts: jest
+      .fn()
+      .mockRejectedValue(new Error('unexpected clearReelScripts')),
+    appendReelScript: jest
+      .fn()
+      .mockRejectedValue(new Error('unexpected appendReelScript')),
+    listReelScripts: jest.fn().mockResolvedValue([]),
     getContent: jest.fn().mockRejectedValue(new Error('unexpected getContent')),
     getReelScript: jest
       .fn()

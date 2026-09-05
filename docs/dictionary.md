@@ -12,7 +12,9 @@ Zmiana względem poprzedniego zbioru `RunStatus` (pięć wartości, recovery jak
 
 Zmiana względem jednego „Brief SM” na cały `POST /runs`: kanon to **`SocialBrief`** vs **`ContentBrief`**; `Run.brief` to JSON unii, nie jeden obiekt z `ideaCount` dla `page_*`.
 
-Zmiana względem luźnej listy „poza bramką”: kanon **`CompanyContextExtras`** (typowane `extras`); HITL Social dwuetapowy = dokładnie 1 id; addytywne pola wyniku SM (`cta?`, `characterCount`) i opcjonalne `role` na sekcji outline.
+Zmiana względem luźnej listy „poza bramką”: kanon **`CompanyContextExtras`** (typowane `extras`); addytywne pola wyniku SM (`cta?`, `characterCount`) i opcjonalne `role` na sekcji outline.
+
+Zmiana względem kanonu Fazy 4.3 (HITL Social dwuetapowy = dokładnie 1 `selectedIdeaId`; HITL SM = 1 id w kontrakcie MVP): Social = podzbiór draftu, min. 1 unikalne id, N→N (`contents[]` / `reelScripts[]` + `sourceIdeaId`). Content bez zmiany: `[outline.id]`.
 
 ---
 
@@ -27,9 +29,9 @@ Zmiana względem luźnej listy „poza bramką”: kanon **`CompanyContextExtras
 | **Sekcje bramki** | Tożsamość, oferta (≥1 usługa + korzyść), głos SM, CTA/kanały, odbiorca — patrz docs koncepcyjne. |
 | **`CompanyContextExtras`** | Opcjonalny obiekt `extras` kontekstu firmy **poza bramką**: `caseStudies?`, `objections?`, `hashtags?`, `catalogNotes?`, `performanceNotes?`. Walidacja kształtu (Zod `.strict()`); **nie** wchodzi do `missing` / `isComplete`. Brak danych = `null` / omit całego `extras` (preferowane względem pustych tablic). |
 | **Post ideas** | Lista pomysłów na posty SM (`result.ideas`; `SocialIdea`: `id`, `title`, `angle`, `hook`, **`cta?`** — sugerowane CTA). |
-| **Post content** | Gotowe copy posta (`result.content`; `SocialContent`: `body`, `hashtags`, `cta?`, **`characterCount`** — integer ≥ 0; kanon: pipeline ustawia z `body.length` po sukcesie writer/refine; wartość z LLM ignorowana / nadpisywana). |
+| **Post content** | Gotowe copy posta (`SocialContent`: `body`, `hashtags`, `cta?`, **`characterCount`** — integer ≥ 0; kanon: pipeline ustawia z `body.length` po sukcesie writer/refine; wartość z LLM ignorowana / nadpisywana). Jednoetapowy `post_content`: skalar `result.content`. Dwuetapowy `post_ideas_then_content` po fazie 2: kanon **`result.contents[]`** (długość = `selectedIdeaIds.length`; każdy element = kształt `SocialContent` + **`sourceIdeaId`**); skalar `result.content` = **`null`** (nie alias pierwszego). |
 | **Reel ideas** | Lista pomysłów na rolki (`result.reelIdeas`; `ReelIdea`: `id`, `title`, `description`, `hook`, `durationSeconds`, **`cta?`**). |
-| **Reel script** | Scenariusz rolki (`result.reelScript`; `ReelScript`: `segments`, `cta`, `notes?`). **Nie** jest `SocialContent`. |
+| **Reel script** | Scenariusz rolki (`ReelScript`: `segments`, `cta`, `notes?`). **Nie** jest `SocialContent`. Jednoetapowy `reel_script`: skalar `result.reelScript`. Dwuetapowy `reel_ideas_then_scripts` po fazie 2: kanon **`result.reelScripts[]`** (analogicznie + **`sourceIdeaId`**); skalar `result.reelScript` = **`null`**. |
 | **Page outline** | Szkic dokumentu strony (`result.pageOutline`) — faza HITL tasku `page_outline_then_copy`. Sekcja (`PageOutlineSection`): `id`, `heading`, `summary`, opcjonalnie **`role?`** (`audience_world` \| `pain` \| `challenger` \| `insight` \| `proof` \| `objection` \| `cta` \| `other`). |
 | **Page document** | Pełny dokument copy strony/artykułu (`result.pageDocument`). |
 | **Content (BC)** | Bounded context generowania copy stron / long-form (`page_copy`, `page_outline_then_copy`). **Nie** mylić z nazwą produktu Content Chain. |
@@ -39,13 +41,13 @@ Zmiana względem luźnej listy „poza bramką”: kanon **`CompanyContextExtras
 | **`Run.brief`** | Kolumna JSON na agregacie Run: **unia** `SocialBrief` \| `ContentBrief` rozróżniana `taskType` (nie jeden kształt SM). Jeden byt runtime; dwa kontrakty TypeScript / Zod. |
 | **Brief SM** | Potocznie = **`SocialBrief`** + platforma + język na starcie runu Social. Zmiana względem: wcześniejsze hasło mieszało platformę/język z polami briefu i sugerowało jeden brief na wszystkie `taskType`. |
 | **Weryfikacja spójności** | Krok pipeline’u sprawdzający treść względem kontekstu firmy przed uznaniem wyniku. W MVP = węzeł `ConsistencyVerifier` (także język). |
-| **HITL** | Human-in-the-loop: pauza runu na wybór z listy, gdy kolejny krok zależy od selekcji (task dwuetapowy). W MVP: **HITL model B**. Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): **dokładnie jeden** `selectedIdeaId` ∈ draftu / `hitl.options`; inaczej **400** `HITL_INVALID_SELECTION`. Content: jak wcześniej — `[outline.id]`. Zmiana względem: Social bez walidacji długości selekcji (multi bez semantyki wyniku). |
+| **HITL** | Human-in-the-loop: pauza runu na wybór z listy, gdy kolejny krok zależy od selekcji (task dwuetapowy). W MVP: **HITL model B**. Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): podzbiór draftu / `hitl.options` — **min. 1** unikalne id (bez duplikatów, każde ∈ options); semantyka **N→N** (każde id → osobny artefakt w `contents[]` / `reelScripts[]`). 0 id / duplikat / id spoza draftu → **400** `HITL_INVALID_SELECTION` (bez zapisu, status zostaje `awaiting_hitl`). Content: jak wcześniej — `[outline.id]`. Zmiana względem: „dokładnie jeden `selectedIdeaId`” (kanon Fazy 4.3). |
 | **HITL model B** | Faza ideas kończy **invoke** grafu; stan pauzy (draft, `conversationId`, metadane fazy) kanonicznie w **DB**; `POST .../hitl` startuje **nowy invoke** fazy content. Zakaz checkpoinetera LangGraph jako store pauzy w MVP. Zmiana względem: wcześniejsze hasło HITL bez modelu persistence. |
 | **Full-auto** | Wykonanie tasku jednoetapowego bez wymuszonej pauzy selekcji. |
 | **Self-host** | Uruchomienie we własnej infrastrukturze operatora; licencja MIT. |
 | **First-run** | Stan pustej instancji: `GET /api/v1/auth/bootstrap-status` → `available: true` → jednorazowy `POST .../bootstrap-admin`. Potem endpoint bootstrap trwale niedostępny. |
 | **Agenci aktywni** | Sygnał UX: bramka `complete === true` (można startować runy produktowe: Social i Content). **Nie** oznacza „run w toku” (`running` / `awaiting_hitl` / `interrupted`). Odwrotnie: agenci nieaktywni / zablokowani = kontekst niekompletny. |
-| **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, gateway, **SQLite**, logi, SSE, fundament feedbacku, **Social (posty i rolki)** oraz **Content (BC) w podstawowej formie**; w kontrakcie slice’u także typowane `extras`, HITL SM = 1 id, pola wyniku SM (`cta?`, `characterCount`) oraz opcjonalne `role` outline — **nie** kolejne workflowy. |
+| **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, gateway, **SQLite**, logi, SSE, fundament feedbacku, **Social (posty i rolki)** oraz **Content (BC) w podstawowej formie**; w kontrakcie slice’u także typowane `extras`, HITL Social dwuetapowy (min. 1 unikalne id ⊆ draftu, N→N), pola wyniku SM (`cta?`, `characterCount`, `contents[]` / `reelScripts[]`, `sourceIdeaId`) oraz opcjonalne `role` outline — **nie** kolejne workflowy. Zmiana względem: „HITL SM = 1 id” jako kanon slice’u. |
 | **V1 — rozbudowa** | Faza **po MVP**: cutover persistence na **PostgreSQL** + panel odczytu opinii + publikacja na portalach SM + łańcuch audytorów Content + YouTube. **Nie** oznacza „kolejne workflowy / rolki / blog” (te kanały są w MVP). Nie mylić z prefiksem HTTP `/api/v1`. SQLite pozostaje silnikiem MVP **także** po dodaniu Content. |
 
 ## Role i tenancy
@@ -69,7 +71,7 @@ Zmiana względem luźnej listy „poza bramką”: kanon **`CompanyContextExtras
 | **Moduł Nest** | Jednostka DI (`@Module`). Import w **jedną** stronę jest legalny (Social → kernel lifecycle). Pętla `forwardRef` między BC grafu a Runs — zakaz (`architektura.md`, `anty_patterny.md`). |
 | **Port lifecycle runu** | Port Runs: `appendLog` + `transition`. Wołają go węzły/fasada grafu. Token w `runs/domain/`; **nie** w `packages/shared`. |
 | **Port `RunExecutor`** | Port Runs: `execute(run)`. W MVP: **composite** w kleju procesu — `taskType` Social → `SocialRunExecutor`; `taskType` Content → `ContentRunExecutor`; nieznany → `failed` z kodem `UNKNOWN_TASK_TYPE`. Binding tokenu = klej procesu, nie import grafu z `RunsModule`. |
-| **Port `RunResultReader`** | Port odczytu wyniku runu (snapshot GET). W MVP: **composite** w kleju — składa **addytywny** snapshot: `ideas` / `content` (posty), `reelIdeas` / `reelScript` (rolki), `pageOutline` / `pageDocument` (Content). Brak kanału = pusta tablica / `null` (nie null-crash). Binding jak executora — composition root, nie import grafu z `RunsModule`. |
+| **Port `RunResultReader`** | Port odczytu wyniku runu (snapshot GET). W MVP: **composite** w kleju — składa **addytywny** snapshot: `ideas` / `content` / **`contents`** (posty), `reelIdeas` / `reelScript` / **`reelScripts`** (rolki), `pageOutline` / `pageDocument` (Content). Brak kanału = pusta tablica / `null` (nie null-crash). Binding jak executora — composition root, nie import grafu z `RunsModule`. |
 | **Klej procesu (composition root)** | Spięcie tokenów Nest przy starcie `apps/api` (`AppModule` / `registerAsync`). **Nie** bounded context i **nie** `health/` / `llm/`. |
 | **Feedback (BC)** | Bounded context zapisu opinii tekstowych (`application` \| `agent` \| `run`). Bez LangGraph; panel odczytu = **V1 — rozbudowa**. **Nie** ocena gwiazdkowa, flaga edycji ani finalize (to Runs). |
 | **LangGraph / graf** | Orchestracja pipeline’u za fasadą application service (nie w controllerze). MVP: osobny graf Social i osobny graf Content; **zakaz** fat Social (strony w `social/`). |
@@ -169,6 +171,7 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 | `CONTEXT_INCOMPLETE` | Bramka kontekstu niespełniona — start runu zablokowany. |
 | `UNKNOWN_TASK_TYPE` | Composite executor dostał `taskType` poza unią Social \| Content (log + status `failed`; nie cichy no-op). HTTP spoza enumu → `VALIDATION_FAILED` (400), composite nie jest wołany. |
 | `HITL_REQUIRED` | Konflikt względem oczekiwanego stanu HITL. |
+| `HITL_INVALID_SELECTION` | Selekcja HITL niezgodna z kanonem (Content ≠ `[outline.id]`; Social dwuetapowy: długość `< 1`, duplikaty, albo id spoza draftu / `hitl.options`). |
 | `NOT_FOUND` | Nieznana ścieżka HTTP / zasób na poziomie routera (np. goły HTTP 404). **Nie** mylić z `RUN_NOT_FOUND`. |
 | `RUN_NOT_FOUND` | Nieznany `RunId` (wyłącznie z `DomainException` w BC Runs). |
 | `REVIEW_LOCKED` | Przegląd runu już zatwierdzony — zmiana oceny / flagi edycji niedozwolona. |

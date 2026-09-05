@@ -8,7 +8,9 @@ import type { SocialResultStore } from '../../social/domain/social-result.port';
 import type {
   ReelIdea,
   ReelScript,
+  ReelScriptItem,
   SocialContent,
+  SocialContentItem,
   SocialIdea,
   VerifierVerdict,
 } from '../../social/domain/social.types';
@@ -25,10 +27,14 @@ export class CompositeRunResultReader implements RunResultReader {
   }
 
   getContent(runId: RunId): Promise<{
-    content: SocialContent | null;
+    content: SocialContent;
     verification: VerifierVerdict | null;
   } | null> {
     return this.social.getContent(runId);
+  }
+
+  listContents(runId: RunId): Promise<SocialContentItem[]> {
+    return this.social.listContents(runId);
   }
 
   listReelIdeas(runId: RunId): Promise<ReelIdea[]> {
@@ -36,10 +42,14 @@ export class CompositeRunResultReader implements RunResultReader {
   }
 
   getReelScript(runId: RunId): Promise<{
-    script: ReelScript | null;
+    script: ReelScript;
     verification: VerifierVerdict | null;
   } | null> {
     return this.social.getReelScript(runId);
+  }
+
+  listReelScripts(runId: RunId): Promise<ReelScriptItem[]> {
+    return this.social.listReelScripts(runId);
   }
 
   getPageOutline(runId: RunId): Promise<PageOutline | null> {

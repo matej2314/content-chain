@@ -16,6 +16,33 @@ describe('parseLlmJson (content schemas)', () => {
       heading: 'Problem',
       summary: 'Chaos ops po seedzie.',
     });
+    expect(out.sections[0]?.role).toBeUndefined();
+  });
+
+  it('parses an outline section with a known role', () => {
+    const out = parseLlmJson(
+      pageOutlineOutputSchema,
+      '{"title":"Audyt w 10 dni","sections":[{"heading":"Problem","summary":"Chaos ops po seedzie.","role":"pain"}]}',
+    );
+    expect(out.sections[0]).toEqual({
+      heading: 'Problem',
+      summary: 'Chaos ops po seedzie.',
+      role: 'pain',
+    });
+  });
+
+  it('rejects an unknown section role', () => {
+    expect(() =>
+      parseLlmJson(
+        pageOutlineOutputSchema,
+        '{"title":"T","sections":[{"heading":"H","summary":"S","role":"intro"}]}',
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        name: 'DomainException',
+        code: 'STRUCTURED_OUTPUT_INVALID',
+      }),
+    );
   });
 
   it('parses a page document without optional meta', () => {

@@ -61,8 +61,8 @@ Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATE
 - Authz: `user` nie zapisze kontekstu; `admin` tak; obaj mogą startować run (przy kompletności).
 - Cookie auth: chronione trasy bez sesji → `UNAUTHORIZED`.
 - `post_ideas` full-auto: queued→running→completed; logi + wynik w DB.
-- `post_ideas_then_content`: `awaiting_hitl` → resume → content → completed.
-- `reel_ideas` full-auto (D-15); `reel_ideas_then_scripts` HITL (D-16).
+- `post_ideas_then_content`: `awaiting_hitl` → resume → `contents[]` → completed. Dwuetapowy Social: case **2 z N** (pozytyw) oraz **0 / obcy / duplikat** (negatyw 400 `HITL_INVALID_SELECTION`) — D-21 w `spec/SPEC-TESTY.md`.
+- `reel_ideas` full-auto (D-15); `reel_ideas_then_scripts` HITL (D-16) — analogicznie 2 z N / negatywy selekcji.
 - `page_copy` full-auto (D-17); `page_outline_then_copy` HITL (D-18).
 - Orkiestracja: `taskType` spoza enumu HTTP → `400` `VALIDATION_FAILED`; nieznany typ wewnętrzny composite → `failed` / `UNKNOWN_TASK_TYPE` (D-19).
 - Verifier + refine: sukces po poprawce; fail po `max N=2`.

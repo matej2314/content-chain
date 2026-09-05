@@ -77,8 +77,8 @@ Wejście: z listy Runy SM (klik) lub bezpośredni deep-link po `runId`.
 | **Nagłówek / meta** | Te same podstawowe pola co wiersz listy + ewent. `conversationId` (ops light) |
 | **Status live** | Subskrypcja SSE `.../events`; zmiana statusu **natychmiast**; prezentacja **animowana / atrakcyjna** (np. pulsacja / progress przy `running`, wyraźny stan `awaiting_hitl`, **czytelny przestój `interrupted`** — nie ta sama pulsacja co `running`, sukces/fail) — nie tylko szary label |
 | **Logi** | Przyrostowo z SSE `run.log` + możliwość dociągnięcia historii GET logs |
-| **HITL** | Panel wyboru: pomysły postu, pomysły rolek albo outline strony — wg `taskType` i `hitl.options`. Social dwuetapowy: **single select** (radio / jeden chip), nie multi; Content: akceptacja outline’u. Submit → `POST .../hitl` |
-| **Wynik** | Po `completed`: widok **postu** (`ideas` / `content` — na liście pomysłów `cta` gdy jest; przy content pokaż `characterCount`), **rolki** (`reelIdeas` / `reelScript.segments` — `cta` na pomyśle gdy jest) albo **strony** (`pageOutline` / `pageDocument` — etykieta `role` przy sekcji, gdy ustawione); przy `failed` — to, co zdążyło się zapisać |
+| **HITL** | Panel wyboru: pomysły postu, pomysły rolek albo outline strony — wg `taskType` i `hitl.options`. Social dwuetapowy: **multi-select** (min. 1 unikalne id ⊆ options; np. checkboxy / chipy); Content: akceptacja outline’u (**bez** zmian — nadal `[outline.id]`). Submit → `POST .../hitl` |
+| **Wynik** | Po `completed`: widok **listy postów** (`ideas` / `contents[]` z `sourceIdeaId`; na liście pomysłów `cta` gdy jest; przy każdym content pokaż `characterCount`) albo **jednego** posta (`content` — task jednoetapowy `post_content`), **listy scenariuszy** (`reelIdeas` / `reelScripts[]`) albo **jednej** rolki (`reelScript` — `reel_script`), albo **strony** (`pageOutline` / `pageDocument` — etykieta `role` przy sekcji, gdy ustawione); przy `failed` — to, co zdążyło się zapisać. Dwuetapowy Social: **nie** jeden blok copy. |
 | **Edytuj** | Widoczny gdy jest wynik i przegląd **nie** jest zatwierdzony **oraz** sesja = `startedBy`. Klik → użytkownik edytuje treść w UI; api ustawia **wyłącznie flagę** `outputEdited: true` (bez diff / % w MVP; oryginał agentów w DB bez nadpisu w MVP) |
 | **Ocena gwiazdkowa (1–5)** | Po `completed` **albo** `failed`, tylko autor runu. Dobrowolna: brak wyboru = w DB zostaje `userRating: null`. Do zatwierdzenia można zmieniać wybór (w tym wrócić do braku oceny). Czytelne gwiazdki, nie sam numeric input |
 | **Zamknij / zapisz przegląd** | Zatwierdza aktualną ocenę (`null` albo `1–5`) i flagę edycji. Po sukcesie kontrolki oceny i Edytuj są zablokowane |
@@ -88,6 +88,8 @@ Wejście: z listy Runy SM (klik) lub bezpośredni deep-link po `runId`.
 Reconnect SSE: odtworzyć subskrypcję wyłącznie po nieoczekiwanym zerwaniu, gdy status runu jest wciąż nieterminalny; status i logi uzupełnić snapshotem GET. Po restarcie api snapshot może pokazać `interrupted` zanim znowu `running` — nie zakładać natychmiastowego powrotu do pulsu pipeline. Przeglądarkowy `EventSource` sam wznawia połączenie po close serwera — bez `close()` po terminalu powstaje pętla na `.../events`.
 
 Zmiana względem wcześniejszego zapisu: reconnect był ogólny, bez rozróżnienia terminal vs. awaria i bez obowiązku `close()` / braku subskrypcji skończonego runu.
+
+Zmiana względem: HITL Social jako **single select** / jeden blok wyniku. Obowiązuje multi-select (min. 1) i lista postów / scenariuszy (`contents[]` / `reelScripts[]`). Content: akceptacja outline bez zmian.
 
 Ocena i Edytuj **nie** są HITL (HITL = wybór z listy w trakcie pipeline).
 

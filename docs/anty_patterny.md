@@ -41,7 +41,9 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | `Partial<RunRecord>` w unitach po unii `taskType` | Miesza warianty (np. `page_copy` + `linkedin`) | `makeSocialRun` / `makeContentRun` w `apps/api/src/runs/run-record.test-helpers.ts` |
 | `SocialBrief` / `ContentBrief` w `packages/shared` albo `apps/api/src/shared/types` | Shared kernel / śmietnik cross-cutting zamiast payloadu Run | Definicje w `runs/domain/run.types.ts`; Zod w application Runs |
 | Luźny blob `extras` kontekstu bez schematu | Drift kształtu; nieznane klucze w DB; brak kontraktu FE/Postman | Typowany `CompanyContextExtras` + Zod `.strict()`; poza bramką (`dokumentacja_komunikacji.md`) |
-| Multi-select HITL SM bez semantyki wyniku | N→N fan-out nieobsługiwany; niejasny content/script | Dokładnie 1 `selectedIdeaId`; inaczej **400** `HITL_INVALID_SELECTION` |
+| Multi-select HITL SM bez semantyki wyniku | N pozycji w selekcji, jeden niejasny content/script | Kanon N→N w **tym samym** runie: `contents[]` / `reelScripts[]` + `sourceIdeaId`; min. 1 unikalne id ⊆ `hitl.options`. Zmiana względem: „dokładnie 1 `selectedIdeaId`” (kanon Fazy 4.3) |
+| Multi-select HITL SM bez osobnych artefaktów (zlepiony jeden `body`) | Gubi ślad pomysłu; snapshot nie ma 1:1 z wyborem | Każde `selectedIdeaId` → osobny `SocialContent` / `ReelScript`; zakaz zlepiania K pomysłów w jeden tekst |
+| Fan-out HITL → N child runów (`post_content` / `reel_script`) w MVP | Inny model orkiestracji; dryft statusów i SSE | Pętla w **tym samym** runie (faza content / scenariusz); child runy poza MVP |
 
 ---
 

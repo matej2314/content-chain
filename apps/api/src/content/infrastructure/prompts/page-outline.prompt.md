@@ -11,13 +11,23 @@ Brief (JSON):
 
 ## Zadanie
 
-Zwróć szkic: `title` + `sections` (każda: `heading`, `summary` 1–2 zdania). Jedna spójna narracja pod `contentKind`. Fakty wyłącznie z kontekstu i `ContentBrief` (topic, angle, goal, targetLength — nie `ideaCount`).
+Zwróć szkic: `title` + `sections` (każda: `heading`, `summary` 1–2 zdania, opcjonalnie `role`). Jedna spójna narracja pod `contentKind`. Fakty wyłącznie z kontekstu i `ContentBrief` (topic, angle, goal, targetLength — nie `ideaCount`).
 
 - `blog` — artykuł: problem / kontekst → rozwinięcie → wniosek lub następny krok.
 - `service_page` — usługa: dla kogo, co wchodzi, jak wygląda współpraca, CTA z kontekstu.
 - `landing` — jedna obietnica, jeden tor: haczyk → wartość → dowód z JSON → CTA.
 
-CTA / oferty wyłącznie z `cta.items` kontekstu (ta sama akcja co `label`; parafraza OK). Liczby i case’y tylko z JSON, w oryginalnym sensie.
+Opcjonalne `role` na sekcji (zamknięty katalog — nie wymyślaj innych wartości):
+- `audience_world` — świat odbiorcy / dla kogo
+- `pain` — problem
+- `challenger` — kwestionowanie założenia (kąt z `brief.angle`, gdy podany)
+- `insight` — mechanizm / rozwinięcie
+- `proof` — dowód wyłącznie z JSON
+- `objection` — adresowanie obiekcji
+- `cta` — wezwanie do akcji z `cta.items`
+- `other` — poza powyższym (np. zakres usługi, współpraca)
+
+Nie wymagać wszystkich ról w każdym outline. Pomiń klucz `role`, gdy etykieta nic nie wnosi. CTA / oferty wyłącznie z `cta.items` kontekstu (ta sama akcja co `label`; parafraza OK). Liczby i case’y tylko z JSON, w oryginalnym sensie.
 
 ## Zakazy
 
@@ -30,6 +40,6 @@ CTA / oferty wyłącznie z `cta.items` kontekstu (ta sama akcja co `label`; para
 
 Zwróć WYŁĄCZNIE JSON (bez markdown, bez komentarza, bez tekstu przed/po):
 
-{"title":"...","sections":[{"heading":"...","summary":"..."}]}
+{"title":"...","sections":[{"heading":"...","summary":"...","role":"pain"}]}
 
-Pole `id` pomiń (nadaje je pipeline).
+Pole `id` pomiń (nadaje je pipeline). Pole `role` opcjonalne — wyłącznie wartość z katalogu; pomiń klucz, gdy brak sensu.

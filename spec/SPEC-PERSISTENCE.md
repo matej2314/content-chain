@@ -1,7 +1,7 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-04
+data_modyfikacji: 2026-09-05
 ---
 
 # SPEC — Persistence
@@ -47,7 +47,9 @@ P-5. DB jest kanoniczna dla kontekstu firmy, userów, sesji refresh, runów, wyn
 
 Kolumna `Run.brief` (Json): **unia** `SocialBrief` | `ContentBrief` rozróżniana `taskType` — **bez nowej migracji** przy zmianie kształtu TypeScript. Semantyka i parse przy mapowaniu wiersza → `RunRecord`: `SPEC-RUNY.md` R-3d1.
 
-`CompanyContext.extras` (Json?): semantyka typowana w application (`CompanyContextExtras`, Zod `.strict()`) — **nie** nowe tabele per case study w MVP. Payload JSON `SocialIdea` / `SocialContent` / `ContentOutline` — addytywne klucze (`cta?`, `characterCount`, `role?`); migracja danych **nie** wymagana (stare wiersze OK).
+`CompanyContext.extras` (Json?): semantyka typowana w application (`CompanyContextExtras`, Zod `.strict()`) — **nie** nowe tabele per case study w MVP. Payload JSON `SocialIdea` / `SocialContent` / `ReelScript` / `ContentOutline` — addytywne klucze (`cta?`, `characterCount`, `role?`, **`sourceIdeaId`** na content/script dwuetapowym); tabele `SocialContent` / `SocialReelScript` już 1:N per `runId` — migracja danych **nie** wymagana (stare wiersze OK).
+
+Zmiana względem wersji 6 / P-5: enumeracja addytywnych kluczy bez `sourceIdeaId`; kontrakt HTTP udawał 1:1 mimo tabel 1:N.
 
 Zmiana względem wersji 5 / P-5: milcząco brak normy typowanych extras i addytywnych kluczy wyniku SM/outline.
 

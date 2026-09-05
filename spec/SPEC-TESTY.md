@@ -1,7 +1,7 @@
 ---
-wersja: 11
+wersja: 12
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-04
+data_modyfikacji: 2026-09-05
 ---
 
 # SPEC — Testy
@@ -63,16 +63,19 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-13 | `GET /runs/user/:userId`: własne wszystkie; cudzy id → `403` |
 | D-14 | SSE: hub nie zatrzymuje subjectu po `completed`/`failed`; `GET .../events` na skończonym runie emituje `run.status` i kończy stream |
 | D-15 | `reel_ideas` full-auto: `running` → `completed`; `result.reelIdeas[0].id` |
-| D-16 | `reel_ideas_then_scripts`: `awaiting_hitl` (`options` = reelIdeas) → resume → `result.reelScript.segments` → `completed` |
+| D-16 | `reel_ideas_then_scripts`: `awaiting_hitl` (`options` = reelIdeas) → resume → `result.reelScripts[]` (każdy element + `sourceIdeaId`); skalar `result.reelScript` = `null` po completed fazy 2 |
 | D-17 | `page_copy` full-auto: completed + `pageDocument`; body **bez** `ideaCount` (`ContentBrief`) |
 | D-18 | `page_outline_then_copy`: HITL outline → dokument → `completed`; HITL z obcym id → **400** `HITL_INVALID_SELECTION`, status zostaje `awaiting_hitl` |
 | D-19 | `taskType` spoza enumu HTTP → **400** `VALIDATION_FAILED`; composite: nieznany typ wewnętrzny → `failed` / `UNKNOWN_TASK_TYPE` (unit `execute` / `assertNever`) |
 | D-19a | Unit Zod / HTTP: `page_*` + `brief.ideaCount` → **400** `VALIDATION_FAILED`; Social + `brief.angle` (lub `targetLength`) → **400** `VALIDATION_FAILED` |
 | D-20 | Unit Zod `CompanyContextExtras`: znany kształt OK; nieznany klucz → fail; `isComplete` ignoruje extras. Unit/e2e unknown key → **400**; ścieżki w `details` zgodne z separatorem `'.'` wspólnego `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`). Bez wymogu osobnego testu wyłącznie na lokalizację pliku helpera. |
-| D-21 | HITL Social: 0 id lub 2+ id → **400** `HITL_INVALID_SELECTION`; 1 poprawny id → `completed` z content/script |
-| D-22 | GET result: `characterCount === body.length`; outline z `role` enum przechodzi parse; nieznany `role` → fail |
+| D-21 | HITL Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): 0 id, duplikat albo obcy id → **400** `HITL_INVALID_SELECTION` (bez zapisu, status `awaiting_hitl`); **2 poprawne** id → `completed` z 2 artefaktami (`contents[]` / `reelScripts[]`, `sourceIdeaId`); 1 poprawny → tablica długości 1 |
+| D-22 | GET result: `characterCount === body.length` (skalar lub każda pozycja `contents[]`); outline z `role` enum przechodzi parse; nieznany `role` → fail |
 
 D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page.
+
+Zmiana względem wersji 11 / D-16: asercja wyłącznie skalaru `reelScript.segments` na then_scripts — od tej wersji `reelScripts[]` + `sourceIdeaId`.
+Zmiana względem wersji 11 / D-21 (i v9: D-21 = 2+ → 400): 2 legalne id to pozytyw N→N; 400 tylko przy 0 / duplikacie / obcym id.
 
 Zmiana względem wersji 10 / D-20: doprecyzowano separator `details[].path` = `'.'` wspólnego helpera (po wyniesieniu `parseWithZod` do api shared).
 Zmiana względem wersji 9: dopisano D-20…D-22 (extras, HITL SM 1 id, characterCount / role) — norma, że muszą istnieć; szczegóły case’ów = Faza 4.3 major.

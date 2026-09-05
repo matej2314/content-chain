@@ -3,8 +3,8 @@
 **Zakres tego pliku:** fundament monorepo, boilerplate frontu (wyłącznie struktura i pakiety) oraz **backend** aż do zielonego pipeline’u SM (Milestone 4), **dopełnienia Social o rolki (Faza 4.1)** i **BC Content + klej (Faza 4.2 / Milestone 4.2)**, **rozszerzenia kontraktu MVP (Faza 4.3 / Milestone 4.3)**, auth API **oraz fundamentu zapisu feedbacku** (opinie, ocena runu, flaga edycji).  
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
-**Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31), `update-mvp-contract-plan.md` (Faza 4.3).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** / Milestone 4.3, potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, **4.1, 4.2, 4.3**, 5 i 6 oraz osiągnięciu Milestone 4, **4.2, 4.3**, 5–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
+**Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31), `update-mvp-contract-plan.md` (Faza 4.3), `multi-hitl-plan.md` (HITL Social min. 1 / N→N — legalizacja kanonu Fazy 4.3).  
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, **4.1, 4.2, 4.3**, 5 i 6 oraz osiągnięciu Milestone 4, **4.2, 4.3**, 5–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -597,31 +597,46 @@ Dopisek (2026-09-02): brief kanałowy — `docs/dokumentacja_komunikacji.md`, `r
 
 ---
 
-## Faza 4.3 — Rozszerzenie kontraktu MVP (extras, HITL SM 1 id, pola SM, role outline)
+## Faza 4.3 — Rozszerzenie kontraktu MVP (extras, HITL SM min. 1 / N→N, pola SM, role outline)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Po Fazie 4.2 / Milestone 4.2; **przed** Fazą 5 (Auth). Legalizacja i implementacja rozszerzeń kontraktu MVP:
 (1) typowane `CompanyContext.extras`,
-(2) HITL Social — dokładnie jeden `selectedIdeaId`,
+(2) HITL Social — min. 1 unikalne id ⊆ draftu; N→N w tym samym runie (`contents[]` / `reelScripts[]`, `sourceIdeaId`),
 (3) `SocialIdea.cta?` / `ReelIdea.cta?` + `SocialContent.characterCount`,
 (4) opcjonalne `PageOutlineSection.role`.
-Źródło: zaktualizowane `docs/*` + `SPEC-KONTEKST-FIRMY` / `SPEC-SOCIAL` / `SPEC-CONTENT` / `SPEC-RUNY` / `SPEC-FRONTEND` (plan `update-mvp-contract-plan.md`).
+Źródło: zaktualizowane `docs/*` + `SPEC-KONTEKST-FIRMY` / `SPEC-SOCIAL` / `SPEC-CONTENT` / `SPEC-RUNY` / `SPEC-FRONTEND` (plan `update-mvp-contract-plan.md`; kanon HITL Social N→N: `multi-hitl-plan.md` Fazy 1–2).
 **Nie** zmienia semantyki Fazy 4 / 4.1 / 4.2 `WYKONANY` — wyłącznie dopisek kontraktu i kod.
-**Poza fazą:** załączniki runu, Reels_performance produkt, N→N fan-out, WP, 6 audytorów, case_study kind.
+**Poza fazą:** załączniki runu, Reels_performance produkt, N→N **child runy** (fan-out parent HITL → N osobnych runów), WP, 6 audytorów, case_study kind. **Pętla w tym samym runie** (K wybranych id → K artefaktów) **wchodzi** w Fazę 4.3.
+Zmiana względem: wcześniejszy zapis Fazy 4.3 (HITL Social = dokładnie jeden `selectedIdeaId`; ≠1 id → 400; poza fazą „N→N fan-out” bez rozróżnienia pętli vs child runów). Powód: legalizacja kanonu K z N → K artefaktów w tym samym runie.
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-4-3-mvp-contract.md` (KROK 1–6 + 2.1 `WYKONANY` → major 4.3.1–4.3.5). Typowane extras + Zod `.strict()` (KROK 2), wspólny `parseWithZod` w `apps/api/src/shared/` (KROK 2.1), `cta?` / `characterCount` (KROK 3), HITL min. 1 / N→N + persist N + writer per id + snapshot `contents[]` / `reelScripts[]` (KROK 4), `PageOutlineSection.role?` (KROK 5), e2e D-20…D-22 + Postman (KROK 6). **MILESTONE 4.3** → `OSIĄGNIĘTY`. Milestone 4 / 4.2 bez edycji (`OSIĄGNIĘTY`). Faza 5 pozostaje `NIE_ROZPOCZĘTY` (odblokowana kolejnością).
+
+**Mapa etykiet → feature plan** (`content-chain_feature_plan_faza-4-3-mvp-contract.md`). Kolejność feature `KROK` ≠ numeracji major 4.3.x 1:1 (split 4.3.3 + wstawka 2.1):
+
+| Major | Feature | Zakres |
+|-------|---------|--------|
+| 4.3.1 | KROK 1 | Gate docs/SPEC (A–D). |
+| 4.3.2 | KROK 2 + 2.1 | Extras Zod + wspólny `parseWithZod` w `apps/api/src/shared/`. |
+| 4.3.3 | KROK 3 + 4 | `cta` / `characterCount`, potem HITL N→N + persist N + snapshot tablic. |
+| 4.3.4 | KROK 5 | `role` na outline. |
+| 4.3.5 | KROK 6 | e2e / Postman D-20…D-22. |
 
 **DoD (faza):**
 - PUT/PATCH extras waliduje kształt; bramka `isComplete` bez extras.
-- HITL post/reel z ≠1 id → 400 `HITL_INVALID_SELECTION`; z 1 poprawnym id → content/script.
+- HITL post/reel: 0 id / duplikat / obcy id → 400 `HITL_INVALID_SELECTION`; K≥1 legalnych id ⊆ options → K osobnych artefaktów (`contents[]` / `reelScripts[]` + `sourceIdeaId`); page HITL bez zmian (`[outline.id]`).
 - Snapshot: `cta` na pomysłach (gdy model zwróci), `characterCount` na content, `role` na sekcjach outline (gdy obecne).
 - Unit + e2e + Postman (regresja Social A–D, Content A–B + nowe case’y).
 - Auth nadal Faza 5 — ta faza **nie** wymaga sesji (jak 4.x), chyba że e2e już chronione (wtedy po 5 — **nie:** kolejność = 4.3 przed 5, testy jak dotychczasowy pre-auth Postman 4.x).
 
 ### Krok 4.3.1 — Docs/SPEC już zsynchronizowane (gate)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
-**Opis:** Gate: Fazy 1–2 planu `update-mvp-contract-plan.md` wykonane. Brak implementacji bez zielonego kontraktu.
+**Etykieta feature:** KROK 1.
+
+**Opis:** Gate: Fazy 1–2 planu `update-mvp-contract-plan.md` wykonane; kanon HITL Social (min. 1 / N→N) — Fazy 1–2 `multi-hitl-plan.md`. Brak implementacji bez zielonego kontraktu.
 
 **DoD:**
 - PR/commit docs+SPEC zmergowany lub zaakceptowany lokalnie.
@@ -629,28 +644,37 @@ Dopisek (2026-09-02): brief kanałowy — `docs/dokumentacja_komunikacji.md`, `r
 
 ### Krok 4.3.2 — Company Context: Zod extras + mapper + testy
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
-**Opis:** Typ `CompanyContextExtras`; schema Zod; PUT/PATCH; Prisma `extras` Json bez migracji tabel. Unit `isComplete` bez regresji.
+**Etykieta feature:** KROK 2 + 2.1.
+
+**Opis:** Typ `CompanyContextExtras`; schema Zod; PUT/PATCH; Prisma `extras` Json bez migracji tabel. Unit `isComplete` bez regresji. Po extras: wspólny `parseWithZod` w `apps/api/src/shared/parse-with-zod.ts` (separator `details[].path` = `'.'`), import z Runs i company-context, usunięcie lokalnych kopii.
+Refaktor względem: Faza 4 / 4.2 — lokalny `runs/application/parse-with-zod.ts`.
 
 **DoD:**
 - Zapis/odczyt extras round-trip.
 - Nieznane klucze → 400.
 - Completeness ignoruje extras.
+- Jedna definicja `parseWithZod` w `apps/api/src/shared/`; brak kopii w BC.
 
-### Krok 4.3.3 — Social: schema, prompty, HITL 1 id, characterCount
+### Krok 4.3.3 — Social: schema, prompty, HITL min. 1 / N→N, characterCount
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
-**Opis:** Zod ideas/content/reel ideas; prompty ideation (cta); Persist/mapper `characterCount = body.length`; `ResumeHitlUseCase` (lub równoważny) waliduje length === 1 dla tasków SM dwuetapowych. Refine* zachowuje nowe pola.
+**Etykieta feature:** KROK 3 + 4 (pass rozwojowy: schema/persist/prompty przed HITL N→N).
+
+**Opis:** Zod ideas/content/reel ideas; prompty ideation (cta); Persist/mapper `characterCount = body.length`. `ResumeHitlUseCase` (lub równoważny) waliduje HITL Social: min. 1, unikalność, członkostwo w drafcie / `hitl.options` (nie `length === 1`). Persist N wierszy content/script + mapper snapshotu tablic (`contents[]` / `reelScripts[]`, `sourceIdeaId`; skalar `content` / `reelScript` = `null` na then_* po fazie 2). Writer **per id** (nie jeden hop na całą selekcję). Refine* zachowuje nowe pola.
+Zmiana względem: wcześniejszy zapis kroku 4.3.3 (walidacja `length === 1`; 2 id → 400). Pass rozwojowy: KROK 3 (`cta` / `characterCount`) przed KROK 4 (HITL min. 1 / N→N, persist N, writer per id, snapshot tablic).
 
 **DoD:**
-- e2e / unit HITL 0 id, 2 id → 400; 1 id → completed.
-- GET result zawiera characterCount.
+- e2e / unit: 0 id / obcy id / duplikat → 400; 2 legalne id → 2 artefakty; 1 legalne id → tablica długości 1.
+- GET result zawiera characterCount (na każdej pozycji tablicy).
 
 ### Krok 4.3.4 — Content: `role` na outline + prompty + Zod
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
+
+**Etykieta feature:** KROK 5.
 
 **Opis:** Enum role; outline/refine/page-writer prompty; persistence JSON addytywny; HITL outline bez zmian (`[outline.id]`).
 
@@ -659,22 +683,24 @@ Dopisek (2026-09-02): brief kanałowy — `docs/dokumentacja_komunikacji.md`, `r
 
 ### Krok 4.3.5 — Postman / e2e regresja + dokumentacja testów
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
-**Opis:** Nowe requesty / asercje; `SPEC-TESTY` DoD; README Postman.
+**Etykieta feature:** KROK 6.
+
+**Opis:** Nowe requesty / asercje; `SPEC-TESTY` DoD; README Postman. Case’y HITL Social: K z N (pozytyw 2 + negatywy), nie „HITL 1 id → 400 przy 2+”.
 
 **DoD:**
 - Social A–D + Content A–B zielone.
-- Nowe case’y extras + HITL 1 id + role + characterCount opisane.
+- Nowe case’y extras + HITL K z N (pozytyw 2 id + negatywy 0 / obcy / duplikat; 1 id = tablica długości 1) + role + characterCount opisane.
 
 ## MILESTONE 4.3 — Kontrakt MVP rozszerzony (pre-auth)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `OSIĄGNIĘTY`
 
-**Opis:** Bramka po Fazie 4.3. Auth = Faza 5.
+**Opis:** Bramka po Fazie 4.3. Auth = Faza 5. HITL Social w DoD fazy: min. 1 / N→N w tym samym runie (nie 1 id; child fan-out nadal poza).
 
 **DoD (milestone):**
-- Faza 4.3 `WYKONANY` (lub spełnia DoD).
+- Faza 4.3 `WYKONANY` (lub spełnia DoD) — w tym: 0 / duplikat / obcy → 400; K≥1 legalnych → K artefaktów; page HITL bez zmian.
 - Milestone 4 i 4.2 pozostają `OSIĄGNIĘTY` bez edycji.
 - Akceptacja przejścia do Fazy 5.
 
@@ -686,7 +712,7 @@ Dopisek (2026-09-02): brief kanałowy — `docs/dokumentacja_komunikacji.md`, `r
 
 **Opis:** Auth w formie docelowej na api: bootstrap jednego admina (status + sesja po bootstrapie), sesja cookie, **`GET /auth/me`**, role, zarządzanie użytkownikami (lista/create + soft-delete w API), zabezpieczenie powierzchni kontekstu i runów oraz wypełnianie `startedBy` przy starcie. Zgodnie z `SPEC-AUTH.md`, `docs/security.md` — po zielonym pipeline (order of attack).  
 Dopisek: **start po Fazie 4.2 / Milestone 4.2** (nie bezpośrednio po Milestone 4). DoD auth **bez** przepisu.  
-Dopisek (addytywny): **start po Fazie 4.3 / Milestone 4.3** (zmiana względem: start po 4.2).
+Dopisek (addytywny): **start po Fazie 4.3 / Milestone 4.3** (zmiana względem: start po 4.2). Faza 4.3 / Milestone 4.3 są `WYKONANY` / `OSIĄGNIĘTY` — Faza 5 odblokowana kolejnością, status pozostaje `NIE_ROZPOCZĘTY`.
 
 **DoD (faza):**
 
@@ -1011,7 +1037,7 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 | Social (posty i rolki) | `SPEC-SOCIAL.md`, `docs/data_flow.md` |
 | Content (BC) | `SPEC-CONTENT.md`, `docs/architektura.md` |
 | Klej composite | `SPEC-RUNY.md` (R-3d/e), `docs/architektura.md` |
-| Faza 4.3 — kontrakt MVP (extras, HITL SM 1 id, pola SM, role) | `update-mvp-contract-plan.md`, `SPEC-KONTEKST-FIRMY.md`, `SPEC-SOCIAL.md`, `SPEC-CONTENT.md`, `SPEC-RUNY.md`, `SPEC-FRONTEND.md` |
+| Faza 4.3 — kontrakt MVP (extras, HITL SM min. 1 / N→N, pola SM, role) | `update-mvp-contract-plan.md`, `multi-hitl-plan.md`, `SPEC-KONTEKST-FIRMY.md`, `SPEC-SOCIAL.md`, `SPEC-CONTENT.md`, `SPEC-RUNY.md`, `SPEC-FRONTEND.md` |
 | Zod (api vs gateway) | `SPEC-KOMUNIKACJA.md` (Zod w application, bez pinu major); Faza 9 — `zod@^4.4.x` w `apps/api` jak `apps/ai-provider-gateway` |
 | Auth | `SPEC-AUTH.md` |
 | Kolejność budowy | `docs/dokumentacja_koncepcyjna.md`, `content-chain_brief.md` |

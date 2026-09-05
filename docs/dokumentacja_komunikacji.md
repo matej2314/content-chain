@@ -15,7 +15,9 @@ Zmiana względem kontraktu startu (tylko 3 taski post_*, `platform` zawsze wymag
 
 Zmiana względem jednego obiektu `brief` („temat, grupa, cel, liczba pomysłów” dla każdego `taskType`): kształt `brief` zależy od kanału — **`SocialBrief`** (post_* / reel_*) vs **`ContentBrief`** (page_*). Dyskryminator zostaje `taskType`. `ideaCount` legalne tylko w Social; `angle` / `targetLength` tylko w Content. Szczegóły: tabele pod `POST /runs`; typy w `dictionary.md`.
 
-Zmiana względem Milestone 4 (HITL post/reel bez walidacji długości; luźne poza-bramką): typowane `extras`; HITL Social = dokładnie 1 id (`HITL_INVALID_SELECTION`); addytywne `cta?` / `characterCount` / `role?` w wyniku.
+Zmiana względem Milestone 4 (HITL post/reel bez walidacji długości; luźne poza-bramką): typowane `extras`; addytywne `cta?` / `characterCount` / `role?` w wyniku.
+
+Zmiana względem kanonu Fazy 4.3 (HITL Social dwuetapowy = dokładnie 1 `selectedIdeaId`; 2+ id → 400): HITL Social dwuetapowy = **min. 1** unikalne id ⊆ `hitl.options`; wynik = **tablica** osobnych artefaktów (`contents[]` / `reelScripts[]` + `sourceIdeaId`); 2+ legalne, gdy wszystkie ∈ options. Content (`page_outline_then_copy`) bez zmiany: nadal `[outline.id]`.
 
 ---
 
@@ -53,7 +55,7 @@ Wybrane kody domenowe:
 | `VALIDATION_FAILED` | 400 | Błąd walidacji DTO |
 | `CONTEXT_INCOMPLETE` | 409 | Bramka kontekstu — start runu zablokowany |
 | `HITL_REQUIRED` | 409 | Operacja wymaga stanu oczekiwania na wybór / odwrotnie |
-| `HITL_INVALID_SELECTION` | 400 | Selekcja HITL niezgodna z kanonem: Content — `selectedIdeaIds` ≠ `[outline.id]`; Social dwuetapowy — `selectedIdeaIds.length !== 1` albo id spoza draftu / `hitl.options` |
+| `HITL_INVALID_SELECTION` | 400 | Selekcja HITL niezgodna z kanonem: Content — `selectedIdeaIds` ≠ `[outline.id]`; Social dwuetapowy — długość `< 1`, duplikaty, albo id spoza draftu / `hitl.options` (**2+ legalne**, gdy wszystkie ∈ options) |
 | `RUN_NOT_FOUND` | 404 | Nieznany `runId` |
 | `REVIEW_LOCKED` | 409 | Przegląd runu zatwierdzony — zmiana oceny / flagi edycji zabroniona |
 | `RUN_NOT_REVIEWABLE` | 409 | Ocena / edycja / finalize gdy status inny niż `completed` \| `failed` |
@@ -170,10 +172,10 @@ Typy tasków MVP:
 |------------|-------|------------|
 | `post_ideas` | Social | full-auto → `result.ideas` |
 | `post_content` | Social | full-auto → `result.content` |
-| `post_ideas_then_content` | Social | ideas → HITL → content |
+| `post_ideas_then_content` | Social | ideas → HITL → `result.contents[]` (osobny post per wybrane id) |
 | `reel_ideas` | Social | full-auto → `result.reelIdeas` |
 | `reel_script` | Social | full-auto → `result.reelScript` |
-| `reel_ideas_then_scripts` | Social | reel ideas → HITL → scenariusz |
+| `reel_ideas_then_scripts` | Social | reel ideas → HITL → `result.reelScripts[]` (osobny scenariusz per wybrane id) |
 | `page_copy` | Content | full-auto → `result.pageDocument` |
 | `page_outline_then_copy` | Content | outline → HITL → dokument |
 
@@ -319,8 +321,10 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
   "result": {
     "ideas": [],
     "content": null,
+    "contents": [],
     "reelIdeas": [],
     "reelScript": null,
+    "reelScripts": [],
     "pageOutline": null,
     "pageDocument": null
   },
@@ -328,7 +332,7 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
 }
 ```
 
-- Meta jak pozycja listy + `conversationId`. Snapshot **addytywny**: posty zostawiają `ideas` / `content` jak Milestone 4; rolki wypełniają `reelIdeas` / `reelScript`; Content — `pageOutline` / `pageDocument`. Brak kanału = pusta tablica / `null` (reader nie null-crashuje).
+- Meta jak pozycja listy + `conversationId`. Snapshot **addytywny**: posty zostawiają `ideas` / `content` (jednoetapowy) oraz `contents[]` (dwuetapowy po fazie 2); rolki — `reelIdeas` / `reelScript` (jednoetapowy) oraz `reelScripts[]` (dwuetapowy po fazie 2); Content — `pageOutline` / `pageDocument`. Brak kanału = pusta tablica / `null` (reader nie null-crashuje).
 - `contentKind` — `null` dla Social; ustawione dla `page_*`.
 - `platform` — enum SM albo `'web'` (page_*).
 - `brief` — zwracany w **kształcie zapisanym** (unia): `SocialBrief` albo `ContentBrief` wg `taskType`. Snapshot nie spłaszcza obu kształtów do jednego obiektu SM.
@@ -342,13 +346,47 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
 | Ścieżka | Pola | Uwagi |
 |---------|------|-------|
 | `result.ideas[]` | `id`, `title`, `angle`, `hook`, **`cta?`** | Sugerowane CTA z ideation (gdy model zwróci) |
-| `result.content` | `body`, `hashtags`, `cta?`, **`characterCount`** | `characterCount`: integer ≥ 0; **kanon:** pipeline ustawia po sukcesie writer/refine z `body.length`; jeśli LLM zwróci osobne pole — ignorować / nadpisać. Przy odczycie starego wiersza bez klucza → mapper: `characterCount = body.length` |
+| `result.content` | `body`, `hashtags`, `cta?`, **`characterCount`** | Skalar **jednoetapowego** `post_content`. `characterCount`: integer ≥ 0; **kanon:** pipeline ustawia po sukcesie writer/refine z `body.length`; jeśli LLM zwróci osobne pole — ignorować / nadpisać. Przy odczycie starego wiersza bez klucza → mapper: `characterCount = body.length`. Na `post_ideas_then_content` po completed fazy 2: **`null`** (nie alias `contents[0]`) |
+| `result.contents[]` | kształt `SocialContent` + **`sourceIdeaId`** | Kanon dwuetapowego `post_ideas_then_content` po fazie 2: długość = `selectedIdeaIds.length`; kolejność = kolejność tablicy HITL. `sourceIdeaId` w payloadzie JSON (addytywne). Pusta tablica, gdy brak kanału / przed fazą 2 |
 | `result.reelIdeas[]` | jak wcześniej + **`cta?`** | Opcjonalne; spójność z post ideas |
+| `result.reelScript` | `segments`, `cta`, `notes?` | Skalar **jednoetapowego** `reel_script`. Na `reel_ideas_then_scripts` po completed fazy 2: **`null`** (nie alias `reelScripts[0]`) |
+| `result.reelScripts[]` | kształt `ReelScript` + **`sourceIdeaId`** | Kanon dwuetapowego `reel_ideas_then_scripts` po fazie 2: analogicznie do `contents[]`. Pusta tablica, gdy brak kanału / przed fazą 2 |
 | `result.pageOutline.sections[]` | `id`, `heading`, `summary`, **`role?`** | Enum: `audience_world` \| `pain` \| `challenger` \| `insight` \| `proof` \| `objection` \| `cta` \| `other` |
+
+Źródło prawdy po `completed` dwuetapowego Social:
+
+| Task | Kanon | Skalar legacy |
+|------|--------|----------------|
+| `post_ideas_then_content` | `result.contents[]` — długość = `selectedIdeaIds.length`; każdy element: kształt `SocialContent` + **`sourceIdeaId`** | `result.content` = **`null`** (nie alias pierwszego — jedno źródło prawdy) |
+| `reel_ideas_then_scripts` | `result.reelScripts[]` — analogicznie + **`sourceIdeaId`** | `result.reelScript` = **`null`** |
+| `post_content` / `reel_script` | bez zmian: skalar `content` / `reelScript` | tablice puste albo nie używane |
+
+Przykład `result` po `completed` `post_ideas_then_content` (użytkownik wybrał 2 z 5 pomysłów):
+
+```json
+{
+  "ideas": [
+    { "id": "idea_a", "title": "…", "angle": "…", "hook": "…", "cta": "…" },
+    { "id": "idea_b", "title": "…", "angle": "…", "hook": "…", "cta": "…" }
+  ],
+  "content": null,
+  "contents": [
+    { "body": "…", "hashtags": ["#x"], "cta": "…", "characterCount": 120, "sourceIdeaId": "idea_a" },
+    { "body": "…", "hashtags": ["#y"], "cta": "…", "characterCount": 98, "sourceIdeaId": "idea_b" }
+  ],
+  "reelIdeas": [],
+  "reelScript": null,
+  "reelScripts": [],
+  "pageOutline": null,
+  "pageDocument": null
+}
+```
 
 `startedBy` jak na liście (`null` wyłącznie era pre-auth).
 
-Zmiana względem: wynik SM bez `cta` / `characterCount`; sekcje outline bez `role`; HITL Social bez reguły 1 id.
+Zmiana względem: wynik SM bez `cta` / `characterCount`; sekcje outline bez `role`.
+
+Zmiana względem kanonu Fazy 4.3 (jeden skalar `content` / `reelScript` po HITL 1 id): dwuetapowy Social ma kanon tablicy (`contents[]` / `reelScripts[]` + `sourceIdeaId`); skalar na then_* po fazie 2 = `null`.
 
 #### `GET /api/v1/runs/user/:userId`
 
@@ -440,9 +478,13 @@ Wznowienie po wyborze z listy (task dwuetapowy: post ideas, reel ideas albo outl
 
 Dla `page_outline_then_copy`: dokładnie **jeden** id = `hitl.options[0].id` (= `result.pageOutline.id`). Inaczej **400** `HITL_INVALID_SELECTION` (bez zapisu selekcji, status zostaje `awaiting_hitl`). Brak zapisanego outline → **409** `CONFLICT`.
 
-Dla `post_ideas_then_content` / `reel_ideas_then_scripts`: **`selectedIdeaIds.length === 1`** i id ∈ draftu / `hitl.options`. Inaczej **400** `HITL_INVALID_SELECTION` (ten sam kod co Content; spójny envelope; status zostaje `awaiting_hitl`). Semantyka wyniku: jeden wybrany pomysł → jeden content / jeden scenariusz.
+Dla `post_ideas_then_content` / `reel_ideas_then_scripts`: **`selectedIdeaIds.length >= 1`**, bez duplikatów, każdy id ∈ draftu / `hitl.options`. Inaczej **400** `HITL_INVALID_SELECTION` (ten sam kod co Content; spójny envelope; status zostaje `awaiting_hitl`; **bez zapisu**). Semantyka wyniku: **każde** wybrane id → **osobny** post (`SocialContent`) / scenariusz (`ReelScript`); kolejność tablicy wyniku = kolejność `selectedIdeaIds` w requeście. `hitl.options` bez zmian kształtu (lista pomysłów). Body nadal `{ selectedIdeaIds: string[] }`.
+
+Pusty `[]` **nie** jest `VALIDATION_FAILED` (schema HTTP nadal `z.array(z.string())`); egzekucja w `ResumeHitlUseCase` → 400 `HITL_INVALID_SELECTION`. Max wyboru: `|selectedIdeaIds| <= |options|` (naturalnie `brief.ideaCount` na starcie ideation) — bez osobnego capu liczbowego w HTTP poza członkostwem w drafcie.
 
 Zmiana względem: „Post/reel: bez nowej walidacji id” (Milestone 4).
+
+Zmiana względem kanonu Fazy 4.3 (`selectedIdeaIds.length === 1`; 2+ id → 400; jeden content / jeden scenariusz): min. 1 unikalne id ⊆ options; 2+ legalne; N→N w **tym samym** runie.
 
 **200** / **202** — run wraca do `running`.  
 **409** `HITL_REQUIRED` / `CONFLICT` gdy run nie jest w `awaiting_hitl`.

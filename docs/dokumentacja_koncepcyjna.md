@@ -66,11 +66,11 @@ Programowo: walidacja **kształtu** przy zapisie (Zod `.strict()` na znanym obie
 
 Zmiana względem: wcześniejsza luźna lista „case studies, obiekcje, katalog, performance, hashtagi” bez nazwanego modelu pól.
 
-W zakresie MVP (Social / Content) kontrakt wyniku obejmuje także: sugerowane `cta` na pomyśle SM, `characterCount` na post content, opcjonalne `role` na sekcji outline; HITL Social dwuetapowy = **dokładnie jeden** wybór (`selectedIdeaId`).
+W zakresie MVP (Social / Content) kontrakt wyniku obejmuje także: sugerowane `cta` na pomyśle SM, `characterCount` na post content, opcjonalne `role` na sekcji outline; HITL Social dwuetapowy = **K z N** (min. 1 unikalne id ⊆ draftu) → **K** osobnych artefaktów (`contents[]` / `reelScripts[]` + `sourceIdeaId`). Zmiana względem: „HITL SM = dokładnie jeden wybór”.
 
 ### HITL vs full-auto
 
-- **Task dwuetapowy** (np. post ideas → wybór → post content; reel ideas → wybór → scenariusz; outline strony → akceptacja → dokument): pauza **human-in-the-loop**. Social: dokładnie **jeden** `selectedIdeaId` z draftu; Content: `[outline.id]`.
+- **Task dwuetapowy** (np. post ideas → wybór → post content; reel ideas → wybór → scenariusz; outline strony → akceptacja → dokument): pauza **human-in-the-loop**. Social: podzbiór draftu, **min. 1** id w `selectedIdeaIds`, N→N (osobny post / scenariusz per id); Content: `[outline.id]`. Zmiana względem: Social = dokładnie **jeden** `selectedIdeaId`.
 - **Task jednoetapowy** (np. sama lista pomysłów, sam skrypt rolki, sam `page_copy`): **full-auto**, bez wymuszonego wyboru pośredniego.
 
 ## Kolejność budowy (order of attack)
@@ -119,7 +119,7 @@ Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza M
 ## Kryteria sukcesu MVP
 
 - Administrator uzupełnia kontekst do stanu kompletnego; runy produktowe odblokowują się dopiero wtedy.
-- Użytkownik (lub admin) przechodzi happy path postów: brief → post ideas → wybór **jednego** pomysłu (HITL) → post content dla wybranej platformy (LI / FB / IG) w PL lub EN; wynik zapisany w DB.
+- Użytkownik (lub admin) przechodzi happy path postów: brief → post ideas → wybór **K≥1** pomysłów z draftu (HITL) → osobny post content **dla każdego** wybranego id, dla wybranej platformy (LI / FB / IG) w PL lub EN; wynik zapisany w DB.
 - Happy path rolek: `reel_ideas` full-auto **oraz** `reel_ideas_then_scripts` (HITL → scenariusz).
 - Happy path Content: `page_copy` full-auto **oraz** `page_outline_then_copy` (HITL outline → dokument) dla wybranego `contentKind`.
 - Wygenerowana treść jest **spójna z kontekstem firmy** (weryfikacja w pipeline).
@@ -137,7 +137,7 @@ Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza M
 | Reel ideas / Reel script | Pomysły i scenariusz rolek |
 | Page outline / Page document | Szkic i pełny dokument copy strony (`ContentKind`) |
 | Content (BC) | Copy stron/long-form — nie nazwa produktu Content Chain |
-| HITL | Pauza na wybór użytkownika, gdy kolejny krok zależy od selekcji z listy |
+| HITL | Pauza na wybór użytkownika, gdy kolejny krok zależy od selekcji z listy. Social dwuetapowy: K z N → K artefaktów; Content: akceptacja outline |
 | Gateway | Osobna aplikacja pośrednicząca w wywołaniach LLM |
 | Bramka kontekstu | Programowy warunek kompletności sekcji wymaganych przed **każdym** `POST /runs` |
 | Opinia / ocena runu | Zapis feedbacku użytkownika: tekst (aplikacja, agent, run) oraz gwiazdki `1–5` \| `null` na zakończonym przebiegu; flaga edycji wyniku |

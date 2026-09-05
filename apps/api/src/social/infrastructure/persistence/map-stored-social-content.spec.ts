@@ -8,12 +8,14 @@ describe('mapStoredSocialContent', () => {
         hashtags: ['#a'],
         cta: 'Napisz',
         characterCount: 5,
+        sourceIdeaId: 'idea_9',
       }),
     ).toEqual({
       body: 'Hello',
       hashtags: ['#a'],
       cta: 'Napisz',
       characterCount: 5,
+      sourceIdeaId: 'idea_9',
     });
   });
 

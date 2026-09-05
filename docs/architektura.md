@@ -91,7 +91,7 @@ Kierunek współpracy:
 - Worker Runs woła jeden port `RunExecutorPort` („wykonaj ten run”). Implementacja: **composite** w kleju (`taskType` → `SocialRunExecutor` \| `ContentRunExecutor`; nieznany → `failed` / `UNKNOWN_TASK_TYPE`).
 - **Spięcie** tokenów executora i readera z konkretnymi klasami należy do **kleju procesu** (`AppModule` / `registerAsync`) — nie do wzajemnego importu modułów Nest (`forwardRef` Runs ↔ Social / Content). Social **nie** importuje Content i odwrotnie. `RunsModule` **nie** importuje żadnego grafu.
 - Nowy folder BC w MVP (Content) + nowy wpis w kleju — **ręczny**. Self-register grafów (`OnModuleInit` do rejestru) **nie** jest wzorcem MVP.
-- Reader snapshotu: composite składa pola addytywne (social i/lub reel i/lub content).
+- Reader snapshotu: composite składa pola addytywne (social i/lub reel i/lub content), w tym tablice `contents` / `reelScripts` (pusta tablica gdy brak kanału).
 
 Zlewanie `social/` z `runs/` albo wciąganie stron do `social/` jest odrzucone: izolacja katalogu grafu ma umożliwić kolejne agenty bez przebudowy orkiestratora.
 
@@ -131,10 +131,10 @@ Pipeline produktowy działa jako **asynchroniczny run**:
 3. Live postęp (status, logi przyrostowe, sygnał HITL, completed/failed) idzie do klienta przez **SSE** (`GET /api/v1/runs/:runId/events`). Po `run.completed` / `run.failed` serwer **kończy** strumień; dalszy odczyt = GET. **GET** równolegle: snapshot logów runu oraz `GET /api/v1/health` — bez pollingu statusu jako kanału live. Szczegóły cyklu życia SSE: `dokumentacja_komunikacji.md`.
 4. Przy tasku dwuetapowym run przechodzi w stan oczekiwania na **HITL** (wybór z listy pomysłów / rolek / outline’u); wznowienie osobnym wywołaniem API.
 5. Task jednoetapowy kończy się bez pauzy selekcji.
-6. Wynik (addytywny snapshot: ideas / content / reelIdeas / reelScript / pageOutline / pageDocument) i werdykt weryfikacji spójności są zapisane w DB i dostępne przez API / UI.
+6. Wynik (addytywny snapshot: ideas / content / **contents** / reelIdeas / reelScript / **reelScripts** / pageOutline / pageDocument) i werdykt weryfikacji spójności są zapisane w DB i dostępne przez API / UI.
 7. Po `completed` albo `failed` autor runu (`startedBy`) może: oznaczyć edycję outputu (flaga), ustawić ocenę `1–5` albo zostawić `null`, potem **zatwierdzić / zamknąć przegląd** — od tej chwili ocena i flaga są niemutowalne. Opinia tekstowa (aplikacja / agent / run) jest osobnym zapisem (BC Feedback), niezależnym od grafu.
 
-Zmiana względem wcześniejszego zapisu w tym dokumencie: zamiast opierania obserwacji runu na samym pollingu HTTP — **SSE od MVP** (szczegóły kontraktu: `dokumentacja_komunikacji.md`). Dopisano fundament feedbacku (zapis w MVP; panel analityczny = V1 — rozbudowa). Dopisano, że strumień SSE kończy się po evencie terminalnym (wcześniej tylko „live przez SSE”, bez końca połączenia).
+Zmiana względem wcześniejszego zapisu w tym dokumencie: zamiast opierania obserwacji runu na samym pollingu HTTP — **SSE od MVP** (szczegóły kontraktu: `dokumentacja_komunikacji.md`). Dopisano fundament feedbacku (zapis w MVP; panel analityczny = V1 — rozbudowa). Dopisano, że strumień SSE kończy się po evencie terminalnym (wcześniej tylko „live przez SSE”, bez końca połączenia). Snapshot addytywny obejmuje `contents` / `reelScripts` (pusta tablica gdy brak kanału) — nie tylko skalary `content` / `reelScript`.
 
 ## Auth
 

@@ -1,7 +1,11 @@
 import { emptyCompanyContext } from '../../../../company-context/domain/company-context.types';
 import { newConversationId, newRunId } from '../../../../shared/http/new-ids';
 import type { SocialResultStore } from '../../../domain/social-result.port';
-import type { SocialContent, VerifierVerdict, ReelScript } from '../../../domain/social.types';
+import type {
+  SocialContent,
+  VerifierVerdict,
+  ReelScript,
+} from '../../../domain/social.types';
 import type { SocialGraphState } from '../state';
 import { createPersistContentNode } from './persist-content.node';
 
@@ -37,6 +41,12 @@ function fakeStore(): jest.Mocked<SocialResultStore> {
     replaceReelIdeas: jest.fn().mockResolvedValue(undefined),
     replaceReelScript: jest.fn().mockResolvedValue(undefined),
     replaceContent: jest.fn().mockResolvedValue(undefined),
+    clearContents: jest.fn().mockResolvedValue(undefined),
+    appendContent: jest.fn().mockResolvedValue(undefined),
+    listContents: jest.fn().mockResolvedValue([]),
+    clearReelScripts: jest.fn().mockResolvedValue(undefined),
+    appendReelScript: jest.fn().mockResolvedValue(undefined),
+    listReelScripts: jest.fn().mockResolvedValue([]),
     listIdeas: jest.fn().mockResolvedValue([]),
     listReelIdeas: jest.fn().mockResolvedValue([]),
     getContent: jest.fn().mockResolvedValue(null),
@@ -79,7 +89,56 @@ describe('createPersistContentNode', () => {
     );
     expect(store.replaceIdeas).not.toHaveBeenCalled();
     expect(store.replaceReelScript).not.toHaveBeenCalled();
+    expect(store.appendContent).not.toHaveBeenCalled();
     expect(out).toEqual({});
+  });
+
+  it('appends two-stage content without calling replaceContent', async () => {
+    const content: SocialContent = {
+      body: 'Gotowy post.',
+      hashtags: ['#acme'],
+      cta: 'Napisz do nas',
+      characterCount: 999,
+      sourceIdeaId: 'idea_1',
+    };
+    const verdict: VerifierVerdict = {
+      ok: true,
+      contextIssues: [],
+      languageIssues: [],
+    };
+    const store = fakeStore();
+    const rows: SocialContent[] = [];
+    store.appendContent.mockImplementation(async (_runId, item) => {
+      rows.push(item);
+    });
+    const first = makeState({
+      taskType: 'post_ideas_then_content',
+      selectedIdeaIds: ['idea_1'],
+      content,
+      verdict,
+    });
+    const second = makeState({
+      taskType: 'post_ideas_then_content',
+      selectedIdeaIds: ['idea_2'],
+      content: {
+        ...content,
+        body: 'Drugi post.',
+        characterCount: 11,
+        sourceIdeaId: 'idea_2',
+      },
+      verdict,
+    });
+
+    await createPersistContentNode(store)(first);
+    await createPersistContentNode(store)(second);
+
+    expect(store.appendContent).toHaveBeenCalledTimes(2);
+    expect(store.replaceContent).not.toHaveBeenCalled();
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.characterCount).toBe(content.body.length);
+    expect(rows[0]?.sourceIdeaId).toBe('idea_1');
+    expect(rows[1]?.sourceIdeaId).toBe('idea_2');
+    expect(rows[1]?.characterCount).toBe('Drugi post.'.length);
   });
 
   it('replaces reel script and does not call replaceContent', async () => {
@@ -115,7 +174,45 @@ describe('createPersistContentNode', () => {
       verdict,
     );
     expect(store.replaceContent).not.toHaveBeenCalled();
+    expect(store.appendReelScript).not.toHaveBeenCalled();
     expect(out).toEqual({});
+  });
+
+  it('appends two-stage reel script without calling replaceReelScript', async () => {
+    const reelScript: ReelScript = {
+      segments: [
+        {
+          startSeconds: 0,
+          endSeconds: 15,
+          onScreen: 'Hook',
+          voiceover: 'Powiedz problem.',
+        },
+      ],
+      cta: 'Napisz do nas',
+    };
+    const verdict: VerifierVerdict = {
+      ok: true,
+      contextIssues: [],
+      languageIssues: [],
+    };
+    const store = fakeStore();
+    const state = makeState({
+      taskType: 'reel_ideas_then_scripts',
+      selectedIdeaIds: ['idea_1'],
+      reelScript,
+      verdict,
+    });
+
+    await createPersistContentNode(store)(state);
+
+    expect(store.appendReelScript).toHaveBeenCalledTimes(1);
+    expect(store.appendReelScript).toHaveBeenCalledWith(
+      state.runId,
+      { ...reelScript, sourceIdeaId: 'idea_1' },
+      verdict,
+    );
+    expect(store.replaceReelScript).not.toHaveBeenCalled();
+    expect(store.replaceContent).not.toHaveBeenCalled();
   });
 
   it('throws when reelScript or verdict is missing', async () => {
@@ -133,8 +230,8 @@ describe('createPersistContentNode', () => {
     const store = fakeStore();
     store.replaceContent.mockRejectedValue(new Error('db down'));
 
-    await expect(
-      createPersistContentNode(store)(makeState()),
-    ).rejects.toThrow('db down');
+    await expect(createPersistContentNode(store)(makeState())).rejects.toThrow(
+      'db down',
+    );
   });
 });

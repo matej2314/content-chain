@@ -2,9 +2,9 @@
 
 **Lokalizacja:** `feature-plans/content-chain_feature_plan_faza-4-3-mvp-contract.md`  
 **Kotwica major:** Faza 4.3 (kroki 4.3.1–4.3.5) + ślad **MILESTONE 4.3**.  
-**Źródła:** `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`, `docs/data_flow.md` §4 / §4c / §4e, `docs/brand_types.md`, `SPEC-KONTEKST-FIRMY.md`, `SPEC-SOCIAL.md` (S-6, S-7b), `SPEC-CONTENT.md` (Ctn-3), `SPEC-RUNY.md` (R-3f, R-3g), `SPEC-KOMUNIKACJA.md` (K-8, K-9), `SPEC-TESTY.md` (D-20…D-22), `content-chain-backend_major_plan.md` Faza 4.3.  
-**Założenie wejścia:** Faza 4.2 / Milestone 4.2 `WYKONANY` / `OSIĄGNIĘTY`; docs+SPEC kontraktu 4.3 już zsynchronizowane (gate KROK 1).  
-**Kolejność `KROK` ≠ etykietom major 4.3.1–4.3.5 1:1** — pass rozwojowy: major 4.3.3 rozbity na **KROK 3** (schema/persist) → **KROK 4** (HITL 1 id); po KROK 2 idzie **KROK 2.1** (wyniesienie `parseWithZod` do `apps/api/src/shared/`).
+**Źródła:** `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`, `docs/data_flow.md` §4 / §4c / §4e, `docs/brand_types.md`, `SPEC-KONTEKST-FIRMY.md`, `SPEC-SOCIAL.md` (S-6, S-7b), `SPEC-CONTENT.md` (Ctn-3), `SPEC-RUNY.md` (R-3f, R-3g), `SPEC-KOMUNIKACJA.md` (K-8, K-9), `SPEC-TESTY.md` (D-20…D-22), `content-chain-backend_major_plan.md` Faza 4.3, `multi-hitl-plan.md` (HITL Social min. 1 / N→N).  
+**Założenie wejścia:** Faza 4.2 / Milestone 4.2 `WYKONANY` / `OSIĄGNIĘTY`; docs+SPEC kontraktu 4.3 już zsynchronizowane (gate KROK 1); kanon HITL Social N→N — Fazy 1–2 `multi-hitl-plan.md` + major 4.3 po Fazie 3.  
+**Kolejność `KROK` ≠ etykietom major 4.3.1–4.3.5 1:1** — pass rozwojowy: major 4.3.3 rozbity na **KROK 3** (schema/persist `cta` / `characterCount`) → **KROK 4** (HITL min. 1 / N→N, persist N, writer per id, snapshot tablic); po KROK 2 idzie **KROK 2.1** (wyniesienie `parseWithZod` do `apps/api/src/shared/`).
 
 **Statusy kroków feature:** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`
 
@@ -14,9 +14,9 @@
 
 | Pole | Wartość |
 |------|---------|
-| Wycinek | Typowane `extras`, HITL SM dokładnie 1 id, `cta?` na pomysłach, `characterCount` na post content, opcjonalne `role` na sekcjach outline |
+| Wycinek | Typowane `extras`, HITL Social min. 1 unikalne id ⊆ draftu i N→N w **tym samym** runie (`contents[]` / `reelScripts[]`, `sourceIdeaId`), `cta?` na pomysłach, `characterCount` na post content, opcjonalne `role` na sekcjach outline |
 | Major | Faza 4.3 / 4.3.1–4.3.5; start po Milestone 4.2; MILESTONE 4.3 po DoD fazy |
-| Poza zakresem | Faza 5 (auth), Faza 6 (feedback / `userRating`), Faza 9 (Zod 4), UI frontendu, załączniki, N→N, WP, łańcuch 6 audytorów, zmiana semantyki Fazy 4 / 4.1 / 4.2 poza dopiskiem kontraktu |
+| Poza zakresem | Faza 5 (auth), Faza 6 (feedback / `userRating`), Faza 9 (Zod 4), implementacja UI FE (kontrakt FE w `SPEC-FRONTEND` już N→N po Fazie 2 `multi-hitl-plan`), załączniki, N→N **child runy**, WP, łańcuch 6 audytorów, zmiana semantyki Fazy 4 / 4.1 / 4.2 poza dopiskiem kontraktu, zmiana HITL Content |
 | Po implementacji (informacyjnie) | Major: Faza 4.3 i 4.3.1–4.3.5 → `WYKONANY`; MILESTONE 4.3 → `OSIĄGNIĘTY`. Edycja major **poza** tym skillem |
 
 ---
@@ -25,9 +25,10 @@
 
 - Zod **3** (`apps/api` `^3.25.76`). `packages/shared` bez Zod. Bez migracji Prisma (kolumna `extras Json?` już jest; payloady Social/Content = Json).
 - Walidacja `extras`: **application Zod `.strict()`** → `VALIDATION_FAILED` przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, separator ścieżki `details[].path` = `'.'`). Do czasu **KROK 2.1** dopuszczalna lokalna kopia w company-context (KROK 2); po 2.1 — **jeden** helper, import z `shared` (Runs + company-context). DTO class-validator zostaje cienką bramką Nest (`@IsObject()`); **nie** polegać na DTO jako jedynym kontrakcie extras. **Nie** umieszczać Zod/`parseWithZod` w `packages/shared` (M-5).
-- HITL Social: kod **`HITL_INVALID_SELECTION`** (400), status zostaje `awaiting_hitl`. **Nie** zaostrzać `hitlSelectedIdeaIdsSchema` do `.length(1)` — to dałoby `VALIDATION_FAILED` zamiast kanonu docs. Schema: `z.array(z.string())` (dopuszcza `[]`); egzekucja długości + członkostwa w `ResumeHitlUseCase`.
-- `characterCount`: integer ≥ 0; **kanon** = `body.length` po sukcesie writer/refine; wartość z LLM **nie** jest źródłem prawdy (nie dodawać wymaganego pola do `contentOutputSchema`). Ustawić przy budowie `SocialContent` w writer/refine **oraz** twarde nadpisanie w Persist; przy odczycie starego JSON bez klucza → mapper `body.length` (`SPEC-RUNY.md` R-3g).
-- `cta?` na `SocialIdea` / `ReelIdea`: opcjonalne; refine zachowuje gdy model zwróci. HITL page bez zmian (`[outline.id]`).
+- HITL Social: kod **`HITL_INVALID_SELECTION`** (400), status zostaje `awaiting_hitl`. **Nie** zaostrzać `hitlSelectedIdeaIdsSchema` do `.length(1)` ani `.min(1)` — puste `[]` **nie** jest `VALIDATION_FAILED`. Schema: `z.array(z.string())` (dopuszcza `[]`); egzekucja w `ResumeHitlUseCase`: `length >= 1`, bez duplikatów, każdy id ∈ `listIdeas` / `listReelIdeas`. **2+ legalne**. Semantyka wyniku: każde id → osobny artefakt (kolejność = tablica requestu). Content: nadal dokładnie `[outline.id]`.
+Zmiana względem: wcześniejsze założenie tego pliku (HITL SM bez kanonu N→N wyniku; KROK 4 w starym brzmieniu `length === 1`). Checklista KROK 1 **B** (`WYKONANY`) jest historyczna — nie edytować.
+- `characterCount`: integer ≥ 0; **kanon** = `body.length` po sukcesie writer/refine; wartość z LLM **nie** jest źródłem prawdy (nie dodawać wymaganego pola do `contentOutputSchema`). Ustawić przy budowie `SocialContent` w writer/refine **oraz** twarde nadpisanie w Persist; przy odczycie starego JSON bez klucza → mapper `body.length` (`SPEC-RUNY.md` R-3g). Na każdej pozycji `contents[]` to samo.
+- `cta?` na `SocialIdea` / `ReelIdea`: opcjonalne; refine zachowuje gdy model zwróci. HITL page bez zmian (`[outline.id]`). `sourceIdeaId` w payloadzie JSON content/script (string jak dotychczas; **bez** brandu `SourceIdeaId` w tym wycinku).
 - `PageOutlineSection.role?`: enum zamknięty; nieznana wartość → fail parse; brak `role` = OK.
 - Auth pre-Faza 5: e2e / Postman jak dotychczas (bez sesji).
 - Tsconfig bez zmian. Brak `any` na granicach.
@@ -601,18 +602,25 @@ Dopisek: pole `cta` opcjonalne — krótka fraza akcji zgodna z `cta.items[].lab
 
 ---
 
-### KROK 4 — Runs/Social: HITL dokładnie 1 id + `HITL_INVALID_SELECTION`
+### KROK 4 — Runs/Social: HITL min. 1 / N→N + snapshot tablic
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
-**Cel:** Social dwuetapowy jak Content — dokładnie jeden id ∈ draftu / options. Major 4.3.3 (HITL); `SPEC-RUNY` R-3f; `SPEC-SOCIAL` S-6; D-21. **Wejście:** KROK 2.1 zakończony — `ResumeHitlUseCase` / schema tests importują `parseWithZod` wyłącznie z `../../shared/parse-with-zod` (nie z `./parse-with-zod`).
+**Cel:** Social dwuetapowy: min. 1 unikalne id ⊆ draftu; każde id → osobny artefakt w **tym samym** runie. Major 4.3.3 (HITL + persist N + writer per id + mapper snapshotu); `SPEC-RUNY` R-3f / R-3g; `SPEC-SOCIAL` S-6 / S-7b; D-21. **Wejście:** KROK 2.1 zakończony — `ResumeHitlUseCase` / schema tests importują `parseWithZod` wyłącznie z `../../shared/parse-with-zod` (nie z `./parse-with-zod`). **KROK 5** (role outline) bez zmian — nie mieszać multi Social z HITL page.
+Refaktor względem: KROK 3 (`WYKONANY`) — `replaceContent` / `replaceReelScript` (deleteMany + 1 wiersz) oraz writer filtrujący wiele `selectedIdeaIds` do **jednego** hopu; KROK 4 w poprzednim brzmieniu tego pliku (`length === 1` → 400 przy 2+).
 
 **Artefakty:**
 
-- Zmiana: `apps/api/src/runs/application/run.schemas.ts` (`hitlSelectedIdeaIdsSchema`)
-- Zmiana: `apps/api/src/runs/application/resume-hitl.use-case.ts` (logika 1 id; **import** `parseWithZod` z `../../shared/parse-with-zod`)
-- Zmiana: `apps/api/src/runs/application/resume-hitl.use-case.spec.ts`
-- E2e: `social-pipeline.e2e-spec.ts` (0 id, 2 id → 400; 1 poprawny → completed) — może wejść też w KROK 6; **unit w tym kroku obowiązkowy**
+- Zmiana: `apps/api/src/runs/application/run.schemas.ts` (`hitlSelectedIdeaIdsSchema` — **bez** `.min(1)`)
+- Zmiana: `apps/api/src/runs/application/resume-hitl.use-case.ts` + `.spec.ts`
+- Zmiana: `apps/api/src/social/domain/social.types.ts` (`sourceIdeaId?` na content/script)
+- Zmiana: `apps/api/src/social/domain/social-result.port.ts` — `listContents` / `listReelScripts` + `append*` / `clear*` (nie `replaceContent` przy K>1)
+- Zmiana: `prisma-social-result.adapter.ts`, `map-stored-social-content.ts` (+ mapper reel script z `sourceIdeaId`)
+- Zmiana: `run-result-reader.port.ts`, `composite-run-result.reader.ts`, `empty-run-result.reader.ts`
+- Zmiana: `get-run.use-case.ts` + `.spec.ts` — `result.contents` / `result.reelScripts`; skalar `null` na then_* po fazie 2
+- Zmiana: `social-pipeline.facade.ts` — pętla per id w fazie `content` (dwuetapowy)
+- Zmiana: `content-writer.node.ts`, `refine-content.node.ts`, `persist-content.node.ts` (+ specy)
+- E2e pełne (2 id → 2 artefakty) — **KROK 6**; **unit w tym kroku obowiązkowy**
 
 #### Import (po KROK 2.1 — bez lokalnego pliku)
 
@@ -620,13 +628,13 @@ Dopisek: pole `cta` opcjonalne — krótka fraza akcji zgodna z `cta.items[].lab
 import { parseWithZod } from '../../shared/parse-with-zod';
 ```
 
-Walidacja `runId` / `selectedIdeaIds` przez Zod nadal → `VALIDATION_FAILED`; egzekucja długości 1 id Social → `HITL_INVALID_SELECTION` (poniżej) — **nie** mylić tych kodów.
+Walidacja `runId` / `selectedIdeaIds` przez Zod nadal → `VALIDATION_FAILED`; egzekucja min. 1 / unikalność / członkostwo Social → `HITL_INVALID_SELECTION` — **nie** mylić tych kodów.
 
 #### Refaktor — schema HITL
 
 Plik: `apps/api/src/runs/application/run.schemas.ts`
 
-**Teraz (typowe):**
+**Teraz:**
 
 ```typescript
 export const hitlSelectedIdeaIdsSchema = z.array(z.string()).min(1);
@@ -635,7 +643,7 @@ export const hitlSelectedIdeaIdsSchema = z.array(z.string()).min(1);
 **Zamień na:**
 
 ```typescript
-/** Długość i członkostwo egzekwuje ResumeHitlUseCase → HITL_INVALID_SELECTION. */
+/** Długość, unikalność i członkostwo egzekwuje ResumeHitlUseCase → HITL_INVALID_SELECTION. */
 export const hitlSelectedIdeaIdsSchema = z.array(z.string());
 ```
 
@@ -643,26 +651,11 @@ export const hitlSelectedIdeaIdsSchema = z.array(z.string());
 
 Plik: `apps/api/src/runs/application/resume-hitl.use-case.ts`
 
-Po sprawdzeniu `awaiting_hitl`, **przed** `saveSelectedIdeaIds`, dopisz gałąź Social (obok istniejącej page):
+**Teraz:** po gałęzi page (`[outline.id]`) od razu `saveSelectedIdeaIds` — **brak** walidacji Social (żywy kod).
 
-**Zamień blok po walidacji statusu na logikę:**
+**Zamień na:** page **bez zmian**; po niej gałąź Social (przed `saveSelectedIdeaIds`):
 
 ```typescript
-    if (run.taskType === 'page_outline_then_copy') {
-      const outline = await this.results.getPageOutline(run.id);
-      if (outline == null) {
-        throw new DomainException('CONFLICT', 'Page outline is missing', 409);
-      }
-      const valid =
-        parsedSelectedIdeaIds.length === 1 &&
-        parsedSelectedIdeaIds[0] === outline.id;
-      if (!valid) {
-        throw new DomainException(
-          'HITL_INVALID_SELECTION',
-          'selectedIdeaIds must be exactly [outline.id]',
-          400,
-        );
-      }
     } else if (
       run.taskType === 'post_ideas_then_content' ||
       run.taskType === 'reel_ideas_then_scripts'
@@ -671,33 +664,133 @@ Po sprawdzeniu `awaiting_hitl`, **przed** `saveSelectedIdeaIds`, dopisz gałąź
         run.taskType === 'reel_ideas_then_scripts'
           ? (await this.results.listReelIdeas(run.id)).map((idea) => idea.id)
           : (await this.results.listIdeas(run.id)).map((idea) => idea.id);
-      const selectedId = parsedSelectedIdeaIds[0];
+      const unique = new Set(parsedSelectedIdeaIds);
       const valid =
-        parsedSelectedIdeaIds.length === 1 &&
-        selectedId !== undefined &&
-        draftIds.includes(selectedId);
+        parsedSelectedIdeaIds.length >= 1 &&
+        unique.size === parsedSelectedIdeaIds.length &&
+        parsedSelectedIdeaIds.every((id) => draftIds.includes(id));
       if (!valid) {
         throw new DomainException(
           'HITL_INVALID_SELECTION',
-          'selectedIdeaIds must contain exactly one id from hitl draft',
+          'selectedIdeaIds must be a non-empty unique subset of hitl draft',
           400,
         );
       }
     }
 ```
 
-Istniejący test „resumes social HITL without reading a page outline” → rozszerz o `listIdeas` zwracające `[{ id: 'idea_1', … }]`. Nowe testy: `[]`, `['a','b']`, id spoza draftu → `HITL_INVALID_SELECTION`, bez `saveSelectedIdeaIds`.
+Jednoetapowe (`post_ideas`, `post_content`, `reel_ideas`, `reel_script`) — bez tej gałęzi (nie pauzują na HITL).
 
-**DoD kroku:**
+Istniejący test „resumes social HITL without reading a page outline” → `listIdeas` zwraca `[{ id: 'idea_1', … }]`. Nowe unit: `[]`, `['idea_1','idea_1']` (duplikat), id spoza draftu → `HITL_INVALID_SELECTION`, **bez** `saveSelectedIdeaIds`; **2 legalne** różne id ∈ draftu → `running` + notify + zapis obu id; 1 legalne → OK.
 
-- Unit: 0 / 2+ / obcy id → 400 `HITL_INVALID_SELECTION`; 1 poprawny → `running` + notify.
-- Page HITL bez regresji.
+#### Refaktor — typy: `sourceIdeaId?`
+
+Plik: `apps/api/src/social/domain/social.types.ts`
+
+Dopisz opcjonalne `sourceIdeaId?: string` do `SocialContent` i `ReelScript` (addytywne; string jak id pomysłu — **bez** brandu). Na wierszu dwuetapowym po persist klucz **jest** obecny. Snapshot GET:
+
+```typescript
+export type SocialContentItem = SocialContent & { sourceIdeaId: string };
+export type ReelScriptItem = ReelScript & { sourceIdeaId: string };
+```
+
+`GetRunOutput.result`:
+
+```typescript
+    content: SocialContent | null;
+    contents: SocialContentItem[];
+    reelScript: ReelScript | null;
+    reelScripts: ReelScriptItem[];
+```
+
+Tsconfig bez zmian. Zakaz `any`; payload JSON → `unknown` + mapper (jak `mapStoredSocialContent`).
+
+#### Refaktor — port persist (zakaz wipe przy K>1)
+
+Plik: `apps/api/src/social/domain/social-result.port.ts`
+
+**Teraz:** `replaceContent` / `replaceReelScript` = `deleteMany` + jeden `create`; `getContent` / `getReelScript` = `findFirst`.
+
+**Zamień na (addytywnie):**
+
+```typescript
+  clearContents(runId: RunId): Promise<void>;
+  appendContent(
+    runId: RunId,
+    content: SocialContent,
+    verification: VerifierVerdict,
+  ): Promise<void>;
+  listContents(runId: RunId): Promise<SocialContentItem[]>;
+  clearReelScripts(runId: RunId): Promise<void>;
+  appendReelScript(
+    runId: RunId,
+    script: ReelScript,
+    verification: VerifierVerdict,
+  ): Promise<void>;
+  listReelScripts(runId: RunId): Promise<ReelScriptItem[]>;
+```
+
+`replaceContent` / `replaceReelScript` **zostają** wyłącznie dla jednoetapowych (`post_content` / `reel_script`). Dwuetapowy **nie** woła `replace*` w pętli (K>1 zostawiłby tylko ostatni wiersz).
+
+Adapter: `append*` = `create` bez `deleteMany`; `clear*` = `deleteMany`; `list*` = `findMany` (kolejność kanoniczna GET — wg `selectedIdeaIds` w readerze, nie polegać wyłącznie na `createdAt`). `mapStoredSocialContent`: jeśli `sourceIdeaId` jest niepustym stringiem — dołącz; analogiczny mapper dla `ReelScript`.
+
+`RunResultReader` + composite + empty: `listContents` / `listReelScripts` (pusta tablica gdy brak kanału).
+
+#### Refaktor — pętla w fasadzie (jeden run, hop per id)
+
+Plik: `apps/api/src/social/application/social-pipeline.facade.ts`
+
+Gdy `phase === 'content'` oraz `taskType` jest `post_ideas_then_content` / `reel_ideas_then_scripts`, a `selectedIdeaIds` ma długość ≥ 1:
+
+1. `clearContents` albo `clearReelScripts` raz (idempotentny restart fazy).
+2. `for (const ideaId of selectedIdeaIds)` — kolejność tablicy HITL — `graph.invoke` z `selectedIdeaIds: [ideaId]`.
+3. Każde wywołanie: writer → verifier → refine (pętla w grafie) → persist **append** jednego wiersza z `sourceIdeaId: ideaId`.
+4. Porażka hopu / verifier / refine **jednej** pozycji → outcome `failed` (przerwij pętlę; brak `completed` z dziurami).
+5. Liczniki refine **zostają na runie** (bez kolumn per-item). Każda pozycja startuje z `contentRefineCount` z `extras` (ten sam budżet; nie kumuluj zużycia między id).
+
+**Nie:** N child runów, N równoległych grafów z HTTP, jeden hop na całą listę jako jeden JSON out.
+
+Jednoetapowe `post_content` / `reel_script`: jedna invocacja jak dziś (`replace*`).
+
+#### Refaktor — writer / refine / persist per id
+
+`content-writer.node.ts` — **teraz** filtruje `selectedIdeaIds` do tablicy i wstawia `JSON.stringify(ideas)` (wiele id = jeden post).
+
+**Zamień (dwuetapowy, faza content):** inwariant pętli — `selectedIdeaIds.length === 1`; prompt dostaje **jeden** pomysł (`JSON.stringify(idea)`), nie tablicę wybranych. Ustaw `sourceIdeaId` na budowanym `SocialContent` / `ReelScript`. Jednoetapowe: bez zmian semantyki (brak HITL).
+
+`refine-content.node.ts`: przy przepisywaniu content/script **zachowaj** `sourceIdeaId` ze state (LLM go nie emituje).
+
+`persist-content.node.ts`: dwuetapowy → `appendContent` / `appendReelScript` (po twardym `characterCount = body.length`); jednoetapowy → `replace*` jak KROK 3.
+
+#### Refaktor — snapshot GET
+
+Plik: `apps/api/src/runs/application/get-run.use-case.ts`
+
+**Teraz:** `result.content` / `result.reelScript` ze skalarnego `getContent` / `getReelScript`; brak tablic.
+
+**Zamień na:** czytaj `listContents` / `listReelScripts`.
+
+- `post_ideas_then_content` po fazie 2 (`completed` z contentem): `contents` = K elementów (kolejność = `selectedIdeaIds`; każdy z `sourceIdeaId`); `content` = **`null`** (nie alias `contents[0]`).
+- `reel_ideas_then_scripts` analogicznie: `reelScripts` + `reelScript = null`.
+- `post_content` / `reel_script`: skalar jak dziś; `contents` / `reelScripts` = `[]`.
+- Przed fazą 2 / brak kanału: puste tablice; skalar `null`.
+
+Unit `get-run.use-case.spec.ts`: then_content completed z 2 wierszami → `contents.length === 2`, `content === null`; `sourceIdeaId` zgodne.
+
+**DoD kroku (jak major 4.3.3; bez pełnego e2e — to KROK 6):**
+
+- Unit HITL: `[]` / duplikat / obcy id → 400 `HITL_INVALID_SELECTION`, bez `saveSelectedIdeaIds`; 2 legalne → `running` + notify; 1 legalne → OK.
+- Page HITL bez regresji (`[outline.id]`).
+- Unit persist: dwa `append` → dwa wiersze; `replaceContent` **nie** wołany w ścieżce dwuetapowej K>1.
+- Unit writer: jeden hop na jedno id; prompt nie dostaje tablicy dwóch pomysłów jako jednego JSON out.
+- Unit GET: `contents` / `reelScripts` + `sourceIdeaId`; skalar `null` na then_* po fazie 2.
+- `characterCount === body.length` na każdej pozycji (persist/mapper).
 
 ---
 
 ### KROK 5 — Content: `PageOutlineSection.role` + Zod + prompty
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Opcjonalne `role` na sekcjach outline; regresja bez `role` zielona. Major 4.3.4; `SPEC-CONTENT` Ctn-3; D-22 (część role). Application Zod komend HTTP (jeśli używane) — wyłącznie `../../shared/parse-with-zod` (po KROK 2.1); ten krok dotyczy schema LLM Content / `parseLlmJson`, nie lokalnego `parseWithZod`.
 
@@ -825,34 +918,62 @@ Nie wymagać wszystkich ról w każdym outline.
 
 ### KROK 6 — e2e / Postman regresja + dokumentacja testów (major 4.3.5)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
-**Cel:** Domknięcie DoD fazy i Milestone 4.3 od strony dowodu. D-20…D-22; Social A–D + Content A–B; nowe case’y. **Wejście:** KROK 2.1 — brak lokalnych `parse-with-zod.ts` w BC; e2e extras unknown key oczekuje `VALIDATION_FAILED` z `details[].path` w konwencji `'.'`.
+**Cel:** Domknięcie DoD fazy i Milestone 4.3 od strony dowodu. D-20…D-22 (D-16 / D-21 wg SPEC po Fazie 2 `multi-hitl-plan`); Social A–D + Content A–B; nowe case’y **K z N**. **Wejście:** KROK 2.1 — brak lokalnych `parse-with-zod.ts` w BC; e2e extras unknown key oczekuje `VALIDATION_FAILED` z `details[].path` w konwencji `'.'`. **KROK 4** zakończony (HITL N→N + snapshot tablic).
+Zmiana względem: wcześniejsze brzmienie KROK 6 (HITL 0/2 id jako negatyw; „HITL 1 id” w DoD).
 
 **Artefakty:**
 
 - `apps/api/test/company-context.e2e-spec.ts` — extras round-trip + unknown key 400 (`VALIDATION_FAILED`; path z shared `parseWithZod`)
-- `apps/api/test/social-pipeline.e2e-spec.ts` — HITL 0/2 id; assert `characterCount === body.length`; opcjonalnie `cta` gdy fake LLM zwróci
-- `apps/api/test/content-pipeline.e2e-spec.ts` — outline z `role` (fake LLM) przechodzi; bez `role` regresja
-- `apps/api/test/fake-llm-gateway.ts` — odpowiedzi z opcjonalnym `cta` / `role` (bez `characterCount` z LLM)
-- Postman: `social-pipeline.postman-collection.json`, `content-pipeline.postman-collection.json`, `README.md` — foldery/negatywne HITL + asercje wyniku; Setup może dodać poprawne `extras` (bez wpływu na completeness)
-- Nota w planie / README: D-20…D-22 pokryte (bez edycji `SPEC-TESTY.md` w tej sesji feature — SPEC już ma normy po KROK 2.1; implementacja testów = ten krok)
+- `apps/api/test/social-pipeline.e2e-spec.ts` — HITL negatywy + pozytyw K z N; assert `characterCount === body.length` **na każdej** pozycji `contents[]`; opcjonalnie `cta` gdy fake LLM zwróci
+- `apps/api/test/content-pipeline.e2e-spec.ts` — outline z `role` (fake LLM) przechodzi; bez `role` regresja; HITL `[outline.id]` bez zmian
+- `apps/api/test/fake-llm-gateway.ts` — odpowiedzi z opcjonalnym `cta` / `role` (bez `characterCount` z LLM); writer per id — osobny payload na hop
+- Postman: `social-pipeline.postman-collection.json`, `content-pipeline.postman-collection.json`, `README.md` — D-16 / D-21 zgodnie z SPEC (tablice + `sourceIdeaId`; **nie** „dwa legalne id → 400”); Setup może dodać poprawne `extras` (bez wpływu na completeness)
+- Nota w planie / README: D-20…D-22 pokryte (bez edycji `SPEC-TESTY.md` w tej sesji feature — SPEC już ma normy po KROK 2.1 i Fazie 2 `multi-hitl-plan`; implementacja testów = ten krok)
 
-**Szkic asercji e2e Social HITL negatyw:**
+**Szkic asercji e2e Social HITL — negatywy (nie „2 różne legalne → 400”):**
 
 ```typescript
 await expect(
   api.post(`/runs/${runId}/hitl`).send({ selectedIdeaIds: [] }),
 ).resolves.toMatchObject({ status: 400, body: { code: 'HITL_INVALID_SELECTION' } });
+await expect(
+  api.post(`/runs/${runId}/hitl`).send({ selectedIdeaIds: ['idea_1', 'idea_1'] }),
+).resolves.toMatchObject({ status: 400, body: { code: 'HITL_INVALID_SELECTION' } });
+await expect(
+  api.post(`/runs/${runId}/hitl`).send({ selectedIdeaIds: ['not-in-draft'] }),
+).resolves.toMatchObject({ status: 400, body: { code: 'HITL_INVALID_SELECTION' } });
 // status runu nadal awaiting_hitl
 ```
 
-(Dostosuj do faktycznego envelope `DomainException` / filtra w projekcie — jak istniejące Content HITL invalid.)
+**Szkic asercji e2e Social HITL — pozytyw 2 id (fake LLM):**
+
+```typescript
+await api.post(`/runs/${runId}/hitl`).send({
+  selectedIdeaIds: ['idea_1', 'idea_2'],
+});
+// po completed:
+expect(body.result.content).toBeNull();
+expect(body.result.contents).toHaveLength(2);
+expect(body.result.contents[0]?.sourceIdeaId).toBe('idea_1');
+expect(body.result.contents[1]?.sourceIdeaId).toBe('idea_2');
+for (const item of body.result.contents) {
+  expect(item.characterCount).toBe(item.body.length);
+}
+// 1 legalne id → contents.length === 1
+```
+
+Analogicznie `reel_ideas_then_scripts`: `reelScript === null`, `reelScripts.length === 2`, `sourceIdeaId`. Content e2e HITL `[outline.id]` — regresja bez zmian.
+
+(Dostosuj envelope `DomainException` / filtr jak istniejące Content HITL invalid.)
 
 **DoD kroku:**
 
 - Social A–D + Content A–B zielone (Jest e2e + opis Postman).
-- Nowe case’y: extras, HITL 1 id (negatyw/pozytyw), `characterCount`, `role` — opisane w Postman README.
+- Negatywy HITL Social: `[]`, duplikat, id spoza options → 400; **brak** case’u „dwa różne legalne id → 400”.
+- Pozytyw: 2 id → 2 payloady, `sourceIdeaId` zgodne, `characterCount === body.length` na każdej pozycji; 1 id → tablica długości 1.
+- Nowe case’y: extras, HITL K z N, `characterCount`, `role` — opisane w Postman README (D-16 / D-21).
 - D-20…D-22 pokryte warstwą adekwatną (unit i/lub e2e).
 
 ---
@@ -863,8 +984,8 @@ await expect(
 |-----------|--------|
 | PUT/PATCH extras kształt + unknown → 400; `isComplete` ignoruje extras | major 4.3 DoD; SPEC-KONTEKST-FIRMY |
 | Wspólny `parseWithZod` w `apps/api/src/shared/`; separator `'.'`; brak kopii w BC | KROK 2.1; SPEC-MONOREPO M-8 |
-| HITL post/reel ≠1 id → 400 `HITL_INVALID_SELECTION`; 1 id → content/script | SPEC-RUNY R-3f; SPEC-SOCIAL S-6 |
-| Snapshot: `cta?`, `characterCount`, `role?` | SPEC-RUNY R-3g; komunikacja |
+| HITL post/reel: 0 / duplikat / obcy → 400 `HITL_INVALID_SELECTION`; K≥1 legalnych ⊆ options → K artefaktów (`contents[]` / `reelScripts[]`, `sourceIdeaId`); 1 id → tablica długości 1. KROK 1 **B** (`WYKONANY`, 1 id) jest historyczna — kanon od KROK 4 | SPEC-RUNY R-3f; SPEC-SOCIAL S-6; SPEC-TESTY D-21 |
+| Snapshot: `cta?`, `characterCount`, `role?`, `contents[]` / `reelScripts[]`; skalar `content` / `reelScript` = `null` na then_* po fazie 2 | SPEC-RUNY R-3g; komunikacja |
 | Unit + e2e + Postman | SPEC-TESTY D-20…D-22; major 4.3.5 |
 | Bez auth / bez Fazy 5–6–9 | major poza zakresem |
 | Nagłówki wyłącznie `FAZA` / `KROK` | konwencja feature planu |
@@ -888,7 +1009,8 @@ Edycja pliku major **poza** tym skillem / poza sesją tworzenia feature planu.
 
 ## Pass rozwojowy (zapisany)
 
-- Major 4.3.3 rozbity: **schema/persist/prompty (KROK 3) przed HITL (KROK 4)** — HITL i e2e GET potrzebują typów `cta` / `characterCount` oraz draftów z readera.
+- Major 4.3.3 rozbity: **schema/persist/prompty (KROK 3) przed HITL N→N (KROK 4)** — HITL i e2e GET potrzebują typów `cta` / `characterCount` oraz draftów z readera; persist N / writer per id / snapshot tablic = KROK 4 (nie KROK 3).
 - Po KROK 2: **KROK 2.1** wynosi `parseWithZod` do `apps/api/src/shared/parse-with-zod.ts` (separator `'.'`), aktualizuje docs/SPEC, usuwa lokalne kopie; KROK 3–6 zakładają wspólny import.
+- KROK 1 checklista **B** (HITL SM `length === 1`) jest **historyczna** (`WYKONANY`) — zero edycji tej tabeli. Obowiązujący kanon tego pliku od **KROK 4** + docs/SPEC po `multi-hitl-plan` Fazach 1–2.
 - Brak przenosin między fazami major.
 - Kolejność feature `KROK` ≠ numeracji major 4.3.x 1:1 (split 4.3.3 + wstawka 2.1).

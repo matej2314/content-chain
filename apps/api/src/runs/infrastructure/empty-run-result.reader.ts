@@ -6,7 +6,10 @@ import type {
 } from '../../content/domain/content.types';
 import type {
   ReelIdea,
+  ReelScript,
+  ReelScriptItem,
   SocialContent,
+  SocialContentItem,
   SocialIdea,
   VerifierVerdict,
 } from '../../social/domain/social.types';
@@ -19,18 +22,29 @@ export class EmptyRunResultReader implements RunResultReader {
   }
 
   async getContent(_runId: RunId): Promise<{
-    content: SocialContent | null;
+    content: SocialContent;
     verification: VerifierVerdict | null;
   } | null> {
     return null;
+  }
+
+  async listContents(_runId: RunId): Promise<SocialContentItem[]> {
+    return [];
   }
 
   async listReelIdeas(_runId: RunId): Promise<ReelIdea[]> {
     return [];
   }
 
-  async getReelScript(_runId: RunId) {
+  async getReelScript(_runId: RunId): Promise<{
+    script: ReelScript;
+    verification: VerifierVerdict | null;
+  } | null> {
     return null;
+  }
+
+  async listReelScripts(_runId: RunId): Promise<ReelScriptItem[]> {
+    return [];
   }
 
   async getPageOutline(_runId: RunId): Promise<PageOutline | null> {

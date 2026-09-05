@@ -17,11 +17,13 @@ import {
   RUN_LIFECYCLE,
   type RunLifecyclePort,
 } from '../../runs/domain/run-lifecycle.port';
-import type {
-  PipelinePhase,
-  ReelIdea,
-  SocialIdea,
-  SocialPipelineOutcome,
+import { isReelTaskType } from '../domain/reel-task';
+import {
+  isTwoStageSocialTask,
+  type PipelinePhase,
+  type ReelIdea,
+  type SocialIdea,
+  type SocialPipelineOutcome,
 } from '../domain/social.types';
 import {
   isSocialRunRecord,
@@ -71,14 +73,13 @@ export class SocialPipelineFacade {
     }
 
     const socialRun: SocialRunRecord = run;
-    const final = await this.graph.invoke({
+    const baseInput: Omit<SocialGraphState, 'selectedIdeaIds'> = {
       runId: socialRun.id,
       conversationId: socialRun.conversationId,
       taskType: socialRun.taskType,
       platform: socialRun.platform,
       language: socialRun.language,
       brief: socialRun.brief,
-      selectedIdeaIds: socialRun.selectedIdeaIds,
       phase,
       company: null,
       ideas: extras.ideas,
@@ -90,6 +91,41 @@ export class SocialPipelineFacade {
       contentRefineCount: extras.contentRefineCount,
       failedCode: null,
       failedMessage: null,
+    };
+
+    const selectedIdeaIds = socialRun.selectedIdeaIds;
+    const twoStageContent =
+      phase === 'content' &&
+      isTwoStageSocialTask(socialRun.taskType) &&
+      selectedIdeaIds != null &&
+      selectedIdeaIds.length >= 1;
+
+    if (twoStageContent) {
+      if (isReelTaskType(socialRun.taskType)) {
+        await this.store.clearReelScripts(socialRun.id);
+      } else {
+        await this.store.clearContents(socialRun.id);
+      }
+      let last: SocialGraphState | undefined;
+      for (const ideaId of selectedIdeaIds) {
+        last = await this.graph.invoke({
+          ...baseInput,
+          selectedIdeaIds: [ideaId],
+        });
+        const outcome = toOutcome(run, phase, last);
+        if (outcome.kind === 'failed') {
+          return outcome;
+        }
+      }
+      if (last === undefined) {
+        throw new Error('Two-stage content loop expected at least one invoke');
+      }
+      return toOutcome(run, phase, last);
+    }
+
+    const final = await this.graph.invoke({
+      ...baseInput,
+      selectedIdeaIds: socialRun.selectedIdeaIds,
     });
     return toOutcome(run, phase, final);
   }

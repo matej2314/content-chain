@@ -1,7 +1,7 @@
 ---
-wersja: 10
+wersja: 11
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-04
+data_modyfikacji: 2026-09-05
 ---
 
 # SPEC — Social
@@ -32,10 +32,10 @@ Wiążące:
 |------------|------------|
 | `post_ideas` | full-auto → lista pomysłów |
 | `post_content` | full-auto → treść (z podanymi / wybranymi ideas) |
-| `post_ideas_then_content` | ideas → **HITL** → content |
+| `post_ideas_then_content` | ideas → **HITL** (min. 1 unikalne id ⊆ draftu) → `result.contents[]` |
 | `reel_ideas` | full-auto → lista pomysłów na rolki (`result.reelIdeas`) |
 | `reel_script` | full-auto → scenariusz (`result.reelScript`) |
-| `reel_ideas_then_scripts` | reel ideas → **HITL** (`selectedIdeaIds` z `reelIdeas`) → scenariusz |
+| `reel_ideas_then_scripts` | reel ideas → **HITL** (`selectedIdeaIds` z `reelIdeas`, min. 1) → `result.reelScripts[]` |
 
 Platformy: `linkedin` \| `facebook` \| `instagram` (katalog **nie** zwężamy dla rolek). Język: `pl` \| `en`.
 
@@ -63,28 +63,41 @@ S-6. HITL (**model B** — samodzielne zarządzanie pauzą):
 
 1. Faza ideas kończy **invoke** grafu po `PersistIdeasDraft`.
 2. Application ustawia run `awaiting_hitl` i zapisuje w DB stan potrzebny do resume (draft pomysłów, `conversationId`, metadane fazy, liczniki refine itd.) — **kanonicznie w Run / powiązanych tabelach Prisma**, nie w pliku JSON i nie w checkpointerze LangGraph.
-3. `POST .../hitl` waliduje stan `awaiting_hitl` **oraz** selekcję jak Content: `selectedIdeaIds.length === 1` i id ∈ draftu / `hitl.options` dla `post_ideas_then_content` / `reel_ideas_then_scripts`. Sukces: zapis wyboru, **nowy invoke** fazy content. Porażka: **400** `HITL_INVALID_SELECTION`, bez zapisu, status zostaje `awaiting_hitl`.
+3. `POST .../hitl` waliduje stan `awaiting_hitl` **oraz** selekcję dla `post_ideas_then_content` / `reel_ideas_then_scripts`: `selectedIdeaIds.length >= 1`, bez duplikatów, każdy id ∈ draftu / `hitl.options`. Sukces: zapis wyboru, **nowy invoke** fazy content **dla każdego** wybranego id (pętla w executorze / grafie — **jeden** run). Porażka selekcji: **400** `HITL_INVALID_SELECTION`, bez zapisu, status zostaje `awaiting_hitl`. Pusty `[]` **nie** jest `VALIDATION_FAILED` (schema HTTP nadal `z.array(z.string())`; egzekucja w `ResumeHitlUseCase` — `SPEC-RUNY.md` R-3f). Błąd writer/verifier/refine **jednej** pozycji → run `failed` (brak `completed` z dziurami). Liczniki refine zostają na runie (bez per-item w tym wycinku).
 4. Idempotencja: ponowny HITL gdy run nie jest w `awaiting_hitl` → `409` `HITL_REQUIRED` / `CONFLICT`.
 5. Crash procesu podczas **execute** (nie pauzy HITL) należy do Runs: leftover `running` → `interrupted` (`SPEC-RUNY.md` R-9). Po `interrupted → running` Social re-invoke **fazy** z trwałego stanu w DB (model B). Pauza HITL **nie** przechodzi w `interrupted`.
 
 Zmiana względem wersji 2 / S-6: recovery procesu było milcząco poza Social; tu jawny podział — `interrupted` = Runs, re-invoke fazy po powrocie do `running` = Social.
 
-Zmiana względem wersji 9 / S-6 pkt 3: wcześniejsze dopuszczenie multi `selectedIdeaIds` bez walidacji długości — od tej wersji dokładnie 1 id (jak Content); wspólny kod `HITL_INVALID_SELECTION`.
+Zmiana względem wersji 9 / S-6 pkt 3: wcześniejsze dopuszczenie multi `selectedIdeaIds` bez walidacji długości — v10: dokładnie 1 id (jak Content); wspólny kod `HITL_INVALID_SELECTION`.
+
+Zmiana względem wersji 10 / S-6 pkt 3: „jak Content: `length === 1`” (nota v9). Od tej wersji Social znowu multi, z kanonem **N→N** (osobny artefakt per id; nie luźne multi Milestone 4 bez semantyki wyniku). Content (`SPEC-CONTENT.md` Ctn-5) **bez** zmiany.
 
 S-7. Taski jednoetapowe (`post_ideas`, `post_content`, `reel_ideas`, `reel_script`) — bez pauzy HITL.
 
 S-7a. Fazy invoke — **bez** nowej wartości `pipelinePhase` w DB. Unia zostaje `'ideas' \| 'content'`: dla rolek `'content'` **znaczy** fazę scenariusza. `resolvePhase`: `reel_script` → `'content'`; `reel_ideas_then_scripts` + niepuste `selectedIdeaIds` → `'content'`; analogia 1:1 do postów. `storedPhase` z DB zostaje pierwszym fallbackiem.
 
-S-7b. Snapshot addytywny: posty — `result.ideas` / `result.content`; rolki — `result.reelIdeas` / `result.reelScript` (nie wpychać scenariusza w `SocialContent`). `hitl.options` przy `reel_ideas_then_scripts` = `reelIdeas`.
+S-7b. Snapshot addytywny (`docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`):
+
+| Task | Kanon | Skalar legacy |
+|------|--------|----------------|
+| `post_ideas_then_content` (po fazie 2) | `result.contents[]` — długość = `selectedIdeaIds.length`; kolejność = kolejność tablicy HITL; każdy element: kształt `SocialContent` + **`sourceIdeaId`** | `result.content` = **`null`** (nie alias pierwszego) |
+| `reel_ideas_then_scripts` (po fazie 2) | `result.reelScripts[]` — analogicznie + **`sourceIdeaId`** | `result.reelScript` = **`null`** |
+| `post_content` / `reel_script` | skalar `content` / `reelScript` (bez zmian) | tablice puste albo nie używane |
+| `post_ideas` / `reel_ideas` | `ideas` / `reelIdeas` | — |
+
+Nie wpychać scenariusza w `SocialContent`. `hitl.options` przy `reel_ideas_then_scripts` = `reelIdeas` (kształt listy pomysłów **bez** zmian). `sourceIdeaId` w payloadzie JSON (addytywne; bez nowej kolumny obowiązkowo w tym wycinku — mapper czyta klucz z JSON).
 
 - `SocialIdea`: `id`, `title`, `angle`, `hook`, **`cta?`** (sugerowane CTA; ideation może wypełniać z `cta.items`).
-- `SocialContent`: `body`, `hashtags`, `cta?`, **`characterCount`** (integer ≥ 0). Kanon: ustawiane w Persist* / mapperze po sukcesie writer/refine z `body.length`; writer **nie** musi emitować pola; wartość z LLM ignorowana / nadpisywana. Przy odczycie starego JSON bez klucza → `characterCount = body.length`.
+- `SocialContent`: `body`, `hashtags`, `cta?`, **`characterCount`** (integer ≥ 0). Kanon: ustawiane w Persist* / mapperze po sukcesie writer/refine z `body.length`; writer **nie** musi emitować pola; wartość z LLM ignorowana / nadpisywana. Przy odczycie starego JSON bez klucza → `characterCount = body.length`. Na pozycji `contents[]`: dodatkowo **`sourceIdeaId`**.
 - `ReelIdea`: `id`, `title`, `description`, `hook`, `durationSeconds` (`15` \| `30` \| `90`), **`cta?`**.
-- `ReelScript`: `segments` (`startSeconds`, `endSeconds`, `onScreen`, `voiceover`), `cta`, `notes?`. Id pomysłu rolki: `idea_<uuid>` (bez nowego brandu w shared).
+- `ReelScript`: `segments` (`startSeconds`, `endSeconds`, `onScreen`, `voiceover`), `cta`, `notes?`. Na pozycji `reelScripts[]`: dodatkowo **`sourceIdeaId`**. Id pomysłu rolki: `idea_<uuid>` (bez nowego brandu w shared).
 
 Zmiana względem wersji 9 / S-7b: addytywne `cta?` na pomysłach i `characterCount` na content (`docs/dokumentacja_komunikacji.md`).
 
-S-7c. Persistence rolek: **nie** reuse tabeli `SocialContent` na skrypt. Modele Prisma `SocialReelIdea`, `SocialReelScript` (payload JSON + `runId`). Port `SocialResultStore` rozszerzony (`listReelIdeas`, `getReelScript`). Prompty: `reel-ideas.prompt.md`, `reel-script.prompt.md`, `refine-reel-ideas.prompt.md`, `refine-reel-script.prompt.md`. Ten sam skompilowany graf; routing po `taskType` + `phase`. Katalog `FeedbackAgentKey` **bez** nowych kluczy w 4.1.
+Zmiana względem wersji 10 / S-7b: snapshot dwuetapowy udawał 1:1 (skalar `content` / `reelScript`). Od tej wersji kanon tablic + `sourceIdeaId`; skalar na then_* po fazie 2 = `null`.
+
+S-7c. Persistence rolek: **nie** reuse tabeli `SocialContent` na skrypt. Modele Prisma `SocialReelIdea`, `SocialReelScript` (payload JSON + `runId`). Tabele `SocialContent` / `SocialReelScript` już **1:N** per `runId` — odczyt dwuetapowy = N wierszy, nie jeden. Port `SocialResultStore` rozszerzony (`listReelIdeas`, `getReelScript`; listowanie contents/scripts per run). `sourceIdeaId` w JSON payloadu — **bez** migracji obowiązkowej. Prompty: `reel-ideas.prompt.md`, `reel-script.prompt.md`, `refine-reel-ideas.prompt.md`, `refine-reel-script.prompt.md`. Ten sam skompilowany graf; routing po `taskType` + `phase`. Katalog `FeedbackAgentKey` **bez** nowych kluczy w 4.1.
 
 S-8. Każdy hop LLM: ten sam `ConversationId` runu w body gateway; `requestId` z odpowiedzi gateway → log kroku (`SPEC-KOMUNIKACJA.md`).
 
@@ -124,18 +137,22 @@ Odwołanie do możliwości checkpoinetera LangGraph (świadomie **niewykorzystan
 ```text
 post_ideas_then_content / reel_ideas_then_scripts:
   invoke A (ideas + verifier + persist draft) → awaiting_hitl
-  HITL HTTP
-  invoke B (content lub scenariusz + verifier + persist) → completed | failed
+  HITL HTTP  (min. 1 unikalne id ⊆ options)
+  invoke B = map wybranych id (kolejność = selectedIdeaIds):
+    per id: writer (jeden pomysł w prompcie) → verifier → persist pozycji
+    nie: jeden writer na całą listę jako jeden JSON out
+  → completed | failed
 
 post_ideas / post_content / reel_ideas / reel_script:
   pojedynczy invoke → completed | failed
 ```
 
-Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego odpalenia fazy ideas przy resume content.
+Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego odpalenia fazy ideas przy resume content. Invoke B **nie** składa wielu pomysłów w jeden hop.
 
 ### Wolno
 
 - Jeden skompilowany graf z jawnym parametrem fazy **albo** dwa grafy (ideas / content) — byle norma B i S-6 były spełnione.
+- Pętlę per wybrane id w **tym samym** invoke B (jeden hop writer + pętla verifier na jedno id).
 - Współdzielić węzeł `ConsistencyVerifier` między ideas i content.
 - Logować w `run.log` rozróżnienie faila verifiera: kontekst vs język.
 - Importować kernel / token lifecycle Runs (jednokierunkowo) oraz eksportować `SocialRunExecutor` do kleju procesu.
@@ -162,10 +179,14 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 - Pola `brief: RunBrief` (jeden kształt SM bez unii) w `social.types.ts` / `SocialGraphState`.
 - Eksportu `{ provide: RUN_EXECUTOR }` z Social **jako** powodu, by `RunsModule` robił `imports: [SocialModule]`.
 - Zależności węzłów / hopu / fasady od klasy `RunLifecycleService` zamiast portu (`SPEC-RUNY.md`).
+- Zlepiać wielu wybranych pomysłów w jeden `SocialContent` / `ReelScript` (jeden `body` / jeden skrypt na K id).
+- Fan-out HITL → N child runów (`post_content` / `reel_script`) — orkiestracja = pętla w **tym samym** runie.
+- Aliasu `result.content` = `contents[0]` (ani `reelScript` = `reelScripts[0]`) na dwuetapowym po fazie 2 — skalar = `null`.
 
 Zmiana względem wersji 8 / domain: import `RunBrief` z `runs/domain` w Social był legalnym skrótem przy jednym briefie. Od tej wersji obowiązuje `SocialBrief` i unia `RunRecord` (`SPEC-RUNY.md` R-3d).
 Zmiana względem wersji 3: dopisano zakaz cyklu Nest z Runs (wcześniej tylko zakaz re-invoke z powodu oceny / edycji / opinii).
 Zmiana względem wersji 6: dopisano zakaz importu `ContentModule` (rolki są w Social; page copy pozostaje w `SPEC-CONTENT.md`).
+Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz zlepiania K pomysłów w jeden artefakt, child-run fan-out oraz aliasu skalar = `contents[0]`.
 
 ### Zatwierdzony stack (obszar)
 
@@ -182,9 +203,9 @@ Zmiana względem wersji 6: dopisano zakaz importu `ContentModule` (rolki są w S
 ## Kryteria akceptacji
 
 - [ ] `post_ideas` full-auto: completed + ideas w DB + logi z `conversationId` / `requestId` hopów.
-- [ ] `reel_ideas` full-auto: completed + `reelIdeas` w DB; `reel_ideas_then_scripts`: HITL na `reelIdeas`, potem `reelScript`.
-- [ ] `post_ideas_then_content`: po ideas status `awaiting_hitl` + draft w DB; HITL z dokładnie 1 poprawnym id → content → completed; HITL z 0 lub 2+ id → **400** `HITL_INVALID_SELECTION`, status zostaje `awaiting_hitl`; restart procesu api nie gubi draftu HITL.
-- [ ] GET result: `characterCount` na content (= `body.length`); `cta?` na ideas / reelIdeas gdy model zwróci.
+- [ ] `reel_ideas` full-auto: completed + `reelIdeas` w DB; `reel_ideas_then_scripts`: HITL na `reelIdeas` (min. 1), potem `reelScripts[]` + `sourceIdeaId`; skalar `reelScript` = `null` po fazie 2.
+- [ ] `post_ideas_then_content`: po ideas status `awaiting_hitl` + draft w DB; HITL z **2 legalnymi** id → 2 elementy `contents[]` (`sourceIdeaId` zgodne) → completed; HITL z **1** poprawnym id → tablica długości 1 (nadal legalne); HITL z 0 id / obcym id / duplikatem → **400** `HITL_INVALID_SELECTION`, status zostaje `awaiting_hitl`; restart procesu api nie gubi draftu HITL.
+- [ ] GET result: `characterCount` na każdej pozycji content (= `body.length`); `cta?` na ideas / reelIdeas gdy model zwróci.
 - [ ] Verifier fail → refine ≤ 2, potem `failed` z czytelnym powodem (kontekst i/lub język).
 - [ ] Węzły LLM zwracają dane po walidacji Zod (lub równoważnej); złamany kształt nie trafia do wyniku „sukces”.
 - [ ] Brak checkpoinetera LangGraph i brak JSON-pliku jako store HITL.

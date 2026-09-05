@@ -4,11 +4,13 @@ import type {
   PageOutline,
 } from '../../content/domain/content.types';
 import type {
-  SocialContent,
-  SocialIdea,
-  VerifierVerdict,
   ReelIdea,
   ReelScript,
+  ReelScriptItem,
+  SocialContent,
+  SocialContentItem,
+  SocialIdea,
+  VerifierVerdict,
 } from '../../social/domain/social.types';
 
 export const RUN_RESULT_READER = Symbol('RUN_RESULT_READER');
@@ -16,14 +18,16 @@ export const RUN_RESULT_READER = Symbol('RUN_RESULT_READER');
 export interface RunResultReader {
   listIdeas(runId: RunId): Promise<SocialIdea[]>;
   getContent(runId: RunId): Promise<{
-    content: SocialContent | null;
+    content: SocialContent;
     verification: VerifierVerdict | null;
   } | null>;
+  listContents(runId: RunId): Promise<SocialContentItem[]>;
   listReelIdeas(runId: RunId): Promise<ReelIdea[]>;
   getReelScript(runId: RunId): Promise<{
-    script: ReelScript | null;
+    script: ReelScript;
     verification: VerifierVerdict | null;
   } | null>;
+  listReelScripts(runId: RunId): Promise<ReelScriptItem[]>;
   getPageOutline(runId: RunId): Promise<PageOutline | null>;
   getPageDocument(runId: RunId): Promise<{
     document: PageDocument | null;

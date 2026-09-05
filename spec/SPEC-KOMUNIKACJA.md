@@ -1,7 +1,7 @@
 ---
-wersja: 15
+wersja: 16
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-04
+data_modyfikacji: 2026-09-05
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -64,11 +64,13 @@ K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId`
 
 K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry w tym nowe `taskType` i `platform=web`, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`. Filtr `status` obejmuje pełny `RunStatus` (w tym `interrupted`).
 
-K-2c. Snapshot `GET /runs/:id` — `brief` w kształcie zapisanym (unia); `result` addytywny: `ideas`, `content`, `reelIdeas`, `reelScript`, `pageOutline`, `pageDocument`. HITL `options` zależne od `taskType`.
+K-2c. Snapshot `GET /runs/:id` — `brief` w kształcie zapisanym (unia); `result` addytywny: `ideas`, `content`, `contents`, `reelIdeas`, `reelScript`, `reelScripts`, `pageOutline`, `pageDocument`. HITL `options` zależne od `taskType`. Dwuetapowy Social po fazie 2: kanon tablic `contents[]` / `reelScripts[]` + `sourceIdeaId`; skalar `content` / `reelScript` = `null` (`docs/dokumentacja_komunikacji.md`).
 
 Zmiana względem wersji 12 / K-2: unia startu dotyczyła `platform` XOR `contentKind` przy jednym obiekcie briefu SM. Od tej wersji Zod rozdziela `socialBriefSchema` / `contentBriefSchema` (`SPEC-RUNY.md` R-3d).
 
 Zmiana względem wersji 10: unia startu (K-2), listing `platform=web` / nowe `taskType` (K-2a), snapshot addytywny (K-2c).
+
+Zmiana względem wersji 15 / K-2c: enumeracja `result` bez `contents` / `reelScripts`; skalar na then_* udawał 1:1.
 
 K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora pod select opinii (`SPEC-RUNY.md` R-3c). `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`). Ocena / flaga edycji / finalize — `SPEC-RUNY.md` R-10. Payloady w `docs/dokumentacja_komunikacji.md`.
 
@@ -112,9 +114,11 @@ Zmiana względem wersji 11 / K-8: dopisano `HITL_INVALID_SELECTION` (HITL page �
 
 Zmiana względem wersji 13 / K-8: ten sam kod obowiązuje też Social dwuetapowy (≠1 id / id spoza draftu) — kanon pól wyniku i envelope: `docs/dokumentacja_komunikacji.md` (bez dublowania tabel w tym SPEC).
 
+Zmiana względem wersji 15 / K-8: „Social ≠ 1 id” jako warunek 400 — od tej wersji 400 przy długości `< 1`, duplikacie albo id spoza draftu / `hitl.options`; **2+ legalne**, gdy wszystkie ∈ options (`docs/dokumentacja_komunikacji.md`). Helper `parseWithZod` **bez** zmian względem v14.
+
 Zmiana względem wersji 14 / K-8: doprecyzowano lokalizację `parseWithZod` (api shared) oraz separator `details[].path` = `'.'`.
 
-K-9. Kontrakt GET result pól addytywnych (`cta?`, `characterCount`, `role?`) oraz body `extras` kontekstu — egzekwowalne jak docs; ten SPEC nie redefiniuje tabel payloadów.
+K-9. Kontrakt GET result pól addytywnych (`cta?`, `characterCount`, `role?`, `contents[]` / `reelScripts[]`, `sourceIdeaId`) oraz body `extras` kontekstu — egzekwowalne jak docs; ten SPEC nie redefiniuje tabel payloadów.
 
 ## Norma implementacji
 

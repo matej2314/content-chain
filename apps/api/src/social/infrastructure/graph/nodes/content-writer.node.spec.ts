@@ -2,15 +2,16 @@ import { createRequestId } from '@content-chain/shared';
 import { emptyCompanyContext } from '../../../../company-context/domain/company-context.types';
 import { DomainException } from '../../../../shared/exceptions/domain.exception';
 import { newConversationId, newRunId } from '../../../../shared/http/new-ids';
-import { contentOutputSchema, reelScriptOutputSchema } from '../../../application/social.schemas';
+import {
+  contentOutputSchema,
+  reelScriptOutputSchema,
+} from '../../../application/social.schemas';
 import type { SocialIdea, ReelIdea } from '../../../domain/social.types';
 import type { LlmHopService } from '../../../../shared/llm/llm-hop';
 import type { SocialGraphState } from '../state';
 import { createContentWriterNode } from './content-writer.node';
 
-const REQUEST_ID = createRequestId(
-  'req_123e4567-e89b-12d3-a456-426614174000',
-);
+const REQUEST_ID = createRequestId('req_123e4567-e89b-12d3-a456-426614174000');
 
 const EMPTY_IDEAS_INSTRUCTION =
   '[] - brak wybranych pomysłów; generuj post wyłącznie z brief.topic, brief.goal i kontekstu firmy';
@@ -56,8 +57,7 @@ function makeState(
 
 function fakeHop(
   result:
-    | { data: unknown; requestId?: ReturnType<typeof createRequestId> }
-    | Error,
+    { data: unknown; requestId?: ReturnType<typeof createRequestId> } | Error,
 ): LlmHopService {
   const chatJson = jest.fn().mockImplementation(async () => {
     if (result instanceof Error) throw result;
@@ -127,6 +127,38 @@ describe('createContentWriterNode', () => {
     const userContent = hopUserContent(hop);
     expect(userContent).toContain(JSON.stringify(ideas));
     expect(userContent).not.toContain(EMPTY_IDEAS_INSTRUCTION);
+  });
+
+  it('passes a single idea object for two-stage content, not an array of two', async () => {
+    const other: SocialIdea = {
+      id: 'idea_2',
+      title: 'T2',
+      angle: 'A2',
+      hook: 'H2',
+    };
+    const hop = fakeHop({ data: CONTENT_DATA });
+
+    const out = await createContentWriterNode(hop)(
+      makeState({
+        taskType: 'post_ideas_then_content',
+        ideas: [SAMPLE_IDEA, other],
+        selectedIdeaIds: ['idea_1'],
+      }),
+    );
+
+    const userContent = hopUserContent(hop);
+    expect(userContent).toContain(JSON.stringify(SAMPLE_IDEA));
+    expect(userContent).not.toContain(JSON.stringify([SAMPLE_IDEA, other]));
+    expect(userContent).not.toContain(JSON.stringify([SAMPLE_IDEA]));
+    expect(out).toEqual({
+      content: {
+        body: CONTENT_DATA.body,
+        hashtags: CONTENT_DATA.hashtags,
+        cta: CONTENT_DATA.cta,
+        characterCount: CONTENT_DATA.body.length,
+        sourceIdeaId: 'idea_1',
+      },
+    });
   });
 
   it('filters ideas by selectedIdeaIds when the selection is non-empty', async () => {

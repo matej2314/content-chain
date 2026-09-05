@@ -38,6 +38,15 @@ type PageOutlineSectionBody = {
   id: string;
   heading: string;
   summary: string;
+  role?:
+    | 'audience_world'
+    | 'pain'
+    | 'challenger'
+    | 'insight'
+    | 'proof'
+    | 'objection'
+    | 'cta'
+    | 'other';
 };
 
 type PageOutlineBody = {
@@ -351,6 +360,56 @@ describe('Content pipeline (e2e, fake LLM)', () => {
         .expect(200);
       expect((stillPaused.body as RunSnapshotBody).status).toBe(
         'awaiting_hitl',
+      );
+    });
+
+    it('accepts an outline with optional section roles and still resumes with [outline.id]', async () => {
+      useScript([
+        pageOutlineJson([
+          {
+            heading: 'Problem',
+            summary: 'Chaos ops po seedzie.',
+            role: 'pain',
+          },
+          {
+            heading: 'Oferta',
+            summary: 'Audyt procesów Acme.',
+            role: 'proof',
+          },
+        ]),
+        verifierOk(),
+      ]);
+      const created = await postPageRun(app, 'page_outline_then_copy');
+      const paused = await waitForRunStatus(
+        app,
+        created.runId,
+        'awaiting_hitl',
+      );
+      const outline = paused.result.pageOutline;
+      expect(outline).not.toBeNull();
+      expect(outline?.sections[0]?.role).toBe('pain');
+      expect(outline?.sections[1]?.role).toBe('proof');
+      const outlineId = paused.hitl?.options[0]?.id;
+      if (outlineId == null) {
+        throw new Error('expected HITL options[0].id');
+      }
+      expect(outlineId).toBe(outline?.id);
+
+      useScript([pageDocumentJson(), verifierOk()]);
+      const resume = await request(app.getHttpServer())
+        .post(`/api/v1/runs/${created.runId}/hitl`)
+        .send({ selectedIdeaIds: [outlineId] })
+        .expect(202);
+      expect(resume.body).toEqual({
+        runId: created.runId,
+        status: 'running',
+      });
+
+      const done = await waitForRunStatus(app, created.runId, 'completed');
+      expect(done.hitl).toBeNull();
+      expect(done.result.pageOutline?.sections[0]?.role).toBe('pain');
+      expect(done.result.pageDocument?.body).toBe(
+        'Pełny tekst strony na bazie briefu i kontekstu.',
       );
     });
   });

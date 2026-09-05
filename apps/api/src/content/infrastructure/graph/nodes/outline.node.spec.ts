@@ -87,6 +87,40 @@ describe('createOutlineNode', () => {
     expect(out.outline?.sections[0]?.id).toBe('osec_keep-me');
   });
 
+  it('maps optional role when the model returns it', async () => {
+    const hop = fakeHop({
+      data: {
+        title: 'Audyt w 10 dni',
+        sections: [
+          {
+            heading: 'Problem',
+            summary: 'Chaos ops po seedzie.',
+            role: 'pain',
+          },
+          {
+            heading: 'Oferta',
+            summary: 'Audyt procesów Acme.',
+          },
+        ],
+      },
+    });
+
+    const out = await createOutlineNode(hop)(makeState());
+
+    expect(out.outline?.sections[0]).toEqual({
+      id: expect.stringMatching(/^osec_[0-9a-f-]{36}$/i),
+      heading: 'Problem',
+      summary: 'Chaos ops po seedzie.',
+      role: 'pain',
+    });
+    expect(out.outline?.sections[1]).toEqual({
+      id: expect.stringMatching(/^osec_[0-9a-f-]{36}$/i),
+      heading: 'Oferta',
+      summary: 'Audyt procesów Acme.',
+    });
+    expect(out.outline?.sections[1]).not.toHaveProperty('role');
+  });
+
   it('calls the hop as OutlineAgent with rendered prompt vars', async () => {
     const hop = fakeHop({
       data: {

@@ -1,9 +1,21 @@
 import { z } from 'zod';
 
+export const pageOutlineSectionRoleSchema = z.enum([
+  'audience_world',
+  'pain',
+  'challenger',
+  'insight',
+  'proof',
+  'objection',
+  'cta',
+  'other',
+]);
+
 export const pageOutlineSectionSchema = z.object({
   id: z.string().min(1).optional(),
   heading: z.string().min(1),
   summary: z.string().min(1),
+  role: pageOutlineSectionRoleSchema.optional(),
 });
 
 export const pageOutlineOutputSchema = z.object({

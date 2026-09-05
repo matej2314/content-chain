@@ -1,14 +1,14 @@
 export const CHAT_MESSAGE_LIMITS = {
-  NATIVE_MAX: 150,
+  NATIVE_MAX: 15000,
   FACADE_MAX: 15000,
   TOOL_CONTENT_MAX: 32000,
-  STANDARD_CONTENT_MAX: 10_000,
+  STANDARD_CONTENT_MAX: 25_000,
 } as const;
 
 export const INGRESS_LIMITS = {
   native: {
     maxMessages: 150,
-    maxContentUser: 10_000,
+    maxContentUser: 25_000,
     maxContentAssistant: 10_000,
     maxContentTool: 32000,
   },

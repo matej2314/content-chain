@@ -10,6 +10,16 @@ export const FAKE_LLM_REQUEST_ID = 'req_123e4567-e89b-12d3-a456-426614174000';
 
 export type FakeLlmScriptItem = string | 'GATEWAY_FAIL';
 
+export type PageOutlineSectionRoleFixture =
+  | 'audience_world'
+  | 'pain'
+  | 'challenger'
+  | 'insight'
+  | 'proof'
+  | 'objection'
+  | 'cta'
+  | 'other';
+
 export class FakeLlmGateway implements LlmGatewayPort {
   script: FakeLlmScriptItem[] = [];
   calls: LlmChatCommand[] = [];
@@ -39,11 +49,24 @@ export class FakeLlmGateway implements LlmGatewayPort {
   }
 }
 
-export function ideasJson(): string {
+export function ideasJson(options?: { cta?: string }): string {
+  const cta = options?.cta;
   return JSON.stringify({
     ideas: [
-      { id: 'idea_1', title: 'T1', angle: 'A1', hook: 'H1' },
-      { id: 'idea_2', title: 'T2', angle: 'A2', hook: 'H2' },
+      {
+        id: 'idea_1',
+        title: 'T1',
+        angle: 'A1',
+        hook: 'H1',
+        ...(cta !== undefined ? { cta } : {}),
+      },
+      {
+        id: 'idea_2',
+        title: 'T2',
+        angle: 'A2',
+        hook: 'H2',
+        ...(cta !== undefined ? { cta } : {}),
+      },
     ],
   });
 }
@@ -60,11 +83,15 @@ export function verifierFail(): string {
   });
 }
 
-export function contentJson(): string {
+export function contentJson(overrides?: {
+  body?: string;
+  hashtags?: string[];
+  cta?: string;
+}): string {
   return JSON.stringify({
-    body: 'Gotowy post.',
-    hashtags: ['#acme'],
-    cta: 'Napisz do nas',
+    body: overrides?.body ?? 'Gotowy post.',
+    hashtags: overrides?.hashtags ?? ['#acme'],
+    cta: overrides?.cta ?? 'Napisz do nas',
   });
 }
 
@@ -101,7 +128,8 @@ function inferReply(command: LlmChatCommand): string {
   return ideasJson();
 }
 
-export function reelIdeasJson(): string {
+export function reelIdeasJson(options?: { cta?: string }): string {
+  const cta = options?.cta;
   return JSON.stringify({
     ideas: [
       {
@@ -110,6 +138,7 @@ export function reelIdeasJson(): string {
         description: 'D1',
         hook: 'H1',
         durationSeconds: 15,
+        ...(cta !== undefined ? { cta } : {}),
       },
       {
         id: 'idea_2',
@@ -117,29 +146,40 @@ export function reelIdeasJson(): string {
         description: 'D2',
         hook: 'H2',
         durationSeconds: 30,
+        ...(cta !== undefined ? { cta } : {}),
       },
     ],
   });
 }
 
-export function reelScriptJson(): string {
+export function reelScriptJson(overrides?: {
+  onScreen?: string;
+  voiceover?: string;
+  cta?: string;
+}): string {
   return JSON.stringify({
     segments: [
       {
         startSeconds: 0,
         endSeconds: 15,
-        onScreen: 'hook na ekranie',
-        voiceover: 'jedno zdanie problemu.',
+        onScreen: overrides?.onScreen ?? 'hook na ekranie',
+        voiceover: overrides?.voiceover ?? 'jedno zdanie problemu.',
       },
     ],
-    cta: 'Napisz do nas',
+    cta: overrides?.cta ?? 'Napisz do nas',
   });
 }
 
-export function pageOutlineJson(): string {
+export function pageOutlineJson(
+  sections?: Array<{
+    heading: string;
+    summary: string;
+    role?: PageOutlineSectionRoleFixture;
+  }>,
+): string {
   return JSON.stringify({
     title: 'Audyt w 10 dni',
-    sections: [
+    sections: sections ?? [
       { heading: 'Problem', summary: 'Chaos ops po seedzie.' },
       { heading: 'Oferta', summary: 'Audyt procesów Acme.' },
     ],

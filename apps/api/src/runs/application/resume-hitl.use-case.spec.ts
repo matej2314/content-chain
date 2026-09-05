@@ -3,6 +3,7 @@ import type { RunResultReader } from '../domain/run-result-reader.port';
 import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import type { RunRecord } from '../domain/run.types';
 import { makeContentRun, makeSocialRun } from '../run-record.test-helpers';
+import type { ReelIdea, SocialIdea } from '../../social/domain/social.types';
 import type { InProcessRunWorker } from './in-process-run.worker';
 import type { RunLifecycleService } from './run-lifecycle.service';
 import { ResumeHitlUseCase } from './resume-hitl.use-case';
@@ -12,6 +13,35 @@ const outline: PageOutline = {
   title: 'Audyt w 10 dni',
   sections: [{ id: 'osec_1', heading: 'Problem', summary: 'Chaos ops.' }],
 };
+
+const socialIdeas: SocialIdea[] = [
+  { id: 'idea_1', title: 'T1', angle: 'A1', hook: 'H1' },
+  { id: 'idea_2', title: 'T2', angle: 'A2', hook: 'H2' },
+];
+
+const reelIdeas: ReelIdea[] = [
+  {
+    id: 'idea_1',
+    title: 'R1',
+    description: 'D1',
+    hook: 'H1',
+    durationSeconds: 15,
+  },
+  {
+    id: 'idea_2',
+    title: 'R2',
+    description: 'D2',
+    hook: 'H2',
+    durationSeconds: 30,
+  },
+];
+
+const hitlInvalidSelection = {
+  name: 'DomainException',
+  code: 'HITL_INVALID_SELECTION',
+  httpStatus: 400,
+  message: 'selectedIdeaIds must be a non-empty unique subset of hitl draft',
+} as const;
 
 function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
   const unexpected = async () => {
@@ -41,8 +71,10 @@ function fakeReader(overrides: Partial<RunResultReader> = {}): RunResultReader {
   return {
     listIdeas: async () => [],
     getContent: async () => null,
+    listContents: async () => [],
     listReelIdeas: async () => [],
     getReelScript: async () => null,
+    listReelScripts: async () => [],
     getPageOutline: async () => null,
     getPageDocument: async () => null,
     ...overrides,
@@ -145,16 +177,80 @@ describe('ResumeHitlUseCase', () => {
     });
   });
 
+  it('rejects social HITL empty selectedIdeaIds with HITL_INVALID_SELECTION and does not persist', async () => {
+    const run = makeSocialRun({
+      status: 'awaiting_hitl',
+      taskType: 'post_ideas_then_content',
+    });
+    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+      makeUseCase({
+        run,
+        reader: fakeReader({ listIdeas: async () => socialIdeas }),
+      });
+
+    await expect(useCase.execute(run.id, [])).rejects.toMatchObject(
+      hitlInvalidSelection,
+    );
+
+    expect(saveSelectedIdeaIds).not.toHaveBeenCalled();
+    expect(transition).not.toHaveBeenCalled();
+    expect(notifyHitlResumed).not.toHaveBeenCalled();
+  });
+
+  it('rejects social HITL duplicate ids with HITL_INVALID_SELECTION and does not persist', async () => {
+    const run = makeSocialRun({
+      status: 'awaiting_hitl',
+      taskType: 'post_ideas_then_content',
+    });
+    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+      makeUseCase({
+        run,
+        reader: fakeReader({ listIdeas: async () => socialIdeas }),
+      });
+
+    await expect(
+      useCase.execute(run.id, ['idea_1', 'idea_1']),
+    ).rejects.toMatchObject(hitlInvalidSelection);
+
+    expect(saveSelectedIdeaIds).not.toHaveBeenCalled();
+    expect(transition).not.toHaveBeenCalled();
+    expect(notifyHitlResumed).not.toHaveBeenCalled();
+  });
+
+  it('rejects social HITL id outside draft with HITL_INVALID_SELECTION and does not persist', async () => {
+    const run = makeSocialRun({
+      status: 'awaiting_hitl',
+      taskType: 'post_ideas_then_content',
+    });
+    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+      makeUseCase({
+        run,
+        reader: fakeReader({ listIdeas: async () => socialIdeas }),
+      });
+
+    await expect(useCase.execute(run.id, ['not-in-draft'])).rejects.toMatchObject(
+      hitlInvalidSelection,
+    );
+
+    expect(saveSelectedIdeaIds).not.toHaveBeenCalled();
+    expect(transition).not.toHaveBeenCalled();
+    expect(notifyHitlResumed).not.toHaveBeenCalled();
+  });
+
   it('resumes social HITL without reading a page outline', async () => {
     const run = makeSocialRun({
       status: 'awaiting_hitl',
       taskType: 'post_ideas_then_content',
     });
     const getPageOutline = jest.fn(async () => outline);
-    const { useCase, saveSelectedIdeaIds, notifyHitlResumed } = makeUseCase({
-      run,
-      reader: fakeReader({ getPageOutline }),
-    });
+    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+      makeUseCase({
+        run,
+        reader: fakeReader({
+          getPageOutline,
+          listIdeas: async () => socialIdeas,
+        }),
+      });
 
     await expect(useCase.execute(run.id, ['idea_1'])).resolves.toEqual({
       runId: run.id,
@@ -163,6 +259,70 @@ describe('ResumeHitlUseCase', () => {
 
     expect(getPageOutline).not.toHaveBeenCalled();
     expect(saveSelectedIdeaIds).toHaveBeenCalledWith(run.id, ['idea_1']);
-    expect(notifyHitlResumed).toHaveBeenCalled();
+    expect(transition).toHaveBeenCalledWith(asSnapshot(run), 'running');
+    expect(notifyHitlResumed).toHaveBeenCalledWith({
+      ...asSnapshot(run),
+      status: 'running',
+      selectedIdeaIds: ['idea_1'],
+    });
+  });
+
+  it('resumes social HITL when two distinct ids belong to the draft', async () => {
+    const run = makeSocialRun({
+      status: 'awaiting_hitl',
+      taskType: 'post_ideas_then_content',
+    });
+    const selectedIdeaIds = ['idea_1', 'idea_2'];
+    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+      makeUseCase({
+        run,
+        reader: fakeReader({ listIdeas: async () => socialIdeas }),
+      });
+
+    await expect(useCase.execute(run.id, selectedIdeaIds)).resolves.toEqual({
+      runId: run.id,
+      status: 'running',
+    });
+
+    expect(saveSelectedIdeaIds).toHaveBeenCalledWith(run.id, selectedIdeaIds);
+    expect(transition).toHaveBeenCalledWith(asSnapshot(run), 'running');
+    expect(notifyHitlResumed).toHaveBeenCalledWith({
+      ...asSnapshot(run),
+      status: 'running',
+      selectedIdeaIds,
+    });
+  });
+
+  it('resumes reel HITL from listReelIdeas without reading post ideas', async () => {
+    const run = makeSocialRun({
+      status: 'awaiting_hitl',
+      taskType: 'reel_ideas_then_scripts',
+    });
+    const listIdeas = jest.fn(async () => socialIdeas);
+    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+      makeUseCase({
+        run,
+        reader: fakeReader({
+          listIdeas,
+          listReelIdeas: async () => reelIdeas,
+        }),
+      });
+
+    await expect(useCase.execute(run.id, ['idea_1', 'idea_2'])).resolves.toEqual({
+      runId: run.id,
+      status: 'running',
+    });
+
+    expect(listIdeas).not.toHaveBeenCalled();
+    expect(saveSelectedIdeaIds).toHaveBeenCalledWith(run.id, [
+      'idea_1',
+      'idea_2',
+    ]);
+    expect(transition).toHaveBeenCalledWith(asSnapshot(run), 'running');
+    expect(notifyHitlResumed).toHaveBeenCalledWith({
+      ...asSnapshot(run),
+      status: 'running',
+      selectedIdeaIds: ['idea_1', 'idea_2'],
+    });
   });
 });

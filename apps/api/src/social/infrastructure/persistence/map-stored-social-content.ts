@@ -1,7 +1,11 @@
 import type { SocialContent } from '../../domain/social.types';
 
 export function mapStoredSocialContent(payload: unknown): SocialContent {
-  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
+  if (
+    typeof payload !== 'object' ||
+    payload === null ||
+    Array.isArray(payload)
+  ) {
     throw new Error('Invalid SocialContent payload');
   }
   const record = payload as Record<string, unknown>;
@@ -19,10 +23,15 @@ export function mapStoredSocialContent(payload: unknown): SocialContent {
     record.characterCount >= 0
       ? Math.trunc(record.characterCount)
       : body.length;
+  const sourceIdeaId =
+    typeof record.sourceIdeaId === 'string' && record.sourceIdeaId.length > 0
+      ? record.sourceIdeaId
+      : undefined;
   return {
     body,
     hashtags,
     ...(cta !== undefined ? { cta } : {}),
     characterCount,
+    ...(sourceIdeaId !== undefined ? { sourceIdeaId } : {}),
   };
 }

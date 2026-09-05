@@ -1,7 +1,10 @@
 import type { CompanyContextRepository } from '../../company-context/domain/company-context.port';
 import type { RunLifecyclePort } from '../../runs/domain/run-lifecycle.port';
 import type { RunRecord, SocialRunRecord } from '../../runs/domain/run.types';
-import { makeContentRun, makeSocialRun } from '../../runs/run-record.test-helpers';
+import {
+  makeContentRun,
+  makeSocialRun,
+} from '../../runs/run-record.test-helpers';
 import type { SocialResultStore } from '../domain/social-result.port';
 import type { ReelIdea, SocialIdea } from '../domain/social.types';
 import type { SocialGraphState } from '../infrastructure/graph/state';
@@ -71,6 +74,12 @@ function unusedStore(): SocialResultStore {
     replaceReelIdeas: unexpected,
     replaceReelScript: unexpected,
     replaceContent: unexpected,
+    clearContents: async () => undefined,
+    appendContent: unexpected,
+    listContents: unexpected,
+    clearReelScripts: async () => undefined,
+    appendReelScript: unexpected,
+    listReelScripts: unexpected,
     listIdeas: unexpected,
     listReelIdeas: unexpected,
     getContent: unexpected,
@@ -103,11 +112,12 @@ function makeFacade(
   invoke: jest.MockedFunction<
     (input: SocialGraphState) => Promise<SocialGraphState>
   >,
+  store: SocialResultStore = unusedStore(),
 ) {
   compileSocialGraphMock.mockReturnValue({ invoke });
   return new SocialPipelineFacade(
     unusedContext(),
-    unusedStore(),
+    store,
     unusedHop(),
     unusedLifecycle(),
   );
@@ -340,6 +350,115 @@ describe('SocialPipelineFacade.invokePhase', () => {
       content: graphState.content,
       reelIdeas: [],
       reelScript: null,
+    });
+  });
+
+  it('invokes once per HITL id, clears contents once, and does not call replaceContent', async () => {
+    const run = makeSocialRun({
+      taskType: 'post_ideas_then_content',
+      selectedIdeaIds: ['idea_1', 'idea_2'],
+    });
+    const graphState: SocialGraphState = {
+      runId: run.id,
+      conversationId: run.conversationId,
+      taskType: 'post_ideas_then_content',
+      platform: run.platform,
+      language: run.language,
+      brief: run.brief,
+      selectedIdeaIds: ['idea_1'],
+      phase: 'content',
+      company: null,
+      ideas,
+      content: {
+        body: 'Post',
+        hashtags: ['#acme'],
+        characterCount: 4,
+      },
+      reelIdeas: [],
+      reelScript: null,
+      verdict: null,
+      ideasRefineCount: 0,
+      contentRefineCount: 3,
+      failedCode: null,
+      failedMessage: null,
+    };
+    const invoke = jest.fn().mockResolvedValue(graphState);
+    const clearContents = jest.fn().mockResolvedValue(undefined);
+    const replaceContent = jest.fn();
+    const store: SocialResultStore = {
+      ...unusedStore(),
+      clearContents,
+      replaceContent,
+    };
+    const facade = makeFacade(invoke, store);
+
+    const outcome = await facade.invokePhase(run, 'content', {
+      ideas,
+      reelIdeas: [],
+      ideasRefineCount: 0,
+      contentRefineCount: 3,
+    });
+
+    expect(clearContents).toHaveBeenCalledTimes(1);
+    expect(clearContents).toHaveBeenCalledWith(run.id);
+    expect(replaceContent).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(invoke.mock.calls[0]?.[0].selectedIdeaIds).toEqual(['idea_1']);
+    expect(invoke.mock.calls[1]?.[0].selectedIdeaIds).toEqual(['idea_2']);
+    expect(invoke.mock.calls[0]?.[0].contentRefineCount).toBe(3);
+    expect(invoke.mock.calls[1]?.[0].contentRefineCount).toBe(3);
+    expect(outcome.kind).toBe('completed');
+  });
+
+  it('stops the two-stage loop when one hop fails', async () => {
+    const run = makeSocialRun({
+      taskType: 'post_ideas_then_content',
+      selectedIdeaIds: ['idea_1', 'idea_2', 'idea_3'],
+    });
+    const failed: SocialGraphState = {
+      runId: run.id,
+      conversationId: run.conversationId,
+      taskType: 'post_ideas_then_content',
+      platform: run.platform,
+      language: run.language,
+      brief: run.brief,
+      selectedIdeaIds: ['idea_2'],
+      phase: 'content',
+      company: null,
+      ideas,
+      content: null,
+      reelIdeas: [],
+      reelScript: null,
+      verdict: {
+        ok: false,
+        contextIssues: ['off-brand'],
+        languageIssues: [],
+      },
+      ideasRefineCount: 0,
+      contentRefineCount: 0,
+      failedCode: 'VERIFIER_FAILED',
+      failedMessage: 'nope',
+    };
+    const invoke = jest
+      .fn()
+      .mockResolvedValueOnce({ ...failed, failedCode: null, verdict: null })
+      .mockResolvedValueOnce(failed);
+    const facade = makeFacade(invoke);
+
+    const outcome = await facade.invokePhase(run, 'content', {
+      ideas,
+      reelIdeas: [],
+      ideasRefineCount: 0,
+      contentRefineCount: 0,
+    });
+
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(outcome).toEqual({
+      kind: 'failed',
+      code: 'VERIFIER_FAILED',
+      message: 'nope',
+      contextIssues: ['off-brand'],
+      languageIssues: [],
     });
   });
 });

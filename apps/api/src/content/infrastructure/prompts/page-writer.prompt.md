@@ -15,7 +15,17 @@ Zaakceptowany outline (JSON; może być pusty przy page_copy bez HITL):
 
 ## Zadanie
 
-Napisz jeden dokument. Jeśli outline niepusty — zrealizuj jego sekcje. Jeśli pusty — struktura z `brief.topic` + `contentKind` (+ `angle` / `goal` / `targetLength` gdy podane). CTA / oferty wyłącznie z kontekstu.
+Napisz jeden dokument. Jeśli outline niepusty — zrealizuj jego sekcje. Gdy sekcja ma `role`, trzymaj jej funkcję narracyjną:
+- `audience_world` — świat odbiorcy
+- `pain` — problem
+- `challenger` — kwestionowanie założenia
+- `insight` — mechanizm
+- `proof` — dowód wyłącznie z JSON
+- `objection` — obiekcja
+- `cta` — akcja z `cta.items`
+- `other` — poza katalogiem
+
+Brak `role` — domyśl strukturę z `contentKind` jak dziś (`blog` / `service_page` / `landing`). Jeśli outline pusty — struktura z `brief.topic` + `contentKind` (+ `angle` / `goal` / `targetLength` gdy podane). CTA / oferty wyłącznie z kontekstu.
 
 Pola:
 - `title` — tytuł strony (nie clickbait; pokrycie w ofercie).

@@ -23,6 +23,7 @@ export type SocialContent = {
   hashtags: string[];
   cta?: string;
   characterCount: number;
+  sourceIdeaId?: string;
 };
 
 export type ReelDurationSeconds = 15 | 30 | 90;
@@ -47,6 +48,7 @@ export type ReelScript = {
   segments: ReelScriptSegment[];
   cta: string;
   notes?: string;
+  sourceIdeaId?: string;
 };
 
 export type VerifierVerdict = {
@@ -93,3 +95,15 @@ export type SocialPipelineOutcome =
       contextIssues?: string[];
       languageIssues?: string[];
     };
+
+export type SocialContentItem = SocialContent & { sourceIdeaId: string };
+export type ReelScriptItem = ReelScript & { sourceIdeaId: string };
+
+export function isTwoStageSocialTask(
+  taskType: SocialTaskType,
+): taskType is 'post_ideas_then_content' | 'reel_ideas_then_scripts' {
+  return (
+    taskType === 'post_ideas_then_content' ||
+    taskType === 'reel_ideas_then_scripts'
+  );
+}

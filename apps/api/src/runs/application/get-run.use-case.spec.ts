@@ -11,6 +11,8 @@ import type {
 import type {
   ReelIdea,
   ReelScript,
+  ReelScriptItem,
+  SocialContentItem,
   SocialIdea,
 } from '../../social/domain/social.types';
 import { GetRunUseCase } from './get-run.use-case';
@@ -82,8 +84,10 @@ function fakeReader(overrides: Partial<RunResultReader> = {}): RunResultReader {
   return {
     listIdeas: async () => ideas,
     getContent: async () => null,
+    listContents: async () => [],
     listReelIdeas: async () => [],
     getReelScript: async () => null,
+    listReelScripts: async () => [],
     getPageOutline: async () => null,
     getPageDocument: async () => null,
     ...overrides,
@@ -112,8 +116,10 @@ describe('GetRunUseCase', () => {
       result: {
         ideas,
         content: null,
+        contents: [],
         reelIdeas: [],
         reelScript: null,
+        reelScripts: [],
         pageOutline: null,
         pageDocument: null,
       },
@@ -147,8 +153,10 @@ describe('GetRunUseCase', () => {
       result: {
         ideas: [],
         content: null,
+        contents: [],
         reelIdeas,
         reelScript: null,
+        reelScripts: [],
         pageOutline: null,
         pageDocument: null,
       },
@@ -168,15 +176,137 @@ describe('GetRunUseCase', () => {
     expect(snapshot.result).toEqual({
       ideas,
       content: null,
+      contents: [],
       reelIdeas: [],
       reelScript: null,
+      reelScripts: [],
       pageOutline: null,
       pageDocument: null,
     });
   });
 
-  it('maps stored content into result', async () => {
-    const run = makeRun('completed');
+  it('maps then_content snapshot to contents and null scalar', async () => {
+    const run = makeRun('completed', { selectedIdeaIds: ['idea_1'] });
+    const contents: SocialContentItem[] = [
+      {
+        body: 'Post',
+        hashtags: ['#acme'],
+        cta: 'CTA',
+        characterCount: 4,
+        sourceIdeaId: 'idea_1',
+      },
+    ];
+    const useCase = new GetRunUseCase(
+      unusedRepo({ getById: async () => asSnapshot(run) }),
+      fakeReader({
+        listContents: async () => contents,
+      }),
+    );
+
+    const snapshot = await useCase.execute(run.id);
+    expect(snapshot.result).toEqual({
+      ideas,
+      content: null,
+      contents,
+      reelIdeas: [],
+      reelScript: null,
+      reelScripts: [],
+      pageOutline: null,
+      pageDocument: null,
+    });
+    expect(snapshot.hitl).toBeNull();
+  });
+
+  it('orders two then_content rows by selectedIdeaIds and keeps content null', async () => {
+    const run = makeRun('completed', {
+      selectedIdeaIds: ['idea_2', 'idea_1'],
+    });
+    const first: SocialContentItem = {
+      body: 'A',
+      hashtags: [],
+      characterCount: 1,
+      sourceIdeaId: 'idea_1',
+    };
+    const second: SocialContentItem = {
+      body: 'B',
+      hashtags: [],
+      characterCount: 1,
+      sourceIdeaId: 'idea_2',
+    };
+    const useCase = new GetRunUseCase(
+      unusedRepo({ getById: async () => asSnapshot(run) }),
+      fakeReader({
+        listContents: async () => [first, second],
+      }),
+    );
+
+    const snapshot = await useCase.execute(run.id);
+    expect(snapshot.result.content).toBeNull();
+    expect(snapshot.result.contents).toEqual([second, first]);
+    expect(snapshot.result.contents).toHaveLength(2);
+    expect(snapshot.result.contents[0]?.sourceIdeaId).toBe('idea_2');
+    expect(snapshot.result.contents[1]?.sourceIdeaId).toBe('idea_1');
+  });
+
+  it('maps stored reel script into result for one-stage reel_script', async () => {
+    const run = makeRun('completed', { taskType: 'reel_script' });
+    const useCase = new GetRunUseCase(
+      unusedRepo({ getById: async () => asSnapshot(run) }),
+      fakeReader({
+        listIdeas: async () => [],
+        getReelScript: async () => ({
+          script: reelScript,
+          verification: { ok: true, contextIssues: [], languageIssues: [] },
+        }),
+      }),
+    );
+
+    const snapshot = await useCase.execute(run.id);
+    expect(snapshot.result).toEqual({
+      ideas: [],
+      content: null,
+      contents: [],
+      reelIdeas: [],
+      reelScript,
+      reelScripts: [],
+      pageOutline: null,
+      pageDocument: null,
+    });
+    expect(snapshot.hitl).toBeNull();
+  });
+
+  it('maps then_scripts snapshot to reelScripts and null scalar', async () => {
+    const run = makeRun('completed', {
+      taskType: 'reel_ideas_then_scripts',
+      selectedIdeaIds: ['idea_1', 'idea_2'],
+    });
+    const scriptIdea1: ReelScriptItem = {
+      ...reelScript,
+      sourceIdeaId: 'idea_1',
+    };
+    const scriptIdea2: ReelScriptItem = {
+      ...reelScript,
+      cta: 'Drugi',
+      sourceIdeaId: 'idea_2',
+    };
+    const useCase = new GetRunUseCase(
+      unusedRepo({ getById: async () => asSnapshot(run) }),
+      fakeReader({
+        listIdeas: async () => [],
+        listReelIdeas: async () => reelIdeas,
+        listReelScripts: async () => [scriptIdea2, scriptIdea1],
+      }),
+    );
+
+    const snapshot = await useCase.execute(run.id);
+    expect(snapshot.result.reelScript).toBeNull();
+    expect(snapshot.result.reelScripts).toEqual([scriptIdea1, scriptIdea2]);
+    expect(snapshot.result.reelScripts[0]?.sourceIdeaId).toBe('idea_1');
+    expect(snapshot.result.reelScripts[1]?.sourceIdeaId).toBe('idea_2');
+  });
+
+  it('maps one-stage post_content to scalar content and empty contents', async () => {
+    const run = makeRun('completed', { taskType: 'post_content' });
     const content = {
       body: 'Post',
       hashtags: ['#acme'],
@@ -197,37 +327,13 @@ describe('GetRunUseCase', () => {
     expect(snapshot.result).toEqual({
       ideas,
       content,
+      contents: [],
       reelIdeas: [],
       reelScript: null,
+      reelScripts: [],
       pageOutline: null,
       pageDocument: null,
     });
-    expect(snapshot.hitl).toBeNull();
-  });
-
-  it('maps stored reel script into result', async () => {
-    const run = makeRun('completed', { taskType: 'reel_script' });
-    const useCase = new GetRunUseCase(
-      unusedRepo({ getById: async () => asSnapshot(run) }),
-      fakeReader({
-        listIdeas: async () => [],
-        getReelScript: async () => ({
-          script: reelScript,
-          verification: { ok: true, contextIssues: [], languageIssues: [] },
-        }),
-      }),
-    );
-
-    const snapshot = await useCase.execute(run.id);
-    expect(snapshot.result).toEqual({
-      ideas: [],
-      content: null,
-      reelIdeas: [],
-      reelScript,
-      pageOutline: null,
-      pageDocument: null,
-    });
-    expect(snapshot.hitl).toBeNull();
   });
 
   it('returns hitl.options from page outline when page_outline_then_copy awaits HITL', async () => {
@@ -264,8 +370,10 @@ describe('GetRunUseCase', () => {
       result: {
         ideas: [],
         content: null,
+        contents: [],
         reelIdeas: [],
         reelScript: null,
+        reelScripts: [],
         pageOutline: outline,
         pageDocument: null,
       },
@@ -299,8 +407,10 @@ describe('GetRunUseCase', () => {
     expect(snapshot.result).toEqual({
       ideas: [],
       content: null,
+      contents: [],
       reelIdeas: [],
       reelScript: null,
+      reelScripts: [],
       pageOutline: null,
       pageDocument: document,
     });

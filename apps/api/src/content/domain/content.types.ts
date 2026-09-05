@@ -10,10 +10,21 @@ import type {
 
 export type ContentPipelinePhase = 'outline' | 'copy';
 
+export type PageOutlineSectionRole =
+  | 'audience_world'
+  | 'pain'
+  | 'challenger'
+  | 'insight'
+  | 'proof'
+  | 'objection'
+  | 'cta'
+  | 'other';
+
 export type PageOutlineSection = {
   id: string;
   heading: string;
   summary: string;
+  role?: PageOutlineSectionRole;
 };
 
 export type PageOutline = {
