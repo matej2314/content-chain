@@ -272,10 +272,14 @@ export interface RefreshSessionRepository {
 
 ### KROK 3 — Infrastructure: adaptery Prisma, JwtCookieStrategy, cookie helpers
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Implementacja portów w warstwie infrastructure: Prisma adaptery dla User i RefreshSession, strategia JWT z cookie extractorem, narzędzia cookie.  
 Odwołanie: `SPEC-AUTH.md` norma implementacji (cookie httpOnly, jwt cookie extractor).
+
+Zmiana względem: wcześniejszy szkic tego kroku (`PassportStrategy(Strategy, 'jwt')`). Obowiązuje aktualna implementacja `apps/api/src/auth/infrastructure/jwt-cookie.strategy.ts` — nazwa strategii Passport to `'jwt-cookie'` (nie `'jwt'`). Guard w Kroku 5 musi używać tej samej nazwy.
+
+Zmiana względem: wcześniejszy szkic `clearAuthCookies(res: Response)` czyścił cookie tylko z `{ path: '/' }`. Obowiązuje aktualna sygnatura `clearAuthCookies(res: Response, env: Env)` z `cookie.helper.ts` — `clearCookie` dostaje te same flagi co `setAuthCookies` (`httpOnly`, `secure`, `sameSite`, `path`), żeby Express/przeglądarka usunęły cookie ustawione w production.
 
 **Artefakty (nowe pliki):**
 - `apps/api/src/auth/infrastructure/prisma-user.adapter.ts`
@@ -476,16 +480,19 @@ export class PrismaRefreshSessionAdapter implements RefreshSessionRepository {
 import { Inject, Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import type { Request } from 'express';
 import { createUserId, isUserId } from '@content-chain/shared';
 import { ENV, type Env } from '../../shared/config/env';
 import { DomainException } from '../../shared/exceptions/domain.exception';
-import type { AuthUserContext } from '../../shared/types/auth-user-context';
+import type { Request } from 'express';
+import type { AuthUserContext } from '../domain/auth-user.types';
 import type { JwtPayload } from '../domain/auth-user.types';
 
 @Injectable()
-export class JwtCookieStrategy extends PassportStrategy(Strategy, 'jwt') {
-  constructor(@Inject(ENV) env: Env) {
+export class JwtCookieStrategy extends PassportStrategy(
+  Strategy,
+  'jwt-cookie',
+) {
+  constructor(@Inject(ENV) private readonly env: Env) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         (req: Request) =>
@@ -553,9 +560,16 @@ export function setAuthCookies(
   });
 }
 
-export function clearAuthCookies(res: Response): void {
-  res.clearCookie(ACCESS_COOKIE, { path: '/' });
-  res.clearCookie(REFRESH_COOKIE, { path: '/' });
+export function clearAuthCookies(res: Response, env: Env): void {
+  const isProduction = env.NODE_ENV === 'production';
+  const base = {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
+    path: '/',
+  };
+  res.clearCookie(ACCESS_COOKIE, base);
+  res.clearCookie(REFRESH_COOKIE, base);
 }
 ```
 
@@ -566,8 +580,10 @@ export function clearAuthCookies(res: Response): void {
 **DoD kroku:**
 - `PrismaUserAdapter.findForAuth` zwraca `passwordHash`; `findById` — bez hasha
 - `PrismaRefreshSessionAdapter.findValid` odfiltrowuje wygasłe sesje (`expiresAt > now`)
+- `JwtCookieStrategy` rejestruje się jako `'jwt-cookie'` (`PassportStrategy(Strategy, 'jwt-cookie')`)
 - `JwtCookieStrategy.validate` zwraca `AuthUserContext` albo rzuca 401
 - `setAuthCookies` ustawia `httpOnly: true`; `Secure` i `SameSite=strict` tylko w production
+- `clearAuthCookies(res, env)` czyści `cc_access` i `cc_refresh` z tymi samymi flagami co `setAuthCookies`
 - TypeScript bez błędów
 
 ---
@@ -1011,6 +1027,10 @@ export class MeUseCase {
 **Cel:** Złożyć `AuthModule` z NestJS DI, zaimplementować `AuthController`, zdefiniować globalne guardy i dekoratory pomocnicze.  
 Odwołanie: `SPEC-AUTH.md` norma implementacji, `docs/security.md`.
 
+Zmiana względem: wcześniejszy szkic tego kroku (`AuthGuard('jwt')` / strategia `'jwt'`). Nazwa strategii obowiązuje z Fazy 1 / Kroku 3 — `JwtCookieStrategy` w `jwt-cookie.strategy.ts` rejestruje `'jwt-cookie'`; `JwtAuthGuard` musi wołać `AuthGuard('jwt-cookie')`.
+
+Zmiana względem: wcześniejsze wywołanie `clearAuthCookies(res)` w `AuthController.postLogout`. Obowiązuje sygnatura z Fazy 1 / Kroku 3 — `clearAuthCookies(res, this.env)`.
+
 **Artefakty (nowe pliki):**
 - `apps/api/src/shared/decorators/public.decorator.ts`
 - `apps/api/src/shared/decorators/roles.decorator.ts`
@@ -1071,10 +1091,10 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 /**
  * Globalny guard JWT — bypass dla tras oznaczonych @Public().
- * Używa strategii 'jwt' (JwtCookieStrategy) zarejestrowanej w AuthModule.
+ * Używa strategii 'jwt-cookie' (JwtCookieStrategy) zarejestrowanej w AuthModule.
  */
 @Injectable()
-export class JwtAuthGuard extends AuthGuard('jwt') {
+export class JwtAuthGuard extends AuthGuard('jwt-cookie') {
   constructor(private readonly reflector: Reflector) {
     super();
   }
@@ -1288,7 +1308,7 @@ export class AuthController {
     if (user) {
       await this.logout.execute(user.id, raw);
     }
-    clearAuthCookies(res);
+    clearAuthCookies(res, this.env);
     return { ok: true };
   }
 
@@ -1362,7 +1382,7 @@ export class MetricsController {
 **Biblioteki / API:**
 - `JwtModule.registerAsync` — [NestJS JWT docs](https://docs.nestjs.com/security/authentication) — inject `ENV` token z `EnvModule` do factory
 - `PassportModule` — rejestracja strategii Passport w module
-- `AuthGuard('jwt')` z `@nestjs/passport` — używa strategii `'jwt'` (nazwy z `PassportStrategy(Strategy, 'jwt')`)
+- `AuthGuard('jwt-cookie')` z `@nestjs/passport` — używa strategii `'jwt-cookie'` (nazwy z `PassportStrategy(Strategy, 'jwt-cookie')` w Kroku 3)
 - `APP_GUARD` z `@nestjs/core` — globalne guardy w kolejności: `JwtAuthGuard` → `RolesGuard`
 
 **DoD kroku:**
