@@ -3,12 +3,15 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'path';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { RUN_EXECUTOR } from '../src/runs/domain/run-executor.port';
 import { StubRunExecutor } from '../src/runs/infrastructure/stub-run.executor';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 import { PrismaService } from '../src/shared/persistence/prisma.service';
+import {
+  createAuthenticatedAgent,
+  type E2eAgent,
+} from './authenticated-agent';
 
 const completeContextBody = {
   identity: { name: 'Acme', description: 'Robimy X.' },
@@ -91,6 +94,7 @@ async function waitUntil(
 
 describe('Runs list (e2e)', () => {
   let app: INestApplication;
+  let agent: E2eAgent;
   let prisma: PrismaService;
   let createdRunIds: string[];
 
@@ -107,16 +111,17 @@ describe('Runs list (e2e)', () => {
     configureHttpApp(app);
     await app.init();
     prisma = app.get(PrismaService);
+    agent = await createAuthenticatedAgent(app);
 
     await wipeRuns(prisma);
-    await request(app.getHttpServer())
+    await agent
       .put('/api/v1/company-context')
       .send(completeContextBody)
       .expect(200);
 
     createdRunIds = [];
     for (let index = 0; index < 11; index += 1) {
-      const created = await request(app.getHttpServer())
+      const created = await agent
         .post('/api/v1/runs')
         .send({
           ...startRunBody,
@@ -147,7 +152,7 @@ describe('Runs list (e2e)', () => {
   }, 15_000);
 
   it('GET /api/v1/runs page=1 returns 10 newest items, pageSize 10, total >= 11, startedBy null', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await agent
       .get('/api/v1/runs')
       .query({ page: 1 })
       .expect(200);
@@ -165,7 +170,7 @@ describe('Runs list (e2e)', () => {
     expect(items[0].runId).toBe(createdRunIds[createdRunIds.length - 1]);
     expect(items.every((item) => item.startedBy === null)).toBe(true);
 
-    const pageTwo = await request(app.getHttpServer())
+    const pageTwo = await agent
       .get('/api/v1/runs')
       .query({ page: 2 })
       .expect(200);
@@ -178,7 +183,7 @@ describe('Runs list (e2e)', () => {
   });
 
   it('filters by status=completed and keeps list meta aligned with GET :runId snapshot', async () => {
-    const listed = await request(app.getHttpServer())
+    const listed = await agent
       .get('/api/v1/runs')
       .query({ page: 1, status: 'completed' })
       .expect(200);
@@ -193,7 +198,7 @@ describe('Runs list (e2e)', () => {
     ).toBe(true);
 
     const row = listed.body.items[0] as ListRunItem;
-    const snapshot = await request(app.getHttpServer())
+    const snapshot = await agent
       .get(`/api/v1/runs/${row.runId}`)
       .expect(200);
 
@@ -206,19 +211,19 @@ describe('Runs list (e2e)', () => {
   });
 
   it('rejects client pageSize/limit override and invalid userId on the HTTP boundary', async () => {
-    const pageSize = await request(app.getHttpServer())
+    const pageSize = await agent
       .get('/api/v1/runs')
       .query({ pageSize: 50 })
       .expect(400);
     expect(pageSize.body.code).toBe('VALIDATION_FAILED');
 
-    const limit = await request(app.getHttpServer())
+    const limit = await agent
       .get('/api/v1/runs')
       .query({ limit: 20 })
       .expect(400);
     expect(limit.body.code).toBe('VALIDATION_FAILED');
 
-    const userId = await request(app.getHttpServer())
+    const userId = await agent
       .get('/api/v1/runs')
       .query({ userId: 'not-a-user-id' })
       .expect(400);
@@ -240,7 +245,7 @@ describe('Runs list (e2e)', () => {
       },
     });
 
-    const listed = await request(app.getHttpServer())
+    const listed = await agent
       .get('/api/v1/runs')
       .query({ page: 1, status: 'interrupted' })
       .expect(200);
@@ -251,7 +256,7 @@ describe('Runs list (e2e)', () => {
     expect(items[0].runId).toBe(interruptedId);
     expect(items.every((item) => item.status === 'interrupted')).toBe(true);
 
-    const rejected = await request(app.getHttpServer())
+    const rejected = await agent
       .get('/api/v1/runs')
       .query({ status: 'not-a-status' })
       .expect(400);

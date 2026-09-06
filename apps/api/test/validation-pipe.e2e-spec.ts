@@ -9,6 +9,7 @@ import { IsString } from 'class-validator';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { Public } from '../src/shared/decorators/public.decorator';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 
 class ValidationProbeDto {
@@ -16,6 +17,7 @@ class ValidationProbeDto {
   name!: string;
 }
 
+@Public()
 @Controller('validation-probe')
 class ValidationProbeController {
   @Post()

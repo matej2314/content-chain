@@ -1,7 +1,9 @@
 import { Controller, Get, Res } from '@nestjs/common';
+import { Public } from '../shared/decorators/public.decorator';
 import { MetricsService } from './metrics.service';
 import type { Response } from 'express';
 
+@Public()
 @Controller()
 export class MetricsController {
   constructor(private readonly metrics: MetricsService) {}

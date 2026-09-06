@@ -4,7 +4,6 @@ import { join } from 'path';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
-import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { GATE_SECTIONS } from '../src/company-context/domain/company-context.constants';
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
@@ -17,6 +16,10 @@ import {
   type RunExecutorPort,
 } from '../src/runs/domain/run-executor.port';
 import type { RunRecord } from '../src/runs/domain/run.types';
+import {
+  createAuthenticatedAgent,
+  type E2eAgent,
+} from './authenticated-agent';
 import { FakeLlmGateway } from './fake-llm-gateway';
 
 const completeContextBody = {
@@ -94,7 +97,7 @@ type RunSnapshotBody = {
 };
 
 async function waitForRunStatus(
-  app: INestApplication,
+  agent: E2eAgent,
   runId: string,
   expected: string,
   timeoutMs = 5_000,
@@ -102,9 +105,7 @@ async function waitForRunStatus(
   const deadline = Date.now() + timeoutMs;
   let lastStatus: string | undefined;
   while (Date.now() < deadline) {
-    const response = await request(app.getHttpServer())
-      .get(`/api/v1/runs/${runId}`)
-      .expect(200);
+    const response = await agent.get(`/api/v1/runs/${runId}`).expect(200);
     const body = response.body as RunSnapshotBody;
     lastStatus = body.status;
     if (lastStatus === expected) {
@@ -117,18 +118,15 @@ async function waitForRunStatus(
   );
 }
 
-async function putCompleteContext(app: INestApplication): Promise<void> {
-  await request(app.getHttpServer())
+async function putCompleteContext(agent: E2eAgent): Promise<void> {
+  await agent
     .put('/api/v1/company-context')
     .send(completeContextBody)
     .expect(200);
 }
 
-async function postRun(app: INestApplication) {
-  return request(app.getHttpServer())
-    .post('/api/v1/runs')
-    .send(startRunBody)
-    .expect(202);
+async function postRun(agent: E2eAgent) {
+  return agent.post('/api/v1/runs').send(startRunBody).expect(202);
 }
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
@@ -159,7 +157,7 @@ class HoldingRunExecutor implements RunExecutorPort {
 }
 
 async function collectSseUntilStatusEvent(
-  app: INestApplication,
+  agent: E2eAgent,
   runId: string,
   timeoutMs = 4_000,
 ): Promise<string> {
@@ -186,7 +184,7 @@ async function collectSseUntilStatusEvent(
 
     let incoming: IncomingMessage | undefined;
 
-    request(app.getHttpServer())
+    agent
       .get(`/api/v1/runs/${runId}/events`)
       .set('Accept', 'text/event-stream')
       .buffer(false)
@@ -222,7 +220,7 @@ async function collectSseUntilStatusEvent(
 }
 
 async function collectSseUntilServerCloses(
-  app: INestApplication,
+  agent: E2eAgent,
   runId: string,
   timeoutMs = 4_000,
 ): Promise<string> {
@@ -249,7 +247,7 @@ async function collectSseUntilServerCloses(
 
     let incoming: IncomingMessage | undefined;
 
-    request(app.getHttpServer())
+    agent
       .get(`/api/v1/runs/${runId}/events`)
       .set('Accept', 'text/event-stream')
       .buffer(false)
@@ -282,6 +280,7 @@ async function collectSseUntilServerCloses(
 describe('Runs lifecycle (e2e)', () => {
   describe('pipeline (fake LLM)', () => {
     let app: INestApplication;
+    let agent: E2eAgent;
     let prisma: PrismaService;
     let fakeLlm: FakeLlmGateway;
 
@@ -299,6 +298,7 @@ describe('Runs lifecycle (e2e)', () => {
       configureHttpApp(app);
       await app.init();
       prisma = app.get(PrismaService);
+      agent = await createAuthenticatedAgent(app);
       await wipeRuns(prisma);
     }, 30_000);
 
@@ -326,7 +326,7 @@ describe('Runs lifecycle (e2e)', () => {
       await prisma.companyContext.deleteMany();
       await wipeRuns(prisma);
 
-      const response = await request(app.getHttpServer())
+      const response = await agent
         .post('/api/v1/runs')
         .send(startRunBody)
         .expect(409);
@@ -340,10 +340,10 @@ describe('Runs lifecycle (e2e)', () => {
     });
 
     it('PUT complete context then POST /api/v1/runs returns 202 before the pipeline finishes', async () => {
-      await putCompleteContext(app);
+      await putCompleteContext(agent);
 
       const startedAt = Date.now();
-      const response = await postRun(app);
+      const response = await postRun(agent);
       const elapsedMs = Date.now() - startedAt;
 
       expect(response.body.runId).toMatch(/^run_/);
@@ -358,11 +358,11 @@ describe('Runs lifecycle (e2e)', () => {
     });
 
     it('GET snapshot reaches completed with ideas and hop logs without GATEWAY_KEY', async () => {
-      await putCompleteContext(app);
-      const created = await postRun(app);
+      await putCompleteContext(agent);
+      const created = await postRun(agent);
       const runId = created.body.runId as string;
 
-      const snapshot = await waitForRunStatus(app, runId, 'completed', 15_000);
+      const snapshot = await waitForRunStatus(agent, runId, 'completed', 15_000);
       expect(snapshot.status).toBe('completed');
       expect(snapshot.result?.ideas).toEqual(
         expect.arrayContaining([
@@ -370,7 +370,7 @@ describe('Runs lifecycle (e2e)', () => {
         ]),
       );
 
-      const logs = await request(app.getHttpServer())
+      const logs = await agent
         .get(`/api/v1/runs/${runId}/logs`)
         .expect(200);
 
@@ -389,23 +389,23 @@ describe('Runs lifecycle (e2e)', () => {
     });
 
     it('GET /api/v1/runs/:runId/events emits run.status over SSE', async () => {
-      await putCompleteContext(app);
-      const created = await postRun(app);
+      await putCompleteContext(agent);
+      const created = await postRun(agent);
       const runId = created.body.runId as string;
 
-      const payload = await collectSseUntilStatusEvent(app, runId);
+      const payload = await collectSseUntilStatusEvent(agent, runId);
 
       expect(payload).toContain('event: run.status');
       expect(payload).toContain(runId);
     });
 
     it('GET /api/v1/runs/:runId/events on a completed run emits run.status and ends (D-14)', async () => {
-      await putCompleteContext(app);
-      const created = await postRun(app);
+      await putCompleteContext(agent);
+      const created = await postRun(agent);
       const runId = created.body.runId as string;
-      await waitForRunStatus(app, runId, 'completed', 15_000);
+      await waitForRunStatus(agent, runId, 'completed', 15_000);
 
-      const payload = await collectSseUntilServerCloses(app, runId);
+      const payload = await collectSseUntilServerCloses(agent, runId);
 
       expect(payload).toContain('event: run.status');
       expect(payload).toContain(runId);
@@ -413,12 +413,12 @@ describe('Runs lifecycle (e2e)', () => {
     });
 
     it('POST HITL on a completed run returns 409 HITL_REQUIRED', async () => {
-      await putCompleteContext(app);
-      const created = await postRun(app);
+      await putCompleteContext(agent);
+      const created = await postRun(agent);
       const runId = created.body.runId as string;
-      await waitForRunStatus(app, runId, 'completed', 15_000);
+      await waitForRunStatus(agent, runId, 'completed', 15_000);
 
-      const response = await request(app.getHttpServer())
+      const response = await agent
         .post(`/api/v1/runs/${runId}/hitl`)
         .send({ selectedIdeaIds: ['idea-1'] })
         .expect(409);
@@ -429,6 +429,7 @@ describe('Runs lifecycle (e2e)', () => {
 
   describe('queue (D-9) with holding fake executor', () => {
     let app: INestApplication;
+    let agent: E2eAgent;
     let prisma: PrismaService;
     let holding: HoldingRunExecutor;
     let previousMax: string | undefined;
@@ -462,6 +463,7 @@ describe('Runs lifecycle (e2e)', () => {
       configureHttpApp(app);
       await app.init();
       prisma = app.get(PrismaService);
+      agent = await createAuthenticatedAgent(app);
     }, 30_000);
 
     afterAll(async () => {
@@ -477,25 +479,25 @@ describe('Runs lifecycle (e2e)', () => {
     }, 15_000);
 
     it('keeps the second run queued while MAX_CONCURRENT_RUNS=1 is occupied, then starts it after release', async () => {
-      await putCompleteContext(app);
+      await putCompleteContext(agent);
 
-      const first = await postRun(app);
+      const first = await postRun(agent);
       const firstId = first.body.runId as string;
-      await waitForRunStatus(app, firstId, 'running');
+      await waitForRunStatus(agent, firstId, 'running');
       await waitUntil(
         () => holding.startedIds.includes(firstId),
         'first execute parked on the fake',
       );
 
-      const second = await postRun(app);
+      const second = await postRun(agent);
       const secondId = second.body.runId as string;
       expect(['queued', 'running']).toContain(second.body.status);
 
       await sleep(150);
-      const secondWhileHeld = await request(app.getHttpServer())
+      const secondWhileHeld = await agent
         .get(`/api/v1/runs/${secondId}`)
         .expect(200);
-      const firstWhileHeld = await request(app.getHttpServer())
+      const firstWhileHeld = await agent
         .get(`/api/v1/runs/${firstId}`)
         .expect(200);
 
@@ -506,7 +508,7 @@ describe('Runs lifecycle (e2e)', () => {
 
       holding.release();
 
-      await waitForRunStatus(app, secondId, 'running');
+      await waitForRunStatus(agent, secondId, 'running');
       await waitUntil(
         () => holding.startedIds.includes(secondId),
         'second execute after the slot frees',

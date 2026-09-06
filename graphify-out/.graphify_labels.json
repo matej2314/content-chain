@@ -420,20 +420,16 @@
   "418": "ProviderEditCommand",
   "419": "ProviderRemoveCommand",
   "420": "company-context.mapper.ts",
-  "421": "app-configuration.types.ts",
   "422": "ConfigValidateCommand",
   "423": "openai-chat-message.dto.ts",
   "424": "AppProviderStreamScope",
-  "425": "EnvironmentVariables",
   "426": "anthropic-stream.mapper.ts",
   "427": "openai-chat-completion-response.dto.ts",
   "428": "InMemoryRunSseHub",
   "429": "ClientAddCommand",
   "430": "ClientRemoveCommand",
-  "431": "openai-auth.decorator.ts",
   "432": "GatewayModelsCatalogService",
   "433": "CompanyContextController",
   "434": "ResponseFormatDto",
-  "435": "RunsModule",
-  "436": "parse-llm-json.ts"
+  "435": "RunsModule"
 }

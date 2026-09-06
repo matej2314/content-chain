@@ -2,7 +2,6 @@ import { execFileSync } from 'child_process';
 import { join } from 'path';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import {
   COMPANY_CONTEXT_SINGLETON_ID,
@@ -10,6 +9,10 @@ import {
 } from '../src/company-context/domain/company-context.constants';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 import { PrismaService } from '../src/shared/persistence/prisma.service';
+import {
+  createAuthenticatedAgent,
+  type E2eAgent,
+} from './authenticated-agent';
 
 const completeBody = {
   identity: { name: 'Acme', description: 'Robimy X.' },
@@ -36,6 +39,7 @@ function expectNoFileFallback(body: unknown): void {
 
 describe('Company context (e2e)', () => {
   let app: INestApplication;
+  let agent: E2eAgent;
   let prisma: PrismaService;
 
   beforeAll(async () => {
@@ -61,6 +65,7 @@ describe('Company context (e2e)', () => {
     configureHttpApp(app);
     await app.init();
     prisma = app.get(PrismaService);
+    agent = await createAuthenticatedAgent(app);
   }, 30_000);
 
   afterAll(async () => {
@@ -70,7 +75,7 @@ describe('Company context (e2e)', () => {
   it('GET /api/v1/company-context/completeness reports all gate sections missing on an empty database', async () => {
     await prisma.companyContext.deleteMany();
 
-    const response = await request(app.getHttpServer())
+    const response = await agent
       .get('/api/v1/company-context/completeness')
       .expect(200);
 
@@ -82,7 +87,7 @@ describe('Company context (e2e)', () => {
   });
 
   it('PUT complete body then GET completeness.complete === true', async () => {
-    const put = await request(app.getHttpServer())
+    const put = await agent
       .put('/api/v1/company-context')
       .send(completeBody)
       .expect(200);
@@ -95,7 +100,7 @@ describe('Company context (e2e)', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].id).toBe(COMPANY_CONTEXT_SINGLETON_ID);
 
-    const completeness = await request(app.getHttpServer())
+    const completeness = await agent
       .get('/api/v1/company-context/completeness')
       .expect(200);
 
@@ -103,7 +108,7 @@ describe('Company context (e2e)', () => {
     expect(completeness.body.missing).toEqual([]);
     expectNoFileFallback(completeness.body);
 
-    const context = await request(app.getHttpServer())
+    const context = await agent
       .get('/api/v1/company-context')
       .expect(200);
 
@@ -114,12 +119,12 @@ describe('Company context (e2e)', () => {
   });
 
   it('PATCH identity name merges and does not wipe offer', async () => {
-    await request(app.getHttpServer())
+    await agent
       .put('/api/v1/company-context')
       .send(completeBody)
       .expect(200);
 
-    const patched = await request(app.getHttpServer())
+    const patched = await agent
       .patch('/api/v1/company-context')
       .send({ identity: { name: 'Nowa' } })
       .expect(200);
@@ -135,7 +140,7 @@ describe('Company context (e2e)', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].id).toBe(COMPANY_CONTEXT_SINGLETON_ID);
 
-    const context = await request(app.getHttpServer())
+    const context = await agent
       .get('/api/v1/company-context')
       .expect(200);
 
@@ -155,12 +160,12 @@ describe('Company context (e2e)', () => {
       performanceNotes: 'LI > IG',
     };
 
-    await request(app.getHttpServer())
+    await agent
       .put('/api/v1/company-context')
       .send({ ...completeBody, extras })
       .expect(200);
 
-    const context = await request(app.getHttpServer())
+    const context = await agent
       .get('/api/v1/company-context')
       .expect(200);
 
@@ -170,7 +175,7 @@ describe('Company context (e2e)', () => {
   });
 
   it('PUT unknown key in extras → 400 VALIDATION_FAILED', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await agent
       .put('/api/v1/company-context')
       .send({
         ...completeBody,
@@ -193,7 +198,7 @@ describe('Company context (e2e)', () => {
   });
 
   it('PUT unknown key inside extras.caseStudies → 400 with dotted path', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await agent
       .put('/api/v1/company-context')
       .send({
         ...completeBody,
@@ -215,12 +220,12 @@ describe('Company context (e2e)', () => {
   });
 
   it('PATCH unknown key in extras → 400 VALIDATION_FAILED', async () => {
-    await request(app.getHttpServer())
+    await agent
       .put('/api/v1/company-context')
       .send(completeBody)
       .expect(200);
 
-    const response = await request(app.getHttpServer())
+    const response = await agent
       .patch('/api/v1/company-context')
       .send({ extras: { hashtags: ['#x'], unknownBag: true } })
       .expect(400);

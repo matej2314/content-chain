@@ -2,11 +2,15 @@ import { execFileSync } from 'child_process';
 import { join } from 'path';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import request, { type Response } from 'supertest';
+import type { Response } from 'supertest';
 import { AppModule } from '../src/app.module';
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 import { PrismaService } from '../src/shared/persistence/prisma.service';
+import {
+  createAuthenticatedAgent,
+  type E2eAgent,
+} from './authenticated-agent';
 import {
   FAKE_LLM_REQUEST_ID,
   FakeLlmGateway,
@@ -135,7 +139,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function waitForRunStatus(
-  app: INestApplication,
+  agent: E2eAgent,
   runId: string,
   expected: string,
   timeoutMs = 15_000,
@@ -143,9 +147,7 @@ async function waitForRunStatus(
   const deadline = Date.now() + timeoutMs;
   let lastStatus: string | undefined;
   while (Date.now() < deadline) {
-    const response = await request(app.getHttpServer())
-      .get(`/api/v1/runs/${runId}`)
-      .expect(200);
+    const response = await agent.get(`/api/v1/runs/${runId}`).expect(200);
     const body = response.body as RunSnapshotBody;
     lastStatus = body.status;
     if (lastStatus === expected) {
@@ -158,15 +160,15 @@ async function waitForRunStatus(
   );
 }
 
-async function putCompleteContext(app: INestApplication): Promise<void> {
-  await request(app.getHttpServer())
+async function putCompleteContext(agent: E2eAgent): Promise<void> {
+  await agent
     .put('/api/v1/company-context')
     .send(completeContextBody)
     .expect(200);
 }
 
 async function postRun(
-  app: INestApplication,
+  agent: E2eAgent,
   taskType:
     | 'post_ideas'
     | 'post_ideas_then_content'
@@ -174,7 +176,7 @@ async function postRun(
     | 'reel_script'
     | 'reel_ideas_then_scripts',
 ): Promise<{ runId: string; conversationId: string; status: string }> {
-  const response = await request(app.getHttpServer())
+  const response = await agent
     .post('/api/v1/runs')
     .send({
       taskType,
@@ -191,12 +193,10 @@ async function postRun(
 }
 
 async function getLogs(
-  app: INestApplication,
+  agent: E2eAgent,
   runId: string,
 ): Promise<RunLogItem[]> {
-  const response = await request(app.getHttpServer())
-    .get(`/api/v1/runs/${runId}/logs`)
-    .expect(200);
+  const response = await agent.get(`/api/v1/runs/${runId}/logs`).expect(200);
   return (response.body as { items: RunLogItem[] }).items;
 }
 
@@ -218,32 +218,29 @@ function assertCharacterCountMatchesBody(
 }
 
 async function postHitl(
-  app: INestApplication,
+  agent: E2eAgent,
   runId: string,
   selectedIdeaIds: string[],
 ): Promise<Response> {
-  return request(app.getHttpServer())
-    .post(`/api/v1/runs/${runId}/hitl`)
-    .send({ selectedIdeaIds });
+  return agent.post(`/api/v1/runs/${runId}/hitl`).send({ selectedIdeaIds });
 }
 
 async function expectHitlInvalidSelection(
-  app: INestApplication,
+  agent: E2eAgent,
   runId: string,
   selectedIdeaIds: string[],
 ): Promise<void> {
-  const response = await postHitl(app, runId, selectedIdeaIds);
+  const response = await postHitl(agent, runId, selectedIdeaIds);
   expect(response.status).toBe(400);
   expect(response.body).toMatchObject({ code: 'HITL_INVALID_SELECTION' });
 
-  const stillPaused = await request(app.getHttpServer())
-    .get(`/api/v1/runs/${runId}`)
-    .expect(200);
+  const stillPaused = await agent.get(`/api/v1/runs/${runId}`).expect(200);
   expect((stillPaused.body as RunSnapshotBody).status).toBe('awaiting_hitl');
 }
 
 describe('Social pipeline (e2e, fake LLM)', () => {
   let app: INestApplication;
+  let agent: E2eAgent;
   let prisma: PrismaService;
   let fakeLlm: FakeLlmGateway;
 
@@ -262,7 +259,8 @@ describe('Social pipeline (e2e, fake LLM)', () => {
     configureHttpApp(app);
     await app.init();
     prisma = app.get(PrismaService);
-    await putCompleteContext(app);
+    agent = await createAuthenticatedAgent(app);
+    await putCompleteContext(agent);
   }, 30_000);
 
   afterAll(async () => {
@@ -293,11 +291,11 @@ describe('Social pipeline (e2e, fake LLM)', () => {
     it('queues, runs, completes with ideas and hop logs in DB', async () => {
       useScript([ideasJson(), verifierOk()]);
       const startedAt = Date.now();
-      const created = await postRun(app, 'post_ideas');
+      const created = await postRun(agent, 'post_ideas');
       expect(Date.now() - startedAt).toBeLessThan(2_000);
       expect(['queued', 'running']).toContain(created.status);
 
-      const snapshot = await waitForRunStatus(app, created.runId, 'completed');
+      const snapshot = await waitForRunStatus(agent, created.runId, 'completed');
       expect(snapshot.taskType).toBe('post_ideas');
       expect(snapshot.result.ideas).toEqual([
         { id: 'idea_1', title: 'T1', angle: 'A1', hook: 'H1' },
@@ -309,7 +307,7 @@ describe('Social pipeline (e2e, fake LLM)', () => {
         await prisma.socialIdea.count({ where: { runId: created.runId } }),
       ).toBe(2);
 
-      const logs = await getLogs(app, created.runId);
+      const logs = await getLogs(agent, created.runId);
       expect(logs.length).toBeGreaterThan(0);
       expect(logs.some((entry) => entry.step === 'IdeationAgent')).toBe(true);
       expect(logs.some((entry) => entry.step === 'ConsistencyVerifier')).toBe(
@@ -322,10 +320,10 @@ describe('Social pipeline (e2e, fake LLM)', () => {
   describe('D-5 post_ideas_then_content HITL', () => {
     it('pauses for HITL, then writes content and completes', async () => {
       useScript([ideasJson(), verifierOk()]);
-      const created = await postRun(app, 'post_ideas_then_content');
+      const created = await postRun(agent, 'post_ideas_then_content');
 
       const paused = await waitForRunStatus(
-        app,
+        agent,
         created.runId,
         'awaiting_hitl',
       );
@@ -334,7 +332,7 @@ describe('Social pipeline (e2e, fake LLM)', () => {
       expect(paused.result.content).toBeNull();
 
       useScript([contentJson(), verifierOk()]);
-      const resume = await request(app.getHttpServer())
+      const resume = await agent
         .post(`/api/v1/runs/${created.runId}/hitl`)
         .send({ selectedIdeaIds: ['idea_1'] })
         .expect(202);
@@ -343,7 +341,7 @@ describe('Social pipeline (e2e, fake LLM)', () => {
         status: 'running',
       });
 
-      const done = await waitForRunStatus(app, created.runId, 'completed');
+      const done = await waitForRunStatus(agent, created.runId, 'completed');
       expect(done.hitl).toBeNull();
       expect(done.result.content).toBeNull();
       expect(done.result.contents).toEqual([
@@ -363,10 +361,10 @@ describe('Social pipeline (e2e, fake LLM)', () => {
 
     it('rejects HITL on a completed run with 409 HITL_REQUIRED', async () => {
       useScript([ideasJson(), verifierOk()]);
-      const created = await postRun(app, 'post_ideas');
-      await waitForRunStatus(app, created.runId, 'completed');
+      const created = await postRun(agent, 'post_ideas');
+      await waitForRunStatus(agent, created.runId, 'completed');
 
-      const response = await request(app.getHttpServer())
+      const response = await agent
         .post(`/api/v1/runs/${created.runId}/hitl`)
         .send({ selectedIdeaIds: ['idea_1'] })
         .expect(409);
@@ -378,9 +376,9 @@ describe('Social pipeline (e2e, fake LLM)', () => {
   describe('D-21 HITL Social K z N (post)', () => {
     async function pauseThenContent(): Promise<string> {
       useScript([ideasJson({ cta: 'Napisz do nas' }), verifierOk()]);
-      const created = await postRun(app, 'post_ideas_then_content');
+      const created = await postRun(agent, 'post_ideas_then_content');
       const paused = await waitForRunStatus(
-        app,
+        agent,
         created.runId,
         'awaiting_hitl',
       );
@@ -394,17 +392,17 @@ describe('Social pipeline (e2e, fake LLM)', () => {
 
     it('rejects empty selectedIdeaIds with 400 HITL_INVALID_SELECTION', async () => {
       const runId = await pauseThenContent();
-      await expectHitlInvalidSelection(app, runId, []);
+      await expectHitlInvalidSelection(agent, runId, []);
     });
 
     it('rejects duplicate ids with 400 HITL_INVALID_SELECTION', async () => {
       const runId = await pauseThenContent();
-      await expectHitlInvalidSelection(app, runId, ['idea_1', 'idea_1']);
+      await expectHitlInvalidSelection(agent, runId, ['idea_1', 'idea_1']);
     });
 
     it('rejects an id outside the draft with 400 HITL_INVALID_SELECTION', async () => {
       const runId = await pauseThenContent();
-      await expectHitlInvalidSelection(app, runId, ['not-in-draft']);
+      await expectHitlInvalidSelection(agent, runId, ['not-in-draft']);
     });
 
     it('writes two contents for two legal ids, ordered by HITL, with characterCount', async () => {
@@ -416,11 +414,11 @@ describe('Social pipeline (e2e, fake LLM)', () => {
         verifierOk(),
       ]);
 
-      const resume = await postHitl(app, runId, ['idea_1', 'idea_2']);
+      const resume = await postHitl(agent, runId, ['idea_1', 'idea_2']);
       expect(resume.status).toBe(202);
       expect(resume.body).toEqual({ runId, status: 'running' });
 
-      const done = await waitForRunStatus(app, runId, 'completed');
+      const done = await waitForRunStatus(agent, runId, 'completed');
       expect(done.result.content).toBeNull();
       expect(done.result.contents).toHaveLength(2);
       expect(done.result.contents[0]?.sourceIdeaId).toBe('idea_1');
@@ -438,11 +436,11 @@ describe('Social pipeline (e2e, fake LLM)', () => {
   describe('D-6 verifier refine', () => {
     it('completes after one successful refine', async () => {
       useScript([ideasJson(), verifierFail(), ideasJson(), verifierOk()]);
-      const created = await postRun(app, 'post_ideas');
-      const snapshot = await waitForRunStatus(app, created.runId, 'completed');
+      const created = await postRun(agent, 'post_ideas');
+      const snapshot = await waitForRunStatus(agent, created.runId, 'completed');
 
       expect(snapshot.result.ideas).toHaveLength(2);
-      const logs = await getLogs(app, created.runId);
+      const logs = await getLogs(agent, created.runId);
       const refineHops = logs.filter(
         (entry) => entry.step === 'RefineIdeas' && entry.level === 'info',
       );
@@ -459,11 +457,11 @@ describe('Social pipeline (e2e, fake LLM)', () => {
         ideasJson(),
         verifierFail(),
       ]);
-      const created = await postRun(app, 'post_ideas');
-      const snapshot = await waitForRunStatus(app, created.runId, 'failed');
+      const created = await postRun(agent, 'post_ideas');
+      const snapshot = await waitForRunStatus(agent, created.runId, 'failed');
 
       expect(snapshot.status).toBe('failed');
-      const logs = await getLogs(app, created.runId);
+      const logs = await getLogs(agent, created.runId);
       const refineHops = logs.filter(
         (entry) => entry.step === 'RefineIdeas' && entry.level === 'info',
       );
@@ -476,11 +474,11 @@ describe('Social pipeline (e2e, fake LLM)', () => {
   describe('D-7 retryable gateway failure', () => {
     it('retries three times then marks the run failed without leaking GATEWAY_KEY', async () => {
       useScript(['GATEWAY_FAIL', 'GATEWAY_FAIL', 'GATEWAY_FAIL']);
-      const created = await postRun(app, 'post_ideas');
-      await waitForRunStatus(app, created.runId, 'failed');
+      const created = await postRun(agent, 'post_ideas');
+      await waitForRunStatus(agent, created.runId, 'failed');
 
       expect(fakeLlm.calls).toHaveLength(3);
-      const logs = await getLogs(app, created.runId);
+      const logs = await getLogs(agent, created.runId);
       const serialized = JSON.stringify(logs);
       expect(
         logs.filter((entry) =>
@@ -494,8 +492,8 @@ describe('Social pipeline (e2e, fake LLM)', () => {
   describe('D-8 correlation', () => {
     it('sends the run conversationId on every chat and logs the stub requestId', async () => {
       useScript([ideasJson(), verifierOk()]);
-      const created = await postRun(app, 'post_ideas');
-      const snapshot = await waitForRunStatus(app, created.runId, 'completed');
+      const created = await postRun(agent, 'post_ideas');
+      const snapshot = await waitForRunStatus(agent, created.runId, 'completed');
 
       expect(fakeLlm.calls.length).toBeGreaterThanOrEqual(2);
       expect(
@@ -505,7 +503,7 @@ describe('Social pipeline (e2e, fake LLM)', () => {
       ).toBe(true);
       expect(snapshot.conversationId).toBe(created.conversationId);
 
-      const logs = await getLogs(app, created.runId);
+      const logs = await getLogs(agent, created.runId);
       const hopLogs = logs.filter(
         (entry) =>
           entry.step === 'IdeationAgent' ||
@@ -525,9 +523,9 @@ describe('Social pipeline (e2e, fake LLM)', () => {
   describe('D-15 reel_ideas full-auto', () => {
     it('completes with reelIdeas, persists two rows, and lists only reel_ideas', async () => {
       useScript([reelIdeasJson(), verifierOk()]);
-      const created = await postRun(app, 'reel_ideas');
+      const created = await postRun(agent, 'reel_ideas');
 
-      const snapshot = await waitForRunStatus(app, created.runId, 'completed');
+      const snapshot = await waitForRunStatus(agent, created.runId, 'completed');
       expect(snapshot.taskType).toBe('reel_ideas');
       expect(snapshot.hitl).toBeNull();
       expect(snapshot.result.content).toBeNull();
@@ -553,7 +551,7 @@ describe('Social pipeline (e2e, fake LLM)', () => {
         await prisma.socialReelIdea.count({ where: { runId: created.runId } }),
       ).toBe(2);
 
-      const listed = await request(app.getHttpServer())
+      const listed = await agent
         .get('/api/v1/runs')
         .query({ taskType: 'reel_ideas' })
         .expect(200);
@@ -568,10 +566,10 @@ describe('Social pipeline (e2e, fake LLM)', () => {
   describe('D-16 reel_ideas_then_scripts HITL', () => {
     it('pauses with reel HITL options, then writes reelScript and completes', async () => {
       useScript([reelIdeasJson(), verifierOk()]);
-      const created = await postRun(app, 'reel_ideas_then_scripts');
+      const created = await postRun(agent, 'reel_ideas_then_scripts');
 
       const paused = await waitForRunStatus(
-        app,
+        agent,
         created.runId,
         'awaiting_hitl',
       );
@@ -580,7 +578,7 @@ describe('Social pipeline (e2e, fake LLM)', () => {
       expect(paused.result.reelScript).toBeNull();
 
       useScript([reelScriptJson(), verifierOk()]);
-      const resume = await request(app.getHttpServer())
+      const resume = await agent
         .post(`/api/v1/runs/${created.runId}/hitl`)
         .send({ selectedIdeaIds: ['idea_1'] })
         .expect(202);
@@ -589,7 +587,7 @@ describe('Social pipeline (e2e, fake LLM)', () => {
         status: 'running',
       });
 
-      const done = await waitForRunStatus(app, created.runId, 'completed');
+      const done = await waitForRunStatus(agent, created.runId, 'completed');
       expect(done.hitl).toBeNull();
       expect(done.result.reelScript).toBeNull();
       expect(done.result.reelScripts).toHaveLength(1);
@@ -614,9 +612,9 @@ describe('Social pipeline (e2e, fake LLM)', () => {
   describe('D-21 HITL Social K z N (reel)', () => {
     async function pauseThenScripts(): Promise<string> {
       useScript([reelIdeasJson({ cta: 'Napisz do nas' }), verifierOk()]);
-      const created = await postRun(app, 'reel_ideas_then_scripts');
+      const created = await postRun(agent, 'reel_ideas_then_scripts');
       const paused = await waitForRunStatus(
-        app,
+        agent,
         created.runId,
         'awaiting_hitl',
       );
@@ -630,17 +628,17 @@ describe('Social pipeline (e2e, fake LLM)', () => {
 
     it('rejects empty selectedIdeaIds with 400 HITL_INVALID_SELECTION', async () => {
       const runId = await pauseThenScripts();
-      await expectHitlInvalidSelection(app, runId, []);
+      await expectHitlInvalidSelection(agent, runId, []);
     });
 
     it('rejects duplicate ids with 400 HITL_INVALID_SELECTION', async () => {
       const runId = await pauseThenScripts();
-      await expectHitlInvalidSelection(app, runId, ['idea_1', 'idea_1']);
+      await expectHitlInvalidSelection(agent, runId, ['idea_1', 'idea_1']);
     });
 
     it('rejects an id outside the draft with 400 HITL_INVALID_SELECTION', async () => {
       const runId = await pauseThenScripts();
-      await expectHitlInvalidSelection(app, runId, ['not-in-draft']);
+      await expectHitlInvalidSelection(agent, runId, ['not-in-draft']);
     });
 
     it('writes two reelScripts for two legal ids, ordered by HITL', async () => {
@@ -652,11 +650,11 @@ describe('Social pipeline (e2e, fake LLM)', () => {
         verifierOk(),
       ]);
 
-      const resume = await postHitl(app, runId, ['idea_1', 'idea_2']);
+      const resume = await postHitl(agent, runId, ['idea_1', 'idea_2']);
       expect(resume.status).toBe(202);
       expect(resume.body).toEqual({ runId, status: 'running' });
 
-      const done = await waitForRunStatus(app, runId, 'completed');
+      const done = await waitForRunStatus(agent, runId, 'completed');
       expect(done.result.reelScript).toBeNull();
       expect(done.result.reelScripts).toHaveLength(2);
       expect(done.result.reelScripts[0]?.sourceIdeaId).toBe('idea_1');
@@ -671,7 +669,7 @@ describe('Social pipeline (e2e, fake LLM)', () => {
 
   describe('D-19a brief XOR', () => {
     it('rejects post_ideas with brief.angle', async () => {
-      const response = await request(app.getHttpServer())
+      const response = await agent
         .post('/api/v1/runs')
         .send({
           taskType: 'post_ideas',
@@ -688,9 +686,9 @@ describe('Social pipeline (e2e, fake LLM)', () => {
   describe('reel_script solo', () => {
     it('completes with reelScript segments without HITL', async () => {
       useScript([reelScriptJson(), verifierOk()]);
-      const created = await postRun(app, 'reel_script');
+      const created = await postRun(agent, 'reel_script');
 
-      const snapshot = await waitForRunStatus(app, created.runId, 'completed');
+      const snapshot = await waitForRunStatus(agent, created.runId, 'completed');
       expect(snapshot.taskType).toBe('reel_script');
       expect(snapshot.hitl).toBeNull();
       expect(snapshot.result.reelScript?.segments.length).toBeGreaterThan(0);

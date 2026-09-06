@@ -38,3 +38,8 @@ export function parseTtlMs(ttl: string): number {
       return value * 1000;
   }
 }
+
+/** jsonwebtoken `expiresIn` as number = seconds. */
+export function parseTtlSeconds(ttl: string): number {
+  return Math.floor(parseTtlMs(ttl) / 1000);
+}

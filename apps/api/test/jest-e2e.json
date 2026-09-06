@@ -8,7 +8,7 @@
     "^.+\\.(t|j)s$": "ts-jest"
   },
   "transformIgnorePatterns": [
-    "/node_modules/(?!.*(?:uuid|@langchain|langsmith|langgraph)/)"
+    "/node_modules/(?!.*(?:uuid|@langchain|langsmith|langgraph|@nestjs/passport|@nestjs/jwt|passport)/)"
   ],
   "setupFiles": ["<rootDir>/setup-env.ts"]
 }

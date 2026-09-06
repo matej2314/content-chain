@@ -1455,19 +1455,19 @@
     "semantic_hash": "ee817bfd7e25f778a714f16506add3bb"
   },
   "apps/api/src/app.module.ts": {
-    "mtime": 1788607039.6072116,
-    "ast_hash": "498496ffa899a367850ee97a9bd2e5af",
+    "mtime": 1788718883.846843,
+    "ast_hash": "81116dbc065dde285802c106c1a121cd",
     "semantic_hash": ""
   },
   "apps/api/src/auth/auth.controller.ts": {
-    "mtime": 1786559907.0706217,
-    "ast_hash": "31490446e0e7aa642509175cde7abe4a",
-    "semantic_hash": "31490446e0e7aa642509175cde7abe4a"
+    "mtime": 1788721234.096414,
+    "ast_hash": "bff9b2fe6e6ae6853ee8843fe02da492",
+    "semantic_hash": ""
   },
   "apps/api/src/auth/auth.module.ts": {
-    "mtime": 1786559907.0716248,
-    "ast_hash": "2f16db9083f783874518b1ab1449ed6a",
-    "semantic_hash": "2f16db9083f783874518b1ab1449ed6a"
+    "mtime": 1788719775.72955,
+    "ast_hash": "601ac94986945f66e8d271cd3a56b8f2",
+    "semantic_hash": ""
   },
   "apps/api/src/company-context/company-context.controller.ts": {
     "mtime": 1788351995.7489288,
@@ -1595,9 +1595,9 @@
     "semantic_hash": "fe35e5087130745056843252463f6a6d"
   },
   "apps/api/src/health/health.controller.ts": {
-    "mtime": 1786645024.069616,
-    "ast_hash": "80d9dd7b13accbceb66d4f236c2f54b3",
-    "semantic_hash": "80d9dd7b13accbceb66d4f236c2f54b3"
+    "mtime": 1788719020.1066136,
+    "ast_hash": "baa35256ef86b1219460441d480d7533",
+    "semantic_hash": ""
   },
   "apps/api/src/health/health.module.ts": {
     "mtime": 1786641594.1119952,
@@ -1650,9 +1650,9 @@
     "semantic_hash": "9114340705678a721ad2f2eae3684d26"
   },
   "apps/api/src/metrics/metrics.controller.ts": {
-    "mtime": 1786711080.6111479,
-    "ast_hash": "9df578d81fca7d1532fcc6758ddc313e",
-    "semantic_hash": "9df578d81fca7d1532fcc6758ddc313e"
+    "mtime": 1788719073.0510707,
+    "ast_hash": "c7d941ebe7b568b2e9562932fb937a1d",
+    "semantic_hash": ""
   },
   "apps/api/src/metrics/metrics.module.ts": {
     "mtime": 1786707828.0315108,
@@ -2355,8 +2355,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/auth.helpers.ts": {
-    "mtime": 1788625418.117638,
-    "ast_hash": "0bcaeaa2ec8abe31d67b767132dae47c",
+    "mtime": 1788719774.674286,
+    "ast_hash": "7c64b3ce92cb7c2b23c6768ccd718039",
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/auth.schemas.ts": {
@@ -2380,8 +2380,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/logout.use-case.ts": {
-    "mtime": 1788686981.6269536,
-    "ast_hash": "b131d1d07d0c7c9348f478ce73b8df97",
+    "mtime": 1788689283.0899436,
+    "ast_hash": "462ee7e4430c5d4939ad846fbacc12fe",
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/me.use-case.ts": {
@@ -2477,6 +2477,41 @@
   "apps/api/src/social/infrastructure/persistence/map-stored-social-content.ts": {
     "mtime": 1788607039.670362,
     "ast_hash": "3e2b9d31a87b85f11d84376bfd2b1337",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/http/bootstrap-admin.dto.ts": {
+    "mtime": 1788718002.0254467,
+    "ast_hash": "f13ab139356296a84a17be7559833bcd",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/http/login.dto.ts": {
+    "mtime": 1788718115.8037887,
+    "ast_hash": "3548035ee7381baa3465d32e7658953e",
+    "semantic_hash": ""
+  },
+  "apps/api/src/shared/decorators/current-user.decorator.ts": {
+    "mtime": 1788691092.4762743,
+    "ast_hash": "06725136855530d7ee10d9f817ec84aa",
+    "semantic_hash": ""
+  },
+  "apps/api/src/shared/decorators/public.decorator.ts": {
+    "mtime": 1788690202.683978,
+    "ast_hash": "46062506ce5163d45dac5e15f6356dd0",
+    "semantic_hash": ""
+  },
+  "apps/api/src/shared/decorators/roles.decorator.ts": {
+    "mtime": 1788690839.886731,
+    "ast_hash": "5becaf24f01b8e918e3543feada246f1",
+    "semantic_hash": ""
+  },
+  "apps/api/src/shared/guards/jwt-auth.guard.ts": {
+    "mtime": 1788691359.4807901,
+    "ast_hash": "e763df9b4ba80295284a838a157a2f82",
+    "semantic_hash": ""
+  },
+  "apps/api/src/shared/guards/roles.guard.ts": {
+    "mtime": 1788692025.2428112,
+    "ast_hash": "98fe1cba81c245291c436f4a3e397311",
     "semantic_hash": ""
   }
 }

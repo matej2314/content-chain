@@ -2,11 +2,14 @@ import { execFileSync } from 'child_process';
 import { join } from 'path';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 import { PrismaService } from '../src/shared/persistence/prisma.service';
+import {
+  createAuthenticatedAgent,
+  type E2eAgent,
+} from './authenticated-agent';
 import {
   FAKE_LLM_REQUEST_ID,
   FakeLlmGateway,
@@ -126,7 +129,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function waitForRunStatus(
-  app: INestApplication,
+  agent: E2eAgent,
   runId: string,
   expected: string,
   timeoutMs = 15_000,
@@ -134,9 +137,7 @@ async function waitForRunStatus(
   const deadline = Date.now() + timeoutMs;
   let lastStatus: string | undefined;
   while (Date.now() < deadline) {
-    const response = await request(app.getHttpServer())
-      .get(`/api/v1/runs/${runId}`)
-      .expect(200);
+    const response = await agent.get(`/api/v1/runs/${runId}`).expect(200);
     const body = response.body as RunSnapshotBody;
     lastStatus = body.status;
     if (lastStatus === expected) {
@@ -149,18 +150,18 @@ async function waitForRunStatus(
   );
 }
 
-async function putCompleteContext(app: INestApplication): Promise<void> {
-  await request(app.getHttpServer())
+async function putCompleteContext(agent: E2eAgent): Promise<void> {
+  await agent
     .put('/api/v1/company-context')
     .send(completeContextBody)
     .expect(200);
 }
 
 async function postPageRun(
-  app: INestApplication,
+  agent: E2eAgent,
   taskType: 'page_copy' | 'page_outline_then_copy',
 ): Promise<{ runId: string; conversationId: string; status: string }> {
-  const response = await request(app.getHttpServer())
+  const response = await agent
     .post('/api/v1/runs')
     .send({
       taskType,
@@ -177,12 +178,10 @@ async function postPageRun(
 }
 
 async function getLogs(
-  app: INestApplication,
+  agent: E2eAgent,
   runId: string,
 ): Promise<RunLogItem[]> {
-  const response = await request(app.getHttpServer())
-    .get(`/api/v1/runs/${runId}/logs`)
-    .expect(200);
+  const response = await agent.get(`/api/v1/runs/${runId}/logs`).expect(200);
   return (response.body as { items: RunLogItem[] }).items;
 }
 
@@ -197,6 +196,7 @@ function assertNoGatewaySecret(serialized: string): void {
 
 describe('Content pipeline (e2e, fake LLM)', () => {
   let app: INestApplication;
+  let agent: E2eAgent;
   let prisma: PrismaService;
   let fakeLlm: FakeLlmGateway;
 
@@ -215,7 +215,8 @@ describe('Content pipeline (e2e, fake LLM)', () => {
     configureHttpApp(app);
     await app.init();
     prisma = app.get(PrismaService);
-    await putCompleteContext(app);
+    agent = await createAuthenticatedAgent(app);
+    await putCompleteContext(agent);
   }, 30_000);
 
   afterAll(async () => {
@@ -246,11 +247,11 @@ describe('Content pipeline (e2e, fake LLM)', () => {
     it('queues, runs, completes with pageDocument and hop logs in DB', async () => {
       useScript([pageDocumentJson(), verifierOk()]);
       const startedAt = Date.now();
-      const created = await postPageRun(app, 'page_copy');
+      const created = await postPageRun(agent, 'page_copy');
       expect(Date.now() - startedAt).toBeLessThan(2_000);
       expect(['queued', 'running']).toContain(created.status);
 
-      const snapshot = await waitForRunStatus(app, created.runId, 'completed');
+      const snapshot = await waitForRunStatus(agent, created.runId, 'completed');
       expect(snapshot.taskType).toBe('page_copy');
       expect(snapshot.contentKind).toBe('blog');
       expect(snapshot.platform).toBe('web');
@@ -267,7 +268,7 @@ describe('Content pipeline (e2e, fake LLM)', () => {
         await prisma.contentDocument.count({ where: { runId: created.runId } }),
       ).toBe(1);
 
-      const logs = await getLogs(app, created.runId);
+      const logs = await getLogs(agent, created.runId);
       expect(logs.length).toBeGreaterThan(0);
       expect(logs.some((entry) => entry.step === 'PageWriterAgent')).toBe(true);
       expect(logs.some((entry) => entry.step === 'ConsistencyVerifier')).toBe(
@@ -275,7 +276,7 @@ describe('Content pipeline (e2e, fake LLM)', () => {
       );
       assertNoGatewaySecret(JSON.stringify(logs));
 
-      const listedByTask = await request(app.getHttpServer())
+      const listedByTask = await agent
         .get('/api/v1/runs')
         .query({ taskType: 'page_copy' })
         .expect(200);
@@ -285,7 +286,7 @@ describe('Content pipeline (e2e, fake LLM)', () => {
       );
       expect(taskItems.some((item) => item.runId === created.runId)).toBe(true);
 
-      const listedByPlatform = await request(app.getHttpServer())
+      const listedByPlatform = await agent
         .get('/api/v1/runs')
         .query({ platform: 'web' })
         .expect(200);
@@ -301,10 +302,10 @@ describe('Content pipeline (e2e, fake LLM)', () => {
   describe('D-18 page_outline_then_copy HITL', () => {
     it('pauses for HITL, then writes pageDocument and completes', async () => {
       useScript([pageOutlineJson(), verifierOk()]);
-      const created = await postPageRun(app, 'page_outline_then_copy');
+      const created = await postPageRun(agent, 'page_outline_then_copy');
 
       const paused = await waitForRunStatus(
-        app,
+        agent,
         created.runId,
         'awaiting_hitl',
       );
@@ -319,7 +320,7 @@ describe('Content pipeline (e2e, fake LLM)', () => {
       expect(paused.result.pageDocument).toBeNull();
 
       useScript([pageDocumentJson(), verifierOk()]);
-      const resume = await request(app.getHttpServer())
+      const resume = await agent
         .post(`/api/v1/runs/${created.runId}/hitl`)
         .send({ selectedIdeaIds: [outlineId] })
         .expect(202);
@@ -328,7 +329,7 @@ describe('Content pipeline (e2e, fake LLM)', () => {
         status: 'running',
       });
 
-      const done = await waitForRunStatus(app, created.runId, 'completed');
+      const done = await waitForRunStatus(agent, created.runId, 'completed');
       expect(done.hitl).toBeNull();
       expect(done.result.pageDocument?.body).toBe(
         'Pełny tekst strony na bazie briefu i kontekstu.',
@@ -340,22 +341,22 @@ describe('Content pipeline (e2e, fake LLM)', () => {
 
     it('rejects HITL with a foreign outline id and stays awaiting_hitl', async () => {
       useScript([pageOutlineJson(), verifierOk()]);
-      const created = await postPageRun(app, 'page_outline_then_copy');
+      const created = await postPageRun(agent, 'page_outline_then_copy');
       const paused = await waitForRunStatus(
-        app,
+        agent,
         created.runId,
         'awaiting_hitl',
       );
       expect(paused.hitl?.options[0]?.id).toBeDefined();
 
-      const response = await request(app.getHttpServer())
+      const response = await agent
         .post(`/api/v1/runs/${created.runId}/hitl`)
         .send({ selectedIdeaIds: ['not-the-outline-id'] })
         .expect(400);
 
       expect(response.body.code).toBe('HITL_INVALID_SELECTION');
 
-      const stillPaused = await request(app.getHttpServer())
+      const stillPaused = await agent
         .get(`/api/v1/runs/${created.runId}`)
         .expect(200);
       expect((stillPaused.body as RunSnapshotBody).status).toBe(
@@ -379,9 +380,9 @@ describe('Content pipeline (e2e, fake LLM)', () => {
         ]),
         verifierOk(),
       ]);
-      const created = await postPageRun(app, 'page_outline_then_copy');
+      const created = await postPageRun(agent, 'page_outline_then_copy');
       const paused = await waitForRunStatus(
-        app,
+        agent,
         created.runId,
         'awaiting_hitl',
       );
@@ -396,7 +397,7 @@ describe('Content pipeline (e2e, fake LLM)', () => {
       expect(outlineId).toBe(outline?.id);
 
       useScript([pageDocumentJson(), verifierOk()]);
-      const resume = await request(app.getHttpServer())
+      const resume = await agent
         .post(`/api/v1/runs/${created.runId}/hitl`)
         .send({ selectedIdeaIds: [outlineId] })
         .expect(202);
@@ -405,7 +406,7 @@ describe('Content pipeline (e2e, fake LLM)', () => {
         status: 'running',
       });
 
-      const done = await waitForRunStatus(app, created.runId, 'completed');
+      const done = await waitForRunStatus(agent, created.runId, 'completed');
       expect(done.hitl).toBeNull();
       expect(done.result.pageOutline?.sections[0]?.role).toBe('pain');
       expect(done.result.pageDocument?.body).toBe(
@@ -416,7 +417,7 @@ describe('Content pipeline (e2e, fake LLM)', () => {
 
   describe('D-19 unknown taskType HTTP', () => {
     it('rejects taskType outside the enum with 400 VALIDATION_FAILED', async () => {
-      const response = await request(app.getHttpServer())
+      const response = await agent
         .post('/api/v1/runs')
         .send({
           taskType: 'not-a-task',
@@ -432,7 +433,7 @@ describe('Content pipeline (e2e, fake LLM)', () => {
 
   describe('D-19a brief XOR and union', () => {
     it('rejects page_copy with brief.ideaCount', async () => {
-      const response = await request(app.getHttpServer())
+      const response = await agent
         .post('/api/v1/runs')
         .send({
           taskType: 'page_copy',
@@ -446,7 +447,7 @@ describe('Content pipeline (e2e, fake LLM)', () => {
     });
 
     it('rejects page_copy with platform linkedin', async () => {
-      const response = await request(app.getHttpServer())
+      const response = await agent
         .post('/api/v1/runs')
         .send({
           taskType: 'page_copy',
@@ -469,11 +470,11 @@ describe('Content pipeline (e2e, fake LLM)', () => {
         pageDocumentJson(),
         verifierOk(),
       ]);
-      const created = await postPageRun(app, 'page_copy');
-      const snapshot = await waitForRunStatus(app, created.runId, 'completed');
+      const created = await postPageRun(agent, 'page_copy');
+      const snapshot = await waitForRunStatus(agent, created.runId, 'completed');
 
       expect(snapshot.result.pageDocument?.title).toBe('Audyt procesów');
-      const logs = await getLogs(app, created.runId);
+      const logs = await getLogs(agent, created.runId);
       const refineHops = logs.filter(
         (entry) => entry.step === 'RefineDocument' && entry.level === 'info',
       );
@@ -490,11 +491,11 @@ describe('Content pipeline (e2e, fake LLM)', () => {
         pageDocumentJson(),
         verifierFail(),
       ]);
-      const created = await postPageRun(app, 'page_copy');
-      const snapshot = await waitForRunStatus(app, created.runId, 'failed');
+      const created = await postPageRun(agent, 'page_copy');
+      const snapshot = await waitForRunStatus(agent, created.runId, 'failed');
 
       expect(snapshot.status).toBe('failed');
-      const logs = await getLogs(app, created.runId);
+      const logs = await getLogs(agent, created.runId);
       const refineHops = logs.filter(
         (entry) => entry.step === 'RefineDocument' && entry.level === 'info',
       );
@@ -507,8 +508,8 @@ describe('Content pipeline (e2e, fake LLM)', () => {
   describe('correlation', () => {
     it('sends the run conversationId on every chat and logs the stub requestId', async () => {
       useScript([pageDocumentJson(), verifierOk()]);
-      const created = await postPageRun(app, 'page_copy');
-      const snapshot = await waitForRunStatus(app, created.runId, 'completed');
+      const created = await postPageRun(agent, 'page_copy');
+      const snapshot = await waitForRunStatus(agent, created.runId, 'completed');
 
       expect(fakeLlm.calls.length).toBeGreaterThanOrEqual(2);
       expect(
@@ -518,7 +519,7 @@ describe('Content pipeline (e2e, fake LLM)', () => {
       ).toBe(true);
       expect(snapshot.conversationId).toBe(created.conversationId);
 
-      const logs = await getLogs(app, created.runId);
+      const logs = await getLogs(agent, created.runId);
       const hopLogs = logs.filter(
         (entry) =>
           entry.step === 'PageWriterAgent' ||

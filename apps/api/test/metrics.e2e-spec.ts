@@ -8,8 +8,10 @@ import {
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { Public } from '../src/shared/decorators/public.decorator';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 
+@Public()
 @Controller('metrics-probe')
 class MetricsProbeController {
   @Get('missing')

@@ -1022,7 +1022,7 @@ export class MeUseCase {
 
 ### KROK 5 — AuthModule wiring, AuthController, guardy globalne, dekoratory
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Złożyć `AuthModule` z NestJS DI, zaimplementować `AuthController`, zdefiniować globalne guardy i dekoratory pomocnicze.  
 Odwołanie: `SPEC-AUTH.md` norma implementacji, `docs/security.md`.
@@ -1031,7 +1031,13 @@ Zmiana względem: wcześniejszy szkic tego kroku (`AuthGuard('jwt')` / strategia
 
 Zmiana względem: wcześniejsze wywołanie `clearAuthCookies(res)` w `AuthController.postLogout`. Obowiązuje sygnatura z Fazy 1 / Kroku 3 — `clearAuthCookies(res, this.env)`.
 
+Zmiana względem: wcześniejszy szkic `AuthController` z `@Body() body: unknown`. Obowiązuje DTO HTTP class-validator (`SPEC-AUTH.md` Wolno; `SPEC-KOMUNIKACJA.md` warstwa Controller + kryterium „DTO HTTP walidowane class-validator”). Prawda haseł nadal w domain (`validatePasswordPolicy`, Faza 1 / Krok 2) + Zod w application (`parseWithZod`, Faza 1 / Krok 4). Use-case’y zostają przy `execute(input: unknown)` — instancja DTO jest legalnym wejściem.
+
+Zmiana względem: wcześniejszy szkic `AuthController.postLogout` z `@Public()` i opcjonalnym `req.user` (wylogowanie bez sesji, tylko clear cookie). Obowiązuje: `POST /auth/logout` **wymaga** ważnego `cc_access` (`JwtAuthGuard`, bez `@Public()`). Bez sesji → `401`. `req.user` jest źródłem tożsamości, kogo wylogować (`LogoutUseCase.execute(user.id, …)`). `@Public()` zostaje na `bootstrap-status`, `bootstrap-admin`, `login`, `refresh` — nie na `logout` ani `/me`.
+
 **Artefakty (nowe pliki):**
+- `apps/api/src/auth/http/dto/bootstrap-admin.dto.ts` — body `POST /auth/bootstrap-admin`
+- `apps/api/src/auth/http/dto/login.dto.ts` — body `POST /auth/login`
 - `apps/api/src/shared/decorators/public.decorator.ts`
 - `apps/api/src/shared/decorators/roles.decorator.ts`
 - `apps/api/src/shared/decorators/current-user.decorator.ts`
@@ -1237,6 +1243,8 @@ import type { Request, Response } from 'express';
 import { Public } from '../shared/decorators/public.decorator';
 import { CurrentUser } from '../shared/decorators/current-user.decorator';
 import { setAuthCookies, clearAuthCookies } from './infrastructure/cookie.helper';
+import { BootstrapAdminDto } from './http/dto/bootstrap-admin.dto';
+import { LoginDto } from './http/dto/login.dto';
 import { BootstrapStatusUseCase } from './application/bootstrap-status.use-case';
 import { BootstrapAdminUseCase } from './application/bootstrap-admin.use-case';
 import { LoginUseCase } from './application/login.use-case';
@@ -1271,7 +1279,7 @@ export class AuthController {
   @Public()
   @Post('bootstrap-admin')
   @HttpCode(201)
-  async postBootstrapAdmin(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
+  async postBootstrapAdmin(@Body() body: BootstrapAdminDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.bootstrapAdmin.execute(body);
     setAuthCookies(res, result.accessToken, result.refreshToken, this.env);
     return { user: result.user };
@@ -1280,7 +1288,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
-  async postLogin(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
+  async postLogin(@Body() body: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.login.execute(body);
     setAuthCookies(res, result.accessToken, result.refreshToken, this.env);
     return {
@@ -1299,20 +1307,20 @@ export class AuthController {
     return { expiresIn: this.env.JWT_ACCESS_TTL };
   }
 
-  @Public()
+  // --- Trasy chronione (wymagają cc_access) ---
+
   @Post('logout')
   @HttpCode(200)
   async postLogout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const user = req.user as AuthUserContext | undefined;
-    const raw = (req.cookies as Record<string, string> | undefined)?.['cc_refresh'];
-    if (user) {
-      await this.logout.execute(user.id, raw);
+    if (!user) {
+      throw new UnauthorizedException();
     }
+    const raw = (req.cookies as Record<string, string> | undefined)?.['cc_refresh'];
+    await this.logout.execute(user.id, raw);
     clearAuthCookies(res, this.env);
     return { ok: true };
   }
-
-  // --- Trasy chronione (wymagają cc_access) ---
 
   @Get('me')
   async getMe(@CurrentUser() user: AuthUserContext) {
@@ -1384,13 +1392,51 @@ export class MetricsController {
 - `PassportModule` — rejestracja strategii Passport w module
 - `AuthGuard('jwt-cookie')` z `@nestjs/passport` — używa strategii `'jwt-cookie'` (nazwy z `PassportStrategy(Strategy, 'jwt-cookie')` w Kroku 3)
 - `APP_GUARD` z `@nestjs/core` — globalne guardy w kolejności: `JwtAuthGuard` → `RolesGuard`
+- class-validator (`@IsEmail`, `@IsString`, `@MinLength`) + `@nestjs/swagger` `@ApiProperty` — DTO HTTP jak `runs/http/dto` i `company-context/http/dto`; `ValidationPipe` (whitelist / `forbidNonWhitelisted`) już globalny (Faza 1 / Krok 1)
+
+```typescript
+// apps/api/src/auth/http/dto/bootstrap-admin.dto.ts
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsString, MinLength } from 'class-validator';
+
+/** Cienka bramka HTTP. Polityka haseł — domain; kształt komendy — Zod w application. */
+export class BootstrapAdminDto {
+  @ApiProperty()
+  @IsEmail()
+  email!: string;
+
+  @ApiProperty({ minLength: 1 })
+  @IsString()
+  @MinLength(1)
+  password!: string;
+}
+```
+
+```typescript
+// apps/api/src/auth/http/dto/login.dto.ts
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsString, MinLength } from 'class-validator';
+
+/** Cienka bramka HTTP. Polityka haseł — domain; kształt komendy — Zod w application. */
+export class LoginDto {
+  @ApiProperty()
+  @IsEmail()
+  email!: string;
+
+  @ApiProperty({ minLength: 1 })
+  @IsString()
+  @MinLength(1)
+  password!: string;
+}
+```
 
 **DoD kroku:**
 - `GET /api/v1/auth/bootstrap-status` zwraca `{ available: boolean }` bez sesji
+- `POST /api/v1/auth/bootstrap-admin` i `POST /api/v1/auth/login` przyjmują DTO class-validator (`email`, `password`); nieznany klucz w body → 400 (`ValidationPipe` `forbidNonWhitelisted`); pełna polityka haseł nadal w domain/application
 - `POST /api/v1/auth/bootstrap-admin` (201): tworzy admina + Set-Cookie `cc_access` + `cc_refresh`; drugie wywołanie → 409
 - `POST /api/v1/auth/login` (200): Set-Cookie + body bez tokenów; konto nieaktywne → 401
 - `POST /api/v1/auth/refresh` (200): rotacja; nieprawidłowy token → 401
-- `POST /api/v1/auth/logout` (200): cookie wyczyszczone
+- `POST /api/v1/auth/logout` wymaga ważnego `cc_access` (bez `@Public()`); brak/wygasła sesja → 401; (200): unieważnienie sesji refresh tego użytkownika + cookie wyczyszczone
 - `GET /api/v1/auth/me` (200): `{ id, email, role }` lub 401 przy braku/wygaśnięciu `cc_access`
 - `GET /api/v1/health` i `GET /metrics` dostępne bez sesji (`@Public`)
 - Wszystkie inne trasy API blokowane guardem do czasu FAZY 2 KROKU 3 (który dodaje guardi na runs/company-context)
@@ -1826,7 +1872,7 @@ zamień na:
 - [ ] `POST /auth/login` → body bez tokenów; Set-Cookie `cc_access` + `cc_refresh`; konto inactive → 401
 - [ ] `POST /auth/refresh` → rotacja refresh; nieważny token → 401
 - [ ] `GET /auth/me` → `{ id, email, role }` przy ważnym `cc_access`; wygasły/brak → 401
-- [ ] `POST /auth/logout` → cookie wyczyszczone; idempotentny
+- [ ] `POST /auth/logout` ze sesją → cookie wyczyszczone i unieważnienie refresh tego użytkownika; bez `cc_access` → 401
 - [ ] Próba bootstrap z hasłem < 12 znaków / bez cyfry / bez wielkiej / bez znaku specjalnego → 400 `VALIDATION_FAILED`
 - [ ] `POST /users` (admin) tworzy `role=user`; `user` → 403
 - [ ] `DELETE /users/:id` → soft-delete (`isActive = false`); nieaktywny nie loguje się po tej operacji
