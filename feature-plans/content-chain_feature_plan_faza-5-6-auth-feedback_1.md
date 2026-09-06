@@ -590,7 +590,7 @@ export function clearAuthCookies(res: Response, env: Env): void {
 
 ### KROK 4 — Application: use-case'y auth + schemas Zod
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Zaimplementować use-case'y warstwy application: bootstrap-status, bootstrap-admin, login, logout, refresh, me.  
 Odwołanie: `SPEC-AUTH.md` A-1..A-4, A-3a; `docs/security.md`.

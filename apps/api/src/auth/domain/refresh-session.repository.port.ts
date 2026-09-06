@@ -9,6 +9,10 @@ export type RefreshSessionRecord = {
   expiresAt: Date;
 };
 
+export type RotateRefreshSessionResult =
+  | { ok: true }
+  | { ok: false; reason: 'not-found' };
+
 export interface RefreshSessionRepository {
   create(session: RefreshSessionRecord): Promise<void>;
   //finds valid session if tokenHash matches and is not expired
@@ -16,6 +20,15 @@ export interface RefreshSessionRepository {
     userId: UserId,
     tokenHash: string,
   ): Promise<RefreshSessionRecord | null>;
+  findValidByHash(tokenHash: string): Promise<RefreshSessionRecord | null>;
+  /**
+   * Atomically claims `currentTokenHash` (unexpired, belonging to `next.userId`)
+   * and inserts `next`. `not-found` = hash already consumed or missing (reuse / race).
+   */
+  rotate(
+    currentTokenHash: string,
+    next: RefreshSessionRecord,
+  ): Promise<RotateRefreshSessionResult>;
   deleteById(id: string): Promise<void>;
 
   // deletes all sessions for a user

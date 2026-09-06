@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../shared/persistence/prisma.service';
 import {
   createUserId,
@@ -8,10 +9,21 @@ import {
 } from '@content-chain/shared';
 import type { AuthUser } from '../domain/auth-user.types';
 import type {
+  CreateAdminIfNoneData,
+  CreateAdminIfNoneResult,
   UserForAuth,
   UserRepository,
 } from '../domain/user-repository.port';
 import { DomainException } from '../../shared/exceptions/domain.exception';
+
+function isUniqueConstraintViolation(
+  error: unknown,
+): error is Prisma.PrismaClientKnownRequestError {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2002'
+  );
+}
 
 type UserRow = {
   id: string;
@@ -78,6 +90,39 @@ export class PrismaUserAdapter implements UserRepository {
       },
     });
     return this.toUser(row);
+  }
+
+  async createAdminIfNone(
+    data: CreateAdminIfNoneData,
+  ): Promise<CreateAdminIfNoneResult> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const count = await tx.user.count({ where: { role: 'admin' } });
+        if (count > 0) {
+          return { ok: false, reason: 'admin-exists' };
+        }
+        const row = await tx.user.create({
+          data: {
+            id: data.id,
+            email: data.email,
+            passwordHash: data.passwordHash,
+            role: 'admin',
+            isActive: true,
+          },
+        });
+        return { ok: true, user: this.toUser(row) };
+      });
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        const adminCount = await this.prisma.user.count({
+          where: { role: 'admin' },
+        });
+        if (adminCount > 0) {
+          return { ok: false, reason: 'admin-exists' };
+        }
+      }
+      throw error;
+    }
   }
 
   async setActive(id: UserId, isActive: boolean): Promise<void> {
