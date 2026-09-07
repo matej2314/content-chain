@@ -1,0 +1,759 @@
+{
+  "info": {
+    "_postman_id": "c3a1b8e4-7d2f-4a91-9c6e-2f8b4d1e5a70",
+    "name": "Content Chain — Auth",
+    "description": "Suite testująca wszystkie endpointy `apps/api/src/auth` na żywym api (`:3001`, prefix `/api/v1`).\n\nSesja idzie przez httpOnly cookies `cc_access` i `cc_refresh` (path `/`). W Postmanie włącz cookie jar (Cookies → pozwól na localhost). Newman trzyma jar w ramach jednego `run`.\n\nKolejność folderów w Collection Runnerze: **Unauthenticated → Bootstrap → Session**. Bootstrap admina jest jednorazowy: pierwsze udane `POST /auth/bootstrap-admin` → 201; kolejne → 409 `CONFLICT`. Login po bootstrapie (albo gdy admin już istnieje) używa zmiennych `adminEmail` / `adminPassword`.\n\nTo nie jest `pnpm test:e2e`. Odpalić: Import tej kolekcji, potem Collection Runner albo `npx --yes newman run apps/api/test/postman/auth.postman-collection.json`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001/api/v1"
+    },
+    {
+      "key": "originUrl",
+      "value": "http://localhost:3001"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "adminPassword",
+      "value": "Password12!"
+    },
+    {
+      "key": "bootstrapAvailable",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Unauthenticated",
+      "description": "Negatywy bez sesji. Folder czyści cookie jar dla originu api, żeby 401 nie zależały od poprzedniego runu.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const origin = pm.collectionVariables.get('originUrl') || 'http://localhost:3001';",
+              "try {",
+              "  pm.cookies.jar().clear(origin, function () {});",
+              "} catch (e) {",
+              "  console.warn('cookie jar clear skipped', e);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "GET bootstrap-status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('available is boolean', function () {",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.available).to.be.a('boolean');",
+                  "});",
+                  "pm.test('no tokens in body', function () {",
+                  "  pm.expect(body).to.not.have.property('accessToken');",
+                  "  pm.expect(body).to.not.have.property('refreshToken');",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('bootstrapAvailable', String(body.available));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/bootstrap-status",
+            "description": "Publiczny. `{ available: true }` gdy w bazie nie ma jeszcze admina."
+          }
+        },
+        {
+          "name": "GET me without cookies (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('UNAUTHORIZED envelope', function () {",
+                  "  pm.expect(body.code).to.eql('UNAUTHORIZED');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Chroniony JwtAuthGuard. Bez `cc_access` → 401."
+          }
+        },
+        {
+          "name": "POST logout without cookies (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('UNAUTHORIZED envelope', function () {",
+                  "  pm.expect(body.code).to.eql('UNAUTHORIZED');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/logout",
+            "description": "Chroniony. Guard odrzuca brak sesji zanim use-case wyczyści cookies."
+          }
+        },
+        {
+          "name": "POST refresh without cookie (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('UNAUTHORIZED Missing refresh token', function () {",
+                  "  pm.expect(body.code).to.eql('UNAUTHORIZED');",
+                  "  pm.expect(body.message).to.eql('Missing refresh token');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/refresh",
+            "description": "Publiczny, ale wymaga cookie `cc_refresh`. Brak cookie → DomainException UNAUTHORIZED."
+          }
+        },
+        {
+          "name": "POST login invalid email (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('VALIDATION_FAILED', function () {",
+                  "  pm.expect(body.code).to.eql('VALIDATION_FAILED');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"Password12!\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Bramka class-validator / Zod: email musi być emailem."
+          }
+        },
+        {
+          "name": "POST login unknown user (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Invalid credentials', function () {",
+                  "  pm.expect(body.code).to.eql('UNAUTHORIZED');",
+                  "  pm.expect(body.message).to.eql('Invalid credentials');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nobody@example.com\",\n  \"password\": \"WrongPass12!\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Nieistniejący albo nieaktywny user → ten sam komunikat co złe hasło (brak enumeracji kont)."
+          }
+        },
+        {
+          "name": "POST bootstrap-admin invalid email (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('VALIDATION_FAILED', function () {",
+                  "  pm.expect(body.code).to.eql('VALIDATION_FAILED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"Password12!\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/bootstrap-admin",
+            "description": "Walidacja DTO / Zod odpala się przed sprawdzeniem, czy admin już istnieje."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bootstrap",
+      "description": "Jednorazowe utworzenie admina. Słabe hasło: 400 gdy bootstrap jeszcze dostępny; 409 gdy admin już jest (use-case sprawdza count przed polityką hasła).",
+      "item": [
+        {
+          "name": "GET bootstrap-status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('available is boolean', function () {",
+                  "  pm.expect(body.available).to.be.a('boolean');",
+                  "});",
+                  "pm.collectionVariables.set('bootstrapAvailable', String(body.available));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/bootstrap-status"
+          }
+        },
+        {
+          "name": "POST bootstrap-admin weak password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const available = pm.collectionVariables.get('bootstrapAvailable') === 'true';",
+                  "const body = pm.response.json();",
+                  "if (available) {",
+                  "  pm.test('status 400 when bootstrap is open', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "  });",
+                  "  pm.test('VALIDATION_FAILED password policy', function () {",
+                  "    pm.expect(body.code).to.eql('VALIDATION_FAILED');",
+                  "    pm.expect(body.message).to.be.a('string').that.is.not.empty;",
+                  "  });",
+                  "} else {",
+                  "  pm.test('status 409 when admin already exists', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "  });",
+                  "  pm.test('CONFLICT before password policy', function () {",
+                  "    pm.expect(body.code).to.eql('CONFLICT');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"short\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/bootstrap-admin",
+            "description": "Polityka: min. 12 znaków, cyfra, wielka litera, znak specjalny. Use-case najpierw sprawdza, czy admin już istnieje."
+          }
+        },
+        {
+          "name": "POST bootstrap-admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const available = pm.collectionVariables.get('bootstrapAvailable') === 'true';",
+                  "const body = pm.response.json();",
+                  "",
+                  "function setCookieValues() {",
+                  "  return pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "}",
+                  "",
+                  "if (available) {",
+                  "  pm.test('status 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "  });",
+                  "  pm.test('returns user without tokens', function () {",
+                  "    pm.expect(body).to.have.property('user');",
+                  "    pm.expect(body.user).to.include.keys('id', 'email', 'role');",
+                  "    pm.expect(body.user.id).to.match(/^usr_/i);",
+                  "    pm.expect(body.user.email).to.eql(pm.collectionVariables.get('adminEmail'));",
+                  "    pm.expect(body.user.role).to.eql('admin');",
+                  "    pm.expect(body).to.not.have.property('accessToken');",
+                  "    pm.expect(body).to.not.have.property('refreshToken');",
+                  "    pm.expect(body.user).to.not.have.property('passwordHash');",
+                  "  });",
+                  "  pm.test('sets cc_access and cc_refresh cookies', function () {",
+                  "    const cookies = setCookieValues();",
+                  "    pm.expect(cookies).to.include('cc_access=');",
+                  "    pm.expect(cookies).to.include('cc_refresh=');",
+                  "  });",
+                  "} else {",
+                  "  pm.test('status 409 when admin already exists', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "  });",
+                  "  pm.test('CONFLICT', function () {",
+                  "    pm.expect(body.code).to.eql('CONFLICT');",
+                  "    pm.expect(body.message).to.eql('Bootstrap admin already exists');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/bootstrap-admin",
+            "description": "201 + cookies gdy baza pusta. 409 gdy admin już jest. Body JSON bez tokenów."
+          }
+        },
+        {
+          "name": "POST bootstrap-admin again (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('CONFLICT', function () {",
+                  "  pm.expect(body.code).to.eql('CONFLICT');",
+                  "  pm.expect(body.message).to.eql('Bootstrap admin already exists');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/bootstrap-admin",
+            "description": "Po udanym bootstrapie (albo gdy admin już był) zawsze 409."
+          }
+        },
+        {
+          "name": "GET bootstrap-status after",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('available === false', function () {",
+                  "  pm.expect(body.available).to.eql(false);",
+                  "});",
+                  "pm.collectionVariables.set('bootstrapAvailable', 'false');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/bootstrap-status",
+            "description": "Po istnieniu admina bootstrap nie jest już dostępny."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Session",
+      "description": "Happy path: login → me → refresh → me → logout → me/refresh 401. Wymaga istniejącego admina (`adminEmail` / `adminPassword`).",
+      "item": [
+        {
+          "name": "POST login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('expiresIn + user without tokens', function () {",
+                  "  pm.expect(body.expiresIn).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(body.user).to.include.keys('id', 'email', 'role');",
+                  "  pm.expect(body.user.id).to.match(/^usr_/i);",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get('adminEmail'));",
+                  "  pm.expect(body.user.role).to.eql('admin');",
+                  "  pm.expect(body).to.not.have.property('accessToken');",
+                  "  pm.expect(body).to.not.have.property('refreshToken');",
+                  "});",
+                  "",
+                  "pm.test('sets cc_access and cc_refresh cookies', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.include('cc_access=');",
+                  "  pm.expect(cookies).to.include('cc_refresh=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "200 `{ expiresIn, user }`. Cookies httpOnly. Złe hasło → 401 Invalid credentials."
+          }
+        },
+        {
+          "name": "POST login wrong password (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Invalid credentials', function () {",
+                  "  pm.expect(body.code).to.eql('UNAUTHORIZED');",
+                  "  pm.expect(body.message).to.eql('Invalid credentials');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"WrongPassword12!\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Nie nadpisuje cookie jar w teście — kolejny request (GET me) nadal używa cookies z udanego loginu powyżej, jeśli jar nie został nadpisany. Ten request nie ustawia sesji (401)."
+          }
+        },
+        {
+          "name": "GET me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('id email role from cookie session', function () {",
+                  "  pm.expect(body).to.include.keys('id', 'email', 'role');",
+                  "  pm.expect(body.id).to.match(/^usr_/i);",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get('adminEmail'));",
+                  "  pm.expect(body.role).to.eql('admin');",
+                  "  pm.expect(body).to.not.have.property('passwordHash');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Wymaga cookie `cc_access` z loginu / bootstrapu."
+          }
+        },
+        {
+          "name": "POST refresh",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('expiresIn without user or tokens', function () {",
+                  "  pm.expect(body.expiresIn).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(body).to.not.have.property('user');",
+                  "  pm.expect(body).to.not.have.property('accessToken');",
+                  "  pm.expect(body).to.not.have.property('refreshToken');",
+                  "});",
+                  "pm.test('rotates cc_access and cc_refresh cookies', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.include('cc_access=');",
+                  "  pm.expect(cookies).to.include('cc_refresh=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/refresh",
+            "description": "Czyta `cc_refresh`, rotuje sesję, ustawia nowe cookies. Body: `{ expiresIn }`."
+          }
+        },
+        {
+          "name": "GET me after refresh",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('session still valid after rotation', function () {",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get('adminEmail'));",
+                  "  pm.expect(body.role).to.eql('admin');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Nowy `cc_access` z rotacji musi nadal autoryzować."
+          }
+        },
+        {
+          "name": "POST logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('ok true', function () {",
+                  "  pm.expect(body).to.eql({ ok: true });",
+                  "});",
+                  "pm.test('clears auth cookies', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.include('cc_access=');",
+                  "  pm.expect(cookies).to.include('cc_refresh=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/logout",
+            "description": "Wymaga sesji. Unieważnia refresh, czyści cookies. `{ ok: true }`."
+          }
+        },
+        {
+          "name": "GET me after logout (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('UNAUTHORIZED', function () {",
+                  "  pm.expect(body.code).to.eql('UNAUTHORIZED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Po logout cookie access jest wyczyszczone → 401."
+          }
+        },
+        {
+          "name": "POST refresh after logout (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('UNAUTHORIZED', function () {",
+                  "  pm.expect(body.code).to.eql('UNAUTHORIZED');",
+                  "  pm.expect(body.message).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/refresh",
+            "description": "Brak albo unieważniony `cc_refresh` → 401."
+          }
+        }
+      ]
+    }
+  ]
+}

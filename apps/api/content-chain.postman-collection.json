@@ -1,0 +1,423 @@
+{
+  "info": {
+    "_postman_id": "e9f2c4a1-3b70-48d5-9e1a-6c5d8f0b2a14",
+    "name": "Content Chain — API",
+    "description": "Ogólna kolekcja wszystkich requestów `apps/api` — **bez testów**. Przykładowe body i zmienne do ustawienia.\n\n**Zmienne kolekcji:** `baseUrl` (HTTP API z prefixem `/api/v1`), `originUrl` (host bez prefixu — `GET /metrics` jest wyłączony z global prefixu), `adminEmail` / `adminPassword`, `runId`, `ideaId`, `userId`.\n\n**Cookies:** login i bootstrap-admin ustawiają httpOnly `cc_access` + `cc_refresh` (path `/`). Włącz cookie jar. Chronione: AUTH `me`/`logout`, cały COMPANY-CONTEXT, cały RUNS. Publiczne: AUTH bootstrap/login/refresh, HEALTH, METRICS.\n\nKatalogi: AUTH, HEALTH, METRICS, COMPANY-CONTEXT, RUNS.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001/api/v1"
+    },
+    {
+      "key": "originUrl",
+      "value": "http://localhost:3001"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "adminPassword",
+      "value": "Password12!"
+    },
+    {
+      "key": "runId",
+      "value": "run_11111111-1111-4111-8111-111111111111"
+    },
+    {
+      "key": "ideaId",
+      "value": "replace-with-idea-id-from-run-result"
+    },
+    {
+      "key": "userId",
+      "value": "usr_11111111-1111-4111-8111-111111111111"
+    }
+  ],
+  "item": [
+    {
+      "name": "AUTH",
+      "description": "Sesja cookie: `cc_access` (JWT) i `cc_refresh`. Publiczne: bootstrap-status, bootstrap-admin, login, refresh. Chronione: logout, me.\n\nHasło admina (polityka): min. 12 znaków, cyfra, wielka litera, znak specjalny. Bootstrap jest jednorazowy (potem 409).",
+      "item": [
+        {
+          "name": "GET bootstrap-status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/bootstrap-status",
+            "description": "Publiczny. `{ available: true }` gdy w bazie nie ma jeszcze admina."
+          }
+        },
+        {
+          "name": "POST bootstrap-admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/bootstrap-admin",
+            "description": "Publiczny. 201 `{ user }` + cookies. 409 gdy admin już istnieje. Tokenów nie ma w JSON."
+          }
+        },
+        {
+          "name": "POST login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Publiczny. 200 `{ expiresIn, user }` + cookies. 401 Invalid credentials."
+          }
+        },
+        {
+          "name": "POST refresh",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/refresh",
+            "description": "Publiczny, ale wymaga cookie `cc_refresh`. 200 `{ expiresIn }`, rotacja cookies. Brak cookie → 401 Missing refresh token."
+          }
+        },
+        {
+          "name": "POST logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/logout",
+            "description": "Chroniony (`cc_access`). Unieważnia refresh, czyści cookies. `{ ok: true }`."
+          }
+        },
+        {
+          "name": "GET me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Chroniony (`cc_access`). `{ id, email, role }`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "HEALTH",
+      "description": "Liveness procesu api. Publiczny.",
+      "item": [
+        {
+          "name": "GET health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health",
+            "description": "200 `{ status: \"healthy\", timestamp }`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "METRICS",
+      "description": "Prometheus text. Publiczny. Ścieżka **bez** `/api/v1` (exclude w `configureHttpApp`).",
+      "item": [
+        {
+          "name": "GET metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{originUrl}}/metrics",
+            "description": "200 text/plain (Prometheus). Gauges runów, HTTP counters, błędy gateway. Nie pod `/api/v1`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "COMPANY-CONTEXT",
+      "description": "Singleton kontekstu firmy. Wszystkie requesty chronione (`cc_access`). PUT = pełny upsert. PATCH = częściowa zmiana. `extras` ma znany kształt Zod `.strict()` (`hashtags`, `performanceNotes`, `caseStudies`, `objections`, `catalogNotes`); nieznany klucz → 400 VALIDATION_FAILED.",
+      "item": [
+        {
+          "name": "GET company-context",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/company-context",
+            "description": "Kanoniczny kontekst + completeness."
+          }
+        },
+        {
+          "name": "GET completeness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/company-context/completeness",
+            "description": "`{ complete, missing[] }`. Completeness ignoruje extras."
+          }
+        },
+        {
+          "name": "PUT company-context",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identity\": {\n    \"name\": \"Acme\",\n    \"description\": \"Acme pomaga founderom B2B SaaS ogarnąć chaos operacyjny, zanim skala sprzedaży rozjedzie się z delivery. Od 2019 robimy audyty procesów w zespołach 8–40 osób w Polsce i CEE — bez wdrożenia w cenie, z listą usprawnień do samodzielnego pociągnięcia.\"\n  },\n  \"offer\": {\n    \"items\": [\n      {\n        \"name\": \"Audyt procesów operacyjnych\",\n        \"benefit\": [\n          \"Średnio 6 godzin tygodniowo odzyskane u klientów po wdrożeniu rekomendacji\",\n          \"Mapa wąskich gardeł w 10 dni roboczych\",\n          \"Jedna lista priorytetów zamiast dwudziestu równoległych inicjatyw\"\n        ],\n        \"description\": \"Wywiady z founderem i 3–5 osobami z ops/CS/product, mapa as-is, lista usprawnień z szacunkiem wysiłku. Bez implementacji w cenie audytu.\"\n      },\n      {\n        \"name\": \"Sesja priorytetyzacji Q+1\",\n        \"benefit\": [\n          \"Trzy tematy na kolejny kwartał, reszta świadomie odłożona\"\n        ],\n        \"description\": \"Południowa jednodniówka po audycie: wybór trzech tematów na najbliższy kwartał i właścicieli. Opcja, nie pakiet obowiązkowy.\"\n      }\n    ]\n  },\n  \"voice\": {\n    \"weDo\": \"konkret, liczby z audytu, język founderski, krótkie zdania, bez slajdowego entuzjazmu\",\n    \"weDont\": \"żargon, puste obietnice wzrostu MRR, porównywanie z konkurencją, korpo-ogólniki w stylu synergia i transformacja\"\n  },\n  \"cta\": {\n    \"items\": [\n      { \"label\": \"Napisz do nas\", \"target\": \"/kontakt\" },\n      { \"label\": \"Umów 20 minut na wstępny zakres audytu\", \"target\": \"/kontakt\" }\n    ]\n  },\n  \"audience\": {\n    \"profiles\": [\n      {\n        \"description\": \"Founder SaaS B2B, zespół 8–40 osób, po seedzie lub serii A. Sprzedaż idzie, a onboarding, CS i handoff między product a ops się sypią. Szuka przeglądu procesów, nie kolejnego narzędzia.\"\n      }\n    ]\n  },\n  \"extras\": {\n    \"hashtags\": [\"#acme\", \"#saasops\", \"#founders\"],\n    \"performanceNotes\": \"Klienci po audycie najczęściej tną tygodniowy chaos spotkań i ręcznych handoffów; typowy trop to 6 godzin odzyskane tygodniowo, nie skok MRR.\",\n    \"catalogNotes\": \"Audyt bez wdrożenia w cenie.\",\n    \"caseStudies\": [\n      {\n        \"title\": \"SaaS 25 osób\",\n        \"summary\": \"Po audycie zespół uciął cotygodniowe statusy i ręczne handoffy CS → product.\",\n        \"metrics\": [\"6h / tydzień odzyskane\"]\n      }\n    ],\n    \"objections\": [\n      {\n        \"label\": \"Nie mamy czasu na audyt\",\n        \"response\": \"Wywiady mieszczą się w 10 dniach roboczych; implementacja nie jest w cenie.\"\n      }\n    ]\n  }\n}\n"
+            },
+            "url": "{{baseUrl}}/company-context",
+            "description": "Pełny upsert singletona. Wymagane: identity, offer, voice, cta, audience. extras opcjonalne, znane klucze."
+          }
+        },
+        {
+          "name": "PATCH company-context",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identity\": {\n    \"name\": \"Acme\",\n    \"description\": \"Zaktualizowany opis firmy — nadal B2B SaaS ops.\"\n  },\n  \"voice\": {\n    \"weDo\": \"konkret, liczby, język founderski\"\n  }\n}\n"
+            },
+            "url": "{{baseUrl}}/company-context",
+            "description": "Częściowa zmiana. Każda sekcja opcjonalna. Nested identity/voice: tylko podane pola."
+          }
+        }
+      ]
+    },
+    {
+      "name": "RUNS",
+      "description": "Wszystkie requesty chronione (`cc_access`). Start runu wymaga kompletnego company-context (inaczej 409 CONTEXT_INCOMPLETE).\n\nSocial: `taskType` + `platform` (linkedin|facebook|instagram) + `language` + `brief.topic`. Content: `taskType` + `contentKind` (blog|service_page|landing) + `language` + `brief.topic` — **bez** `platform`.\n\n`runId` ma format `run_<uuid>`. Po POST ustaw `runId` z odpowiedzi. HITL: wstaw `ideaId` z `result` / `hitl.options`.",
+      "item": [
+        {
+          "name": "Start",
+          "description": "POST /runs → 202 `{ runId, conversationId, status }`. Po starcie skopiuj `runId` do zmiennej kolekcji.",
+          "item": [
+            {
+              "name": "POST post_ideas",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"taskType\": \"post_ideas\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": {\n    \"topic\": \"Audyt procesów operacyjnych dla founderów SaaS\",\n    \"audience\": \"Founder B2B SaaS, zespół 8–40 osób\",\n    \"goal\": \"awareness\",\n    \"ideaCount\": 5\n  }\n}\n"
+                },
+                "url": "{{baseUrl}}/runs",
+                "description": "Social, full-auto idee postów. `brief`: topic + opcjonalnie audience, goal, ideaCount."
+              }
+            },
+            {
+              "name": "POST post_content",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"taskType\": \"post_content\",\n  \"platform\": \"facebook\",\n  \"language\": \"en\",\n  \"brief\": {\n    \"topic\": \"Launch\",\n    \"audience\": \"founders\",\n    \"goal\": \"awareness\",\n    \"ideaCount\": 3\n  }\n}\n"
+                },
+                "url": "{{baseUrl}}/runs",
+                "description": "Social, treść posta (jednoetapowy). `selectedIdeaIds` opcjonalne."
+              }
+            },
+            {
+              "name": "POST post_ideas_then_content",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"taskType\": \"post_ideas_then_content\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": {\n    \"topic\": \"Q3\",\n    \"audience\": \"Founder SaaS B2B\"\n  }\n}\n"
+                },
+                "url": "{{baseUrl}}/runs",
+                "description": "Social dwuetapowy: idee → HITL → content. Po `awaiting_hitl` wołaj POST hitl."
+              }
+            },
+            {
+              "name": "POST reel_ideas",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"taskType\": \"reel_ideas\",\n  \"platform\": \"instagram\",\n  \"language\": \"pl\",\n  \"brief\": {\n    \"topic\": \"Rolka o audycie procesów\",\n    \"ideaCount\": 5\n  }\n}\n"
+                },
+                "url": "{{baseUrl}}/runs",
+                "description": "Social, idee rolek."
+              }
+            },
+            {
+              "name": "POST reel_script",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"taskType\": \"reel_script\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": {\n    \"topic\": \"Skrypt rolki o audycie\"\n  }\n}\n"
+                },
+                "url": "{{baseUrl}}/runs",
+                "description": "Social, skrypt rolki (jednoetapowy)."
+              }
+            },
+            {
+              "name": "POST reel_ideas_then_scripts",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"taskType\": \"reel_ideas_then_scripts\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": {\n    \"topic\": \"Q3\"\n  }\n}\n"
+                },
+                "url": "{{baseUrl}}/runs",
+                "description": "Social dwuetapowy: idee rolek → HITL → skrypty."
+              }
+            },
+            {
+              "name": "POST page_copy",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"taskType\": \"page_copy\",\n  \"contentKind\": \"blog\",\n  \"language\": \"pl\",\n  \"brief\": {\n    \"topic\": \"Audyt procesów\",\n    \"audience\": \"Founder SaaS\",\n    \"goal\": \"edukacja\",\n    \"angle\": \"konkret zamiast slajdów\",\n    \"targetLength\": 1200\n  }\n}\n"
+                },
+                "url": "{{baseUrl}}/runs",
+                "description": "Content full-auto. Bez `platform`, bez `ideaCount`. `contentKind`: blog | service_page | landing. `brief`: topic + opcjonalnie audience, goal, angle, targetLength."
+              }
+            },
+            {
+              "name": "POST page_outline_then_copy",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"taskType\": \"page_outline_then_copy\",\n  \"contentKind\": \"blog\",\n  \"language\": \"pl\",\n  \"brief\": {\n    \"topic\": \"Audyt procesów\",\n    \"angle\": \"founderski, bez żargonu\"\n  }\n}\n"
+                },
+                "url": "{{baseUrl}}/runs",
+                "description": "Content dwuetapowy: outline → HITL `[outline.id]` → pageDocument."
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET list runs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs?page=1&status=completed&taskType=post_ideas&platform=linkedin",
+            "description": "Lista z paginacją. Query (wszystkie opcjonalne poza page default 1): page (min. 1), status (queued|running|interrupted|awaiting_hitl|completed|failed), taskType, platform (linkedin|facebook|instagram|web), userId (`usr_<uuid>` — zły format → 400). Usuń filtry z URL, jeśli nie potrzebujesz."
+          }
+        },
+        {
+          "name": "GET run by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{runId}}",
+            "description": "Snapshot runu + result / hitl. `runId` = `run_<uuid>`."
+          }
+        },
+        {
+          "name": "GET run logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{runId}}/logs",
+            "description": "Logi hopów LLM. Ustaw `runId` ze startu runu."
+          }
+        },
+        {
+          "name": "GET run events (SSE)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              }
+            ],
+            "url": "{{baseUrl}}/runs/{{runId}}/events",
+            "description": "SSE: `run.status` + heartbeat. Przy statusie terminalnym (`completed`/`failed`) jeden event i koniec. W Postmanie: Send and Download albo stream; Collection Runner nie jest do SSE."
+          }
+        },
+        {
+          "name": "POST hitl",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedIdeaIds\": [\"{{ideaId}}\"]\n}\n"
+            },
+            "url": "{{baseUrl}}/runs/{{runId}}/hitl",
+            "description": "202. Run musi być `awaiting_hitl`. `ideaId` z `hitl.options` albo `result.ideas` / `result.pageOutline.id`. Puste / duplikat / obcy id → 400 HITL_INVALID_SELECTION."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,59 +1,51 @@
-# Dokumentacja Content Chain
+# Content Chain
 
-**Content Chain** to publiczna, self-hostowalna (MIT) aplikacja agentowa do generowania treści **Social** (post ideas / post content / rolki) oraz **Content** (copy stron i artykułów w podstawowej formie): brief → orchestracja agentów → weryfikacja względem kontekstu firmy → zapis w DB i czytelne logi runu. Monorepo obejmuje `apps/frontend`, `apps/api` oraz `apps/ai-provider-gateway` (jedyna droga do modeli LLM). Jedna instalacja = jedna firma = jeden wspólny kontekst; MVP domyka też auth i dashboard, przy kolejności budowy backend-first.
+> **Work in progress.** Content Chain is under active development and is **not a finished product**. APIs, UI, and behaviour may change without notice. Do not treat this repository as production-ready.
 
-## Jak czytać (kolejność)
+**Content Chain** is a self-hosted, agent-based application for generating marketing and web copy from a shared company context. A brief goes through an agent pipeline, is checked against the company’s profile, and the run is stored with a readable log.
 
-1. `dokumentacja_koncepcyjna.md` — po co i dla kogo  
-2. `architektura.md` — granice i style  
-3. `architektura_katalogi_pliki.md` — drzewo monorepo  
-4. `dokumentacja_komunikacji.md` — kontrakt HTTP / SSE / gateway  
-5. `data_flow.md` — pipeline agentów i przepływy  
-6. Dalej wg potrzeby: słownik, brand types, testy, deploy, security, observability, UX, anty-patterny  
+The product covers two generation channels:
 
-## Mapa: temat → plik
+- **Social** — post ideas, post content, and short-form reel scripts (LinkedIn, Facebook, Instagram).
+- **Content** — basic page and article copy (blog, service page, landing).
 
-| Temat | Plik |
-|-------|------|
-| Cel, zakres MVP, poza zakresem | `dokumentacja_koncepcyjna.md` |
-| Style, BC, async run, decyzje | `architektura.md` |
-| Drzewo `apps/*`, Prisma, prompty, `test/postman` | `architektura_katalogi_pliki.md` |
-| API, SSE, metrics, integracja gateway | `dokumentacja_komunikacji.md` |
-| Brand types / korelacja ID | `brand_types.md` |
-| Słownik pojęć i kodów błędów | `dictionary.md` |
-| Przepływy + schematy agentów (posty, rolki, page copy) | `data_flow.md` |
-| Pułapki stacku / projektu | `anty_patterny.md` |
-| Strategia testów | `testy.md` |
-| `local` / `production`, compose, backup | `deployment.md` |
-| Auth, bootstrap, hasła, ekspozycja | `security.md` |
-| Metryki vs logi runu; dump hopu gateway w `development` | `observability.md` |
-| Widoki dashboardu, agenci aktywni, live status, opinia / gwiazdki / Edytuj | `ux_dashboard.md` |
+One installation is one company and one shared context. The project is intended as a public, MIT-licensed self-host stack, not a multi-tenant SaaS.
 
-## Schematy (skrót)
+## Applications
 
-### System
+The monorepo is organised around three runtime apps in `apps/`:
 
-```mermaid
-flowchart LR
-  FE[apps/frontend] -->|HTTP + SSE| API[apps/api]
-  API --> DB[(SQLite)]
-  API -->|natywny chat| GW[apps/ai-provider-gateway]
-  GW --> LLM[Vendors LLM]
-```
+| App | Role |
+|-----|------|
+| `apps/frontend` | Web dashboard (Next.js): company context, generation flows, run logs. A thin UI client — no domain rules and no direct access to LLM vendors. |
+| `apps/api` | Product backend (NestJS): auth, company context, Social and Content pipelines, async runs, persistence. The only owner of Content Chain domain logic. |
+| `apps/ai-provider-gateway` | Standalone LLM gateway (NestJS): routing to model providers. The API talks to models **only** through this service; the gateway has no Social/Content product logic. |
 
-### Run produktowy (uproszczenie)
+Together they form a modular monolith: the frontend talks to the API over HTTP (and SSE for live run status); the API talks to the gateway; the gateway talks to LLM vendors.
 
-```mermaid
-flowchart TB
-  Brief[Brief + kompletny kontekst] --> Run[Async run]
-  Run --> Agents[Agenci: Social post/reel albo Content page]
-  Agents --> GW[gateway LLM]
-  Agents --> Logs[run.log + SSE]
-  Crash{Crash procesu?} -->|tak| Int[interrupted]
-  Int -->|wolny slot| Agents
-  Hitl{HITL?} -->|tak| Pause[awaiting_hitl]
-  Pause --> Agents
-  Hitl -->|nie / po wyborze| Done[completed + wynik w DB]
-```
+---
 
-Szczegóły węzłów, refine i korelacji ID: `data_flow.md` + `brand_types.md`. Kontrakt endpointów: `dokumentacja_komunikacji.md`. Rozszerzony kontrakt kontekstu (`extras`) oraz wyników SM/outline (`cta?`, `characterCount`, `role?`) — szczegóły w komunikacji + `data_flow.md`.
+# Content Chain
+
+> **W trakcie prac.** Content Chain jest w **fazie developmentu** i **nie jest ukończonym produktem**. API, interfejs i zachowanie systemu mogą się zmieniać. Tego repozytorium nie należy traktować jako gotowego do produkcji.
+
+**Content Chain** to self-hostowalna aplikacja agentowa do generowania treści marketingowych i copy stron na podstawie wspólnego kontekstu firmy. Brief przechodzi przez pipeline agentów, jest weryfikowany względem profilu organizacji, a przebieg runu trafia do bazy wraz z czytelnym logiem.
+
+Produkt obejmuje dwa kanały generowania:
+
+- **Social** — pomysły na posty, treść postów oraz scenariusze rolek (LinkedIn, Facebook, Instagram).
+- **Content** — podstawowe copy stron i artykułów (blog, strona oferty, landing).
+
+Jedna instalacja = jedna firma = jeden wspólny kontekst. Projekt jest przewidziany jako publiczny, self-hostowalny stos na licencji MIT, a nie jako multi-tenant SaaS.
+
+## Aplikacje
+
+Monorepo opiera się na trzech aplikacjach runtime w `apps/`:
+
+| Aplikacja | Rola |
+|-----------|------|
+| `apps/frontend` | Dashboard webowy (Next.js): kontekst firmy, flow’y generowania, logi runów. Cienki klient UI — bez reguł domenowych i bez bezpośredniego dostępu do vendorów LLM. |
+| `apps/api` | Backend produktowy (NestJS): auth, kontekst firmy, pipeline’y Social i Content, asynchroniczne runy, persistence. Jedyny właściciel logiki domenowej Content Chain. |
+| `apps/ai-provider-gateway` | Osobny gateway LLM (NestJS): routing do dostawców modeli. API rozmawia z modelami **wyłącznie** przez tę usługę; gateway nie zawiera logiki produktowej Social/Content. |
+
+Razem tworzą modularny monolit: frontend komunikuje się z API po HTTP (oraz SSE dla statusu runu na żywo); API komunikuje się z gatewayem; gateway komunikuje się z vendorami LLM.
