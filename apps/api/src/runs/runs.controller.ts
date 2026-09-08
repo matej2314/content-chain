@@ -11,6 +11,8 @@ import {
   BadRequestException,
   type MessageEvent,
 } from '@nestjs/common';
+import { CurrentUser } from '../shared/decorators/current-user.decorator';
+import type { AuthUserContext } from '../auth/domain/auth-user.types';
 import { ApiTags } from '@nestjs/swagger';
 import {
   endWith,
@@ -41,7 +43,6 @@ import { ParseRunIdPipe } from './http/parse-run-id.pipe';
 import { createUserId, isUserId } from '@content-chain/shared';
 import type { RunId, RunStatus } from '@content-chain/shared';
 import type { ListRunsQuery } from './domain/run.port';
-import type { GetRunOutput } from './application/get-run.use-case';
 
 function isTerminalStatus(status: RunStatus): boolean {
   return status === 'completed' || status === 'failed';
@@ -62,8 +63,11 @@ export class RunsController {
 
   @Post()
   @HttpCode(202)
-  async create(@Body() body: StartRunDto) {
-    const result = await this.startRun.execute(body);
+  async create(
+    @Body() body: StartRunDto,
+    @CurrentUser() user: AuthUserContext,
+  ) {
+    const result = await this.startRun.execute(body, user.id);
     return {
       runId: result.id,
       conversationId: result.conversationId,

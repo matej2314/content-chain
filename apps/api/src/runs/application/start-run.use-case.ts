@@ -11,6 +11,7 @@ import {
 } from './run.schemas';
 import {
   isContentTaskType,
+  type UserId,
   type ContentKind,
   type ContentLanguage,
   type ContentTaskType,
@@ -77,6 +78,7 @@ export class StartRunUseCase {
 
   async execute(
     command: StartRunCommand,
+    startedByUserId: UserId | null = null,
   ): Promise<Pick<RunRecord, 'id' | 'conversationId' | 'status'>> {
     const parsedCommand = parseWithZod(
       startRunCommandSchema,
@@ -109,7 +111,7 @@ export class StartRunUseCase {
         status: 'queued',
         brief: parsedCommand.brief,
         selectedIdeaIds: null,
-        startedByUserId: null,
+        startedByUserId,
         recoveryAttempts: 0,
         createdAt: new Date(),
       } satisfies ContentRunRecord;
@@ -129,7 +131,7 @@ export class StartRunUseCase {
         status: 'queued',
         brief: parsedCommand.brief,
         selectedIdeaIds: parsedCommand.selectedIdeaIds ?? null,
-        startedByUserId: null,
+        startedByUserId,
         recoveryAttempts: 0,
         createdAt: new Date(),
       } satisfies SocialRunRecord;

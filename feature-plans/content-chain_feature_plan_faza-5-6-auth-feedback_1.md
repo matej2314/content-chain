@@ -3033,7 +3033,7 @@ zamień na:
 
 ### KROK 4 — `startedBy` ze sesji: StartRunUseCase + RunsController
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Przekazać `userId` z uwierzytelnionej sesji do `StartRunUseCase`, by run miał inicjatora zamiast `null`.  
 Odwołanie: `SPEC-RUNY.md` R-3b; major Krok 5.2 DoD „nowe runy ze sesją mają `startedBy`".

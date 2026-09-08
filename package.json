@@ -8,11 +8,15 @@
 		"dev:gateway": "pnpm --filter ai-provider-gateway dev",
 		"build": "pnpm -r build",
 		"lint": "eslint . && pnpm --filter frontend lint",
+		"lint:api": "eslint \"apps/api/**/*.ts\"",
+		"lint:frontend": "pnpm --filter frontend lint",
+		"lint:gateway": "pnpm --filter ai-provider-gateway lint",
 		"format": "prettier --write .",
 		"format:check": "prettier --check ."
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3.2.0",
+		"@eslint/js": "^9.39.5",
 		"@typescript-eslint/eslint-plugin": "^8.0.0",
 		"@typescript-eslint/parser": "^8.0.0",
 		"eslint": "^9.0.0",
