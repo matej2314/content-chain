@@ -1,13 +1,14 @@
-# Kolekcje Postman — pipeline Social i Content (Milestone 4 / 4.1 / 4.2 / 4.3)
+# Kolekcje Postman — pipeline Social, Content i zaproszenia
 
-Powtarzalny happy path **bez UI**: Setup (login admina → kontekst przez HTTP), potem:
+Powtarzalny happy path **bez UI**:
 
-- **Social** — posty (`post_ideas`, `post_ideas_then_content`) i rolki (`reel_ideas`, `reel_ideas_then_scripts`)
-- **Content** — `page_copy` i `page_outline_then_copy`
+- **Social** — Setup (login admina → kontekst przez HTTP), potem posty (`post_ideas`, `post_ideas_then_content`) i rolki (`reel_ideas`, `reel_ideas_then_scripts`)
+- **Content** — to samo Setup, potem `page_copy` i `page_outline_then_copy`
+- **Zaproszenia** — `invitations-pipeline.postman-collection.json`: login admina → create → **token z maila** → accept (konto `user` zostaje w bazie)
 
-To **nie** jest suite `pnpm test:e2e` (Jest + fake LLM). Tu api woła **żywy** lokalny gateway. JSON w tym katalogu nie wchodzi do Jest (`jest-e2e.json` łapie wyłącznie `.e2e-spec.ts$`).
+To **nie** jest suite `pnpm test:e2e` (Jest + fake LLM). Social/Content wołają **żywy** lokalny gateway. JSON w tym katalogu nie wchodzi do Jest (`jest-e2e.json` łapie wyłącznie `.e2e-spec.ts$`).
 
-Kontrakt sesji, bootstrap, zaproszenia i 401/403 są w **`auth.postman-collection.json`**. Kolekcje pipeline **nie** tworzą konta — tylko `POST /auth/login`, żeby dostać cookies i iść dalej.
+Kontrakt sesji, bootstrap i 401/403 auth są w **`auth.postman-collection.json`**. Kolekcje pipeline Social/Content **nie** tworzą konta — tylko `POST /auth/login`. Pipeline zaproszeń tworzy **jedno** konto `user` przez accept-invite (Twój `inviteEmail`).
 
 ## Wymagania
 
@@ -27,10 +28,11 @@ PUT/PATCH `/company-context` i start runów wymagają sesji **admina** (`cc_acce
 
 ## Import i odpalenie (Postman GUI)
 
-1. Import → plik kolekcji (`social-pipeline.postman-collection.json` albo `content-pipeline.postman-collection.json`).
+1. Import → plik kolekcji (`social-pipeline.postman-collection.json`, `content-pipeline.postman-collection.json` albo `invitations-pipeline.postman-collection.json`).
 2. Collection Runner:
    - Social: foldery w kolejności **Setup → A → B → C → D**.
    - Content: foldery w kolejności **Setup → A → B**.
+   - Zaproszenia: najpierw **Setup → A. Create**, potem wklej `inviteToken` z maila, potem **B. Accept** (nie jeden ciągły run).
 3. Zmienna `baseUrl` (domyślnie `http://localhost:3001/api/v1`) — zmień tylko gdy api nie stoi na 3001. `adminEmail` / `adminPassword` zmieniaj tylko gdy lokalny admin ma inne dane niż w kolekcji auth.
 
 Pętla `GET /runs/:runId` jest w skryptach testów (do ~6 min na poll). SSE nie jest częścią DoD Milestone 4 / 4.2.
@@ -43,6 +45,23 @@ Runner nie jest spięty w SPEC — GUI Postmana albo Newman są równoważne. Ne
 npx --yes newman run apps/api/test/postman/social-pipeline.postman-collection.json
 npx --yes newman run apps/api/test/postman/content-pipeline.postman-collection.json
 ```
+
+Newman **nie** pauzuje na mail — folder B zaproszeń wymaga `inviteToken` ustawionego wcześniej. Do smoke na prawdziwą skrzynkę użyj GUI (dwa runy).
+
+## Zaproszenia (`invitations-pipeline.postman-collection.json`)
+
+Cel: prawdziwy SMTP + Twój adres, nie log api i nie cookies.
+
+1. Api z `NODE_ENV=production` i prawdziwymi `SMTP_*` / `MAIL_FROM`. `APP_PUBLIC_URL` może zostać `http://localhost:3000` (tylko link w mailu; token i tak jest w treści). Przy `development` create wraca 201, ale mail **nie** wychodzi.
+2. Istniejący admin (te same `adminEmail` / `adminPassword` co w kolekcji auth).
+3. W zmiennych kolekcji ustaw **`inviteEmail` na swój adres** (placeholder `your.email@example.com` jest odrzucany przez test create). Nie commituj prawdziwego adresu.
+4. Collection Runner: **Setup → A. Create**.
+5. Odbierz mail (`You are invited…`, linia `Token: …`) → wklej wartość do `inviteToken`.
+6. Collection Runner: **B. Accept** (słabe hasło 400 → accept 201 bez cookies → reuse 401 → login `user` → 403 na invitations/users).
+
+Konto `user` **zostaje** w bazie. Ten sam `inviteEmail` przy kolejnym A da **409** (pending albo istniejący User, także po soft-delete).
+
+`pm.cookies.jar().clear` w B wymaga domeny `localhost` na allowliście w oknie Cookies Postmana (jak kolekcja auth).
 
 ## Co robi Setup
 
@@ -65,6 +84,8 @@ W **obu** kolekcjach Setup jest ten sam:
 | Social | **D. reel_ideas_then_scripts** | poll `awaiting_hitl` (`options` / `reelIdeas`) → te same negatywy HITL → HITL 1 id → `result.reelScript === null`, `result.reelScripts.length === 1`, `sourceIdeaId` (D-16 / D-21) |
 | Content | **A. page_copy** | `POST /runs` bez `platform`, z `contentKind: "blog"`, `brief` bez `ideaCount` → poll `completed` → `result.pageDocument.body` + logi |
 | Content | **B. page_outline_then_copy** | poll `awaiting_hitl` → `ideaId` z `hitl.options[0].id` albo `result.pageOutline.id` → HITL `[outline.id]` → poll `completed` + `pageDocument`. Gdy sekcja ma `role`, musi być z zamkniętego enumu (D-18 / D-22) |
+| Zaproszenia | **A. Create** | `POST /invitations` (nieznany klucz → 400) → 201 bez tokenu w JSON → drugi POST ten sam email → 409 → `GET /invitations` |
+| Zaproszenia | **B. Accept** | token z maila → słabe hasło 400 → accept 201 bez cookies → reuse 401 → login `user` → 403 na `/invitations` i `/users` |
 
 Kolekcje **nie** zawierają placeholderów `GATEWAY` ani wywołań gateway — klient woła wyłącznie api.
 
@@ -85,6 +106,7 @@ Skalar `result.content` / `result.reelScript` na dwuetapowych (`post_ideas_then_
 - `post_content` solo
 - `reel_script` solo (Jest e2e, nie Postman)
 - SSE (`GET .../events`)
-- Pełna suite auth (bootstrap, refresh, logout, invite, accept-invite, 401/403) — `auth.postman-collection.json`
+- Pełna suite auth (bootstrap, refresh, logout, invite+accept w jednym runnerze z soft-delete) — `auth.postman-collection.json`
+- Resend / revoke zaproszenia (osobne foldery, nie v1 tego pipeline)
 - Suite CI PR
 - Pełny happy path **2 id → 2 hopów LLM** na żywym gateway (Jest + fake LLM)

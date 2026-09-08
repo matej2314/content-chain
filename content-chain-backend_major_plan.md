@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31), `update-mvp-contract-plan.md` (Faza 4.3), `multi-hitl-plan.md` (HITL Social min. 1 / N→N — legalizacja kanonu Fazy 4.3).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), potem Faza 5 (Auth), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, **4.1, 4.2, 4.3**, 5 i 6 oraz osiągnięciu Milestone 4, **4.2, 4.3**, 5–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, **4.1, 4.2, 4.3**, 5 i 6 oraz osiągnięciu Milestone 4, **4.2, 4.3**, 5–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -708,11 +708,14 @@ Zmiana względem: wcześniejszy zapis kroku 4.3.3 (walidacja `length === 1`; 2 i
 
 ## Faza 5 — Auth API (forma docelowa)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Auth w formie docelowej na api: bootstrap jednego admina (status + sesja po bootstrapie), sesja cookie, **`GET /auth/me`**, role, zarządzanie użytkownikami (lista + **zaproszenia** — konto `user` po `accept-invite` — + soft-delete w API), zabezpieczenie powierzchni kontekstu i runów oraz wypełnianie `startedBy` przy starcie. Zgodnie z `SPEC-AUTH.md`, `docs/security.md` — po zielonym pipeline (order of attack).  
 Dopisek: **start po Fazie 4.2 / Milestone 4.2** (nie bezpośrednio po Milestone 4). DoD auth **bez** przepisu.  
 Dopisek (addytywny): **start po Fazie 4.3 / Milestone 4.3** (zmiana względem: start po 4.2). Faza 4.3 / Milestone 4.3 są `WYKONANY` / `OSIĄGNIĘTY` — Faza 5 odblokowana kolejnością, status pozostaje `NIE_ROZPOCZĘTY`.
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-5-6-auth-feedback_1.md` (FAZA 1 KROK 1–5 `WYKONANY` → major 5.1; FAZA 2 KROK 1–4 `WYKONANY` → major 5.2). Cookie-parser + Passport/JWT, domain/porty, Prisma + `JwtCookieStrategy`, use-case’y bootstrap/login/logout/refresh/me, AuthModule + guardi + `/me`, lista/`InviteUser`/soft-delete, invitations HTTP + `accept-invite`, `@Public()` + authz kontekstu/runów, `startedBy` ze sesji (`{ id, email }`). **MILESTONE 5** → `OSIĄGNIĘTY` (zielony pipeline Milestone 4 z auth). Faza 6 i MILESTONE 6 pozostają `NIE_ROZPOCZĘTY` — `feature-plans/content-chain_feature_plan_faza-5-6-auth-feedback_2.md`.
+Zmiana względem: wcześniejszy dopisek „status pozostaje `NIE_ROZPOCZĘTY`” (odblokowanie po 4.3). Powód: ślad do major po implementacji pliku `_1`.
 
 Zmiana względem: „zarządzanie użytkownikami (lista/create + soft-delete)”.
 
@@ -725,7 +728,7 @@ Zmiana względem: „zarządzanie użytkownikami (lista/create + soft-delete)”
 
 ### Krok 5.1 — Bootstrap, sesja cookie, role, probe `/me`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Pierwszy admin (w tym publiczny status pod first-run FE), mechanizm sesji, model ról oraz kanoniczny probe tożsamości `GET /auth/me`.  
 *(Rozszerzenie względem wcześniejszej treści kroku 5.1: dopisano bootstrap-status, sesję po bootstrapie i `/me`.)*
@@ -739,7 +742,7 @@ Zmiana względem: „zarządzanie użytkownikami (lista/create + soft-delete)”
 
 ### Krok 5.2 — Użytkownicy, soft-delete i zabezpieczenie powierzchni api
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Lista kont, zaproszenia (create/list/resend/revoke), publiczny accept-invite, soft-delete w API, domknięcie authz na kontekście firmy i runach SM oraz obowiązkowy inicjator przy starcie runu ze sesją.  
 *(UI admina / strona akceptacji = major FE; tu norma **API** — weryfikacja Postman. Mailer nie jest osobnym krokiem majoru — należy do tego samego wycinka co zaproszenia.)*
@@ -757,6 +760,8 @@ Zmiana względem: „Lista + tworzenie użytkowników w granicach normy”.
 ---
 
 ## MILESTONE 5 — Auth API gotowe pod feedback i frontend
+
+**Status:** `OSIĄGNIĘTY`
 
 **Opis:** Bramka po Fazie 5. Sesja, role i `startedBy` działają. **Nie** zamyka majoru backendowego.
 
