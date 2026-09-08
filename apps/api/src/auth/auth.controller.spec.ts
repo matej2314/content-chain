@@ -10,10 +10,15 @@ import { LoginUseCase } from './application/login.use-case';
 import { LogoutUseCase } from './application/logout.use-case';
 import { MeUseCase } from './application/me.use-case';
 import { RefreshUseCase } from './application/refresh.use-case';
+import {
+  AcceptInviteUseCase,
+  type AcceptInviteResult,
+} from './application/accept-invite.use-case';
 import type { AuthTokenResult } from './application/bootstrap-admin.use-case';
 import type { AuthUserContext } from './domain/auth-user.types';
 import { BootstrapAdminDto } from './http/bootstrap-admin.dto';
 import { LoginDto } from './http/login.dto';
+import { AcceptInviteDto } from './http/accept-invite.dto';
 import { AuthController } from './auth.controller';
 import {
   clearAuthCookies,
@@ -65,6 +70,7 @@ describe('AuthController', () => {
   let logout: { execute: jest.Mock };
   let refresh: { execute: jest.Mock };
   let me: { execute: jest.Mock };
+  let acceptInvite: { execute: jest.Mock };
   const env = { JWT_ACCESS_TTL: ACCESS_TTL } as Env;
   const res = {} as Response;
 
@@ -75,6 +81,7 @@ describe('AuthController', () => {
     logout = { execute: jest.fn() };
     refresh = { execute: jest.fn() };
     me = { execute: jest.fn() };
+    acceptInvite = { execute: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
@@ -85,6 +92,7 @@ describe('AuthController', () => {
         { provide: LogoutUseCase, useValue: logout },
         { provide: RefreshUseCase, useValue: refresh },
         { provide: MeUseCase, useValue: me },
+        { provide: AcceptInviteUseCase, useValue: acceptInvite },
         { provide: ENV, useValue: env },
       ],
     }).compile();
@@ -102,6 +110,7 @@ describe('AuthController', () => {
     expect(isPublic(proto.getBootstrapStatus)).toBe(true);
     expect(isPublic(proto.postBootstrapAdmin)).toBe(true);
     expect(isPublic(proto.postLogin)).toBe(true);
+    expect(isPublic(proto.postAcceptInvite)).toBe(true);
     expect(isPublic(proto.postRefresh)).toBe(true);
     expect(isPublic(proto.postLogout)).toBe(false);
     expect(isPublic(proto.getMe)).toBe(false);
@@ -113,6 +122,9 @@ describe('AuthController', () => {
       'bootstrap-admin',
     );
     expect(Reflect.getMetadata('path', proto.postLogin)).toBe('login');
+    expect(Reflect.getMetadata('path', proto.postAcceptInvite)).toBe(
+      'accept-invite',
+    );
     expect(Reflect.getMetadata('path', proto.postRefresh)).toBe('refresh');
     expect(Reflect.getMetadata('path', proto.postLogout)).toBe('logout');
     expect(Reflect.getMetadata('path', proto.getMe)).toBe('me');
@@ -121,6 +133,9 @@ describe('AuthController', () => {
       RequestMethod.GET,
     );
     expect(Reflect.getMetadata('method', proto.postLogin)).toBe(
+      RequestMethod.POST,
+    );
+    expect(Reflect.getMetadata('method', proto.postAcceptInvite)).toBe(
       RequestMethod.POST,
     );
   });
@@ -151,6 +166,25 @@ describe('AuthController', () => {
       tokenResult.refreshToken,
       env,
     );
+  });
+
+  it('accepts invite without setting session cookies', async () => {
+    const invited: AcceptInviteResult = {
+      user: {
+        id: createUserId('usr_22222222-2222-4222-8222-222222222222'),
+        email: 'user@example.com',
+        role: 'user',
+      },
+    };
+    acceptInvite.execute.mockResolvedValue(invited);
+    const body: AcceptInviteDto = {
+      token: 'invite.raw',
+      password: 'Password12!!',
+    };
+
+    await expect(controller.postAcceptInvite(body)).resolves.toEqual(invited);
+    expect(acceptInvite.execute).toHaveBeenCalledWith(body);
+    expect(setAuthCookies).not.toHaveBeenCalled();
   });
 
   it('logs in, sets cookies, and returns expiresIn + user without tokens', async () => {

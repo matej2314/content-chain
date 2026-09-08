@@ -2622,7 +2622,7 @@ export class SoftDeleteUserUseCase {
 
 ### KROK 2 — UsersController + InvitationsController + accept-invite + AuthModule.controllers update
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `W_TRAKCIE`
 
 **Cel:** HTTP powierzchnia listy i soft-delete kont (admin) **oraz** zaproszeń (admin) i publicznego accept-invite. Dodanie kontrolerów do `AuthModule`.  
 Odwołanie: `docs/dokumentacja_komunikacji.md` Users + Invitations + accept-invite; `SPEC-AUTH.md` A-7 / A-7a–d, A-10.  

@@ -22,8 +22,10 @@ import { LoginUseCase } from './application/login.use-case';
 import { LogoutUseCase } from './application/logout.use-case';
 import { RefreshUseCase } from './application/refresh.use-case';
 import { MeUseCase } from './application/me.use-case';
+import { AcceptInviteUseCase } from './application/accept-invite.use-case';
 import { BootstrapAdminDto } from './http/bootstrap-admin.dto';
 import { LoginDto } from './http/login.dto';
+import { AcceptInviteDto } from './http/accept-invite.dto';
 import { ENV, type Env } from '../shared/config/env';
 import type { AuthUserContext } from './domain/auth-user.types';
 import type { Request, Response } from 'express';
@@ -38,6 +40,7 @@ export class AuthController {
     private readonly logout: LogoutUseCase,
     private readonly refresh: RefreshUseCase,
     private readonly me: MeUseCase,
+    private readonly acceptInvite: AcceptInviteUseCase,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -72,6 +75,13 @@ export class AuthController {
       expiresIn: this.env.JWT_ACCESS_TTL,
       user: result.user,
     };
+  }
+
+  @Public()
+  @Post('accept-invite')
+  @HttpCode(201)
+  async postAcceptInvite(@Body() body: AcceptInviteDto) {
+    return this.acceptInvite.execute(body);
   }
 
   @Public()
