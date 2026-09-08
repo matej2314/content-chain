@@ -1,5 +1,6 @@
 import { Controller, Body, Get, Patch, Put } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { Roles } from '../shared/decorators/roles.decorator';
 import { GetCompanyContextUseCase } from './application/get-company-context.use-case';
 import { GetCompletenessUseCase } from './application/get-completeness.use-case';
 import { PatchCompanyContextUseCase } from './application/patch-company-context.use-case';
@@ -34,11 +35,13 @@ export class CompanyContextController {
     return this.getContext.execute();
   }
 
+  @Roles('admin')
   @Put()
   put(@Body() body: PutCompanyContextDto) {
     return this.putContext.execute(toCompanyContext(body));
   }
 
+  @Roles('admin')
   @Patch()
   patch(@Body() body: PatchCompanyContextDto) {
     return this.patchContext.execute(toPartialCompanyContext(body));

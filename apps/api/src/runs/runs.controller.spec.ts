@@ -2,6 +2,8 @@ import 'reflect-metadata';
 import { firstValueFrom, NEVER, of, Subject, take, toArray } from 'rxjs';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { ENV, type Env } from '../shared/config/env';
+import { IS_PUBLIC_KEY } from '../shared/decorators/public.decorator';
+import { ROLES_KEY } from '../shared/decorators/roles.decorator';
 import { newConversationId, newRunId } from '../shared/http/new-ids';
 import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
 import { GetRunUseCase } from './application/get-run.use-case';
@@ -54,6 +56,27 @@ describe('RunsController', () => {
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  it('has no @Public() or @Roles() so every route relies on global JwtAuthGuard', () => {
+    const proto = RunsController.prototype;
+
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, RunsController)).toBeUndefined();
+    expect(Reflect.getMetadata(ROLES_KEY, RunsController)).toBeUndefined();
+
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.create)).toBeUndefined();
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.logs)).toBeUndefined();
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.events)).toBeUndefined();
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.hitl)).toBeUndefined();
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.list)).toBeUndefined();
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.get)).toBeUndefined();
+
+    expect(Reflect.getMetadata(ROLES_KEY, proto.create)).toBeUndefined();
+    expect(Reflect.getMetadata(ROLES_KEY, proto.logs)).toBeUndefined();
+    expect(Reflect.getMetadata(ROLES_KEY, proto.events)).toBeUndefined();
+    expect(Reflect.getMetadata(ROLES_KEY, proto.hitl)).toBeUndefined();
+    expect(Reflect.getMetadata(ROLES_KEY, proto.list)).toBeUndefined();
+    expect(Reflect.getMetadata(ROLES_KEY, proto.get)).toBeUndefined();
   });
 
   it('declares parameterized routes before GET :runId', () => {
@@ -147,7 +170,10 @@ describe('RunsController', () => {
 
     const body: HitlDto = { selectedIdeaIds: ['idea-1', 'idea-2'] };
     await expect(controller.hitl(runId, body)).resolves.toBe(result);
-    expect(resumeHitl.execute).toHaveBeenCalledWith(runId, body.selectedIdeaIds);
+    expect(resumeHitl.execute).toHaveBeenCalledWith(
+      runId,
+      body.selectedIdeaIds,
+    );
   });
 
   it('startWith emits latest status, not the earlier snapshot', async () => {

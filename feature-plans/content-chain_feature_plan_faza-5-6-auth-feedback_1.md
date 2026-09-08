@@ -2622,7 +2622,7 @@ export class SoftDeleteUserUseCase {
 
 ### KROK 2 — UsersController + InvitationsController + accept-invite + AuthModule.controllers update
 
-**Status:** `W_TRAKCIE`
+**Status:** `WYKONANY`
 
 **Cel:** HTTP powierzchnia listy i soft-delete kont (admin) **oraz** zaproszeń (admin) i publicznego accept-invite. Dodanie kontrolerów do `AuthModule`.  
 Odwołanie: `docs/dokumentacja_komunikacji.md` Users + Invitations + accept-invite; `SPEC-AUTH.md` A-7 / A-7a–d, A-10.  
@@ -2965,7 +2965,7 @@ Happy path Newman: `NODE_ENV=development` → adapter logujący → zawsze **201
 
 ### KROK 3 — `@Public()` na trasach otwartych + weryfikacja guardów w runs/company-context
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Upewnić się, że wszystkie trasy nieautoryzowane mają `@Public()` i że `RunsController` oraz `CompanyContextController` poprawnie działają z globalnym guardem; PUT/PATCH company-context wymaga roli `admin`.  
 Odwołanie: `SPEC-AUTH.md` A-6; `docs/security.md` tabela uprawnień; `SPEC-RUNY.md` R-3a.
