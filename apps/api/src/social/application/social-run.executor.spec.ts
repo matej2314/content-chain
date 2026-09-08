@@ -681,6 +681,8 @@ describe('SocialRunExecutor', () => {
       const store = fakeStore();
       const lifecycle = fakeLifecycle();
       const facade = fakeFacade(async () => {
+        // Fixture: non-Error throw — executor maps it to a default message.
+        // eslint-disable-next-line @typescript-eslint/only-throw-error -- intentional non-Error
         throw 'not-an-error';
       });
       const executor = makeExecutor({ facade, lifecycle, store });
@@ -716,7 +718,7 @@ describe('SocialRunExecutor', () => {
   it('throws when taskType is not social and does not invoke the facade', async () => {
     const invokePhase = jest.fn();
     const executor = new SocialRunExecutor(
-      { invokePhase } as Pick<SocialPipelineFacade, 'invokePhase'>,
+      { invokePhase },
       fakeLifecycle(),
       fakeStore(),
     );

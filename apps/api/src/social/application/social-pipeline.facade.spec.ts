@@ -8,7 +8,7 @@ import {
 import type { SocialResultStore } from '../domain/social-result.port';
 import type { ReelIdea, SocialIdea } from '../domain/social.types';
 import type { SocialGraphState } from '../infrastructure/graph/state';
-import { LlmHopService } from '../../shared/llm/llm-hop';
+import { type LlmHopService } from '../../shared/llm/llm-hop';
 import { compileSocialGraph } from '../infrastructure/graph/social.graph';
 import { SocialPipelineFacade, toOutcome } from './social-pipeline.facade';
 

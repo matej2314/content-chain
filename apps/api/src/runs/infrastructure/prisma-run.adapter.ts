@@ -332,6 +332,6 @@ export class PrismaRunAdapter implements RunRepository {
       return snapshot;
     }
 
-    throw new Error(`Run.taskType is not a RunTaskType: ${row.taskType}`);
+    throw new Error(`Run.taskType is not a RunTaskType: ${String(row.taskType)}`);
   }
 }

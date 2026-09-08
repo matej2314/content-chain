@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { isContentTaskType } from '@content-chain/shared';
 import {
   COMPANY_CONTEXT_REPOSITORY,
   type CompanyContextRepository,

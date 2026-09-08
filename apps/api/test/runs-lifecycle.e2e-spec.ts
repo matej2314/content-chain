@@ -1,7 +1,7 @@
 import { execFileSync } from 'child_process';
 import type { IncomingMessage } from 'http';
 import { join } from 'path';
-import { INestApplication } from '@nestjs/common';
+import { type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import { AppModule } from '../src/app.module';
@@ -447,7 +447,7 @@ describe('Runs lifecycle (e2e)', () => {
 
       previousMax = process.env.MAX_CONCURRENT_RUNS;
       process.env.MAX_CONCURRENT_RUNS = '1';
-      const env: Env = validateEnv(process.env as Record<string, unknown>);
+      const env: Env = validateEnv(process.env);
       holding = new HoldingRunExecutor();
 
       const moduleRef = await Test.createTestingModule({

@@ -28,7 +28,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const envelope = this.toEnvelope(exception, requestId);
     const status = this.toStatus(exception);
 
-    if (status >= 500) {
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(
         { requestId, code: envelope.code },
         exception instanceof Error ? exception.message : 'Unknown error',
@@ -89,7 +89,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   private messageFromHttp(payload: string | object, fallback: string): string {
     if (typeof payload === 'string') return payload;
     if (payload && typeof payload === 'object' && 'message' in payload) {
-      const message = (payload as { message: string | string[] }).message;
+      const message: unknown = payload.message;
       if (Array.isArray(message)) return message.join('; ');
       if (typeof message === 'string') return message;
     }
@@ -98,9 +98,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
   private validationDetails(payload: string | object): unknown[] {
     if (typeof payload === 'object' && payload && 'message' in payload) {
-      const message = (payload as { message: unknown }).message;
+      const message: unknown = payload.message;
       if (Array.isArray(message))
-        return message.map((item) => ({ message: item }));
+        return message.map((item: unknown) => ({ message: item }));
     }
     return [];
   }

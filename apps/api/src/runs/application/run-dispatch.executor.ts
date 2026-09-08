@@ -19,7 +19,7 @@ export class RunDispatchExecutor implements RunExecutorPort {
     }
     await this.lifecycle.transition(run, 'failed', {
       failedCode: 'UNKNOWN_TASK_TYPE',
-      failedMessage: `Unknown taskType: ${run.taskType}`,
+      failedMessage: `Unknown taskType: ${String(run.taskType)}`,
     });
   }
 }

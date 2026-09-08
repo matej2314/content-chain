@@ -1,6 +1,6 @@
 import { execFileSync } from 'child_process';
 import { join } from 'path';
-import { INestApplication } from '@nestjs/common';
+import { type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import {

@@ -13,18 +13,18 @@ export class LogoutUseCase {
     private readonly sessions: RefreshSessionRepository,
   ) {}
 
-  async execute(userId?: UserId, rawRefreshToken?: string): Promise<void> {
-    if (rawRefreshToken) {
-      const session = await this.sessions.findValidByHash(
-        hashRefreshToken(rawRefreshToken),
-      );
-      if (session) {
-        await this.sessions.deleteById(session.id);
-      }
+  async execute(userId: UserId, rawRefreshToken?: string): Promise<void> {
+    if (!rawRefreshToken) {
+      await this.sessions.deleteByUser(userId);
       return;
     }
-    if (userId) {
-      await this.sessions.deleteByUser(userId);
+
+    const session = await this.sessions.findValid(
+      userId,
+      hashRefreshToken(rawRefreshToken),
+    );
+    if (session) {
+      await this.sessions.deleteById(session.id);
     }
   }
 }

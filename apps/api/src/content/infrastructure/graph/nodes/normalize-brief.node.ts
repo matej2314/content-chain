@@ -1,11 +1,11 @@
 import type { ContentGraphState } from '../state';
 
 export function createNormalizeBriefNode() {
-  return async (
+  return (
     state: ContentGraphState,
   ): Promise<Partial<ContentGraphState>> => {
     const topic = state.brief.topic.trim();
-    return {
+    return Promise.resolve({
       brief: {
         ...state.brief,
         topic,
@@ -13,6 +13,6 @@ export function createNormalizeBriefNode() {
           ? { angle: state.brief.angle.trim() }
           : {}),
       },
-    };
+    });
   };
 }

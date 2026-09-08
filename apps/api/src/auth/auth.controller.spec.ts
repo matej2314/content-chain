@@ -16,9 +16,9 @@ import {
 } from './application/accept-invite.use-case';
 import type { AuthTokenResult } from './application/bootstrap-admin.use-case';
 import type { AuthUserContext } from './domain/auth-user.types';
-import { BootstrapAdminDto } from './http/bootstrap-admin.dto';
-import { LoginDto } from './http/login.dto';
-import { AcceptInviteDto } from './http/accept-invite.dto';
+import { type BootstrapAdminDto } from './http/bootstrap-admin.dto';
+import { type LoginDto } from './http/login.dto';
+import { type AcceptInviteDto } from './http/accept-invite.dto';
 import { AuthController } from './auth.controller';
 import {
   clearAuthCookies,
@@ -30,10 +30,18 @@ jest.mock('@nestjs/jwt', () => ({
   JwtService: class JwtService {},
 }));
 
-jest.mock('./infrastructure/cookie.helper', () => ({
-  setAuthCookies: jest.fn(),
-  clearAuthCookies: jest.fn(),
-}));
+jest.mock('./infrastructure/cookie.helper', () => {
+  const actual = jest.requireActual(
+    './infrastructure/cookie.helper',
+  );
+  return {
+    __esModule: true,
+    ...actual,
+    setAuthCookies: jest.fn(),
+    clearAuthCookies: jest.fn(),
+    readCookie: actual.readCookie,
+  };
+});
 
 const ACCESS_TTL = '15m';
 const sessionUser: AuthUserContext = {
@@ -52,7 +60,7 @@ const tokenResult: AuthTokenResult = {
 };
 
 function stubRequest(init: {
-  cookies?: Request['cookies'];
+  cookies?: unknown;
   user?: AuthUserContext;
 }): Request {
   return { cookies: init.cookies, user: init.user } as Request;
@@ -230,7 +238,7 @@ describe('AuthController', () => {
     expect(refresh.execute).toHaveBeenCalledWith(undefined);
 
     await controller.postRefresh(
-      stubRequest({ cookies: { cc_refresh: undefined } }),
+      stubRequest({ cookies: { cc_refresh: 1 } }),
       res,
     );
     expect(refresh.execute).toHaveBeenLastCalledWith(undefined);

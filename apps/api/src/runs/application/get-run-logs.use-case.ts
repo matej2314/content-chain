@@ -4,9 +4,9 @@ import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { parseWithZod } from '../../shared/parse-with-zod';
 import { runIdSchema } from './run.schemas';
 import type { ConversationId, RunId } from '@content-chain/shared';
-import { RunLogLevel } from '../domain/run.types';
+import type { RunLogLevel } from '../domain/run.types';
 
-interface GetRunLogsOutput {
+export interface GetRunLogsOutput {
   items: {
     at: string;
     level: RunLogLevel;
@@ -21,7 +21,7 @@ interface GetRunLogsOutput {
 export class GetRunLogsUseCase {
   constructor(@Inject(RUN_REPOSITORY) private readonly runs: RunRepository) {}
 
-  async execute(runId: RunId) {
+  async execute(runId: RunId): Promise<GetRunLogsOutput> {
     const parsedRunId = parseWithZod(runIdSchema, runId);
     const run = await this.runs.getById(parsedRunId);
     if (!run) {

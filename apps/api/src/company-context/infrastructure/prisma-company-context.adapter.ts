@@ -36,7 +36,7 @@ const jsonRecord = (
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return null;
   }
-  return value as CompanyContextExtras;
+  return value;
 };
 
 @Injectable()

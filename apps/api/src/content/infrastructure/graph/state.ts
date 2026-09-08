@@ -1,18 +1,18 @@
-import {
+import type {
   ContentKind,
   ContentLanguage,
   ContentTaskType,
   ConversationId,
   RunId,
 } from '@content-chain/shared';
-import { ContentBrief } from '../../../runs/domain/run.types';
-import {
+import type { ContentBrief } from '../../../runs/domain/run.types';
+import type {
   ContentPipelinePhase,
   PageOutline,
   PageDocument,
   VerifierVerdict,
 } from '../../domain/content.types';
-import { CompanyContext } from '../../../company-context/domain/company-context.types';
+import type { CompanyContext } from '../../../company-context/domain/company-context.types';
 
 export type ContentGraphState = {
   runId: RunId;

@@ -3,7 +3,7 @@ import type { ContentGraphState } from '../state';
 
 export function createLoadContextNode(context: CompanyContextRepository) {
   return async (
-    state: ContentGraphState,
+    _state: ContentGraphState,
   ): Promise<Partial<ContentGraphState>> => {
     const company = await context.get();
     return { company };

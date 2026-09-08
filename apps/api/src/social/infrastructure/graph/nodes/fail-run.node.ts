@@ -1,7 +1,7 @@
 import type { SocialGraphState } from '../state';
 
 export function createFailRunNode() {
-  return async (
+  return (
     state: SocialGraphState,
   ): Promise<Partial<SocialGraphState>> => {
     const contextIssues = state.verdict?.contextIssues ?? [];
@@ -15,10 +15,10 @@ export function createFailRunNode() {
         : null,
     ].filter((part): part is string => part != null);
 
-    return {
+    return Promise.resolve({
       failedCode: 'VERIFIER_FAILED',
       failedMessage:
         parts.length > 0 ? parts.join(' | ') : 'ConsistencyVerifier failed',
-    };
+    });
   };
 }

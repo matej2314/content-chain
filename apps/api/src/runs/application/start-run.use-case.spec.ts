@@ -138,7 +138,7 @@ describe('StartRunUseCase', () => {
     const result = await useCase.execute(command);
 
     expect(created).toHaveLength(1);
-    const run = created[0]!;
+    const run = created[0];
     expect(run.id).toMatch(/^run_/);
     expect(run.conversationId).toMatch(/^conv_/);
     expect(run).toEqual(
@@ -164,10 +164,10 @@ describe('StartRunUseCase', () => {
     expect(notifyQueued).toHaveBeenCalledTimes(1);
     expect(getById).toHaveBeenCalledWith(run.id);
     expect(create.mock.invocationCallOrder[0]).toBeLessThan(
-      notifyQueued.mock.invocationCallOrder[0]!,
+      notifyQueued.mock.invocationCallOrder[0],
     );
     expect(notifyQueued.mock.invocationCallOrder[0]).toBeLessThan(
-      getById.mock.invocationCallOrder[0]!,
+      getById.mock.invocationCallOrder[0],
     );
 
     expect(result).toEqual({
@@ -198,7 +198,7 @@ describe('StartRunUseCase', () => {
 
       expect(completeness.execute).toHaveBeenCalledTimes(1);
       expect(created).toHaveLength(1);
-      const run = created[0]!;
+      const run = created[0];
       expect(run).toEqual(
         expect.objectContaining({
           taskType,
@@ -266,7 +266,7 @@ describe('StartRunUseCase', () => {
 
     expect(completeness.execute).toHaveBeenCalledTimes(1);
     expect(created).toHaveLength(1);
-    const run = created[0]!;
+    const run = created[0];
     expect(run).toEqual(
       expect.objectContaining({
         taskType: 'page_copy',
@@ -406,7 +406,7 @@ describe('StartRunUseCase', () => {
     const result = await useCase.execute(validCommand());
 
     expect(result.status).toBe('queued');
-    expect(result.id).toBe(create.mock.calls[0]![0].id);
-    expect(result.conversationId).toBe(create.mock.calls[0]![0].conversationId);
+    expect(result.id).toBe(create.mock.calls[0][0].id);
+    expect(result.conversationId).toBe(create.mock.calls[0][0].conversationId);
   });
 });

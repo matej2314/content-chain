@@ -7,7 +7,7 @@ import { validateEnv } from './env.schema';
   providers: [
     {
       provide: ENV,
-      useFactory: () => validateEnv(process.env as Record<string, unknown>),
+      useFactory: () => validateEnv(process.env),
     },
   ],
   exports: [ENV],

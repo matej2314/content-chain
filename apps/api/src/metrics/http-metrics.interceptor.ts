@@ -16,7 +16,11 @@ import { DomainException } from '../shared/exceptions/domain.exception';
 export const UNMAPPED_HTTP_ROUTE = 'unmapped';
 
 export function httpRouteLabel(request: Request): string {
-  const path = request.route?.path;
+  const route: unknown = request.route;
+  const path =
+    typeof route === 'object' && route !== null && 'path' in route
+      ? (route).path
+      : undefined;
   if (typeof path === 'string' && path.length > 0) {
     return path;
   }

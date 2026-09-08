@@ -583,6 +583,8 @@ describe('ContentRunExecutor', () => {
       const store = fakeStore();
       const lifecycle = fakeLifecycle();
       const facade = fakeFacade(async () => {
+        // Fixture: non-Error throw — executor maps it to a default message.
+        // eslint-disable-next-line @typescript-eslint/only-throw-error -- intentional non-Error
         throw 'not-an-error';
       });
       const executor = makeExecutor({ facade, lifecycle, store });

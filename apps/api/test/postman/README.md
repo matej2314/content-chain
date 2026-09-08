@@ -1,17 +1,20 @@
 # Kolekcje Postman — pipeline Social i Content (Milestone 4 / 4.1 / 4.2 / 4.3)
 
-Powtarzalny happy path **bez UI**: Setup kontekstu przez HTTP, potem:
+Powtarzalny happy path **bez UI**: Setup (login admina → kontekst przez HTTP), potem:
 
 - **Social** — posty (`post_ideas`, `post_ideas_then_content`) i rolki (`reel_ideas`, `reel_ideas_then_scripts`)
 - **Content** — `page_copy` i `page_outline_then_copy`
 
 To **nie** jest suite `pnpm test:e2e` (Jest + fake LLM). Tu api woła **żywy** lokalny gateway. JSON w tym katalogu nie wchodzi do Jest (`jest-e2e.json` łapie wyłącznie `.e2e-spec.ts$`).
 
+Kontrakt sesji, bootstrap, zaproszenia i 401/403 są w **`auth.postman-collection.json`**. Kolekcje pipeline **nie** tworzą konta — tylko `POST /auth/login`, żeby dostać cookies i iść dalej.
+
 ## Wymagania
 
 1. Skopiować `apps/api/.env.example` → `apps/api/.env` oraz analogicznie env gateway (`apps/ai-provider-gateway/.env.example`). Uzupełnić sekrety lokalnie — **nie** wklejać ich do kolekcji.
 2. Migracje Prisma api (SQLite).
-3. Uruchomić procesy (kolejność: najpierw gateway, potem api):
+3. **Istniejący admin w bazie.** Zmienne `adminEmail` / `adminPassword` w kolekcjach Social i Content są te same co w `auth.postman-collection.json`. Pipeline nie woła `bootstrap-admin`. Pusta baza → login **401**; jednorazowo odpal Bootstrap w kolekcji auth (albo ręczny `POST /auth/bootstrap-admin`).
+4. Uruchomić procesy (kolejność: najpierw gateway, potem api):
 
 ```bash
 pnpm dev:gateway
@@ -20,7 +23,7 @@ pnpm dev:api
 
 Api nasłuchuje na `http://localhost:3001` (prefix HTTP: `/api/v1`). Gateway musi odpowiadać — to dowód pośredni ops, nie CI PR.
 
-Auth **nie** jest wymagany (Faza 5 później). Cookie jar w Postmanie niepotrzebny.
+PUT/PATCH `/company-context` i start runów wymagają sesji **admina** (`cc_access` / `cc_refresh`, httpOnly). Cookie jar w Postmanie jest **włączony domyślnie** (Collection Runner i Newman też go trzymają w ramach jednego runu). Pod **Send** → **Cookies** po loginie ma być `localhost` z `cc_access` i `cc_refresh`. W Settings requestu **nie** zaznaczaj **Disable cookie jar**. Interceptor / sync z przeglądarki nie jest potrzebny.
 
 ## Import i odpalenie (Postman GUI)
 
@@ -28,13 +31,13 @@ Auth **nie** jest wymagany (Faza 5 później). Cookie jar w Postmanie niepotrzeb
 2. Collection Runner:
    - Social: foldery w kolejności **Setup → A → B → C → D**.
    - Content: foldery w kolejności **Setup → A → B**.
-3. Zmienna `baseUrl` (domyślnie `http://localhost:3001/api/v1`) — zmień tylko gdy api nie stoi na 3001.
+3. Zmienna `baseUrl` (domyślnie `http://localhost:3001/api/v1`) — zmień tylko gdy api nie stoi na 3001. `adminEmail` / `adminPassword` zmieniaj tylko gdy lokalny admin ma inne dane niż w kolekcji auth.
 
 Pętla `GET /runs/:runId` jest w skryptach testów (do ~6 min na poll). SSE nie jest częścią DoD Milestone 4 / 4.2.
 
 ## Newman (opcjonalnie)
 
-Runner nie jest spięty w SPEC — GUI Postmana albo Newman są równoważne.
+Runner nie jest spięty w SPEC — GUI Postmana albo Newman są równoważne. Newman trzyma cookie jar w ramach jednego `run`.
 
 ```bash
 npx --yes newman run apps/api/test/postman/social-pipeline.postman-collection.json
@@ -45,9 +48,10 @@ npx --yes newman run apps/api/test/postman/content-pipeline.postman-collection.j
 
 W **obu** kolekcjach Setup jest ten sam:
 
-1. `PUT /company-context` — body jak żywy fixture Acme (bogatszy niż `completeContextBody` w e2e Jest). `extras` ma **znany** kształt (`hashtags`, `performanceNotes`) — **bez** nieznanych kluczy (Zod `.strict()`). PUT jest idempotentnym upsertem singletona; ponowne odpalenie **nie** wymaga wipe tabeli kontekstu. Completeness **ignoruje** extras (D-20).
-2. `GET /company-context/completeness` — asercja `complete === true` i puste `missing`.
-3. `PATCH extras` z nieznanym kluczem → **400** `VALIDATION_FAILED`; `details[].path` to string ze ścieżką Zod (separator `'.'`, bez `/`). Zapisany kontekst zostaje.
+1. `POST /auth/login` — body `adminEmail` / `adminPassword`. **200** + Set-Cookie; **401** gdy admin nie istnieje albo hasło się nie zgadza. Nie bootstrap, nie invite.
+2. `PUT /company-context` — body jak żywy fixture Acme (bogatszy niż `completeContextBody` w e2e Jest). `extras` ma **znany** kształt (`hashtags`, `performanceNotes`) — **bez** nieznanych kluczy (Zod `.strict()`). PUT jest idempotentnym upsertem singletona; ponowne odpalenie **nie** wymaga wipe tabeli kontekstu. Completeness **ignoruje** extras (D-20). Wymaga roli **admin**.
+3. `GET /company-context/completeness` — asercja `complete === true` i puste `missing`.
+4. `PATCH extras` z nieznanym kluczem → **400** `VALIDATION_FAILED`; `details[].path` to string ze ścieżką Zod (separator `'.'`, bez `/`). Zapisany kontekst zostaje.
 
 **Zakaz** zastępowania Setupu seedem Prisma / SQL. Bramka startu runu (`CONTEXT_INCOMPLETE`) i graf (`load-context`) mają zobaczyć ten sam kontrakt HTTP co UI.
 
@@ -70,7 +74,7 @@ Pokrycie warstwą adekwatną: **Jest e2e** (`company-context`, `social-pipeline`
 
 | ID | Co sprawdza | Gdzie |
 |----|-------------|--------|
-| **D-20** | Znany `extras` round-trip; nieznany klucz → 400 `VALIDATION_FAILED`; `details[].path` z `parseWithZod` (separator `'.'`); completeness ignoruje extras | Jest `company-context.e2e-spec.ts`; Postman Setup (PUT znanego kształtu + PATCH unknown) |
+| **D-20** | Znany `extras` round-trip; nieznany klucz → 400 `VALIDATION_FAILED`; `details[].path` z `parseWithZod` (separator `'.'`); completeness ignoruje extras | Jest `company-context.e2e-spec.ts`; Postman Setup (login + PUT znanego kształtu + PATCH unknown) |
 | **D-21** | HITL Social: 0 id / duplikat / obcy → 400 `HITL_INVALID_SELECTION` (status `awaiting_hitl`). **1** legalne id → tablica długości 1. **2** legalne id → 2 artefakty (`contents[]` / `reelScripts[]` + `sourceIdeaId`). **Nie** ma case’u „dwa różne legalne id → 400” | Jest: 1 id w D-5/D-16, 2 id + negatywy w D-21. Postman B/D: negatywy + happy path **1** id (tablice, nie skalar). **2 z N** = Jest (żywy gateway nie dubluje hopów writer w Collection Runnerze) |
 | **D-22** | `characterCount === body.length` na każdej pozycji `contents[]`; outline z `role` enum przechodzi; nieznany `role` → fail parse (unit schema) | Jest Social (characterCount na 1 i 2 pozycjach) + Content e2e z `role`; Postman B `characterCount`; Content B — `role` opcjonalne, gdy obecne ∈ enum |
 
@@ -81,6 +85,6 @@ Skalar `result.content` / `result.reelScript` na dwuetapowych (`post_ideas_then_
 - `post_content` solo
 - `reel_script` solo (Jest e2e, nie Postman)
 - SSE (`GET .../events`)
-- Auth / cookie
+- Pełna suite auth (bootstrap, refresh, logout, invite, accept-invite, 401/403) — `auth.postman-collection.json`
 - Suite CI PR
 - Pełny happy path **2 id → 2 hopów LLM** na żywym gateway (Jest + fake LLM)

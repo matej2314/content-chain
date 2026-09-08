@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "e9f2c4a1-3b70-48d5-9e1a-6c5d8f0b2a14",
     "name": "Content Chain — API",
-    "description": "Ogólna kolekcja wszystkich requestów `apps/api` — **bez testów**. Przykładowe body i zmienne do ustawienia.\n\n**Zmienne kolekcji:** `baseUrl` (HTTP API z prefixem `/api/v1`), `originUrl` (host bez prefixu — `GET /metrics` jest wyłączony z global prefixu), `adminEmail` / `adminPassword`, `runId`, `ideaId`, `userId`.\n\n**Cookies:** login i bootstrap-admin ustawiają httpOnly `cc_access` + `cc_refresh` (path `/`). Włącz cookie jar. Chronione: AUTH `me`/`logout`, cały COMPANY-CONTEXT, cały RUNS. Publiczne: AUTH bootstrap/login/refresh, HEALTH, METRICS.\n\nKatalogi: AUTH, HEALTH, METRICS, COMPANY-CONTEXT, RUNS.",
+    "description": "Katalog requestów `apps/api` — **bez testów**, do ręcznego Send. Przykładowe body i zmienne.\n\nSuite z asercjami: `test/postman/auth.postman-collection.json`, `social-pipeline.postman-collection.json`, `content-pipeline.postman-collection.json`.\n\n**Zmienne:** `baseUrl` (prefix `/api/v1`), `originUrl` (`GET /metrics` bez prefixu), `adminEmail` / `adminPassword` (jak w kolekcji auth), `inviteEmail` / `invitePassword` / `inviteToken`, `invitationId`, `runId`, `ideaId`, `userId`.\n\n**Cookies:** bootstrap-admin i login ustawiają httpOnly `cc_access` + `cc_refresh` (path `/`). Cookie jar jest włączony domyślnie (Send → Cookies). `accept-invite` **nie** ustawia cookies — potem zwykły login.\n\n**Publiczne:** AUTH bootstrap-status / bootstrap-admin / login / accept-invite / refresh, HEALTH, METRICS.\n**Sesja (dowolna rola):** AUTH me/logout, COMPANY-CONTEXT GET, cały RUNS.\n**Tylko admin:** PUT/PATCH company-context, cały INVITATIONS, USERS. `user` → 403.\n\nKatalogi: AUTH, INVITATIONS, USERS, HEALTH, METRICS, COMPANY-CONTEXT, RUNS.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -20,7 +20,23 @@
     },
     {
       "key": "adminPassword",
-      "value": "Password12!"
+      "value": "Password12!!"
+    },
+    {
+      "key": "inviteEmail",
+      "value": "user@example.com"
+    },
+    {
+      "key": "invitePassword",
+      "value": "Password12!!"
+    },
+    {
+      "key": "inviteToken",
+      "value": "paste-raw-token-from-api-log"
+    },
+    {
+      "key": "invitationId",
+      "value": "inv_11111111-1111-4111-8111-111111111111"
     },
     {
       "key": "runId",
@@ -38,7 +54,7 @@
   "item": [
     {
       "name": "AUTH",
-      "description": "Sesja cookie: `cc_access` (JWT) i `cc_refresh`. Publiczne: bootstrap-status, bootstrap-admin, login, refresh. Chronione: logout, me.\n\nHasło admina (polityka): min. 12 znaków, cyfra, wielka litera, znak specjalny. Bootstrap jest jednorazowy (potem 409).",
+      "description": "Sesja cookie: `cc_access` (JWT) i `cc_refresh`. Publiczne: bootstrap-status, bootstrap-admin, login, accept-invite, refresh. Chronione: logout, me.\n\nHasło (polityka): min. 12 znaków, cyfra, wielka litera, znak specjalny. Bootstrap jest jednorazowy (potem 409). `accept-invite` tworzy `role=user` **bez** Set-Cookie — potem `POST login` tym kontem.",
       "item": [
         {
           "name": "GET bootstrap-status",
@@ -82,7 +98,43 @@
               "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
             },
             "url": "{{baseUrl}}/auth/login",
-            "description": "Publiczny. 200 `{ expiresIn, user }` + cookies. 401 Invalid credentials."
+            "description": "Publiczny. 200 `{ expiresIn, user }` + cookies. 401 Invalid credentials. Konto nieaktywne → 401."
+          }
+        },
+        {
+          "name": "POST accept-invite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{inviteToken}}\",\n  \"password\": \"{{invitePassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/accept-invite",
+            "description": "Publiczny. 201 `{ user: { id, email, role } }` z `role=user`. **Bez** Set-Cookie i bez tokenów w JSON. Raw token z maila albo logu api (`LoggingMailerAdapter`), **nie** z JSON `POST /invitations`. Zły/zużyty/wygasły token → 401. Słabe hasło → 400. Email zajęty → 409."
+          }
+        },
+        {
+          "name": "POST login (invited user)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{inviteEmail}}\",\n  \"password\": \"{{invitePassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Po accept-invite. 200 + cookies jako `user`. PUT company-context i `/invitations` → 403."
           }
         },
         {
@@ -110,6 +162,81 @@
             "header": [],
             "url": "{{baseUrl}}/auth/me",
             "description": "Chroniony (`cc_access`). `{ id, email, role }`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "INVITATIONS",
+      "description": "Cały zasób: sesja admina (`@Roles('admin')`). `user` → 403. Raw token **nie** wraca w JSON — po create/resend wklej `inviteToken` z logu api. `invitationId` = `inv_<uuid>`. Email case-sensitive. Pending (także wygasły) na ten sam email → 409.",
+      "item": [
+        {
+          "name": "GET invitations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/invitations",
+            "description": "200 `{ items: [{ id, email, createdAt, expiresAt, invitedBy }] }`. MVP: wszystkie `pending` (w tym wygasłe). Bez tokenu / hashu."
+          }
+        },
+        {
+          "name": "POST invitations",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{inviteEmail}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/invitations",
+            "description": "201 `{ id, email, expiresAt }` (bez tokenu). Skopiuj `id` do `invitationId`. Istniejący User albo pending → 409. Pad SMTP (production) → 503 `MAIL_DELIVERY_FAILED`."
+          }
+        },
+        {
+          "name": "POST invitations resend",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/invitations/{{invitationId}}/resend",
+            "description": "201 — to samo `id`, nowy token (stary nieważny) + nowy `expiresAt`. Token znowu tylko w logu. Brak / nie-pending → 404."
+          }
+        },
+        {
+          "name": "DELETE invitations",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/invitations/{{invitationId}}",
+            "description": "200 `{ ok: true }`. Revoke pending (status `revoked`), nie twardy DELETE wiersza. Brak / nie-pending → 404."
+          }
+        }
+      ]
+    },
+    {
+      "name": "USERS",
+      "description": "Cały zasób: sesja admina. **Brak** `POST /users` — konto `user` tylko przez zaproszenie. Soft-delete nie usuwa wiersza (login zablokowany).",
+      "item": [
+        {
+          "name": "GET users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users",
+            "description": "200 `{ items: [{ id, email, role, isActive, createdAt }] }`. Bez pending invites."
+          }
+        },
+        {
+          "name": "DELETE user",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{userId}}",
+            "description": "200 `{ ok: true }`. Soft-delete / dezaktywacja. `userId` = `usr_<uuid>` z listy. Nie wolno deaktywować admina → 403. Nieistniejący → 404."
           }
         }
       ]
@@ -146,7 +273,7 @@
     },
     {
       "name": "COMPANY-CONTEXT",
-      "description": "Singleton kontekstu firmy. Wszystkie requesty chronione (`cc_access`). PUT = pełny upsert. PATCH = częściowa zmiana. `extras` ma znany kształt Zod `.strict()` (`hashtags`, `performanceNotes`, `caseStudies`, `objections`, `catalogNotes`); nieznany klucz → 400 VALIDATION_FAILED.",
+      "description": "Singleton kontekstu firmy. Wszystkie requesty wymagają `cc_access`. GET: dowolna sesja (admin lub user). PUT/PATCH: tylko **admin** (`user` → 403). PUT = pełny upsert. PATCH = częściowa zmiana. `extras` ma znany kształt Zod `.strict()` (`hashtags`, `performanceNotes`, `caseStudies`, `objections`, `catalogNotes`); nieznany klucz → 400 VALIDATION_FAILED.",
       "item": [
         {
           "name": "GET company-context",
@@ -181,7 +308,7 @@
               "raw": "{\n  \"identity\": {\n    \"name\": \"Acme\",\n    \"description\": \"Acme pomaga founderom B2B SaaS ogarnąć chaos operacyjny, zanim skala sprzedaży rozjedzie się z delivery. Od 2019 robimy audyty procesów w zespołach 8–40 osób w Polsce i CEE — bez wdrożenia w cenie, z listą usprawnień do samodzielnego pociągnięcia.\"\n  },\n  \"offer\": {\n    \"items\": [\n      {\n        \"name\": \"Audyt procesów operacyjnych\",\n        \"benefit\": [\n          \"Średnio 6 godzin tygodniowo odzyskane u klientów po wdrożeniu rekomendacji\",\n          \"Mapa wąskich gardeł w 10 dni roboczych\",\n          \"Jedna lista priorytetów zamiast dwudziestu równoległych inicjatyw\"\n        ],\n        \"description\": \"Wywiady z founderem i 3–5 osobami z ops/CS/product, mapa as-is, lista usprawnień z szacunkiem wysiłku. Bez implementacji w cenie audytu.\"\n      },\n      {\n        \"name\": \"Sesja priorytetyzacji Q+1\",\n        \"benefit\": [\n          \"Trzy tematy na kolejny kwartał, reszta świadomie odłożona\"\n        ],\n        \"description\": \"Południowa jednodniówka po audycie: wybór trzech tematów na najbliższy kwartał i właścicieli. Opcja, nie pakiet obowiązkowy.\"\n      }\n    ]\n  },\n  \"voice\": {\n    \"weDo\": \"konkret, liczby z audytu, język founderski, krótkie zdania, bez slajdowego entuzjazmu\",\n    \"weDont\": \"żargon, puste obietnice wzrostu MRR, porównywanie z konkurencją, korpo-ogólniki w stylu synergia i transformacja\"\n  },\n  \"cta\": {\n    \"items\": [\n      { \"label\": \"Napisz do nas\", \"target\": \"/kontakt\" },\n      { \"label\": \"Umów 20 minut na wstępny zakres audytu\", \"target\": \"/kontakt\" }\n    ]\n  },\n  \"audience\": {\n    \"profiles\": [\n      {\n        \"description\": \"Founder SaaS B2B, zespół 8–40 osób, po seedzie lub serii A. Sprzedaż idzie, a onboarding, CS i handoff między product a ops się sypią. Szuka przeglądu procesów, nie kolejnego narzędzia.\"\n      }\n    ]\n  },\n  \"extras\": {\n    \"hashtags\": [\"#acme\", \"#saasops\", \"#founders\"],\n    \"performanceNotes\": \"Klienci po audycie najczęściej tną tygodniowy chaos spotkań i ręcznych handoffów; typowy trop to 6 godzin odzyskane tygodniowo, nie skok MRR.\",\n    \"catalogNotes\": \"Audyt bez wdrożenia w cenie.\",\n    \"caseStudies\": [\n      {\n        \"title\": \"SaaS 25 osób\",\n        \"summary\": \"Po audycie zespół uciął cotygodniowe statusy i ręczne handoffy CS → product.\",\n        \"metrics\": [\"6h / tydzień odzyskane\"]\n      }\n    ],\n    \"objections\": [\n      {\n        \"label\": \"Nie mamy czasu na audyt\",\n        \"response\": \"Wywiady mieszczą się w 10 dniach roboczych; implementacja nie jest w cenie.\"\n      }\n    ]\n  }\n}\n"
             },
             "url": "{{baseUrl}}/company-context",
-            "description": "Pełny upsert singletona. Wymagane: identity, offer, voice, cta, audience. extras opcjonalne, znane klucze."
+            "description": "Pełny upsert singletona (admin). Wymagane: identity, offer, voice, cta, audience. extras opcjonalne, znane klucze. `user` → 403."
           }
         },
         {
@@ -199,14 +326,14 @@
               "raw": "{\n  \"identity\": {\n    \"name\": \"Acme\",\n    \"description\": \"Zaktualizowany opis firmy — nadal B2B SaaS ops.\"\n  },\n  \"voice\": {\n    \"weDo\": \"konkret, liczby, język founderski\"\n  }\n}\n"
             },
             "url": "{{baseUrl}}/company-context",
-            "description": "Częściowa zmiana. Każda sekcja opcjonalna. Nested identity/voice: tylko podane pola."
+            "description": "Częściowa zmiana (admin). Każda sekcja opcjonalna. Nested identity/voice: tylko podane pola. `user` → 403."
           }
         }
       ]
     },
     {
       "name": "RUNS",
-      "description": "Wszystkie requesty chronione (`cc_access`). Start runu wymaga kompletnego company-context (inaczej 409 CONTEXT_INCOMPLETE).\n\nSocial: `taskType` + `platform` (linkedin|facebook|instagram) + `language` + `brief.topic`. Content: `taskType` + `contentKind` (blog|service_page|landing) + `language` + `brief.topic` — **bez** `platform`.\n\n`runId` ma format `run_<uuid>`. Po POST ustaw `runId` z odpowiedzi. HITL: wstaw `ideaId` z `result` / `hitl.options`.",
+      "description": "Wszystkie requesty chronione (`cc_access`) — admin i user. `POST /runs` ustawia `startedBy` z sesji. Start wymaga kompletnego company-context (inaczej 409 CONTEXT_INCOMPLETE).\n\nSocial: `taskType` + `platform` (linkedin|facebook|instagram) + `language` + `brief.topic`. Content: `taskType` + `contentKind` (blog|service_page|landing) + `language` + `brief.topic` — **bez** `platform`.\n\n`runId` ma format `run_<uuid>`. Po POST skopiuj `runId` z odpowiedzi. HITL: wstaw `ideaId` z `result` / `hitl.options`. Snapshot/lista: `startedBy: { id, email }` (albo null na starych runach).",
       "item": [
         {
           "name": "Start",
@@ -364,7 +491,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/runs?page=1&status=completed&taskType=post_ideas&platform=linkedin",
-            "description": "Lista z paginacją. Query (wszystkie opcjonalne poza page default 1): page (min. 1), status (queued|running|interrupted|awaiting_hitl|completed|failed), taskType, platform (linkedin|facebook|instagram|web), userId (`usr_<uuid>` — zły format → 400). Usuń filtry z URL, jeśli nie potrzebujesz."
+            "description": "Lista z paginacją (`startedBy` na pozycji). Query (wszystkie opcjonalne poza page default 1): page (min. 1), status (queued|running|interrupted|awaiting_hitl|completed|failed), taskType, platform (linkedin|facebook|instagram|web), userId (`usr_<uuid>` — zły format → 400). Usuń filtry z URL, jeśli nie potrzebujesz."
           }
         },
         {
@@ -373,7 +500,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/runs/{{runId}}",
-            "description": "Snapshot runu + result / hitl. `runId` = `run_<uuid>`."
+            "description": "Snapshot runu + result / hitl + `startedBy`. `runId` = `run_<uuid>`."
           }
         },
         {

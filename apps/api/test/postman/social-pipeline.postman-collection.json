@@ -2,13 +2,21 @@
   "info": {
     "_postman_id": "7c2e1f4a-9b3d-4e8f-a1c5-6d0e9f2b8a47",
     "name": "Content Chain — Social pipeline (Milestone 4)",
-    "description": "Happy path Milestone 4 + 4.1 + kontrakt 4.3: Setup kontekstu przez HTTP (znane extras + PATCH unknown → 400), potem posty (A/B) i rolki (C `reel_ideas`, D `reel_ideas_then_scripts`). HITL B/D: negatywy 0/duplikat/obcy oraz 1 legalne id → `contents[]` / `reelScripts[]` (skalar then_* = null).\n\nFoldery: Setup → A. post_ideas → B. post_ideas_then_content → C. reel_ideas → D. reel_ideas_then_scripts.\n\nWymaga żywego `apps/api` (`:3001`) i lokalnego gateway. Auth nie jest wymagany (Faza 5 później). Kolekcja nie woła gateway — klient uderza wyłącznie w api.\n\nNie jest to suite `pnpm test:e2e`. Jak odpalić: `apps/api/test/postman/README.md`.",
+    "description": "Happy path Milestone 4 + 4.1 + kontrakt 4.3: Setup (login admina → kontekst przez HTTP: znane extras + PATCH unknown → 400), potem posty (A/B) i rolki (C `reel_ideas`, D `reel_ideas_then_scripts`). HITL B/D: negatywy 0/duplikat/obcy oraz 1 legalne id → `contents[]` / `reelScripts[]` (skalar then_* = null).\n\nFoldery: Setup → A. post_ideas → B. post_ideas_then_content → C. reel_ideas → D. reel_ideas_then_scripts.\n\nWymaga żywego `apps/api` (`:3001`), lokalnego gateway i **istniejącego admina** w bazie (`adminEmail` / `adminPassword` — te same wartości co `auth.postman-collection.json`). Setup zaczyna się od `POST /auth/login` (cookie `cc_access` / `cc_refresh`); nie tworzy konta. W Postmanie włącz cookie jar. Kolekcja nie woła gateway — klient uderza wyłącznie w api.\n\nNie jest to suite `pnpm test:e2e`. Jak odpalić: `apps/api/test/postman/README.md`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
       "value": "http://localhost:3001/api/v1"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "adminPassword",
+      "value": "Password12!!"
     },
     {
       "key": "runId",
@@ -22,8 +30,50 @@
   "item": [
     {
       "name": "Setup",
-      "description": "Idempotentny upsert singletona kontekstu firmy. Bramka startu runu (`CONTEXT_INCOMPLETE`) i graf (`load-context`) widzą ten sam kontrakt HTTP co UI. Zakaz seeda Prisma/SQL jako substytutu.",
+      "description": "Login istniejącego admina (cookies sesji), potem idempotentny upsert singletona kontekstu firmy. PUT/PATCH kontekstu wymagają roli admin. Bramka startu runu (`CONTEXT_INCOMPLETE`) i graf (`load-context`) widzą ten sam kontrakt HTTP co UI. Zakaz seeda Prisma/SQL jako substytutu. Konto nie jest tu tworzone — Bootstrap jest w `auth.postman-collection.json`.",
       "item": [
+        {
+          "name": "POST login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 (admin must already exist in DB)', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "pm.test('sets cc_access and cc_refresh cookies', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.include('cc_access=');",
+                  "  pm.expect(cookies).to.include('cc_refresh=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Pozyskuje httpOnly `cc_access` + `cc_refresh` dla istniejącego admina. 401 → konto nie istnieje albo hasło nie zgadza się z `adminEmail` / `adminPassword` (te same co w `auth.postman-collection.json`). Nie wywołuje bootstrap-admin."
+          }
+        },
         {
           "name": "PUT company-context",
           "event": [

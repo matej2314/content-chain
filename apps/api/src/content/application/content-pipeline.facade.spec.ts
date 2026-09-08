@@ -8,7 +8,7 @@ import {
 import type { ContentResultStore } from '../domain/content-result.port';
 import type { PageDocument, PageOutline } from '../domain/content.types';
 import type { ContentGraphState } from '../infrastructure/graph/state';
-import { LlmHopService } from '../../shared/llm/llm-hop';
+import { type LlmHopService } from '../../shared/llm/llm-hop';
 import { compileContentGraph } from '../infrastructure/graph/content.graph';
 import { ContentPipelineFacade, toOutcome } from './content-pipeline.facade';
 

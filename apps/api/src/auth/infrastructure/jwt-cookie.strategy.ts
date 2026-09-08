@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { createUserId, isUserId, isUserRole } from '@content-chain/shared';
 import { ENV, type Env } from '../../shared/config/env';
 import { DomainException } from '../../shared/exceptions/domain.exception';
+import { readCookie } from './cookie.helper';
 import type { Request } from 'express';
 import type { AuthUserContext } from '../domain/auth-user.types';
 
@@ -25,7 +26,7 @@ export class JwtCookieStrategy extends PassportStrategy(
       jwtFromRequest: ExtractJwt.fromExtractors([
         (req: Request | undefined) => {
           if (!req?.cookies) return null;
-          const token = req.cookies['cc_access'];
+          const token = readCookie(req, 'cc_access');
           return typeof token === 'string' && token.length > 0 ? token : null;
         },
       ]),

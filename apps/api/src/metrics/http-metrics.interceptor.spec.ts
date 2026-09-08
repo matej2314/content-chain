@@ -1,6 +1,6 @@
 import { lastValueFrom, of, throwError } from 'rxjs';
 import {
-  ExecutionContext,
+  type ExecutionContext,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';

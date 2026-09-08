@@ -17,44 +17,44 @@ import type { RunResultReader } from '../domain/run-result-reader.port';
 
 @Injectable()
 export class EmptyRunResultReader implements RunResultReader {
-  async listIdeas(_runId: RunId): Promise<SocialIdea[]> {
-    return [];
+  listIdeas(_runId: RunId): Promise<SocialIdea[]> {
+    return Promise.resolve([]);
   }
 
-  async getContent(_runId: RunId): Promise<{
+  getContent(_runId: RunId): Promise<{
     content: SocialContent;
     verification: VerifierVerdict | null;
   } | null> {
-    return null;
+    return Promise.resolve(null);
   }
 
-  async listContents(_runId: RunId): Promise<SocialContentItem[]> {
-    return [];
+  listContents(_runId: RunId): Promise<SocialContentItem[]> {
+    return Promise.resolve([]);
   }
 
-  async listReelIdeas(_runId: RunId): Promise<ReelIdea[]> {
-    return [];
+  listReelIdeas(_runId: RunId): Promise<ReelIdea[]> {
+    return Promise.resolve([]);
   }
 
-  async getReelScript(_runId: RunId): Promise<{
+  getReelScript(_runId: RunId): Promise<{
     script: ReelScript;
     verification: VerifierVerdict | null;
   } | null> {
-    return null;
+    return Promise.resolve(null);
   }
 
-  async listReelScripts(_runId: RunId): Promise<ReelScriptItem[]> {
-    return [];
+  listReelScripts(_runId: RunId): Promise<ReelScriptItem[]> {
+    return Promise.resolve([]);
   }
 
-  async getPageOutline(_runId: RunId): Promise<PageOutline | null> {
-    return null;
+  getPageOutline(_runId: RunId): Promise<PageOutline | null> {
+    return Promise.resolve(null);
   }
 
-  async getPageDocument(_runId: RunId): Promise<{
+  getPageDocument(_runId: RunId): Promise<{
     document: PageDocument | null;
     verification: VerifierVerdict | null;
   } | null> {
-    return null;
+    return Promise.resolve(null);
   }
 }

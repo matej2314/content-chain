@@ -53,7 +53,7 @@ export class LoginUseCase {
       role: userForAuth.role,
     });
 
-    const { raw: refreshToken, hash: tokenHash } = await generateRefreshToken();
+    const { raw: refreshToken, hash: tokenHash } = generateRefreshToken();
 
     await this.sessions.create({
       id: uuidv4(),

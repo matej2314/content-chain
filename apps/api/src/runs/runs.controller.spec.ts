@@ -1,6 +1,8 @@
 import 'reflect-metadata';
 import { firstValueFrom, NEVER, of, Subject, take, toArray } from 'rxjs';
 import { Test, type TestingModule } from '@nestjs/testing';
+import { createUserId } from '@content-chain/shared';
+import type { AuthUserContext } from '../auth/domain/auth-user.types';
 import { ENV, type Env } from '../shared/config/env';
 import { IS_PUBLIC_KEY } from '../shared/decorators/public.decorator';
 import { ROLES_KEY } from '../shared/decorators/roles.decorator';
@@ -11,10 +13,16 @@ import { ListRunsUseCase } from './application/list-runs.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
 import { RUN_SSE_HUB, type RunSseEvent } from './domain/run-sse.port';
-import { ListRunsQueryDto } from './http/dto/list-runs-query.dto';
-import { HitlDto } from './http/dto/hitl.dto';
-import { StartRunDto } from './http/dto/start-run.dto';
+import { type ListRunsQueryDto } from './http/dto/list-runs-query.dto';
+import { type HitlDto } from './http/dto/hitl.dto';
+import { type StartRunDto } from './http/dto/start-run.dto';
 import { RunsController } from './runs.controller';
+
+const sessionUser: AuthUserContext = {
+  id: createUserId('usr_11111111-1111-4111-8111-111111111111'),
+  email: 'admin@example.com',
+  role: 'admin',
+};
 
 const HEARTBEAT_MS = 25_000;
 
@@ -133,12 +141,12 @@ describe('RunsController', () => {
       brief: { topic: 'Q3' },
     };
 
-    await expect(controller.create(body)).resolves.toEqual({
+    await expect(controller.create(body, sessionUser)).resolves.toEqual({
       runId: id,
       conversationId,
       status: 'queued',
     });
-    expect(startRun.execute).toHaveBeenCalledWith(body);
+    expect(startRun.execute).toHaveBeenCalledWith(body, sessionUser.id);
   });
 
   it('delegates GET :runId to GetRunUseCase', async () => {

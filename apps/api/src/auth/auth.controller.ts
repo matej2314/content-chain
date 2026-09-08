@@ -27,6 +27,7 @@ import { BootstrapAdminDto } from './http/bootstrap-admin.dto';
 import { LoginDto } from './http/login.dto';
 import { AcceptInviteDto } from './http/accept-invite.dto';
 import { ENV, type Env } from '../shared/config/env';
+import { readCookie } from './infrastructure/cookie.helper';
 import type { AuthUserContext } from './domain/auth-user.types';
 import type { Request, Response } from 'express';
 
@@ -91,10 +92,8 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const raw = req.cookies?.['cc_refresh'];
-    const result = await this.refresh.execute(
-      typeof raw === 'string' ? raw : undefined,
-    );
+    const raw = readCookie(req, 'cc_refresh');
+    const result = await this.refresh.execute(raw);
     setAuthCookies(res, result.accessToken, result.refreshToken, this.env);
     return { expiresIn: this.env.JWT_ACCESS_TTL };
   }
@@ -109,11 +108,8 @@ export class AuthController {
     if (!user) {
       throw new UnauthorizedException();
     }
-    const raw = req.cookies?.['cc_refresh'];
-    await this.logout.execute(
-      user.id,
-      typeof raw === 'string' ? raw : undefined,
-    );
+    const raw = readCookie(req, 'cc_refresh');
+    await this.logout.execute(user.id, raw);
     clearAuthCookies(res, this.env);
     return { ok: true };
   }

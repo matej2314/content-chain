@@ -11,6 +11,18 @@ import {
   metricsRegistry,
 } from '../metrics/metrics.registry';
 
+function jsonFromFetchBody(fetchMock: jest.Mock): unknown {
+  const init: unknown = fetchMock.mock.calls[0]?.[1];
+  if (typeof init !== 'object' || init === null || !('body' in init)) {
+    throw new Error('expected fetch RequestInit with body');
+  }
+  const body: unknown = init.body;
+  if (typeof body !== 'string') {
+    throw new Error('expected string fetch body');
+  }
+  return JSON.parse(body);
+}
+
 const env = {
   NODE_ENV: 'development',
   GATEWAY_BASE_URL: 'http://127.0.0.1:3100',
@@ -105,10 +117,12 @@ describe('LlmGatewayHttpAdapter', () => {
       ...command,
       params: { temperature: 0.4, maxOutputTokens: 2048 },
     });
-    const body = JSON.parse(
-      String((fetchMock.mock.calls[0][1] as RequestInit).body),
+    const body = jsonFromFetchBody(fetchMock);
+    expect(body).toEqual(
+      expect.objectContaining({
+        params: { temperature: 0.4, maxOutputTokens: 2048 },
+      }),
     );
-    expect(body.params).toEqual({ temperature: 0.4, maxOutputTokens: 2048 });
   });
 
   it('omits params from gateway body when absent', async () => {
@@ -124,9 +138,7 @@ describe('LlmGatewayHttpAdapter', () => {
 
     const adapter = new LlmGatewayHttpAdapter(env);
     await adapter.chat(command);
-    const body = JSON.parse(
-      String((fetchMock.mock.calls[0][1] as RequestInit).body),
-    );
+    const body = jsonFromFetchBody(fetchMock);
     expect(body).not.toHaveProperty('params');
   });
 
@@ -147,12 +159,11 @@ describe('LlmGatewayHttpAdapter', () => {
       ...command,
       messages: [{ role: 'user', content }],
     });
-    const body = JSON.parse(
-      String((fetchMock.mock.calls[0][1] as RequestInit).body),
-    ) as { messages: Array<{ role: string; content: string }> };
-    expect(body.messages).toHaveLength(1);
-    expect(body.messages[0]?.role).toBe('user');
-    expect(body.messages[0]?.content).toBe(content);
+    expect(jsonFromFetchBody(fetchMock)).toEqual(
+      expect.objectContaining({
+        messages: [expect.objectContaining({ role: 'user', content })],
+      }),
+    );
   });
 
   it('maps gateway errors without leaking the key and preserves details', async () => {

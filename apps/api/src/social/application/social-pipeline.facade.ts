@@ -68,7 +68,7 @@ export class SocialPipelineFacade {
     }
     if (!isSocialPlatform(run.platform)) {
       throw new Error(
-        `SocialPipelineFacade received non-social platform: ${run.platform}`,
+        `SocialPipelineFacade received non-social platform: ${String(run.platform)}`,
       );
     }
 

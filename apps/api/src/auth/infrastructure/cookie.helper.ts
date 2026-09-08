@@ -1,5 +1,5 @@
 import { parseTtlMs } from '../application/auth.helpers';
-import type { Response } from 'express';
+import type { CookieOptions, Response, Request } from 'express';
 import type { Env } from '../../shared/config/env';
 
 const ACCESS_COOKIE = 'cc_access';
@@ -12,10 +12,10 @@ export function setAuthCookies(
   env: Env,
 ): void {
   const isProduction = env.NODE_ENV === 'production';
-  const base = {
+  const base: CookieOptions = {
     httpOnly: true,
     secure: isProduction,
-    sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
+    sameSite: isProduction ? 'strict' : 'lax',
     path: '/',
   };
   res.cookie(ACCESS_COOKIE, access, {
@@ -30,12 +30,19 @@ export function setAuthCookies(
 
 export function clearAuthCookies(res: Response, env: Env): void {
   const isProduction = env.NODE_ENV === 'production';
-  const base = {
+  const base: CookieOptions = {
     httpOnly: true,
     secure: isProduction,
-    sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
+    sameSite: isProduction ? 'strict' : 'lax',
     path: '/',
   };
   res.clearCookie(ACCESS_COOKIE, base);
   res.clearCookie(REFRESH_COOKIE, base);
+}
+
+export function readCookie(req: Request, name: string): string | undefined {
+  const cookies: unknown = req.cookies;
+  if (typeof cookies !== 'object' || cookies === null) return undefined;
+  const value = (cookies as Record<string, unknown>)[name];
+  return typeof value === 'string' ? value : undefined;
 }

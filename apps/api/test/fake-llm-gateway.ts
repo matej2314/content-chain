@@ -8,7 +8,7 @@ import type {
 
 export const FAKE_LLM_REQUEST_ID = 'req_123e4567-e89b-12d3-a456-426614174000';
 
-export type FakeLlmScriptItem = string | 'GATEWAY_FAIL';
+export type FakeLlmScriptItem = string;
 
 export type PageOutlineSectionRoleFixture =
   | 'audience_world'
@@ -29,23 +29,25 @@ export class FakeLlmGateway implements LlmGatewayPort {
     this.calls = [];
   }
 
-  async chat(command: LlmChatCommand): Promise<LlmChatResult> {
+  chat(command: LlmChatCommand): Promise<LlmChatResult> {
     this.calls.push(command);
     const next = this.script.shift();
     if (next === 'GATEWAY_FAIL') {
-      throw new LlmGatewayError(
-        'Gateway chat failed (PROVIDER_UNAVAILABLE)',
-        'PROVIDER_UNAVAILABLE',
-        undefined,
-        true,
+      return Promise.reject(
+        new LlmGatewayError(
+          'Gateway chat failed (PROVIDER_UNAVAILABLE)',
+          'PROVIDER_UNAVAILABLE',
+          undefined,
+          true,
+        ),
       );
     }
-    return {
+    return Promise.resolve({
       text: next ?? inferReply(command),
       requestId: createRequestId(FAKE_LLM_REQUEST_ID),
       conversationId: command.conversationId,
       model: 'chat-default',
-    };
+    });
   }
 }
 
