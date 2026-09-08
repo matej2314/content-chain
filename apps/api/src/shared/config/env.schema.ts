@@ -6,6 +6,7 @@ export const envSchema = z
       .enum(['development', 'production', 'test'])
       .default('development'),
     PORT: z.coerce.number().int().positive().default(3001),
+    APP_PUBLIC_URL: z.string().url().optional(),
     DATABASE_URL: z.string().min(1),
     GATEWAY_BASE_URL: z.string().url(),
     GATEWAY_KEY: z.string().min(1),
@@ -17,6 +18,12 @@ export const envSchema = z
     JWT_REFRESH_TTL: z.string().min(1).default('1d'),
     CORS_ORIGIN: z.string().min(1),
     MAX_CONCURRENT_RUNS: z.coerce.number().int().positive().default(3),
+    INVITE_TTL: z.string().min(1).default('7d'),
+    MAIL_FROM: z.string().min(1).optional(),
+    SMTP_HOST: z.string().min(1).optional(),
+    SMTP_PORT: z.coerce.number().int().positive().optional(),
+    SMTP_USER: z.string().min(1).optional(),
+    SMTP_PASS: z.string().min(1).optional(),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === 'production' && value.CORS_ORIGIN.trim() === '*') {
@@ -25,6 +32,26 @@ export const envSchema = z
         path: ['CORS_ORIGIN'],
         message: 'CORS_ORIGIN cannot be * in production',
       });
+    }
+    if (value.NODE_ENV !== 'production') {
+      return;
+    }
+    const required: Array<[string, string | number | undefined]> = [
+      ['APP_PUBLIC_URL', value.APP_PUBLIC_URL],
+      ['MAIL_FROM', value.MAIL_FROM],
+      ['SMTP_HOST', value.SMTP_HOST],
+      ['SMTP_PORT', value.SMTP_PORT],
+      ['SMTP_USER', value.SMTP_USER],
+      ['SMTP_PASS', value.SMTP_PASS],
+    ];
+    for (const [path, field] of required) {
+      if (field === undefined || field === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [path],
+          message: `${path} is required in production`,
+        });
+      }
     }
   });
 

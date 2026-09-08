@@ -19,6 +19,8 @@ Zmiana względem Milestone 4 (HITL post/reel bez walidacji długości; luźne po
 
 Zmiana względem kanonu Fazy 4.3 (HITL Social dwuetapowy = dokładnie 1 `selectedIdeaId`; 2+ id → 400): HITL Social dwuetapowy = **min. 1** unikalne id ⊆ `hitl.options`; wynik = **tablica** osobnych artefaktów (`contents[]` / `reelScripts[]` + `sourceIdeaId`); 2+ legalne, gdy wszystkie ∈ options. Content (`page_outline_then_copy`) bez zmiany: nadal `[outline.id]`.
 
+Zmiana względem kanonu Users (`POST /api/v1/users` z `email` + `password`): ta trasa **wypada z kanonu**. Jedyna droga na `role = user` = zaproszenie (admin, tylko email) → publiczny `POST /auth/accept-invite`. Soft-delete (`DELETE /users/:id`) **bez zmian**.
+
 ---
 
 ## Powierzchnia 1 — HTTP API (`apps/api`)
@@ -59,7 +61,8 @@ Wybrane kody domenowe:
 | `RUN_NOT_FOUND` | 404 | Nieznany `runId` |
 | `REVIEW_LOCKED` | 409 | Przegląd runu zatwierdzony — zmiana oceny / flagi edycji zabroniona |
 | `RUN_NOT_REVIEWABLE` | 409 | Ocena / edycja / finalize gdy status inny niż `completed` \| `failed` |
-| `CONFLICT` | 409 | Niedozwolone przejście statusu runu |
+| `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; `User.email` zajęty przy accept-invite |
+| `MAIL_DELIVERY_FAILED` | 503 | Pad SMTP po zapisie zaproszenia (create / resend); w `details` wyłącznie `id` zaproszenia |
 | `INTERNAL_ERROR` | 500 | Błąd nieobsłużony |
 
 `UNKNOWN_TASK_TYPE` nie jest kodem HTTP startu: `taskType` spoza enumu → **400** `VALIDATION_FAILED`. Composite executor używa `UNKNOWN_TASK_TYPE` wyłącznie przy wewnętrznym `execute` z typem poza unią (status `failed`, nie cichy no-op).
@@ -95,6 +98,8 @@ Jednorazowy bootstrap **pierwszego i jedynego** admina self-host. Działa tylko,
 
 **201** — `{ "user": { "id", "email", "role" } }` (+ Set-Cookie **`cc_access`** / **`cc_refresh`**). Kolejne wywołania: `CONFLICT` / `FORBIDDEN`.
 
+Nie mylić z `POST /auth/accept-invite` (publiczna akceptacja zaproszenia `user` — **bez** Set-Cookie).
+
 #### `POST /api/v1/auth/login`
 
 | Pole | Typ | Wymagane |
@@ -125,12 +130,32 @@ Probe bieżącej sesji na podstawie cookie **`cc_access`** (ta sama sesja co poz
 
 **Flow FE (norma produktowa):** po starcie aplikacji → `GET /auth/me`; przy `401` → `POST /auth/refresh`; potem ponownie `GET /auth/me`; przy kolejnym `401` → ekran logowania (albo first-run, gdy `bootstrap-status.available === true`).
 
+#### `POST /api/v1/auth/accept-invite` (publiczny)
+
+Akceptacja zaproszenia — **`@Public()`**. Nie wymaga sesji i **nie** mylić z bootstrapem. Otwarta rejestracja **zakazana**: konto `user` tylko z ważnym, niezużytym, niewygasłym, nieunieważnionym tokenem.
+
+| Pole | Typ | Wymagane |
+|------|-----|----------|
+| `token` | string | tak (raw z maila / logu dev — ten sam token) |
+| `password` | string | tak (polityka haseł — `security.md`) |
+
+**201** — `{ "user": { "id", "email", "role" } }` **bez** Set-Cookie. Potem zwykły `POST /auth/login`.
+
+| Warunek | HTTP | `code` | Skutek dla zaproszenia |
+|---------|------|--------|------------------------|
+| Token zły / zużyty / `revoked` / wygasły (`expiresAt < now`) | **401** | `UNAUTHORIZED` | ten sam komunikat (brak enumeracji tokenu); wiersz bez zmian przy złym tokenie |
+| Hasło poza polityką | **400** | `VALIDATION_FAILED` | wiersz zaproszenia **bez zmian** (walidacja **przed** transakcją) |
+| Email już zajęty (`User.email`, w tym soft-deleted) | **409** | `CONFLICT` | świadoma enumeracja „email zajęty” — **nie** maskować jako `401` |
+
+Atomowość: po walidacji tokenu i hasła **jedna** transakcja tworzy `User` (`role = user`) **oraz** ustawia Invitation na `accepted`. Szczegół transakcji = `spec/SPEC-AUTH.md` / `spec/SPEC-PERSISTENCE.md`.
+
 #### Users (admin)
+
+Zasób kont — **bez** create-z-hasłem. `POST /api/v1/users` **usunięty** z kanonu (zmiana względem: jedyna droga na `role = user` = `email` + `password` w `POST /users`).
 
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
-| `GET` | `/api/v1/users` | Lista użytkowników (w tym flaga aktywności) |
-| `POST` | `/api/v1/users` | Utworzenie **tylko** `role = user` (`email`, `password`); hasło wg `security.md` |
+| `GET` | `/api/v1/users` | Lista kont (w tym `isActive`). **Bez** pending invites. |
 | `PATCH` | `/api/v1/users/:id` | Aktualizacja (np. reaktywacja) — **bez** awansu do `admin`; poza UI MVP (API pod późniejsze V1) |
 | `DELETE` | `/api/v1/users/:id` | **Soft-delete / dezaktywacja** (konto pozostaje; login zablokowany); **nie** twarde usunięcie wiersza |
 
@@ -138,7 +163,27 @@ Zmiana względem wcześniejszego zapisu „`role` dowolna”: w MVP jest **co na
 
 Zmiana względem „DELETE = dezaktywacja / usunięcie wg polityki”: w MVP DELETE = wyłącznie soft-delete / dezaktywacja.
 
-**UI MVP (dashboard):** admin tylko **listuje** i **tworzy** użytkowników — bez edycji / dezaktywacji w UI (endpointy PATCH/DELETE zostają w api pod płynne V1).
+Cały zasób: `@Roles('admin')` + globalny JWT.
+
+#### Invitations (admin)
+
+Cały zasób: `@Roles('admin')` + globalny JWT. `user` → **403** `FORBIDDEN`.
+
+Porównanie `email` (**Invitation** i **User**) jest **case-sensitive** — bez `trim` / `toLowerCase` (`Ada@x` ≠ `ada@x`). Unikalność pending: najwyżej jeden `status = pending` na email (także **wygasły** pending blokuje nowy `POST` → **409**; operator: resend albo revoke). Po `revoked` i **bez** `User` nowy `POST` na ten email jest dozwolony. Istniejący `User` (aktywny albo soft-deleted) → **409** `CONFLICT`.
+
+| Metoda | Ścieżka | Body / uwagi |
+|--------|---------|----------------|
+| `GET` | `/api/v1/invitations` | Lista; MVP: **wszystkie** `status = pending` (w tym wygasłe: `expiresAt < now`). Pola: `id`, `email`, `createdAt`, `expiresAt`, `invitedBy`. Bez tokenu, bez hashu. |
+| `POST` | `/api/v1/invitations` | `{ "email" }` — zapis **najpierw**, potem send. Send OK (albo adapter logujący w `development` / `test`) → **201** `{ id, email, expiresAt }` (bez tokenu). Pad prawdziwego SMTP **po** zapisie → **503** `MAIL_DELIVERY_FAILED`, envelope jak pozostałe błędy CC, w `details` **`id` zaproszenia**; wiersz zostaje `pending` (operator: `resend`; retry `POST` przy pending → **409**). Adapter logujący **zawsze** kończy send sukcesem → zawsze **201**; **503** tylko przy prawdziwym SMTP (`production`). `user` → 403. Pending (także wygasły) / istniejący User → 409. |
+| `POST` | `/api/v1/invitations/:id/resend` | Rotacja tokenu (nowy raw, nowy hash, nowy `expiresAt`; stary token nieważny) + ponowny mail. Ten sam `id`. Brak / nie-pending → **404**. Pad SMTP → **503** + to samo `id` w `details`. |
+| `DELETE` | `/api/v1/invitations/:id` | Revoke pending: status `revoked` (token nieważny). **Nie** twardy DELETE wiersza — spójnie z duchem soft-delete usera, ale **osobny** zasób. |
+
+Mail zawiera jednorazowy token (link + ten sam token jako tekst pod Postman). **Nigdy** hasła. TTL zaproszenia: env `INVITE_TTL`, default **7 dni** (ten sam parser co JWT TTL, np. `7d`).
+
+**Weryfikacja MVP bez FE:** Postman (cookie jar admina z kolekcji auth) + token z ciała maila albo z logu api (`development`). Kolejność: login admina → `POST /invitations` → token z logu/maila → request **bez** cookie admina: `POST /auth/accept-invite` → `POST /auth/login` nowym kontem. Negatywy: drugi accept tego tokenu; `user` woła `POST /invitations` → 403; revoke / wygasły token; drugi `POST` przy istniejącym pending (w tym wygasłym) → 409.
+
+**UI dashboard (gdy FE powstanie):** admin podaje **email** (nie hasło) przy zaproszeniu; ekran akceptacji = publiczny formularz pierwszego hasła. Ten wycinek backendu **nie** wymaga implementacji FE — weryfikacja = Postman.
+
 ### Company context
 Bramka kompletności: sekcje z dokumentacji koncepcyjnej (tożsamość, oferta, głos SM, CTA/kanały, odbiorca). Opcjonalnie **`extras`** (`CompanyContextExtras`) — poza bramką.
 

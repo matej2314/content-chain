@@ -90,7 +90,10 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 |--------------|--------------|--------------|
 | `user` edytuje kontekst firmy | Łamie model ról | Tylko `admin`; user uruchamia runy produktowe |
 | Multi-tenant „przy okazji” (kontekst per user) | Inny produkt niż self-host jednej firmy | Jeden kontekst na instancję |
-| Drugi `admin` / awans user→admin w MVP | Łamie `security.md` | Tylko bootstrap jednego admina; potem wyłącznie `user` |
+| Drugi `admin` / awans user→admin w MVP | Łamie `security.md` | Tylko bootstrap jednego admina; potem wyłącznie `user` (przez zaproszenie) |
+| Admin ustawia hasło `user` / hasło w mailu / `POST /users` z `password` | Łamie kanon zaproszeń; admin zna sekret konta | Admin podaje **tylko email**; pierwsze hasło ustawia zaproszony na `accept-invite` |
+| Nodemailer (lub inny SMTP client) w use-case / domain | Warstwa aplikacji zależy od vendora maila | Port mailera w Auth; adapter SMTP = nodemailer **tylko** w infrastructure |
+| Dwa `pending` na ten sam email (obejście bez indeksu SQL) | Wyścig `POST /invitations`; dwa ważne tokeny | Partial unique SQL `UNIQUE (email) WHERE status = 'pending'` (jak `User_one_admin`) |
 | OAuth w MVP „bo tak się robi” | Opóźnia dowód pipeline’u | JWT w httpOnly `cc_access` + `cc_refresh`, 2 role |
 | Token SSE w query string | Wyciek w logach proxy / historii | Ta sama sesja co API (cookie httpOnly) |
 | Access JWT w body / localStorage / Bearer jako model web | XSS i niespójność z cookie-only | Wyłącznie `cc_access` + `cc_refresh` (httpOnly); Postman = cookie jar |

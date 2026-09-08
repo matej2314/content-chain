@@ -1,7 +1,7 @@
 ---
-wersja: 11
+wersja: 12
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-05
+data_modyfikacji: 2026-09-07
 ---
 
 # SPEC — Frontend
@@ -54,7 +54,8 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 - Kontekst firmy (sekcje bramki + opcjonalne **extras**), Runy (lista instancji + filtry + paginacja 10; select `taskType` obejmuje rolki i page_*; `contentKind` gdy page_*; platforma ukryta/disabled gdy page_*), Run szczegóły (live) po kliknięciu wiersza — widok wyniku **post vs rolka vs strona**;
 - HITL Social: **multi-select** (min. 1 unikalne id ⊆ `hitl.options`; np. checkboxy / chipy); Content: akceptacja outline’u (**bez** zmian — `[outline.id]`);
 - Wynik: dwuetapowy Social — **lista** postów (`contents[]`) / scenariuszy (`reelScripts[]`) z `sourceIdeaId`, nie jeden blok; jednoetapowy: skalar `content` / `reelScript`; pokaż `characterCount` na każdej pozycji post content; `cta` na pomysłach gdy jest; etykieta `role` przy sekcji outline gdy ustawione;
-- Użytkownicy (admin: **tylko** lista + tworzenie);
+- Użytkownicy (admin: lista kont + **formularz email zaproszenia** — **nie** hasło; lista pending w tym wygasłe; resend/revoke — **gdy** ekran powstanie w majorze FE);
+- **Przyszły** publiczny widok akceptacji (token z query → formularz pierwszego hasła → `POST /auth/accept-invite` → login) — **poza zakresem implementacji Fazy 5 API**;
 - Konto (**tylko** logout);
 - Globalny CTA **„Zostaw opinię”** + formularz (aplikacja / agent / run); na szczegółach runu: **Edytuj** (flaga), **gwiazdki 1–5** (dobrowolne, `null` gdy brak), **Zamknij / zapisz przegląd**.
 
@@ -62,10 +63,11 @@ Zmiana względem wersji 3: dopisano kontrolki **zapisu** feedbacku (`docs/ux_das
 Zmiana względem wersji 7: zakaz logiki pipeline w FE obejmuje Social **i** Content (wcześniej sformułowanie „pipeline SM”).
 Zmiana względem wersji 9 / F-8: single-select HITL SM, formularz extras, pola wyniku `characterCount` / `cta` / `role`.
 Zmiana względem wersji 10 / F-8 (nota v9: single-select): od tej wersji HITL Social = **multi-select** (min. 1); widok wyniku dwuetapowego = lista, nie jeden blok. Content: akceptacja outline bez zmian. Implementacja UI **nie** w Fazie 4.3 kodu api — norma FE spójna z `docs/ux_dashboard.md`.
+Zmiana względem wersji 11 / F-8: „admin: tylko lista + tworzenie” implikowało pole hasła. Obowiązuje zaproszenie (email); ekran akceptacji **nie** jest DoD Fazy 5 API.
 
 F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. Select agentów = enum z shared (labelki PL). Ocena i Edytuj tylko gdy snapshot mówi, że sesja jest `startedBy` i przegląd niezamknięty.
 
-Zmiana względem wersji 1: Konto nie obejmuje zmiany hasła; dodano first-run; lista runów = cała instancja z nawigacją lista → szczegóły; admin users bez edycji/dezaktywacji w UI.
+Zmiana względem wersji 1: Konto nie obejmuje zmiany hasła; dodano first-run; lista runów = cała instancja z nawigacją lista → szczegóły; admin users bez edycji/dezaktywacji w UI (soft-delete UI nadal poza MVP).
 
 ## Norma implementacji
 
@@ -109,8 +111,10 @@ apps/frontend/src/
 - Logiki pipeline Social / Content / verifiera / promptów w FE.
 - Płaskiego `components/` bez podziału na moduły (`modules/`) przy rozroście ekranów MVP.
 - Bearer access jako domyślnego transportu auth w MVP.
-- Self-service konta w MVP (zmiana hasła / email / usuwanie siebie).
-- UI soft-delete / edycji użytkowników w MVP (tylko lista + create).
+- Self-service konta w MVP (zmiana hasła **zalogowanego** / email / usuwanie siebie). Wyjątek UX: pierwsze hasło na publicznym ekranie akceptacji (gdy powstanie) — onboarding, nie self-service.
+- UI create użytkownika z polem **hasła** (obowiązuje zaproszenie: tylko email).
+- UI soft-delete / edycji użytkowników w MVP (tylko lista + zaproszenie, gdy ekran FE).
+- Wymogu ekranu akceptacji zaproszenia jako DoD Fazy 5 API (major FE).
 - Panelu administracyjnego opinii / analityki ocen w MVP (V1 — rozbudowa).
 - Nadpisywania wyniku SM w api z FE poza flagą `outputEdited` w MVP.
 - Prezentowania wyniku dwuetapowego Social jako jednego bloku copy (obowiązuje lista `contents[]` / `reelScripts[]`).
@@ -134,7 +138,7 @@ apps/frontend/src/
 - [ ] Lista runów: instancja, paginacja 10, filtry (w tym `interrupted`), klik → szczegóły live (SSE) bez pollingu statusu; `interrupted` czytelnie odróżniony od `running` / `queued`.
 - [ ] Szczegóły skończonego runu (`completed` \| `failed`) bez otwartego `EventSource`; w trakcie live — `close()` po evencie terminalnym (F-5a).
 - [ ] Start runu zablokowany w UI przy niekompletności **i** api zwraca 409 przy obejściu.
-- [ ] Admin: lista + create users; Konto: tylko logout.
+- [ ] Admin: lista kont + zaproszenie (email, bez hasła), gdy widok users istnieje; Konto: tylko logout. Ekran akceptacji **nie** jest kryterium tego wycinka API.
 - [ ] Kod FE podzielony na `app/` + `modules/`; typy z shared.
 - [ ] Brak sekretów LLM w bundlu klienta.
 - [ ] CTA opinii + formularz zapisuje `POST /feedback`; gwiazdki/Edytuj/finalize wołają kontrakt Runs; select runów z `/runs/user/:userId`.
@@ -147,4 +151,5 @@ apps/frontend/src/
 - Publikacja postów na API portali (v2).
 - OAuth / social login.
 - Self-service konta; soft-delete users w UI (później / V1).
+- Publiczna strona akceptacji zaproszenia w wycinku Fazy 5 API (major FE).
 - Panel admina opinii / stopień edycji outputu (V1 — rozbudowa).

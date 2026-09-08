@@ -710,16 +710,18 @@ Zmiana względem: wcześniejszy zapis kroku 4.3.3 (walidacja `length === 1`; 2 i
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Auth w formie docelowej na api: bootstrap jednego admina (status + sesja po bootstrapie), sesja cookie, **`GET /auth/me`**, role, zarządzanie użytkownikami (lista/create + soft-delete w API), zabezpieczenie powierzchni kontekstu i runów oraz wypełnianie `startedBy` przy starcie. Zgodnie z `SPEC-AUTH.md`, `docs/security.md` — po zielonym pipeline (order of attack).  
+**Opis:** Auth w formie docelowej na api: bootstrap jednego admina (status + sesja po bootstrapie), sesja cookie, **`GET /auth/me`**, role, zarządzanie użytkownikami (lista + **zaproszenia** — konto `user` po `accept-invite` — + soft-delete w API), zabezpieczenie powierzchni kontekstu i runów oraz wypełnianie `startedBy` przy starcie. Zgodnie z `SPEC-AUTH.md`, `docs/security.md` — po zielonym pipeline (order of attack).  
 Dopisek: **start po Fazie 4.2 / Milestone 4.2** (nie bezpośrednio po Milestone 4). DoD auth **bez** przepisu.  
 Dopisek (addytywny): **start po Fazie 4.3 / Milestone 4.3** (zmiana względem: start po 4.2). Faza 4.3 / Milestone 4.3 są `WYKONANY` / `OSIĄGNIĘTY` — Faza 5 odblokowana kolejnością, status pozostaje `NIE_ROZPOCZĘTY`.
+
+Zmiana względem: „zarządzanie użytkownikami (lista/create + soft-delete)”.
 
 **DoD (faza):**
 
 - Bootstrap admina działa jednorazowo; `bootstrap-status` poprawnie sygnalizuje dostępność; po bootstrapie jest sesja cookie.
 - Login/logout/refresh oraz **`GET /auth/me`** opierają się o cookie sesji zgodne z docs/SPEC (bez tokenów access w body jako modelu MVP).
 - Role `admin` / `user` są egzekwowane na api (w tym edycja kontekstu tylko admin).
-- Zarządzanie użytkownikami: lista + tworzenie `user`; DELETE = soft-delete; nowe runy ze sesją mają `startedBy`.
+- Zarządzanie użytkownikami: lista + zaproszenie `user` (konto po `accept-invite`); DELETE = soft-delete; nowe runy ze sesją mają `startedBy`.
 
 ### Krok 5.1 — Bootstrap, sesja cookie, role, probe `/me`
 
@@ -739,12 +741,14 @@ Dopisek (addytywny): **start po Fazie 4.3 / Milestone 4.3** (zmiana względem: s
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Lista + tworzenie użytkowników w granicach normy, soft-delete w API, domknięcie authz na kontekście firmy i runach SM oraz obowiązkowy inicjator przy starcie runu ze sesją.  
-*(UI admina MVP: tylko lista + create — poza tym major planem FE; tu norma API.)*
+**Opis:** Lista kont, zaproszenia (create/list/resend/revoke), publiczny accept-invite, soft-delete w API, domknięcie authz na kontekście firmy i runach SM oraz obowiązkowy inicjator przy starcie runu ze sesją.  
+*(UI admina / strona akceptacji = major FE; tu norma **API** — weryfikacja Postman. Mailer nie jest osobnym krokiem majoru — należy do tego samego wycinka co zaproszenia.)*
+
+Zmiana względem: „Lista + tworzenie użytkowników w granicach normy”.
 
 **DoD (krok):**
 
-- Admin może listować i tworzyć konta `user` zgodnie z SPEC; nie powstaje drugi admin poza bootstrapem.
+- Admin listuje konta i **zaprasza** na `role = user`; konto powstaje przez accept-invite; nie powstaje drugi admin poza bootstrapem; `user` nie woła invitations (**403**).
 - DELETE użytkownika = soft-delete; nieaktywny nie loguje się.
 - `user` nie edytuje kontekstu firmy; start runów / HITL / odczyt logów / lista zgodnie z rolami.
 - Start runu ze sesją zapisuje `startedBy`; powierzchnie wcześniej otwarte pod Postman są domknięte authz bez psucia happy path dla zalogowanych ról.

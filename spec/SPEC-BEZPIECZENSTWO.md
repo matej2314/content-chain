@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-08-31
+data_modyfikacji: 2026-09-07
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -20,7 +20,7 @@ Wiążące: jedna instalacja = jedna firma; zagrożenia głównie konfiguracja i
 
 ## Wymagania (egzekwowalne)
 
-B-1. **Fail-fast:** procesy `apps/api` i `apps/ai-provider-gateway` nie startują przy braku wymaganych zmiennych env (JWT, `GATEWAY_*`, klucze vendorów po stronie gateway, `DATABASE_URL` itd. wg `.env.example`).
+B-1. **Fail-fast:** procesy `apps/api` i `apps/ai-provider-gateway` nie startują przy braku wymaganych zmiennych env (JWT, `GATEWAY_*`, klucze vendorów po stronie gateway, `DATABASE_URL` itd. wg `.env.example`). W **`production`** dodatkowo wymagane: **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`**, **`MAIL_FROM`**, **`APP_PUBLIC_URL`** (`docs/deployment.md`). W `development` / `test` SMTP nie jest wymagane (adapter logujący).
 
 B-2. W repozytorium: **`.env.example`** per aplikacja (`api`, `frontend`, `ai-provider-gateway`) z placeholderami — **bez** sekretów. Pliki `.env` poza gitem.
 
@@ -34,9 +34,11 @@ B-6. W `production`: `apps/ai-provider-gateway` **nie** jest publikowany do inte
 
 B-7. `GET /api/v1/health` może być bez auth do probe — **bez** wrażliwych danych w odpowiedzi.
 
-B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, klucze vendorów) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, treści opinii (`Feedback.body`), labelach Prometheus, stdout procesu. Dump treści hopu chat na stdout adaptera LLM **wyłącznie** przy `NODE_ENV=development`; w polach tekstowych wartość `GATEWAY_KEY` zastępowana `[REDACTED]`.
+B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, **`SMTP_PASS`**, klucze vendorów, **raw token zaproszenia**) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, treści opinii (`Feedback.body`), labelach Prometheus, stdout procesu w `production`. Dump treści hopu chat na stdout adaptera LLM **wyłącznie** przy `NODE_ENV=development`; w polach tekstowych wartość `GATEWAY_KEY` zastępowana `[REDACTED]`. **Wyjątek `development`:** wolno zalogować URL akceptacji zaproszenia (odpowiednik treści maila). Nie rozluźniać B-8 dla `production`.
 
-Zmiana względem wersji 3 / B-8: wcześniejsza lista nie obejmowała diagnostycznego dumpa hopu; kod w `LlmGatewayHttpAdapter` + `llm-gateway-chat.log.ts` (`docs/observability.md`, `docs/security.md`).
+**503** `MAIL_DELIVERY_FAILED` **nie** jest wyciekiem sekretu — w `details` wyłącznie `id` zaproszenia (`docs/dokumentacja_komunikacji.md`). **409** `CONFLICT` na publicznym accept-invite przy zajętym `User.email` jest **kanonem** (świadoma enumeracja) — nie luką do „naprawienia” na `401`.
+
+Zmiana względem wersji 4 / B-8: lista sekretów bez hasła SMTP i raw tokenu zaproszenia; brak normy 503/`details.id` i 409 na accept.
 
 B-9. Minimalny zestaw `/metrics` (proces `apps/api`) zgodny z `docs/observability.md`: HTTP (licznik + latencja), uptime/process, liczniki/gauge statusów runów, sygnały błędów wywołań gateway — nazwy mogą mieć prefiks `content_chain_`.
 
@@ -69,6 +71,7 @@ B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/s
 - Sekretów LLM / gateway w FE.
 - Dumpa pełnych promptów hopu gateway na stdout w `production` (w tym przy `NODE_ENV=production`).
 - Tokenu sesji w query string (SSE/API).
+- Raw tokenu zaproszenia w JSON-ie admina ani w logach `production`.
 - Drugiego `admin` w MVP.
 - `Authorization: Bearer` jako modelu auth MVP.
 - Cichego fallbacku kontekstu z `.md` (`SPEC-PERSISTENCE.md`).
@@ -91,6 +94,7 @@ Zmiana względem wersji 1: dopisano `@nestjs/config` oraz Pino/`nestjs-pino` jak
 Zmiana względem wersji 2: B-8 obejmuje też treść opinii (`Feedback.body`).
 
 Zmiana względem wersji 3: B-8 obejmuje stdout dump hopu (tylko `development` + redakcja klucza).
+Zmiana względem wersji 4: B-1 fail-fast SMTP/`MAIL_FROM`/`APP_PUBLIC_URL` w `production`; B-8 += `SMTP_PASS` i raw invite token.
 
 ## Kryteria akceptacji
 

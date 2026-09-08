@@ -1,7 +1,7 @@
 ---
-wersja: 16
+wersja: 17
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-05
+data_modyfikacji: 2026-09-07
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -39,11 +39,15 @@ Wiążące (`docs/architektura.md`):
 | DX OpenAPI (Swagger UI) | `GET /docs` (poza `/api/v1`) | HTML / OpenAPI JSON |
 | Health | `GET /api/v1/health` | JSON |
 | Auth probe / bootstrap status | `GET /api/v1/auth/me`, `GET /api/v1/auth/bootstrap-status` | JSON |
+| Zaproszenia (admin) | `GET`/`POST /api/v1/invitations`, `POST .../:id/resend`, `DELETE .../:id` | JSON |
+| Akceptacja zaproszenia (publiczny) | `POST /api/v1/auth/accept-invite` | JSON |
 | Gateway (z api) | upstream `/api/v1/chat` (+ opcjonalnie stream) | JSON / SSE gateway |
 
 MVP: **wyłącznie** `/api/v1` jako prefiks produktowy — bez `/api/v2`. Swagger **nie** pod `/api` (kolizja z `/api/v1`) — norma: `/docs` (`docs/dokumentacja_komunikacji.md`).
 
 Szczegóły metod, pól i kodów: `docs/dokumentacja_komunikacji.md`.
+
+Zmiana względem wersji 16 / powierzchnie: dopisano zaproszenia (admin) i publiczny `POST /auth/accept-invite`; envelope **503** `MAIL_DELIVERY_FAILED` + `details.id` (K-1) — bez dublowania pełnych payloadów.
 
 ## Wymagania (egzekwowalne)
 
@@ -59,6 +63,8 @@ K-1. Każda odpowiedź błędu HTTP z `apps/api` ma envelope:
 ```
 
 `requestId` nadaje **`apps/api`** w ramach obsługi tego żądania (middleware / interceptor) i zwraca w envelope oraz (zalecane) nagłówku `x-request-id`. Klient **nie musi** przysyłać `RequestId`.
+
+**503** `MAIL_DELIVERY_FAILED` (pad SMTP po zapisie zaproszenia / resend): ten sam envelope K-1; w `details` wyłącznie `id` zaproszenia. Pełny kontrakt HTTP (201 vs 503, pola, negatywy) — `docs/dokumentacja_komunikacji.md` (bez dublowania payloadów tutaj).
 
 K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId` i statusem `queued` | `running` — bez synchronicznego czekania na wynik LLM. `interrupted` **nie** jest statusem odpowiedzi POST. Body: unia dyskryminowana `taskType` (`platform` XOR `contentKind` **oraz** kształt `brief` XOR: `SocialBrief` vs `ContentBrief`) — `docs/dokumentacja_komunikacji.md`. Walidacja Zod `discriminatedUnion` w application + `.strict()` na gałęzi briefu. DTO HTTP może deklarować sumę kluczy briefu (`topic`, `audience`, `goal`, `ideaCount`, `angle`, `targetLength`); prawda = Zod. `taskType` spoza enumu → **400** `VALIDATION_FAILED`. Page + `brief.ideaCount` / Social + `brief.angle` → **400** `VALIDATION_FAILED`.
 
@@ -108,7 +114,7 @@ K-7. Błędy gateway mapowane na logi runu i ewentualnie `run.failed` / retry wg
 
 Zmiana względem wersji 9 / K-7: wcześniejsza norma mówiła o logach produktowych i frontendzie — bez rozróżnienia dumpa diagnostycznego stdout w `development`.
 
-K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, `HITL_REQUIRED`, `HITL_INVALID_SELECTION`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, `CONFLICT`, `INTERNAL_ERROR`, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach. Gdy `VALIDATION_FAILED` pochodzi z application Zod przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, nie lokalna kopia w BC): `details[].path` = `issue.path.join('.')`.
+K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, `HITL_REQUIRED`, `HITL_INVALID_SELECTION`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, `CONFLICT`, `MAIL_DELIVERY_FAILED`, `INTERNAL_ERROR`, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach. Gdy `VALIDATION_FAILED` pochodzi z application Zod przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, nie lokalna kopia w BC): `details[].path` = `issue.path.join('.')`.
 
 Zmiana względem wersji 11 / K-8: dopisano `HITL_INVALID_SELECTION` (HITL page — `docs/dokumentacja_komunikacji.md`).
 

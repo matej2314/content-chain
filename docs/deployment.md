@@ -51,9 +51,22 @@ Jeden stack:
 
 | Obszar | Zmienne |
 |--------|---------|
-| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (SQLite), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS` |
+| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (SQLite), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS`, **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`** |
 | Gateway | klucze providerów, `gateway.config.yaml`, allowlista kluczy, port (szczegóły: `apps/ai-provider-gateway/.env.example`) |
 | Frontend | `NEXT_PUBLIC_API_BASE_URL` (tylko URL api — **bez** sekretów LLM) |
+
+Nazwy SMTP / maila są **kanoniczne** (te same w `spec/SPEC-BEZPIECZENSTWO.md` i `.env.example` przy implementacji):
+
+| Zmienna | `production` | `development` / `test` |
+|---------|--------------|------------------------|
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | **obowiązkowe** (fail-fast) | nie wymagane — adapter **logujący** (konsola / Pino), bez prawdziwego SMTP |
+| `MAIL_FROM` | **obowiązkowe** (fail-fast) | nie wymagane przy adapterze logującym |
+| `APP_PUBLIC_URL` | **obowiązkowe** (publiczny URL aplikacji w linku zaproszenia) | nie wymagane; w logu dev wystarczy ścieżka / placeholder |
+| `INVITE_TTL` | opcjonalne, default **`7d`** | to samo |
+
+Bootstrap admina **bez SMTP** nadal możliwy (email + hasło, bez maila).
+
+Create / resend zaproszenia: lokalnie (`development` / `test`) send adaptera logującego **zawsze się udaje** → zawsze **201**. **503** `MAIL_DELIVERY_FAILED` + `details.id` tylko przy padzie **prawdziwego** SMTP (`production`).
 
 `MAX_CONCURRENT_RUNS` ogranicza liczbę równoległych execute: claim `queued → running` **oraz** `interrupted → running` (wznowienia po restarcie). Nie dotyczy wyłącznie nowych `POST /runs`.
 
@@ -93,10 +106,11 @@ Compose może od początku definiować wszystkie trzy usługi; „puste” UI do
 2. `docker compose up` (build).  
 3. Sprawdź `GET /api/v1/health` (api) oraz readiness gateway (wewnętrznie).  
 4. Bootstrap admin.  
-5. Uzupełnij kontekst → completeness.  
-6. Smoke: start runu Social i Content (`apps/api/test/postman/` albo UI).  
-7. Podłącz scrape `/metrics` (opcjonalnie od razu).  
-8. Zaplanuj backup volume SQLite.
+5. (Opcjonalnie) smoke zaproszenia: `POST /invitations` → token z maila SMTP; lokalnie adapter logujący → token z logu api.  
+6. Uzupełnij kontekst → completeness.  
+7. Smoke: start runu Social i Content (`apps/api/test/postman/` albo UI).  
+8. Podłącz scrape `/metrics` (opcjonalnie od razu).  
+9. Zaplanuj backup volume SQLite.
 
 ## Anty-patterny deploy (skrót)
 

@@ -1,7 +1,7 @@
 ---
-wersja: 12
+wersja: 13
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-05
+data_modyfikacji: 2026-09-07
 ---
 
 # SPEC — Testy
@@ -71,9 +71,13 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-20 | Unit Zod `CompanyContextExtras`: znany kształt OK; nieznany klucz → fail; `isComplete` ignoruje extras. Unit/e2e unknown key → **400**; ścieżki w `details` zgodne z separatorem `'.'` wspólnego `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`). Bez wymogu osobnego testu wyłącznie na lokalizację pliku helpera. |
 | D-21 | HITL Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): 0 id, duplikat albo obcy id → **400** `HITL_INVALID_SELECTION` (bez zapisu, status `awaiting_hitl`); **2 poprawne** id → `completed` z 2 artefaktami (`contents[]` / `reelScripts[]`, `sourceIdeaId`); 1 poprawny → tablica długości 1 |
 | D-22 | GET result: `characterCount === body.length` (skalar lub każda pozycja `contents[]`); outline z `role` enum przechodzi parse; nieznany `role` → fail |
+| D-23 | Zaproszenie (admin, cookie): `POST /invitations` `{ email }` → pending; publiczny `POST /auth/accept-invite` `{ token, password }` → `User` `role=user`; potem `POST /auth/login` nowym kontem. Artefakt E2E: istniejąca kolekcja Postman (`T-5` — bez pinu runnera) |
+| D-24 | `user` woła `POST /invitations` → **403**. Drugi `POST` przy `pending` (także wygasłym) → **409**. `GET /invitations` zwraca też wygasłe pending |
+| D-25 | Soft-delete: `DELETE /users/:id` → `isActive = false`; nieaktywny nie loguje się (ten sam komunikat 401 co złe hasło — bez enumeracji) |
 
-D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page.
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login. T-3 (cookie) **bez zmian**.
 
+Zmiana względem wersji 12: dopisano D-23…D-25 (zaproszenie → accept → login; 403/409 pending; GET wygasłych; soft-delete). D-1…D-22 bez kasowania.
 Zmiana względem wersji 11 / D-16: asercja wyłącznie skalaru `reelScript.segments` na then_scripts — od tej wersji `reelScripts[]` + `sourceIdeaId`.
 Zmiana względem wersji 11 / D-21 (i v9: D-21 = 2+ → 400): 2 legalne id to pozytyw N→N; 400 tylko przy 0 / duplikacie / obcym id.
 
@@ -131,7 +135,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-22 (w tym D-9b, D-15…D-19a, D-20…D-22) pokryte testami (warstwa adekwatna do przypadku).
+- [ ] Przypadki D-1…D-25 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23…D-25) pokryte testami (warstwa adekwatna do przypadku).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

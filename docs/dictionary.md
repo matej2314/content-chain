@@ -16,6 +16,8 @@ Zmiana względem luźnej listy „poza bramką”: kanon **`CompanyContextExtras
 
 Zmiana względem kanonu Fazy 4.3 (HITL Social dwuetapowy = dokładnie 1 `selectedIdeaId`; HITL SM = 1 id w kontrakcie MVP): Social = podzbiór draftu, min. 1 unikalne id, N→N (`contents[]` / `reelScripts[]` + `sourceIdeaId`). Content bez zmiany: `[outline.id]`.
 
+Zmiana względem kanonu „admin zakłada konto `user` emailem i hasłem” (`POST /users`): jedyna droga na `role = user` to **zaproszenie e-mail** (Invitation) → publiczna akceptacja z pierwszym hasłem. Bootstrap admina (email + hasło, bez maila) **bez zmian**.
+
 ---
 
 ## Produkt i domena
@@ -54,10 +56,12 @@ Zmiana względem kanonu Fazy 4.3 (HITL Social dwuetapowy = dokładnie 1 `selecte
 
 | Pojęcie | Definicja |
 |---------|-----------|
-| **`admin`** | Jedyny administrator (bootstrap); wyłączne prawo edycji kontekstu firmy; może generować treści jak `user`. Norma: `security.md`. |
-| **`user`** | Rola uruchamiająca runy produktowe (Social i Content) i przeglądająca wyniki/logi; bez edycji kontekstu. |
+| **`admin`** | Jedyny administrator (bootstrap); wyłączne prawo edycji kontekstu firmy i zapraszania `user`; może generować treści jak `user`. Norma: `security.md`. |
+| **`user`** | Rola uruchamiająca runy produktowe (Social i Content) i przeglądająca wyniki/logi; bez edycji kontekstu i bez zapraszania. Konto powstaje wyłącznie po akceptacji zaproszenia — nie przez `POST /users` z hasłem. |
 | **Jedna firma / instancja** | Brak multi-tenant SaaS: wszyscy użytkownicy instancji dzielą jeden kontekst. |
-| **Bootstrap admin** | Utworzenie pierwszego konta administratora przy starcie self-host (first-run). |
+| **Bootstrap admin** | Utworzenie pierwszego konta administratora przy starcie self-host (first-run): email + hasło, **bez** maila i bez Invitation. Kontrast: pozostali `user` wyłącznie przez zaproszenie. |
+| **Zaproszenie (Invitation)** | Rekord zaproszenia e-mail na rolę `user` — **nie** jest kontem `User`. Status: `pending` \| `accepted` \| `revoked`. Admin podaje **tylko email**. W DB: hash tokenu (SHA-256), TTL, `purpose = invite` (MVP). Raw token jest w mailu (w `development` także w logu api); **nigdy** w JSON-ie odpowiedzi admina. Wiersz `User` (`role = user`) powstaje dopiero przy akceptacji. Wygaśnięcie: `expiresAt < now` przy walidacji (status **nie** przechodzi sam na „expired” — wygasły wiersz zostaje `pending`). |
+| **Akceptacja zaproszenia** | Publiczny `POST /api/v1/auth/accept-invite` `{ token, password }`: zaproszony ustawia **pierwsze** hasło (polityka z `security.md`). Tworzy `User` (`role = user`) i zużywa token. **Bez** Set-Cookie — potem zwykły `POST /auth/login`. Nie jest bootstrapem, otwartą rejestracją ani self-service konta (zmiana hasła zalogowanego nadal poza MVP). |
 
 ## Architektura i runtime
 
@@ -128,6 +132,7 @@ Zmiana względem wcześniejszego, zbyt uproszczonego opisu: **`RequestId` nie je
 | **`ConversationId`** | Brand; format jak w gateway: `conv_<uuid>`. **Jeden wspólny na cały run agentowy** — nim spinamy wszystkie wywołania LLM i wpisy logów runu (aplikacyjne + gateway). |
 | **`RequestId`** | Brand; format jak w gateway: `req_<uuid>`. Nadawany w **odpowiedzi**: przez `apps/api` (HTTP) albo przez gateway (hop LLM). Klient / kroki runu **nie** generują go z góry. Oś korelacji pipeline’u SM = `ConversationId` (+ `RunId`). |
 | **`UserId`** | Brand; rekomendowany format `usr_<uuid>`. |
+| **`InvitationId`** | Brand; format `inv_<uuid>`. Jeden rekord zaproszenia (nie konto). |
 | **`FeedbackId`** | Brand; format `fbk_<uuid>`. Jeden wpis opinii tekstowej. Kontrakt MVP w docs/spec; w `packages/shared` przy implementacji BC Feedback. |
 | **`RunUserRating`** | Brand `1` \| `2` \| `3` \| `4` \| `5`. W JSON runu pole `userRating` jest `number \| null` (`null` = brak gwiazdek). Kontrakt MVP w docs/spec; w shared przy implementacji przeglądu runu. |
 | **`GatewayModelAlias`** | Brand aliasu modelu z konfiguracji gateway (≠ vendor `modelId`). |
@@ -176,7 +181,8 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 | `RUN_NOT_FOUND` | Nieznany `RunId` (wyłącznie z `DomainException` w BC Runs). |
 | `REVIEW_LOCKED` | Przegląd runu już zatwierdzony — zmiana oceny / flagi edycji niedozwolona. |
 | `RUN_NOT_REVIEWABLE` | Ocena / edycja / finalize gdy run nie jest `completed` ani `failed`. |
-| `CONFLICT` | Niedozwolone przejście statusu / konflikt stanu. |
+| `CONFLICT` | Niedozwolone przejście statusu / konflikt stanu (także: drugi `pending` na ten sam email; `User.email` już zajęty przy accept-invite). |
+| `MAIL_DELIVERY_FAILED` | Pad SMTP **po** zapisie zaproszenia (create / resend). HTTP **503**; w `details` wyłącznie `id` zaproszenia (wiersz zostaje `pending`). Nie dotyczy adaptera logującego (`development` / `test`). |
 | `INTERNAL_ERROR` | Błąd nieobsłużony po stronie `apps/api`. |
 
 ## Kody błędów — gateway (istotne dla integracji)

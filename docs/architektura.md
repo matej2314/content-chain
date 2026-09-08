@@ -70,7 +70,7 @@ Wszystkie bounded contexty w `apps/api` stosują ten sam wzorzec warstw (cienki 
 
 | Context             | Odpowiedzialność                                                                     | Kluczowe reguły                                                       |
 | ------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| **Auth** | Użytkownicy, role `admin` \| `user`, sesja: JWT w `cc_access` + refresh w `cc_refresh` (httpOnly) | **Jeden** `admin` (bootstrap); tylko on edytuje kontekst; obaj mogą uruchamiać runy produktowe — `security.md` |
+| **Auth** | Użytkownicy, zaproszenia (Invitation), role `admin` \| `user`, sesja: JWT w `cc_access` + refresh w `cc_refresh` (httpOnly); mail transakcyjny = **port** w Auth, adapter w infrastructure (nie osobny BC w MVP) | **Jeden** `admin` (bootstrap); pozostali `user` przez zaproszenie; tylko admin edytuje kontekst; obaj mogą uruchamiać runy produktowe — `security.md` |
 | **Company Context** | Kanoniczny kontekst firmy w DB, bramka kompletności                                  | Do kompletności — start **każdego** `POST /runs` zablokowany |
 | **Social**          | Post ideas/content **oraz** reel ideas/script (LI / FB / IG, PL / EN), weryfikacja spójności z kontekstem | Task jednoetapowy = full-auto; dwuetapowy = HITL przy wyborze z listy; **bez** własnych tras HTTP; **bez** page copy w tym folderze |
 | **Content**         | Copy stron / long-form (`page_copy`, `page_outline_then_copy`; `ContentKind`) w **podstawowej formie** | Graf za fasadą; HITL model B (outline); **bez** własnych tras HTTP; **bez** importu Social i odwrotnie |

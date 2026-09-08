@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-05
+data_modyfikacji: 2026-09-07
 ---
 
 # SPEC — Persistence
@@ -39,11 +39,21 @@ P-1. Schema i migracje: `apps/api/prisma/`. W MVP obowiązuje **Prisma Migrate**
 
 P-2. Jeden współdzielony **`PrismaClient`** (moduł Nest) używany przez adaptery BC — bez wielu niespójnych instancji bez uzasadnienia.
 
-P-3. Identyfikatory w kolumnach: **brandowane stringi** zgodnie z `docs/brand_types.md` (np. `run_…`, `usr_…`, `conv_…`) — store w DB w tej postaci.
+P-3. Identyfikatory w kolumnach: **brandowane stringi** zgodnie z `docs/brand_types.md` (np. `run_…`, `usr_…`, `inv_…`, `conv_…`) — store w DB w tej postaci.
 
 P-4. ORM / SQL / Prisma **zakazane** w `domain/` oraz w `packages/shared`. Application zależy od **portów**.
 
-P-5. DB jest kanoniczna dla kontekstu firmy, userów, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
+P-5. DB jest kanoniczna dla kontekstu firmy, userów, **zaproszeń (Invitation)**, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
+
+Kanon tabel (Auth): model **`Invitation`** (lub równoważna nazwa) — `id` (`inv_<uuid>`), `email`, `tokenHash`, `purpose` (`invite` w MVP; rezerwa pod `password_reset` bez zmiany modelu świata), `status` (`pending` \| `accepted` \| `revoked`), `expiresAt`, `invitedByUserId`, timestamps; **bez** kolumny raw tokenu. Invitation **nie** jest „User z pustym hasłem”. `User.passwordHash` nadal wymagany — wiersz `User` powstaje dopiero przy accept-invite.
+
+**D17:** migracja SQL `UNIQUE (email) WHERE status = 'pending'` (komentarz w `schema.prisma` jak `User_one_admin`; Prisma 6 nie wyrazi partial unique; indeks **bez** `purpose`). Wygasły wiersz zostaje `status = pending` — indeks nadal blokuje drugi `POST`.
+
+**D16:** accept-invite = **jedna** transakcja Prisma: `users.create(role=user)` **oraz** Invitation → `accepted`.
+
+**D18:** `email` na `User` i `Invitation` **bez** normalizacji (`trim` / `toLowerCase`); unique i porównanie case-sensitive.
+
+Zmiana względem wersji 7 / P-5: kanon DB bez zaproszeń; droga na `user` milcząco przez utworzenie wiersza `User` z hasłem od admina.
 
 Kolumna `Run.brief` (Json): **unia** `SocialBrief` | `ContentBrief` rozróżniana `taskType` — **bez nowej migracji** przy zmianie kształtu TypeScript. Semantyka i parse przy mapowaniu wiersza → `RunRecord`: `SPEC-RUNY.md` R-3d1.
 
@@ -63,7 +73,7 @@ Zmiana względem wersji 3: kanon nie rozdzielał liczników refine — Content m
 
 P-6. W MVP `datasource.provider = "sqlite"`. Wprowadzenie PostgreSQL jako providera aplikacji = sygnał wejścia w fazę **V1 — rozbudowa** (patrz tabela wyżej), z nową historią migracji.
 
-P-7. `schema.prisma` w MVP utrzymywać **przenośnie** (unikać zbędnych atrybutów `@db.*` / typów tylko pod jeden silnik), żeby modele dało się przenieść przy cutoverze na PostgreSQL przy minimalnych poprawkach.
+P-7. `schema.prisma` w MVP utrzymywać **przenośnie** (unikać zbędnych atrybutów `@db.*` / typów tylko pod jeden silnik), żeby modele dało się przenieść przy cutoverze na PostgreSQL przy minimalnych poprawkach. Partial unique zaproszeń (`UNIQUE (email) WHERE status = 'pending'`) jest SQL w migracji — **ten sam wzorzec** przenosi się na PostgreSQL przy cutoverze (nowa historia migracji, ten sam predykat).
 
 P-8. Drugi ORM obok Prisma — zakazany w MVP i przy cutoverze (nadal Prisma, inny provider).
 
@@ -82,7 +92,7 @@ apps/api/
 
 | Element | Norma |
 |---------|--------|
-| Port persistence | interfejsy per potrzeba BC (users, sessions, context, runs, logs, wyniki SM, feedback) |
+| Port persistence | interfejsy per potrzeba BC (users, **invitations**, sessions, context, runs, logs, wyniki SM, feedback) |
 | Adapter | Prisma implementuje porty |
 | SQLite ops (WAL, busy_timeout) | **poza** sztywną normą SPEC — decyzja implementacyjna pod współbieżność runów |
 | Kolumny kontekstu firmy | per sekcja — `SPEC-KONTEKST-FIRMY.md` |
@@ -106,10 +116,13 @@ apps/api/
 - Zapisu refine outline/copy (BC Content) do `Run.ideasRefineCount` / `Run.contentRefineCount`.
 - Migracji Prisma wyłącznie po to, by rozdzielić `SocialBrief` / `ContentBrief` (kolumna Json zostaje; zmiana to parse, nie DDL).
 - Osobnych tabel `case_studies` / równoważnych per sekcja extras w tym wycinku MVP (Json `extras` + Zod).
+- Modelowania zaproszenia jako `User` z pustym / sentinel `passwordHash`.
+- Drugiego `pending` na ten sam `email` bez indeksu SQL D17.
 
 Zmiana względem wersji 3 / „Nie wolno”: dopisano zakaz reuse kolumn refine Social na Content.
 Zmiana względem wersji 4 / „Nie wolno”: dopisano zakaz zbędnej migracji `brief`.
 Zmiana względem wersji 5 / „Nie wolno”: dopisano zakaz osobnych tabel case studies zamiast `extras` Json.
+Zmiana względem wersji 7 / „Nie wolno”: dopisano zakaz „User pending z pustym hasłem” oraz obejścia unique pending.
 
 ### Zatwierdzony stack (obszar)
 

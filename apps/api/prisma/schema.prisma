@@ -18,6 +18,7 @@ model User {
   updatedAt       DateTime         @updatedAt
   refreshSessions RefreshSession[]
   startedRuns     Run[]            @relation("RunStartedBy")
+  invitations     Invitation[]
 }
 
 model RefreshSession {
@@ -154,4 +155,19 @@ model ContentDocument {
   run          Run      @relation(fields: [runId], references: [id])
 
   @@index([runId])
+}
+
+model Invitation {
+  id              String   @id
+  email           String
+  tokenHash       String
+  /// MVP: tylko `invite`. Kolumna rezerwa pod `password_reset` — inny purpose nieobsługiwany.
+  purpose         String
+  status          String
+  expiresAt       DateTime
+  invitedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  /// Unique index `Invitation_one_pending_email` (status = 'pending') in SQL migration — SPEC-AUTH A-7d / SPEC-PERSISTENCE P-5 D17. Prisma 6 cannot declare partial unique in schema. Index without `purpose`.
+  invitedBy       User     @relation(fields: [invitedByUserId], references: [id])
 }

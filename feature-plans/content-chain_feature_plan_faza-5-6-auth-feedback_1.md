@@ -3,7 +3,7 @@
 ## Meta
 
 **Kotwica major:** Faza 5 (Krok 5.1 + 5.2) — Auth API w formie docelowej.  
-**Zakres tego pliku:** FAZA 1 (bootstrap, sesja, role, `/me`) + FAZA 2 (użytkownicy, soft-delete, guardi, `startedBy` ze sesji).  
+**Zakres tego pliku:** FAZA 1 (bootstrap, sesja, role, `/me`) + FAZA 2 (użytkownicy: lista → **InviteUser** → soft-delete, guardi, `startedBy` ze sesji). Kolejność kroków FAZY 2: **KROK 1 → 2 → 3 → 4** (bez KROK 5+).  
 **Plik 2/2:** `content-chain_feature_plan_faza-5-6-auth-feedback_2.md` — FAZA 3 (persistence) + FAZA 4 (Feedback BC + review runu).  
 **Źródła:** `SPEC-AUTH.md`, `docs/security.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-BEZPIECZENSTWO.md`, `SPEC-PERSISTENCE.md`.  
 **Poza zakresem wycinka tego pliku:** BC Feedback, tabela Feedback, pola przeglądu runu, `GET /runs/user/:userId` → plik 2/2.
@@ -13,14 +13,16 @@
 ## Założenia (stack / wersje)
 
 - NestJS 11 + `@nestjs/passport` + `@nestjs/jwt` + `passport-jwt` (zainstalować — brak w `package.json`)  
-- `bcrypt` (cost = 12) dla haseł; SHA-256 dla hasha refresh tokena w DB  
+- `bcrypt` (cost = 12) dla haseł; SHA-256 dla hasha refresh tokena **oraz** tokenu zaproszenia w DB  
 - Cookie `cc_access` (JWT, httpOnly) + `cc_refresh` (random hex 32B, httpOnly) — per `SPEC-AUTH.md` A-2  
 - Refresh rotacja: nowy token + nowy `cc_access` przy każdym `/auth/refresh`  
-- Guardi globalne przez `APP_GUARD` w `AppModule` + `@Public()` dla tras otwartych  
-- `validatePasswordPolicy` — reguły z `SPEC-AUTH.md` A-5 / `docs/security.md`  
+- Guardi globalne przez `APP_GUARD` w `AppModule` + `@Public()` dla tras otwartych (w tym `accept-invite`)  
+- `validatePasswordPolicy` — reguły z `SPEC-AUTH.md` A-5 / `docs/security.md` (także pierwsze hasło na accept-invite)  
 - Zod 3 w `apps/api` (Faza 9 przyniesie bump do 4); Zod tylko w application  
-- Prisma SQLite — `User` i `RefreshSession` już w schemacie (brak DDL-migracji dla auth)  
+- Prisma SQLite — `User` i `RefreshSession` już w schemacie. **KROK 1 wymaga** migracji modelu `Invitation` **oraz** SQL D17 (`UNIQUE (email) WHERE status = 'pending'`, komentarz jak `User_one_admin`). ~~brak DDL-migracji dla auth~~  
+- `nodemailer` (+ `@types/nodemailer`) — obowiązkowy adapter SMTP w infrastructure; port mailera w Auth. Deps **KROKU 1** (nie osobnego kroku). `development` / `test`: adapter logujący (send zawsze się udaje).  
 - `JWT_SECRET`, `JWT_ACCESS_TTL` (default `15m`), `JWT_REFRESH_TTL` (default `1d`) — już w `env.schema.ts`  
+- KROK 1 dopisuje: `INVITE_TTL` (default `7d`, `parseTtlMs` jak JWT), `MAIL_FROM`, `APP_PUBLIC_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` — fail-fast w `production` (`docs/deployment.md`)  
 - `startedBy: { id, email }` już zmapowany w `PrismaRunAdapter.toSnapshot` (include join); brakuje przekazania `userId` z sesji przy POST /runs
 
 ---
@@ -1444,23 +1446,111 @@ export class LoginDto {
 
 ---
 
-## FAZA 2 — Użytkownicy, soft-delete, zabezpieczenie API, `startedBy` ze sesji
+## FAZA 2 — Użytkownicy, zaproszenia, soft-delete, zabezpieczenie API, `startedBy` ze sesji
 
 > Odpowiada Krokowi 5.2 z major planu.
 
-### KROK 1 — Application: CreateUser, ListUsers, SoftDeleteUser
+### KROK 1 — Application: ListUsers, InviteUser, SoftDeleteUser
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
-**Cel:** Zaimplementować use-case'y CRUD użytkowników (tylko `role = user`; soft-delete przez admin).  
-Odwołanie: `SPEC-AUTH.md` A-7, A-10; `docs/security.md` tabela uprawnień; `docs/dokumentacja_komunikacji.md` Users.
+**Cel:** Zaimplementować listę kont, **zaproszenia** (`InviteUser` + pomocnicze w tym samym slocie) oraz soft-delete przez admin. Kolejność artefaktów: **`InvitationId` w `packages/shared`** → `ListUsers` → **`InviteUser` (ex-`CreateUser`)** → `SoftDeleteUser`.  
+Odwołanie: `SPEC-AUTH.md` A-7 / A-7a–d, A-10; `docs/security.md` tabela uprawnień; `docs/dokumentacja_komunikacji.md` Users + Invitations; `docs/brand_types.md` (`InvitationId` = `inv_<uuid>`).  
+Refaktor względem: FAZA 2 / KROK 1 — blok `CreateUserUseCase` + `createUserSchema` z `password` (środkowy artefakt kroku).  
+Refaktor względem: `packages/shared/src/branded/ids.ts` (FAZA 1 monorepo, WYKONANY) — katalog ID bez `InvitationId`; port `invitation-repository.port.ts` importuje `InvitationId` / `UserId` z `@content-chain/shared`, więc brand musi powstać **przed** portem i use-case'ami.
 
 **Artefakty (nowe pliki):**
 - `apps/api/src/auth/application/list-users.use-case.ts`
-- `apps/api/src/auth/application/create-user.use-case.ts`
+- `apps/api/src/auth/application/invite-user.use-case.ts` (zamiast `create-user.use-case.ts`)
+- `apps/api/src/auth/application/list-invitations.use-case.ts`
+- `apps/api/src/auth/application/resend-invitation.use-case.ts`
+- `apps/api/src/auth/application/revoke-invitation.use-case.ts`
+- `apps/api/src/auth/application/accept-invite.use-case.ts`
+- `apps/api/src/auth/domain/invitation-repository.port.ts`
+- `apps/api/src/auth/domain/transactional-mailer.port.ts`
+- `apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts`
+- `apps/api/src/auth/infrastructure/logging-mailer.adapter.ts`
+- `apps/api/src/auth/infrastructure/nodemailer-smtp-mailer.adapter.ts`
 - `apps/api/src/auth/application/soft-delete-user.use-case.ts`
 
+**Artefakty (refaktory / DDL w tym samym kroku):**
+- `packages/shared/src/branded/ids.ts` — dopisanie `InvitationId` (`inv_<uuid>`) + `INVITATION_ID_RE` + `isInvitationId` / `createInvitationId` (wzorzec jak `UserId`)
+- `packages/shared/src/index.ts` — **bez zmiany treści**; już re-eksportuje `./branded/ids` (port `invitation-repository.port.ts` importuje `InvitationId` stąd)
+- `apps/api/src/shared/http/new-ids.ts` — dopisanie `newInvitationId()` analogicznie do `newUserId` (konsument `createInvitationId`)
+- `apps/api/prisma/schema.prisma` — model `Invitation` + komentarz partial unique (jak `User_one_admin`)
+- migracja SQL D17: `UNIQUE (email) WHERE status = 'pending'` (**bez** `purpose`)
+- `apps/api/src/shared/config/env.schema.ts` + `apps/api/.env.example` — `INVITE_TTL`, `MAIL_FROM`, `APP_PUBLIC_URL`, `SMTP_*`
+- `apps/api/src/shared/config/env.schema.spec.ts` — default `INVITE_TTL=7d` + fail-fast SMTP w `production`
+- `pnpm --filter api add nodemailer` oraz `pnpm --filter api add -D @types/nodemailer`
+
+Wiring `AuthModule` (providery Invitation / mailer / use-case’y Fazy 2) — **KROK 2**, nie ten slot.
+
 **Implementacja:**
+
+Najpierw brand w shared (kompilacja `@content-chain/shared` **przed** portem). `InvitationPurpose` / `InvitationStatus` **zostają** w `invitation-repository.port.ts` (domain Auth), nie w `packages/shared/src/branded/enums.ts`.
+
+**Refaktor** `packages/shared/src/branded/ids.ts` — dopisać `InvitationId` obok `UserId` (typ, regex, helpery):
+
+```typescript
+// packages/shared/src/branded/ids.ts — dopiski (reszta pliku bez zmian)
+
+export type RequestId = Brand<string, 'RequestId'>;
+export type ConversationId = Brand<string, 'ConversationId'>;
+export type UserId = Brand<string, 'UserId'>;
+export type InvitationId = Brand<string, 'InvitationId'>;
+export type RunId = Brand<string, 'RunId'>;
+export type GatewayModelAlias = Brand<string, 'GatewayModelAlias'>;
+
+const UUID_PART = '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
+const REQUEST_ID_RE = new RegExp(`^req_${UUID_PART}$`, 'i');
+const CONV_ID_RE = new RegExp(`^conv_${UUID_PART}$`, 'i');
+const USER_ID_RE = new RegExp(`^usr_${UUID_PART}$`, 'i');
+const INVITATION_ID_RE = new RegExp(`^inv_${UUID_PART}$`, 'i');
+const RUN_ID_RE = new RegExp(`^run_${UUID_PART}$`, 'i');
+
+// ---------------------------------------------------------------------------
+// InvitationId — ID zaproszenia (Invitation), nie konto User; docs/brand_types.md
+// ---------------------------------------------------------------------------
+
+export const isInvitationId = (value: string): value is InvitationId =>
+  INVITATION_ID_RE.test(value);
+export const createInvitationId = (value: string): InvitationId => {
+  if (!isInvitationId(value)) throw new Error('Invalid InvitationId');
+  return brand<InvitationId>(value);
+};
+```
+
+Zakaz: `as InvitationId` na `req.params` / wierszu Prisma bez `isInvitationId` / `createInvitationId`. Prefiks `inv_` — nie mylić z `usr_`.
+
+**Refaktor** `apps/api/src/shared/http/new-ids.ts` — dopisać fabrykę (wzorzec `newUserId`):
+
+```typescript
+// apps/api/src/shared/http/new-ids.ts — dopisek
+import {
+  createConversationId,
+  createInvitationId,
+  createRequestId,
+  createRunId,
+  createUserId,
+  type ConversationId,
+  type InvitationId,
+  type RequestId,
+  type RunId,
+  type UserId,
+} from '@content-chain/shared';
+
+export const newRequestId = (): RequestId => createRequestId(`req_${uuidv4()}`);
+export const newConversationId = (): ConversationId =>
+  createConversationId(`conv_${uuidv4()}`);
+export const newRunId = (): RunId => createRunId(`run_${uuidv4()}`);
+export const newUserId = (): UserId => createUserId(`usr_${uuidv4()}`);
+export const newInvitationId = (): InvitationId =>
+  createInvitationId(`inv_${uuidv4()}`);
+```
+
+`InviteUserUseCase` może wołać `newInvitationId()` zamiast składać prefiks `inv_` i uuid ręcznie przez `createInvitationId`. Adapter Prisma mapuje `row.id` przez `createInvitationId` (jak `createUserId` w `prisma-user.adapter.ts`).
+
+Po zmianie shared: `pnpm --filter @content-chain/shared build` (albo `dev`), zanim api skompiluje `import type { InvitationId, UserId } from '@content-chain/shared'` w `invitation-repository.port.ts`.
 
 ```typescript
 // apps/api/src/auth/application/list-users.use-case.ts
@@ -1498,53 +1588,986 @@ export class ListUsersUseCase {
 ```
 
 ```typescript
-// apps/api/src/auth/application/create-user.use-case.ts
+// apps/api/src/auth/domain/invitation-repository.port.ts
+import type { InvitationId, UserId } from '@content-chain/shared';
+
+export const INVITATION_REPOSITORY = Symbol('INVITATION_REPOSITORY');
+
+export type InvitationPurpose = 'invite';
+export type InvitationStatus = 'pending' | 'accepted' | 'revoked';
+
+export type InvitationRecord = {
+  id: InvitationId;
+  email: string;
+  tokenHash: string;
+  purpose: InvitationPurpose;
+  status: InvitationStatus;
+  expiresAt: Date;
+  invitedByUserId: UserId;
+  createdAt: Date;
+};
+
+export type CreateInvitationInput = {
+  id: InvitationId;
+  email: string;
+  tokenHash: string;
+  purpose: InvitationPurpose;
+  expiresAt: Date;
+  invitedByUserId: UserId;
+};
+
+export type RotateInvitationTokenInput = {
+  id: InvitationId;
+  tokenHash: string;
+  expiresAt: Date;
+};
+
+export interface InvitationRepository {
+  createPending(input: CreateInvitationInput): Promise<InvitationRecord>;
+  findPendingByEmail(email: string): Promise<InvitationRecord | null>;
+  listPending(): Promise<InvitationRecord[]>;
+  findById(id: InvitationId): Promise<InvitationRecord | null>;
+  findPendingByHash(
+    tokenHash: string,
+    now: Date,
+  ): Promise<InvitationRecord | null>;
+  rotateToken(input: RotateInvitationTokenInput): Promise<InvitationRecord>;
+  revoke(id: InvitationId): Promise<void>;
+  markAccepted(id: InvitationId): Promise<void>;
+}
+```
+
+Zmiana względem: nazwa metody portu `findValidPendingByTokenHash` — obowiązuje `findPendingByHash` (ten sam kontrakt: hash + `now`; pending/ważność w adapterze). Zgodnie z `apps/api/src/auth/domain/invitation-repository.port.ts`.
+
+**Uzupełnienie portu** `invitation-repository.port.ts` — `InvitationListRecord` (GET lista: `invitedBy` bez hashu) oraz `acceptAndCreateUser` (D16, wzorzec `createAdminIfNone`). Use-case **nie** importuje Prisma. `markAccepted` zostaje jako prymityw persistence; `AcceptInviteUseCase` woła wyłącznie `acceptAndCreateUser`.
+
+Zmiana względem: szkic interfejsu powyżej z `listPending(): Promise<InvitationRecord[]>` i bez `acceptAndCreateUser`.
+
+Dodaj typy (po `RotateInvitationTokenInput`; `import type { AuthUser }` z `./auth-user.types`):
+
+```typescript
+export type InvitationListRecord = {
+  id: InvitationId;
+  email: string;
+  status: InvitationStatus;
+  expiresAt: Date;
+  createdAt: Date;
+  invitedBy: { id: UserId; email: string };
+};
+
+export type AcceptInviteAndCreateUserInput = {
+  invitationId: InvitationId;
+  userId: UserId;
+  email: string;
+  passwordHash: string;
+};
+
+export type AcceptInviteAndCreateUserResult =
+  | { ok: true; user: AuthUser }
+  | { ok: false; reason: 'email-taken' };
+```
+
+teraz:
+
+```typescript
+export interface InvitationRepository {
+  createPending(input: CreateInvitationInput): Promise<InvitationRecord>;
+  findPendingByEmail(email: string): Promise<InvitationRecord | null>;
+  listPending(): Promise<InvitationRecord[]>;
+  findById(id: InvitationId): Promise<InvitationRecord | null>;
+  findPendingByHash(
+    tokenHash: string,
+    now: Date,
+  ): Promise<InvitationRecord | null>;
+  rotateToken(input: RotateInvitationTokenInput): Promise<InvitationRecord>;
+  revoke(id: InvitationId): Promise<void>;
+  markAccepted(id: InvitationId): Promise<void>;
+}
+```
+
+zamień na:
+
+```typescript
+export interface InvitationRepository {
+  createPending(input: CreateInvitationInput): Promise<InvitationRecord>;
+  findPendingByEmail(email: string): Promise<InvitationRecord | null>;
+  listPending(): Promise<InvitationListRecord[]>;
+  findById(id: InvitationId): Promise<InvitationRecord | null>;
+  findPendingByHash(
+    tokenHash: string,
+    now: Date,
+  ): Promise<InvitationRecord | null>;
+  rotateToken(input: RotateInvitationTokenInput): Promise<InvitationRecord>;
+  revoke(id: InvitationId): Promise<void>;
+  markAccepted(id: InvitationId): Promise<void>;
+  acceptAndCreateUser(
+    input: AcceptInviteAndCreateUserInput,
+  ): Promise<AcceptInviteAndCreateUserResult>;
+}
+```
+
+```typescript
+// apps/api/src/auth/domain/transactional-mailer.port.ts
+import type { InvitationId } from '@content-chain/shared';
+
+export const TRANSACTIONAL_MAILER = Symbol('TRANSACTIONAL_MAILER');
+
+export type UserInvitedMail = {
+  kind: 'user_invited';
+  to: string;
+  invitationId: InvitationId;
+  acceptUrl: string;
+  rawToken: string;
+};
+
+export interface TransactionalMailer {
+  send(message: UserInvitedMail): Promise<void>;
+}
+```
+
+**Prisma** (ten sam krok; komentarz jak `User_one_admin`):
+
+```prisma
+model Invitation {
+  id              String   @id
+  email           String
+  tokenHash       String
+  /// MVP: tylko `invite`. Kolumna rezerwa pod `password_reset` — inny purpose nieobsługiwany.
+  purpose         String
+  status          String
+  expiresAt       DateTime
+  invitedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  /// Unique index `Invitation_one_pending_email` (status = 'pending') in SQL migration — SPEC-AUTH A-7d / SPEC-PERSISTENCE P-5 D17. Prisma 6 cannot declare partial unique in schema. Index without `purpose`.
+  invitedBy       User     @relation(fields: [invitedByUserId], references: [id])
+}
+```
+
+**Migracja** `apps/api/prisma/migrations/<timestamp>_users_invitations/migration.sql` (CREATE TABLE + D17 w tym samym pliku; komentarz jak `User_one_admin`):
+
+```sql
+-- CreateTable
+CREATE TABLE "Invitation" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "email" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "purpose" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "expiresAt" DATETIME NOT NULL,
+    "invitedByUserId" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Invitation_invitedByUserId_fkey" FOREIGN KEY ("invitedByUserId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- Unique index `Invitation_one_pending_email` (status = 'pending') — SPEC-AUTH A-7d / SPEC-PERSISTENCE D17.
+-- Partial unique is not expressible in Prisma 6 schema (preview `partialIndexes` is Prisma 7.4+).
+-- Index without `purpose`. Expired rows stay status = 'pending' and still block a second POST.
+CREATE UNIQUE INDEX "Invitation_one_pending_email" ON "Invitation"("email") WHERE "status" = 'pending';
+```
+
+`User.passwordHash` nadal wymagany — wiersz `User` powstaje dopiero w `AcceptInvite`. Na `User` dopisać relację `invitations Invitation[]`.
+
+```typescript
+// apps/api/src/auth/application/invite-user.use-case.ts
 import { Inject, Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
-import { createUserId } from '@content-chain/shared';
+import {
+  createInvitationId,
+  type InvitationId,
+  type UserId,
+} from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { parseWithZod } from '../../shared/parse-with-zod';
-import { validatePasswordPolicy } from '../domain/password.policy';
+import { ENV, type Env } from '../../shared/config/env';
 import {
   USER_REPOSITORY,
   type UserRepository,
-} from '../domain/user.repository.port';
-import { hashPassword } from './auth.helpers';
+} from '../domain/user-repository.port';
+import {
+  INVITATION_REPOSITORY,
+  type InvitationRepository,
+} from '../domain/invitation-repository.port';
+import {
+  TRANSACTIONAL_MAILER,
+  type TransactionalMailer,
+} from '../domain/transactional-mailer.port';
+import { generateRefreshToken, parseTtlMs } from './auth.helpers';
 import { z } from 'zod';
-import type { AuthUser } from '../domain/auth-user.types';
 
-const createUserSchema = z.object({
+const inviteUserSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1),
 });
 
+export type InviteUserResult = {
+  id: InvitationId;
+  email: string;
+  expiresAt: string;
+};
+
 @Injectable()
-export class CreateUserUseCase {
+export class InviteUserUseCase {
   constructor(
     @Inject(USER_REPOSITORY) private readonly users: UserRepository,
+    @Inject(INVITATION_REPOSITORY)
+    private readonly invitations: InvitationRepository,
+    @Inject(TRANSACTIONAL_MAILER) private readonly mailer: TransactionalMailer,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   async execute(
     input: unknown,
-  ): Promise<Pick<AuthUser, 'id' | 'email' | 'role'>> {
-    const command = parseWithZod(createUserSchema, input);
+    invitedByUserId: UserId,
+  ): Promise<InviteUserResult> {
+    const command = parseWithZod(inviteUserSchema, input);
+    // D18: bez trim/toLowerCase — email case-sensitive jak User
+
+    const existingUser = await this.users.findForAuth(command.email);
+    if (existingUser) {
+      throw new DomainException('CONFLICT', 'Email already in use', 409);
+    }
+
+    const pending = await this.invitations.findPendingByEmail(command.email);
+    if (pending) {
+      throw new DomainException(
+        'CONFLICT',
+        'Pending invitation already exists',
+        409,
+      );
+    }
+
+    const { raw, hash } = generateRefreshToken();
+    const invitationId = createInvitationId(`inv_${uuidv4()}`);
+    const expiresAt = new Date(Date.now() + parseTtlMs(this.env.INVITE_TTL));
+
+    const saved = await this.invitations.createPending({
+      id: invitationId,
+      email: command.email,
+      tokenHash: hash,
+      purpose: 'invite',
+      expiresAt,
+      invitedByUserId,
+    });
+
+    try {
+      await this.mailer.send({
+        kind: 'user_invited',
+        to: saved.email,
+        invitationId: saved.id,
+        acceptUrl: `${this.env.APP_PUBLIC_URL ?? ''}/invite/accept?token=${raw}`,
+        rawToken: raw,
+      });
+    } catch {
+      throw new DomainException(
+        'MAIL_DELIVERY_FAILED',
+        'Mail delivery failed',
+        503,
+        [{ id: saved.id }],
+      );
+    }
+
+    return {
+      id: saved.id,
+      email: saved.email,
+      expiresAt: saved.expiresAt.toISOString(),
+    };
+  }
+}
+```
+
+**Uzupełnienie** `invite-user.use-case.ts` — `newInvitationId()` (DoD tego kroku; bez ręcznego `inv_` + `uuidv4`).
+
+teraz:
+
+```typescript
+import { v4 as uuidv4 } from 'uuid';
+import {
+  createInvitationId,
+  type InvitationId,
+  type UserId,
+} from '@content-chain/shared';
+```
+
+```typescript
+    const invitationId = createInvitationId(`inv_${uuidv4()}`);
+```
+
+zamień na:
+
+```typescript
+import { newInvitationId } from '../../shared/http/new-ids';
+import type { InvitationId, UserId } from '@content-chain/shared';
+```
+
+```typescript
+    const invitationId = newInvitationId();
+```
+
+Pomocnicze **tego samego slota** (nie wynosić do KROKU 3/4/5). `hashRefreshToken` / `generateRefreshToken` (SHA-256) — reuse na token zaproszenia.
+
+```typescript
+// apps/api/src/auth/application/list-invitations.use-case.ts
+import { Inject, Injectable } from '@nestjs/common';
+import type { InvitationId, UserId } from '@content-chain/shared';
+import {
+  INVITATION_REPOSITORY,
+  type InvitationRepository,
+} from '../domain/invitation-repository.port';
+
+export type InvitationListItem = {
+  id: InvitationId;
+  email: string;
+  createdAt: string;
+  expiresAt: string;
+  invitedBy: { id: UserId };
+};
+
+@Injectable()
+export class ListInvitationsUseCase {
+  constructor(
+    @Inject(INVITATION_REPOSITORY)
+    private readonly invitations: InvitationRepository,
+  ) {}
+
+  async execute(): Promise<{ items: InvitationListItem[] }> {
+    const pending = await this.invitations.listPending();
+    return {
+      items: pending.map((row) => ({
+        id: row.id,
+        email: row.email,
+        createdAt: row.createdAt.toISOString(),
+        expiresAt: row.expiresAt.toISOString(),
+        invitedBy: { id: row.invitedByUserId },
+      })),
+    };
+  }
+}
+```
+
+```typescript
+// apps/api/src/auth/application/resend-invitation.use-case.ts
+import { Inject, Injectable } from '@nestjs/common';
+import { createInvitationId, isInvitationId } from '@content-chain/shared';
+import { DomainException } from '../../shared/exceptions/domain.exception';
+import { ENV, type Env } from '../../shared/config/env';
+import {
+  INVITATION_REPOSITORY,
+  type InvitationRepository,
+} from '../domain/invitation-repository.port';
+import {
+  TRANSACTIONAL_MAILER,
+  type TransactionalMailer,
+} from '../domain/transactional-mailer.port';
+import { generateRefreshToken, parseTtlMs } from './auth.helpers';
+import type { InviteUserResult } from './invite-user.use-case';
+
+@Injectable()
+export class ResendInvitationUseCase {
+  constructor(
+    @Inject(INVITATION_REPOSITORY)
+    private readonly invitations: InvitationRepository,
+    @Inject(TRANSACTIONAL_MAILER) private readonly mailer: TransactionalMailer,
+    @Inject(ENV) private readonly env: Env,
+  ) {}
+
+  async execute(idParam: string): Promise<InviteUserResult> {
+    if (!isInvitationId(idParam)) {
+      throw new DomainException(
+        'VALIDATION_FAILED',
+        'Invalid invitation id',
+        400,
+      );
+    }
+    const invitationId = createInvitationId(idParam);
+    const existing = await this.invitations.findById(invitationId);
+    if (!existing || existing.status !== 'pending') {
+      throw new DomainException(
+        'INVITATION_NOT_FOUND',
+        'Invitation not found',
+        404,
+      );
+    }
+
+    const { raw, hash } = generateRefreshToken();
+    const expiresAt = new Date(Date.now() + parseTtlMs(this.env.INVITE_TTL));
+    const saved = await this.invitations.rotateToken({
+      id: invitationId,
+      tokenHash: hash,
+      expiresAt,
+    });
+
+    try {
+      await this.mailer.send({
+        kind: 'user_invited',
+        to: saved.email,
+        invitationId: saved.id,
+        acceptUrl: `${this.env.APP_PUBLIC_URL ?? ''}/invite/accept?token=${raw}`,
+        rawToken: raw,
+      });
+    } catch {
+      throw new DomainException(
+        'MAIL_DELIVERY_FAILED',
+        'Mail delivery failed',
+        503,
+        [{ id: saved.id }],
+      );
+    }
+
+    return {
+      id: saved.id,
+      email: saved.email,
+      expiresAt: saved.expiresAt.toISOString(),
+    };
+  }
+}
+```
+
+```typescript
+// apps/api/src/auth/application/revoke-invitation.use-case.ts
+import { Inject, Injectable } from '@nestjs/common';
+import { createInvitationId, isInvitationId } from '@content-chain/shared';
+import { DomainException } from '../../shared/exceptions/domain.exception';
+import {
+  INVITATION_REPOSITORY,
+  type InvitationRepository,
+} from '../domain/invitation-repository.port';
+
+@Injectable()
+export class RevokeInvitationUseCase {
+  constructor(
+    @Inject(INVITATION_REPOSITORY)
+    private readonly invitations: InvitationRepository,
+  ) {}
+
+  async execute(idParam: string): Promise<{ ok: true }> {
+    if (!isInvitationId(idParam)) {
+      throw new DomainException(
+        'VALIDATION_FAILED',
+        'Invalid invitation id',
+        400,
+      );
+    }
+    const invitationId = createInvitationId(idParam);
+    const existing = await this.invitations.findById(invitationId);
+    if (!existing || existing.status !== 'pending') {
+      throw new DomainException(
+        'INVITATION_NOT_FOUND',
+        'Invitation not found',
+        404,
+      );
+    }
+    await this.invitations.revoke(invitationId);
+    return { ok: true };
+  }
+}
+```
+
+```typescript
+// apps/api/src/auth/application/accept-invite.use-case.ts
+import { Inject, Injectable } from '@nestjs/common';
+import { z } from 'zod';
+import type { UserId } from '@content-chain/shared';
+import { DomainException } from '../../shared/exceptions/domain.exception';
+import { parseWithZod } from '../../shared/parse-with-zod';
+import { newUserId } from '../../shared/http/new-ids';
+import { validatePasswordPolicy } from '../domain/password.policy';
+import {
+  INVITATION_REPOSITORY,
+  type InvitationRepository,
+} from '../domain/invitation-repository.port';
+import { hashPassword, hashRefreshToken } from './auth.helpers';
+
+const acceptInviteSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(1),
+});
+
+export type AcceptInviteResult = {
+  user: { id: UserId; email: string; role: 'user' };
+};
+
+@Injectable()
+export class AcceptInviteUseCase {
+  constructor(
+    @Inject(INVITATION_REPOSITORY)
+    private readonly invitations: InvitationRepository,
+  ) {}
+
+  async execute(input: unknown): Promise<AcceptInviteResult> {
+    const command = parseWithZod(acceptInviteSchema, input);
+    const tokenHash = hashRefreshToken(command.token);
+
+    const invitation = await this.invitations.findPendingByHash(
+      tokenHash,
+      new Date(),
+    );
+    if (!invitation) {
+      throw new DomainException(
+        'UNAUTHORIZED',
+        'Invalid invitation token',
+        401,
+      );
+    }
 
     validatePasswordPolicy(command.password);
 
-    // SPEC-AUTH.md A-7: admin tworzy tylko role=user; żadna ścieżka nie tworzy admin
     const passwordHash = await hashPassword(command.password);
-    const userId = createUserId(`usr_${uuidv4()}`);
-
-    const user = await this.users.create({
-      id: userId,
-      email: command.email,
+    const created = await this.invitations.acceptAndCreateUser({
+      invitationId: invitation.id,
+      userId: newUserId(),
+      email: invitation.email,
       passwordHash,
-      role: 'user',
     });
+    if (!created.ok) {
+      throw new DomainException('CONFLICT', 'Email already in use', 409);
+    }
 
-    return { id: user.id, email: user.email, role: user.role };
+    return {
+      user: {
+        id: created.user.id,
+        email: created.user.email,
+        role: 'user',
+      },
+    };
   }
 }
+```
+
+`AcceptInviteUseCase` **nie** woła `setAuthCookies`. Zły token / revoked / wygasły → ten sam `401 UNAUTHORIZED` (zaproszenie bez zmian). Hasło poza A-5 → `400 VALIDATION_FAILED` (pending bez zmian). Kolizja `User.email` (P2002) → `409 CONFLICT`.
+
+`PrismaInvitationAdapter` woła zapytania wyłącznie przez `PrismaService` (jak `prisma-refresh-session.adapter.ts`). Import `{ Prisma } from '@prisma/client'` **nie** jest klientem DB — to namespace błędów Prisma. Jest potrzebny **tylko** w `acceptAndCreateUser`: type-guard `Prisma.PrismaClientKnownRequestError` + kod `P2002` (unikalny `User.email`) → `{ ok: false, reason: 'email-taken' }`. Ten sam helper co `isUniqueConstraintViolation` w `prisma-user.adapter.ts` (`createAdminIfNone`). Analogią **nie** jest refresh-session — tam port nie mapuje unique constraint na wynik domenowy. Bez tego catcha kolizja wychodzi jako 500 zamiast 409 (`SPEC-AUTH.md` A-7b / D16).
+
+```typescript
+// apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts
+import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../../shared/persistence/prisma.service';
+import {
+  createInvitationId,
+  createUserId,
+  isUserRole,
+} from '@content-chain/shared';
+import { DomainException } from '../../shared/exceptions/domain.exception';
+import type { AuthUser } from '../domain/auth-user.types';
+import type {
+  AcceptInviteAndCreateUserInput,
+  AcceptInviteAndCreateUserResult,
+  CreateInvitationInput,
+  InvitationListRecord,
+  InvitationPurpose,
+  InvitationRecord,
+  InvitationRepository,
+  InvitationStatus,
+  RotateInvitationTokenInput,
+} from '../domain/invitation-repository.port';
+
+// Namespace Prisma tylko tutaj (P2002). Zapytania: this.prisma (PrismaService).
+function isUniqueConstraintViolation(
+  error: unknown,
+): error is Prisma.PrismaClientKnownRequestError {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2002'
+  );
+}
+
+function isInvitationPurpose(value: string): value is InvitationPurpose {
+  return value === 'invite';
+}
+
+function isInvitationStatus(value: string): value is InvitationStatus {
+  return value === 'pending' || value === 'accepted' || value === 'revoked';
+}
+
+type InvitationRow = {
+  id: string;
+  email: string;
+  tokenHash: string;
+  purpose: string;
+  status: string;
+  expiresAt: Date;
+  invitedByUserId: string;
+  createdAt: Date;
+};
+
+@Injectable()
+export class PrismaInvitationAdapter implements InvitationRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  private toRecord(row: InvitationRow): InvitationRecord {
+    if (!isInvitationPurpose(row.purpose) || !isInvitationStatus(row.status)) {
+      throw new DomainException(
+        'INTERNAL_ERROR',
+        'Invalid invitation row in persistence',
+        500,
+      );
+    }
+    return {
+      id: createInvitationId(row.id),
+      email: row.email,
+      tokenHash: row.tokenHash,
+      purpose: row.purpose,
+      status: row.status,
+      expiresAt: row.expiresAt,
+      invitedByUserId: createUserId(row.invitedByUserId),
+      createdAt: row.createdAt,
+    };
+  }
+
+  async createPending(input: CreateInvitationInput): Promise<InvitationRecord> {
+    const row = await this.prisma.invitation.create({
+      data: {
+        id: input.id,
+        email: input.email,
+        tokenHash: input.tokenHash,
+        purpose: input.purpose,
+        status: 'pending',
+        expiresAt: input.expiresAt,
+        invitedByUserId: input.invitedByUserId,
+      },
+    });
+    return this.toRecord(row);
+  }
+
+  async findPendingByEmail(email: string): Promise<InvitationRecord | null> {
+    const row = await this.prisma.invitation.findFirst({
+      where: { email, status: 'pending' },
+    });
+    return row ? this.toRecord(row) : null;
+  }
+
+  async listPending(): Promise<InvitationListRecord[]> {
+    const rows = await this.prisma.invitation.findMany({
+      where: { status: 'pending' },
+      orderBy: { createdAt: 'asc' },
+      include: { invitedBy: { select: { id: true, email: true } } },
+    });
+    return rows.map((row) => {
+      const record = this.toRecord(row);
+      return {
+        id: record.id,
+        email: record.email,
+        status: record.status,
+        expiresAt: record.expiresAt,
+        createdAt: record.createdAt,
+        invitedBy: {
+          id: createUserId(row.invitedBy.id),
+          email: row.invitedBy.email,
+        },
+      };
+    });
+  }
+
+  async findById(
+    id: InvitationRecord['id'],
+  ): Promise<InvitationRecord | null> {
+    const row = await this.prisma.invitation.findUnique({ where: { id } });
+    return row ? this.toRecord(row) : null;
+  }
+
+  async findPendingByHash(
+    tokenHash: string,
+    now: Date,
+  ): Promise<InvitationRecord | null> {
+    const row = await this.prisma.invitation.findFirst({
+      where: {
+        tokenHash,
+        status: 'pending',
+        expiresAt: { gt: now },
+      },
+    });
+    return row ? this.toRecord(row) : null;
+  }
+
+  async rotateToken(
+    input: RotateInvitationTokenInput,
+  ): Promise<InvitationRecord> {
+    const row = await this.prisma.invitation.update({
+      where: { id: input.id },
+      data: { tokenHash: input.tokenHash, expiresAt: input.expiresAt },
+    });
+    return this.toRecord(row);
+  }
+
+  async revoke(id: InvitationRecord['id']): Promise<void> {
+    await this.prisma.invitation.update({
+      where: { id },
+      data: { status: 'revoked' },
+    });
+  }
+
+  async markAccepted(id: InvitationRecord['id']): Promise<void> {
+    await this.prisma.invitation.update({
+      where: { id },
+      data: { status: 'accepted' },
+    });
+  }
+
+  async acceptAndCreateUser(
+    input: AcceptInviteAndCreateUserInput,
+  ): Promise<AcceptInviteAndCreateUserResult> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const userRow = await tx.user.create({
+          data: {
+            id: input.userId,
+            email: input.email,
+            passwordHash: input.passwordHash,
+            role: 'user',
+            isActive: true,
+          },
+        });
+        await tx.invitation.update({
+          where: { id: input.invitationId },
+          data: { status: 'accepted' },
+        });
+        if (!isUserRole(userRow.role)) {
+          throw new DomainException(
+            'INTERNAL_ERROR',
+            'Invalid user role in persistence',
+            500,
+          );
+        }
+        const user: AuthUser = {
+          id: createUserId(userRow.id),
+          email: userRow.email,
+          role: userRow.role,
+          isActive: userRow.isActive,
+          createdAt: userRow.createdAt,
+          updatedAt: userRow.updatedAt,
+        };
+        return { ok: true, user };
+      });
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        return { ok: false, reason: 'email-taken' };
+      }
+      throw error;
+    }
+  }
+}
+```
+
+Zakaz: `as InvitationId` / `as UserId` na wierszu Prisma — wyłącznie `createInvitationId` / `createUserId`. `findPendingByEmail` **bez** filtra `expiresAt` (wygasły pending też 409). `listPending` obejmuje wygasłe. `findPendingByHash` wymaga `status = pending` **oraz** `expiresAt > now`.
+
+```typescript
+// apps/api/src/auth/infrastructure/logging-mailer.adapter.ts
+import { Injectable, Logger } from '@nestjs/common';
+import type {
+  TransactionalMailer,
+  UserInvitedMail,
+} from '../domain/transactional-mailer.port';
+
+@Injectable()
+export class LoggingMailerAdapter implements TransactionalMailer {
+  private readonly logger = new Logger(LoggingMailerAdapter.name);
+
+  async send(message: UserInvitedMail): Promise<void> {
+    const text = `Open: ${message.acceptUrl}\nToken: ${message.rawToken}`;
+    this.logger.log(
+      `user_invited to=${message.to} invitationId=${message.invitationId} ${text}`,
+    );
+  }
+}
+```
+
+Adapter logujący: `send` **nigdy nie rzuca**. Rejestracja tylko gdy `NODE_ENV` ≠ `production` (DI w KROKU 2). Raw token w logu jest dozwolony wyłącznie poza `production` (`SPEC-BEZPIECZENSTWO.md` B-8).
+
+```typescript
+// apps/api/src/auth/infrastructure/nodemailer-smtp-mailer.adapter.ts
+import { Inject, Injectable } from '@nestjs/common';
+import nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
+import { ENV, type Env } from '../../shared/config/env';
+import type {
+  TransactionalMailer,
+  UserInvitedMail,
+} from '../domain/transactional-mailer.port';
+
+type SmtpConfig = {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+  from: string;
+};
+
+function readSmtpConfig(env: Env): SmtpConfig {
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM } = env;
+  if (
+    SMTP_HOST === undefined ||
+    SMTP_PORT === undefined ||
+    SMTP_USER === undefined ||
+    SMTP_PASS === undefined ||
+    MAIL_FROM === undefined
+  ) {
+    throw new Error('SMTP configuration is incomplete');
+  }
+  return {
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    user: SMTP_USER,
+    pass: SMTP_PASS,
+    from: MAIL_FROM,
+  };
+}
+
+@Injectable()
+export class NodemailerSmtpMailerAdapter implements TransactionalMailer {
+  private readonly transporter: Transporter;
+  private readonly from: string;
+
+  constructor(@Inject(ENV) env: Env) {
+    const smtp = readSmtpConfig(env);
+    this.from = smtp.from;
+    this.transporter = nodemailer.createTransport({
+      host: smtp.host,
+      port: smtp.port,
+      auth: { user: smtp.user, pass: smtp.pass },
+    });
+  }
+
+  async send(message: UserInvitedMail): Promise<void> {
+    await this.transporter.sendMail({
+      from: this.from,
+      to: message.to,
+      subject: 'You are invited',
+      text: `Open: ${message.acceptUrl}\nToken: ${message.rawToken}`,
+    });
+  }
+}
+```
+
+Nodemailer wyłącznie w tym adapterze. Pad `sendMail` → wyjątek (łapany w `InviteUser` / `ResendInvitation` jako 503). Rejestracja gdy `NODE_ENV === 'production'` (DI w KROKU 2).
+
+**Refaktor** `apps/api/src/shared/config/env.schema.ts` — `INVITE_TTL` default `'7d'`; `SMTP_*` / `MAIL_FROM` / `APP_PUBLIC_URL` wymagane gdy `NODE_ENV === 'production'` (`superRefine` jak `CORS_ORIGIN`).
+
+teraz (pola JWT już są; brak zaproszeń / SMTP):
+
+```typescript
+    JWT_REFRESH_TTL: z.string().min(1).default('1d'),
+    CORS_ORIGIN: z.string().min(1),
+    MAX_CONCURRENT_RUNS: z.coerce.number().int().positive().default(3),
+  })
+  .superRefine((value, ctx) => {
+    if (value.NODE_ENV === 'production' && value.CORS_ORIGIN.trim() === '*') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['CORS_ORIGIN'],
+        message: 'CORS_ORIGIN cannot be * in production',
+      });
+    }
+  });
+```
+
+zamień na:
+
+```typescript
+    JWT_REFRESH_TTL: z.string().min(1).default('1d'),
+    CORS_ORIGIN: z.string().min(1),
+    MAX_CONCURRENT_RUNS: z.coerce.number().int().positive().default(3),
+    INVITE_TTL: z.string().min(1).default('7d'),
+    APP_PUBLIC_URL: z.string().url().optional(),
+    MAIL_FROM: z.string().min(1).optional(),
+    SMTP_HOST: z.string().min(1).optional(),
+    SMTP_PORT: z.coerce.number().int().positive().optional(),
+    SMTP_USER: z.string().min(1).optional(),
+    SMTP_PASS: z.string().min(1).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.NODE_ENV === 'production' && value.CORS_ORIGIN.trim() === '*') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['CORS_ORIGIN'],
+        message: 'CORS_ORIGIN cannot be * in production',
+      });
+    }
+    if (value.NODE_ENV !== 'production') {
+      return;
+    }
+    const required: Array<
+      [string, string | number | undefined]
+    > = [
+      ['APP_PUBLIC_URL', value.APP_PUBLIC_URL],
+      ['MAIL_FROM', value.MAIL_FROM],
+      ['SMTP_HOST', value.SMTP_HOST],
+      ['SMTP_PORT', value.SMTP_PORT],
+      ['SMTP_USER', value.SMTP_USER],
+      ['SMTP_PASS', value.SMTP_PASS],
+    ];
+    for (const [path, field] of required) {
+      if (field === undefined || field === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [path],
+          message: `${path} is required in production`,
+        });
+      }
+    }
+  });
+```
+
+**Refaktor** `apps/api/.env.example` — placeholdery (bez sekretów produkcyjnych):
+
+teraz (fragment JWT / CORS; brak invite/SMTP):
+
+```
+JWT_SECRET="change-me-jwt-secret"
+JWT_ACCESS_TTL="15m"
+JWT_REFRESH_TTL="1d"
+CORS_ORIGIN='http://localhost:3000'
+```
+
+zamień na:
+
+```
+JWT_SECRET="change-me-jwt-secret"
+JWT_ACCESS_TTL="15m"
+JWT_REFRESH_TTL="1d"
+INVITE_TTL="7d"
+APP_PUBLIC_URL=http://localhost:3000
+MAIL_FROM="noreply@localhost"
+SMTP_HOST="localhost"
+SMTP_PORT=1025
+SMTP_USER="mail"
+SMTP_PASS="change-me-smtp-pass"
+CORS_ORIGIN='http://localhost:3000'
+```
+
+W `development` / `test` `SMTP_*` i `MAIL_FROM` nie są wymagane (adapter logujący). Wartości w example są placeholderami pod lokalny SMTP (np. Mailhog) — nie sekretami.
+
+**Refaktor** `apps/api/src/shared/config/env.schema.spec.ts` — asercje defaultu i fail-fast:
+
+```typescript
+  it('defaults INVITE_TTL to 7d', () => {
+    expect(validateEnv(valid).INVITE_TTL).toBe('7d');
+  });
+
+  it('does not require SMTP in development', () => {
+    expect(() => validateEnv(valid)).not.toThrow();
+  });
+
+  it('requires SMTP, MAIL_FROM and APP_PUBLIC_URL in production', () => {
+    expect(() =>
+      validateEnv({ ...valid, NODE_ENV: 'production' }),
+    ).toThrow();
+  });
+
+  it('parses production when invite SMTP fields are set', () => {
+    const env = validateEnv({
+      ...valid,
+      NODE_ENV: 'production',
+      APP_PUBLIC_URL: 'https://app.example.com',
+      MAIL_FROM: 'noreply@example.com',
+      SMTP_HOST: 'smtp.example.com',
+      SMTP_PORT: '587',
+      SMTP_USER: 'mail',
+      SMTP_PASS: 'change-me',
+    });
+    expect(env.INVITE_TTL).toBe('7d');
+    expect(env.SMTP_HOST).toBe('smtp.example.com');
+  });
 ```
 
 ```typescript
@@ -1580,30 +2603,118 @@ export class SoftDeleteUserUseCase {
 ```
 
 **DoD kroku:**
-- `CreateUserUseCase` zawsze tworzy `role = 'user'`; polityka haseł egzekwowana przed hashem
+- `@content-chain/shared` eksportuje `InvitationId`, `isInvitationId`, `createInvitationId` (`inv_<uuid>`); `invitation-repository.port.ts` i `transactional-mailer.port.ts` kompilują `import type { InvitationId, UserId } from '@content-chain/shared'`
+- `newInvitationId()` w `apps/api/src/shared/http/new-ids.ts`; `InviteUserUseCase` woła `newInvitationId()`; adapter Prisma nie używa gołego `as InvitationId`
+- Admin nie przekazuje `password`; `InviteUserUseCase` tworzy pending + mail (D15: 201 vs 503 + `details.id`); raw token nie w wyniku
+- `ListInvitationsUseCase` zwraca wszystkie `pending` (w tym wygasłe), pola `id, email, createdAt, expiresAt, invitedBy`; bez `tokenHash`
+- `ResendInvitationUseCase` rotuje token + send; brak / nie-pending → 404; pad SMTP → 503 + to samo `id`
+- `RevokeInvitationUseCase`: `pending` → `revoked` (nie twardy DELETE); brak / nie-pending → 404
+- `AcceptInviteUseCase`: walidacja tokenu i A-5 **przed** transakcją; `acceptAndCreateUser` = jedna transakcja Prisma (D16); bez `setAuthCookies`
+- `PrismaInvitationAdapter` implementuje port (w tym D16 / P2002 → `{ ok: false, reason: 'email-taken' }`); `findPendingByEmail` bez filtra `expiresAt`
+- `LoggingMailerAdapter.send` nigdy nie rzuca; `NodemailerSmtpMailerAdapter` = jedyne miejsce importu `nodemailer`
 - `SoftDeleteUserUseCase` ustawia `isActive = false`; brak wiersza → 404
 - `ListUsersUseCase` nie zwraca `passwordHash`
 - Brak importu Prisma w use-case'ach
+- Migracja `Invitation` + indeks SQL D17 w tym kroku
+- `INVITE_TTL` default `7d`; w `production` fail-fast: `APP_PUBLIC_URL`, `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`
 
 ---
 
-### KROK 2 — UsersController + AuthModule.controllers update
+### KROK 2 — UsersController + InvitationsController + accept-invite + AuthModule.controllers update
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Cel:** HTTP powierzchnia zarządzania użytkownikami — tylko dla admina. Dodanie `UsersController` do `AuthModule`.  
-Odwołanie: `docs/dokumentacja_komunikacji.md` Users; `SPEC-AUTH.md` A-7, A-10.
+**Cel:** HTTP powierzchnia listy i soft-delete kont (admin) **oraz** zaproszeń (admin) i publicznego accept-invite. Dodanie kontrolerów do `AuthModule`.  
+Odwołanie: `docs/dokumentacja_komunikacji.md` Users + Invitations + accept-invite; `SPEC-AUTH.md` A-7 / A-7a–d, A-10.  
+Refaktor względem: `UsersController.create` → `CreateUserUseCase`; DoD `POST /api/v1/users` (201) + hasło.
+
+Kolejność handlerów analogiczna do dziś: `GET` lista → **mutacja dodawania (invitations + accept-invite)** → `DELETE` soft-delete.
 
 **Artefakty (nowe pliki):**
-- `apps/api/src/auth/users.controller.ts`
+- `apps/api/src/auth/users.controller.ts` — `GET /` + `DELETE :id` (bez `POST` create)
+- `apps/api/src/auth/invitations.controller.ts` — list / create / resend / revoke
+- `apps/api/src/auth/http/invite-user.dto.ts` — body `POST /invitations` (ścieżka jak Faza 1 na dysku: `auth/http/*.dto.ts`, nie `http/dto/`)
+- `apps/api/src/auth/http/accept-invite.dto.ts` — body `POST /auth/accept-invite`
 
 **Artefakty (refaktory):**
-- `apps/api/src/auth/auth.module.ts` — dopisanie `UsersController` i use-case'ów z KROK 1
+- `apps/api/src/auth/auth.controller.ts` — publiczny `POST /auth/accept-invite` (`@Public()`, 201, bez cookie)
+- `apps/api/src/auth/auth.module.ts` — kontrolery Users/Invitations; providery use-case’ów **oraz** `PrismaInvitationAdapter` / `INVITATION_REPOSITORY` / `TRANSACTIONAL_MAILER` (factory po `NODE_ENV`) ze slota KROKU 1
+- `apps/api/test/postman/auth.postman-collection.json` — foldery Invitations + Accept-invite (invite → token z logu api → accept → login; raw token **nie** w JSON admina)
 
 **Implementacja:**
 
 ```typescript
 // apps/api/src/auth/users.controller.ts
+import {
+  Controller,
+  Get,
+  Delete,
+  Param,
+  HttpCode,
+} from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import { Roles } from '../shared/decorators/roles.decorator';
+import { ListUsersUseCase } from './application/list-users.use-case';
+import { SoftDeleteUserUseCase } from './application/soft-delete-user.use-case';
+
+@ApiTags('users')
+@Controller('users')
+@Roles('admin') // cały kontroler — tylko admin; JwtAuthGuard działa globalnie
+export class UsersController {
+  constructor(
+    private readonly listUsers: ListUsersUseCase,
+    private readonly softDelete: SoftDeleteUserUseCase,
+  ) {}
+
+  @Get()
+  list() {
+    return this.listUsers.execute();
+  }
+
+  @Delete(':id')
+  @HttpCode(200)
+  delete(@Param('id') id: string) {
+    return this.softDelete.execute(id);
+  }
+}
+```
+
+```typescript
+// apps/api/src/auth/http/invite-user.dto.ts
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail } from 'class-validator';
+
+/** Cienka bramka HTTP. Kształt komendy — Zod w InviteUserUseCase; D18 bez trim/toLowerCase. */
+export class InviteUserDto {
+  @ApiProperty()
+  @IsEmail()
+  email!: string;
+}
+```
+
+```typescript
+// apps/api/src/auth/http/accept-invite.dto.ts
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, MinLength } from 'class-validator';
+
+/** Cienka bramka HTTP. Polityka haseł — domain (`validatePasswordPolicy`); kształt — Zod w AcceptInviteUseCase. */
+export class AcceptInviteDto {
+  @ApiProperty({ minLength: 1 })
+  @IsString()
+  @MinLength(1)
+  token!: string;
+
+  @ApiProperty({ minLength: 1 })
+  @IsString()
+  @MinLength(1)
+  password!: string;
+}
+```
+
+Zmiana względem: szkic `InvitationsController.create` z `@Body() body: unknown`. Obowiązuje DTO class-validator jak Faza 1 / Krok 5 (`SPEC-KOMUNIKACJA.md` warstwa Controller). Use-case zostaje przy `execute(input: unknown)` — instancja DTO jest legalnym wejściem. Nieznany klucz w body → 400 (`ValidationPipe` `forbidNonWhitelisted`).
+
+```typescript
+// apps/api/src/auth/invitations.controller.ts
 import {
   Controller,
   Get,
@@ -1615,74 +2726,240 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Roles } from '../shared/decorators/roles.decorator';
-import { ListUsersUseCase } from './application/list-users.use-case';
-import { CreateUserUseCase } from './application/create-user.use-case';
-import { SoftDeleteUserUseCase } from './application/soft-delete-user.use-case';
+import { CurrentUser } from '../shared/decorators/current-user.decorator';
+import type { AuthUserContext } from '../shared/types/auth-user-context';
+import { InviteUserDto } from './http/invite-user.dto';
+import { InviteUserUseCase } from './application/invite-user.use-case';
+import { ListInvitationsUseCase } from './application/list-invitations.use-case';
+import { ResendInvitationUseCase } from './application/resend-invitation.use-case';
+import { RevokeInvitationUseCase } from './application/revoke-invitation.use-case';
 
-@ApiTags('users')
-@Controller('users')
-@Roles('admin') // cały kontroler — tylko admin; JwtAuthGuard działa globalnie
-export class UsersController {
+@ApiTags('invitations')
+@Controller('invitations')
+@Roles('admin')
+export class InvitationsController {
   constructor(
-    private readonly listUsers: ListUsersUseCase,
-    private readonly createUser: CreateUserUseCase,
-    private readonly softDelete: SoftDeleteUserUseCase,
+    private readonly listInvitations: ListInvitationsUseCase,
+    private readonly inviteUser: InviteUserUseCase,
+    private readonly resendInvitation: ResendInvitationUseCase,
+    private readonly revokeInvitation: RevokeInvitationUseCase,
   ) {}
 
   @Get()
   list() {
-    return this.listUsers.execute();
+    return this.listInvitations.execute();
   }
 
   @Post()
   @HttpCode(201)
-  create(@Body() body: unknown) {
-    return this.createUser.execute(body);
+  create(@Body() body: InviteUserDto, @CurrentUser() user: AuthUserContext) {
+    return this.inviteUser.execute(body, user.id);
+  }
+
+  @Post(':id/resend')
+  @HttpCode(201)
+  resend(@Param('id') id: string) {
+    return this.resendInvitation.execute(id);
   }
 
   @Delete(':id')
   @HttpCode(200)
-  delete(@Param('id') id: string) {
-    return this.softDelete.execute(id);
+  revoke(@Param('id') id: string) {
+    return this.revokeInvitation.execute(id);
   }
 }
 ```
 
-**Refaktor** `apps/api/src/auth/auth.module.ts` — dopisanie `UsersController` i use-case'ów CRUD użytkowników:
+**Refaktor** `apps/api/src/auth/auth.controller.ts` — publiczny accept-invite. `@Public()` zostaje na `bootstrap-status`, `bootstrap-admin`, `login`, `refresh` **oraz** `accept-invite`. **Nie** wołać `setAuthCookies`.
+
+teraz (constructor + brak handlera accept-invite):
+
+```typescript
+import { MeUseCase } from './application/me.use-case';
+import { BootstrapAdminDto } from './http/bootstrap-admin.dto';
+import { LoginDto } from './http/login.dto';
+```
+
+```typescript
+  constructor(
+    private readonly bootstrapStatus: BootstrapStatusUseCase,
+    private readonly bootstrapAdmin: BootstrapAdminUseCase,
+    private readonly login: LoginUseCase,
+    private readonly logout: LogoutUseCase,
+    private readonly refresh: RefreshUseCase,
+    private readonly me: MeUseCase,
+    @Inject(ENV) private readonly env: Env,
+  ) {}
+```
+
+zamień na:
+
+```typescript
+import { MeUseCase } from './application/me.use-case';
+import { AcceptInviteUseCase } from './application/accept-invite.use-case';
+import { BootstrapAdminDto } from './http/bootstrap-admin.dto';
+import { LoginDto } from './http/login.dto';
+import { AcceptInviteDto } from './http/accept-invite.dto';
+```
+
+```typescript
+  constructor(
+    private readonly bootstrapStatus: BootstrapStatusUseCase,
+    private readonly bootstrapAdmin: BootstrapAdminUseCase,
+    private readonly login: LoginUseCase,
+    private readonly logout: LogoutUseCase,
+    private readonly refresh: RefreshUseCase,
+    private readonly me: MeUseCase,
+    private readonly acceptInvite: AcceptInviteUseCase,
+    @Inject(ENV) private readonly env: Env,
+  ) {}
+```
+
+Dopisz handler w sekcji tras publicznych (obok `login` / `refresh`; **przed** `logout` / `me`):
+
+```typescript
+  @Public()
+  @Post('accept-invite')
+  @HttpCode(201)
+  async postAcceptInvite(@Body() body: AcceptInviteDto) {
+    return this.acceptInvite.execute(body);
+  }
+```
+
+**Refaktor** `apps/api/src/auth/auth.module.ts` — kontrolery + use-case’y KROKU 1 **oraz** adapter Invitation + factory mailera.
+
+Zmiana względem: szkic providerów wyłącznie z use-case’ami (bez `INVITATION_REPOSITORY` / `TRANSACTIONAL_MAILER`). Factory **nie** rejestruje obu mailerów jako `providers` naraz — `NodemailerSmtpMailerAdapter` w konstruktorze wymaga SMTP; w `development` / `test` `new` na SMTP padłby na starcie. Tworzyć SMTP adapter **tylko** gdy `NODE_ENV === 'production'`.
 
 teraz (fragment controllers i providers):
+
 ```typescript
   controllers: [AuthController],
   providers: [
     JwtCookieStrategy,
-    // ...istniejące providery...
+    PrismaUserAdapter,
+    PrismaRefreshSessionAdapter,
+    { provide: USER_REPOSITORY, useExisting: PrismaUserAdapter },
+    {
+      provide: REFRESH_SESSION_REPOSITORY,
+      useExisting: PrismaRefreshSessionAdapter,
+    },
+    BootstrapStatusUseCase,
+    BootstrapAdminUseCase,
+    LoginUseCase,
+    LogoutUseCase,
+    RefreshUseCase,
     MeUseCase,
   ],
 ```
 
 zamień na:
+
 ```typescript
 import { UsersController } from './users.controller';
+import { InvitationsController } from './invitations.controller';
+import { PrismaInvitationAdapter } from './infrastructure/prisma-invitation.adapter';
+import { LoggingMailerAdapter } from './infrastructure/logging-mailer.adapter';
+import { NodemailerSmtpMailerAdapter } from './infrastructure/nodemailer-smtp-mailer.adapter';
+import { INVITATION_REPOSITORY } from './domain/invitation-repository.port';
+import {
+  TRANSACTIONAL_MAILER,
+  type TransactionalMailer,
+} from './domain/transactional-mailer.port';
 import { ListUsersUseCase } from './application/list-users.use-case';
-import { CreateUserUseCase } from './application/create-user.use-case';
+import { InviteUserUseCase } from './application/invite-user.use-case';
+import { ListInvitationsUseCase } from './application/list-invitations.use-case';
+import { ResendInvitationUseCase } from './application/resend-invitation.use-case';
+import { RevokeInvitationUseCase } from './application/revoke-invitation.use-case';
+import { AcceptInviteUseCase } from './application/accept-invite.use-case';
 import { SoftDeleteUserUseCase } from './application/soft-delete-user.use-case';
 
-  controllers: [AuthController, UsersController],
+  controllers: [AuthController, UsersController, InvitationsController],
   providers: [
     JwtCookieStrategy,
-    // ...istniejące providery...
+    PrismaUserAdapter,
+    PrismaRefreshSessionAdapter,
+    PrismaInvitationAdapter,
+    { provide: USER_REPOSITORY, useExisting: PrismaUserAdapter },
+    {
+      provide: REFRESH_SESSION_REPOSITORY,
+      useExisting: PrismaRefreshSessionAdapter,
+    },
+    { provide: INVITATION_REPOSITORY, useExisting: PrismaInvitationAdapter },
+    {
+      provide: TRANSACTIONAL_MAILER,
+      inject: [ENV],
+      useFactory: (env: Env): TransactionalMailer => {
+        if (env.NODE_ENV === 'production') {
+          return new NodemailerSmtpMailerAdapter(env);
+        }
+        return new LoggingMailerAdapter();
+      },
+    },
+    BootstrapStatusUseCase,
+    BootstrapAdminUseCase,
+    LoginUseCase,
+    LogoutUseCase,
+    RefreshUseCase,
     MeUseCase,
     ListUsersUseCase,
-    CreateUserUseCase,
+    InviteUserUseCase,
+    ListInvitationsUseCase,
+    ResendInvitationUseCase,
+    RevokeInvitationUseCase,
+    AcceptInviteUseCase,
     SoftDeleteUserUseCase,
   ],
 ```
 
+`NodemailerSmtpMailerAdapter` i `LoggingMailerAdapter` **nie** jako osobne `providers` (uniknąć podwójnego `new` SMTP w dev). `useFactory` woła `new` wybranej implementacji.
+
+**Refaktor** `apps/api/test/postman/auth.postman-collection.json` — dopisać zmienne i foldery. Folder **Session** kończy się `logout` (czyści cookie) — Invitations **nie** mogą iść „po Session” bez ponownego loginu. Runner: **Unauthenticated → Bootstrap → Session → Invitations → Accept-invite**.
+
+Zmienne kolekcji (dopisać obok `adminEmail` / `adminPassword`):
+
+| key | value (placeholder) | uwaga |
+|-----|---------------------|--------|
+| `inviteEmail` | `user@example.com` | case-sensitive (D18) |
+| `invitePassword` | `Password12!!` | spełnia A-5 |
+| `inviteToken` | *(puste)* | operator wkleja raw token z **logu api** (adapter logujący); **nie** z JSON `POST /invitations` |
+| `invitationId` | *(puste)* | ustawiane ze skryptu testu po 201 |
+
+Folder **Invitations** (pierwszy request = `POST /auth/login` adminem — cookie jar po Session/logout jest pusty):
+
+1. `POST /auth/login` — body `{ email: {{adminEmail}}, password: {{adminPassword}} }`; 200 + cookie.
+2. `POST /invitations` — body `{ "email": "{{inviteEmail}}" }`; **201**; asercje: `id`, `email`, `expiresAt`; **brak** `token` / `rawToken` / `tokenHash` / `accessToken`. Test zapisuje `invitationId` z `body.id`.
+3. `POST /invitations` (ten sam email) — **409** `CONFLICT`.
+4. `GET /invitations` — 200; tablica `items`; jest wpis z `invitationId`; pola `id, email, createdAt, expiresAt, invitedBy`; brak hashu/tokenu.
+5. `POST /invitations/:id/resend` — `{{invitationId}}`; **201**; to samo `id`; znowu brak tokenu w JSON (nowy token tylko w logu — zaktualizować `inviteToken` ręcznie przed Accept-invite).
+6. `GET /api/v1/users` (jako admin) — 200; `items[].isActive` obecne; brak `passwordHash`.
+
+Folder **Accept-invite** (prerequest: **wyczyść cookie jar** originu api — request **bez** sesji admina):
+
+1. `POST /auth/accept-invite` — body `{ "token": "{{inviteToken}}", "password": "{{invitePassword}}" }`; **201** `{ user: { id, email, role } }` z `role === "user"`; **brak** `Set-Cookie` `cc_access` / `cc_refresh`; brak tokenów w JSON.
+2. `POST /auth/accept-invite` (ten sam token) — **401** `UNAUTHORIZED`.
+3. `POST /auth/login` nowym kontem — `{ email: {{inviteEmail}}, password: {{invitePassword}} }` → 200 + cookie.
+4. `POST /invitations` jako `user` — **403** `FORBIDDEN`.
+5. `GET /users` jako `user` — **403**.
+6. `POST /auth/login` adminem, potem `DELETE /users/:id` (id z kroku accept) — 200 `{ ok: true }`; kolejne `POST /auth/login` tym `inviteEmail` → **401**.
+
+Unauthenticated (dopisać do istniejącego folderu):
+
+- `POST /invitations` bez cookie → **401**.
+- `POST /auth/accept-invite` z tokenem `"nope"` → **401** (trasa publiczna; zły token, nie brak sesji).
+- `POST /auth/accept-invite` z hasłem `"short"` i dowolnym tokenem → **400** `VALIDATION_FAILED` albo **401** jeśli token nieważny **pierwszy** (kolejność A-7b: najpierw token, potem A-5 — przy złym tokenie 401, pending bez zmian). Do negatywu hasła: użyć **ważnego** `inviteToken` w osobnym requestcie po utworzeniu zaproszenia, albo zaakceptować że ten case żyje w folderze Accept-invite przed happy-path (osobny invite).
+
+Happy path Newman: `NODE_ENV=development` → adapter logujący → zawsze **201** na create/resend. Raw token: zmienna `inviteToken` (wklejka z stdout Pino `LoggingMailerAdapter`); **zakaz** zwracania tokenu w JSON „żeby Newman przeszedł”.
+
 **DoD kroku:**
 - `GET /api/v1/users` → lista z `isActive`; `user` → 403 `FORBIDDEN`
-- `POST /api/v1/users` (201) → tworzy tylko `role=user`; hasło wg polityki; `user` → 403
+- brak `POST /users`; invitations: `user` → 403; drugi pending → 409; `GET` pending obejmuje wygasłe
+- `POST /invitations` przyjmuje `InviteUserDto` (`email`); nieznany klucz → 400; raw token nie w JSON
+- `POST /invitations` / resend: 201 gdy send OK; 503 + `details.id` gdy SMTP padł (`production`)
+- `POST /auth/accept-invite` (`AcceptInviteDto`, `@Public()`) bez sesji → 201 `{ user }` **bez** Set-Cookie; 401 zużyty/wygasły; 409 gdy email zajęty; hasło poza A-5 → 400 (pending bez zmian)
 - `DELETE /api/v1/users/:id` → soft-delete; nieznany id → 404; `user` → 403
+- `AuthModule`: `INVITATION_REPOSITORY` + `TRANSACTIONAL_MAILER` (logging gdy `NODE_ENV` ≠ `production`; nodemailer tylko w `production`)
 - `JwtAuthGuard` global + `RolesGuard` global egzekwują reguły bez `@UseGuards` w kontrolerze
+- Postman: invite → token z logu → accept → login (happy path adapter logujący = 201)
 
 ---
 
@@ -1874,7 +3151,10 @@ zamień na:
 - [ ] `GET /auth/me` → `{ id, email, role }` przy ważnym `cc_access`; wygasły/brak → 401
 - [ ] `POST /auth/logout` ze sesją → cookie wyczyszczone i unieważnienie refresh tego użytkownika; bez `cc_access` → 401
 - [ ] Próba bootstrap z hasłem < 12 znaków / bez cyfry / bez wielkiej / bez znaku specjalnego → 400 `VALIDATION_FAILED`
-- [ ] `POST /users` (admin) tworzy `role=user`; `user` → 403
+- [ ] `POST /invitations` (admin, tylko email) → 201 `{ id, email, expiresAt }` (adapter logujący); `user` → 403; raw token nie w JSON
+- [ ] `POST /auth/accept-invite` (publiczny) → 201 `{ user }`; bez Set-Cookie; potem `POST /auth/login`
+- [ ] Drugi `POST /invitations` przy pending (także wygasłym) → 409; `GET /invitations` obejmuje wygasłe
+- [ ] Pad SMTP (gdy dotyczy) → 503 `MAIL_DELIVERY_FAILED` + `details.id`
 - [ ] `DELETE /users/:id` → soft-delete (`isActive = false`); nieaktywny nie loguje się po tej operacji
 - [ ] `PUT/PATCH /company-context` przy `role=user` → 403
 - [ ] `POST /runs` bez sesji → 401; z sesją → `startedByUserId` ustawiony; snapshot `startedBy: { id, email }`

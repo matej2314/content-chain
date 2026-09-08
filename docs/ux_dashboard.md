@@ -20,7 +20,7 @@ Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_
 | **Logowanie** | Brak ważnej sesji i bootstrap niedostępny | Email + hasło → `POST /auth/login` |
 | **Probe sesji** | Start aplikacji / reload | `GET /auth/me` → przy `401`: `POST /auth/refresh` → ponownie `GET /auth/me` → przy kolejnym `401`: login lub first-run |
 
-**Konto (MVP):** wyłącznie **wylogowanie** (`POST /auth/logout`). Poza MVP (później): zmiana hasła, zmiana email, usuwanie własnego konta przez użytkownika.
+**Konto (MVP):** wyłącznie **wylogowanie** (`POST /auth/logout`). Poza MVP (później): zmiana hasła zalogowanego, zmiana email, usuwanie własnego konta. **Wyjątek:** jednorazowe pierwsze hasło przy akceptacji zaproszenia (publiczny formularz) — onboarding, nie self-service konta.
 
 ## Nawigacja (sidebar)
 
@@ -29,7 +29,7 @@ Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_
 | **Kontekst firmy** | admin: edycja; user: podgląd | Uzupełnienie sekcji bramki; podgląd completeness |
 | **Runy** | admin, user | Lista runów całej instancji + start nowego (Social i Content); klik wiersza → szczegóły |
 | **Run (szczegóły)** | admin, user | Podstrona po kliknięciu w liście: live status, logi, HITL, wynik |
-| **Użytkownicy** | tylko admin | Lista + tworzenie `user` (bez edycji / dezaktywacji w UI MVP) |
+| **Użytkownicy** | tylko admin | Lista kont + **zaproszenie (email)**; lista pending (w tym wygasłe); resend/revoke — **gdy** ten ekran powstanie w majorze FE (bez edycji / dezaktywacji kont w UI MVP) |
 | **Konto** | każdy | Wylogowanie |
 
 **Globalny CTA (po zalogowaniu):** przycisk **„Zostaw opinię”** (równoważny label: „Oceń aplikację”) — dostępny z layoutu (np. sidebar / header), nie tylko ze szczegółów runu. Otwiera formularz opinii tekstowej (niżej). Panel administracyjny odczytu opinii = **V1 — rozbudowa** (MVP = zapis).
@@ -110,10 +110,15 @@ Authz selecta runów: wyłącznie runy autora; obcy `userId` → api `403`.
 
 ## Widok: Użytkownicy (admin)
 
-- Lista użytkowników (`GET /users`).
-- Tworzenie tylko `role = user` + hasło wg `security.md`.
+Norma **przyszłego** FE (major frontend). Ten wycinek backendu **nie** wymaga ekranu akceptacji jako DoD Fazy 5 API — do czasu FE weryfikacja = Postman + token z maila/logu.
+
+- Lista kont (`GET /users`) — bez pending invites.
+- **Zaproszenie:** pole **email** (admin **nie** podaje hasła) → `POST /invitations`.
+- Lista pending (`GET /invitations`) — **wszystkie** `pending`, **w tym wygasłe** (`expiresAt < now`); akcje resend / revoke.
 - Brak UI do tworzenia drugiego admina.
-- Brak UI edycji / soft-delete w MVP (api ma soft-delete pod późniejsze V1).
+- Brak UI edycji / soft-delete kont w MVP (api ma soft-delete pod późniejsze V1).
+
+**Poza zakresem tego majoru backend:** strona publiczna akceptacji zaproszenia (token z query → formularz pierwszego hasła → `POST /auth/accept-invite` → login). Dopóki FE nie istnieje — Postman.
 
 ## Stany puste i błędy
 
@@ -125,8 +130,9 @@ Authz selecta runów: wyłącznie runy autora; obcy `userId` → api `403`.
 
 ## Poza zakresem UX MVP
 
-- Zmiana hasła / email / usuwanie własnego konta przez użytkownika  
+- Zmiana hasła zalogowanego / email / usuwanie własnego konta przez użytkownika (pierwsze hasło na accept-invite = onboarding, nie ten punkt)  
 - Soft-delete użytkowników w UI admina (endpoint api istnieje; UI później)  
+- Publiczna strona akceptacji zaproszenia w tym majorze backend (norma UX powyżej; implementacja = major FE)  
 - Panel administracyjny opinii / średnich ocen / analityki feedbacku (**V1 — rozbudowa**)  
 - Stopień edycji outputu (diff / procent) — tylko flaga w MVP  
 - Zmiana oceny po „Zamknij / zapisz przegląd”  

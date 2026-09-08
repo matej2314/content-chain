@@ -8,6 +8,7 @@ export type RequestId = Brand<string, 'RequestId'>;
 export type ConversationId = Brand<string, 'ConversationId'>;
 export type UserId = Brand<string, 'UserId'>;
 export type RunId = Brand<string, 'RunId'>;
+export type InvitationId = Brand<string, 'InvitationId'>;
 export type GatewayModelAlias = Brand<string, 'GatewayModelAlias'>;
 
 // ---------------------------------------------------------------------------
@@ -19,7 +20,7 @@ const REQUEST_ID_RE = new RegExp(`^req_${UUID_PART}$`, 'i');
 const CONV_ID_RE = new RegExp(`^conv_${UUID_PART}$`, 'i');
 const USER_ID_RE = new RegExp(`^usr_${UUID_PART}$`, 'i');
 const RUN_ID_RE = new RegExp(`^run_${UUID_PART}$`, 'i');
-
+const INVITATION_ID_RE = new RegExp(`^inv_${UUID_PART}$`, 'i');
 // ---------------------------------------------------------------------------
 // RequestId — nadaje middleware apps/api; klient NIE generuje
 // ---------------------------------------------------------------------------
@@ -58,6 +59,16 @@ export const isRunId = (value: string): value is RunId => RUN_ID_RE.test(value);
 export const createRunId = (value: string): RunId => {
 	if (!isRunId(value)) throw new Error('Invalid RunId');
 	return brand<RunId>(value);
+};
+
+// ---------------------------------------------------------------------------
+// InvitationId
+// ---------------------------------------------------------------------------
+
+export const isInvitationId = (value: string): value is InvitationId => INVITATION_ID_RE.test(value);
+export const createInvitationId = (value: string): InvitationId => {
+	if (!isInvitationId(value)) throw new Error('Invalid InvitationId');
+	return brand<InvitationId>(value);
 };
 
 // ---------------------------------------------------------------------------
