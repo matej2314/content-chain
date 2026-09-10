@@ -1,7 +1,7 @@
 ---
-wersja: 13
+wersja: 14
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-07
+data_modyfikacji: 2026-09-10
 ---
 
 # SPEC — Testy
@@ -58,7 +58,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-9 | Kolejka: przy limicie współbieżności nowy run zostaje `queued`, potem startuje (`SPEC-RUNY.md`) |
 | D-9b | Drain: przy `MAX=1` dwa `interrupted` + jeden `queued` → kolejność execute: interrupted, interrupted, queued |
 | D-10 | Recovery: leftover `running` → `interrupted`; claim pod `MAX_CONCURRENT_RUNS`; leftover już `interrupted` bez inkrementu `recoveryAttempts`; 3× przerwany execute → `failed` + log |
-| D-11 | `POST /feedback`: zapis z `authorId`+`createdAt`; cudzy `runId` → `FORBIDDEN`; drugi wpis = nowy wiersz |
+| D-11 | `POST /feedback`: zapis z `authorId`+`createdAt`; cudzy `runId` → `FORBIDDEN`; własny run w toku (`queued` / `running` / `awaiting_hitl` / `interrupted`) → **409** `RUN_NOT_REVIEWABLE` (bez zapisu); `completed` \| `failed` → 201; drugi wpis = nowy wiersz (także po finalize) |
 | D-12 | Ocena `null` \| 1–5 na `completed`/`failed` tylko autora; po finalize → `REVIEW_LOCKED`; flaga `outputEdited` |
 | D-13 | `GET /runs/user/:userId`: własne wszystkie; cudzy id → `403` |
 | D-14 | SSE: hub nie zatrzymuje subjectu po `completed`/`failed`; `GET .../events` na skończonym runie emituje `run.status` i kończy stream |
@@ -76,6 +76,8 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-25 | Soft-delete: `DELETE /users/:id` → `isActive = false`; nieaktywny nie loguje się (ten sam komunikat 401 co złe hasło — bez enumeracji) |
 
 D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login. T-3 (cookie) **bez zmian**.
+
+Zmiana względem wersji 13 / D-11: `POST /feedback` na własny run w toku nie był case’em DoD. Od tej wersji **409** `RUN_NOT_REVIEWABLE` (Fbk-3a); 201 tylko `completed` \| `failed`; drugi wpis nadal nowy wiersz (także po finalize).
 
 Zmiana względem wersji 12: dopisano D-23…D-25 (zaproszenie → accept → login; 403/409 pending; GET wygasłych; soft-delete). D-1…D-22 bez kasowania.
 Zmiana względem wersji 11 / D-16: asercja wyłącznie skalaru `reelScript.segments` na then_scripts — od tej wersji `reelScripts[]` + `sourceIdeaId`.

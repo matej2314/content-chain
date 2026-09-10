@@ -1,7 +1,7 @@
 ---
-wersja: 12
+wersja: 13
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-07
+data_modyfikacji: 2026-09-10
 ---
 
 # SPEC — Frontend
@@ -65,7 +65,9 @@ Zmiana względem wersji 9 / F-8: single-select HITL SM, formularz extras, pola w
 Zmiana względem wersji 10 / F-8 (nota v9: single-select): od tej wersji HITL Social = **multi-select** (min. 1); widok wyniku dwuetapowego = lista, nie jeden blok. Content: akceptacja outline bez zmian. Implementacja UI **nie** w Fazie 4.3 kodu api — norma FE spójna z `docs/ux_dashboard.md`.
 Zmiana względem wersji 11 / F-8: „admin: tylko lista + tworzenie” implikowało pole hasła. Obowiązuje zaproszenie (email); ekran akceptacji **nie** jest DoD Fazy 5 API.
 
-F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. Select agentów = enum z shared (labelki PL). Ocena i Edytuj tylko gdy snapshot mówi, że sesja jest `startedBy` i przegląd niezamknięty.
+F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. UI **filtruje** pozycje do `completed` \| `failed` (lista API zostaje pełna — `SPEC-RUNY.md` R-3c). Select agentów = enum z shared (labelki PL). Ocena i Edytuj tylko gdy snapshot mówi, że sesja jest `startedBy` i przegląd niezamknięty. Submit `targetType=run` przy innym statusie i tak → **409** `RUN_NOT_REVIEWABLE` (`SPEC-FEEDBACK.md` Fbk-3a).
+
+Zmiana względem wersji 12 / F-9: select pokazywał wszystkie runy autora (w tym w toku). Od tej wersji filtr kliencki `completed` \| `failed`; bramka HTTP jak w docs komunikacji.
 
 Zmiana względem wersji 1: Konto nie obejmuje zmiany hasła; dodano first-run; lista runów = cała instancja z nawigacją lista → szczegóły; admin users bez edycji/dezaktywacji w UI (soft-delete UI nadal poza MVP).
 
@@ -141,7 +143,7 @@ apps/frontend/src/
 - [ ] Admin: lista kont + zaproszenie (email, bez hasła), gdy widok users istnieje; Konto: tylko logout. Ekran akceptacji **nie** jest kryterium tego wycinka API.
 - [ ] Kod FE podzielony na `app/` + `modules/`; typy z shared.
 - [ ] Brak sekretów LLM w bundlu klienta.
-- [ ] CTA opinii + formularz zapisuje `POST /feedback`; gwiazdki/Edytuj/finalize wołają kontrakt Runs; select runów z `/runs/user/:userId`.
+- [ ] CTA opinii + formularz zapisuje `POST /feedback`; select runów z `/runs/user/:userId` **tylko** `completed` \| `failed`; gwiazdki/Edytuj/finalize wołają kontrakt Runs.
 - [ ] HITL Social: multi-select (min. 1); widok wyniku dwuetapowego = lista postów / scenariuszy (`contents[]` / `reelScripts[]`); Content: akceptacja outline.
 
 ## Poza zakresem

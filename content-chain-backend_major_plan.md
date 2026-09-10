@@ -785,7 +785,7 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 
 **DoD (faza):**
 
-- Opinia tekstowa zapisuje się w DB z `authorId` i `createdAt`; target aplikacja / agent (enum) / własny run.
+- Opinia tekstowa zapisuje się w DB z `authorId` i `createdAt`; target aplikacja / agent (enum) / własny run w statusie `completed` \| `failed` (w toku → 409 `RUN_NOT_REVIEWABLE`).
 - Snapshot runu zawiera `userRating`, `outputEdited`, `reviewFinalizedAt`; ocena i flaga działają na `completed` i `failed` tylko dla autora; po finalize — lock.
 - `GET /api/v1/runs/user/:userId` zwraca wszystkie runy sesji; cudzy id → 403.
 - Happy path Postman (bez UI) dla zapisu opinii, oceny, flagi i finalize.
@@ -807,11 +807,12 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** BC `feedback/` — `POST /api/v1/feedback`. `GET /api/v1/runs/user/:userId` w BC Runs (trasa przed `:runId`). Authz: sesja; run/target run tylko `startedBy`; `:userId` = sesja.
+**Opis:** BC `feedback/` — `POST /api/v1/feedback`. `GET /api/v1/runs/user/:userId` w BC Runs (trasa przed `:runId`). Authz: sesja; run/target run tylko `startedBy` **oraz** status `completed` \| `failed` (Fbk-3a); `:userId` = sesja.
 
 **DoD (krok):**
 
 - POST opinii: 201 z metadanymi; drugi wpis = nowy wiersz; cudzy run → 403.
+- `targetType=run`: wyłącznie `completed` \| `failed`; run w toku → **409** `RUN_NOT_REVIEWABLE` (bez zapisu). `application` / `agent` bez warunku statusu. Finalize **nie** blokuje kolejnego wpisu tekstowego.
 - Target `agent` wymaga enumu `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier`.
 - Lista user zwraca wszystkie runy autora bez `pageSize=10`.
 - Brak GET panelu opinii w tym kroku (świadomie).

@@ -3,6 +3,8 @@ import {
   createUserId,
   isFeedbackId,
   type RunId,
+  type RunStatus,
+  type UserId,
 } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
@@ -28,6 +30,13 @@ const OTHER_USER_ID = createUserId(
 
 const OWN_RUN_ID = 'run_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
+const NON_REVIEWABLE_STATUSES = [
+  'queued',
+  'running',
+  'awaiting_hitl',
+  'interrupted',
+] as const satisfies readonly RunStatus[];
+
 function unusedFeedback(
   overrides: Partial<FeedbackRepository> = {},
 ): FeedbackRepository {
@@ -50,6 +59,13 @@ function unusedReader(
   };
 }
 
+function foundRun(args: {
+  startedBy: UserId | null;
+  status: RunStatus;
+}): Extract<FeedbackRunLookup, { kind: 'found' }> {
+  return { kind: 'found', startedBy: args.startedBy, status: args.status };
+}
+
 function makeUseCase(args: {
   feedback: FeedbackRepository;
   runReader?: FeedbackRunReader;
@@ -61,9 +77,17 @@ function makeUseCase(args: {
 }
 
 describe('CreateFeedbackUseCase', () => {
-  it('saves application feedback for the session author', async () => {
+  it('saves application feedback for the session author without looking up a run', async () => {
     const save = jest.fn(async (_entry: FeedbackEntry) => undefined);
-    const useCase = makeUseCase({ feedback: unusedFeedback({ save }) });
+    const getStartedBy = jest.fn(
+      async (_runId: RunId): Promise<FeedbackRunLookup> => ({
+        kind: 'missing',
+      }),
+    );
+    const useCase = makeUseCase({
+      feedback: unusedFeedback({ save }),
+      runReader: unusedReader({ getStartedBy }),
+    });
 
     const result = await useCase.execute(
       { targetType: 'application', body: 'Great app' },
@@ -79,13 +103,22 @@ describe('CreateFeedbackUseCase', () => {
       authorId: AUTHOR.id,
     });
     expect(result.createdAt).toBeInstanceOf(Date);
+    expect(getStartedBy).not.toHaveBeenCalled();
     expect(save).toHaveBeenCalledTimes(1);
     expect(save).toHaveBeenCalledWith(result);
   });
 
-  it('saves agent feedback with a catalog agentKey', async () => {
+  it('saves agent feedback with a catalog agentKey without looking up a run', async () => {
     const save = jest.fn(async (_entry: FeedbackEntry) => undefined);
-    const useCase = makeUseCase({ feedback: unusedFeedback({ save }) });
+    const getStartedBy = jest.fn(
+      async (_runId: RunId): Promise<FeedbackRunLookup> => ({
+        kind: 'missing',
+      }),
+    );
+    const useCase = makeUseCase({
+      feedback: unusedFeedback({ save }),
+      runReader: unusedReader({ getStartedBy }),
+    });
 
     const result = await useCase.execute(
       {
@@ -103,6 +136,7 @@ describe('CreateFeedbackUseCase', () => {
       body: 'Ideation was slow',
       authorId: AUTHOR.id,
     });
+    expect(getStartedBy).not.toHaveBeenCalled();
     expect(save).toHaveBeenCalledTimes(1);
   });
 
@@ -128,44 +162,72 @@ describe('CreateFeedbackUseCase', () => {
     expect(save).not.toHaveBeenCalled();
   });
 
-  it('saves run feedback when the session author started the run', async () => {
-    const save = jest.fn(async (_entry: FeedbackEntry) => undefined);
-    const getStartedBy = jest.fn(
-      async (_runId: RunId): Promise<FeedbackRunLookup> => ({
-        kind: 'found',
-        startedBy: AUTHOR.id,
-      }),
-    );
-    const useCase = makeUseCase({
-      feedback: unusedFeedback({ save }),
-      runReader: unusedReader({ getStartedBy }),
-    });
+  it.each(['completed', 'failed'] as const)(
+    'saves run feedback when the session author started a %s run',
+    async (status) => {
+      const save = jest.fn(async (_entry: FeedbackEntry) => undefined);
+      const getStartedBy = jest.fn(
+        async (_runId: RunId): Promise<FeedbackRunLookup> =>
+          foundRun({ startedBy: AUTHOR.id, status }),
+      );
+      const useCase = makeUseCase({
+        feedback: unusedFeedback({ save }),
+        runReader: unusedReader({ getStartedBy }),
+      });
 
-    const result = await useCase.execute(
-      { targetType: 'run', runId: OWN_RUN_ID, body: 'Nice run' },
-      AUTHOR,
-    );
+      const result = await useCase.execute(
+        { targetType: 'run', runId: OWN_RUN_ID, body: 'Nice run' },
+        AUTHOR,
+      );
 
-    expect(result).toMatchObject({
-      targetType: 'run',
-      agentKey: null,
-      runId: createRunId(OWN_RUN_ID),
-      body: 'Nice run',
-      authorId: AUTHOR.id,
-    });
-    expect(getStartedBy).toHaveBeenCalledWith(createRunId(OWN_RUN_ID));
-    expect(save).toHaveBeenCalledTimes(1);
-  });
+      expect(result).toMatchObject({
+        targetType: 'run',
+        agentKey: null,
+        runId: createRunId(OWN_RUN_ID),
+        body: 'Nice run',
+        authorId: AUTHOR.id,
+      });
+      expect(getStartedBy).toHaveBeenCalledWith(createRunId(OWN_RUN_ID));
+      expect(save).toHaveBeenCalledTimes(1);
+    },
+  );
 
-  it('rejects another user run with FORBIDDEN and skips persist', async () => {
+  it.each(NON_REVIEWABLE_STATUSES)(
+    'rejects an owned %s run with RUN_NOT_REVIEWABLE and skips persist',
+    async (status) => {
+      const save = jest.fn(async (_entry: FeedbackEntry) => undefined);
+      const useCase = makeUseCase({
+        feedback: unusedFeedback({ save }),
+        runReader: unusedReader({
+          getStartedBy: async () =>
+            foundRun({ startedBy: AUTHOR.id, status }),
+        }),
+      });
+
+      const error = await useCase
+        .execute(
+          { targetType: 'run', runId: OWN_RUN_ID, body: 'Too early' },
+          AUTHOR,
+        )
+        .catch((err: unknown) => err);
+
+      expect(error).toBeInstanceOf(DomainException);
+      expect(error).toMatchObject({
+        code: 'RUN_NOT_REVIEWABLE',
+        httpStatus: 409,
+        message: 'Run is not in a reviewable state',
+      });
+      expect(save).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects another user in-progress run with FORBIDDEN, not RUN_NOT_REVIEWABLE', async () => {
     const save = jest.fn(async (_entry: FeedbackEntry) => undefined);
     const useCase = makeUseCase({
       feedback: unusedFeedback({ save }),
       runReader: unusedReader({
-        getStartedBy: async () => ({
-          kind: 'found',
-          startedBy: OTHER_USER_ID,
-        }),
+        getStartedBy: async () =>
+          foundRun({ startedBy: OTHER_USER_ID, status: 'running' }),
       }),
     });
 
@@ -190,7 +252,8 @@ describe('CreateFeedbackUseCase', () => {
     const useCase = makeUseCase({
       feedback: unusedFeedback({ save }),
       runReader: unusedReader({
-        getStartedBy: async () => ({ kind: 'found', startedBy: null }),
+        getStartedBy: async () =>
+          foundRun({ startedBy: null, status: 'completed' }),
       }),
     });
 
@@ -267,5 +330,29 @@ describe('CreateFeedbackUseCase', () => {
     expect(first.id).not.toBe(second.id);
     expect(first.authorId).toBe(AUTHOR.id);
     expect(second.authorId).toBe(AUTHOR.id);
+  });
+
+  it('still saves run feedback after review finalize when status is terminal', async () => {
+    const save = jest.fn(async (_entry: FeedbackEntry) => undefined);
+    const useCase = makeUseCase({
+      feedback: unusedFeedback({ save }),
+      runReader: unusedReader({
+        getStartedBy: async () =>
+          foundRun({ startedBy: AUTHOR.id, status: 'completed' }),
+      }),
+    });
+    const input = {
+      targetType: 'run' as const,
+      runId: OWN_RUN_ID,
+      body: 'After finalize',
+    };
+
+    const first = await useCase.execute(input, AUTHOR);
+    const second = await useCase.execute(input, AUTHOR);
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(first.id).not.toBe(second.id);
+    expect(first.runId).toBe(createRunId(OWN_RUN_ID));
+    expect(second.runId).toBe(createRunId(OWN_RUN_ID));
   });
 });

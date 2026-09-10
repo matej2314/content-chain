@@ -1,7 +1,7 @@
 ---
-wersja: 17
+wersja: 18
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-07
+data_modyfikacji: 2026-09-10
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -78,7 +78,9 @@ Zmiana względem wersji 10: unia startu (K-2), listing `platform=web` / nowe `ta
 
 Zmiana względem wersji 15 / K-2c: enumeracja `result` bez `contents` / `reelScripts`; skalar na then_* udawał 1:1.
 
-K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora pod select opinii (`SPEC-RUNY.md` R-3c). `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`). Ocena / flaga edycji / finalize — `SPEC-RUNY.md` R-10. Payloady w `docs/dokumentacja_komunikacji.md`.
+K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora pod select opinii (`SPEC-RUNY.md` R-3c); UI filtruje `completed` \| `failed` (`docs/ux_dashboard.md`). `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`): przy `targetType=run` dodatkowo status `completed` \| `failed`, inaczej **409** `RUN_NOT_REVIEWABLE` (Fbk-3a). Ocena / flaga edycji / finalize — `SPEC-RUNY.md` R-10. Payloady w `docs/dokumentacja_komunikacji.md`.
+
+Zmiana względem wersji 17 / K-2b: `POST /feedback` `targetType=run` nie miał bramki statusu (tylko Fbk-3: autor). Od tej wersji to samo okno co R-10 (`completed` \| `failed`), bez locka finalize na tekście.
 
 Zmiana względem wersji 4: dopisano fundament zapisu feedbacku (wcześniej tylko listing dashboardu).
 

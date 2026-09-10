@@ -6,7 +6,7 @@
 **Ten plik:** FAZA 3 (shared typy + Prisma migration) + FAZA 4 (HTTP Feedback, lista runów autora, przegląd runu).  
 **Plik 1/2:** `content-chain_feature_plan_faza-5-6-auth-feedback_1.md` — FAZA 1 + 2 (Auth API, guardi).  
 **Zakres wejścia:** FAZA 1+2 z pliku _1 muszą być zaimplementowane (guardy globalne, auth sesja).  
-**Źródła:** `SPEC-FEEDBACK.md`, `SPEC-RUNY.md` R-3b/R-3c/R-10, `docs/dokumentacja_komunikacji.md`, `SPEC-PERSISTENCE.md` P-5/P-7, `SPEC-AUTH.md` (authz), `SPEC-BEZPIECZENSTWO.md`.
+**Źródła:** `SPEC-FEEDBACK.md` (w tym Fbk-3a), `SPEC-RUNY.md` R-3b/R-3c/R-10, `docs/dokumentacja_komunikacji.md`, `SPEC-PERSISTENCE.md` P-5/P-7, `SPEC-AUTH.md` (authz), `SPEC-BEZPIECZENSTWO.md`.
 
 ---
 
@@ -18,6 +18,7 @@
 - Pola przeglądu runu: `userRating Int?`, `outputEdited Boolean @default(false)`, `reviewFinalizedAt DateTime?` — per `SPEC-RUNY.md` R-10
 - `GET /runs/user/:userId` — bez paginacji pageSize=10; trasa statyczna przed `:runId` w Nest (`SPEC-RUNY.md` R-3c)
 - Authz review: tylko autor (`startedByUserId === session.id`) + tylko `completed | failed` + przed finalize
+- `POST /feedback` `targetType=run`: ten sam warunek statusu co przegląd (`completed | failed`); **bez** locka `reviewFinalizedAt` (Fbk-3a; KROK 2.1)
 - Guardy globalne z pliku _1 (JWT + Roles) już aktywne — brak ponownego `@UseGuards` w tym pliku
 - Zod 3 w `apps/api` (jak cała aplikacja w tym momencie)
 - Krawędź HTTP: DTO class-validator (jak `StartRunDto` / `HitlDto`); prawda kontraktu = Zod w application przez `parseWithZod`
@@ -34,6 +35,7 @@ Zmiana względem: szkic sprzed review architektury (ten sam plik, status `NIE_RO
 4. **R-10:** jedna funkcja domenowa `assertRunReviewable` (wzorzec jak `assertTransition`); trzy use-case’y review tylko wołają asercję + zapis.
 5. `listByUser` — predykaty shared, bez `as RunTaskType`.
 6. Mutacje przeglądu: `updateMany` z `reviewFinalizedAt: null`; `count !== 1` → `REVIEW_LOCKED` (lock przy wyścigu).
+7. **Fbk-3a:** `POST /feedback` `targetType=run` dodatkowo wymaga statusu `completed` \| `failed` → **409** `RUN_NOT_REVIEWABLE`. FAZA 4 KROK 2 (`WYKONANY`) egzekwował tylko Fbk-3 (własność). Dopisek: KROK 2.1. Finalize **nie** blokuje tekstu. `application` / `agent` bez zmian.
 
 ---
 
@@ -699,7 +701,7 @@ function asSnapshot(run: RunRecord): RunSnapshot {
 
 ### KROK 2 — BC Feedback: domain, application, infrastructure, FeedbackController, FeedbackModule
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Zbudować BC Feedback od zera: walidacja targetu, sprawdzenie własności runu, zapis do DB.  
 Odwołanie: `SPEC-FEEDBACK.md` Fbk-1..Fbk-7; `docs/dokumentacja_komunikacji.md` POST /feedback.
@@ -1068,6 +1070,66 @@ import { FeedbackModule } from './feedback/feedback.module';
 
 ---
 
+### KROK 2.1 — Warunek statusu przy feedbacku tekstowym o runie
+
+**Status:** `WYKONANY`
+
+**Cel:** `POST /api/v1/feedback` z `targetType=run` tylko gdy autor = `startedBy` **oraz** status `completed` \| `failed`.  
+Refaktor względem: FAZA 4 / KROK 2 (`WYKONANY`) — Fbk-3 (własność bez statusu). Nie zmienia R-10 ani locka finalize.  
+Odwołanie: `SPEC-FEEDBACK.md` Fbk-3a; `docs/dokumentacja_komunikacji.md` POST /feedback; `docs/anty_patterny.md`.
+
+**Artefakty (refaktory):**
+- `apps/api/src/feedback/domain/feedback-run.reader.port.ts` — na `kind: 'found'` dodać `status: RunStatus`
+- `apps/api/src/feedback/infrastructure/prisma.feedback-run-reader.adapter.ts` — `select` też `status`; predykat `isRunStatus` (bez `as`)
+- `apps/api/src/feedback/application/create-feedback.use-case.ts` — po checku autora: zły status → 409 `RUN_NOT_REVIEWABLE`, `save` nie wołane
+- `apps/api/src/feedback/application/create-feedback.use-case.spec.ts` — happy path z `status: 'completed'` (oraz analog `failed`); nieterminalne statusy → 409; application/agent bez lookupu statusu; terminalny status po „finalize” w faku → zapis nadal OK
+
+**Implementacja:**
+
+**Refaktor** `feedback-run.reader.port.ts` — rozszerzenie unii `found`:
+
+teraz:
+```typescript
+export type FeedbackRunLookup =
+  | { kind: 'missing' }
+  | { kind: 'found'; startedBy: UserId | null };
+```
+
+zamień na (dopisać `RunStatus` do istniejącego importu z `@content-chain/shared`):
+```typescript
+export type FeedbackRunLookup =
+  | { kind: 'missing' }
+  | { kind: 'found'; startedBy: UserId | null; status: RunStatus };
+```
+
+**Refaktor** `prisma.feedback-run-reader.adapter.ts` — `select: { startedByUserId, status }`; gdy wiersz jest, a `!isRunStatus(row.status)` → `throw new Error(...)` (ten sam styl co `listByUser` / R-3d1). Gałąź `found` zwraca `status: row.status`.
+
+**Refaktor** `create-feedback.use-case.ts` — **po** istniejącym checku Fbk-3 (404 / 403), **przed** budową `entry`:
+
+```typescript
+      if (lookup.status !== 'completed' && lookup.status !== 'failed') {
+        throw new DomainException(
+          'RUN_NOT_REVIEWABLE',
+          'Run is not in a reviewable state',
+          409,
+        );
+      }
+```
+
+Kolejność: format `runId` → missing → własność → status → `save`. Cudzy run w toku zostaje **403**, nie 409.
+
+**Zakazy:** import `assertRunReviewable` / `RunsModule` / `SocialModule` / `ContentModule`; `REVIEW_LOCKED` na ścieżce tekstu; zmiana `GET /runs/user/:userId` / `listByUser`.
+
+**DoD kroku:**
+- `POST /feedback` `targetType=run` + własny `completed` albo `failed` → 201
+- Własny run `queued` / `running` / `awaiting_hitl` / `interrupted` → **409** `RUN_NOT_REVIEWABLE`; `save` nie wołane
+- Cudzy run / brak wiersza / zły format — bez regresji Fbk-3 (403 / 404 / 400)
+- `application` / `agent` — 201 bez odczytu statusu runu
+- Drugi wpis na ten sam `runId` po `reviewFinalizedAt` — nadal 201 (append)
+- Unit: faki `FeedbackRunLookup` z polem `status`; `pnpm --filter api test` (unit) zielone
+
+---
+
 ### KROK 3 — Review runu: use-case'y + HTTP endpoints + snapshot + Postman
 
 **Status:** `NIE_ROZPOCZĘTY`
@@ -1351,10 +1413,12 @@ R5. PATCH /api/v1/runs/:runId/rating  body: { "rating": 5 }   (po finalize)
     oczekiwane: 409 REVIEW_LOCKED
 R6. PATCH /api/v1/runs/:runId/rating  (run ze statusem running)
     oczekiwane: 409 RUN_NOT_REVIEWABLE
-R7. POST /api/v1/feedback  body: { "targetType": "run", "runId": "<własny>", "body": "Świetnie!" }
+R7. POST /api/v1/feedback  body: { "targetType": "run", "runId": "<własny completed|failed>", "body": "Świetnie!" }
     oczekiwane: 201 z id fbk_...
 R7b. POST /api/v1/feedback  body: { "targetType": "run", "runId": "run_<uuid-nieistniejący>", "body": "…" }
     oczekiwane: 404 RUN_NOT_FOUND
+R7c. POST /api/v1/feedback  body: { "targetType": "run", "runId": "<własny running>", "body": "Za wcześnie" }
+    oczekiwane: 409 RUN_NOT_REVIEWABLE
 R8. GET /api/v1/runs/user/:userId
     oczekiwane: 200 { items: [...] }
 R9. GET /api/v1/runs/user/:innyUserId
@@ -1369,7 +1433,7 @@ R9. GET /api/v1/runs/user/:innyUserId
 - Cudza sesja na którymkolwiek endpoint review → 403 `FORBIDDEN`
 - `GET /api/v1/runs/:runId` snapshot: `userRating`, `outputEdited`, `reviewFinalizedAt` zawsze w JSON (null / false / null przy braku)
 - Unit: `assertRunReviewable` pokrywa 404 / 409 `RUN_NOT_REVIEWABLE` / 403 / 409 `REVIEW_LOCKED`
-- Postman case'y R1–R9 (+ R7b) przechodzą (z ważną sesją)
+- Postman case'y R1–R9 (+ R7b, R7c) przechodzą (z ważną sesją)
 - `pnpm --filter api test` (unit) zielone; brak regresji D-4..D-22
 - `pnpm --filter api test:e2e` osobno, gdy suite e2e jest odpalany — nie mylić ze skryptem `test`
 
@@ -1381,13 +1445,13 @@ R9. GET /api/v1/runs/user/:innyUserId
 - [ ] Migracja `feedback-and-run-review` zastosowana: tabela `Feedback` istnieje; `Run` ma `userRating`, `outputEdited`, `reviewFinalizedAt`
 - [ ] Istniejące runy nie zepsuły się po migracji (domyślne wartości)
 - [ ] `GET /api/v1/runs/user/:userId` zwraca listę lekką; cudzy id → 403
-- [ ] `POST /api/v1/feedback` — 201 dla application / agent / własny run; 403 dla cudzego run; **404** `RUN_NOT_FOUND` dla nieistniejącego; 400 dla nieznanego agentKey / złego formatu `runId`
+- [ ] `POST /api/v1/feedback` — 201 dla application / agent / własny run `completed`\|`failed`; 403 dla cudzego run; **404** `RUN_NOT_FOUND` dla nieistniejącego; **409** `RUN_NOT_REVIEWABLE` dla własnego runu w toku (Fbk-3a); 400 dla nieznanego agentKey / złego formatu `runId`
 - [ ] Wiele feedbacków tego samego autora na ten sam target — dozwolone
 - [ ] `PATCH .../rating`, `POST .../output-edited`, `POST .../finalize-review` — reguły R-10 przez `assertRunReviewable` + `updateMany`
 - [ ] Snapshot `GET /runs/:runId` zawiera pola przeglądu (zawsze w JSON — null/false/null przy braku)
 - [ ] `FeedbackModule` nie importuje `RunsModule`, `SocialModule`, `ContentModule`; brak `forwardRef`
 - [ ] Faki `RunRepository` / `asSnapshot` oraz `toSnapshot` (`RunReviewFields`) kompilują się
-- [ ] Zgodność z `SPEC-FEEDBACK.md` Fbk-3, `SPEC-RUNY.md` R-10, R-3b, R-3c
+- [ ] Zgodność z `SPEC-FEEDBACK.md` Fbk-3 / Fbk-3a, `SPEC-RUNY.md` R-10, R-3b, R-3c
 - [ ] `pnpm --filter api test` (unit) zielone
 
 ---

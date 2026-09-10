@@ -101,7 +101,7 @@ Modal / panel z layoutu (CTA globalny). Wymaga sesji.
 |------|------------|
 | **Co oceniasz** | Wybór: **aplikacja** \| **agent** \| **run** |
 | **Agent** | Gdy target = agent: **obowiązkowy** select stałego enumu: `IdeationAgent`, `ContentWriterAgent`, `ConsistencyVerifier`, `PageWriterAgent` (labelki PL w UI) |
-| **Run** | Gdy target = run: **obowiązkowy** select runów **zalogowanego** użytkownika — źródło `GET /api/v1/runs/user/:userId` (`:userId` = id z `/auth/me`). Lista **wszystkich** jego runów (bez paginacji 10 z dashboardu) |
+| **Run** | Gdy target = run: **obowiązkowy** select runów **zalogowanego** użytkownika — źródło `GET /api/v1/runs/user/:userId` (`:userId` = id z `/auth/me`). Endpoint zwraca **wszystkie** jego runy (bez paginacji 10 z dashboardu); UI **filtruje** do `completed` \| `failed` (run w toku nie jest opcją). API i tak odrzuci inny status (**409** `RUN_NOT_REVIEWABLE`) — filtr kliencki nie jest jedyną bramką. |
 | **Treść** | Pole tekstowe opinii |
 
 Zapis → `POST /api/v1/feedback`. Wiele opinii w czasie (append). Brak ekranu listy opinii i panelu admina w MVP.

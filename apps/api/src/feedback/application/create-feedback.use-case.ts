@@ -57,11 +57,19 @@ export class CreateFeedbackUseCase {
           403,
         );
       }
+      if (lookup.status !== 'completed' && lookup.status !== 'failed') {
+        throw new DomainException(
+          'RUN_NOT_REVIEWABLE',
+          'Run is not in a reviewable state',
+          409,
+        );
+      }
     }
 
     if (command.targetType === 'agent') {
       agentKey = command.agentKey;
     }
+
     const entry: FeedbackEntry = {
       id: createFeedbackId(`fbk_${uuidv4()}`),
       targetType: command.targetType,

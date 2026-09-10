@@ -60,7 +60,7 @@ Wybrane kody domenowe:
 | `HITL_INVALID_SELECTION` | 400 | Selekcja HITL niezgodna z kanonem: Content — `selectedIdeaIds` ≠ `[outline.id]`; Social dwuetapowy — długość `< 1`, duplikaty, albo id spoza draftu / `hitl.options` (**2+ legalne**, gdy wszystkie ∈ options) |
 | `RUN_NOT_FOUND` | 404 | Nieznany `runId` |
 | `REVIEW_LOCKED` | 409 | Przegląd runu zatwierdzony — zmiana oceny / flagi edycji zabroniona |
-| `RUN_NOT_REVIEWABLE` | 409 | Ocena / edycja / finalize gdy status inny niż `completed` \| `failed` |
+| `RUN_NOT_REVIEWABLE` | 409 | Ocena / edycja / finalize **albo** `POST /feedback` z `targetType=run`, gdy status inny niż `completed` \| `failed` |
 | `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; `User.email` zajęty przy accept-invite |
 | `MAIL_DELIVERY_FAILED` | 503 | Pad SMTP po zapisie zaproszenia (create / resend); w `details` wyłącznie `id` zaproszenia |
 | `INTERNAL_ERROR` | 500 | Błąd nieobsłużony |
@@ -511,7 +511,7 @@ queued → running → (awaiting_hitl → running) → completed
 
 Trzy legalne krawędzie **do** `running`: `queued`, `interrupted`, `awaiting_hitl`. `POST /runs` nigdy nie tworzy `interrupted`. Reconnect SSE po restarcie api — jak w akapicie **Reconnect** powyżej (status może być `interrupted` zanim znowu `running`).
 
-Ocena / Edytuj / finalize oraz HITL na `interrupted` → istniejące **409** (`RUN_NOT_REVIEWABLE` / `HITL_REQUIRED`); bez osobnego kodu HTTP na MVP.
+Ocena / Edytuj / finalize / opinia tekstowa o runie (`POST /feedback` `targetType=run`) oraz HITL na `interrupted` → istniejące **409** (`RUN_NOT_REVIEWABLE` / `HITL_REQUIRED`); bez osobnego kodu HTTP na MVP.
 
 #### `POST /api/v1/runs/:runId/hitl`
 
@@ -549,7 +549,15 @@ Wymaga sesji. Append-only.
 | `targetType` | `application` \| `agent` \| `run` | tak | Co dotyczy opinia |
 | `body` | string | tak | Treść (limit długości — SPEC; bez sekretów) |
 | `agentKey` | enum agentów | gdy `targetType = agent` | `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier` \| `PageWriterAgent` |
-| `runId` | `RunId` | gdy `targetType = run` | Run **autora** (sesja = `startedBy`); inaczej **403** |
+| `runId` | `RunId` | gdy `targetType = run` | Run **autora** (sesja = `startedBy`); status wyłącznie `completed` \| `failed` |
+
+Gdy `targetType = run`: sesja ≠ `startedBy` (także run bez inicjatora) → **403** `FORBIDDEN`; nieistniejący `runId` → **404** `RUN_NOT_FOUND`; zły format → **400** `VALIDATION_FAILED`; status inny niż `completed` \| `failed` (`queued` / `running` / `awaiting_hitl` / `interrupted`) → **409** `RUN_NOT_REVIEWABLE`. Kolejność: własność przed statusem (cudzy run w toku nie ujawnia się jako 409).
+
+`targetType = application` \| `agent` — **bez** warunku statusu runu.
+
+Finalize przeglądu (`reviewFinalizedAt`) **nie** blokuje kolejnego wpisu tekstowego (append-only; to nie `REVIEW_LOCKED`).
+
+Zmiana względem wcześniejszego zapisu tej sekcji: `targetType=run` wymagał tylko autora; status runu nie był bramką HTTP. Teraz to samo okno co ocena gwiazdkowa (`completed` \| `failed`), bez locka finalize na tekście.
 
 **201:**
 

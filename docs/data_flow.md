@@ -269,7 +269,7 @@ Szczegóły: `dictionary.md` (hasła `interrupted`, Recovery runu), `SPEC-RUNY.m
 | `taskType` spoza enumu HTTP | **400** `VALIDATION_FAILED` (composite nie wołany) |
 | Nieznany `taskType` w composite (wewnętrznie) | status `failed` + `UNKNOWN_TASK_TYPE` |
 | Crash procesu przy `running` | Boot: `interrupted` (lub `failed` przy capie); claim pod `MAX_CONCURRENT_RUNS`; SSE `run.status` |
-| Ocena / Edytuj / finalize gdy nie `completed`/`failed` | **409** `RUN_NOT_REVIEWABLE` |
+| Ocena / Edytuj / finalize **albo** opinia tekstowa o runie (`POST /feedback` `targetType=run`) gdy nie `completed`/`failed` | **409** `RUN_NOT_REVIEWABLE` |
 | Zmiana oceny lub flagi po finalize | **409** `REVIEW_LOCKED` |
 | Ocena / edycja / opinia o runie obcej osoby | **403** `FORBIDDEN` |
 | `GET /runs/user/:userId` z cudzym id | **403** `FORBIDDEN` |
@@ -286,7 +286,9 @@ status completed | failed
   → Zamknij/zapisz przegląd → reviewFinalizedAt; dalsze zmiany oceny/flagi zablokowane
 ```
 
-Opinia tekstowa (`POST /feedback`) jest niezależna od finalize runu (append; target aplikacja / agent / run). Katalog agentów = stały enum, nie węzły `LoadContext` / `Persist*` / `Refine*`.
+Opinia tekstowa (`POST /feedback`) jest niezależna od finalize runu (append; target aplikacja / agent / run — `REVIEW_LOCKED` **nie** dotyczy tekstu). Gdy `targetType = run`, zapis tylko po `completed` \| `failed` (to samo okno co gwiazdki; w toku → **409** `RUN_NOT_REVIEWABLE`). Target `application` / `agent` bez warunku statusu. Katalog agentów = stały enum, nie węzły `LoadContext` / `Persist*` / `Refine*`.
+
+Zmiana względem wcześniejszego zapisu §8: niezależność od finalize zostaje; dopisano bramkę statusu wyłącznie dla opinii o konkretnym runie.
 
 Nie mylić z HITL (wybór pomysłów w trakcie pipeline).
 

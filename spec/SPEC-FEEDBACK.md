@@ -1,7 +1,7 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-08-15
-data_modyfikacji: 2026-08-31
+data_modyfikacji: 2026-09-10
 ---
 
 # SPEC — Feedback (opinie tekstowe)
@@ -43,6 +43,10 @@ Fbk-2. Wiele opinii tego samego autora na ten sam target — **dozwolone** (appe
 
 Fbk-3. Gdy `targetType = run`: `runId` musi istnieć **oraz** `startedBy` runu = autor sesji. Inaczej **403** `FORBIDDEN` (nieznany run dla obcego id: **404** `RUN_NOT_FOUND` albo 403 — spójnie: obcy run **nie** ujawnia istnienia ponad `FORBIDDEN` gdy id jest poprawnym `RunId` należącym do kogoś innego; nieznany format / nieistniejący → `RUN_NOT_FOUND` / `VALIDATION_FAILED`).
 
+Fbk-3a. Gdy `targetType = run`: status runu wyłącznie `completed` **albo** `failed`. Inny status (`queued` / `running` / `awaiting_hitl` / `interrupted`) → **409** `RUN_NOT_REVIEWABLE`, **bez** zapisu. Check **po** Fbk-3 (własność wcześniej niż status — cudzy run w toku zostaje 403, nie 409). Nie dotyczy `application` / `agent`. `reviewFinalizedAt` **nie** blokuje wpisu (append; to nie `REVIEW_LOCKED` z `SPEC-RUNY.md` R-10). Port odczytu runu zwraca `startedBy` **oraz** `status` — bez importu `RunsModule` / `assertRunReviewable`.
+
+Zmiana względem Fbk-3 (wcześniejsza norma): sam `startedBy` wystarczał do 201 na dowolnym statusie runu. Teraz okno zapisu tekstu o runie = to samo co ocena gwiazdkowa (`docs/dokumentacja_komunikacji.md`, `docs/anty_patterny.md`); lock finalize zostaje wyłącznie przy R-10.
+
 Fbk-4. Gdy `targetType = agent`: `agentKey` z whitelist enumu; brak lub spoza listy → `400` `VALIDATION_FAILED`.
 
 Fbk-5. MVP: **brak** obowiązkowego `GET` kolekcji opinii i panelu admina. Fundament = zapis do DB.
@@ -67,7 +71,7 @@ apps/api/src/feedback/
 | Element | Norma |
 |---------|--------|
 | Warstwy | jak pozostałe BC poza Social |
-| Port runów | odczyt `startedBy` przez port Runs (bez SQL w domain Feedback) |
+| Port runów | odczyt `startedBy` **oraz** `status` (Fbk-3 / Fbk-3a); bez SQL w domain Feedback; bez importu `RunsModule` |
 | Shared | `FeedbackId`, `FeedbackTargetType`, `FeedbackAgentKey` w `@content-chain/shared` |
 
 ### Wolno
@@ -82,6 +86,8 @@ apps/api/src/feedback/
 - Wołać graf Social albo Content z tego BC.
 - Przyjmować `authorId` z body (tylko sesja).
 - Pozwalać `user`/`admin` zapisać opinię o **cudzym** runie.
+- Zapisywać opinię o runie w statusie innym niż `completed` \| `failed` (Fbk-3a).
+- Wołać `assertRunReviewable` z BC Runs (ta asercja zamyka też finalize — za szeroka na tekst).
 - Łamać `GET /runs` `pageSize=10` zamiast `GET /runs/user/:userId`.
 - Traktować opinii tekstowej jako zamiennika `userRating` na runie.
 
@@ -97,8 +103,8 @@ apps/api/src/feedback/
 ## Kryteria akceptacji
 
 - [ ] `POST /feedback` z sesją tworzy wiersz z `authorId` + `createdAt` + targetem.
-- [ ] Target `agent` wymaga poprawnego `agentKey`; `run` wymaga własnego `runId`.
-- [ ] Cudzy `runId` → `FORBIDDEN`; druga opinia tego samego autora — nowy wiersz.
+- [ ] Target `agent` wymaga poprawnego `agentKey`; `run` wymaga własnego `runId` **oraz** statusu `completed` \| `failed` (Fbk-3a).
+- [ ] Cudzy `runId` → `FORBIDDEN`; run w toku (własny) → `RUN_NOT_REVIEWABLE`; druga opinia tego samego autora — nowy wiersz (także po finalize).
 - [ ] Brak GET panelu jako wymogu MVP.
 - [ ] Brak LangGraph w module.
 
