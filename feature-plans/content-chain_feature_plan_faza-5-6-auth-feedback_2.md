@@ -20,6 +20,20 @@
 - Authz review: tylko autor (`startedByUserId === session.id`) + tylko `completed | failed` + przed finalize
 - Guardy globalne z pliku _1 (JWT + Roles) już aktywne — brak ponownego `@UseGuards` w tym pliku
 - Zod 3 w `apps/api` (jak cała aplikacja w tym momencie)
+- Krawędź HTTP: DTO class-validator (jak `StartRunDto` / `HitlDto`); prawda kontraktu = Zod w application przez `parseWithZod`
+- `userRating` w tym wycinku: `number | null` + Zod `int` 1–5 (nie brand `RunUserRating` w shared — świadome odłożenie względem `docs/dictionary.md`)
+- `PrismaModule` jest `@Global()` — import w `FeedbackModule` opcjonalny (jawna zależność OK)
+
+### Korekty względem wcześniejszej treści tego planu
+
+Zmiana względem: szkic sprzed review architektury (ten sam plik, status `NIE_ROZPOCZĘTY`). Powód: zgrzyty ze SPEC i żywym `apps/api`.
+
+1. **Fbk-3 HTTP:** nieistniejący `runId` → **404** `RUN_NOT_FOUND`; cudzy albo run bez `startedBy` → **403** `FORBIDDEN`; zły format → **400** `VALIDATION_FAILED`. Wcześniejszy szkic zwijał brak wiersza do 403 „żeby nie ujawniać istnienia” — rozjazd z Fbk-3 i z recenzją runu (`RUN_NOT_FOUND`). Port `FeedbackRunReader` rozróżnia brak wiersza od braku inicjatora (unia dyskryminowana).
+2. **`toSnapshot` + faki portu** wchodzą do DoD Kroku 1 Fazy 4 (typ `RunReviewFields`; `unusedRepo` / `asSnapshot` w 5 specach).
+3. **Postman R8/R9:** `GET /runs/user/:userId` (nie POST).
+4. **R-10:** jedna funkcja domenowa `assertRunReviewable` (wzorzec jak `assertTransition`); trzy use-case’y review tylko wołają asercję + zapis.
+5. `listByUser` — predykaty shared, bez `as RunTaskType`.
+6. Mutacje przeglądu: `updateMany` z `reviewFinalizedAt: null`; `count !== 1` → `REVIEW_LOCKED` (lock przy wyścigu).
 
 ---
 
@@ -108,7 +122,7 @@ export const isFeedbackAgentKey = (v: string): v is FeedbackAgentKey =>
 - `pnpm --filter shared build` (lub typecheck) bez błędów
 - Brak logiki domenowej ani Zod w `packages/shared`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 ---
 
@@ -160,7 +174,7 @@ model Feedback {
 }
 ```
 
-> **Uwaga:** brak relacji FK do `Run` na modelu `Feedback` — `runId` jest walidowane w application (nie na poziomie DB), co upraszcza soft-delete runów w przyszłości i jest zgodne z P-7 (przenośność do PostgreSQL). Istnienie runu i własność `startedBy` sprawdzane przez `FeedbackRunReader` port.
+> **Uwaga:** brak relacji FK do `Run` / `User` na modelu `Feedback` — `runId` i `authorId` walidowane w application. To **wyjątek** względem `RunLog` / `Invitation` (świadomy dziennik append-only; wiersz przeżyje zniknięcie runu), nie wymóg P-7 (P-7 = unikać `@db.*`, nie relacje). Istnienie runu i własność `startedBy` sprawdza `FeedbackRunReader`.
 
 Komenda migracji (w katalogu `apps/api/`):
 ```bash
@@ -171,7 +185,7 @@ pnpm prisma migrate dev --name feedback-and-run-review
 - Po migracji `Run` ma kolumny `userRating`, `outputEdited`, `reviewFinalizedAt`
 - Istniejące runy nie psują się: `userRating` domyślnie `null`, `outputEdited` domyślnie `false`, `reviewFinalizedAt` domyślnie `null`
 - `Feedback` tabela istnieje z indeksami
-- `pnpm --filter api test` (e2e) zielone (nowe kolumny mają bezpieczne defaulty)
+- `pnpm --filter api test` (unit — skrypt `test`, nie `test:e2e`) zielone (nowe kolumny mają bezpieczne defaulty)
 
 **Status:** `NIE_ROZPOCZĘTY`
 
@@ -190,8 +204,14 @@ Odwołanie: `SPEC-RUNY.md` R-3b/R-3c/R-10; `docs/dokumentacja_komunikacji.md` GE
 - `apps/api/src/runs/domain/run.port.ts` — rozszerzenie `RunSnapshot`, nowe typy, nowe metody `RunRepository`
 - `apps/api/src/runs/infrastructure/prisma-run.adapter.ts` — implementacja nowych metod + rozszerzenie `RunRow` i `toSnapshot`
 - `apps/api/src/runs/application/get-run.use-case.ts` — `GetRunOutput` z polami przeglądu
-- `apps/api/src/runs/runs.controller.ts` — nowa trasa `GET user/:userId`
+- `apps/api/src/runs/runs.controller.ts` — nowa trasa `GET user/:userId` (importy `createUserId` / `isUserId` już są w pliku — nie duplikować)
 - `apps/api/src/runs/runs.module.ts` — nowy use-case
+- faki `RunRepository` w specach (typecheck po poszerzeniu portu):
+  - `apps/api/src/runs/application/get-run.use-case.spec.ts`
+  - `apps/api/src/runs/application/start-run.use-case.spec.ts`
+  - `apps/api/src/runs/application/resume-hitl.use-case.spec.ts`
+  - `apps/api/src/runs/application/in-process-run.worker.spec.ts`
+  - `apps/api/src/runs/application/recover-interrupted-runs.use-case.spec.ts`
 
 **Artefakty (nowe pliki):**
 - `apps/api/src/runs/application/list-runs-user.use-case.ts`
@@ -272,10 +292,10 @@ export interface RunRepository {
   saveSelectedIdeaIds(id: RunId, selectedIdeaIds: string[]): Promise<void>;
   /** Lista runów autora — bez paginacji pageSize=10 (R-3c). */
   listByUser(userId: UserId): Promise<LightRunItem[]>;
-  /** Pola przeglądu — SPEC-RUNY.md R-10. */
-  saveRating(id: RunId, rating: number | null): Promise<void>;
-  saveOutputEdited(id: RunId): Promise<void>;
-  saveFinalizedAt(id: RunId, at: Date): Promise<void>;
+  /** Pola przeglądu — SPEC-RUNY.md R-10. `true` gdy zaktualizowano wiersz z `reviewFinalizedAt: null`. */
+  saveRating(id: RunId, rating: number | null): Promise<boolean>;
+  saveOutputEdited(id: RunId): Promise<boolean>;
+  saveFinalizedAt(id: RunId, at: Date): Promise<boolean>;
 }
 ```
 
@@ -356,6 +376,25 @@ zamień na (dopisanie pól przeglądu do `base`):
     };
 ```
 
+oraz zmień adnotacje snapshotów w `toSnapshot` (dziś `SocialRunRecord & Pick<RunSnapshot, 'startedBy'>` — za wąskie po poszerzeniu `RunSnapshot`):
+
+```typescript
+type RunReviewFields = Pick<
+  RunSnapshot,
+  'startedBy' | 'userRating' | 'outputEdited' | 'reviewFinalizedAt'
+>;
+
+const snapshot: SocialRunRecord & RunReviewFields = {
+  ...base,
+  taskType: row.taskType,
+  platform: row.platform,
+  contentKind: null,
+  brief: briefParsed.data,
+};
+```
+
+(analogicznie `ContentRunRecord & RunReviewFields` w gałęzi Content).
+
 dodaj nowe metody do klasy `PrismaRunAdapter` (przed lub po `saveSelectedIdeaIds`):
 
 ```typescript
@@ -372,39 +411,56 @@ dodaj nowe metody do klasy `PrismaRunAdapter` (przed lub po `saveSelectedIdeaIds
         createdAt: true,
       },
     });
-    return rows.map((row) => ({
-      runId: createRunId(row.id),
-      taskType: row.taskType as RunTaskType,
-      platform: row.platform as RunPlatform,
-      language: row.language as ContentLanguage,
-      status: row.status as RunStatus,
-      createdAt: row.createdAt,
-    }));
+    return rows.map((row) => {
+      if (!isRunTaskType(row.taskType)) {
+        throw new Error(`Run.taskType is not a RunTaskType: ${row.taskType}`);
+      }
+      if (!isRunPlatform(row.platform)) {
+        throw new Error(`Run.platform is not a RunPlatform: ${row.platform}`);
+      }
+      if (!isContentLanguage(row.language)) {
+        throw new Error(`Run.language is not a ContentLanguage: ${row.language}`);
+      }
+      if (!isRunStatus(row.status)) {
+        throw new Error(`Run.status is not a RunStatus: ${row.status}`);
+      }
+      return {
+        runId: createRunId(row.id),
+        taskType: row.taskType,
+        platform: row.platform,
+        language: row.language,
+        status: row.status,
+        createdAt: row.createdAt,
+      };
+    });
   }
 
-  async saveRating(id: RunId, rating: number | null): Promise<void> {
-    await this.prisma.run.update({
-      where: { id },
+  async saveRating(id: RunId, rating: number | null): Promise<boolean> {
+    const result = await this.prisma.run.updateMany({
+      where: { id, reviewFinalizedAt: null },
       data: { userRating: rating },
     });
+    return result.count === 1;
   }
 
-  async saveOutputEdited(id: RunId): Promise<void> {
-    await this.prisma.run.update({
-      where: { id },
+  async saveOutputEdited(id: RunId): Promise<boolean> {
+    const result = await this.prisma.run.updateMany({
+      where: { id, reviewFinalizedAt: null },
       data: { outputEdited: true },
     });
+    return result.count === 1;
   }
 
-  async saveFinalizedAt(id: RunId, at: Date): Promise<void> {
-    await this.prisma.run.update({
-      where: { id },
+  async saveFinalizedAt(id: RunId, at: Date): Promise<boolean> {
+    const result = await this.prisma.run.updateMany({
+      where: { id, reviewFinalizedAt: null },
       data: { reviewFinalizedAt: at },
     });
+    return result.count === 1;
   }
 ```
 
-(importy `RunTaskType`, `RunPlatform`, `ContentLanguage`, `RunStatus` z `@content-chain/shared` — sprawdzić które są już zaimportowane w pliku.)
+(Dopisać import `isRunPlatform` z `@content-chain/shared` — `isRunTaskType` / `isContentLanguage` / `isRunStatus` już są w pliku. **Zakaz** `as RunTaskType` / `as RunStatus` w tym mapperze — ten sam styl co `toSnapshot` / R-3d1.)
 
 **Refaktor** `apps/api/src/runs/application/get-run.use-case.ts` — rozszerzenie `GetRunOutput`:
 
@@ -540,12 +596,12 @@ teraz (fragment — importy i metody `get` + `list`):
   }
 ```
 
-zamień na (dodanie trasy user/:userId między list a :runId):
+zamień na (dodanie trasy user/:userId między list a :runId; `createUserId` / `isUserId` już zaimportowane w żywym kontrolerze):
 ```typescript
 import { ListRunsUserUseCase } from './application/list-runs-user.use-case';
-import { createUserId, isUserId } from '@content-chain/shared';
 
-  // Trasa statyczna user/:userId musi być przed :runId — NestJS dopasowuje od góry
+  // Trasa statyczna user/:userId musi być przed :runId — NestJS dopasowuje od góry.
+  // :runId/logs i :runId/events zostają tam gdzie są (przed gołym :runId).
   @Get('user/:userId')
   async getRunsByUser(
     @Param('userId') userId: string,
@@ -619,7 +675,23 @@ import { ListRunsUserUseCase } from './application/list-runs-user.use-case';
 - Cudzy `:userId` → 403 `FORBIDDEN` (brak wyjątku dla admin)
 - `GET /api/v1/runs/:runId` snapshot zawiera `userRating`, `outputEdited`, `reviewFinalizedAt`
 - Istniejące runy (sprzed migracji) — `userRating: null`, `outputEdited: false`, `reviewFinalizedAt: null` w snapshotcie
-- TypeScript kompiluje się; testy D-4..D-22 bez regresji
+- `toSnapshot` kompiluje się z `RunReviewFields` (obie gałęzie unii); `listByUser` bez `as`
+- Pięć `unusedRepo` + `asSnapshot` w specach Runs uzupełnione o `listByUser` / `saveRating` / `saveOutputEdited` / `saveFinalizedAt` oraz pola przeglądu (`userRating: null`, `outputEdited: false`, `reviewFinalizedAt: null`)
+- TypeScript kompiluje się; `pnpm --filter api test` (unit) bez regresji D-4..D-22
+
+W każdym `unusedRepo` dopisać stuby (wzorzec `unexpected` jak pozostałe metody): `listByUser`, `saveRating`, `saveOutputEdited`, `saveFinalizedAt`. `asSnapshot`:
+
+```typescript
+function asSnapshot(run: RunRecord): RunSnapshot {
+  return {
+    ...run,
+    startedBy: null,
+    userRating: null,
+    outputEdited: false,
+    reviewFinalizedAt: null,
+  };
+}
+```
 
 **Status:** `NIE_ROZPOCZĘTY`
 
@@ -635,8 +707,10 @@ Odwołanie: `SPEC-FEEDBACK.md` Fbk-1..Fbk-7; `docs/dokumentacja_komunikacji.md` 
 - `apps/api/src/feedback/domain/feedback-run.reader.port.ts`
 - `apps/api/src/feedback/application/feedback.schemas.ts`
 - `apps/api/src/feedback/application/create-feedback.use-case.ts`
+- `apps/api/src/feedback/application/create-feedback.use-case.spec.ts`
 - `apps/api/src/feedback/infrastructure/prisma-feedback.adapter.ts`
 - `apps/api/src/feedback/infrastructure/prisma-feedback-run-reader.adapter.ts`
+- `apps/api/src/feedback/http/dto/create-feedback.dto.ts`
 - `apps/api/src/feedback/feedback.controller.ts`
 - `apps/api/src/feedback/feedback.module.ts`
 
@@ -680,43 +754,48 @@ import type { RunId, UserId } from '@content-chain/shared';
 
 export const FEEDBACK_RUN_READER = Symbol('FEEDBACK_RUN_READER');
 
+/** Wynik odczytu inicjatora — rozróżnia brak wiersza od runu bez startedBy. */
+export type FeedbackRunLookup =
+  | { kind: 'missing' }
+  | { kind: 'found'; startedBy: UserId | null };
+
 /**
  * Port do odczytu startedByUserId z runu — bez importu SocialModule ani ContentModule.
- * Implementacja przez adapter Prisma bezpośrednio na tabeli Run.
+ * Implementacja przez adapter Prisma bezpośrednio na tabeli Run (nie cały RUN_REPOSITORY).
  */
 export interface FeedbackRunReader {
-  getStartedBy(runId: RunId): Promise<UserId | null>;
+  getStartedBy(runId: RunId): Promise<FeedbackRunLookup>;
 }
 ```
 
 ```typescript
 // apps/api/src/feedback/application/feedback.schemas.ts
 import { z } from 'zod';
-import {
-  FEEDBACK_AGENT_KEYS,
-  FEEDBACK_TARGET_TYPES,
-} from '@content-chain/shared';
+import { FEEDBACK_AGENT_KEYS } from '@content-chain/shared';
 import { FEEDBACK_BODY_MAX } from '../domain/feedback.types';
 
-export const createFeedbackSchema = z
-  .discriminatedUnion('targetType', [
-    z.object({
-      targetType: z.literal('application'),
-      body: z.string().min(1).max(FEEDBACK_BODY_MAX),
-    }),
-    z.object({
-      targetType: z.literal('agent'),
-      body: z.string().min(1).max(FEEDBACK_BODY_MAX),
-      agentKey: z.enum(
-        FEEDBACK_AGENT_KEYS as [string, ...string[]],
-      ),
-    }),
-    z.object({
-      targetType: z.literal('run'),
-      body: z.string().min(1).max(FEEDBACK_BODY_MAX),
-      runId: z.string().min(1),
-    }),
-  ]);
+const [firstAgentKey, ...restAgentKeys] = FEEDBACK_AGENT_KEYS;
+if (firstAgentKey === undefined) {
+  throw new Error('FEEDBACK_AGENT_KEYS must not be empty');
+}
+const agentKeySchema = z.enum([firstAgentKey, ...restAgentKeys]);
+
+export const createFeedbackSchema = z.discriminatedUnion('targetType', [
+  z.object({
+    targetType: z.literal('application'),
+    body: z.string().min(1).max(FEEDBACK_BODY_MAX),
+  }),
+  z.object({
+    targetType: z.literal('agent'),
+    body: z.string().min(1).max(FEEDBACK_BODY_MAX),
+    agentKey: agentKeySchema,
+  }),
+  z.object({
+    targetType: z.literal('run'),
+    body: z.string().min(1).max(FEEDBACK_BODY_MAX),
+    runId: z.string().min(1),
+  }),
+]);
 
 export type CreateFeedbackCommand = z.infer<typeof createFeedbackSchema>;
 ```
@@ -729,12 +808,12 @@ import {
   createFeedbackId,
   isRunId,
   createRunId,
-  isFeedbackAgentKey,
 } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { parseWithZod } from '../../shared/parse-with-zod';
 import {
   FEEDBACK_REPOSITORY,
+  type FeedbackEntry,
   type FeedbackRepository,
 } from '../domain/feedback.types';
 import {
@@ -743,7 +822,6 @@ import {
 } from '../domain/feedback-run.reader.port';
 import { createFeedbackSchema } from './feedback.schemas';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
-import type { FeedbackEntry } from '../domain/feedback.types';
 import type { FeedbackAgentKey, RunId } from '@content-chain/shared';
 
 @Injectable()
@@ -772,17 +850,12 @@ export class CreateFeedbackUseCase {
         );
       }
       runId = createRunId(command.runId);
-      const startedBy = await this.runReader.getStartedBy(runId);
-      if (startedBy === null) {
-        // Run nie istnieje lub brak inicjatora — zwróć FORBIDDEN, by nie ujawniać istnienia
-        throw new DomainException(
-          'FORBIDDEN',
-          'Run not found or access denied',
-          403,
-        );
+      const lookup = await this.runReader.getStartedBy(runId);
+      if (lookup.kind === 'missing') {
+        throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
       }
-      // SPEC-FEEDBACK.md Fbk-3: startedBy runu = autor sesji
-      if (startedBy !== author.id) {
+      // Fbk-3: startedBy runu = autor sesji (także run bez inicjatora = nie twoje)
+      if (lookup.startedBy === null || lookup.startedBy !== author.id) {
         throw new DomainException(
           'FORBIDDEN',
           'Cannot leave feedback on another user run',
@@ -792,7 +865,7 @@ export class CreateFeedbackUseCase {
     }
 
     if (command.targetType === 'agent') {
-      agentKey = command.agentKey as FeedbackAgentKey;
+      agentKey = command.agentKey;
     }
 
     const entry: FeedbackEntry = {
@@ -841,8 +914,11 @@ export class PrismaFeedbackAdapter implements FeedbackRepository {
 // apps/api/src/feedback/infrastructure/prisma-feedback-run-reader.adapter.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../shared/persistence/prisma.service';
-import { createUserId, isUserId, type RunId, type UserId } from '@content-chain/shared';
-import type { FeedbackRunReader } from '../domain/feedback-run.reader.port';
+import { createUserId, isUserId, type RunId } from '@content-chain/shared';
+import type {
+  FeedbackRunLookup,
+  FeedbackRunReader,
+} from '../domain/feedback-run.reader.port';
 
 /**
  * Czyta startedByUserId bezpośrednio z tabeli Run przez PrismaClient.
@@ -853,15 +929,47 @@ import type { FeedbackRunReader } from '../domain/feedback-run.reader.port';
 export class PrismaFeedbackRunReaderAdapter implements FeedbackRunReader {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getStartedBy(runId: RunId): Promise<UserId | null> {
+  async getStartedBy(runId: RunId): Promise<FeedbackRunLookup> {
     const row = await this.prisma.run.findUnique({
       where: { id: runId },
       select: { startedByUserId: true },
     });
-    if (!row) return null;
-    if (!row.startedByUserId || !isUserId(row.startedByUserId)) return null;
-    return createUserId(row.startedByUserId);
+    if (!row) return { kind: 'missing' };
+    if (!row.startedByUserId || !isUserId(row.startedByUserId)) {
+      return { kind: 'found', startedBy: null };
+    }
+    return { kind: 'found', startedBy: createUserId(row.startedByUserId) };
   }
+}
+```
+
+```typescript
+// apps/api/src/feedback/http/dto/create-feedback.dto.ts
+import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  FEEDBACK_AGENT_KEYS,
+  FEEDBACK_TARGET_TYPES,
+} from '@content-chain/shared';
+import { FEEDBACK_BODY_MAX } from '../../domain/feedback.types';
+
+/** Suma kluczy HTTP; prawda = Zod discriminatedUnion w application (jak StartRunDto). */
+export class CreateFeedbackDto {
+  @IsIn([...FEEDBACK_TARGET_TYPES])
+  targetType!: (typeof FEEDBACK_TARGET_TYPES)[number];
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(FEEDBACK_BODY_MAX)
+  body!: string;
+
+  @IsOptional()
+  @IsIn([...FEEDBACK_AGENT_KEYS])
+  agentKey?: (typeof FEEDBACK_AGENT_KEYS)[number];
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  runId?: string;
 }
 ```
 
@@ -871,6 +979,7 @@ import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../shared/decorators/current-user.decorator';
 import { CreateFeedbackUseCase } from './application/create-feedback.use-case';
+import { CreateFeedbackDto } from './http/dto/create-feedback.dto';
 import type { AuthUserContext } from '../shared/types/auth-user-context';
 
 @ApiTags('feedback')
@@ -881,7 +990,7 @@ export class FeedbackController {
   @Post()
   @HttpCode(201)
   async create(
-    @Body() body: unknown,
+    @Body() body: CreateFeedbackDto,
     @CurrentUser() user: AuthUserContext,
   ) {
     const entry = await this.createFeedback.execute(body, user);
@@ -941,13 +1050,15 @@ import { FeedbackModule } from './feedback/feedback.module';
 ```
 
 **Biblioteki / API:**
-- `z.discriminatedUnion('targetType', [...])` — Zod 3, walidacja per target type
+- `z.discriminatedUnion('targetType', [...])` — Zod 3, walidacja per target type (prawda); DTO HTTP = suma kluczy pod `ValidationPipe`
 - `PrismaFeedbackRunReaderAdapter` — bezpośredni dostęp do `prisma.run` bez importu `RunsModule`; zgodny z zakazem `forwardRef` z Kroku 4.5 major
+- `FeedbackRunLookup` — `missing` vs `found` (Fbk-3: 404 vs 403)
 
 **DoD kroku:**
 - `POST /api/v1/feedback` (201): `targetType=application` → wiersz z `authorId` = sesja
 - `POST /api/v1/feedback` z `targetType=agent` + poprawny `agentKey` → 201; nieznany `agentKey` → 400
-- `POST /api/v1/feedback` z `targetType=run` + własny `runId` → 201; cudzy run → 403; nieistniejący run → 403
+- `POST /api/v1/feedback` z `targetType=run` + własny `runId` → 201; cudzy run → 403; nieistniejący run → **404** `RUN_NOT_FOUND`; zły format `runId` → 400 `VALIDATION_FAILED`
+- Unit: `CreateFeedbackUseCase` z fake portami pokrywa 201 / 403 / 404 (bez HTTP)
 - Wiele wpisów tego samego autora na ten sam target — dozwolone (append-only)
 - Brak `GET` kolekcji / panelu (MVP)
 - `FeedbackModule` nie importuje `SocialModule`, `ContentModule` ani `RunsModule`
@@ -963,15 +1074,66 @@ import { FeedbackModule } from './feedback/feedback.module';
 Odwołanie: `SPEC-RUNY.md` R-10; `docs/dokumentacja_komunikacji.md` PATCH rating / POST output-edited / POST finalize-review.
 
 **Artefakty (nowe pliki):**
+- `apps/api/src/runs/domain/assert-run-reviewable.ts`
+- `apps/api/src/runs/domain/assert-run-reviewable.spec.ts`
 - `apps/api/src/runs/application/rate-run.use-case.ts`
 - `apps/api/src/runs/application/flag-output-edited.use-case.ts`
 - `apps/api/src/runs/application/finalize-review.use-case.ts`
+- `apps/api/src/runs/http/dto/patch-run-rating.dto.ts`
 
 **Artefakty (refaktory):**
-- `apps/api/src/runs/runs.controller.ts` — nowe trasy PATCH rating, POST output-edited, POST finalize-review
+- `apps/api/src/runs/runs.controller.ts` — nowe trasy PATCH rating, POST output-edited, POST finalize-review; dopisać `Patch` do importu z `@nestjs/common`
 - `apps/api/src/runs/runs.module.ts` — dopisanie nowych use-case'ów
 
 **Implementacja:**
+
+```typescript
+// apps/api/src/runs/domain/assert-run-reviewable.ts
+import type { UserId } from '@content-chain/shared';
+import { DomainException } from '../../shared/exceptions/domain.exception';
+import type { RunSnapshot } from './run.port';
+
+/**
+ * R-10: run istnieje, status completed|failed, aktor = startedBy, przegląd otwarty.
+ * Wzorzec jak assertTransition — jedna asercja, trzy use-case'y tylko wołają.
+ */
+export function assertRunReviewable(
+  run: RunSnapshot | null,
+  actorId: UserId,
+): asserts run is RunSnapshot {
+  if (!run) {
+    throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
+  }
+  if (run.status !== 'completed' && run.status !== 'failed') {
+    throw new DomainException(
+      'RUN_NOT_REVIEWABLE',
+      'Run is not in a reviewable state',
+      409,
+    );
+  }
+  if (run.startedByUserId !== actorId) {
+    throw new DomainException('FORBIDDEN', 'Access denied', 403);
+  }
+  if (run.reviewFinalizedAt !== null) {
+    throw new DomainException(
+      'REVIEW_LOCKED',
+      'Review is already finalized',
+      409,
+    );
+  }
+}
+```
+
+```typescript
+// apps/api/src/runs/http/dto/patch-run-rating.dto.ts
+import { IsIn, ValidateIf } from 'class-validator';
+
+export class PatchRunRatingDto {
+  @ValidateIf((_, value: unknown) => value !== null)
+  @IsIn([1, 2, 3, 4, 5])
+  rating!: 1 | 2 | 3 | 4 | 5 | null;
+}
+```
 
 ```typescript
 // apps/api/src/runs/application/rate-run.use-case.ts
@@ -979,8 +1141,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { parseWithZod } from '../../shared/parse-with-zod';
+import { assertRunReviewable } from '../domain/assert-run-reviewable';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import { ParseRunIdPipe } from '../http/parse-run-id.pipe';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { RunId } from '@content-chain/shared';
 
@@ -996,33 +1158,16 @@ export class RateRunUseCase {
 
   async execute(runId: RunId, input: unknown, actor: AuthUserContext) {
     const { rating } = parseWithZod(ratingSchema, input);
-
     const run = await this.runs.getById(runId);
-    if (!run) {
-      throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
-    }
-    // R-10: tylko completed | failed
-    if (run.status !== 'completed' && run.status !== 'failed') {
-      throw new DomainException(
-        'RUN_NOT_REVIEWABLE',
-        'Run is not in a reviewable state',
-        409,
-      );
-    }
-    // R-10: tylko autor
-    if (run.startedByUserId !== actor.id) {
-      throw new DomainException('FORBIDDEN', 'Access denied', 403);
-    }
-    // R-10: zablokowane po finalize
-    if (run.reviewFinalizedAt !== null) {
+    assertRunReviewable(run, actor.id);
+    const updated = await this.runs.saveRating(runId, rating);
+    if (!updated) {
       throw new DomainException(
         'REVIEW_LOCKED',
         'Review is already finalized',
         409,
       );
     }
-
-    await this.runs.saveRating(runId, rating);
     return {
       runId: run.id,
       userRating: rating,
@@ -1036,6 +1181,7 @@ export class RateRunUseCase {
 // apps/api/src/runs/application/flag-output-edited.use-case.ts
 import { Inject, Injectable } from '@nestjs/common';
 import { DomainException } from '../../shared/exceptions/domain.exception';
+import { assertRunReviewable } from '../domain/assert-run-reviewable';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { RunId } from '@content-chain/shared';
@@ -1048,20 +1194,15 @@ export class FlagOutputEditedUseCase {
 
   async execute(runId: RunId, actor: AuthUserContext) {
     const run = await this.runs.getById(runId);
-    if (!run) {
-      throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
+    assertRunReviewable(run, actor.id);
+    const updated = await this.runs.saveOutputEdited(runId);
+    if (!updated) {
+      throw new DomainException(
+        'REVIEW_LOCKED',
+        'Review is already finalized',
+        409,
+      );
     }
-    if (run.status !== 'completed' && run.status !== 'failed') {
-      throw new DomainException('RUN_NOT_REVIEWABLE', 'Run is not in a reviewable state', 409);
-    }
-    if (run.startedByUserId !== actor.id) {
-      throw new DomainException('FORBIDDEN', 'Access denied', 403);
-    }
-    if (run.reviewFinalizedAt !== null) {
-      throw new DomainException('REVIEW_LOCKED', 'Review is already finalized', 409);
-    }
-    // R-10: flaga jednokierunkowa (true; MVP nie kasuje)
-    await this.runs.saveOutputEdited(runId);
     return { runId: run.id, outputEdited: true };
   }
 }
@@ -1071,6 +1212,7 @@ export class FlagOutputEditedUseCase {
 // apps/api/src/runs/application/finalize-review.use-case.ts
 import { Inject, Injectable } from '@nestjs/common';
 import { DomainException } from '../../shared/exceptions/domain.exception';
+import { assertRunReviewable } from '../domain/assert-run-reviewable';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { RunId } from '@content-chain/shared';
@@ -1083,22 +1225,17 @@ export class FinalizeReviewUseCase {
 
   async execute(runId: RunId, actor: AuthUserContext) {
     const run = await this.runs.getById(runId);
-    if (!run) {
-      throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
-    }
-    if (run.status !== 'completed' && run.status !== 'failed') {
-      throw new DomainException('RUN_NOT_REVIEWABLE', 'Run is not in a reviewable state', 409);
-    }
-    if (run.startedByUserId !== actor.id) {
-      throw new DomainException('FORBIDDEN', 'Access denied', 403);
-    }
-    // R-10: ponowne finalize → REVIEW_LOCKED (idempotentność wg SPEC)
-    if (run.reviewFinalizedAt !== null) {
-      throw new DomainException('REVIEW_LOCKED', 'Review is already finalized', 409);
-    }
+    assertRunReviewable(run, actor.id);
 
     const finalizedAt = new Date();
-    await this.runs.saveFinalizedAt(runId, finalizedAt);
+    const updated = await this.runs.saveFinalizedAt(runId, finalizedAt);
+    if (!updated) {
+      throw new DomainException(
+        'REVIEW_LOCKED',
+        'Review is already finalized',
+        409,
+      );
+    }
 
     return {
       runId: run.id,
@@ -1112,11 +1249,13 @@ export class FinalizeReviewUseCase {
 
 **Refaktor** `apps/api/src/runs/runs.controller.ts` — nowe endpointy review (dopisać po istniejących trasach, przed końcem klasy):
 
-dopisz importy:
+dopisz importy (`Patch` z `@nestjs/common` — dziś kontroler go nie importuje):
 ```typescript
+import { Patch } from '@nestjs/common';
 import { RateRunUseCase } from './application/rate-run.use-case';
 import { FlagOutputEditedUseCase } from './application/flag-output-edited.use-case';
 import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
+import { PatchRunRatingDto } from './http/dto/patch-run-rating.dto';
 ```
 
 dopisz do konstruktora:
@@ -1132,7 +1271,7 @@ dopisz nowe metody (przed zamknięciem klasy):
   @HttpCode(200)
   async patchRating(
     @Param('runId', ParseRunIdPipe) runId: RunId,
-    @Body() body: unknown,
+    @Body() body: PatchRunRatingDto,
     @CurrentUser() user: AuthUserContext,
   ) {
     return this.rateRun.execute(runId, body, user);
@@ -1212,9 +1351,11 @@ R6. PATCH /api/v1/runs/:runId/rating  (run ze statusem running)
     oczekiwane: 409 RUN_NOT_REVIEWABLE
 R7. POST /api/v1/feedback  body: { "targetType": "run", "runId": "<własny>", "body": "Świetnie!" }
     oczekiwane: 201 z id fbk_...
-R8. POST /api/v1/runs/user/:userId
+R7b. POST /api/v1/feedback  body: { "targetType": "run", "runId": "run_<uuid-nieistniejący>", "body": "…" }
+    oczekiwane: 404 RUN_NOT_FOUND
+R8. GET /api/v1/runs/user/:userId
     oczekiwane: 200 { items: [...] }
-R9. POST /api/v1/runs/user/:innyUserId
+R9. GET /api/v1/runs/user/:innyUserId
     oczekiwane: 403 FORBIDDEN
 ```
 
@@ -1225,8 +1366,10 @@ R9. POST /api/v1/runs/user/:innyUserId
 - Run ze statusem `running` / `queued` / `awaiting_hitl` / `interrupted` → 409 `RUN_NOT_REVIEWABLE`
 - Cudza sesja na którymkolwiek endpoint review → 403 `FORBIDDEN`
 - `GET /api/v1/runs/:runId` snapshot: `userRating`, `outputEdited`, `reviewFinalizedAt` zawsze w JSON (null / false / null przy braku)
-- Postman case'y R1–R9 przechodzą (z ważną sesją)
+- Unit: `assertRunReviewable` pokrywa 404 / 409 `RUN_NOT_REVIEWABLE` / 403 / 409 `REVIEW_LOCKED`
+- Postman case'y R1–R9 (+ R7b) przechodzą (z ważną sesją)
 - `pnpm --filter api test` (unit) zielone; brak regresji D-4..D-22
+- `pnpm --filter api test:e2e` osobno, gdy suite e2e jest odpalany — nie mylić ze skryptem `test`
 
 **Status:** `NIE_ROZPOCZĘTY`
 
@@ -1236,15 +1379,16 @@ R9. POST /api/v1/runs/user/:innyUserId
 
 - [ ] `packages/shared` eksportuje `FeedbackId`, `FeedbackTargetType`, `FeedbackAgentKey` + predicaty
 - [ ] Migracja `feedback-and-run-review` zastosowana: tabela `Feedback` istnieje; `Run` ma `userRating`, `outputEdited`, `reviewFinalizedAt`
-- [ ] Istniejące runy nie zepsuły się po migracji (domaślne wartości)
+- [ ] Istniejące runy nie zepsuły się po migracji (domyślne wartości)
 - [ ] `GET /api/v1/runs/user/:userId` zwraca listę lekką; cudzy id → 403
-- [ ] `POST /api/v1/feedback` — 201 dla application / agent / własny run; 403 dla cudzego run; 400 dla nieznanego agentKey
+- [ ] `POST /api/v1/feedback` — 201 dla application / agent / własny run; 403 dla cudzego run; **404** `RUN_NOT_FOUND` dla nieistniejącego; 400 dla nieznanego agentKey / złego formatu `runId`
 - [ ] Wiele feedbacków tego samego autora na ten sam target — dozwolone
-- [ ] `PATCH .../rating`, `POST .../output-edited`, `POST .../finalize-review` — reguły R-10 egzekwowane
+- [ ] `PATCH .../rating`, `POST .../output-edited`, `POST .../finalize-review` — reguły R-10 przez `assertRunReviewable` + `updateMany`
 - [ ] Snapshot `GET /runs/:runId` zawiera pola przeglądu (zawsze w JSON — null/false/null przy braku)
 - [ ] `FeedbackModule` nie importuje `RunsModule`, `SocialModule`, `ContentModule`; brak `forwardRef`
-- [ ] Zgodność z `SPEC-FEEDBACK.md`, `SPEC-RUNY.md` R-10, R-3b, R-3c
-- [ ] `pnpm --filter api test` zielone
+- [ ] Faki `RunRepository` / `asSnapshot` oraz `toSnapshot` (`RunReviewFields`) kompilują się
+- [ ] Zgodność z `SPEC-FEEDBACK.md` Fbk-3, `SPEC-RUNY.md` R-10, R-3b, R-3c
+- [ ] `pnpm --filter api test` (unit) zielone
 
 ---
 

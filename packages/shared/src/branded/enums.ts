@@ -23,7 +23,25 @@ export type RunPlatform = SocialPlatform | 'web';
 export type ContentKind = 'blog' | 'service_page' | 'landing';
 export type ContentLanguage = 'pl' | 'en';
 
+export type FeedbackTargetType = 'application' | 'agent' | 'run';
+
+export type FeedbackAgentKey =
+  'IdeationAgent' | 'ContentWriterAgent' | 'ConsistencyVerifier' | 'PageWriterAgent';
+
+export const FEEDBACK_TARGET_TYPES = [
+  'application',
+  'agent',
+  'run',
+] as const satisfies readonly FeedbackTargetType[];
+
 export const USER_ROLES = ['admin', 'user'] as const satisfies readonly UserRole[];
+
+export const FEEDBACK_AGENT_KEYS = [
+  'IdeationAgent',
+  'ContentWriterAgent',
+  'ConsistencyVerifier',
+  'PageWriterAgent',
+] as const satisfies readonly FeedbackAgentKey[];
 
 export const RUN_STATUSES = [
   'queued',
@@ -95,3 +113,9 @@ export const isContentKind = (value: string): value is ContentKind =>
 
 export const isContentLanguage = (value: string): value is ContentLanguage =>
   (CONTENT_LANGUAGES as readonly string[]).includes(value);
+
+export const isFeedbackTargetType = (value: string): value is FeedbackTargetType =>
+  (FEEDBACK_TARGET_TYPES as readonly string[]).includes(value);
+
+export const isFeedbackAgentKey = (value: string): value is FeedbackAgentKey =>
+  (FEEDBACK_AGENT_KEYS as readonly string[]).includes(value);

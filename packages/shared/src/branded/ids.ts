@@ -10,6 +10,7 @@ export type UserId = Brand<string, 'UserId'>;
 export type RunId = Brand<string, 'RunId'>;
 export type InvitationId = Brand<string, 'InvitationId'>;
 export type GatewayModelAlias = Brand<string, 'GatewayModelAlias'>;
+export type FeedbackId = Brand<string, 'FeedbackId'>;
 
 // ---------------------------------------------------------------------------
 // Wzorce (norma: format zgodny z ai-provider-gateway dla RequestId/ConversationId)
@@ -21,14 +22,15 @@ const CONV_ID_RE = new RegExp(`^conv_${UUID_PART}$`, 'i');
 const USER_ID_RE = new RegExp(`^usr_${UUID_PART}$`, 'i');
 const RUN_ID_RE = new RegExp(`^run_${UUID_PART}$`, 'i');
 const INVITATION_ID_RE = new RegExp(`^inv_${UUID_PART}$`, 'i');
+const FEEDBACK_ID_RE = new RegExp(`^fbk_${UUID_PART}$`, 'i');
 // ---------------------------------------------------------------------------
 // RequestId — nadaje middleware apps/api; klient NIE generuje
 // ---------------------------------------------------------------------------
 
 export const isRequestId = (value: string): value is RequestId => REQUEST_ID_RE.test(value);
 export const createRequestId = (value: string): RequestId => {
-	if (!isRequestId(value)) throw new Error('Invalid RequestId');
-	return brand<RequestId>(value);
+  if (!isRequestId(value)) throw new Error('Invalid RequestId');
+  return brand<RequestId>(value);
 };
 
 // ---------------------------------------------------------------------------
@@ -37,8 +39,8 @@ export const createRequestId = (value: string): RequestId => {
 
 export const isConversationId = (value: string): value is ConversationId => CONV_ID_RE.test(value);
 export const createConversationId = (value: string): ConversationId => {
-	if (!isConversationId(value)) throw new Error('Invalid ConversationId');
-	return brand<ConversationId>(value);
+  if (!isConversationId(value)) throw new Error('Invalid ConversationId');
+  return brand<ConversationId>(value);
 };
 
 // ---------------------------------------------------------------------------
@@ -47,8 +49,8 @@ export const createConversationId = (value: string): ConversationId => {
 
 export const isUserId = (value: string): value is UserId => USER_ID_RE.test(value);
 export const createUserId = (value: string): UserId => {
-	if (!isUserId(value)) throw new Error('Invalid UserId');
-	return brand<UserId>(value);
+  if (!isUserId(value)) throw new Error('Invalid UserId');
+  return brand<UserId>(value);
 };
 
 // ---------------------------------------------------------------------------
@@ -57,26 +59,38 @@ export const createUserId = (value: string): UserId => {
 
 export const isRunId = (value: string): value is RunId => RUN_ID_RE.test(value);
 export const createRunId = (value: string): RunId => {
-	if (!isRunId(value)) throw new Error('Invalid RunId');
-	return brand<RunId>(value);
+  if (!isRunId(value)) throw new Error('Invalid RunId');
+  return brand<RunId>(value);
 };
 
 // ---------------------------------------------------------------------------
 // InvitationId
 // ---------------------------------------------------------------------------
 
-export const isInvitationId = (value: string): value is InvitationId => INVITATION_ID_RE.test(value);
+export const isInvitationId = (value: string): value is InvitationId =>
+  INVITATION_ID_RE.test(value);
 export const createInvitationId = (value: string): InvitationId => {
-	if (!isInvitationId(value)) throw new Error('Invalid InvitationId');
-	return brand<InvitationId>(value);
+  if (!isInvitationId(value)) throw new Error('Invalid InvitationId');
+  return brand<InvitationId>(value);
 };
 
 // ---------------------------------------------------------------------------
 // GatewayModelAlias — alias modelu z konfiguracji gateway; walidacja "niepusty"
 // ---------------------------------------------------------------------------
 
-export const isGatewayModelAlias = (value: string): value is GatewayModelAlias => value.trim().length > 0;
+export const isGatewayModelAlias = (value: string): value is GatewayModelAlias =>
+  value.trim().length > 0;
 export const createGatewayModelAlias = (value: string): GatewayModelAlias => {
-	if (!isGatewayModelAlias(value)) throw new Error('Invalid GatewayModelAlias');
-	return brand<GatewayModelAlias>(value);
+  if (!isGatewayModelAlias(value)) throw new Error('Invalid GatewayModelAlias');
+  return brand<GatewayModelAlias>(value);
+};
+
+// ---------------------------------------------------------------------------
+// FeedbackId
+// ---------------------------------------------------------------------------
+
+export const isFeedbackId = (value: string): value is FeedbackId => FEEDBACK_ID_RE.test(value);
+export const createFeedbackId = (value: string): FeedbackId => {
+  if (!isFeedbackId(value)) throw new Error('Invalid FeedbackId');
+  return brand<FeedbackId>(value);
 };
