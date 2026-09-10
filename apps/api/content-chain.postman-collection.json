@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "e9f2c4a1-3b70-48d5-9e1a-6c5d8f0b2a14",
     "name": "Content Chain — API",
-    "description": "Katalog requestów `apps/api` — **bez testów**, do ręcznego Send. Przykładowe body i zmienne.\n\nSuite z asercjami: `test/postman/auth.postman-collection.json`, `social-pipeline.postman-collection.json`, `content-pipeline.postman-collection.json`.\n\n**Zmienne:** `baseUrl` (prefix `/api/v1`), `originUrl` (`GET /metrics` bez prefixu), `adminEmail` / `adminPassword` (jak w kolekcji auth), `inviteEmail` / `invitePassword` / `inviteToken`, `invitationId`, `runId`, `ideaId`, `userId`.\n\n**Cookies:** bootstrap-admin i login ustawiają httpOnly `cc_access` + `cc_refresh` (path `/`). Cookie jar jest włączony domyślnie (Send → Cookies). `accept-invite` **nie** ustawia cookies — potem zwykły login.\n\n**Publiczne:** AUTH bootstrap-status / bootstrap-admin / login / accept-invite / refresh, HEALTH, METRICS.\n**Sesja (dowolna rola):** AUTH me/logout, COMPANY-CONTEXT GET, cały RUNS.\n**Tylko admin:** PUT/PATCH company-context, cały INVITATIONS, USERS. `user` → 403.\n\nKatalogi: AUTH, INVITATIONS, USERS, HEALTH, METRICS, COMPANY-CONTEXT, RUNS.",
+    "description": "Katalog requestów `apps/api` — **bez testów**, do ręcznego Send. Przykładowe body i zmienne.\n\nSuite z asercjami: `test/postman/auth.postman-collection.json`, `social-pipeline.postman-collection.json`, `content-pipeline.postman-collection.json`, `review.postman-collection.json`.\n\n**Zmienne:** `baseUrl` (prefix `/api/v1`), `originUrl` (`GET /metrics` bez prefixu), `adminEmail` / `adminPassword` (jak w kolekcji auth), `inviteEmail` / `invitePassword` / `inviteToken`, `invitationId`, `runId`, `ideaId`, `userId`.\n\n**Cookies:** bootstrap-admin i login ustawiają httpOnly `cc_access` + `cc_refresh` (path `/`). Cookie jar jest włączony domyślnie (Send → Cookies). `accept-invite` **nie** ustawia cookies — potem zwykły login.\n\n**Publiczne:** AUTH bootstrap-status / bootstrap-admin / login / accept-invite / refresh, HEALTH, METRICS.\n**Sesja (dowolna rola):** AUTH me/logout, COMPANY-CONTEXT GET, cały RUNS (w tym rating / output-edited / finalize / `user/:userId`), FEEDBACK.\n**Tylko admin:** PUT/PATCH company-context, cały INVITATIONS, USERS. `user` → 403.\n\nKatalogi: AUTH, INVITATIONS, USERS, HEALTH, METRICS, COMPANY-CONTEXT, RUNS, FEEDBACK.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -333,7 +333,7 @@
     },
     {
       "name": "RUNS",
-      "description": "Wszystkie requesty chronione (`cc_access`) — admin i user. `POST /runs` ustawia `startedBy` z sesji. Start wymaga kompletnego company-context (inaczej 409 CONTEXT_INCOMPLETE).\n\nSocial: `taskType` + `platform` (linkedin|facebook|instagram) + `language` + `brief.topic`. Content: `taskType` + `contentKind` (blog|service_page|landing) + `language` + `brief.topic` — **bez** `platform`.\n\n`runId` ma format `run_<uuid>`. Po POST skopiuj `runId` z odpowiedzi. HITL: wstaw `ideaId` z `result` / `hitl.options`. Snapshot/lista: `startedBy: { id, email }` (albo null na starych runach).",
+      "description": "Wszystkie requesty chronione (`cc_access`) — admin i user. `POST /runs` ustawia `startedBy` z sesji. Start wymaga kompletnego company-context (inaczej 409 CONTEXT_INCOMPLETE).\n\nSocial: `taskType` + `platform` (linkedin|facebook|instagram) + `language` + `brief.topic`. Content: `taskType` + `contentKind` (blog|service_page|landing) + `language` + `brief.topic` — **bez** `platform`.\n\n`runId` ma format `run_<uuid>`. Po POST skopiuj `runId` z odpowiedzi. HITL: wstaw `ideaId` z `result` / `hitl.options`. Snapshot/lista: `startedBy: { id, email }` (albo null na starych runach).\n\nPrzegląd (R-10): tylko autor, tylko `completed` | `failed`, do `reviewFinalizedAt === null`. Po finalize → 409 `REVIEW_LOCKED`. Inny status → 409 `RUN_NOT_REVIEWABLE`. Cudza sesja → 403 `FORBIDDEN`. Suite z asercjami: `test/postman/review.postman-collection.json`.",
       "item": [
         {
           "name": "Start",
@@ -495,6 +495,15 @@
           }
         },
         {
+          "name": "GET runs by user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/user/{{userId}}",
+            "description": "Lekka lista wszystkich runów inicjatora (`startedBy`). `:userId` **musi** być id sesji (`GET /auth/me`) — inny id → 403 `FORBIDDEN` (bez wyjątku admin). 200 `{ items: [{ runId, taskType, platform, language, status, createdAt }] }`. Pod select opinii w UI; lista API nie filtruje statusu."
+          }
+        },
+        {
           "name": "GET run by id",
           "request": {
             "method": "GET",
@@ -542,6 +551,102 @@
             },
             "url": "{{baseUrl}}/runs/{{runId}}/hitl",
             "description": "202. Run musi być `awaiting_hitl`. `ideaId` z `hitl.options` albo `result.ideas` / `result.pageOutline.id`. Puste / duplikat / obcy id → 400 HITL_INVALID_SELECTION."
+          }
+        },
+        {
+          "name": "PATCH rating",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4\n}\n"
+            },
+            "url": "{{baseUrl}}/runs/{{runId}}/rating",
+            "description": "200 `{ runId, userRating, reviewFinalizedAt }`. Body `{ rating: 1|2|3|4|5|null }`. Tylko autor, tylko `completed` | `failed`, do finalize. `null` czyści ocenę. Po finalize → 409 `REVIEW_LOCKED`. Inny status → 409 `RUN_NOT_REVIEWABLE`."
+          }
+        },
+        {
+          "name": "POST output-edited",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{runId}}/output-edited",
+            "description": "200 `{ runId, outputEdited: true }`. Jednokierunkowa flaga — nie nadpisuje payloadu SM. Te same authz / status / lock co ocena."
+          }
+        },
+        {
+          "name": "POST finalize-review",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{runId}}/finalize-review",
+            "description": "200 `{ runId, userRating, outputEdited, reviewFinalizedAt }`. Legalne przy `userRating: null`. Ponowne wywołanie → 409 `REVIEW_LOCKED`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "FEEDBACK",
+      "description": "Opinie tekstowe — wyłącznie zapis (append-only). Sesja dowolnej roli. `authorId` wyłącznie z cookie, nie z body.\n\n`targetType=run`: własny run (`startedBy`) w statusie `completed` | `failed`. Cudzy → 403 `FORBIDDEN`; brak wiersza → 404 `RUN_NOT_FOUND`; zły format `runId` → 400 `VALIDATION_FAILED`; run w toku → 409 `RUN_NOT_REVIEWABLE`. Finalize przeglądu **nie** blokuje tekstu.\n\n`application` / `agent` — bez lookupu runu. `agentKey`: IdeationAgent | ContentWriterAgent | ConsistencyVerifier | PageWriterAgent.\n\nSuite z asercjami: `test/postman/review.postman-collection.json`. Brak GET listy w MVP.",
+      "item": [
+        {
+          "name": "POST feedback (run)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"run\",\n  \"runId\": \"{{runId}}\",\n  \"body\": \"Świetnie!\"\n}\n"
+            },
+            "url": "{{baseUrl}}/feedback",
+            "description": "201 `{ id: fbk_…, targetType, agentKey, runId, body, authorId, createdAt }`. `runId` z `GET /runs/user/:userId` albo ze startu runu."
+          }
+        },
+        {
+          "name": "POST feedback (application)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"application\",\n  \"body\": \"Opinia o aplikacji\"\n}\n"
+            },
+            "url": "{{baseUrl}}/feedback",
+            "description": "201. Bez `runId` / `agentKey`."
+          }
+        },
+        {
+          "name": "POST feedback (agent)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"agent\",\n  \"agentKey\": \"IdeationAgent\",\n  \"body\": \"Ideation był wolny\"\n}\n"
+            },
+            "url": "{{baseUrl}}/feedback",
+            "description": "201. `agentKey` z katalogu MVP. Nieznany klucz → 400 `VALIDATION_FAILED`."
           }
         }
       ]

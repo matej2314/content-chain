@@ -21,6 +21,9 @@ import {
 } from './domain/run-result-reader.port';
 import { RunLifecycleModule } from './run-lifecycle.module';
 import { RunsController } from './runs.controller';
+import { RateRunUseCase } from './application/rate-run.use-case';
+import { FlagOutputEditedUseCase } from './application/flag-output-edited.use-case';
+import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
 
 export type RunsModuleAsyncOptions = {
   imports?: ModuleMetadata['imports'];
@@ -46,6 +49,9 @@ export type RunsModuleAsyncOptions = {
     GetRunLogsUseCase,
     ListRunsUseCase,
     ListRunsUserUseCase,
+    RateRunUseCase,
+    FlagOutputEditedUseCase,
+    FinalizeReviewUseCase,
   ],
   exports: [RunLifecycleModule],
 })

@@ -1132,7 +1132,7 @@ Kolejność: format `runId` → missing → własność → status → `save`. C
 
 ### KROK 3 — Review runu: use-case'y + HTTP endpoints + snapshot + Postman
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Zaimplementować pełny cykl przeglądu runu: ocena gwiazdkowa, flaga edycji outputu, finalize. Dopisać endpointy do `RunsController`. Snapshot już zaktualizowany w KROK 1.  
 Odwołanie: `SPEC-RUNY.md` R-10; `docs/dokumentacja_komunikacji.md` PATCH rating / POST output-edited / POST finalize-review.

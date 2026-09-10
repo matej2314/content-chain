@@ -13,10 +13,14 @@ import { GetRunUseCase } from './application/get-run.use-case';
 import { ListRunsUseCase } from './application/list-runs.use-case';
 import { ListRunsUserUseCase } from './application/list-runs-user.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
+import { RateRunUseCase } from './application/rate-run.use-case';
+import { FlagOutputEditedUseCase } from './application/flag-output-edited.use-case';
+import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
 import { RUN_SSE_HUB, type RunSseEvent } from './domain/run-sse.port';
 import { type ListRunsQueryDto } from './http/dto/list-runs-query.dto';
 import { type HitlDto } from './http/dto/hitl.dto';
+import { type PatchRunRatingDto } from './http/dto/patch-run-rating.dto';
 import { type StartRunDto } from './http/dto/start-run.dto';
 import { RunsController } from './runs.controller';
 
@@ -36,6 +40,9 @@ describe('RunsController', () => {
   let listRuns: { execute: jest.Mock };
   let listRunsUser: { execute: jest.Mock };
   let resumeHitl: { execute: jest.Mock };
+  let rateRun: { execute: jest.Mock };
+  let flagOutputEdited: { execute: jest.Mock };
+  let finalizeReview: { execute: jest.Mock };
   let sse: { subscribe: jest.Mock; publish: jest.Mock; complete: jest.Mock };
 
   beforeEach(async () => {
@@ -45,6 +52,9 @@ describe('RunsController', () => {
     listRuns = { execute: jest.fn() };
     listRunsUser = { execute: jest.fn() };
     resumeHitl = { execute: jest.fn() };
+    rateRun = { execute: jest.fn() };
+    flagOutputEdited = { execute: jest.fn() };
+    finalizeReview = { execute: jest.fn() };
     sse = { subscribe: jest.fn(), publish: jest.fn(), complete: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -56,6 +66,9 @@ describe('RunsController', () => {
         { provide: ListRunsUseCase, useValue: listRuns },
         { provide: ListRunsUserUseCase, useValue: listRunsUser },
         { provide: ResumeHitlUseCase, useValue: resumeHitl },
+        { provide: RateRunUseCase, useValue: rateRun },
+        { provide: FlagOutputEditedUseCase, useValue: flagOutputEdited },
+        { provide: FinalizeReviewUseCase, useValue: finalizeReview },
         { provide: RUN_SSE_HUB, useValue: sse },
         {
           provide: ENV,
@@ -86,6 +99,13 @@ describe('RunsController', () => {
       Reflect.getMetadata(IS_PUBLIC_KEY, proto.getRunsByUser),
     ).toBeUndefined();
     expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.get)).toBeUndefined();
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.patchRating)).toBeUndefined();
+    expect(
+      Reflect.getMetadata(IS_PUBLIC_KEY, proto.postOutputEdited),
+    ).toBeUndefined();
+    expect(
+      Reflect.getMetadata(IS_PUBLIC_KEY, proto.postFinalizeReview),
+    ).toBeUndefined();
 
     expect(Reflect.getMetadata(ROLES_KEY, proto.create)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.logs)).toBeUndefined();
@@ -94,6 +114,13 @@ describe('RunsController', () => {
     expect(Reflect.getMetadata(ROLES_KEY, proto.list)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.getRunsByUser)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.get)).toBeUndefined();
+    expect(Reflect.getMetadata(ROLES_KEY, proto.patchRating)).toBeUndefined();
+    expect(
+      Reflect.getMetadata(ROLES_KEY, proto.postOutputEdited),
+    ).toBeUndefined();
+    expect(
+      Reflect.getMetadata(ROLES_KEY, proto.postFinalizeReview),
+    ).toBeUndefined();
   });
 
   it('declares parameterized routes before GET :runId', () => {
@@ -115,6 +142,13 @@ describe('RunsController', () => {
       'user/:userId',
     );
     expect(Reflect.getMetadata('path', proto.get)).toBe(':runId');
+    expect(Reflect.getMetadata('path', proto.patchRating)).toBe(':runId/rating');
+    expect(Reflect.getMetadata('path', proto.postOutputEdited)).toBe(
+      ':runId/output-edited',
+    );
+    expect(Reflect.getMetadata('path', proto.postFinalizeReview)).toBe(
+      ':runId/finalize-review',
+    );
   });
 
   it('maps list query DTO to ListRunsQuery and delegates to ListRunsUseCase', async () => {
@@ -215,6 +249,45 @@ describe('RunsController', () => {
       runId,
       body.selectedIdeaIds,
     );
+  });
+
+  it('delegates PATCH :runId/rating to RateRunUseCase', async () => {
+    const runId = newRunId();
+    const body: PatchRunRatingDto = { rating: 4 };
+    const rated = { runId, userRating: 4, reviewFinalizedAt: null };
+    rateRun.execute.mockResolvedValue(rated);
+
+    await expect(
+      controller.patchRating(runId, body, sessionUser),
+    ).resolves.toBe(rated);
+    expect(rateRun.execute).toHaveBeenCalledWith(runId, body, sessionUser);
+  });
+
+  it('delegates POST :runId/output-edited to FlagOutputEditedUseCase', async () => {
+    const runId = newRunId();
+    const flagged = { runId, outputEdited: true };
+    flagOutputEdited.execute.mockResolvedValue(flagged);
+
+    await expect(
+      controller.postOutputEdited(runId, sessionUser),
+    ).resolves.toBe(flagged);
+    expect(flagOutputEdited.execute).toHaveBeenCalledWith(runId, sessionUser);
+  });
+
+  it('delegates POST :runId/finalize-review to FinalizeReviewUseCase', async () => {
+    const runId = newRunId();
+    const finalized = {
+      runId,
+      userRating: null,
+      outputEdited: true,
+      reviewFinalizedAt: '2026-09-10T12:00:00.000Z',
+    };
+    finalizeReview.execute.mockResolvedValue(finalized);
+
+    await expect(
+      controller.postFinalizeReview(runId, sessionUser),
+    ).resolves.toBe(finalized);
+    expect(finalizeReview.execute).toHaveBeenCalledWith(runId, sessionUser);
   });
 
   it('startWith emits latest status, not the earlier snapshot', async () => {

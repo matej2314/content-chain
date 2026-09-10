@@ -6,6 +6,7 @@ import {
   Inject,
   Param,
   Post,
+  Patch,
   Sse,
   Query,
   BadRequestException,
@@ -30,6 +31,9 @@ import { ListRunsUseCase } from './application/list-runs.use-case';
 import { GetRunUseCase } from './application/get-run.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
+import { RateRunUseCase } from './application/rate-run.use-case';
+import { FlagOutputEditedUseCase } from './application/flag-output-edited.use-case';
+import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
 import {
   ListRunsUserUseCase,
   type ListRunsUserOutput,
@@ -47,6 +51,7 @@ import { ParseRunIdPipe } from './http/parse-run-id.pipe';
 import { createUserId, isUserId } from '@content-chain/shared';
 import type { RunId, RunStatus } from '@content-chain/shared';
 import type { ListRunsQuery } from './domain/run.port';
+import { PatchRunRatingDto } from './http/dto/patch-run-rating.dto';
 
 function isTerminalStatus(status: RunStatus): boolean {
   return status === 'completed' || status === 'failed';
@@ -62,6 +67,9 @@ export class RunsController {
     private readonly resumeHitl: ResumeHitlUseCase,
     private readonly listRuns: ListRunsUseCase,
     private readonly listRunsUser: ListRunsUserUseCase,
+    private readonly rateRun: RateRunUseCase,
+    private readonly flagOutputEdited: FlagOutputEditedUseCase,
+    private readonly finalizeReview: FinalizeReviewUseCase,
     @Inject(RUN_SSE_HUB) private readonly sse: RunSseHub,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -161,5 +169,33 @@ export class RunsController {
   @Get(':runId')
   get(@Param('runId', ParseRunIdPipe) runId: RunId) {
     return this.getRun.execute(runId);
+  }
+
+  @Patch(':runId/rating')
+  @HttpCode(200)
+  async patchRating(
+    @Param('runId', ParseRunIdPipe) runId: RunId,
+    @Body() body: PatchRunRatingDto,
+    @CurrentUser() user: AuthUserContext,
+  ) {
+    return this.rateRun.execute(runId, body, user);
+  }
+
+  @Post(':runId/output-edited')
+  @HttpCode(200)
+  async postOutputEdited(
+    @Param('runId', ParseRunIdPipe) runId: RunId,
+    @CurrentUser() user: AuthUserContext,
+  ) {
+    return this.flagOutputEdited.execute(runId, user);
+  }
+
+  @Post(':runId/finalize-review')
+  @HttpCode(200)
+  async postFinalizeReview(
+    @Param('runId', ParseRunIdPipe) runId: RunId,
+    @CurrentUser() user: AuthUserContext,
+  ) {
+    return this.finalizeReview.execute(runId, user);
   }
 }

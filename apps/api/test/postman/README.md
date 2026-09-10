@@ -1,20 +1,23 @@
-# Kolekcje Postman — pipeline Social, Content i zaproszenia
+# Kolekcje Postman — pipeline Social, Content, przegląd/feedback i zaproszenia
 
 Powtarzalny happy path **bez UI**:
 
 - **Social** — Setup (login admina → kontekst przez HTTP), potem posty (`post_ideas`, `post_ideas_then_content`) i rolki (`reel_ideas`, `reel_ideas_then_scripts`)
 - **Content** — to samo Setup, potem `page_copy` i `page_outline_then_copy`
+- **Review + feedback** — `review.postman-collection.json`: to samo login + kontekst, cienkie fixture’y runów (nie pełny pipeline Social/Content), potem ocena / flaga edycji / finalize (R-10) i `POST /feedback` (Fbk-1…Fbk-4)
 - **Zaproszenia** — `invitations-pipeline.postman-collection.json`: login admina → create → **token z maila** → accept (konto `user` zostaje w bazie)
 
-To **nie** jest suite `pnpm test:e2e` (Jest + fake LLM). Social/Content wołają **żywy** lokalny gateway. JSON w tym katalogu nie wchodzi do Jest (`jest-e2e.json` łapie wyłącznie `.e2e-spec.ts$`).
+Katalog ręcznego Send (bez asercji Collection Runnera) jest w `apps/api/content-chain.postman-collection.json` — te same endpointy review/feedback do kliknięcia na dowolnym `runId`.
 
-Kontrakt sesji, bootstrap i 401/403 auth są w **`auth.postman-collection.json`**. Kolekcje pipeline Social/Content **nie** tworzą konta — tylko `POST /auth/login`. Pipeline zaproszeń tworzy **jedno** konto `user` przez accept-invite (Twój `inviteEmail`).
+To **nie** jest suite `pnpm test:e2e` (Jest + fake LLM). Social/Content/Review wołają **żywy** lokalny gateway (Review — tylko po to, żeby mieć `completed` / `awaiting_hitl`). JSON w tym katalogu nie wchodzi do Jest (`jest-e2e.json` łapie wyłącznie `.e2e-spec.ts$`).
+
+Kontrakt sesji, bootstrap i 401/403 auth są w **`auth.postman-collection.json`**. Kolekcje pipeline Social/Content/Review **nie** tworzą konta — tylko `POST /auth/login`. Pipeline zaproszeń tworzy **jedno** konto `user` przez accept-invite (Twój `inviteEmail`).
 
 ## Wymagania
 
 1. Skopiować `apps/api/.env.example` → `apps/api/.env` oraz analogicznie env gateway (`apps/ai-provider-gateway/.env.example`). Uzupełnić sekrety lokalnie — **nie** wklejać ich do kolekcji.
-2. Migracje Prisma api (SQLite).
-3. **Istniejący admin w bazie.** Zmienne `adminEmail` / `adminPassword` w kolekcjach Social i Content są te same co w `auth.postman-collection.json`. Pipeline nie woła `bootstrap-admin`. Pusta baza → login **401**; jednorazowo odpal Bootstrap w kolekcji auth (albo ręczny `POST /auth/bootstrap-admin`).
+2. Migracje Prisma api (SQLite), w tym tabela `Feedback` i kolumny przeglądu na `Run` (`userRating`, `outputEdited`, `reviewFinalizedAt`).
+3. **Istniejący admin w bazie.** Zmienne `adminEmail` / `adminPassword` w kolekcjach Social, Content i Review są te same co w `auth.postman-collection.json`. Pipeline nie woła `bootstrap-admin`. Pusta baza → login **401**; jednorazowo odpal Bootstrap w kolekcji auth (albo ręczny `POST /auth/bootstrap-admin`).
 4. Uruchomić procesy (kolejność: najpierw gateway, potem api):
 
 ```bash
@@ -28,14 +31,17 @@ PUT/PATCH `/company-context` i start runów wymagają sesji **admina** (`cc_acce
 
 ## Import i odpalenie (Postman GUI)
 
-1. Import → plik kolekcji (`social-pipeline.postman-collection.json`, `content-pipeline.postman-collection.json` albo `invitations-pipeline.postman-collection.json`).
+1. Import → plik kolekcji (`social-pipeline.postman-collection.json`, `content-pipeline.postman-collection.json`, `review.postman-collection.json` albo `invitations-pipeline.postman-collection.json`).
 2. Collection Runner:
    - Social: foldery w kolejności **Setup → A → B → C → D**.
    - Content: foldery w kolejności **Setup → A → B**.
+   - Review: foldery w kolejności **Setup → Fixtures → Review → Feedback → Lista autora**.
    - Zaproszenia: najpierw **Setup → A. Create**, potem wklej `inviteToken` z maila, potem **B. Accept** (nie jeden ciągły run).
 3. Zmienna `baseUrl` (domyślnie `http://localhost:3001/api/v1`) — zmień tylko gdy api nie stoi na 3001. `adminEmail` / `adminPassword` zmieniaj tylko gdy lokalny admin ma inne dane niż w kolekcji auth.
 
 Pętla `GET /runs/:runId` jest w skryptach testów (do ~6 min na poll). SSE nie jest częścią DoD Milestone 4 / 4.2.
+
+Nie sklejaj Social/Content z Review w jednym runnerze: Review sam startuje potrzebne runy i nie sprawdza wyniku grafu.
 
 ## Newman (opcjonalnie)
 
@@ -44,9 +50,24 @@ Runner nie jest spięty w SPEC — GUI Postmana albo Newman są równoważne. Ne
 ```bash
 npx --yes newman run apps/api/test/postman/social-pipeline.postman-collection.json
 npx --yes newman run apps/api/test/postman/content-pipeline.postman-collection.json
+npx --yes newman run apps/api/test/postman/review.postman-collection.json
 ```
 
 Newman **nie** pauzuje na mail — folder B zaproszeń wymaga `inviteToken` ustawionego wcześniej. Do smoke na prawdziwą skrzynkę użyj GUI (dwa runy).
+
+## Review + feedback (`review.postman-collection.json`)
+
+Cel: żywy HTTP Fazy 6 — przegląd runu (`SPEC-RUNY.md` R-10) i zapis opinii (`SPEC-FEEDBACK.md`), nie graf Social/Content.
+
+**Z bazy przed startem:** istniejący admin + migracje. **Nie** wymaga gotowych runów ani wierszy `Feedback` — Fixtures tworzą trzy nowe runy autora sesji. Stare runy z poprzednich odpalen nie przeszkadzają.
+
+1. **Setup** — login admina, `GET /auth/me` (zapis `userId` / syntetyczny `otherUserId` pod R8/R9), PUT kontekstu Acme, completeness `true`. Bez PATCH nieznanego `extras` (to D-20 w Social/Content).
+2. **Fixtures** — dwa `post_ideas` aż `completed` (`completedRunId`, `ratedCompletedRunId`) oraz `post_ideas_then_content` aż `awaiting_hitl` (`inProgressRunId`). HITL **nie** jest wznawiane — status nieterminalny zostaje stabilny pod R6/R7c.
+3. **Review** — ocena 4 → `null` → flaga edycji → snapshot pól przeglądu → finalize bez gwiazdek oraz z oceną 5 → `409 REVIEW_LOCKED` na rating / `output-edited` / ponownym finalize → `409 RUN_NOT_REVIEWABLE` na rating / edycji / finalize przy `awaiting_hitl`.
+4. **Feedback** — `201` na zfinalizowanym runie, drugi wpis = nowy `fbk_…` (Fbk-2), `404 RUN_NOT_FOUND`, `409` na runie w toku, `application` / `agent`, `400` na nieznany `agentKey` i zły format `runId`.
+5. **Lista autora** — `GET /runs/user/:userId` (200) i cudze id (403).
+
+Cudzy `startedBy` na `PATCH .../rating` oraz status `failed` są poza tym runnerem (403 wymaga drugiego konta; `failed` psuje fixture). Unit: `assertRunReviewable` / `CreateFeedbackUseCase`.
 
 ## Zaproszenia (`invitations-pipeline.postman-collection.json`)
 
@@ -65,12 +86,14 @@ Konto `user` **zostaje** w bazie. Ten sam `inviteEmail` przy kolejnym A da **409
 
 ## Co robi Setup
 
-W **obu** kolekcjach Setup jest ten sam:
+W **Social i Content** Setup jest ten sam:
 
 1. `POST /auth/login` — body `adminEmail` / `adminPassword`. **200** + Set-Cookie; **401** gdy admin nie istnieje albo hasło się nie zgadza. Nie bootstrap, nie invite.
 2. `PUT /company-context` — body jak żywy fixture Acme (bogatszy niż `completeContextBody` w e2e Jest). `extras` ma **znany** kształt (`hashtags`, `performanceNotes`) — **bez** nieznanych kluczy (Zod `.strict()`). PUT jest idempotentnym upsertem singletona; ponowne odpalenie **nie** wymaga wipe tabeli kontekstu. Completeness **ignoruje** extras (D-20). Wymaga roli **admin**.
 3. `GET /company-context/completeness` — asercja `complete === true` i puste `missing`.
 4. `PATCH extras` z nieznanym kluczem → **400** `VALIDATION_FAILED`; `details[].path` to string ze ścieżką Zod (separator `'.'`, bez `/`). Zapisany kontekst zostaje.
+
+**Review** powtarza kroki 1–3 i dokłada `GET /auth/me` (brak kroku 4 — D-20 zostaje w Social/Content).
 
 **Zakaz** zastępowania Setupu seedem Prisma / SQL. Bramka startu runu (`CONTEXT_INCOMPLETE`) i graf (`load-context`) mają zobaczyć ten sam kontrakt HTTP co UI.
 
@@ -84,6 +107,10 @@ W **obu** kolekcjach Setup jest ten sam:
 | Social | **D. reel_ideas_then_scripts** | poll `awaiting_hitl` (`options` / `reelIdeas`) → te same negatywy HITL → HITL 1 id → `result.reelScript === null`, `result.reelScripts.length === 1`, `sourceIdeaId` (D-16 / D-21) |
 | Content | **A. page_copy** | `POST /runs` bez `platform`, z `contentKind: "blog"`, `brief` bez `ideaCount` → poll `completed` → `result.pageDocument.body` + logi |
 | Content | **B. page_outline_then_copy** | poll `awaiting_hitl` → `ideaId` z `hitl.options[0].id` albo `result.pageOutline.id` → HITL `[outline.id]` → poll `completed` + `pageDocument`. Gdy sekcja ma `role`, musi być z zamkniętego enumu (D-18 / D-22) |
+| Review | **Fixtures** | dwa `post_ideas` → `completed`; `post_ideas_then_content` → `awaiting_hitl` (bez HITL) |
+| Review | **Review** | R1–R6 (+ R4b/R4c, R5b/R5c, R6b/R6c): rating, `output-edited`, snapshot, finalize, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE` |
+| Review | **Feedback** | R7–R7g: `POST /feedback` na run (także po finalize + append), 404, 409 w toku, `application` / `agent`, 400 |
+| Review | **Lista autora** | R8/R9: `GET /runs/user/:userId` — sesja 200, cudze id 403 |
 | Zaproszenia | **A. Create** | `POST /invitations` (nieznany klucz → 400) → 201 bez tokenu w JSON → drugi POST ten sam email → 409 → `GET /invitations` |
 | Zaproszenia | **B. Accept** | token z maila → słabe hasło 400 → accept 201 bez cookies → reuse 401 → login `user` → 403 na `/invitations` i `/users` |
 
@@ -101,6 +128,18 @@ Pokrycie warstwą adekwatną: **Jest e2e** (`company-context`, `social-pipeline`
 
 Skalar `result.content` / `result.reelScript` na dwuetapowych (`post_ideas_then_content` / `reel_ideas_then_scripts`) po fazie 2 jest **`null`** — źródłem prawdy są tablice.
 
+## Kontrakt MVP (Faza 6 / R-10 / Fbk)
+
+Żywy HTTP: **`review.postman-collection.json`**. Unit: `assert-run-reviewable.spec.ts`, use-case’y rating / output-edited / finalize, `create-feedback.use-case.spec.ts`. **Brak** `*.e2e-spec.ts` na te ścieżki.
+
+| ID | Co sprawdza | Gdzie |
+|----|-------------|--------|
+| **R-10** | Ocena 1–5 i `null`; flaga `outputEdited`; finalize (także przy `userRating: null`); lock po `reviewFinalizedAt`; `409 RUN_NOT_REVIEWABLE` poza `completed` \| `failed` | Postman Review R1–R6c; snapshot zawsze z `userRating` / `outputEdited` / `reviewFinalizedAt` |
+| **Fbk-1 / Fbk-4** | `POST /feedback` `application` i `agent` (whitelist `agentKey`); nieznany klucz → 400 | Postman R7d–R7f |
+| **Fbk-2** | Drugi wpis tego samego autora na ten sam target → nowy wiersz | Postman R7a |
+| **Fbk-3 / Fbk-3a** | Własny `completed` (także po finalize) → 201; brak runu → 404; zły format `runId` → 400; run w toku → 409 `RUN_NOT_REVIEWABLE` | Postman R7 / R7b / R7c / R7g |
+| **R-3c** | `GET /runs/user/:userId` tylko dla sesji | Postman R8 / R9 |
+
 ## Poza zakresem tych kolekcji
 
 - `post_content` solo
@@ -110,3 +149,6 @@ Skalar `result.content` / `result.reelScript` na dwuetapowych (`post_ideas_then_
 - Resend / revoke zaproszenia (osobne foldery, nie v1 tego pipeline)
 - Suite CI PR
 - Pełny happy path **2 id → 2 hopów LLM** na żywym gateway (Jest + fake LLM)
+- Mega-runner Social + Content + Review (review nie zależy od `taskType`; graf zostaje w Social/Content)
+- `403 FORBIDDEN` na cudzym `startedBy` przy rating / edycji / finalize (wymaga drugiego konta)
+- Review na statusie `failed` (fixture’y Review failują test przy `failed`)

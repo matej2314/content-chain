@@ -1,0 +1,1414 @@
+{
+  "info": {
+    "_postman_id": "b7e4c1a9-2f6d-4c8b-9a31-5e0d8f4b2c17",
+    "name": "Content Chain — Review + feedback (Faza 6)",
+    "description": "Happy path przeglądu runu (R-10) i feedbacku tekstowego (Fbk-1 / Fbk-2 / Fbk-3 / Fbk-3a / Fbk-4): Setup (login admina → cookie `cc_access` / `cc_refresh` → `GET /auth/me` → PUT kontekstu), fixture dwóch `completed` (finalize z `null` oraz z oceną 1–5) + `awaiting_hitl`, potem R1–R9 (+ R4b/R4c, R5b/R5c, R6b/R6c, R7a, R7d–R7g).\n\n`awaiting_hitl` jest stabilnym statusem nieterminalnym pod R6/R6b/R6c/R7c (ten sam 409 `RUN_NOT_REVIEWABLE` co `running` / `queued` / `interrupted` — bez wyścigu z LLM).\n\nWymaga żywego `apps/api` (`:3001`), lokalnego gateway i **istniejącego admina** (`adminEmail` / `adminPassword` — te same wartości co `auth.postman-collection.json`). W Postmanie włącz cookie jar. Kolekcja nie woła gateway — klient uderza wyłącznie w api. Nie startuje pełnego pipeline Social/Content — cienkie fixture’y pod statusy przeglądu.\n\nNie jest to suite `pnpm test:e2e`. Import → Collection Runner: **Setup → Fixtures → Review → Feedback → Lista autora**.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001/api/v1"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "adminPassword",
+      "value": "Password12!!"
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "otherUserId",
+      "value": ""
+    },
+    {
+      "key": "completedRunId",
+      "value": ""
+    },
+    {
+      "key": "ratedCompletedRunId",
+      "value": ""
+    },
+    {
+      "key": "inProgressRunId",
+      "value": ""
+    },
+    {
+      "key": "missingRunId",
+      "value": "run_deadbeef-0000-4000-8000-000000000001"
+    },
+    {
+      "key": "pollCountCompleted",
+      "value": "0"
+    },
+    {
+      "key": "pollCountRated",
+      "value": "0"
+    },
+    {
+      "key": "pollCountHitl",
+      "value": "0"
+    },
+    {
+      "key": "firstFeedbackId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Setup",
+      "description": "Login istniejącego admina (cookies sesji), `GET /auth/me` (userId pod R8/R9) i idempotentny PUT kontekstu firmy — bramka startu runu. Konto nie jest tu tworzone — Bootstrap jest w `auth.postman-collection.json`.",
+      "item": [
+        {
+          "name": "POST login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 (admin must already exist in DB)', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "pm.test('sets cc_access and cc_refresh cookies', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.include('cc_access=');",
+                  "  pm.expect(cookies).to.include('cc_refresh=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Pozyskuje httpOnly `cc_access` + `cc_refresh`. 401 → admin nie istnieje albo hasło nie zgadza się z `adminEmail` / `adminPassword`. Nie wywołuje bootstrap-admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            }
+          }
+        },
+        {
+          "name": "GET me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('id email role from cookie session', function () {",
+                  "  pm.expect(body).to.include.keys('id', 'email', 'role');",
+                  "  pm.expect(body.id).to.match(/^usr_/i);",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get('adminEmail'));",
+                  "  pm.expect(body.role).to.eql('admin');",
+                  "});",
+                  "pm.collectionVariables.set('userId', body.id);",
+                  "const other = body.id.replace(/[0-9a-f]$/i, function (digit) {",
+                  "  return digit.toLowerCase() === '0' ? '1' : '0';",
+                  "});",
+                  "pm.collectionVariables.set('otherUserId', other);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Zapisuje `userId` sesji i syntetyczny `otherUserId` (inny poprawny UserId) pod R8/R9."
+          }
+        },
+        {
+          "name": "PUT company-context",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('completeness.complete === true', function () {",
+                  "  pm.expect(body.completeness).to.be.an('object');",
+                  "  pm.expect(body.completeness.complete).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/company-context",
+            "description": "Idempotentny upsert singletona kontekstu — start runów wymaga completeness. Ten sam fixture Acme co kolekcje Social/Content.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identity\": {\n    \"name\": \"Acme\",\n    \"description\": \"Acme pomaga founderom B2B SaaS ogarnąć chaos operacyjny, zanim skala sprzedaży rozjedzie się z delivery. Od 2019 robimy audyty procesów w zespołach 8–40 osób w Polsce i CEE — bez wdrożenia w cenie, z listą usprawnień do samodzielnego pociągnięcia.\"\n  },\n  \"offer\": {\n    \"items\": [\n      {\n        \"name\": \"Audyt procesów operacyjnych\",\n        \"benefit\": [\n          \"Średnio 6 godzin tygodniowo odzyskane u klientów po wdrożeniu rekomendacji\",\n          \"Mapa wąskich gardeł w 10 dni roboczych\",\n          \"Jedna lista priorytetów zamiast dwudziestu równoległych inicjatyw\"\n        ],\n        \"description\": \"Wywiady z founderem i 3–5 osobami z ops/CS/product, mapa as-is, lista usprawnień z szacunkiem wysiłku. Bez implementacji w cenie audytu.\"\n      },\n      {\n        \"name\": \"Sesja priorytetyzacji Q+1\",\n        \"benefit\": [\n          \"Trzy tematy na kolejny kwartał, reszta świadomie odłożona\"\n        ],\n        \"description\": \"Południowa jednodniówka po audycie: wybór trzech tematów na najbliższy kwartał i właścicieli. Opcja, nie pakiet obowiązkowy.\"\n      }\n    ]\n  },\n  \"voice\": {\n    \"weDo\": \"konkret, liczby z audytu, język founderski, krótkie zdania, bez slajdowego entuzjazmu\",\n    \"weDont\": \"żargon, puste obietnice wzrostu MRR, porównywanie z konkurencją, korpo-ogólniki w stylu synergia i transformacja\"\n  },\n  \"cta\": {\n    \"items\": [\n      { \"label\": \"Napisz do nas\", \"target\": \"/kontakt\" },\n      { \"label\": \"Umów 20 minut na wstępny zakres audytu\", \"target\": \"/kontakt\" }\n    ]\n  },\n  \"audience\": {\n    \"profiles\": [\n      {\n        \"description\": \"Founder SaaS B2B, zespół 8–40 osób, po seedzie lub serii A. Sprzedaż idzie, a onboarding, CS i handoff między product a ops się sypią. Szuka przeglądu procesów, nie kolejnego narzędzia.\"\n      }\n    ]\n  },\n  \"extras\": {\n    \"hashtags\": [\"#acme\", \"#saasops\", \"#founders\"],\n    \"performanceNotes\": \"Klienci po audycie najczęściej tną tygodniowy chaos spotkań i ręcznych handoffów; typowy trop to 6 godzin odzyskane tygodniowo, nie skok MRR.\"\n  }\n}\n"
+            }
+          }
+        },
+        {
+          "name": "GET company-context completeness",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('complete === true', function () {",
+                  "  pm.expect(body.complete).to.eql(true);",
+                  "});",
+                  "pm.test('missing is empty', function () {",
+                  "  pm.expect(body.missing).to.be.an('array').that.is.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/company-context/completeness",
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fixtures",
+      "description": "Trzy runy autora sesji: dwa `post_ideas` aż `completed` (`completedRunId` → R1–R5/R7 finalize z `null`; `ratedCompletedRunId` → R4b/R4c finalize z oceną 5) oraz `post_ideas_then_content` aż `awaiting_hitl` (R6, R7c). Wymaga żywego gateway.",
+      "item": [
+        {
+          "name": "POST runs (post_ideas → completedRunId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 202', function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});",
+                  "if (pm.response.code !== 202) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('runId present', function () {",
+                  "  pm.expect(body.runId).to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('completedRunId', body.runId);",
+                  "pm.collectionVariables.set('pollCountCompleted', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskType\": \"post_ideas\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": {\n    \"topic\": \"Q3 review\"\n  }\n}\n"
+            }
+          }
+        },
+        {
+          "name": "GET run until completed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const IN_FLIGHT = ['queued', 'running', 'interrupted'];",
+                  "const MAX_POLLS = 120;",
+                  "const POLL_MS = 3000;",
+                  "",
+                  "function wait(ms) {",
+                  "  const until = Date.now() + ms;",
+                  "  while (Date.now() < until) {",
+                  "    /* delay between Collection Runner / Newman retries */",
+                  "  }",
+                  "}",
+                  "",
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('status is a run enum', function () {",
+                  "  pm.expect(RUN_STATUSES).to.include(body.status);",
+                  "});",
+                  "",
+                  "const polls = Number(pm.collectionVariables.get('pollCountCompleted') || 0) + 1;",
+                  "pm.collectionVariables.set('pollCountCompleted', String(polls));",
+                  "",
+                  "if (body.status === 'failed') {",
+                  "  pm.test('run did not fail', function () {",
+                  "    pm.expect.fail('run failed: ' + pm.response.text());",
+                  "  });",
+                  "  return;",
+                  "}",
+                  "",
+                  "if (body.status === 'awaiting_hitl') {",
+                  "  pm.test('post_ideas does not pause for HITL', function () {",
+                  "    pm.expect.fail('unexpected awaiting_hitl on post_ideas');",
+                  "  });",
+                  "  return;",
+                  "}",
+                  "",
+                  "if (body.status !== 'completed') {",
+                  "  pm.test('status is still in-flight or completed', function () {",
+                  "    pm.expect(IN_FLIGHT).to.include(body.status);",
+                  "  });",
+                  "  if (polls >= MAX_POLLS) {",
+                  "    pm.test('completed within poll budget', function () {",
+                  "      pm.expect.fail('timeout waiting for completed (last: ' + body.status + ')');",
+                  "    });",
+                  "    return;",
+                  "  }",
+                  "  wait(POLL_MS);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "  return;",
+                  "}",
+                  "",
+                  "pm.test('review fields present before review', function () {",
+                  "  pm.expect(body).to.include.keys('userRating', 'outputEdited', 'reviewFinalizedAt');",
+                  "  pm.expect(body.userRating).to.eql(null);",
+                  "  pm.expect(body.outputEdited).to.eql(false);",
+                  "  pm.expect(body.reviewFinalizedAt).to.eql(null);",
+                  "});",
+                  "pm.collectionVariables.set('pollCountCompleted', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}",
+            "description": ""
+          }
+        },
+        {
+          "name": "POST runs (post_ideas → ratedCompletedRunId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 202', function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});",
+                  "if (pm.response.code !== 202) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('runId present', function () {",
+                  "  pm.expect(body.runId).to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('ratedCompletedRunId', body.runId);",
+                  "pm.collectionVariables.set('pollCountRated', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs",
+            "description": "Drugi `post_ideas` pod R4b/R4c (finalize z oceną 1–5). Osobny run, bo po R4 `completedRunId` jest już zamknięty.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskType\": \"post_ideas\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": {\n    \"topic\": \"Q3 review rated\"\n  }\n}\n"
+            }
+          }
+        },
+        {
+          "name": "GET rated run until completed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const IN_FLIGHT = ['queued', 'running', 'interrupted'];",
+                  "const MAX_POLLS = 120;",
+                  "const POLL_MS = 3000;",
+                  "",
+                  "function wait(ms) {",
+                  "  const until = Date.now() + ms;",
+                  "  while (Date.now() < until) {",
+                  "    /* delay between Collection Runner / Newman retries */",
+                  "  }",
+                  "}",
+                  "",
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('status is a run enum', function () {",
+                  "  pm.expect(RUN_STATUSES).to.include(body.status);",
+                  "});",
+                  "",
+                  "const polls = Number(pm.collectionVariables.get('pollCountRated') || 0) + 1;",
+                  "pm.collectionVariables.set('pollCountRated', String(polls));",
+                  "",
+                  "if (body.status === 'failed') {",
+                  "  pm.test('run did not fail', function () {",
+                  "    pm.expect.fail('run failed: ' + pm.response.text());",
+                  "  });",
+                  "  return;",
+                  "}",
+                  "",
+                  "if (body.status === 'awaiting_hitl') {",
+                  "  pm.test('post_ideas does not pause for HITL', function () {",
+                  "    pm.expect.fail('unexpected awaiting_hitl on post_ideas');",
+                  "  });",
+                  "  return;",
+                  "}",
+                  "",
+                  "if (body.status !== 'completed') {",
+                  "  pm.test('status is still in-flight or completed', function () {",
+                  "    pm.expect(IN_FLIGHT).to.include(body.status);",
+                  "  });",
+                  "  if (polls >= MAX_POLLS) {",
+                  "    pm.test('completed within poll budget', function () {",
+                  "      pm.expect.fail('timeout waiting for completed (last: ' + body.status + ')');",
+                  "    });",
+                  "    return;",
+                  "  }",
+                  "  wait(POLL_MS);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "  return;",
+                  "}",
+                  "",
+                  "pm.test('review fields present before review', function () {",
+                  "  pm.expect(body).to.include.keys('userRating', 'outputEdited', 'reviewFinalizedAt');",
+                  "  pm.expect(body.userRating).to.eql(null);",
+                  "  pm.expect(body.outputEdited).to.eql(false);",
+                  "  pm.expect(body.reviewFinalizedAt).to.eql(null);",
+                  "});",
+                  "pm.collectionVariables.set('pollCountRated', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{ratedCompletedRunId}}",
+            "description": "Poll aż `completed` — fixture pod finalize z oceną 5 (major 6.3)."
+          }
+        },
+        {
+          "name": "POST runs (post_ideas_then_content → inProgressRunId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 202', function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});",
+                  "if (pm.response.code !== 202) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('runId present', function () {",
+                  "  pm.expect(body.runId).to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('inProgressRunId', body.runId);",
+                  "pm.collectionVariables.set('pollCountHitl', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskType\": \"post_ideas_then_content\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": {\n    \"topic\": \"Q3 in-progress\"\n  }\n}\n"
+            }
+          }
+        },
+        {
+          "name": "GET run until awaiting_hitl",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const IN_FLIGHT = ['queued', 'running', 'interrupted'];",
+                  "const MAX_POLLS = 120;",
+                  "const POLL_MS = 3000;",
+                  "",
+                  "function wait(ms) {",
+                  "  const until = Date.now() + ms;",
+                  "  while (Date.now() < until) {",
+                  "    /* delay between Collection Runner / Newman retries */",
+                  "  }",
+                  "}",
+                  "",
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('status is a run enum', function () {",
+                  "  pm.expect(RUN_STATUSES).to.include(body.status);",
+                  "});",
+                  "",
+                  "const polls = Number(pm.collectionVariables.get('pollCountHitl') || 0) + 1;",
+                  "pm.collectionVariables.set('pollCountHitl', String(polls));",
+                  "",
+                  "if (body.status === 'failed') {",
+                  "  pm.test('run did not fail before HITL', function () {",
+                  "    pm.expect.fail('run failed: ' + pm.response.text());",
+                  "  });",
+                  "  return;",
+                  "}",
+                  "",
+                  "if (body.status === 'completed') {",
+                  "  pm.test('post_ideas_then_content pauses for HITL', function () {",
+                  "    pm.expect.fail('completed before HITL');",
+                  "  });",
+                  "  return;",
+                  "}",
+                  "",
+                  "if (body.status !== 'awaiting_hitl') {",
+                  "  pm.test('status is still in-flight or awaiting_hitl', function () {",
+                  "    pm.expect(IN_FLIGHT).to.include(body.status);",
+                  "  });",
+                  "  if (polls >= MAX_POLLS) {",
+                  "    pm.test('awaiting_hitl within poll budget', function () {",
+                  "      pm.expect.fail('timeout waiting for awaiting_hitl (last: ' + body.status + ')');",
+                  "    });",
+                  "    return;",
+                  "  }",
+                  "  wait(POLL_MS);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "  return;",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('pollCountHitl', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{inProgressRunId}}",
+            "description": "Stabilny status nieterminalny pod R6/R7c. HITL nie jest wznawiane — run zostaje w awaiting_hitl."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Review",
+      "description": "R1–R6: ocena, flaga edycji, snapshot, finalize z `null` (R4) i z oceną 5 (R4b/R4c), lock na rating / output-edited / ponownym finalize (R5/R5b/R5c) i status nieterminalny (R6/R6b/R6c). `completedRunId` / `ratedCompletedRunId` / `inProgressRunId` z Fixtures.",
+      "item": [
+        {
+          "name": "R1. PATCH rating 4",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('rating 4, review still open', function () {",
+                  "  pm.expect(body.runId).to.eql(pm.collectionVariables.get('completedRunId'));",
+                  "  pm.expect(body.userRating).to.eql(4);",
+                  "  pm.expect(body.reviewFinalizedAt).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}/rating",
+            "description": "200 `{ runId, userRating: 4, reviewFinalizedAt: null }`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4\n}\n"
+            }
+          }
+        },
+        {
+          "name": "R2. PATCH rating null",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('rating cleared to null', function () {",
+                  "  pm.expect(body.runId).to.eql(pm.collectionVariables.get('completedRunId'));",
+                  "  pm.expect(body.userRating).to.eql(null);",
+                  "  pm.expect(body.reviewFinalizedAt).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}/rating",
+            "description": "200 `{ userRating: null }` — brak oceny dopóki przegląd otwarty.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": null\n}\n"
+            }
+          }
+        },
+        {
+          "name": "R3. POST output-edited",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('outputEdited true', function () {",
+                  "  pm.expect(body.runId).to.eql(pm.collectionVariables.get('completedRunId'));",
+                  "  pm.expect(body.outputEdited).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}/output-edited",
+            "description": "200 `{ runId, outputEdited: true }`."
+          }
+        },
+        {
+          "name": "GET snapshot (review fields)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('review fields always present', function () {",
+                  "  pm.expect(body).to.include.keys('userRating', 'outputEdited', 'reviewFinalizedAt');",
+                  "  pm.expect(body.userRating).to.eql(null);",
+                  "  pm.expect(body.outputEdited).to.eql(true);",
+                  "  pm.expect(body.reviewFinalizedAt).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}",
+            "description": "DoD: `userRating`, `outputEdited`, `reviewFinalizedAt` zawsze w JSON. Po R2/R3: null / true / null."
+          }
+        },
+        {
+          "name": "R4. POST finalize-review",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('finalize payload', function () {",
+                  "  pm.expect(body.runId).to.eql(pm.collectionVariables.get('completedRunId'));",
+                  "  pm.expect(body.userRating).to.eql(null);",
+                  "  pm.expect(body.outputEdited).to.eql(true);",
+                  "  pm.expect(body.reviewFinalizedAt).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(body.reviewFinalizedAt).to.match(/^\\d{4}-\\d{2}-\\d{2}T/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}/finalize-review",
+            "description": "200 `{ runId, userRating: null, outputEdited, reviewFinalizedAt: \"<ISO>\" }` — finalize ze świadomym brakiem gwiazdek (major 6.3)."
+          }
+        },
+        {
+          "name": "R4b. PATCH rating 5 on second completed run",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('rating 5, review still open', function () {",
+                  "  pm.expect(body.runId).to.eql(pm.collectionVariables.get('ratedCompletedRunId'));",
+                  "  pm.expect(body.userRating).to.eql(5);",
+                  "  pm.expect(body.reviewFinalizedAt).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs/{{ratedCompletedRunId}}/rating",
+            "description": "Drugi `completed` — ocena 5 przed finalize (major 6.3).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5\n}\n"
+            }
+          }
+        },
+        {
+          "name": "R4c. POST finalize-review with rating 5",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('finalize payload with rating 5', function () {",
+                  "  pm.expect(body.runId).to.eql(pm.collectionVariables.get('ratedCompletedRunId'));",
+                  "  pm.expect(body.userRating).to.eql(5);",
+                  "  pm.expect(body.outputEdited).to.eql(false);",
+                  "  pm.expect(body.reviewFinalizedAt).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(body.reviewFinalizedAt).to.match(/^\\d{4}-\\d{2}-\\d{2}T/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{ratedCompletedRunId}}/finalize-review",
+            "description": "200 `{ runId, userRating: 5, outputEdited: false, reviewFinalizedAt: \"<ISO>\" }` — finalize z oceną 1–5 (major 6.3)."
+          }
+        },
+        {
+          "name": "R5. PATCH rating 5 after finalize (409 REVIEW_LOCKED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('REVIEW_LOCKED envelope', function () {",
+                  "  pm.expect(body.code).to.eql('REVIEW_LOCKED');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}/rating",
+            "description": "Po finalize → 409 `REVIEW_LOCKED`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5\n}\n"
+            }
+          }
+        },
+        {
+          "name": "R5b. POST output-edited after finalize (409 REVIEW_LOCKED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('REVIEW_LOCKED envelope', function () {",
+                  "  pm.expect(body.code).to.eql('REVIEW_LOCKED');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}/output-edited",
+            "description": "Po finalize → 409 `REVIEW_LOCKED` (R-10: lock także na fladze edycji)."
+          }
+        },
+        {
+          "name": "R5c. POST finalize-review again (409 REVIEW_LOCKED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('REVIEW_LOCKED envelope', function () {",
+                  "  pm.expect(body.code).to.eql('REVIEW_LOCKED');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}/finalize-review",
+            "description": "Ponowne finalize gdy przegląd zamknięty → 409 `REVIEW_LOCKED`."
+          }
+        },
+        {
+          "name": "R6. PATCH rating on awaiting_hitl (409 RUN_NOT_REVIEWABLE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('RUN_NOT_REVIEWABLE envelope', function () {",
+                  "  pm.expect(body.code).to.eql('RUN_NOT_REVIEWABLE');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs/{{inProgressRunId}}/rating",
+            "description": "Plan R6: run w toku. Fixture używa `awaiting_hitl` (stabilne) zamiast wyścigu `running` — ten sam kod 409 `RUN_NOT_REVIEWABLE`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4\n}\n"
+            }
+          }
+        },
+        {
+          "name": "R6b. POST output-edited on awaiting_hitl (409 RUN_NOT_REVIEWABLE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('RUN_NOT_REVIEWABLE envelope', function () {",
+                  "  pm.expect(body.code).to.eql('RUN_NOT_REVIEWABLE');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{inProgressRunId}}/output-edited",
+            "description": "Ta sama bramka R-10 co R6 — flaga edycji na nieterminalnym runie → 409 `RUN_NOT_REVIEWABLE`."
+          }
+        },
+        {
+          "name": "R6c. POST finalize-review on awaiting_hitl (409 RUN_NOT_REVIEWABLE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('RUN_NOT_REVIEWABLE envelope', function () {",
+                  "  pm.expect(body.code).to.eql('RUN_NOT_REVIEWABLE');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{inProgressRunId}}/finalize-review",
+            "description": "Finalize na nieterminalnym runie → 409 `RUN_NOT_REVIEWABLE`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Feedback",
+      "description": "R7 / R7a / R7b / R7c / R7d–R7g: `POST /feedback`. Finalize **nie** blokuje tekstu o runie (Fbk-3a). Drugi wpis = nowy wiersz (Fbk-2). `application` / `agent` bez lookupu runu (Fbk-1 / Fbk-4).",
+      "item": [
+        {
+          "name": "R7. POST feedback on own completed run",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code !== 201) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('feedback entry', function () {",
+                  "  pm.expect(body.id).to.match(/^fbk_/i);",
+                  "  pm.expect(body.targetType).to.eql('run');",
+                  "  pm.expect(body.agentKey).to.eql(null);",
+                  "  pm.expect(body.runId).to.eql(pm.collectionVariables.get('completedRunId'));",
+                  "  pm.expect(body.body).to.eql('Świetnie!');",
+                  "  pm.expect(body.authorId).to.eql(pm.collectionVariables.get('userId'));",
+                  "  pm.expect(body.createdAt).to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('firstFeedbackId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/feedback",
+            "description": "201 z `id` `fbk_…` na własnym `completed` (także po finalize).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"run\",\n  \"runId\": \"{{completedRunId}}\",\n  \"body\": \"Świetnie!\"\n}\n"
+            }
+          }
+        },
+        {
+          "name": "R7a. POST feedback again on same run (Fbk-2 append)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code !== 201) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('second row, different id', function () {",
+                  "  pm.expect(body.id).to.match(/^fbk_/i);",
+                  "  pm.expect(body.id).to.not.eql(pm.collectionVariables.get('firstFeedbackId'));",
+                  "  pm.expect(body.targetType).to.eql('run');",
+                  "  pm.expect(body.runId).to.eql(pm.collectionVariables.get('completedRunId'));",
+                  "  pm.expect(body.body).to.eql('Drugi wpis po finalize');",
+                  "  pm.expect(body.authorId).to.eql(pm.collectionVariables.get('userId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/feedback",
+            "description": "Fbk-2: drugi wpis tego samego autora na ten sam run → nowy `fbk_…`, nie 409 `REVIEW_LOCKED`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"run\",\n  \"runId\": \"{{completedRunId}}\",\n  \"body\": \"Drugi wpis po finalize\"\n}\n"
+            }
+          }
+        },
+        {
+          "name": "R7b. POST feedback missing run (404 RUN_NOT_FOUND)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('RUN_NOT_FOUND envelope', function () {",
+                  "  pm.expect(body.code).to.eql('RUN_NOT_FOUND');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/feedback",
+            "description": "Poprawny format `RunId`, brak wiersza → 404 `RUN_NOT_FOUND`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"run\",\n  \"runId\": \"{{missingRunId}}\",\n  \"body\": \"nieistniejący run\"\n}\n"
+            }
+          }
+        },
+        {
+          "name": "R7c. POST feedback on own in-progress run (409 RUN_NOT_REVIEWABLE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('RUN_NOT_REVIEWABLE envelope', function () {",
+                  "  pm.expect(body.code).to.eql('RUN_NOT_REVIEWABLE');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/feedback",
+            "description": "Własny run `awaiting_hitl` → 409 `RUN_NOT_REVIEWABLE` (Fbk-3a).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"run\",\n  \"runId\": \"{{inProgressRunId}}\",\n  \"body\": \"Za wcześnie\"\n}\n"
+            }
+          }
+        },
+        {
+          "name": "R7d. POST feedback application",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code !== 201) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('application entry', function () {",
+                  "  pm.expect(body.id).to.match(/^fbk_/i);",
+                  "  pm.expect(body.targetType).to.eql('application');",
+                  "  pm.expect(body.agentKey).to.eql(null);",
+                  "  pm.expect(body.runId).to.eql(null);",
+                  "  pm.expect(body.body).to.eql('Opinia o aplikacji');",
+                  "  pm.expect(body.authorId).to.eql(pm.collectionVariables.get('userId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/feedback",
+            "description": "Fbk-1: `targetType=application` — bez `runId` / `agentKey`, bez lookupu runu.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"application\",\n  \"body\": \"Opinia o aplikacji\"\n}\n"
+            }
+          }
+        },
+        {
+          "name": "R7e. POST feedback agent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code !== 201) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('agent entry', function () {",
+                  "  pm.expect(body.id).to.match(/^fbk_/i);",
+                  "  pm.expect(body.targetType).to.eql('agent');",
+                  "  pm.expect(body.agentKey).to.eql('IdeationAgent');",
+                  "  pm.expect(body.runId).to.eql(null);",
+                  "  pm.expect(body.body).to.eql('Ideation był wolny');",
+                  "  pm.expect(body.authorId).to.eql(pm.collectionVariables.get('userId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/feedback",
+            "description": "Fbk-4: `agentKey` z enumu (`IdeationAgent` | `ContentWriterAgent` | `ConsistencyVerifier` | `PageWriterAgent`).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"agent\",\n  \"agentKey\": \"IdeationAgent\",\n  \"body\": \"Ideation był wolny\"\n}\n"
+            }
+          }
+        },
+        {
+          "name": "R7f. POST feedback unknown agentKey (400 VALIDATION_FAILED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('VALIDATION_FAILED envelope', function () {",
+                  "  pm.expect(body.code).to.eql('VALIDATION_FAILED');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/feedback",
+            "description": "Fbk-4: `agentKey` spoza katalogu → 400 `VALIDATION_FAILED`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"agent\",\n  \"agentKey\": \"UnknownAgent\",\n  \"body\": \"Nope\"\n}\n"
+            }
+          }
+        },
+        {
+          "name": "R7g. POST feedback invalid runId (400 VALIDATION_FAILED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('VALIDATION_FAILED envelope', function () {",
+                  "  pm.expect(body.code).to.eql('VALIDATION_FAILED');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/feedback",
+            "description": "Fbk-3: zły format `runId` (nie `run_<uuid>`) → 400 `VALIDATION_FAILED`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"run\",\n  \"runId\": \"not-a-run-id\",\n  \"body\": \"zły format\"\n}\n"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lista autora",
+      "description": "R8/R9: `GET /runs/user/:userId` — `:userId` musi równać się sesji (bez wyjątku admin).",
+      "item": [
+        {
+          "name": "R8. GET runs/user/:userId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('items is an array of light runs', function () {",
+                  "  pm.expect(body.items).to.be.an('array');",
+                  "  pm.expect(body.items.length).to.be.at.least(1);",
+                  "  body.items.forEach(function (item) {",
+                  "    pm.expect(item).to.include.keys('runId', 'taskType', 'platform', 'language', 'status', 'createdAt');",
+                  "  });",
+                  "});",
+                  "pm.test('includes fixture completed runs', function () {",
+                  "  const ids = body.items.map(function (item) { return item.runId; });",
+                  "  pm.expect(ids).to.include(pm.collectionVariables.get('completedRunId'));",
+                  "  pm.expect(ids).to.include(pm.collectionVariables.get('ratedCompletedRunId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/user/{{userId}}",
+            "description": "200 `{ items: [...] }` — lekka lista autora."
+          }
+        },
+        {
+          "name": "R9. GET runs/user/:otherUserId (403 FORBIDDEN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('otherUserId differs from session', function () {",
+                  "  pm.expect(pm.collectionVariables.get('otherUserId')).to.not.eql(",
+                  "    pm.collectionVariables.get('userId')",
+                  "  );",
+                  "});",
+                  "pm.test('status 403', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('FORBIDDEN envelope', function () {",
+                  "  pm.expect(body.code).to.eql('FORBIDDEN');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/user/{{otherUserId}}",
+            "description": "Cudzy `:userId` (poprawny format, inny niż sesja) → 403 `FORBIDDEN`."
+          }
+        }
+      ]
+    }
+  ]
+}

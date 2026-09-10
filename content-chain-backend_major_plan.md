@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31), `update-mvp-contract-plan.md` (Faza 4.3), `multi-hitl-plan.md` (HITL Social min. 1 / N→N — legalizacja kanonu Fazy 4.3).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), potem Faza 6 (fundament zapisu feedbacku). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, **4.1, 4.2, 4.3**, 5 i 6 oraz osiągnięciu Milestone 4, **4.2, 4.3**, 5–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, **4.1, 4.2, 4.3**, 5 i 6 oraz osiągnięciu Milestone 4, **4.2, 4.3**, 5–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -779,9 +779,12 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 
 ## Faza 6 — Fundament zapisu: opinie, ocena runu, flaga edycji
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** MVP-fundament jakości z perspektywy użytkownika: tabela opinii tekstowych, metadane oceny gwiazdkowej (`null` \| `1–5`) i flagi edycji outputu na runie, HTTP zapisu, lista `GET /runs/user/:userId`. **Bez** panelu administracyjnego / analityki (V1 — rozbudowa) i **bez** UI (major FE). Zgodnie z `SPEC-FEEDBACK.md`, `SPEC-RUNY.md` (R-3c, R-10), `docs/dokumentacja_komunikacji.md`.
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-5-6-auth-feedback_2.md` (FAZA 3 KROK 1–2 `WYKONANY` → major 6.1; FAZA 4 KROK 1–2 + 2.1 `WYKONANY` → major 6.2; FAZA 4 KROK 3 `WYKONANY` → major 6.3). Shared `FeedbackId` / `FeedbackTargetType` / `FeedbackAgentKey`, migracja `Feedback` + pola przeglądu na `Run`, `GET /runs/user/:userId`, BC Feedback (`POST /feedback`, Fbk-3 / Fbk-3a), `assertRunReviewable` + PATCH rating / POST output-edited / POST finalize-review, snapshot z polami przeglądu, Postman R1–R9. **MILESTONE 6** → `OSIĄGNIĘTY`. Łącznie z plikiem `_1`: wycinek Faza 5 → MILESTONE 6 domknięty. Następny krok w majorze: Faza 9 (Zod 4) — wyłącznie za jawnym życzeniem.
+Zmiana względem: nota Fazy 5 („Faza 6 i MILESTONE 6 pozostają `NIE_ROZPOCZĘTY`”). Powód: ślad do major po implementacji pliku `_2`.
 
 **DoD (faza):**
 
@@ -793,7 +796,7 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 
 ### Krok 6.1 — Persistence: tabela opinii i pola przeglądu Run
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Nowa migracja Prisma (append; bez przepisywania historii SQLite z Fazy 2): tabela Feedback + kolumny Run (`userRating`, `outputEdited`, `reviewFinalizedAt`). Domyślnie `userRating = null`, `outputEdited = false`, `reviewFinalizedAt = null`.
 
@@ -805,7 +808,7 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 
 ### Krok 6.2 — HTTP Feedback i lista runów autora
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** BC `feedback/` — `POST /api/v1/feedback`. `GET /api/v1/runs/user/:userId` w BC Runs (trasa przed `:runId`). Authz: sesja; run/target run tylko `startedBy` **oraz** status `completed` \| `failed` (Fbk-3a); `:userId` = sesja.
 
@@ -820,7 +823,7 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 
 ### Krok 6.3 — Ocena, flaga edycji, finalize; snapshot
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** `PATCH .../rating`, `POST .../output-edited`, `POST .../finalize-review`. Snapshot `GET /runs/:runId` zgodny z docs (w tym `userRating` zawsze obecne). Flaga edycji nie nadpisuje payloadu SM. Pola przeglądu dokładane do istniejącego snapshotu Runs — **bez** importu `SocialModule` i bez wciągania feedbacku do grafu (`SPEC-RUNY.md`, Krok 4.5).
 
@@ -834,6 +837,8 @@ Zmiana względem wcześniejszego zapisu tego milestone’u („Backend w zakresi
 ---
 
 ## MILESTONE 6 — Backend w zakresie tego majoru domknięty
+
+**Status:** `OSIĄGNIĘTY`
 
 **Opis:** Bramka zamykająca ten plik (przesunięta za Fazę 6). Pipeline SM + auth API + fundament zapisu feedbacku działają łącznie; frontend produktowy oraz panel admina opinii pozostają poza planem.
 
