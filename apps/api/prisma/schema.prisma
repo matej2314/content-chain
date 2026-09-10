@@ -62,6 +62,9 @@ model Run {
   ideasRefineCount   Int                @default(0)
   contentRefineCount Int                @default(0)
   recoveryAttempts   Int                @default(0)
+  userRating         Int?
+  outputEdited       Boolean            @default(false)
+  reviewFinalizedAt  DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   startedBy          User?              @relation("RunStartedBy", fields: [startedByUserId], references: [id])
@@ -170,4 +173,17 @@ model Invitation {
   updatedAt       DateTime @updatedAt
   /// Unique index `Invitation_one_pending_email` (status = 'pending') in SQL migration — SPEC-AUTH A-7d / SPEC-PERSISTENCE P-5 D17. Prisma 6 cannot declare partial unique in schema. Index without `purpose`.
   invitedBy       User     @relation(fields: [invitedByUserId], references: [id])
+}
+
+model Feedback {
+  id         String   @id
+  targetType String
+  agentKey   String?
+  runId      String?
+  body       String
+  authorId   String
+  createdAt  DateTime @default(now())
+
+  @@index([authorId])
+  @@index([runId])
 }
