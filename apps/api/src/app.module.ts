@@ -30,6 +30,7 @@ import { LlmModule } from './llm/llm.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { ContentModule } from './content/content.module';
 import { RunLifecycleModule } from './runs/run-lifecycle.module';
+import { FeedbackModule } from './feedback/feedback.module';
 import { ContentRunExecutor } from './content/application/content-run.executor';
 import {
   RUN_LIFECYCLE,
@@ -41,6 +42,7 @@ import {
   ContentResultStore,
 } from './content/domain/content-result.port';
 import { CompositeRunResultReader } from './runs/application/composite-run-result.reader';
+
 
 @Module({
   imports: [
@@ -89,6 +91,7 @@ import { CompositeRunResultReader } from './runs/application/composite-run-resul
     HealthModule,
     LlmModule,
     MetricsModule,
+    FeedbackModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
