@@ -22,6 +22,10 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     listLogs: unexpected,
     list: unexpected,
     saveSelectedIdeaIds: unexpected,
+    listByUser: unexpected,
+    saveRating: unexpected,
+    saveOutputEdited: unexpected,
+    saveFinalizedAt: unexpected,
     ...overrides,
   };
 }
@@ -39,7 +43,13 @@ function validCommand(
 }
 
 function asSnapshot(run: RunRecord): RunSnapshot {
-  return { ...run, startedBy: null };
+  return {
+    ...run,
+    startedBy: null,
+    userRating: null,
+    outputEdited: false,
+    reviewFinalizedAt: null,
+  };
 }
 
 function makeUseCase(args: {

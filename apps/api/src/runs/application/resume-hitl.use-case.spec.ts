@@ -59,12 +59,22 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     listLogs: unexpected,
     list: unexpected,
     saveSelectedIdeaIds: unexpected,
+    listByUser: unexpected,
+    saveRating: unexpected,
+    saveOutputEdited: unexpected,
+    saveFinalizedAt: unexpected,
     ...overrides,
   };
 }
 
 function asSnapshot(run: RunRecord): RunSnapshot {
-  return { ...run, startedBy: null };
+  return {
+    ...run,
+    startedBy: null,
+    userRating: null,
+    outputEdited: false,
+    reviewFinalizedAt: null,
+  };
 }
 
 function fakeReader(overrides: Partial<RunResultReader> = {}): RunResultReader {
@@ -121,7 +131,9 @@ describe('ResumeHitlUseCase', () => {
         reader: fakeReader({ getPageOutline: async () => outline }),
       });
 
-    await expect(useCase.execute(run.id, ['not-the-outline-id'])).rejects.toMatchObject({
+    await expect(
+      useCase.execute(run.id, ['not-the-outline-id']),
+    ).rejects.toMatchObject({
       name: 'DomainException',
       code: 'HITL_INVALID_SELECTION',
       httpStatus: 400,
@@ -228,9 +240,9 @@ describe('ResumeHitlUseCase', () => {
         reader: fakeReader({ listIdeas: async () => socialIdeas }),
       });
 
-    await expect(useCase.execute(run.id, ['not-in-draft'])).rejects.toMatchObject(
-      hitlInvalidSelection,
-    );
+    await expect(
+      useCase.execute(run.id, ['not-in-draft']),
+    ).rejects.toMatchObject(hitlInvalidSelection);
 
     expect(saveSelectedIdeaIds).not.toHaveBeenCalled();
     expect(transition).not.toHaveBeenCalled();
@@ -308,7 +320,9 @@ describe('ResumeHitlUseCase', () => {
         }),
       });
 
-    await expect(useCase.execute(run.id, ['idea_1', 'idea_2'])).resolves.toEqual({
+    await expect(
+      useCase.execute(run.id, ['idea_1', 'idea_2']),
+    ).resolves.toEqual({
       runId: run.id,
       status: 'running',
     });

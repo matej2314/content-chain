@@ -1,3 +1,8 @@
+import type {
+  ContentLanguage,
+  RunPlatform,
+  RunTaskType,
+} from '@content-chain/shared';
 import type { RunId, RunStatus, UserId } from '@content-chain/shared';
 import type { RunLogEntry, RunRecord } from './run.types';
 
@@ -15,7 +20,21 @@ export type ListRunsQuery = {
 
 export type RunStartedBy = { id: string; email: string };
 
-export type RunSnapshot = RunRecord & { startedBy: RunStartedBy | null };
+export type RunSnapshot = RunRecord & {
+  startedBy: RunStartedBy | null;
+  userRating: number | null;
+  outputEdited: boolean;
+  reviewFinalizedAt: Date | null;
+};
+
+export type LightRunItem = {
+  runId: RunId;
+  taskType: RunTaskType;
+  platform: RunPlatform;
+  language: ContentLanguage;
+  status: RunStatus;
+  createdAt: Date;
+};
 
 export type ListRunsResult = {
   items: RunSnapshot[];
@@ -36,4 +55,8 @@ export interface RunRepository {
   listLogs(id: RunId): Promise<RunLogEntry[]>;
   list(query: ListRunsQuery): Promise<ListRunsResult>;
   saveSelectedIdeaIds(id: RunId, selectedIdeaIds: string[]): Promise<void>;
+  listByUser(userId: UserId): Promise<LightRunItem[]>;
+  saveRating(id: RunId, rating: number | null): Promise<boolean>;
+  saveOutputEdited(id: RunId): Promise<boolean>;
+  saveFinalizedAt(id: RunId, at: Date): Promise<boolean>;
 }

@@ -43,6 +43,8 @@ Zmiana względem: szkic sprzed review architektury (ten sam plik, status `NIE_RO
 
 ### KROK 1 — `packages/shared`: FeedbackId, FeedbackTargetType, FeedbackAgentKey
 
+**Status:** `WYKONANY`
+
 **Cel:** Dodać brand types i enumy BC Feedback do pakietu współdzielonego — przed Prisma schema i BC Feedback.  
 Odwołanie: `SPEC-FEEDBACK.md` Fbk-1/Fbk-4; `docs/brand_types.md`; `SPEC-MONOREPO.md`.
 
@@ -122,11 +124,11 @@ export const isFeedbackAgentKey = (v: string): v is FeedbackAgentKey =>
 - `pnpm --filter shared build` (lub typecheck) bez błędów
 - Brak logiki domenowej ani Zod w `packages/shared`
 
-**Status:** `WYKONANY`
-
 ---
 
 ### KROK 2 — Prisma migration: tabela Feedback + pola przeglądu na Run
+
+**Status:** `WYKONANY`
 
 **Cel:** Append do schematu Prisma — nowe pola na modelu `Run` oraz tabela `Feedback`. Brak modyfikacji istniejących kolumn.  
 Odwołanie: `SPEC-PERSISTENCE.md` P-5/P-7; `SPEC-RUNY.md` R-10; `SPEC-FEEDBACK.md` Fbk-1.
@@ -187,8 +189,6 @@ pnpm prisma migrate dev --name feedback-and-run-review
 - `Feedback` tabela istnieje z indeksami
 - `pnpm --filter api test` (unit — skrypt `test`, nie `test:e2e`) zielone (nowe kolumny mają bezpieczne defaulty)
 
-**Status:** `NIE_ROZPOCZĘTY`
-
 ---
 
 ## FAZA 4 — HTTP Feedback, lista runów autora i przegląd runu
@@ -196,6 +196,8 @@ pnpm prisma migrate dev --name feedback-and-run-review
 > Odpowiada Krokom 6.2 + 6.3 z major planu.
 
 ### KROK 1 — RunSnapshot z polami przeglądu + RunRepository port + `GET /runs/user/:userId`
+
+**Status:** `WYKONANY`
 
 **Cel:** Rozszerzyć `RunSnapshot` i port `RunRepository` o pola przeglądu runu oraz metodę `listByUser`. Dodać trasę `GET /runs/user/:userId` w `RunsController`.  
 Odwołanie: `SPEC-RUNY.md` R-3b/R-3c/R-10; `docs/dokumentacja_komunikacji.md` GET /runs/user/:userId.
@@ -693,11 +695,11 @@ function asSnapshot(run: RunRecord): RunSnapshot {
 }
 ```
 
-**Status:** `NIE_ROZPOCZĘTY`
-
 ---
 
 ### KROK 2 — BC Feedback: domain, application, infrastructure, FeedbackController, FeedbackModule
+
+**Status:** `NIE_ROZPOCZĘTY`
 
 **Cel:** Zbudować BC Feedback od zera: walidacja targetu, sprawdzenie własności runu, zapis do DB.  
 Odwołanie: `SPEC-FEEDBACK.md` Fbk-1..Fbk-7; `docs/dokumentacja_komunikacji.md` POST /feedback.
@@ -1064,11 +1066,11 @@ import { FeedbackModule } from './feedback/feedback.module';
 - `FeedbackModule` nie importuje `SocialModule`, `ContentModule` ani `RunsModule`
 - Brak `forwardRef` między Feedback a Runs
 
-**Status:** `NIE_ROZPOCZĘTY`
-
 ---
 
 ### KROK 3 — Review runu: use-case'y + HTTP endpoints + snapshot + Postman
+
+**Status:** `NIE_ROZPOCZĘTY`
 
 **Cel:** Zaimplementować pełny cykl przeglądu runu: ocena gwiazdkowa, flaga edycji outputu, finalize. Dopisać endpointy do `RunsController`. Snapshot już zaktualizowany w KROK 1.  
 Odwołanie: `SPEC-RUNY.md` R-10; `docs/dokumentacja_komunikacji.md` PATCH rating / POST output-edited / POST finalize-review.
@@ -1370,8 +1372,6 @@ R9. GET /api/v1/runs/user/:innyUserId
 - Postman case'y R1–R9 (+ R7b) przechodzą (z ważną sesją)
 - `pnpm --filter api test` (unit) zielone; brak regresji D-4..D-22
 - `pnpm --filter api test:e2e` osobno, gdy suite e2e jest odpalany — nie mylić ze skryptem `test`
-
-**Status:** `NIE_ROZPOCZĘTY`
 
 ---
 

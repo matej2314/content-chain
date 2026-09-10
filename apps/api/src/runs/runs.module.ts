@@ -13,6 +13,7 @@ import { GetRunUseCase } from './application/get-run.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
 import { ListRunsUseCase } from './application/list-runs.use-case';
+import { ListRunsUserUseCase } from './application/list-runs-user.use-case';
 import { RUN_EXECUTOR, type RunExecutorPort } from './domain/run-executor.port';
 import {
   RUN_RESULT_READER,
@@ -44,6 +45,7 @@ export type RunsModuleAsyncOptions = {
     GetRunUseCase,
     GetRunLogsUseCase,
     ListRunsUseCase,
+    ListRunsUserUseCase,
   ],
   exports: [RunLifecycleModule],
 })

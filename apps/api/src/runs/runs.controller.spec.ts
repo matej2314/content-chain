@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { firstValueFrom, NEVER, of, Subject, take, toArray } from 'rxjs';
 import { Test, type TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { createUserId } from '@content-chain/shared';
 import type { AuthUserContext } from '../auth/domain/auth-user.types';
 import { ENV, type Env } from '../shared/config/env';
@@ -10,6 +11,7 @@ import { newConversationId, newRunId } from '../shared/http/new-ids';
 import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
 import { GetRunUseCase } from './application/get-run.use-case';
 import { ListRunsUseCase } from './application/list-runs.use-case';
+import { ListRunsUserUseCase } from './application/list-runs-user.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
 import { RUN_SSE_HUB, type RunSseEvent } from './domain/run-sse.port';
@@ -32,6 +34,7 @@ describe('RunsController', () => {
   let getRun: { execute: jest.Mock };
   let getLogs: { execute: jest.Mock };
   let listRuns: { execute: jest.Mock };
+  let listRunsUser: { execute: jest.Mock };
   let resumeHitl: { execute: jest.Mock };
   let sse: { subscribe: jest.Mock; publish: jest.Mock; complete: jest.Mock };
 
@@ -40,6 +43,7 @@ describe('RunsController', () => {
     getRun = { execute: jest.fn() };
     getLogs = { execute: jest.fn() };
     listRuns = { execute: jest.fn() };
+    listRunsUser = { execute: jest.fn() };
     resumeHitl = { execute: jest.fn() };
     sse = { subscribe: jest.fn(), publish: jest.fn(), complete: jest.fn() };
 
@@ -50,6 +54,7 @@ describe('RunsController', () => {
         { provide: GetRunUseCase, useValue: getRun },
         { provide: GetRunLogsUseCase, useValue: getLogs },
         { provide: ListRunsUseCase, useValue: listRuns },
+        { provide: ListRunsUserUseCase, useValue: listRunsUser },
         { provide: ResumeHitlUseCase, useValue: resumeHitl },
         { provide: RUN_SSE_HUB, useValue: sse },
         {
@@ -77,6 +82,9 @@ describe('RunsController', () => {
     expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.events)).toBeUndefined();
     expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.hitl)).toBeUndefined();
     expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.list)).toBeUndefined();
+    expect(
+      Reflect.getMetadata(IS_PUBLIC_KEY, proto.getRunsByUser),
+    ).toBeUndefined();
     expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.get)).toBeUndefined();
 
     expect(Reflect.getMetadata(ROLES_KEY, proto.create)).toBeUndefined();
@@ -84,6 +92,7 @@ describe('RunsController', () => {
     expect(Reflect.getMetadata(ROLES_KEY, proto.events)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.hitl)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.list)).toBeUndefined();
+    expect(Reflect.getMetadata(ROLES_KEY, proto.getRunsByUser)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.get)).toBeUndefined();
   });
 
@@ -95,12 +104,16 @@ describe('RunsController', () => {
     expect(names.indexOf('events')).toBeLessThan(names.indexOf('get'));
     expect(names.indexOf('hitl')).toBeLessThan(names.indexOf('get'));
     expect(names.indexOf('list')).toBeLessThan(names.indexOf('get'));
+    expect(names.indexOf('getRunsByUser')).toBeLessThan(names.indexOf('get'));
 
     expect(Reflect.getMetadata('path', proto.create)).toBe('/');
     expect(Reflect.getMetadata('path', proto.logs)).toBe(':runId/logs');
     expect(Reflect.getMetadata('path', proto.events)).toBe(':runId/events');
     expect(Reflect.getMetadata('path', proto.hitl)).toBe(':runId/hitl');
     expect(Reflect.getMetadata('path', proto.list)).toBe('/');
+    expect(Reflect.getMetadata('path', proto.getRunsByUser)).toBe(
+      'user/:userId',
+    );
     expect(Reflect.getMetadata('path', proto.get)).toBe(':runId');
   });
 
@@ -123,6 +136,26 @@ describe('RunsController', () => {
       platform: 'linkedin',
       userId: undefined,
     });
+  });
+
+  it('delegates GET user/:userId to ListRunsUserUseCase', async () => {
+    const listed = { items: [] };
+    listRunsUser.execute.mockResolvedValue(listed);
+
+    await expect(
+      controller.getRunsByUser(sessionUser.id, sessionUser),
+    ).resolves.toBe(listed);
+    expect(listRunsUser.execute).toHaveBeenCalledWith(
+      sessionUser.id,
+      sessionUser,
+    );
+  });
+
+  it('rejects GET user/:userId with invalid format', async () => {
+    await expect(
+      controller.getRunsByUser('not-a-user-id', sessionUser),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(listRunsUser.execute).not.toHaveBeenCalled();
   });
 
   it('maps start-run result to { runId, conversationId, status }', async () => {

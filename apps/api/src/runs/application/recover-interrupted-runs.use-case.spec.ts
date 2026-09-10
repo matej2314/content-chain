@@ -20,6 +20,10 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     listLogs: unexpected,
     list: unexpected,
     saveSelectedIdeaIds: unexpected,
+    listByUser: unexpected,
+    saveRating: unexpected,
+    saveOutputEdited: unexpected,
+    saveFinalizedAt: unexpected,
     ...overrides,
   };
 }

@@ -59,6 +59,10 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     listLogs: unexpected,
     list: unexpected,
     saveSelectedIdeaIds: unexpected,
+    listByUser: unexpected,
+    saveRating: unexpected,
+    saveOutputEdited: unexpected,
+    saveFinalizedAt: unexpected,
     ...overrides,
   };
 }
@@ -77,7 +81,13 @@ function makeRun(
 }
 
 function asSnapshot(run: RunRecord): RunSnapshot {
-  return { ...run, startedBy: null };
+  return {
+    ...run,
+    startedBy: null,
+    userRating: null,
+    outputEdited: false,
+    reviewFinalizedAt: null,
+  };
 }
 
 function fakeReader(overrides: Partial<RunResultReader> = {}): RunResultReader {
@@ -113,6 +123,9 @@ describe('GetRunUseCase', () => {
       conversationId: run.conversationId,
       createdAt: run.createdAt.toISOString(),
       startedBy: null,
+      userRating: null,
+      outputEdited: false,
+      reviewFinalizedAt: null,
       result: {
         ideas,
         content: null,
@@ -150,6 +163,9 @@ describe('GetRunUseCase', () => {
       conversationId: run.conversationId,
       createdAt: run.createdAt.toISOString(),
       startedBy: null,
+      userRating: null,
+      outputEdited: false,
+      reviewFinalizedAt: null,
       result: {
         ideas: [],
         content: null,
@@ -367,6 +383,9 @@ describe('GetRunUseCase', () => {
       conversationId: run.conversationId,
       createdAt: run.createdAt.toISOString(),
       startedBy: null,
+      userRating: null,
+      outputEdited: false,
+      reviewFinalizedAt: null,
       result: {
         ideas: [],
         content: null,

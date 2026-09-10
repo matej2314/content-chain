@@ -31,6 +31,10 @@ import { GetRunUseCase } from './application/get-run.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
 import {
+  ListRunsUserUseCase,
+  type ListRunsUserOutput,
+} from './application/list-runs-user.use-case';
+import {
   RUN_SSE_HUB,
   type RunSseEvent,
   type RunSseHub,
@@ -57,6 +61,7 @@ export class RunsController {
     private readonly getLogs: GetRunLogsUseCase,
     private readonly resumeHitl: ResumeHitlUseCase,
     private readonly listRuns: ListRunsUseCase,
+    private readonly listRunsUser: ListRunsUserUseCase,
     @Inject(RUN_SSE_HUB) private readonly sse: RunSseHub,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -140,6 +145,17 @@ export class RunsController {
       userId: query.userId ? createUserId(query.userId) : undefined,
     };
     return this.listRuns.execute(command);
+  }
+
+  @Get('user/:userId')
+  async getRunsByUser(
+    @Param('userId') userId: string,
+    @CurrentUser() user: AuthUserContext,
+  ): Promise<ListRunsUserOutput> {
+    if (!isUserId(userId)) {
+      throw new BadRequestException('Invalid user ID format');
+    }
+    return this.listRunsUser.execute(createUserId(userId), user);
   }
 
   @Get(':runId')

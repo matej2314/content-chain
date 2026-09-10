@@ -45,6 +45,9 @@ export interface GetRunOutput {
   conversationId: ConversationId;
   createdAt: string;
   startedBy: RunStartedBy | null;
+  userRating: number | null;
+  outputEdited: boolean;
+  reviewFinalizedAt: string | null;
   result: {
     ideas: SocialIdea[];
     content: SocialContent | null;
@@ -139,6 +142,9 @@ export class GetRunUseCase {
       conversationId: run.conversationId,
       createdAt: run.createdAt.toISOString(),
       startedBy: run.startedBy,
+      userRating: run.userRating,
+      outputEdited: run.outputEdited,
+      reviewFinalizedAt: run.reviewFinalizedAt?.toISOString() ?? null,
       result: {
         ideas,
         content: thenContent ? null : (stored?.content ?? null),

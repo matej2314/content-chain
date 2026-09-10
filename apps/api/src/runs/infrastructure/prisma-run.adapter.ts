@@ -7,11 +7,13 @@ import {
   isContentKind,
   isContentLanguage,
   isContentTaskType,
+  isRunPlatform,
   isRunStatus,
   isRunTaskType,
   isSocialPlatform,
   isSocialTaskType,
   isUserId,
+  UserId,
   type RunId,
   type RunStatus,
 } from '@content-chain/shared';
@@ -19,6 +21,7 @@ import { PrismaService } from '../../shared/persistence/prisma.service';
 import { assertTransition } from '../domain/status-transitions';
 import { toInputJson } from '../../shared/persistence/to-input-json';
 import {
+  LightRunItem,
   PAGE_SIZE,
   type ListRunsQuery,
   type ListRunsResult,
@@ -53,6 +56,9 @@ type RunRow = {
   outlineRefineCount: number;
   copyRefineCount: number;
   recoveryAttempts: number;
+  userRating: number | null;
+  outputEdited: boolean;
+  reviewFinalizedAt: Date | null;
   createdAt: Date;
   startedBy: { id: string; email: string } | null;
 };
@@ -66,6 +72,11 @@ type RunLogRow = {
   step: string | null;
   requestId: string | null;
 };
+
+type RunReviewFields = Pick<
+  RunSnapshot,
+  'startedBy' | 'userRating' | 'outputEdited' | 'reviewFinalizedAt'
+>;
 
 function toPipelinePhase(value: string | null): RunRecord['pipelinePhase'] {
   if (
@@ -237,6 +248,69 @@ export class PrismaRunAdapter implements RunRepository {
     });
   }
 
+  async listByUser(userId: UserId): Promise<LightRunItem[]> {
+    const rows = await this.prisma.run.findMany({
+      where: { startedByUserId: userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        taskType: true,
+        platform: true,
+        language: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+    return rows.map((row) => {
+      if (!isRunTaskType(row.taskType)) {
+        throw new Error(`Run taskType is not a RunTaskType: ${row.taskType}`);
+      }
+      if (!isRunPlatform(row.platform)) {
+        throw new Error(`Run platform is not a RunPlatform: ${row.platform}`);
+      }
+      if (!isContentLanguage(row.language)) {
+        throw new Error(
+          `Run language is not a ContentLanguage: ${row.language}`,
+        );
+      }
+      if (!isRunStatus(row.status)) {
+        throw new Error(`Run status is not a RunStatus: ${row.status}`);
+      }
+      return {
+        runId: createRunId(row.id),
+        taskType: row.taskType,
+        platform: row.platform,
+        language: row.language,
+        status: row.status,
+        createdAt: row.createdAt,
+      };
+    });
+  }
+
+  async saveRating(id: RunId, rating: number | null): Promise<boolean> {
+    const result = await this.prisma.run.updateMany({
+      where: { id, reviewFinalizedAt: null },
+      data: { userRating: rating },
+    });
+    return result.count === 1;
+  }
+
+  async saveOutputEdited(id: RunId): Promise<boolean> {
+    const result = await this.prisma.run.updateMany({
+      where: { id, reviewFinalizedAt: null },
+      data: { outputEdited: true },
+    });
+    return result.count === 1;
+  }
+
+  async saveFinalizedAt(id: RunId, at: Date): Promise<boolean> {
+    const result = await this.prisma.run.updateMany({
+      where: { id, reviewFinalizedAt: null },
+      data: { reviewFinalizedAt: at },
+    });
+    return result.count === 1;
+  }
+
   async saveRecoveryAttempt(id: RunId, attempts: number): Promise<void> {
     await this.prisma.run.update({
       where: { id },
@@ -285,19 +359,24 @@ export class PrismaRunAdapter implements RunRepository {
       outlineRefineCount: row.outlineRefineCount,
       copyRefineCount: row.copyRefineCount,
       recoveryAttempts: row.recoveryAttempts,
+      userRating: row.userRating,
+      outputEdited: row.outputEdited,
+      reviewFinalizedAt: row.reviewFinalizedAt,
       createdAt: row.createdAt,
       startedBy: row.startedBy,
     };
 
     if (isSocialTaskType(row.taskType)) {
       if (!isSocialPlatform(row.platform)) {
-        throw new Error(`Run.platform is not a SocialPlatform: ${row.platform}`);
+        throw new Error(
+          `Run.platform is not a SocialPlatform: ${row.platform}`,
+        );
       }
       const briefParsed = socialBriefSchema.safeParse(row.brief);
       if (!briefParsed.success) {
         throw new Error(`Run.brief is not a SocialBrief: ${row.taskType}`);
       }
-      const snapshot: SocialRunRecord & Pick<RunSnapshot, 'startedBy'> = {
+      const snapshot: SocialRunRecord & RunReviewFields = {
         ...base,
         taskType: row.taskType,
         platform: row.platform,
@@ -322,7 +401,7 @@ export class PrismaRunAdapter implements RunRepository {
       if (!briefParsed.success) {
         throw new Error(`Run.brief is not a ContentBrief: ${row.taskType}`);
       }
-      const snapshot: ContentRunRecord & Pick<RunSnapshot, 'startedBy'> = {
+      const snapshot: ContentRunRecord & RunReviewFields = {
         ...base,
         taskType: row.taskType,
         platform: 'web',
@@ -332,6 +411,8 @@ export class PrismaRunAdapter implements RunRepository {
       return snapshot;
     }
 
-    throw new Error(`Run.taskType is not a RunTaskType: ${String(row.taskType)}`);
+    throw new Error(
+      `Run.taskType is not a RunTaskType: ${String(row.taskType)}`,
+    );
   }
 }
