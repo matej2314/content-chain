@@ -7,8 +7,9 @@ import {
   Body,
   HttpCode,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../shared/decorators/roles.decorator';
+import { COOKIE_AUTH_NAME } from '../shared/http/configure-swagger';
 import { CurrentUser } from '../shared/decorators/current-user.decorator';
 import { InviteUserDto } from './http/invite-user.dto';
 import { InviteUserUseCase } from './application/invite-user.use-case';
@@ -18,6 +19,7 @@ import { RevokeInvitationUseCase } from './application/revoke-invitation.use-cas
 import type { AuthUserContext } from './domain/auth-user.types';
 
 @ApiTags('invitations')
+@ApiCookieAuth(COOKIE_AUTH_NAME)
 @Controller('invitations')
 @Roles('admin')
 export class InvitationsController {

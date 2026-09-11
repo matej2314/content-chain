@@ -14,7 +14,8 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '../shared/decorators/current-user.decorator';
 import type { AuthUserContext } from '../auth/domain/auth-user.types';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
+import { COOKIE_AUTH_NAME } from '../shared/http/configure-swagger';
 import {
   endWith,
   ignoreElements,
@@ -58,6 +59,7 @@ function isTerminalStatus(status: RunStatus): boolean {
 }
 
 @ApiTags('runs')
+@ApiCookieAuth(COOKIE_AUTH_NAME)
 @Controller('runs')
 export class RunsController {
   constructor(

@@ -1,6 +1,7 @@
 import { Controller, Body, Get, Patch, Put } from '@nestjs/common';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../shared/decorators/roles.decorator';
+import { COOKIE_AUTH_NAME } from '../shared/http/configure-swagger';
 import { GetCompanyContextUseCase } from './application/get-company-context.use-case';
 import { GetCompletenessUseCase } from './application/get-completeness.use-case';
 import { PatchCompanyContextUseCase } from './application/patch-company-context.use-case';
@@ -15,6 +16,7 @@ import {
 } from './http/dto/company-context.dto';
 
 @ApiTags('company-context')
+@ApiCookieAuth(COOKIE_AUTH_NAME)
 @Controller('company-context')
 export class CompanyContextController {
   constructor(

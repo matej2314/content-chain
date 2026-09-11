@@ -9,8 +9,9 @@ import {
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { Public } from '../shared/decorators/public.decorator';
+import { COOKIE_AUTH_NAME } from '../shared/http/configure-swagger';
 import { CurrentUser } from '../shared/decorators/current-user.decorator';
 import {
   setAuthCookies,
@@ -98,6 +99,7 @@ export class AuthController {
     return { expiresIn: this.env.JWT_ACCESS_TTL };
   }
 
+  @ApiCookieAuth(COOKIE_AUTH_NAME)
   @Post('logout')
   @HttpCode(200)
   async postLogout(
@@ -114,6 +116,7 @@ export class AuthController {
     return { ok: true };
   }
 
+  @ApiCookieAuth(COOKIE_AUTH_NAME)
   @Get('me')
   async getMe(@CurrentUser() user: AuthUserContext) {
     return this.me.execute(user);
