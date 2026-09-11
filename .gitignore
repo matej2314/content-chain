@@ -1,5 +1,6 @@
 deprecated/
 post-mvp-plan.md
+architecture_leaks.md
 
 node_modules/
 .pnpm-store/
