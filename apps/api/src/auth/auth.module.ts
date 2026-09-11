@@ -12,6 +12,14 @@ import { USER_REPOSITORY } from './domain/user-repository.port';
 import { REFRESH_SESSION_REPOSITORY } from './domain/refresh-session.repository.port';
 import { BootstrapAdminUseCase } from './application/bootstrap-admin.use-case';
 import { BootstrapStatusUseCase } from './application/bootstrap-status.use-case';
+import { ListUsersUseCase } from './application/list-users.use-case';
+import { InviteUserUseCase } from './application/invite-user.use-case';
+import { ListInvitationsUseCase } from './application/list-invitations.use-case';
+import { ResendInvitationUseCase } from './application/resend-invitation.use-case';
+import { RevokeInvitationUseCase } from './application/revoke-invitation.use-case';
+import { AcceptInviteUseCase } from './application/accept-invite.use-case';
+import { SoftDeleteUserUseCase } from './application/soft-delete-user.use-case';
+import { ReactivateUserUseCase } from './application/reactivate-user.use-case';
 import { LoginUseCase } from './application/login.use-case';
 import { LogoutUseCase } from './application/logout.use-case';
 import { RefreshUseCase } from './application/refresh.use-case';
@@ -27,13 +35,6 @@ import {
 } from './domain/transactional-mailer.port';
 import { NodemailerSmtpMailerAdapter } from './infrastructure/nodemailer-smtp-mailer.adapter';
 import { LoggingMailerAdapter } from './infrastructure/logging-mailer.adapter';
-import { ListUsersUseCase } from './application/list-users.use-case';
-import { InviteUserUseCase } from './application/invite-user.use-case';
-import { ListInvitationsUseCase } from './application/list-invitations.use-case';
-import { ResendInvitationUseCase } from './application/resend-invitation.use-case';
-import { RevokeInvitationUseCase } from './application/revoke-invitation.use-case';
-import { AcceptInviteUseCase } from './application/accept-invite.use-case';
-import { SoftDeleteUserUseCase } from './application/soft-delete-user.use-case';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { SoftDeleteUserUseCase } from './application/soft-delete-user.use-case';
     RevokeInvitationUseCase,
     AcceptInviteUseCase,
     SoftDeleteUserUseCase,
+    ReactivateUserUseCase,
   ],
   exports: [USER_REPOSITORY, JwtModule],
 })

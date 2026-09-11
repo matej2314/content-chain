@@ -23,7 +23,8 @@ Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, 
 | Panel odczytu / analityka opinii | V1 — rozbudowa | V1 — rozbudowa |
 | Lista użytkowników (`GET /users`) | tak | nie |
 | Zaproszenia: create / lista pending / resend / revoke | tak | nie |
-| Soft-delete użytkownika (API; UI MVP bez tego) | tak | nie |
+| Soft-delete użytkownika (`DELETE /users/:id`; API; UI MVP bez tego) | tak | nie |
+| Reaktywacja (`PATCH /users/:id`, `{ isActive: true }`; API; UI MVP bez tego) | tak | nie |
 | Bootstrap pierwszego admina | jednorazowy (API + ekran first-run) | — |
 
 **403** przy naruszeniu (`FORBIDDEN`). Egzekucja zawsze w `apps/api`, nie tylko w UI.
@@ -36,7 +37,9 @@ Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, 
 4. **Twarda blokada:** tworzenie / awans kolejnych użytkowników z `role = admin` jest **zabronione** w MVP (API odrzuca). W systemie jest **co najwyżej jeden** admin — ten z bootstrapu.
 5. Pozostali `user` **zapraszani** przez jedynego admina (tylko email). Konto powstaje wyłącznie przy akceptacji zaproszenia — **nie** przez `POST /users` z hasłem. Zmiana względem: „pozostali użytkownicy tylko z `role = user` (tworzeni przez jedynego admina)”.
 6. **Self-service konta w MVP poza zakresem:** zmiana hasła zalogowanego, zmiana email, usuwanie własnego konta — później. **Wyjątek:** jednorazowe **pierwsze** hasło przy `POST /auth/accept-invite` to onboarding, nie self-service konta. MVP: login / logout / bootstrap / zaproszenia + accept-invite.
-7. **`DELETE /api/v1/users/:id`** = soft-delete (dezaktywacja); konto nieaktywne nie loguje się.
+7. **`DELETE /api/v1/users/:id`** = soft-delete (dezaktywacja); konto nieaktywne nie loguje się. **Reaktywacja** = **`PATCH /api/v1/users/:id`** z body `{ "isActive": true }` (API; UI nadal poza MVP). `PATCH` **nie** przyjmuje `role` (zakaz awansu do `admin`) ani `isActive: false` (dezaktywacja wyłącznie przez DELETE). Reaktywacja **nie** odtwarza sesji refresh — potem zwykły login.
+
+Zmiana względem wcześniejszego punktu 7 (tylko DELETE / soft-delete): kanał przywrócenia konta w API jest **PATCH**, nie ręczna edycja SQLite.
 
 ## Hasła (bcrypt)
 

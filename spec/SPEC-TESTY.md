@@ -1,7 +1,7 @@
 ---
-wersja: 14
+wersja: 15
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-10
+data_modyfikacji: 2026-09-11
 ---
 
 # SPEC — Testy
@@ -74,8 +74,11 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-23 | Zaproszenie (admin, cookie): `POST /invitations` `{ email }` → pending; publiczny `POST /auth/accept-invite` `{ token, password }` → `User` `role=user`; potem `POST /auth/login` nowym kontem. Artefakt E2E: istniejąca kolekcja Postman (`T-5` — bez pinu runnera) |
 | D-24 | `user` woła `POST /invitations` → **403**. Drugi `POST` przy `pending` (także wygasłym) → **409**. `GET /invitations` zwraca też wygasłe pending |
 | D-25 | Soft-delete: `DELETE /users/:id` → `isActive = false`; nieaktywny nie loguje się (ten sam komunikat 401 co złe hasło — bez enumeracji) |
+| D-26 | Reaktywacja: `PATCH /users/:id` `{ isActive: true }` na soft-deleted `user` → **200** `isActive: true`; następnie `POST /auth/login` tym kontem → **200**. `isActive: false` → **400**. `user` woła PATCH → **403**. |
 
-D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login. T-3 (cookie) **bez zmian**.
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-26 (reaktywacja → login). T-3 (cookie) **bez zmian**.
+
+Zmiana względem wersji 14: dopisano D-26 (reaktywacja po soft-delete + login; `isActive: false` → 400; `user` → 403). D-1…D-25 bez kasowania treści.
 
 Zmiana względem wersji 13 / D-11: `POST /feedback` na własny run w toku nie był case’em DoD. Od tej wersji **409** `RUN_NOT_REVIEWABLE` (Fbk-3a); 201 tylko `completed` \| `failed`; drugi wpis nadal nowy wiersz (także po finalize).
 
@@ -137,7 +140,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-25 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23…D-25) pokryte testami (warstwa adekwatna do przypadku).
+- [ ] Przypadki D-1…D-26 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23…D-26) pokryte testami (warstwa adekwatna do przypadku).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

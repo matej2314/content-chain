@@ -3,12 +3,7 @@ import {
   USER_REPOSITORY,
   type UserRepository,
 } from '../domain/user-repository.port';
-import type { AuthUser } from '../domain/auth-user.types';
-
-export type UserListItem = Pick<
-  AuthUser,
-  'id' | 'email' | 'role' | 'isActive' | 'createdAt'
->;
+import type { UserListItem } from '../domain/auth-user.types';
 
 @Injectable()
 export class ListUsersUseCase {

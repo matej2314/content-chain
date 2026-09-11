@@ -219,7 +219,7 @@
     },
     {
       "name": "USERS",
-      "description": "Cały zasób: sesja admina. **Brak** `POST /users` — konto `user` tylko przez zaproszenie. Soft-delete nie usuwa wiersza (login zablokowany).",
+      "description": "Cały zasób: sesja admina. **Brak** `POST /users` — konto `user` tylko przez zaproszenie. Soft-delete (`DELETE`) nie usuwa wiersza (login zablokowany). Reaktywacja: `PATCH` `{ isActive: true }` — potem zwykły `POST /auth/login`.",
       "item": [
         {
           "name": "GET users",
@@ -237,6 +237,24 @@
             "header": [],
             "url": "{{baseUrl}}/users/{{userId}}",
             "description": "200 `{ ok: true }`. Soft-delete / dezaktywacja. `userId` = `usr_<uuid>` z listy. Nie wolno deaktywować admina → 403. Nieistniejący → 404."
+          }
+        },
+        {
+          "name": "PATCH user",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": true\n}\n"
+            },
+            "url": "{{baseUrl}}/users/{{userId}}",
+            "description": "200 `{ id, email, role, isActive: true, createdAt }`. Reaktywacja po soft-delete. Body wyłącznie `{ \"isActive\": true }`. `isActive: false` / nieznany klucz (`role`) → 400. `user` → 403. Nieistniejący → 404. PATCH admina → 403. Idempotentne gdy już aktywny. Bez Set-Cookie (to nie login)."
           }
         }
       ]

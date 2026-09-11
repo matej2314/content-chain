@@ -1,16 +1,17 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-07
+data_modyfikacji: 2026-09-11
 ---
 
 # SPEC — Auth
 
 ## Cel / zakres względem dokumentacji
 
-Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, role `admin` | `user`, lista kont, **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite**, soft-delete, polityka haseł i sesji.
+Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, role `admin` | `user`, lista kont, **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite**, soft-delete, **reaktywacja PATCH**, polityka haseł i sesji.
 
 Zmiana względem wersji 5: zakres „lista + tworzenie z hasłem” zastąpiony zaproszeniami + accept-invite (`docs/dokumentacja_komunikacji.md`).
+Zmiana względem wersji 6: A-10a — `PATCH /users/:id` obowiązkowy w MVP i wyłącznie reaktywacją (`{ isActive: true }`); UI nadal poza MVP.
 
 Uszczegóławia `docs/security.md` oraz endpointy auth/users z `docs/dokumentacja_komunikacji.md`. Egzekucja uprawnień zawsze w `apps/api`, nie tylko w UI.
 
@@ -32,6 +33,7 @@ Wiążące (`docs/architektura.md`): klasyczne warstwy Nest — HTTP → applica
 | Lista kont (`GET /users`) | tak | nie |
 | Zaproszenia: create / lista pending / resend / revoke | tak | nie |
 | Soft-delete (`DELETE`) użytkownika | tak (API; UI MVP bez tego) | nie |
+| Reaktywacja (`PATCH /users/:id`, `{ isActive: true }`) | tak (API; UI MVP bez tego) | nie |
 | Akceptacja zaproszenia (`POST /auth/accept-invite`) | publiczna (bez roli / bez sesji) | publiczna (bez roli / bez sesji) |
 
 W systemie MVP jest **co najwyżej jeden** `admin` — ten z bootstrapu. Tworzenie / awans kolejnego admina → odrzucenie (`403` / `400`).
@@ -95,7 +97,11 @@ A-8. TTL: **konfigurowalne env**; domyślnie access **15 minut**, refresh **1 dz
 
 A-9. MVP: **zakaz** transportu access przez `Authorization: Bearer` (web, Postman, integracje) — wyłącznie cookie jar / `credentials: 'include'`.
 
-A-10. `DELETE /api/v1/users/:id` = **soft-delete / dezaktywacja** (brak twardego usunięcia wiersza w MVP). `PATCH` może służyć m.in. reaktywacji — poza UI MVP.
+A-10. `DELETE /api/v1/users/:id` = **soft-delete / dezaktywacja** (brak twardego usunięcia wiersza w MVP). `:id` = `UserId`; zły format → **400** `VALIDATION_FAILED`; brak wiersza → **404** `USER_NOT_FOUND`; target `role = admin` → **403** `FORBIDDEN`. DELETE kasuje refresh w DB.
+
+A-10a. `PATCH /api/v1/users/:id` = **wyłącznie reaktywacja** (kontrakt: `docs/dokumentacja_komunikacji.md`). Body `{ "isActive": true }` (literał; Zod `.strict()`; zakaz `role` / `email` / `password`). `isActive: false` → **400** `VALIDATION_FAILED` (dezaktywacja = DELETE, jeden kanał). Authz: `@Roles('admin')` + cookie; `user` → **403** `FORBIDDEN`; brak sesji → **401** `UNAUTHORIZED`. Path `:id` = `UserId`; zły format → **400** `VALIDATION_FAILED`; brak wiersza → **404** `USER_NOT_FOUND`; target `role = admin` → **403** `FORBIDDEN`. Target już `isActive: true` → **200** idempotentnie (bez 409). Sukces **200**: `{ id, email, role, isActive, createdAt }` z `isActive: true`. **Bez** Set-Cookie; **bez** `RefreshSession.create` — potem zwykły `POST /auth/login`. UI poza MVP.
+
+Zmiana względem wersji 6 (A-10: „PATCH może służyć m.in. reaktywacji — poza UI MVP”): PATCH jest **obowiązkowy** w MVP i **tylko** reaktywacją (nie ogólną aktualizacją konta). UI nadal poza MVP.
 
 Zmiana względem wersji 2 („dezaktywacja zamiast DELETE, jeśli implementacja tak wybierze”): soft-delete jest **obowiązkowy** dla DELETE.
 
@@ -109,7 +115,7 @@ apps/api/src/auth/
 ├── auth.controller.ts          # bootstrap-status, bootstrap, login, refresh, logout, me, accept-invite
 ├── users.controller.ts         # GET/PATCH/DELETE users (admin) — bez POST create-z-hasłem
 ├── invitations.controller.ts   # GET/POST invitations, resend, revoke (admin) — lub równoważny podział
-├── application/                # use-case’y (InviteUser, ListInvitations, Resend, Revoke, AcceptInvite, lista/soft-delete)
+├── application/                # use-case’y (InviteUser, ListInvitations, Resend, Revoke, AcceptInvite, lista/soft-delete/reaktywacja)
 ├── domain/                     # reguły ról, polityka haseł, soft-delete, porty invitation + mailer
 └── infrastructure/             # Prisma (User, Invitation), hash bcrypt, JWT, cookie helpers, adapter SMTP (nodemailer) / adapter logujący
 ```
@@ -137,7 +143,7 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - Port persistence użytkowników, sesji refresh **oraz zaproszeń**; adapter Prisma w `infrastructure`.
 - Port mailera transakcyjnego w Auth; adapter logujący poza `production`; adapter SMTP = **nodemailer** wyłącznie w infrastructure.
 - Walidacja DTO auth class-validator + reguły haseł w domain/application (Zod — `SPEC-KOMUNIKACJA.md`).
-- Soft-delete + flaga aktywności; odrzucenie loginu dla kont nieaktywnych.
+- Soft-delete + flaga aktywności; odrzucenie loginu dla kont nieaktywnych; PATCH reaktywacji **bez** odtwarzania sesji refresh.
 - Publiczny `bootstrap-status` oraz publiczny `accept-invite` bez sesji.
 
 ### Nie wolno
@@ -155,6 +161,7 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - Self-service w MVP: zmiana hasła **zalogowanego**, zmiana email, usuwanie własnego konta.
   Zmiana względem: „żadnego ustawiania hasła przez użytkownika”. **Wyjątek (D13):** jednorazowe **pierwsze** hasło przy `accept-invite` to onboarding, nie self-service konta.
 - Twardego DELETE użytkownika jako domyślnego zachowania MVP (obowiązuje soft-delete).
+- `PATCH` z `role` / `email` / `password` albo `isActive: false` (dezaktywacja wyłącznie DELETE).
 - Refresh wyłącznie jako JWT w cookie **bez** wpisu w DB.
 - Wycieku hashów haseł, sekretów JWT, plaintext refresh ani raw tokenu zaproszenia (w `production`) do logów / envelope.
 
@@ -170,6 +177,7 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 | Adapter logujący maila w `development` / `test` | obowiązkowe |
 | Bearer access / OAuth / 2FA / self-service account edits (poza pierwszym hasłem na accept-invite) | poza MVP |
 | `GET /auth/me` + `GET /auth/bootstrap-status` + `POST /auth/accept-invite` | obowiązkowe |
+| `PATCH /users/:id` (reaktywacja `{ isActive: true }`) | obowiązkowe |
 
 ## Kryteria akceptacji
 
@@ -184,6 +192,7 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - [ ] Zużyty / wygasły / revoked token → **401** na accept-invite; hasło poza A-5 → **400** (pending bez zmian).
 - [ ] Pad SMTP po zapisie (gdy testowany adapter SMTP) → **503** `MAIL_DELIVERY_FAILED` + `details.id`.
 - [ ] DELETE użytkownika = soft-delete; nieaktywny nie loguje się.
+- [ ] PATCH `{ isActive: true }` na soft-deleted `user` → 200 `isActive: true`; potem login tym kontem → 200. `isActive: false` / `role` w body → 400. `user` woła PATCH → 403. PATCH admina → 403.
 - [ ] Postman / FE bez Bearer — wyłącznie cookie.
 - [ ] Domyślne TTL: access 15m, refresh 1d, invite 7d (nadpisywalne env).
 
@@ -191,6 +200,6 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 
 - Widoki UI (first-run, login, użytkownicy, konto, akceptacja zaproszenia) → `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`.
 - Self-service: zmiana hasła **zalogowanego** / email / usuwanie własnego konta; OAuth, SSO, 2FA, recovery „lost admin”. Pierwsze hasło na accept-invite **jest** w zakresie (A-7b).
-- Soft-delete w UI admina (API tak; UI MVP nie) — płynne V1.
+- Soft-delete / reaktywacja w UI admina (API tak; UI MVP nie) — płynne V1.
 - Szczegóły ekspozycji sieciowej gateway/metrics / reverse proxy → `SPEC-BEZPIECZENSTWO.md`.
 - Schema Prisma — `SPEC-PERSISTENCE.md` / implementacja, byle port sesji refresh, zaproszeń i flagi aktywności istniał.

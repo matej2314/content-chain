@@ -10,6 +10,11 @@ export type AuthUser = {
   updatedAt: Date;
 };
 
+export type UserListItem = Pick<
+  AuthUser,
+  'id' | 'email' | 'role' | 'isActive' | 'createdAt'
+>;
+
 export type JwtPayload = {
   sub: string;
   email: string;

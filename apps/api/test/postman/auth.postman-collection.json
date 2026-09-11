@@ -1157,7 +1157,7 @@
     },
     {
       "name": "Accept-invite",
-      "description": "Start bez sesji admina: pierwsze requesty (accept-invite) czyszczą cookie jar originu api. Wymaga `inviteToken` wklejonego z logu **po resend**. Najpierw słabe hasło (400, pending bez zmian), potem happy path 201 bez Set-Cookie, login nowego usera, 403 na invitations/users, soft-delete adminem, login zdezaktywowanego → 401.",
+      "description": "Start bez sesji admina: pierwsze requesty (accept-invite) czyszczą cookie jar originu api. Wymaga `inviteToken` wklejonego z logu **po resend**. Najpierw słabe hasło (400, pending bez zmian), potem happy path 201 bez Set-Cookie, login nowego usera, 403 na invitations/users (w tym PATCH), soft-delete adminem, login zdezaktywowanego → 401, D-26: PATCH `{ isActive: true }` (sesja admina) → 200, login tym kontem → 200. `isActive: false` → 400.",
       "item": [
         {
           "name": "POST accept-invite weak password (400)",
@@ -1439,6 +1439,44 @@
           }
         },
         {
+          "name": "PATCH users as user (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('invitedUserId is set', function () {",
+                  "  pm.expect(pm.collectionVariables.get('invitedUserId'), 'invitedUserId').to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status 403', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('FORBIDDEN', function () {",
+                  "  pm.expect(body.code).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": true\n}\n"
+            },
+            "url": "{{baseUrl}}/users/{{invitedUserId}}",
+            "description": "D-26: rola user → 403 FORBIDDEN na PATCH /users/:id (sesja z loginu invited user)."
+          }
+        },
+        {
           "name": "POST login as admin for soft-delete",
           "event": [
             {
@@ -1536,6 +1574,177 @@
             },
             "url": "{{baseUrl}}/auth/login",
             "description": "Soft-deleted / nieaktywny user → ten sam komunikat co złe hasło."
+          }
+        },
+        {
+          "name": "POST login as admin for reactivate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('admin role', function () {",
+                  "  pm.expect(body.user.role).to.eql('admin');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Sesja admina pod PATCH /users/:id (D-26). Login 401 powyżej nie ustawia cookie, ale Newman dostaje jawną sesję admina."
+          }
+        },
+        {
+          "name": "PATCH invited user isActive false (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('invitedUserId is set', function () {",
+                  "  pm.expect(pm.collectionVariables.get('invitedUserId'), 'invitedUserId').to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('VALIDATION_FAILED isActive false', function () {",
+                  "  pm.expect(body.code).to.eql('VALIDATION_FAILED');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}\n"
+            },
+            "url": "{{baseUrl}}/users/{{invitedUserId}}",
+            "description": "D-26: dezaktywacja tylko przez DELETE. `{ isActive: false }` → 400 VALIDATION_FAILED."
+          }
+        },
+        {
+          "name": "PATCH invited user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('invitedUserId is set', function () {",
+                  "  pm.expect(pm.collectionVariables.get('invitedUserId'), 'invitedUserId').to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('reactivated user projection', function () {",
+                  "  pm.expect(body).to.include.keys('id', 'email', 'role', 'isActive', 'createdAt');",
+                  "  pm.expect(body.id).to.eql(pm.collectionVariables.get('invitedUserId'));",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get('inviteEmail'));",
+                  "  pm.expect(body.role).to.eql('user');",
+                  "  pm.expect(body.isActive).to.eql(true);",
+                  "  pm.expect(body.createdAt).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(body).to.not.have.property('passwordHash');",
+                  "});",
+                  "pm.test('does not set cc_access or cc_refresh', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.not.include('cc_access=');",
+                  "  pm.expect(cookies).to.not.include('cc_refresh=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": true\n}\n"
+            },
+            "url": "{{baseUrl}}/users/{{invitedUserId}}",
+            "description": "D-26: reaktywacja soft-deleted user. 200 `{ id, email, role, isActive: true, createdAt }`. Bez Set-Cookie."
+          }
+        },
+        {
+          "name": "POST login reactivated invited user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('user session without tokens in body', function () {",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get('inviteEmail'));",
+                  "  pm.expect(body.user.role).to.eql('user');",
+                  "  pm.expect(body).to.not.have.property('accessToken');",
+                  "});",
+                  "pm.test('sets cc_access and cc_refresh cookies', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.include('cc_access=');",
+                  "  pm.expect(cookies).to.include('cc_refresh=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{inviteEmail}}\",\n  \"password\": \"{{invitePassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "D-26: po PATCH `{ isActive: true }` login tym samym emailem → 200 + cookie."
           }
         }
       ]

@@ -21,6 +21,8 @@ Zmiana względem kanonu Fazy 4.3 (HITL Social dwuetapowy = dokładnie 1 `selecte
 
 Zmiana względem kanonu Users (`POST /api/v1/users` z `email` + `password`): ta trasa **wypada z kanonu**. Jedyna droga na `role = user` = zaproszenie (admin, tylko email) → publiczny `POST /auth/accept-invite`. Soft-delete (`DELETE /users/:id`) **bez zmian**.
 
+Zmiana względem wiersza PATCH Users („Aktualizacja (np. reaktywacja)” bez body; API „pod późniejsze V1”): w MVP `PATCH /api/v1/users/:id` jest **obowiązkowy** i **wyłącznie** reaktywacją — body `{ "isActive": true }`; dezaktywacja zostaje `DELETE`. UI nadal poza MVP.
+
 ---
 
 ## Powierzchnia 1 — HTTP API (`apps/api`)
@@ -155,15 +157,39 @@ Zasób kont — **bez** create-z-hasłem. `POST /api/v1/users` **usunięty** z k
 
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
-| `GET` | `/api/v1/users` | Lista kont (w tym `isActive`). **Bez** pending invites. |
-| `PATCH` | `/api/v1/users/:id` | Aktualizacja (np. reaktywacja) — **bez** awansu do `admin`; poza UI MVP (API pod późniejsze V1) |
+| `GET` | `/api/v1/users` | Lista kont (w tym `isActive`). Pozycja: `{ id, email, role, isActive, createdAt }`. **Bez** pending invites. |
+| `PATCH` | `/api/v1/users/:id` | **Wyłącznie reaktywacja** — body `{ "isActive": true }`; **bez** `role` / `email` / `password`. UI MVP bez tego (API w MVP). |
 | `DELETE` | `/api/v1/users/:id` | **Soft-delete / dezaktywacja** (konto pozostaje; login zablokowany); **nie** twarde usunięcie wiersza |
 
 Zmiana względem wcześniejszego zapisu „`role` dowolna”: w MVP jest **co najwyżej jeden** `admin` (bootstrap). Tworzenie / ustawienie kolejnego `admin` → **403** / **400**. Norma: `security.md`.
 
 Zmiana względem „DELETE = dezaktywacja / usunięcie wg polityki”: w MVP DELETE = wyłącznie soft-delete / dezaktywacja.
 
+Zmiana względem „PATCH = aktualizacja (np. reaktywacja) pod V1”: PATCH w MVP **nie** aktualizuje email / hasła / roli — jeden kanał reaktywacji (`isActive: true`); `isActive: false` → **400** (dezaktywacja = `DELETE`).
+
 Cały zasób: `@Roles('admin')` + globalny JWT.
+
+#### `PATCH /api/v1/users/:id` (admin)
+
+Reaktywacja konta po soft-delete. **Nie** jest ogólną aktualizacją konta.
+
+| Pole | Typ | Wymagane |
+|------|-----|----------|
+| `isActive` | literał `true` | tak |
+
+Body: `.strict()` (application Zod) oraz `forbidNonWhitelisted` (HTTP). Zakaz pól `role` / `email` / `password`.
+
+**200** — projekcja jak pozycja `GET /users`: `{ id, email, role, isActive, createdAt }` z `isActive: true`. **Bez** Set-Cookie (to nie login). Soft-delete kasuje refresh w DB; reaktywacja **nie** odtwarza sesji — potem zwykły `POST /auth/login`.
+
+| Warunek | HTTP | `code` |
+|---------|------|--------|
+| Brak / nieważna sesja | **401** | `UNAUTHORIZED` |
+| Sesja `user` (nie admin) | **403** | `FORBIDDEN` |
+| `:id` zły format (`UserId`) | **400** | `VALIDATION_FAILED` |
+| `isActive: false` albo `role` / `email` / `password` / inny nieznany klucz | **400** | `VALIDATION_FAILED` |
+| Brak wiersza | **404** | `USER_NOT_FOUND` |
+| Target `role = admin` | **403** | `FORBIDDEN` |
+| Target już `isActive: true` | **200** | — (idempotentnie; bez 409) |
 
 #### Invitations (admin)
 
