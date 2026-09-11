@@ -11,6 +11,7 @@ import { LoginUseCase } from '../../auth/application/login.use-case';
 import { LogoutUseCase } from '../../auth/application/logout.use-case';
 import { MeUseCase } from '../../auth/application/me.use-case';
 import { RefreshUseCase } from '../../auth/application/refresh.use-case';
+import { ReactivateUserUseCase } from '../../auth/application/reactivate-user.use-case';
 import { SoftDeleteUserUseCase } from '../../auth/application/soft-delete-user.use-case';
 import { UsersController } from '../../auth/users.controller';
 import { HealthController } from '../../health/health.controller';
@@ -116,7 +117,7 @@ describe('buildSwaggerConfig', () => {
 });
 
 describe('SwaggerModule.createDocument (auth + users + health)', () => {
-  let app: INestApplication;
+  let app: INestApplication | undefined;
   let document: OpenAPIObject;
 
   beforeAll(async () => {
@@ -142,6 +143,7 @@ describe('SwaggerModule.createDocument (auth + users + health)', () => {
         { provide: AcceptInviteUseCase, useValue: stubExecute },
         { provide: ListUsersUseCase, useValue: stubExecute },
         { provide: SoftDeleteUserUseCase, useValue: stubExecute },
+        { provide: ReactivateUserUseCase, useValue: stubExecute },
         { provide: HealthService, useValue: { liveness: jest.fn() } },
         { provide: ENV, useValue: env },
       ],
@@ -156,7 +158,7 @@ describe('SwaggerModule.createDocument (auth + users + health)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await app?.close();
   });
 
   it('requires cookieAuth on GET /auth/me and GET /users', () => {
