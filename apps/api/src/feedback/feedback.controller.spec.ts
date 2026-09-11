@@ -6,7 +6,7 @@ import { ROLES_KEY } from '../shared/decorators/roles.decorator';
 import type { AuthUserContext } from '../shared/types/auth-user-context';
 import { CreateFeedbackUseCase } from './application/create-feedback.use-case';
 import type { FeedbackEntry } from './domain/feedback.types';
-import { CreateFeedbackDto } from './http/dto/create-feedback.dto';
+import type{ CreateFeedbackDto } from './http/dto/create-feedback.dto';
 import { FeedbackController } from './feedback.controller';
 
 const sessionUser: AuthUserContext = {

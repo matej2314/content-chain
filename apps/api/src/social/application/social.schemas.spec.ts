@@ -65,11 +65,22 @@ describe('parseLlmJson', () => {
     expect(withoutCta.ideas[0]?.cta).toBeUndefined();
   });
 
+  it('rejects invalid JSON', () => {
+    expect(() => parseLlmJson(verifierOutputSchema, 'not-json')).toThrow(
+      expect.objectContaining({
+        name: 'DomainException',
+        code: 'STRUCTURED_OUTPUT_INVALID',
+        httpStatus: 500,
+      }),
+    );
+  });
+
   it('rejects broken shape', () => {
     expect(() => parseLlmJson(verifierOutputSchema, '{"ok":"nope"}')).toThrow(
       expect.objectContaining({
         name: 'DomainException',
         code: 'STRUCTURED_OUTPUT_INVALID',
+        httpStatus: 500,
       }),
     );
   });

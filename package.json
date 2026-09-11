@@ -3,10 +3,13 @@
 	"version": "1.0.0",
 	"private": true,
 	"scripts": {
+		"build:api":"pnpm --filter api build",
 		"dev:api": "pnpm --filter api dev",
 		"dev:frontend": "pnpm --filter frontend dev",
 		"dev:gateway": "pnpm --filter ai-provider-gateway dev",
 		"build": "pnpm -r build",
+		"test:api":"pnpm --filter api test",
+		"test:e2e:api":"pnpm --filter api test:e2e",
 		"lint": "eslint . && pnpm --filter frontend lint",
 		"lint:api": "eslint \"apps/api/**/*.ts\"",
 		"lint:frontend": "pnpm --filter frontend lint",

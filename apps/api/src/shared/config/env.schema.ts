@@ -28,7 +28,7 @@ export const envSchema = z
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === 'production' && value.CORS_ORIGIN.trim() === '*') {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['CORS_ORIGIN'],
         message: 'CORS_ORIGIN cannot be * in production',
       });
@@ -47,7 +47,7 @@ export const envSchema = z
     for (const [path, field] of required) {
       if (field === undefined || field === '') {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           path: [path],
           message: `${path} is required in production`,
         });

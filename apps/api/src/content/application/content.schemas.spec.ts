@@ -88,11 +88,22 @@ describe('parseLlmJson (content schemas)', () => {
     );
   });
 
+  it('rejects invalid JSON', () => {
+    expect(() => parseLlmJson(verifierOutputSchema, 'not-json')).toThrow(
+      expect.objectContaining({
+        name: 'DomainException',
+        code: 'STRUCTURED_OUTPUT_INVALID',
+        httpStatus: 500,
+      }),
+    );
+  });
+
   it('rejects broken verifier shape', () => {
     expect(() => parseLlmJson(verifierOutputSchema, '{"ok":"nope"}')).toThrow(
       expect.objectContaining({
         name: 'DomainException',
         code: 'STRUCTURED_OUTPUT_INVALID',
+        httpStatus: 500,
       }),
     );
   });

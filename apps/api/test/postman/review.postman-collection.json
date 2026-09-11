@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "b7e4c1a9-2f6d-4c8b-9a31-5e0d8f4b2c17",
     "name": "Content Chain — Review + feedback (Faza 6)",
-    "description": "Happy path przeglądu runu (R-10) i feedbacku tekstowego (Fbk-1 / Fbk-2 / Fbk-3 / Fbk-3a / Fbk-4): Setup (login admina → cookie `cc_access` / `cc_refresh` → `GET /auth/me` → PUT kontekstu), fixture dwóch `completed` (finalize z `null` oraz z oceną 1–5) + `awaiting_hitl`, potem R1–R9 (+ R4b/R4c, R5b/R5c, R6b/R6c, R7a, R7d–R7g).\n\n`awaiting_hitl` jest stabilnym statusem nieterminalnym pod R6/R6b/R6c/R7c (ten sam 409 `RUN_NOT_REVIEWABLE` co `running` / `queued` / `interrupted` — bez wyścigu z LLM).\n\nWymaga żywego `apps/api` (`:3001`), lokalnego gateway i **istniejącego admina** (`adminEmail` / `adminPassword` — te same wartości co `auth.postman-collection.json`). W Postmanie włącz cookie jar. Kolekcja nie woła gateway — klient uderza wyłącznie w api. Nie startuje pełnego pipeline Social/Content — cienkie fixture’y pod statusy przeglądu.\n\nNie jest to suite `pnpm test:e2e`. Import → Collection Runner: **Setup → Fixtures → Review → Feedback → Lista autora**.",
+    "description": "Happy path przeglądu runu (R-10) i feedbacku tekstowego (Fbk-1 / Fbk-2 / Fbk-3 / Fbk-3a / Fbk-4): Setup (login admina → cookie `cc_access` / `cc_refresh` → `GET /auth/me` → PUT kontekstu), fixture dwóch `completed` (finalize z `null` oraz z oceną 1–5) + `awaiting_hitl`, potem R1–R9 (+ R4b/R4c, R5b/R5c, R6b/R6c, R7a, R7d–R7g), **Authz druga sesja** (E0 logout admina → E0b 401 → E1–E13), na końcu **Dokończ HITL** (`POST .../hitl` 1 id → `completed`).\n\n`awaiting_hitl` jest stabilnym statusem nieterminalnym pod R6/R6b/R6c/R7c/E7/E8 (ten sam 409 `RUN_NOT_REVIEWABLE` co `running` / `queued` / `interrupted` — bez wyścigu z LLM). HITL wznawiane dopiero po tych negatywach.\n\nWymaga żywego `apps/api` (`:3001`), lokalnego gateway, **istniejącego admina** (`adminEmail` / `adminPassword` — jak `auth.postman-collection.json`) oraz **istniejącego konta `user`** (`userEmail` / `userPassword` — to z `invitations-pipeline.postman-collection.json`). Folder Authz nie startuje runu usera: drugi użytkownik może mieć puste `GET /runs/user/:id`. W Postmanie włącz cookie jar. Kolekcja nie woła gateway — klient uderza wyłącznie w api. Nie dubluje negatywów HITL z Social B.\n\nNie jest to suite `pnpm test:e2e`. Import → Collection Runner: **Setup → Fixtures → Review → Feedback → Lista autora → Authz druga sesja → Dokończ HITL**.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -17,6 +17,22 @@
     {
       "key": "adminPassword",
       "value": "Password12!!"
+    },
+    {
+      "key": "originUrl",
+      "value": "http://localhost:3001"
+    },
+    {
+      "key": "userEmail",
+      "value": ""
+    },
+    {
+      "key": "userPassword",
+      "value": "Password12!!"
+    },
+    {
+      "key": "invitedUserId",
+      "value": ""
     },
     {
       "key": "userId",
@@ -36,6 +52,10 @@
     },
     {
       "key": "inProgressRunId",
+      "value": ""
+    },
+    {
+      "key": "hitlIdeaId",
       "value": ""
     },
     {
@@ -212,7 +232,7 @@
     },
     {
       "name": "Fixtures",
-      "description": "Trzy runy autora sesji: dwa `post_ideas` aż `completed` (`completedRunId` → R1–R5/R7 finalize z `null`; `ratedCompletedRunId` → R4b/R4c finalize z oceną 5) oraz `post_ideas_then_content` aż `awaiting_hitl` (R6, R7c). Wymaga żywego gateway.",
+      "description": "Trzy runy autora sesji: dwa `post_ideas` aż `completed` (`completedRunId` → R1–R5/R7 finalize z `null`; `ratedCompletedRunId` → R4b/R4c finalize z oceną 5) oraz `post_ideas_then_content` aż `awaiting_hitl` (R6, R7c, E7, E8). HITL jest wznawiane dopiero w folderze **Dokończ HITL** (po Authz), żeby negatywy miały stabilny status nieterminalny. Wymaga żywego gateway.",
       "item": [
         {
           "name": "POST runs (post_ideas → completedRunId)",
@@ -562,6 +582,12 @@
                   "  return;",
                   "}",
                   "",
+                  "pm.test('result.ideas[0].id present', function () {",
+                  "  pm.expect(body.result).to.be.an('object');",
+                  "  pm.expect(body.result.ideas).to.be.an('array').that.is.not.empty;",
+                  "  pm.expect(body.result.ideas[0].id).to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('hitlIdeaId', body.result.ideas[0].id);",
                   "pm.collectionVariables.set('pollCountHitl', '0');"
                 ]
               }
@@ -571,7 +597,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/runs/{{inProgressRunId}}",
-            "description": "Stabilny status nieterminalny pod R6/R7c. HITL nie jest wznawiane — run zostaje w awaiting_hitl."
+            "description": "Stabilny status nieterminalny pod R6/R7c/E7/E8. Zapisuje `hitlIdeaId` pod folder Dokończ HITL (1 id z draftu, jak Social B)."
           }
         }
       ]
@@ -1406,6 +1432,725 @@
             "header": [],
             "url": "{{baseUrl}}/runs/user/{{otherUserId}}",
             "description": "Cudzy `:userId` (poprawny format, inny niż sesja) → 403 `FORBIDDEN`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authz druga sesja",
+      "description": "Ścieżki błędów na **cudzym** runie. Wymaga `userEmail` / `userPassword` konta `user` (accept-invite); user **nie** startuje tu runu. E0 wylogowuje admina (`POST /auth/logout` + Set-Cookie) — nie `jar().clear` w prerequest (async, zostawiał `cc_access` → 409 `REVIEW_LOCKED` na sfinalizowanym runie). Potem E0b: rating bez sesji → 401. Cudzy `completed` (także po finalize) → 403 `FORBIDDEN` na rating / output-edited / finalize / feedback — nie `REVIEW_LOCKED` i nie 404. Cudzy `awaiting_hitl`: feedback → 403 (Fbk-3a: własność przed statusem); ocena → 409 `RUN_NOT_REVIEWABLE` (R-10: status przed własnością).",
+      "item": [
+        {
+          "name": "E0. POST logout (admin session)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('ok true', function () {",
+                  "  pm.expect(body).to.eql({ ok: true });",
+                  "});",
+                  "pm.test('clears auth cookies', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.include('cc_access=');",
+                  "  pm.expect(cookies).to.include('cc_refresh=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/logout",
+            "description": "Sesja admina z R1–R9. Unieważnia refresh i czyści `cc_access` / `cc_refresh` przez Set-Cookie — jar Postmana aktualizuje się przed E0b (wzorzec z `auth.postman-collection.json`)."
+          }
+        },
+        {
+          "name": "E0b. PATCH rating without session (401 UNAUTHORIZED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('UNAUTHORIZED envelope', function () {",
+                  "  pm.expect(body.code).to.eql('UNAUTHORIZED');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}/rating",
+            "description": "Po E0 brak `cc_access` → 401 `UNAUTHORIZED` (nie 403, nie 409 `REVIEW_LOCKED`). Guard na trasie przeglądu.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4\n}\n"
+            }
+          }
+        },
+        {
+          "name": "E1. POST login as user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('userEmail is set (invite account from invitations-pipeline)', function () {",
+                  "  pm.expect(pm.collectionVariables.get('userEmail'), 'userEmail').to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('user session without tokens in body', function () {",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get('userEmail'));",
+                  "  pm.expect(body.user.role).to.eql('user');",
+                  "  pm.expect(body).to.not.have.property('accessToken');",
+                  "});",
+                  "pm.test('sets cc_access and cc_refresh cookies', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.include('cc_access=');",
+                  "  pm.expect(cookies).to.include('cc_refresh=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Login istniejącego `user` (nie bootstrap, nie invite). 401 → zły `userEmail` / `userPassword`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}\n"
+            }
+          }
+        },
+        {
+          "name": "E2. GET me (user)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('id email role from user cookie session', function () {",
+                  "  pm.expect(body).to.include.keys('id', 'email', 'role');",
+                  "  pm.expect(body.id).to.match(/^usr_/i);",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get('userEmail'));",
+                  "  pm.expect(body.role).to.eql('user');",
+                  "});",
+                  "pm.test('invited user is not the admin session id', function () {",
+                  "  pm.expect(body.id).to.not.eql(pm.collectionVariables.get('userId'));",
+                  "});",
+                  "pm.collectionVariables.set('invitedUserId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Zapisuje `invitedUserId`. Musi różnić się od `userId` admina z Setup."
+          }
+        },
+        {
+          "name": "E3. PATCH rating on admin completed run (403 FORBIDDEN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('completedRunId is set', function () {",
+                  "  pm.expect(pm.collectionVariables.get('completedRunId'), 'completedRunId').to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status 403', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('FORBIDDEN not REVIEW_LOCKED', function () {",
+                  "  pm.expect(body.code).to.eql('FORBIDDEN');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}/rating",
+            "description": "Cudzy `completed` po finalize admina. Własność przed lockiem → 403 `FORBIDDEN`, nie 409 `REVIEW_LOCKED`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4\n}\n"
+            }
+          }
+        },
+        {
+          "name": "E4. POST output-edited on admin completed run (403 FORBIDDEN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('FORBIDDEN envelope', function () {",
+                  "  pm.expect(body.code).to.eql('FORBIDDEN');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}/output-edited",
+            "description": "Cudzy `completed` → 403 `FORBIDDEN` (R-10.3), nie `REVIEW_LOCKED`."
+          }
+        },
+        {
+          "name": "E5. POST finalize-review on admin completed run (403 FORBIDDEN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('FORBIDDEN envelope', function () {",
+                  "  pm.expect(body.code).to.eql('FORBIDDEN');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}/finalize-review",
+            "description": "Cudzy `completed` → 403 `FORBIDDEN` na finalize."
+          }
+        },
+        {
+          "name": "E6. POST feedback on admin completed run (403 FORBIDDEN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('FORBIDDEN not RUN_NOT_FOUND', function () {",
+                  "  pm.expect(body.code).to.eql('FORBIDDEN');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/feedback",
+            "description": "Fbk-3: poprawny cudzy `RunId` → 403 `FORBIDDEN`, nie 404 (nie enumeruje istnienia jako brak wiersza).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"run\",\n  \"runId\": \"{{completedRunId}}\",\n  \"body\": \"Cudzy completed\"\n}\n"
+            }
+          }
+        },
+        {
+          "name": "E7. POST feedback on admin awaiting_hitl (403 FORBIDDEN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('FORBIDDEN not RUN_NOT_REVIEWABLE', function () {",
+                  "  pm.expect(body.code).to.eql('FORBIDDEN');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/feedback",
+            "description": "Fbk-3a: cudzy run w toku → 403, nie 409 `RUN_NOT_REVIEWABLE` (własność przed statusem). Kontrast z R7c (własny HITL → 409).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"run\",\n  \"runId\": \"{{inProgressRunId}}\",\n  \"body\": \"Cudzy HITL\"\n}\n"
+            }
+          }
+        },
+        {
+          "name": "E8. PATCH rating on admin awaiting_hitl (409 RUN_NOT_REVIEWABLE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('RUN_NOT_REVIEWABLE not FORBIDDEN (R-10 status before owner)', function () {",
+                  "  pm.expect(body.code).to.eql('RUN_NOT_REVIEWABLE');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs/{{inProgressRunId}}/rating",
+            "description": "R-10 w `assertRunReviewable`: status przed `startedBy`. Cudzy `awaiting_hitl` na ocenie → 409 `RUN_NOT_REVIEWABLE` (inaczej niż E7 / Fbk-3a).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4\n}\n"
+            }
+          }
+        },
+        {
+          "name": "E9. PATCH rating missing run (404 RUN_NOT_FOUND)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('RUN_NOT_FOUND envelope', function () {",
+                  "  pm.expect(body.code).to.eql('RUN_NOT_FOUND');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs/{{missingRunId}}/rating",
+            "description": "Poprawny format, brak wiersza → 404 `RUN_NOT_FOUND` (kontrast z E3: istniejący cudzy → 403).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4\n}\n"
+            }
+          }
+        },
+        {
+          "name": "E10. POST feedback missing run (404 RUN_NOT_FOUND)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('RUN_NOT_FOUND envelope', function () {",
+                  "  pm.expect(body.code).to.eql('RUN_NOT_FOUND');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/feedback",
+            "description": "Sesja `user`, nieistniejący `runId` → 404 (jak R7b adminem). Para z E6: istniejący cudzy → 403.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"run\",\n  \"runId\": \"{{missingRunId}}\",\n  \"body\": \"brak runu\"\n}\n"
+            }
+          }
+        },
+        {
+          "name": "E11. GET runs/user/:adminUserId (403 FORBIDDEN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('admin userId differs from invitedUserId', function () {",
+                  "  pm.expect(pm.collectionVariables.get('userId')).to.not.eql(",
+                  "    pm.collectionVariables.get('invitedUserId')",
+                  "  );",
+                  "});",
+                  "pm.test('status 403', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('FORBIDDEN envelope', function () {",
+                  "  pm.expect(body.code).to.eql('FORBIDDEN');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/user/{{userId}}",
+            "description": "R-3c z sesji `user`: `:userId` admina → 403. R9 używa syntetycznego id przy sesji admina; tu prawdziwe drugie konto."
+          }
+        },
+        {
+          "name": "E12. GET runs/user/:invitedUserId (200 empty)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('own list is empty (user has not started a run)', function () {",
+                  "  pm.expect(body.items).to.be.an('array').that.is.empty;",
+                  "});",
+                  "pm.test('does not leak admin fixture run ids', function () {",
+                  "  const ids = body.items.map(function (item) { return item.runId; });",
+                  "  pm.expect(ids).to.not.include(pm.collectionVariables.get('completedRunId'));",
+                  "  pm.expect(ids).to.not.include(pm.collectionVariables.get('ratedCompletedRunId'));",
+                  "  pm.expect(ids).to.not.include(pm.collectionVariables.get('inProgressRunId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/user/{{invitedUserId}}",
+            "description": "Własne id sesji `user` → 200. Ten folder nie startuje runu usera: `items` puste i bez fixture’ów admina. Jeśli user ma już runy, asercja `empty` padnie — wtedy poluzuj do braku trzech id z Fixtures."
+          }
+        },
+        {
+          "name": "E13. PATCH rating 6 on admin completed run (400 VALIDATION_FAILED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('VALIDATION_FAILED before FORBIDDEN', function () {",
+                  "  pm.expect(body.code).to.eql('VALIDATION_FAILED');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}/rating",
+            "description": "Ocena poza 1–5 na cudzym runie → 400 `VALIDATION_FAILED` (DTO / Zod), zanim authz odda 403.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 6\n}\n"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dokończ HITL",
+      "description": "Po R6/R7c/E7/E8: login admina (sesja po Authz to `user`), `POST .../hitl` z `hitlIdeaId` (1 legalne id), poll aż `completed`. Pełny `post_ideas_then_content`: `result.content === null`, `contents.length === 1`. Negatywy HITL zostają w Social B — tu tylko dokończenie fixture’u przeglądu.",
+      "item": [
+        {
+          "name": "H1. POST login as admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('admin session', function () {",
+                  "  pm.expect(body.user.role).to.eql('admin');",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get('adminEmail'));",
+                  "});",
+                  "pm.test('sets cc_access and cc_refresh cookies', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.include('cc_access=');",
+                  "  pm.expect(cookies).to.include('cc_refresh=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Authz zostawia sesję `user`. HITL wznawia autor runu (admin).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            }
+          }
+        },
+        {
+          "name": "H2. POST hitl (1 idea)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('hitlIdeaId is set', function () {",
+                  "  pm.expect(pm.collectionVariables.get('hitlIdeaId'), 'hitlIdeaId').to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status 202', function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});",
+                  "if (pm.response.code !== 202) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('status running', function () {",
+                  "  pm.expect(body.status).to.eql('running');",
+                  "});",
+                  "pm.collectionVariables.set('pollCountHitl', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/runs/{{inProgressRunId}}/hitl",
+            "description": "202 `{ status: running }`. Jedno legalne id z draftu — jak Social B, bez negatywów D-21.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedIdeaIds\": [\"{{hitlIdeaId}}\"]\n}\n"
+            }
+          }
+        },
+        {
+          "name": "H3. GET run until completed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const IN_FLIGHT = ['queued', 'running', 'interrupted', 'awaiting_hitl'];",
+                  "const MAX_POLLS = 120;",
+                  "const POLL_MS = 3000;",
+                  "",
+                  "function wait(ms) {",
+                  "  const until = Date.now() + ms;",
+                  "  while (Date.now() < until) {",
+                  "    /* delay between Collection Runner / Newman retries */",
+                  "  }",
+                  "}",
+                  "",
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) {",
+                  "  return;",
+                  "}",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('status is a run enum', function () {",
+                  "  pm.expect(RUN_STATUSES).to.include(body.status);",
+                  "});",
+                  "",
+                  "const polls = Number(pm.collectionVariables.get('pollCountHitl') || 0) + 1;",
+                  "pm.collectionVariables.set('pollCountHitl', String(polls));",
+                  "",
+                  "if (body.status === 'failed') {",
+                  "  pm.test('run did not fail after HITL', function () {",
+                  "    pm.expect.fail('run failed: ' + pm.response.text());",
+                  "  });",
+                  "  return;",
+                  "}",
+                  "",
+                  "if (body.status !== 'completed') {",
+                  "  pm.test('status is still in-flight or completed', function () {",
+                  "    pm.expect(IN_FLIGHT).to.include(body.status);",
+                  "  });",
+                  "  if (polls >= MAX_POLLS) {",
+                  "    pm.test('completed within poll budget', function () {",
+                  "      pm.expect.fail('timeout waiting for completed (last: ' + body.status + ')');",
+                  "    });",
+                  "    return;",
+                  "  }",
+                  "  wait(POLL_MS);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "  return;",
+                  "}",
+                  "",
+                  "pm.test('result.content is null and contents[0] has body + characterCount', function () {",
+                  "  pm.expect(body.result).to.be.an('object');",
+                  "  pm.expect(body.result.content).to.eql(null);",
+                  "  pm.expect(body.result.contents).to.be.an('array').that.has.lengthOf(1);",
+                  "  pm.expect(body.result.contents[0].body).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(body.result.contents[0].sourceIdeaId).to.eql(pm.collectionVariables.get('hitlIdeaId'));",
+                  "  pm.expect(body.result.contents[0].characterCount).to.eql(body.result.contents[0].body.length);",
+                  "});",
+                  "pm.test('review still open after pipeline complete', function () {",
+                  "  pm.expect(body.userRating).to.eql(null);",
+                  "  pm.expect(body.outputEdited).to.eql(false);",
+                  "  pm.expect(body.reviewFinalizedAt).to.eql(null);",
+                  "});",
+                  "pm.collectionVariables.set('pollCountHitl', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{inProgressRunId}}",
+            "description": "Poll aż `completed`. Kanon dwuetapowy Social: skalar `content` = null, `contents[0]` + `sourceIdeaId`. Przegląd jeszcze otwarty."
           }
         }
       ]

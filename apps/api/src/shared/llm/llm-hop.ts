@@ -19,7 +19,7 @@ import type { RunId } from '@content-chain/shared';
 import type { LlmGatewayPort } from '../../llm/llm-gateway.port';
 import type { z } from 'zod';
 
-interface ChatJsonInput<T extends z.ZodTypeAny> {
+interface ChatJsonInput<T extends z.ZodType> {
   runId: RunId;
   conversationId: ConversationId;
   step: string;
@@ -89,7 +89,7 @@ export class LlmHopService {
     @Inject(RUN_LIFECYCLE) private readonly lifeCycle: RunLifecyclePort,
   ) {}
 
-  async chatJson<T extends z.ZodTypeAny>(
+  async chatJson<T extends z.ZodType>(
     input: ChatJsonInput<T>,
   ): Promise<{ data: z.output<T>; requestId: RequestId }> {
     let lastError: unknown;

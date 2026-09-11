@@ -1,7 +1,7 @@
-import { z } from 'zod';
+import type { z } from 'zod';
 import { DomainException } from './exceptions/domain.exception';
 
-export function parseWithZod<T extends z.ZodTypeAny>(
+export function parseWithZod<T extends z.ZodType>(
   schema: T,
   input: unknown,
 ): z.output<T> {

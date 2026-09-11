@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31), `update-mvp-contract-plan.md` (Faza 4.3), `multi-hitl-plan.md` (HITL Social min. 1 / N→N — legalizacja kanonu Fazy 4.3).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (Zod 4 w `apps/api`) — **na samym końcu tego majoru**, dopiero po pełnym wdrożeniu Fazy 4, **4.1, 4.2, 4.3**, 5 i 6 oraz osiągnięciu Milestone 4, **4.2, 4.3**, 5–6; nie startować równolegle z pipeline’em / auth / feedbackiem.
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (`WYKONANY`) — Zod 4 w `apps/api`; bez własnego milestone’u.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -992,7 +992,7 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 
 ## Faza 9 — Refaktor `apps/api`: Zod 4 (zbieżnie z gateway)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Kiedy start:** **wyłącznie na końcu tego majoru** — po `WYKONANY` Fazy 4, **4.1, 4.2, 4.3**, 5 i 6 oraz `OSIĄGNIĘTY` Milestone 4, **4.2, 4.3**, 5 i 6. Fazy 7 i 8 są już `WYKONANY`. Zakaz startu tej fazy w trakcie pipeline’u Social / Content, auth albo fundamentu feedbacku. Schemy rolek i Content migrują na Zod 4 w tej fazie (świadomy koszt: 4.1/4.2/4.3 na Zod 3).
 
@@ -1001,6 +1001,9 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 **Poza zakresem tej fazy:** migracja grafu Social na `StateSchema` LangGraph (osobna decyzja po zielonym Zod 4); zmiana kontraktu HTTP; Zod w `packages/shared`.
 
 **Bez MILESTONE 9** — ujednolicenie zależności, nie skok produktowy.
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-9-zod4.md` (KROK 1–5 `WYKONANY` → major 9.1; KROK 6 `WYKONANY` → major 9.2). Bump `zod@^4.4.3` w `apps/api` + lockfile workspace, helpery (`parseWithZod` / `parseLlmJson` / `LlmHopService`), `env.schema`, schemy BC, grafy `z.object` (nie `StateSchema`), testy regresji walidacji. **Brak MILESTONE 9** — nic nie oznaczać `OSIĄGNIĘTY`. Ten major nie ma dalszej fazy.
+Zmiana względem: status Fazy 9 oraz kroków 9.1–9.2 (`NIE_ROZPOCZĘTY`). Powód: ślad do major po implementacji `content-chain_feature_plan_faza-9-zod4.md`.
 
 **DoD (faza):**
 
@@ -1012,7 +1015,7 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 
 ### Krok 9.1 — Bump Zod w api i korekta typów / schematów
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Podnieść `apps/api` do `zod@^4.4.x`. Dostosować API Zod 3→4 w plikach, które importują `zod` (m.in. `env.schema.ts`, `parse-with-zod.ts`, `parse-llm-json.ts`, `run.schemas.ts`, `social.schemas.ts`, stan grafu). Wzorzec użycia: `apps/ai-provider-gateway`.
 
@@ -1024,7 +1027,7 @@ Kontrakt docs/SPEC jest **już w repo** (dopisany przed startem tej fazy); tu wd
 
 ### Krok 9.2 — Testy regresji walidacji
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Zielone testy po bumpie — w szczególności `.default([])` vs `null` w structured output oraz `env.schema` (`CORS_ORIGIN` w production).
 

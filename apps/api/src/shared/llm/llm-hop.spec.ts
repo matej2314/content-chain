@@ -132,6 +132,7 @@ describe('LlmHopService.chatJson', () => {
       expect.objectContaining({
         name: 'DomainException',
         code: 'STRUCTURED_OUTPUT_INVALID',
+        httpStatus: 500,
       }),
     );
 

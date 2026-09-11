@@ -7,7 +7,7 @@ export function extractJsonText(raw: string): string {
   return (fenced?.[1] ?? trimmed).trim();
 }
 
-export function parseLlmJson<T extends z.ZodTypeAny>(
+export function parseLlmJson<T extends z.ZodType>(
   schema: T,
   raw: string,
 ): z.output<T> {
