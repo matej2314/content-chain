@@ -1,6 +1,7 @@
 deprecated/
 post-mvp-plan.md
 architecture_leaks.md
+workflow.md
 
 node_modules/
 .pnpm-store/

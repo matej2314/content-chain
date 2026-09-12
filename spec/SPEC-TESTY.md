@@ -1,7 +1,7 @@
 ---
-wersja: 15
+wersja: 19
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-11
+data_modyfikacji: 2026-09-12
 ---
 
 # SPEC — Testy
@@ -59,7 +59,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-9b | Drain: przy `MAX=1` dwa `interrupted` + jeden `queued` → kolejność execute: interrupted, interrupted, queued |
 | D-10 | Recovery: leftover `running` → `interrupted`; claim pod `MAX_CONCURRENT_RUNS`; leftover już `interrupted` bez inkrementu `recoveryAttempts`; 3× przerwany execute → `failed` + log |
 | D-11 | `POST /feedback`: zapis z `authorId`+`createdAt`; cudzy `runId` → `FORBIDDEN`; własny run w toku (`queued` / `running` / `awaiting_hitl` / `interrupted`) → **409** `RUN_NOT_REVIEWABLE` (bez zapisu); `completed` \| `failed` → 201; drugi wpis = nowy wiersz (także po finalize) |
-| D-12 | Ocena `null` \| 1–5 na `completed`/`failed` tylko autora; po finalize → `REVIEW_LOCKED`; flaga `outputEdited` |
+| D-12 | Ocena `null` \| 1–5 na `completed`/`failed` tylko autora; po finalize → `REVIEW_LOCKED`; `POST .../output-edited` z `{ result }` zastępuje kanoniczny wynik i stawia `outputEdited`; GET snapshot zwraca treść po edycji |
 | D-13 | `GET /runs/user/:userId`: własne wszystkie; cudzy id → `403` |
 | D-14 | SSE: hub nie zatrzymuje subjectu po `completed`/`failed`; `GET .../events` na skończonym runie emituje `run.status` i kończy stream |
 | D-15 | `reel_ideas` full-auto: `running` → `completed`; `result.reelIdeas[0].id` |
@@ -75,8 +75,15 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-24 | `user` woła `POST /invitations` → **403**. Drugi `POST` przy `pending` (także wygasłym) → **409**. `GET /invitations` zwraca też wygasłe pending |
 | D-25 | Soft-delete: `DELETE /users/:id` → `isActive = false`; nieaktywny nie loguje się (ten sam komunikat 401 co złe hasło — bez enumeracji) |
 | D-26 | Reaktywacja: `PATCH /users/:id` `{ isActive: true }` na soft-deleted `user` → **200** `isActive: true`; następnie `POST /auth/login` tym kontem → **200**. `isActive: false` → **400**. `user` woła PATCH → **403**. |
+| D-27 | `PATCH /auth/me` `{ email }` (sesja): **200** `{ id, email, role }` z nowym emailem; `GET /auth/me` zgadza się. Drugi użytkownik / ten sam email zajęty → **409**. `PATCH /users/:id` z `email` nadal **400**. |
+| D-28 | `GET /runs?status=completed,failed`: tylko te statusy, `pageSize=10`, sort `createdAt` desc (mieszane); pojedynczy `status=interrupted` bez regresji; nieznana wartość w liście → **400** `VALIDATION_FAILED` |
 
-D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-26 (reaktywacja → login). T-3 (cookie) **bez zmian**.
+Zmiana względem wersji 18: T-5 i kryteria akceptacji obejmują też D-28 (wcześniej D-28 było w tabeli, bez jawnego pinu w T-5 / checklistcie D-1…D-28).
+Zmiana względem wersji 17: dopisano D-28 (filtr `status` wielowartościowy pod archiwum UI). D-1…D-27 bez kasowania treści.
+
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila) **oraz** D-28 (filtr `status` wielowartościowy). T-3 (cookie) **bez zmian**.
+
+Zmiana względem wersji 16: dopisano D-27 (`PATCH /auth/me` email; 409 zajęty; `PATCH /users/:id` bez email). D-1…D-26 bez kasowania treści.
 
 Zmiana względem wersji 14: dopisano D-26 (reaktywacja po soft-delete + login; `isActive: false` → 400; `user` → 403). D-1…D-25 bez kasowania treści.
 
@@ -140,7 +147,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-26 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23…D-26) pokryte testami (warstwa adekwatna do przypadku).
+- [ ] Przypadki D-1…D-28 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23…D-28) pokryte testami (warstwa adekwatna do przypadku).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

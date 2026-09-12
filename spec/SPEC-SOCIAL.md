@@ -1,7 +1,7 @@
 ---
-wersja: 11
+wersja: 12
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-05
+data_modyfikacji: 2026-09-11
 ---
 
 # SPEC — Social
@@ -172,7 +172,7 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 - Reguł SM / bramki w FE lub w gateway.
 - Wołania vendorów LLM z pominięciem gateway.
 - Rozszerzania tego SPEC o YouTube / blog / pipeline builder / WordPress. **Zmiana względem** wersji 5: rolki **są** w tym SPEC (nie „poza MVP”).
-- Re-invoke grafu ani zmiany węzłów z powodu oceny gwiazdkowej, flagi edycji outputu lub opinii tekstowej (to Runs / Feedback po `completed`/`failed`).
+- Re-invoke grafu ani zmiany węzłów z powodu oceny gwiazdkowej, **zapisu edycji wyniku** lub opinii tekstowej (to Runs / Feedback po `completed`/`failed`; Edytuj nadpisuje store wyniku **bez** grafu — `SPEC-RUNY.md` R-10).
 - `forwardRef(() => RunsModule)` ani importu pełnego `RunsModule` (HTTP + worker + stub executor) z `SocialModule`.
 - Importu `ContentModule` z `SocialModule` (i odwrotnie — `SPEC-CONTENT.md`).
 - Importu `ContentBrief` / `ContentRunRecord` w węzłach grafu Social (wyjątek: test guarda executora na obcym `taskType` — fixture `makeContentRun`).
@@ -184,7 +184,7 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 - Aliasu `result.content` = `contents[0]` (ani `reelScript` = `reelScripts[0]`) na dwuetapowym po fazie 2 — skalar = `null`.
 
 Zmiana względem wersji 8 / domain: import `RunBrief` z `runs/domain` w Social był legalnym skrótem przy jednym briefie. Od tej wersji obowiązuje `SocialBrief` i unia `RunRecord` (`SPEC-RUNY.md` R-3d).
-Zmiana względem wersji 3: dopisano zakaz cyklu Nest z Runs (wcześniej tylko zakaz re-invoke z powodu oceny / edycji / opinii).
+Zmiana względem wersji 11 / „Nie wolno”: „flaga edycji” bez nadpisu wyniku — od tej wersji zakaz dotyczy **re-invoke grafu** przy zapisie edycji; persist treści to Runs (`SPEC-RUNY.md` R-10).
 Zmiana względem wersji 6: dopisano zakaz importu `ContentModule` (rolki są w Social; page copy pozostaje w `SPEC-CONTENT.md`).
 Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz zlepiania K pomysłów w jeden artefakt, child-run fan-out oraz aliasu skalar = `contents[0]`.
 

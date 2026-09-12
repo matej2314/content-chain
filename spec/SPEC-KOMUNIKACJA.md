@@ -1,7 +1,7 @@
 ---
-wersja: 18
+wersja: 22
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-10
+data_modyfikacji: 2026-09-12
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -32,13 +32,13 @@ Wiążące (`docs/architektura.md`):
 |--------------|-------------------|--------|
 | Publiczne API CC | `/api/v1` | JSON |
 | Lista runów | `GET /api/v1/runs` | JSON (paginacja stała 10) |
-| Runy użytkownika (select opinii) | `GET /api/v1/runs/user/:userId` | JSON (wszystkie, bez pageSize=10) |
+| Runy użytkownika (select opinii + Konto) | `GET /api/v1/runs/user/:userId` | JSON (wszystkie, bez pageSize=10) |
 | Live run | `GET /api/v1/runs/:runId/events` | SSE (`text/event-stream`) |
 | Opinia tekstowa | `POST /api/v1/feedback` | JSON (zapis MVP) |
 | Ops metrics | `GET /metrics` (poza `/api/v1`) | Prometheus text |
 | DX OpenAPI (Swagger UI) | `GET /docs` (poza `/api/v1`) | HTML / OpenAPI JSON |
 | Health | `GET /api/v1/health` | JSON |
-| Auth probe / bootstrap status | `GET /api/v1/auth/me`, `GET /api/v1/auth/bootstrap-status` | JSON |
+| Auth probe / bootstrap status / własny email | `GET /api/v1/auth/me`, `PATCH /api/v1/auth/me`, `GET /api/v1/auth/bootstrap-status` | JSON |
 | Zaproszenia (admin) | `GET`/`POST /api/v1/invitations`, `POST .../:id/resend`, `DELETE .../:id` | JSON |
 | Akceptacja zaproszenia (publiczny) | `POST /api/v1/auth/accept-invite` | JSON |
 | Gateway (z api) | upstream `/api/v1/chat` (+ opcjonalnie stream) | JSON / SSE gateway |
@@ -68,7 +68,9 @@ K-1. Każda odpowiedź błędu HTTP z `apps/api` ma envelope:
 
 K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId` i statusem `queued` | `running` — bez synchronicznego czekania na wynik LLM. `interrupted` **nie** jest statusem odpowiedzi POST. Body: unia dyskryminowana `taskType` (`platform` XOR `contentKind` **oraz** kształt `brief` XOR: `SocialBrief` vs `ContentBrief`) — `docs/dokumentacja_komunikacji.md`. Walidacja Zod `discriminatedUnion` w application + `.strict()` na gałęzi briefu. DTO HTTP może deklarować sumę kluczy briefu (`topic`, `audience`, `goal`, `ideaCount`, `angle`, `targetLength`); prawda = Zod. `taskType` spoza enumu → **400** `VALIDATION_FAILED`. Page + `brief.ideaCount` / Social + `brief.angle` → **400** `VALIDATION_FAILED`.
 
-K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry w tym nowe `taskType` i `platform=web`, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`. Filtr `status` obejmuje pełny `RunStatus` (w tym `interrupted`).
+K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry w tym `taskType` i `platform=web`, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`. Query `status`: **jeden** `RunStatus` **albo** lista unikalnych wartości rozdzielona przecinkiem (archiwum UI: `completed,failed`). Brak parametru = wszystkie statusy. Nieznana wartość → **400** `VALIDATION_FAILED`.
+
+Zmiana względem wersji 21 / K-2a: `status` wyłącznie jako pojedynczy enum.
 
 K-2c. Snapshot `GET /runs/:id` — `brief` w kształcie zapisanym (unia); `result` addytywny: `ideas`, `content`, `contents`, `reelIdeas`, `reelScript`, `reelScripts`, `pageOutline`, `pageDocument`. HITL `options` zależne od `taskType`. Dwuetapowy Social po fazie 2: kanon tablic `contents[]` / `reelScripts[]` + `sourceIdeaId`; skalar `content` / `reelScript` = `null` (`docs/dokumentacja_komunikacji.md`).
 
@@ -78,7 +80,13 @@ Zmiana względem wersji 10: unia startu (K-2), listing `platform=web` / nowe `ta
 
 Zmiana względem wersji 15 / K-2c: enumeracja `result` bez `contents` / `reelScripts`; skalar na then_* udawał 1:1.
 
-K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora pod select opinii (`SPEC-RUNY.md` R-3c); UI filtruje `completed` \| `failed` (`docs/ux_dashboard.md`). `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`): przy `targetType=run` dodatkowo status `completed` \| `failed`, inaczej **409** `RUN_NOT_REVIEWABLE` (Fbk-3a). Ocena / flaga edycji / finalize — `SPEC-RUNY.md` R-10. Payloady w `docs/dokumentacja_komunikacji.md`.
+K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora: select opinii **oraz** „Moje runy” na Koncie (live) (`SPEC-RUNY.md` R-3c, `docs/ux_dashboard.md`). W formularzu opinii UI filtruje `completed` \| `failed`; lista Konta pokazuje wszystkie statusy. `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`): przy `targetType=run` dodatkowo status `completed` \| `failed`, inaczej **409** `RUN_NOT_REVIEWABLE` (Fbk-3a). Ocena / **zapis edycji wyniku** (`POST .../output-edited` z `{ result }`) / finalize — `SPEC-RUNY.md` R-10. Payloady w `docs/dokumentacja_komunikacji.md`.
+
+K-2d. `PATCH /api/v1/auth/me` — zmiana własnego emaila (sesja); **409** `CONFLICT` gdy zajęty. Nie `PATCH /users/:id`. `SPEC-AUTH.md` A-3b.
+
+Zmiana względem wersji 19 / K-2b: endpoint user-runs tylko pod select opinii. Od tej wersji także lista Konta; dopisano K-2d.
+
+Zmiana względem wersji 18 / K-2b: `output-edited` było wyłącznie flagą. Od tej wersji body niesie `result` i api **zastępuje** kanoniczny wynik.
 
 Zmiana względem wersji 17 / K-2b: `POST /feedback` `targetType=run` nie miał bramki statusu (tylko Fbk-3: autor). Od tej wersji to samo okno co R-10 (`completed` \| `failed`), bez locka finalize na tekście.
 
@@ -102,7 +110,7 @@ K-3b. Heartbeat keep-alive i TTL Subject:
 
 Zmiana względem wersji 7: dopisano K-3b (heartbeat + TTL Subject — ochrona przed zombie Subject przy hung runie i przed ciszą TCP przy długich runach).
 
-K-4. Auth SSE = ta sama sesja co API: cookie httpOnly **`cc_access`** / **`cc_refresh`** (`SPEC-AUTH.md`). **Zakaz** tokenu w query string oraz **`Authorization: Bearer`** jako modelu MVP (FE, Postman, integracje — cookie jar / `credentials: 'include'`).
+K-4. Auth SSE = ta sama sesja co API: cookie httpOnly **`cc_access`** / **`cc_refresh`** (`SPEC-AUTH.md`). Produktowy FE: EventSource **same-origin** przez BFF (`SPEC-FRONTEND.md` F-2). **Zakaz** tokenu w query string oraz **`Authorization: Bearer`** jako modelu MVP (FE, Postman, integracje — cookie jar / `credentials: 'include'`).
 
 Zmiana względem wersji 1 tego SPEC: usunięto Bearer jako równorzędny transport; access nie wraca w body JSON.
 
@@ -215,6 +223,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - [ ] `POST /api/v1/runs` kończy się 202 z `runId` + `conversationId` bez czekania na LLM; unia `platform` / `contentKind` egzekwowana (400 przy konflikcie).
 - [ ] `GET /api/v1/runs` listuje runy instancji zgodnie z docs (paginacja 10, filtry, `startedBy`).
 - [ ] `GET /api/v1/runs/user/:userId` i `POST /feedback` oraz rating/edit/finalize istnieją w kontrakcie docs; kody `REVIEW_LOCKED` / `RUN_NOT_REVIEWABLE` w envelope.
+- [ ] `PATCH /api/v1/auth/me` `{ email }` w kontrakcie docs (**409** gdy zajęty); nie przez `PATCH /users/:id`.
 - [ ] Klient otrzymuje live status wyłącznie przez SSE; GET run/logs = snapshot.
 - [ ] SSE na skończonym runie (`completed` \| `failed`) emituje snapshot statusu i **kończy** strumień; po `run.completed` / `run.failed` serwer zamyka połączenie. `awaiting_hitl` / `interrupted` nie kończą SSE.
 - [ ] SSE wymaga sesji cookie jak API; brak tokenu w query i brak wymogu Bearer.

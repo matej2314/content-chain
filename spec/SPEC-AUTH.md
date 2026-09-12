@@ -1,14 +1,14 @@
 ---
-wersja: 7
+wersja: 12
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-11
+data_modyfikacji: 2026-09-12
 ---
 
 # SPEC — Auth
 
 ## Cel / zakres względem dokumentacji
 
-Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, role `admin` | `user`, lista kont, **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite**, soft-delete, **reaktywacja PATCH**, polityka haseł i sesji.
+Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, **`PATCH /auth/me` (własny email)**, role `admin` | `user`, lista kont, **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite**, soft-delete, **reaktywacja PATCH**, polityka haseł i sesji.
 
 Zmiana względem wersji 5: zakres „lista + tworzenie z hasłem” zastąpiony zaproszeniami + accept-invite (`docs/dokumentacja_komunikacji.md`).
 Zmiana względem wersji 6: A-10a — `PATCH /users/:id` obowiązkowy w MVP i wyłącznie reaktywacją (`{ isActive: true }`); UI nadal poza MVP.
@@ -34,6 +34,7 @@ Wiążące (`docs/architektura.md`): klasyczne warstwy Nest — HTTP → applica
 | Zaproszenia: create / lista pending / resend / revoke | tak | nie |
 | Soft-delete (`DELETE`) użytkownika | tak (API; UI MVP bez tego) | nie |
 | Reaktywacja (`PATCH /users/:id`, `{ isActive: true }`) | tak (API; UI MVP bez tego) | nie |
+| Zmiana własnego emaila (`PATCH /auth/me`) | tak | tak |
 | Akceptacja zaproszenia (`POST /auth/accept-invite`) | publiczna (bez roli / bez sesji) | publiczna (bez roli / bez sesji) |
 
 W systemie MVP jest **co najwyżej jeden** `admin` — ten z bootstrapu. Tworzenie / awans kolejnego admina → odrzucenie (`403` / `400`).
@@ -44,7 +45,9 @@ Zmiana względem wersji 4: dopisano, że te same guardy obejmują runy Content (
 
 A-1. `POST /api/v1/auth/bootstrap-admin` działa **tylko**, gdy w DB nie ma użytkownika z `role = admin`. Po sukcesie: ustawia sesję cookie jak login; endpoint jest trwale niedostępny (`CONFLICT` / `FORBIDDEN`).
 
-A-1a. `GET /api/v1/auth/bootstrap-status` (bez auth) zwraca `{ "available": boolean }` — `true` wyłącznie gdy wolno wykonać bootstrap. Pod ekran first-run FE.
+A-1a. `GET /api/v1/auth/bootstrap-status` (bez auth) zwraca `{ "available": boolean }` — `true` wyłącznie gdy wolno wykonać bootstrap. Pod **stronę główną** FE (tryb submitu karty logowania, nie osobny ekran) — `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`.
+
+Zmiana względem wersji 8 / A-1a: „pod ekran first-run”. Od tej wersji ten sam widok co logowanie (`docs/ux_dashboard.md`).
 
 Zmiana względem wersji 2: dopisano publiczny status bootstrapu oraz sesję cookie po udanym bootstrapie (wcześniej: sam fakt utworzenia admina bez normy first-run / Set-Cookie).
 
@@ -62,6 +65,10 @@ Zmiana względem wersji 1 tego SPEC (oraz wcześniejszego zapisu docs „accessT
 A-3. Refresh (`POST /api/v1/auth/refresh`) na podstawie cookie `cc_refresh`: waliduje sesję w DB, **rotuje** refresh (stary wpis unieważniony, nowy hash + nowe `cc_refresh`), wystawia nowy JWT w `cc_access`. Body bez tokenów (ew. `expiresIn` — opcjonalnie). Kanoniczny probe tożsamości UI = A-3a, nie refresh.
 
 A-3a. `GET /api/v1/auth/me` (wymaga ważnego `cc_access`): **200** `{ "id", "email", "role" }` wyłącznie; brak / nieważna sesja → **401** `UNAUTHORIZED`.
+
+A-3b. `PATCH /api/v1/auth/me` (ta sama sesja): body `{ "email" }` — zmiana **własnego** adresu. **200** `{ id, email, role }`. Zajęty email (w tym soft-deleted) → **409** `CONFLICT`. Zły kształt → **400**. **Nie** `PATCH /users/:id` (tam nadal zakaz `email`). Bez zmiany hasła / roli / `isActive`. Bez maila potwierdzającego w MVP.
+
+Zmiana względem wersji 9: self-service email był zakazany. Od tej wersji A-3b jest w MVP (`docs/ux_dashboard.md` widok Konto).
 
 Zmiana względem wersji 2: wcześniej brak osobnego probe; odczyt `user` z refresh był opcjonalny. Obowiązuje: **`/auth/me`** + flow FE me → (401) refresh → me.
 
@@ -85,7 +92,9 @@ A-7. Admin **zaprasza** na `role = user`. Konto `User` powstaje **wyłącznie** 
 
 Zmiana względem: „Admin tworzy wyłącznie użytkowników z `role = user`” (implikowało `POST /users` + hasło). `POST /api/v1/users` z `password` **wypada z kanonu**.
 
-A-7a. `POST /api/v1/invitations` — tylko `admin`; body `{ email }` (bez hasła). Zapis Invitation `pending` (hash SHA-256 tokenu, TTL `INVITE_TTL`, default `7d`, parser jak JWT TTL) **najpierw**, potem send. Raw token **nie** wraca w JSON-ie. Send OK albo adapter logujący (`development` / `test`) → **201** `{ id, email, expiresAt }`. Pad prawdziwego SMTP po zapisie → **503** `MAIL_DELIVERY_FAILED`, envelope K-1, w `details` **`id` zaproszenia**; wiersz zostaje `pending`. Retry `POST` przy istniejącym `pending` (także wygasłym) → **409** `CONFLICT`. `user` → **403**. Istniejący `User` (aktywny albo soft-deleted) → **409**.
+A-7a. `POST /api/v1/invitations` — tylko `admin`; body `{ email }` (bez hasła). Zapis Invitation `pending` (hash SHA-256 tokenu, TTL `INVITE_TTL`, default `7d`, parser jak JWT TTL) **najpierw**, potem send. Raw token **nie** wraca w JSON-ie. Send OK albo adapter logujący (`development` / `test`) → **201** `{ id, email, expiresAt }`. Pad prawdziwego SMTP po zapisie → **503** `MAIL_DELIVERY_FAILED`, envelope K-1, w `details` **`id` zaproszenia**; wiersz zostaje `pending`. Retry `POST` przy istniejącym `pending` (także wygasłym) → **409** `CONFLICT`. `user` → **403**. Istniejący `User` (aktywny albo soft-deleted) → **409**. URL w mailu: **`{APP_PUBLIC_URL}/invite/accept?token={raw}`** (ta sama ścieżka co FE — `docs/ux_dashboard.md`).
+
+Zmiana względem wersji 11 / A-7a: kształt deep linku nie był w SPEC (żył tylko w kodzie mailera).
 
 A-7b. `POST /api/v1/auth/accept-invite` — publiczny (`@Public()`); body `{ token, password }`. Walidacja tokenu i polityki A-5 **przed** transakcją (zły token / hasło → wiersz zaproszenia **bez zmian**). Potem **jedna** transakcja Prisma: `users.create(role=user)` **oraz** Invitation → `accepted` (wzorzec jak `createAdminIfNone`). **Nie** woła `setAuthCookies`. Token zły / zużyty / `revoked` / wygasły → **401** `UNAUTHORIZED` (ten sam komunikat — brak enumeracji tokenu). Hasło poza A-5 → **400** `VALIDATION_FAILED`. Kolizja `User.email` w transakcji (P2002) → **409** `CONFLICT` (świadoma enumeracja; nie maskować jako `401`). **201** `{ "user": { "id", "email", "role" } }`.
 
@@ -125,7 +134,7 @@ apps/api/src/auth/
 | Guardi | `JwtAuthGuard` + `RolesGuard` (Nest + Passport JWT); extractor JWT z cookie `cc_access` |
 | Access | JWT w cookie `cc_access`; krótki TTL; stateless do wygaśnięcia |
 | Refresh | hash w DB + cookie `cc_refresh`; rotacja przy każdym refresh |
-| Cookie (production) | `httpOnly`; `Secure` + sensowny `SameSite` na **obu** cookie |
+| Cookie (production) | `httpOnly`; `Secure` + `SameSite=strict` na **obu** cookie; origin = FE (BFF) |
 | Biblioteki | `@nestjs/jwt`, `@nestjs/passport`, `passport-jwt`, `bcrypt` (lub `bcryptjs`); **nodemailer** wyłącznie jako adapter SMTP w infrastructure |
 | Mailer | Port w Auth (`send({ kind: 'user_invited', … })`); `development` / `test`: adapter logujący; `production`: nodemailer SMTP |
 
@@ -158,10 +167,11 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - `Authorization: Bearer` jako modelu auth MVP.
 - OAuth / social login / 2FA w MVP.
 - Egzekucji ról wyłącznie po stronie UI.
-- Self-service w MVP: zmiana hasła **zalogowanego**, zmiana email, usuwanie własnego konta.
-  Zmiana względem: „żadnego ustawiania hasła przez użytkownika”. **Wyjątek (D13):** jednorazowe **pierwsze** hasło przy `accept-invite` to onboarding, nie self-service konta.
+- Self-service w MVP: zmiana hasła **zalogowanego**, usuwanie własnego konta.
+  Zmiana względem: „żadnego ustawiania hasła przez użytkownika”. **Wyjątek (D13):** jednorazowe **pierwsze** hasło przy `accept-invite` to onboarding, nie self-service hasła.
+  Zmiana względem wersji 9: zakaz obejmował też zmianę email — od tej wersji `PATCH /auth/me` (A-3b) **jest** w MVP.
 - Twardego DELETE użytkownika jako domyślnego zachowania MVP (obowiązuje soft-delete).
-- `PATCH` z `role` / `email` / `password` albo `isActive: false` (dezaktywacja wyłącznie DELETE).
+- `PATCH /users/:id` z `role` / `email` / `password` albo `isActive: false` (dezaktywacja wyłącznie DELETE). Własny email = wyłącznie `PATCH /auth/me` (A-3b).
 - Refresh wyłącznie jako JWT w cookie **bez** wpisu w DB.
 - Wycieku hashów haseł, sekretów JWT, plaintext refresh ani raw tokenu zaproszenia (w `production`) do logów / envelope.
 
@@ -175,8 +185,8 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 | TTL env: access default 15m, refresh default 1d; `INVITE_TTL` default 7d | obowiązkowe |
 | Port mailera + **nodemailer** (adapter SMTP w `production`) | obowiązkowe |
 | Adapter logujący maila w `development` / `test` | obowiązkowe |
-| Bearer access / OAuth / 2FA / self-service account edits (poza pierwszym hasłem na accept-invite) | poza MVP |
-| `GET /auth/me` + `GET /auth/bootstrap-status` + `POST /auth/accept-invite` | obowiązkowe |
+| Bearer access / OAuth / 2FA / zmiana hasła zalogowanego / usuwanie siebie | poza MVP |
+| `GET /auth/me` + `PATCH /auth/me` (email) + `GET /auth/bootstrap-status` + `POST /auth/accept-invite` | obowiązkowe |
 | `PATCH /users/:id` (reaktywacja `{ isActive: true }`) | obowiązkowe |
 
 ## Kryteria akceptacji
@@ -184,7 +194,7 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - [ ] `bootstrap-status` poprawnie sygnalizuje dostępność; bootstrap tworzy jedynego admina + sesję; ponowne wywołanie odrzucone.
 - [ ] Próba utworzenia drugiego admina przez API odrzucona.
 - [ ] Login ustawia `cc_access` i `cc_refresh` (httpOnly); body bez tokenów; chronione trasy działają na cookie.
-- [ ] `GET /auth/me` zwraca `{ id, email, role }` albo 401; refresh rotuje cookie; logout czyści oba i unieważnia sesję w DB.
+- [ ] `GET /auth/me` zwraca `{ id, email, role }` albo 401; `PATCH /auth/me` `{ email }` zmienia własny adres albo **409** gdy zajęty; refresh rotuje cookie; logout czyści oba i unieważnia sesję w DB.
 - [ ] Hasło niespełniające polityki → `VALIDATION_FAILED`; spełniające → bcrypt(cost 12) — także na accept-invite.
 - [ ] `user` nie przechodzi tras admin-only (`RolesGuard` → `FORBIDDEN`), w tym `POST /invitations` → 403.
 - [ ] Admin zaprasza (`POST /invitations`, tylko email) → pending + mail; konto `user` powstaje przez accept-invite → login; raw token nie wraca w JSON admina.
@@ -198,8 +208,10 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 
 ## Poza zakresem
 
-- Widoki UI (first-run, login, użytkownicy, konto, akceptacja zaproszenia) → `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`.
-- Self-service: zmiana hasła **zalogowanego** / email / usuwanie własnego konta; OAuth, SSO, 2FA, recovery „lost admin”. Pierwsze hasło na accept-invite **jest** w zakresie (A-7b).
+- Widoki UI (first-run, login, użytkownicy, konto, akceptacja zaproszenia) — **MVP dashboardu** → `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`. Ten SPEC nie wymaga ekranów jako DoD API (Postman zostaje).
+
+Zmiana względem wersji 7 / poza zakresem: doprecyzowano, że ekrany Users i accept-invite są w zakresie MVP FE, nie „przyszłe”.
+- Self-service: zmiana hasła **zalogowanego** / usuwanie własnego konta; OAuth, SSO, 2FA, recovery „lost admin”. Pierwsze hasło na accept-invite **jest** w zakresie (A-7b). **Zmiana własnego emaila (A-3b) jest w zakresie MVP.**
 - Soft-delete / reaktywacja w UI admina (API tak; UI MVP nie) — płynne V1.
 - Szczegóły ekspozycji sieciowej gateway/metrics / reverse proxy → `SPEC-BEZPIECZENSTWO.md`.
 - Schema Prisma — `SPEC-PERSISTENCE.md` / implementacja, byle port sesji refresh, zaproszeń i flagi aktywności istniał.

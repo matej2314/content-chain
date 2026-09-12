@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-08-31
-data_modyfikacji: 2026-09-04
+data_modyfikacji: 2026-09-11
 ---
 
 # SPEC — Content (BC)
@@ -138,10 +138,12 @@ page_copy:
 - Refine bez limitu `max N=2`.
 - Checkpoinetera LangGraph jako store HITL.
 - Traktować `'web'` jako `SocialPlatform`.
-- Re-invoke grafu z powodu oceny / flagi edycji / opinii (to Runs / Feedback).
+- Re-invoke grafu z powodu oceny / **zapisu edycji wyniku** / opinii (to Runs / Feedback; Edytuj nadpisuje store wyniku **bez** grafu — `SPEC-RUNY.md` R-10).
 - Zapisu refine fazy `'outline'` / `'copy'` do `Run.ideasRefineCount` / `Run.contentRefineCount` (Ctn-10).
 - Invoke fazy `'copy'` przy `page_outline_then_copy`, gdy `selectedIdeaIds` nie jest dokładnie `[outline.id]` (Ctn-5).
 - Przyjęcia `selectedIdeaIds` na `POST /runs` dla `page_*`.
+
+Zmiana względem wersji 5 / „Nie wolno”: zakaz dotyczył „flagi edycji”; od tej wersji — re-invoke grafu przy **zapisie treści** wyniku (persist = Runs).
 
 ### Zatwierdzony stack (obszar)
 

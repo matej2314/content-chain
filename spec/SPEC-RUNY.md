@@ -1,7 +1,7 @@
 ---
-wersja: 14
+wersja: 17
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-05
+data_modyfikacji: 2026-09-12
 ---
 
 # SPEC — Runy / logi
@@ -24,7 +24,7 @@ Zmiana względem wersji 8: LangGraph pozostaje poza Runs — w Social **i** Cont
 
 | BC | Odpowiedzialność |
 |----|------------------|
-| **Runs** | Utworzenie runu, lista kolekcji, statusy, kolejka slotów, append logów, SSE, recovery, HITL HTTP jako zmiana stanu runu, zapis inicjatora, **ocena gwiazdkowa, flaga edycji outputu, finalize przeglądu**, lista `GET /runs/user/:userId`. Porty: lifecycle, **composite** executor, odczyt wycinka wyniku do snapshotu |
+| **Runs** | Utworzenie runu, lista kolekcji, statusy, kolejka slotów, append logów, SSE, recovery, HITL HTTP jako zmiana stanu runu, zapis inicjatora, **ocena gwiazdkowa, zapis edycji wyniku (`result` + `outputEdited`), finalize przeglądu**, lista `GET /runs/user/:userId`. Porty: lifecycle, **composite** executor, odczyt wycinka wyniku do snapshotu |
 | **Social** | Węzły pipeline’u post/reel; woła **port** lifecycle Runs; wynik we własnym store |
 | **Content** | Węzły pipeline’u page; woła **port** lifecycle Runs; wynik we własnym store (`SPEC-CONTENT.md`) |
 | **Feedback** | Opinie tekstowe — nie statusy runu |
@@ -57,17 +57,18 @@ R-1. W domain istnieje polityka przejść statusów (dozwolone krawędzie + egze
 
 R-2. `run.log` jest **append-only** w DB (brak edycji / usuwania wpisów historii w MVP). Pola wpisu zgodne z `docs/observability.md`: m.in. `runId`, `conversationId` (po starcie), `at`, `level`, `message`, `step?`, `requestId?`.
 
-R-3. Live postęp wyłącznie przez SSE (`SPEC-KOMUNIKACJA.md`). GET run / logs = snapshot. Zakaz pollingu statusu jako kanału live.
+R-3. Live postęp **konkretnego** runu wyłącznie przez SSE (`SPEC-KOMUNIKACJA.md`). GET run / logs = snapshot. Zakaz pollingu statusu jako kanału live. GET listingu (w tym archiwum UI co 15 min) **nie** jest kanałem live.
 
 R-3a. `GET /api/v1/runs` — lista **całej instancji** (nie tylko bieżącego użytkownika), zgodnie z `docs/dokumentacja_komunikacji.md`:
 
 - sortowanie: `createdAt` malejąco;
 - paginacja: stałe **`pageSize = 10`** (klient nie nadpisuje limitu), query `page` (default 1);
-- filtry opcjonalne: `status`, `taskType` (w tym `reel_*` i `page_*`), `platform` (`SocialPlatform` **lub** `web`), `userId` (inicjator);
+- filtry opcjonalne: `status` (**jeden** `RunStatus` **albo** lista unikalnych wartości rozdzielona przecinkiem; archiwum dashboardu: `completed,failed`; brak parametru = wszystkie), `taskType` (w tym `reel_*` i `page_*`), `platform` (`SocialPlatform` **lub** `web`), `userId` (inicjator);
 - pozycja listy: `runId`, `taskType`, `platform`, `contentKind` (nullable), `language`, `status`, `createdAt`, `startedBy: { id, email }`;
 - odpowiedź zawiera `items`, `page`, `pageSize`, `total`.
+- nieznana wartość w `status` → **400** `VALIDATION_FAILED`.
 
-Zmiana względem wersji 1: wcześniej brak normy listingu kolekcji — obowiązkowe pod dashboard (`docs/ux_dashboard.md`).
+Zmiana względem wersji 16 / R-3a: `status` wyłącznie pojedynczy enum; UI Runy = wszystkie statusy. Od tej wersji lista wielowartościowa; kanon widoku Runy = archiwum terminalne (`docs/ux_dashboard.md`) — API bez filtra nadal zwraca całą instancję (Postman).
 
 R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) **oraz** `conversationId`, `brief` (kształt zapisany: `SocialBrief` albo `ContentBrief` wg `taskType`), `userRating`, `outputEdited`, `reviewFinalizedAt`, wynik addytywny gdy jest (`ideas` / `content` / `contents` / `reelIdeas` / `reelScript` / `reelScripts` / `pageOutline` / `pageDocument`), metadane HITL (`options` wg `taskType`).
 
@@ -102,7 +103,9 @@ Zmiana względem wersji 11: pola wyniku SM/outline bez addytywnych kluczy kontra
 
 Zmiana względem wersji 2: snapshot ma obowiązkowe pola przeglądu (`userRating` zawsze `null` \| `1`…`5`; `outputEdited`; `reviewFinalizedAt`) zgodnie z `docs/dokumentacja_komunikacji.md`.
 
-R-3c. `GET /api/v1/runs/user/:userId` — **wszystkie** runy z `startedBy = :userId`, sort `createdAt` desc, **bez** stałego `pageSize=10`. Pozycja lekka: `runId`, `taskType`, `platform`, `language`, `status`, `createdAt`. `:userId` **musi** równać się id sesji; inaczej **403** `FORBIDDEN` (brak wyjątku admin w MVP).
+R-3c. `GET /api/v1/runs/user/:userId` — **wszystkie** runy z `startedBy = :userId`, sort `createdAt` desc, **bez** stałego `pageSize=10`. Pozycja lekka: `runId`, `taskType`, `platform`, `language`, `status`, `createdAt`. `:userId` **musi** równać się id sesji; inaczej **403** `FORBIDDEN` (brak wyjątku admin w MVP). Konsumenci: select opinii **oraz** lista „Moje runy” na Koncie (live) (`docs/ux_dashboard.md`). Wynik runu — przez `GET /runs/:runId` (widok szczegółów), nie przez ten listing.
+
+Zmiana względem wersji 15 / R-3c: endpoint był opisany wyłącznie pod select opinii.
 
 Zmiana względem wersji 2 / R-3a: R-3a (dashboard, strona 10) **zostaje**; R-3c to **osobny** endpoint pod select formularza opinii — nie wolno nadpisywać `limit` na `GET /runs`.
 
@@ -144,9 +147,11 @@ R-10. Przegląd runu (po pipeline; **nie** HITL):
 1. `userRating` na runie **zawsze istnieje**: `null` (autor nie zostawił gwiazdek) albo `1`…`5`. Domyślnie `null`.
 2. Ocena, flaga edycji i finalize dozwolone wyłącznie gdy status `completed` **albo** `failed` (w tym przebieg z edycją outputu). Inny status → **409** `RUN_NOT_REVIEWABLE`.
 3. Wyłącznie `startedBy` (sesja). Inna sesja → **403** `FORBIDDEN`.
-4. Do `reviewFinalizedAt === null`: autor może wielokrotnie `PATCH .../rating` (w tym z powrotem na `null`) oraz jednokierunkowo `POST .../output-edited` (`outputEdited: true`; MVP nie kasuje flagi i nie nadpisuje payloadu SM).
+4. Do `reviewFinalizedAt === null`: autor może wielokrotnie `PATCH .../rating` (w tym z powrotem na `null`) oraz wielokrotnie `POST .../output-edited` z body `{ result }` — zapis **zastępuje** kanoniczny wynik runu (klucze `result` właściwe dla `taskType`, kształt jak snapshot) **oraz** stawia `outputEdited: true` (flaga jednokierunkowa). Pipeline / graf **nie** startują. Kardynalność tablic i `sourceIdeaId` / `id` pozycji bez zmian (edycja treści, nie nowy zestaw id). `characterCount` = `body.length` po stronie api.
 5. `POST .../finalize-review` ustawia `reviewFinalizedAt`. Potem `PATCH` oceny i `POST` edycji → **409** `REVIEW_LOCKED`. Ponowne finalize → `REVIEW_LOCKED`.
 6. Finalize przy `userRating: null` jest legalne (świadomy brak gwiazdek).
+
+Zmiana względem wersji 14 / R-10 pkt 4: `POST .../output-edited` tylko stawiało flagę i **nie** nadpisywało payloadu wyniku. Od tej wersji zapis edycji **jest** kanonicznym `result` (`docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`).
 
 ## Norma implementacji
 
@@ -169,7 +174,7 @@ Wolno wydzielić kernel Nest (lifecycle + repo + hub) od HTTP/workera **w tym sa
 | SSE | Nest `@Sse()`; subskrypcja po `runId`; auth jak API; **complete + evikcja** subjectu po `completed`/`failed` (R-4a) |
 | Licznik recovery | Pole / metadane runu (np. `recoveryAttempts`), cap = 3 |
 | Idempotencja HITL | Tylko ze statusu `awaiting_hitl` |
-| Przegląd | `userRating` + `outputEdited` + `reviewFinalizedAt`; lock po finalize |
+| Przegląd | `userRating` + kanoniczny wynik po Edytuj + `outputEdited` + `reviewFinalizedAt`; lock po finalize |
 | Port lifecycle | Token + interfejs `appendLog` + `transition` w `domain/`; graf zależy od portu, nie od klasy `RunLifecycleService` |
 | Port executor | Token `RunExecutorPort` w Runs; **composite** w kleju wpinający Social i Content; **binding w `AppModule` / `registerAsync`** |
 | Odczyt snapshotu `result`/`hitl` | Composite reader; **zakaz** wstrzykiwania store Social/Content do use-case’u Runs przez `imports: [SocialModule]` / `ContentModule` |
@@ -185,6 +190,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Domykać i usuwać subject huba wyłącznie po `completed` / `failed` (R-4a).
 - `startedBy` nullable wyłącznie dla historycznych / pre-auth przebiegów testowych; po domknięciu auth na api nowe runy zawsze z inicjatorem.
 - Trzymać `userRating: null` jako jawny brak oceny (nie pomijać pola w snapshotcie).
+- Zapis edycji wyniku przez `POST .../output-edited` (nadpis store wyniku Social/Content przez porty odczytu/zapisu wyniku — **nie** przez graf).
 - `RunsModule.registerAsync` (lub równoważny klej w `AppModule`) wpinające **composite** `RunExecutorPort` (Social + Content) — bez `forwardRef`.
 - Domyślną (pustą) implementację portu odczytu wyniku w Runs, podmienianą w kleju na composite reader.
 - Trzymać `SocialBrief` / `ContentBrief` w `runs/domain/run.types.ts` (payload Run, nie shared kernel).
@@ -201,17 +207,19 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Mylenia `/metrics` z logami runu.
 - Niedozwolonych skoków statusów.
 - Spawnu procesu per run; always-on worker process w MVP.
-- Limitu współbieżności per-user w v1.
+- Limitu współbieżności **per-user w MVP** (obowiązuje wyłącznie globalny `MAX_CONCURRENT_RUNS` na execute). Refaktor per-user = **V1 — rozbudowa** (`docs/dictionary.md`, `post-mvp-plan.md`) — nie ten SPEC jako zakaz V1.
 - Checkpoinetera LangGraph jako mechanizmu recovery Runs.
 - `running → queued` jako recovery.
 - Startu wszystkich leftover `running` execute ponad `MAX_CONCURRENT_RUNS` (burst recovery).
 - Tworzenia `interrupted` z HTTP (`POST /runs`, HITL).
 - Wycieku sekretów do `run.log`.
-- Listy tylko „moje runy” jako jedynego trybu MVP (norma: cała instancja + filtr `userId`).
+- Listy tylko „moje runy” jako **jedynego** trybu MVP (norma: archiwum instancji `GET /runs` **oraz** `GET /runs/user/:userId`). UI Runy filtruje terminalne; API bez `status` nadal zwraca całą instancję.
 - Zmiennego `pageSize` / dowolnego `limit` z query na `GET /runs` w MVP (stałe 10). `GET /runs/user/:userId` jest **osobnym** wyjątkiem bez tej paginacji — nie mylić z R-3a.
-- Oceny / flagi edycji / finalize na runie obcego `startedBy`.
-- Zmiany `userRating` / `outputEdited` po `reviewFinalizedAt`.
+- Oceny / edycji wyniku / finalize na runie obcego `startedBy`.
+- Zmiany `userRating` / treści wyniku / `outputEdited` po `reviewFinalizedAt`.
 - Mylenia finalize / Edytuj z HITL.
+- Re-invoke grafu Social / Content przy zapisie edycji.
+- Zmiany `sourceIdeaId` albo liczby pozycji tablic wyniku przy Edytuj.
 - Umieszczania opinii tekstowych w tym BC (to `SPEC-FEEDBACK.md`).
 - `forwardRef` między `RunsModule` a modułem grafu (Social / Content / przyszły Mail).
 - Importu `SocialModule` albo `ContentModule` z `RunsModule` jako sposobu na `RUN_EXECUTOR` albo snapshot `result`.
@@ -231,6 +239,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 
 Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz jednego `RunBrief` i `as` na JSON briefu (`docs/dokumentacja_komunikacji.md`).
 Zmiana względem wersji 13 / „Nie wolno”: zakaz `length !== 1` na Social zastąpiony zakazem pustej / duplikat / obcy id; dopisano zakaz aliasu skalar = `contents[0]`.
+Zmiana względem wersji 14 / „Nie wolno”: Edytuj nie mogło nadpisywać `result`; od tej wersji zakaz dotyczy re-invoke grafu oraz zmiany `sourceIdeaId` / kardynalności — persist treści jest w R-10.
 
 ### Zatwierdzony stack (obszar)
 
@@ -244,7 +253,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz `length !== 1` na Social zas
 | `SSE_HEARTBEAT_MS` (env, default `25_000`) — interwał keep-alive SSE | obowiązkowe |
 | In-process worker + `MAX_CONCURRENT_RUNS` (default 3) | obowiązkowe |
 | Recovery: leftover `running` → `interrupted` → claim pod capem; max 3 × `isRetryable` → `failed` | obowiązkowe |
-| Pola przeglądu `userRating` / `outputEdited` / `reviewFinalizedAt` + `GET /runs/user/:userId` | obowiązkowe w **MVP** (fundament zapisu) |
+| Pola przeglądu `userRating` / `outputEdited` / `reviewFinalizedAt` + zapis kanonicznego `result` przy Edytuj + `GET /runs/user/:userId` | obowiązkowe w **MVP** (fundament zapisu) |
 | Osobny worker process / per-user limit / TTL logów | poza MVP |
 | Self-register grafów / `@Global()` na BC grafu jako klej | poza MVP (i zakazane jako obejście cyklu) |
 | Stopień edycji outputu / zmiana oceny po finalize | poza MVP |
@@ -257,7 +266,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz `length !== 1` na Social zas
 - [ ] `GET /runs` zwraca listę instancji z paginacją 10, sortem `createdAt` desc, filtrami i `startedBy`.
 - [ ] `GET /runs/user/:userId` zwraca wszystkie runy sesji; cudzy id → 403.
 - [ ] Snapshot zawiera `userRating` (`null` \| 1–5), `outputEdited`, `reviewFinalizedAt`.
-- [ ] Ocena i Edytuj działają na `completed` i `failed` tylko dla autora; po finalize → `REVIEW_LOCKED`.
+- [ ] Ocena i Edytuj (zapis treści + flaga) działają na `completed` i `failed` tylko dla autora; po finalize → `REVIEW_LOCKED`; GET snapshot po Edytuj zwraca treść użytkownika.
 - [ ] Przy zajętych slotach nowy run jest `queued` i startuje po zwolnieniu slotu (globalny limit, default 3); `interrupted` ma priorytet nad `queued`.
 - [ ] Po restarcie api: `awaiting_hitl` bez zmian; leftover `running` → `interrupted` (claim pod `MAX_CONCURRENT_RUNS`); po 3 przerwanych execute → `failed` z logiem. N leftover przy `MAX=1` → jeden execute naraz, reszta zostaje `interrupted`.
 - [ ] Social / Content nie emitują SSE omijając Runs.

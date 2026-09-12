@@ -25,18 +25,20 @@ Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, 
 | Zaproszenia: create / lista pending / resend / revoke | tak | nie |
 | Soft-delete użytkownika (`DELETE /users/:id`; API; UI MVP bez tego) | tak | nie |
 | Reaktywacja (`PATCH /users/:id`, `{ isActive: true }`; API; UI MVP bez tego) | tak | nie |
-| Bootstrap pierwszego admina | jednorazowy (API + ekran first-run) | — |
+| Bootstrap pierwszego admina | jednorazowy (API + tryb strony głównej / karta logowania) | — |
 
 **403** przy naruszeniu (`FORBIDDEN`). Egzekucja zawsze w `apps/api`, nie tylko w UI.
 
 ## Bootstrap i konta admin
 
-1. **`GET /api/v1/auth/bootstrap-status`** (publiczny) — `{ available }` pod ekran first-run w dashboardzie.
+1. **`GET /api/v1/auth/bootstrap-status`** (publiczny) — `{ available }` pod stronę główną (czy submit karty logowania to bootstrap, czy `POST /auth/login`).
 2. **`POST /api/v1/auth/bootstrap-admin`** działa **wyłącznie**, gdy w DB **nie ma** żadnego użytkownika z `role = admin`. Po sukcesie ustawia sesję cookie (jak login).
 3. Po utworzeniu pierwszego admina endpoint bootstrap jest **trwale niedostępny** (np. **409** `CONFLICT` / **403**); `bootstrap-status.available === false`.
 4. **Twarda blokada:** tworzenie / awans kolejnych użytkowników z `role = admin` jest **zabronione** w MVP (API odrzuca). W systemie jest **co najwyżej jeden** admin — ten z bootstrapu.
 5. Pozostali `user` **zapraszani** przez jedynego admina (tylko email). Konto powstaje wyłącznie przy akceptacji zaproszenia — **nie** przez `POST /users` z hasłem. Zmiana względem: „pozostali użytkownicy tylko z `role = user` (tworzeni przez jedynego admina)”.
-6. **Self-service konta w MVP poza zakresem:** zmiana hasła zalogowanego, zmiana email, usuwanie własnego konta — później. **Wyjątek:** jednorazowe **pierwsze** hasło przy `POST /auth/accept-invite` to onboarding, nie self-service konta. MVP: login / logout / bootstrap / zaproszenia + accept-invite.
+6. **Self-service konta w MVP:** zalogowany może zmienić **własny email** (`PATCH /api/v1/auth/me`, widok Konto). **Poza MVP:** zmiana hasła zalogowanego, usuwanie własnego konta. **Wyjątek:** jednorazowe **pierwsze** hasło przy `POST /auth/accept-invite` to onboarding, nie self-service hasła. MVP: login / logout / bootstrap / zaproszenia + accept-invite + zmiana własnego emaila.
+
+Zmiana względem: „self-service email poza zakresem MVP”.
 7. **`DELETE /api/v1/users/:id`** = soft-delete (dezaktywacja); konto nieaktywne nie loguje się. **Reaktywacja** = **`PATCH /api/v1/users/:id`** z body `{ "isActive": true }` (API; UI nadal poza MVP). `PATCH` **nie** przyjmuje `role` (zakaz awansu do `admin`) ani `isActive: false` (dezaktywacja wyłącznie przez DELETE). Reaktywacja **nie** odtwarza sesji refresh — potem zwykły login.
 
 Zmiana względem wcześniejszego punktu 7 (tylko DELETE / soft-delete): kanał przywrócenia konta w API jest **PATCH**, nie ręczna edycja SQLite.
@@ -66,8 +68,9 @@ Na publicznym `accept-invite` kolizja `User.email` (P2002) → **409** `CONFLICT
 - Oba cookie: `Secure` + sensowny `SameSite` w `production`.
 - SSE i HTTP: ta sama sesja cookie — **zakaz** tokenu w query string; **zakaz** `Authorization: Bearer` jako modelu MVP (FE, Postman = cookie jar).
 - Body login/refresh **nie** zwraca tokenów (tylko `user` / `expiresIn` wg kontraktu API).
-- Probe tożsamości UI: **`GET /api/v1/auth/me`** → `{ id, email, role }` albo **401** (flow: me → przy 401 refresh → me).
+- Probe tożsamości UI: **`GET /api/v1/auth/me`** → `{ id, email, role }` albo **401** (flow: me → przy 401 refresh → me). **Każde** wywołanie produktowe FE do API: przy **401** ten sam refresh + jednorazowy retry, potem karta logowania (`SPEC-FRONTEND.md`).
 - Wylogowanie unieważnia refresh w DB i czyści **oba** cookie.
+- **BFF (`apps/frontend`):** przeglądarka mówi wyłącznie z originem Next (ścieżki `/api/v1/...`). Next proxy’uje do `apps/api` (env serwerowe, nie `NEXT_PUBLIC_*`). Cookie sesji są na originie FE — `SameSite=strict` w `production` jest spójne z tym modelem. SSE musi iść przez to samo proxy **bez buforowania** całego strumienia.
 
 Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refresh w cookie”: access także wyłącznie w httpOnly cookie.
 
@@ -107,7 +110,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 ## Poza zakresem MVP
 
 - OAuth / SSO / 2FA  
-- Self-service: zmiana hasła zalogowanego, zmiana email, usuwanie własnego konta (wyjątek: pierwsze hasło na accept-invite — onboarding)  
+- Self-service: zmiana hasła zalogowanego, usuwanie własnego konta (wyjątek: pierwsze hasło na accept-invite — onboarding). **Zmiana własnego emaila jest w MVP** (`PATCH /auth/me`)  
 - Rotacja wielu adminów / recovery „lost admin” (osobna procedura później)  
 - WAF / full pentest report  
 - Szyfrowanie pliku SQLite at-rest (opcjonalnie później)

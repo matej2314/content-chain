@@ -47,21 +47,24 @@ Zmiana względem kanonu „admin zakłada konto `user` emailem i hasłem” (`PO
 | **HITL model B** | Faza ideas kończy **invoke** grafu; stan pauzy (draft, `conversationId`, metadane fazy) kanonicznie w **DB**; `POST .../hitl` startuje **nowy invoke** fazy content. Zakaz checkpoinetera LangGraph jako store pauzy w MVP. Zmiana względem: wcześniejsze hasło HITL bez modelu persistence. |
 | **Full-auto** | Wykonanie tasku jednoetapowego bez wymuszonej pauzy selekcji. |
 | **Self-host** | Uruchomienie we własnej infrastrukturze operatora; licencja MIT. |
-| **First-run** | Stan pustej instancji: `GET /api/v1/auth/bootstrap-status` → `available: true` → jednorazowy `POST .../bootstrap-admin`. Potem endpoint bootstrap trwale niedostępny. |
-| **Agenci aktywni** | Sygnał UX: bramka `complete === true` (można startować runy produktowe: Social i Content). **Nie** oznacza „run w toku” (`running` / `awaiting_hitl` / `interrupted`). Odwrotnie: agenci nieaktywni / zablokowani = kontekst niekompletny. |
+| **First-run** | Stan pustej instancji: `GET /api/v1/auth/bootstrap-status` → `available: true` → jednorazowy `POST .../bootstrap-admin`. W UI **nie** jest osobną stroną — to tryb strony głównej (karta logowania). Potem endpoint bootstrap trwale niedostępny. |
+| **Konto (widok)** | Osobna pozycja sidebara (admin i `user`): zmiana własnego emaila, lista **własnych** runów (**live** dla `running` / `awaiting_hitl` / `interrupted`), **start** runu, opinia tekstowa. **Nie** mylić z widokiem **Runy** (archiwum `completed` \| `failed` instancji, paginacja 10). Wylogowanie jest w **headerze**. Po `POST /runs` użytkownik zostaje na Koncie. |
+| **Runy (widok)** | Archiwum firmy: tylko `completed` \| `failed`, `GET /runs?status=completed,failed`, odświeżanie przy wejściu i co **15 min**. Bez startu i bez SSE. |
+| **Floating box** | Sygnał własnych runów w toku poza widokiem Konto; zwiniecie/rozwinięcie. N× EventSource per `runId` (bez nowego hubu). `queued` poza boxem. |
+| **Agenci aktywni** | Sygnał UX: bramka `complete === true` (można startować runy produktowe: Social i Content). **Nie** oznacza „run w toku”. Odwrotnie: agenci nieaktywni / zablokowani = kontekst niekompletny. |
 | **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, gateway, **SQLite**, logi, SSE, fundament feedbacku, **Social (posty i rolki)** oraz **Content (BC) w podstawowej formie**; w kontrakcie slice’u także typowane `extras`, HITL Social dwuetapowy (min. 1 unikalne id ⊆ draftu, N→N), pola wyniku SM (`cta?`, `characterCount`, `contents[]` / `reelScripts[]`, `sourceIdeaId`) oraz opcjonalne `role` outline — **nie** kolejne workflowy. Zmiana względem: „HITL SM = 1 id” jako kanon slice’u. |
-| **V1 — rozbudowa** | Faza **po MVP**: cutover persistence na **PostgreSQL** + panel odczytu opinii + publikacja na portalach SM + łańcuch audytorów Content + YouTube. **Nie** oznacza „kolejne workflowy / rolki / blog” (te kanały są w MVP). Nie mylić z prefiksem HTTP `/api/v1`. SQLite pozostaje silnikiem MVP **także** po dodaniu Content. |
+| **V1 — rozbudowa** | Faza **po MVP**: cutover persistence na **PostgreSQL** + panel odczytu opinii + publikacja na portalach SM + łańcuch audytorów Content + YouTube + **limit per-user liczby runów w toku** (obowiązkowy refaktor; MVP zostawia wyłącznie globalny `MAX_CONCURRENT_RUNS`) + **i18n UI (next-intl)**. **Nie** oznacza „kolejne workflowy / rolki / blog” (te kanały są w MVP). Nie mylić z prefiksem HTTP `/api/v1`. SQLite pozostaje silnikiem MVP **także** po dodaniu Content. |
 
 ## Role i tenancy
 
 | Pojęcie | Definicja |
 |---------|-----------|
 | **`admin`** | Jedyny administrator (bootstrap); wyłączne prawo edycji kontekstu firmy i zapraszania `user`; może generować treści jak `user`. Norma: `security.md`. |
-| **`user`** | Rola uruchamiająca runy produktowe (Social i Content) i przeglądająca wyniki/logi; bez edycji kontekstu i bez zapraszania. Konto powstaje wyłącznie po akceptacji zaproszenia — nie przez `POST /users` z hasłem. |
+| **`user`** | Rola uruchamiająca runy produktowe (Social i Content) i przeglądająca wyniki/logi; bez edycji kontekstu i bez zapraszania. Konto powstaje wyłącznie po akceptacji zaproszenia — nie przez `POST /users` z hasłem. Widok **Konto** (email, własne runy, start) jest dostępny tak samo jak dla `admin`. |
 | **Jedna firma / instancja** | Brak multi-tenant SaaS: wszyscy użytkownicy instancji dzielą jeden kontekst. |
 | **Bootstrap admin** | Utworzenie pierwszego konta administratora przy starcie self-host (first-run): email + hasło, **bez** maila i bez Invitation. Kontrast: pozostali `user` wyłącznie przez zaproszenie. |
 | **Zaproszenie (Invitation)** | Rekord zaproszenia e-mail na rolę `user` — **nie** jest kontem `User`. Status: `pending` \| `accepted` \| `revoked`. Admin podaje **tylko email**. W DB: hash tokenu (SHA-256), TTL, `purpose = invite` (MVP). Raw token jest w mailu (w `development` także w logu api); **nigdy** w JSON-ie odpowiedzi admina. Wiersz `User` (`role = user`) powstaje dopiero przy akceptacji. Wygaśnięcie: `expiresAt < now` przy walidacji (status **nie** przechodzi sam na „expired” — wygasły wiersz zostaje `pending`). |
-| **Akceptacja zaproszenia** | Publiczny `POST /api/v1/auth/accept-invite` `{ token, password }`: zaproszony ustawia **pierwsze** hasło (polityka z `security.md`). Tworzy `User` (`role = user`) i zużywa token. **Bez** Set-Cookie — potem zwykły `POST /auth/login`. Nie jest bootstrapem, otwartą rejestracją ani self-service konta (zmiana hasła zalogowanego nadal poza MVP). |
+| **Akceptacja zaproszenia** | Publiczny `POST /api/v1/auth/accept-invite` `{ token, password }`: zaproszony ustawia **pierwsze** hasło (polityka z `security.md`). Tworzy `User` (`role = user`) i zużywa token. **Bez** Set-Cookie — potem zwykły `POST /auth/login`. Nie jest bootstrapem, otwartą rejestracją ani zmianą hasła zalogowanego (ta nadal poza MVP). Zmiana własnego emaila po sesji = widok **Konto**. |
 
 ## Architektura i runtime
 
@@ -106,9 +109,9 @@ Zmiana względem kanonu „admin zakłada konto `user` emailem i hasłem” (`PO
 | **Logi procesu (Pino)** | Strukturalne logi stdout `apps/api` (request HTTP, crash, start) przez `nestjs-pino`. **Nie** zamiennik kanonicznych logów runu w DB. |
 | **Hop LLM** | Jedno wywołanie gateway w kroku agenta / refine. Własny `RequestId` z **odpowiedzi** gateway; wspólny `ConversationId` runu. |
 | **Ocena runu** | Pole `userRating` (typ `RunUserRating` \| `null`): zawsze obecne; `null` gdy autor nie zostawił gwiazdek; `1`…`5` gdy zostawił. Po **finalize** niemutowalne. |
-| **Flaga edycji outputu** | `outputEdited`: czy autor użył Edytuj na wyniku agentów (bez stopnia / diff w MVP). |
-| **Edytuj** | Akcja UI po pipeline (`completed` / `failed`): ustawia `outputEdited: true`. **Nie** HITL i **nie** nadpisuje wyniku agentów w DB w MVP. Tylko `startedBy`, dopóki przegląd otwarty. |
-| **Przegląd runu** | Do zatwierdzenia autor może zmieniać gwiazdki i oznaczać edycję; `POST .../finalize-review` zamyka i blokuje dalsze zmiany. |
+| **Flaga edycji outputu** | `outputEdited`: czy autor zapisał edycję wyniku (bez stopnia / diff / historii wersji w MVP). |
+| **Edytuj** | Akcja UI po pipeline (`completed` / `failed`): autor może zmienić treść wyniku; zapis **zastępuje** kanoniczny `result` w DB i stawia `outputEdited: true`. **Nie** HITL i **nie** re-invoke grafu. Tylko `startedBy`, dopóki przegląd otwarty. Wielokrotny zapis do finalize. Zmiana względem: wyłącznie flaga, bez nadpisu wyniku w MVP. |
+| **Przegląd runu** | Do zatwierdzenia autor może zmieniać gwiazdki i zapisywać edycję wyniku; `POST .../finalize-review` zamyka i blokuje dalsze zmiany. |
 | **`reviewFinalizedAt`** | Timestamp zamknięcia przeglądu. `null` = otwarty; po ustawieniu ocena i flaga edycji niemutowalne (`REVIEW_LOCKED`). |
 | **Opinia (Feedback)** | Append-only wpis tekstowy BC Feedback: target `FeedbackTargetType`; metadane `authorId`, `createdAt`; panel odczytu = V1. **Nie** gwiazdki / `outputEdited` / finalize (to Runs). Zmiana względem: wcześniejsze hasło bez rozróżnienia rekordu vs BC vs przegląd. |
 | **`FeedbackTargetType`** | `application` \| `agent` \| `run`. Przy `agent` obowiązkowe `agentKey`; przy `run` obowiązkowe `runId` autora (`startedBy`). Kontrakt MVP w docs/spec; w shared przy implementacji BC Feedback. |
@@ -181,7 +184,7 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 | `RUN_NOT_FOUND` | Nieznany `RunId` (wyłącznie z `DomainException` w BC Runs). |
 | `REVIEW_LOCKED` | Przegląd runu już zatwierdzony — zmiana oceny / flagi edycji niedozwolona. |
 | `RUN_NOT_REVIEWABLE` | Ocena / edycja / finalize **albo** `POST /feedback` z `targetType=run`, gdy run nie jest `completed` ani `failed`. Nie dotyczy opinii o aplikacji / agencie. Finalize **nie** zamienia kolejnego wpisu tekstowego na ten kod (`REVIEW_LOCKED` zostaje przy ocenie / fladze). |
-| `CONFLICT` | Niedozwolone przejście statusu / konflikt stanu (także: drugi `pending` na ten sam email; `User.email` już zajęty przy accept-invite). |
+| `CONFLICT` | Niedozwolone przejście statusu / konflikt stanu (także: drugi `pending` na ten sam email; `User.email` już zajęty przy accept-invite **lub** `PATCH /auth/me`). |
 | `MAIL_DELIVERY_FAILED` | Pad SMTP **po** zapisie zaproszenia (create / resend). HTTP **503**; w `details` wyłącznie `id` zaproszenia (wiersz zostaje `pending`). Nie dotyczy adaptera logującego (`development` / `test`). |
 | `INTERNAL_ERROR` | Błąd nieobsłużony po stronie `apps/api`. |
 

@@ -63,7 +63,7 @@ Wybrane kody domenowe:
 | `RUN_NOT_FOUND` | 404 | Nieznany `runId` |
 | `REVIEW_LOCKED` | 409 | Przegląd runu zatwierdzony — zmiana oceny / flagi edycji zabroniona |
 | `RUN_NOT_REVIEWABLE` | 409 | Ocena / edycja / finalize **albo** `POST /feedback` z `targetType=run`, gdy status inny niż `completed` \| `failed` |
-| `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; `User.email` zajęty przy accept-invite |
+| `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; `User.email` zajęty przy accept-invite **lub** `PATCH /auth/me` |
 | `MAIL_DELIVERY_FAILED` | 503 | Pad SMTP po zapisie zaproszenia (create / resend); w `details` wyłącznie `id` zaproszenia |
 | `INTERNAL_ERROR` | 500 | Błąd nieobsłużony |
 
@@ -85,13 +85,13 @@ Status runu **na żywo** nie jest osobnym pollingiem GET — tylko SSE (oraz wyn
 
 #### `GET /api/v1/auth/bootstrap-status`
 
-Publiczny (bez sesji) sygnał pod ekran first-run self-host.
+Publiczny (bez sesji) sygnał, czy strona główna ma submitować bootstrap zamiast loginu (`docs/ux_dashboard.md`).
 
 **200** — `{ "available": boolean }` — `true`, gdy w DB **nie ma** jeszcze użytkownika `admin` (wolno wywołać bootstrap); `false` po utworzeniu admina.
 
 #### `POST /api/v1/auth/bootstrap-admin`
 
-Jednorazowy bootstrap **pierwszego i jedynego** admina self-host. Działa tylko, gdy w DB nie ma admina — norma: `security.md`. Po sukcesie api ustawia sesję cookie jak przy loginie (ekran first-run w UI).
+Jednorazowy bootstrap **pierwszego i jedynego** admina self-host. Działa tylko, gdy w DB nie ma admina — norma: `security.md`. Po sukcesie api ustawia sesję cookie jak przy loginie. W UI to **ten sam** formularz strony głównej (nie osobny ekran) — `docs/ux_dashboard.md`.
 
 | Pole | Typ | Wymagane |
 |------|-----|----------|
@@ -121,7 +121,7 @@ Odświeżenie sesji na podstawie cookie `cc_refresh`: rotacja refresh + nowe `cc
 
 #### `POST /api/v1/auth/logout`
 
-Unieważnia refresh w DB / czyści cookie **`cc_access`** i **`cc_refresh`**.
+Unieważnia refresh w DB / czyści cookie **`cc_access`** i **`cc_refresh`**. UI: po potwierdzeniu w modalu (`docs/ux_dashboard.md`) klient woła ten endpoint i wraca na `/`.
 
 #### `GET /api/v1/auth/me`
 
@@ -130,7 +130,20 @@ Probe bieżącej sesji na podstawie cookie **`cc_access`** (ta sama sesja co poz
 **200** — `{ "id", "email", "role" }` (wyłącznie te pola).  
 **401** `UNAUTHORIZED` — brak / nieważna sesja access.
 
-**Flow FE (norma produktowa):** po starcie aplikacji → `GET /auth/me`; przy `401` → `POST /auth/refresh`; potem ponownie `GET /auth/me`; przy kolejnym `401` → ekran logowania (albo first-run, gdy `bootstrap-status.available === true`).
+#### `PATCH /api/v1/auth/me`
+
+Zalogowany zmienia **własny** email. Body: `{ "email" }` (`.strict()`). Sesja cookie jak pozostałe chronione trasy. **Nie** mylić z `PATCH /users/:id` (reaktywacja admina).
+
+**200** — `{ "id", "email", "role" }` (nowy email).  
+**400** `VALIDATION_FAILED` — zły kształt / brak email.  
+**401** — brak sesji.  
+**409** `CONFLICT` — `User.email` zajęty (w tym soft-deleted); porównanie **case-sensitive**, jak zaproszenia.
+
+Bez zmiany hasła, roli i `isActive`. Bez maila potwierdzającego w MVP.
+
+Zmiana względem: self-service email poza MVP; brak tej trasy.
+
+**Flow FE (norma produktowa):** po starcie aplikacji → `GET /auth/me`; przy `401` → `POST /auth/refresh`; potem ponownie `GET /auth/me`; przy kolejnym `401` → **strona główna (karta logowania)**. Gdy `bootstrap-status.available === true`, submit tej karty woła bootstrap zamiast loginu. Dashboard tylko po sesji. Przycisk „Zarejestruj się!” na stronie głównej jest nieaktywny w MVP.
 
 #### `POST /api/v1/auth/accept-invite` (publiczny)
 
@@ -204,11 +217,11 @@ Porównanie `email` (**Invitation** i **User**) jest **case-sensitive** — bez 
 | `POST` | `/api/v1/invitations/:id/resend` | Rotacja tokenu (nowy raw, nowy hash, nowy `expiresAt`; stary token nieważny) + ponowny mail. Ten sam `id`. Brak / nie-pending → **404**. Pad SMTP → **503** + to samo `id` w `details`. |
 | `DELETE` | `/api/v1/invitations/:id` | Revoke pending: status `revoked` (token nieważny). **Nie** twardy DELETE wiersza — spójnie z duchem soft-delete usera, ale **osobny** zasób. |
 
-Mail zawiera jednorazowy token (link + ten sam token jako tekst pod Postman). **Nigdy** hasła. TTL zaproszenia: env `INVITE_TTL`, default **7 dni** (ten sam parser co JWT TTL, np. `7d`).
+Mail zawiera jednorazowy token (link + ten sam token jako tekst pod Postman). **Kanon URL w mailu:** `{APP_PUBLIC_URL}/invite/accept?token={raw}` — ta sama ścieżka co publiczny ekran FE (`docs/ux_dashboard.md`). **Nigdy** hasła. TTL zaproszenia: env `INVITE_TTL`, default **7 dni** (ten sam parser co JWT TTL, np. `7d`).
 
 **Weryfikacja MVP bez FE:** Postman (cookie jar admina z kolekcji auth) + token z ciała maila albo z logu api (`development`). Kolejność: login admina → `POST /invitations` → token z logu/maila → request **bez** cookie admina: `POST /auth/accept-invite` → `POST /auth/login` nowym kontem. Negatywy: drugi accept tego tokenu; `user` woła `POST /invitations` → 403; revoke / wygasły token; drugi `POST` przy istniejącym pending (w tym wygasłym) → 409.
 
-**UI dashboard (gdy FE powstanie):** admin podaje **email** (nie hasło) przy zaproszeniu; ekran akceptacji = publiczny formularz pierwszego hasła. Ten wycinek backendu **nie** wymaga implementacji FE — weryfikacja = Postman.
+**UI dashboard (MVP):** admin podaje **email** (nie hasło) przy zaproszeniu; ekran akceptacji = publiczny formularz pierwszego hasła, potem osobne logowanie. Weryfikacja samego API = Postman (poniżej) — **nie** zastępuje ekranów w `ux_dashboard.md`.
 
 ### Company context
 Bramka kompletności: sekcje z dokumentacji koncepcyjnej (tożsamość, oferta, głos SM, CTA/kanały, odbiorca). Opcjonalnie **`extras`** (`CompanyContextExtras`) — poza bramką.
@@ -267,12 +280,16 @@ Lista runów pod dashboard (widok tabeli → klik → szczegóły).
 | Query | Typ | Wymagane | Opis |
 |-------|-----|----------|------|
 | `page` | number | nie (default **1**) | Numer strony (1-based) |
-| `status` | enum statusu runu | nie | Filtr statusu (`RunStatus`, w tym `interrupted`) |
+| `status` | jeden `RunStatus` **albo** lista unikalnych wartości rozdzielona przecinkiem | nie | Filtr statusu. Przykład archiwum dashboardu: `completed,failed`. Pusty / brak parametru = wszystkie statusy. Nieznana wartość → **400** `VALIDATION_FAILED`. Powtórki w liście = zbiór (bez błędu) |
 | `taskType` | enum tasku | nie | Filtr typu tasku |
 | `platform` | `SocialPlatform` **lub** `web` | nie | Filtr kolumny platformy (w tym sentinel `web` dla page_*) |
 | `userId` | string (id użytkownika) | nie | Filtr: kto uruchomił run |
 
 **Paginacja MVP:** stały rozmiar strony **10** (klient **nie** nadpisuje `limit`). Sortowanie: **`createdAt` malejąco** (najnowsze pierwsze).
+
+Dashboard **Runy** (archiwum): FE woła `status=completed,failed` (`docs/ux_dashboard.md`). Listing **bez** filtra statusu nadal zwraca całą instancję (Postman / ops) — to nie jest kanon widoku Runy w UI.
+
+Zmiana względem: `status` wyłącznie jako pojedynczy enum.
 
 **200** — kształt:
 
@@ -311,7 +328,7 @@ Przy chronionej sesji zapisuje **inicjatora** (`startedBy` = bieżący użytkown
 | `contentKind` | `ContentKind` | tak przy page_*; **zakazane** przy Social | |
 | `language` | enum | tak | |
 | `brief` | object | tak | kształt **zależny od `taskType`** (tabele niżej); nie jeden uniwersalny obiekt SM |
-| `selectedIdeaIds` | string[] | nie | `post_content` / start z wyborem SM; **zakazane** przy `page_*` (selekcja outline tylko `POST .../hitl`) |
+| `selectedIdeaIds` | string[] | nie | API: `post_content` / `reel_script` (Postman). **UI startu MVP nie eksponuje** tego pola — selekcja id tylko HITL dwuetapowy (`docs/ux_dashboard.md`). **Zakazane** przy `page_*` (selekcja outline tylko `POST .../hitl`) |
 
 `brief` — **Social** (`taskType` ∈ post_* \| reel_*), `SocialBrief`:
 
@@ -408,7 +425,7 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
 - `platform` — enum SM albo `'web'` (page_*).
 - `brief` — zwracany w **kształcie zapisanym** (unia): `SocialBrief` albo `ContentBrief` wg `taskType`. Snapshot nie spłaszcza obu kształtów do jednego obiektu SM.
 - `userRating` — **zawsze** w JSON: `null` (brak gwiazdek) albo `1`…`5`. Pozytywna wartość tylko gdy autor faktycznie ocenił.
-- `outputEdited` — `true` po użyciu Edytuj (flaga; bez diff w MVP).
+- `outputEdited` — `true` po zapisie Edytuj (treść wyniku została zastąpiona przez autora; bez diff / historii wersji w MVP).
 - `reviewFinalizedAt` — `null` dopóki autor nie zatwierdzi przeglądu; po finalize ISO8601 i pola oceny/edycji niemutowalne.
 - `hitl` — metadane pauzy gdy `awaiting_hitl`; `options` zależne od `taskType` (post ideas / `reelIdeas` / outline); inaczej `null` (w tym przy `interrupted`).
 
@@ -461,7 +478,7 @@ Zmiana względem kanonu Fazy 4.3 (jeden skalar `content` / `reelScript` po HITL 
 
 #### `GET /api/v1/runs/user/:userId`
 
-Lekka lista **wszystkich** runów, których inicjatorem jest `:userId` (filtr `startedBy`). **Bez** paginacji `pageSize=10` (to wyjątek względem listingu dashboardu — pod select formularza opinii). Sort: `createdAt` desc.
+Lekka lista **wszystkich** runów, których inicjatorem jest `:userId` (filtr `startedBy`). **Bez** paginacji `pageSize=10` (wyjątek względem listingu **Runy** / instancji). Konsumenci UI: select formularza opinii **oraz** lista **Moje runy** na widoku Konto (`docs/ux_dashboard.md`). Sort: `createdAt` desc.
 
 **Authz:** `:userId` **musi** być id zalogowanego użytkownika (sesja). Inny id → **403** `FORBIDDEN`. Brak wyjątku dla `admin` w MVP (panel cudzych runów = V1).
 
@@ -480,11 +497,25 @@ Dozwolone wielokrotnie **do** finalize. Status runu: tylko `completed` \| `faile
 
 #### `POST /api/v1/runs/:runId/output-edited`
 
-Autor oznacza, że edytował wynik agentów. Ustawia `outputEdited: true` (jednokierunkowo w MVP). Nie nadpisuje payloadu SM w DB w MVP.
+Zapis edycji wyniku przez **autora** runu (`startedBy`). Body: `{ "result": { … } }` — jeden lub więcej kluczy addytywnego `result` **właściwych dla `taskType` tego runu**, w **tym samym kształcie** co snapshot (`ideas` / `content` / `contents` / `reelIdeas` / `reelScript` / `reelScripts` / `pageOutline` / `pageDocument`).
+
+Skutek:
+
+- Kanoniczny wynik w DB zostaje **zastąpiony** przekazanymi polami (pozostałe klucze `result` bez zmian).
+- `outputEdited: true` (jednokierunkowo). Do finalize autor może zapisać treść **wielokrotnie** (kolejny POST znowu nadpisuje wynik; flaga zostaje `true`).
+- GET snapshot po zapisie zwraca treść użytkownika jako wynik runu.
+- `characterCount` (post content / pozycje `contents[]`): serwer ustawia z `body.length` — nie ufa wartości z klienta.
+- Tożsamość pozycji w tablicach: ta sama kardynalność i te same `sourceIdeaId` / `id` co w zapisanym wyniku; **zakaz** podmiany powiązania na obce id. Klient edytuje pola treści, nie strukturę „nowy zestaw id”.
+- Pipeline / verifier / graf Social i Content **nie** startują.
+- Brak historii wersji w MVP (poprzedni output agentów nie jest osobnym rekordem).
 
 Te same warunki authz / status / lock co ocena.
 
-**200** — `{ "runId", "outputEdited": true }`.
+**200** — `{ "runId", "outputEdited": true }` (odczyt treści = GET snapshot).  
+**400** `VALIDATION_FAILED` — zły kształt, klucze obcego kanału, puste `result`, zmiana `sourceIdeaId` / liczby pozycji.  
+**403** gdy sesja ≠ autor. **409** `REVIEW_LOCKED` po finalize. **409** `RUN_NOT_REVIEWABLE` przy innym statusie niż `completed` \| `failed`.
+
+Zmiana względem: endpoint tylko stawiał flagę i **nie** nadpisywał payloadu wyniku w DB. Od tej wersji zapis edycji **jest** kanonicznym wynikiem (`docs/ux_dashboard.md`).
 
 #### `POST /api/v1/runs/:runId/finalize-review`
 

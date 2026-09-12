@@ -169,8 +169,9 @@ apps/frontend/src/
 └── ...
 ```
 
-- Moduły UI wołają `apps/api` przez HTTP; typy z `@content-chain/shared` (lub równoważny alias workspace). Katalog `modules/` zastępuje wcześniejszą nazwę `features/`.
+- Moduły UI wołają `apps/api` **przez BFF Next** (same-origin `/api/v1`); typy z `@content-chain/shared` (lub równoważny alias workspace). Katalog `modules/` zastępuje wcześniejszą nazwę `features/`.
 - Zakaz: sekrety LLM, bezpośredni dostęp do Prisma/gateway vendorów, kopiowanie reguł bramki / pipeline’u.
+- Zakaz: `NEXT_PUBLIC_API_BASE_URL` jako adresu przeglądarki do api (env `API_BASE_URL` tylko na serwerze Next).
 
 ## `apps/ai-provider-gateway`
 

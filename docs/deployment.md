@@ -21,7 +21,7 @@ Bez osobnego „SaaS multi-tenant cloud” w MVP. Staging opcjonalny później =
 2. Skopiować `.env.example` → `.env` dla `apps/api`, `apps/ai-provider-gateway`, `apps/frontend` (wg implementacji).
 3. Migracje Prisma (api) na SQLite.
 4. Uruchomić procesy: gateway → api → frontend (kolejność: najpierw gateway, potem api zależne od niego).
-5. First-run w UI (`bootstrap-status` → formularz) albo równoważnie `POST /api/v1/auth/bootstrap-admin` przy pustej DB (ops / Postman).
+5. First-run w UI: strona główna (karta logowania) przy `bootstrap-status.available` submituje `POST /api/v1/auth/bootstrap-admin`; równoważnie ten sam endpoint z Postmana przy pustej DB (ops).
 
 Skrypty dokładne (`pnpm dev` / `pnpm --filter …`) doprecyzuje root `package.json` przy implementacji.
 
@@ -36,9 +36,10 @@ Jeden stack:
 | `ai-provider-gateway` | `apps/ai-provider-gateway` | LLM |
 | Volume | np. `api-sqlite` | Plik SQLite (kanoniczna DB) |
 
-- Frontend woła api (URL z env).
+- Publish: UI (np. 3000) jest **publicznym** originem przeglądarki. `apps/api` wołane przez **BFF Next** (sieć compose / wewnętrzny hostname); publikacja portu api na internet **nie** jest wymagana do dashboardu (zostaje przydatna dla Postman / Swagger z sieci ops). Gateway **nie** musi być publiczny.
 - Api woła gateway po sieci compose (wewnętrzny hostname); **`X-Gateway-Key`** tylko w env api/gateway.
-- Publish: UI (np. 3000), api (np. 3001), gateway **nie musi** być publiczny na zewnątrz (tylko sieć wewnętrzna) — rekomendacja production.
+- Front **nie** ustawia `NEXT_PUBLIC_API_BASE_URL` jako adresu, pod który przeglądarka idzie bezpośrednio. Serwer Next: `API_BASE_URL` (wewnętrzny URL api). Przeglądarka: same-origin `/api/v1/...`.
+- Proxy BFF **musi** przekazywać `Cookie` / `Set-Cookie` oraz **strumieniować** SSE (`text/event-stream`) — zakaz zbierania całego response do bufora.
 - `/metrics` api (i opcjonalnie gateway) — scrape z sieci ops / localhost; nie eksponować zbędnie na internet.
 
 ## Konfiguracja i sekrety
@@ -53,7 +54,7 @@ Jeden stack:
 |--------|---------|
 | Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (SQLite), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS`, **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`** |
 | Gateway | klucze providerów, `gateway.config.yaml`, allowlista kluczy, port (szczegóły: `apps/ai-provider-gateway/.env.example`) |
-| Frontend | `NEXT_PUBLIC_API_BASE_URL` (tylko URL api — **bez** sekretów LLM) |
+| Frontend | **`API_BASE_URL`** (tylko proces Next → api; **bez** `NEXT_PUBLIC_*` na ten URL). Przeglądarka nie zna origina api |
 
 Nazwy SMTP / maila są **kanoniczne** (te same w `spec/SPEC-BEZPIECZENSTWO.md` i `.env.example` przy implementacji):
 

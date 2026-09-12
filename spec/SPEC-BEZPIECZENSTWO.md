@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 8
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-07
+data_modyfikacji: 2026-09-12
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -26,9 +26,14 @@ B-2. W repozytorium: **`.env.example`** per aplikacja (`api`, `frontend`, `ai-pr
 
 B-3. Na `apps/api`: **Helmet** (lub równoważny zestaw security headers) włączony od MVP.
 
-B-4. **CORS:** konfigurowalny przez env (dozwolone origin(y) FE + obsługa `credentials` pod cookie). Brak „* + credentials” jako domyślnej konfiguracji production.
+B-4. **CORS:** konfigurowalny przez env (DX / Postman / ewentualny inny origin). Produktowy FE **nie** woła api cross-origin (BFF — B-5a). Brak „* + credentials” jako domyślnej konfiguracji production.
 
-B-5. Cookie sesji: **`cc_access`**, **`cc_refresh`** — httpOnly; w `production`: `Secure` + sensowny `SameSite` (`SPEC-AUTH.md`).
+B-5. Cookie sesji: **`cc_access`**, **`cc_refresh`** — httpOnly; w `production`: `Secure` + `SameSite=strict` (`SPEC-AUTH.md`).
+
+B-5a. **BFF:** przeglądarka wyłącznie origin `apps/frontend` (`/api/v1/...`). Next używa `API_BASE_URL` (nie `NEXT_PUBLIC_*`). Przekaz `Cookie` / `Set-Cookie`; SSE bez pełnego bufora. `docs/deployment.md`, `SPEC-FRONTEND.md` F-2.
+
+Zmiana względem wersji 6 / B-4–B-5: FE wołał api bezpośrednio (`NEXT_PUBLIC_API_BASE_URL`); SameSite „sensowny” bez BFF.
+Zmiana względem wersji 7: „Nie wolno” dopisuje wprost URL api w `NEXT_PUBLIC_*` (B-5a) — wcześniej tylko w B-5a i tabeli env.
 
 B-6. W `production`: `apps/ai-provider-gateway` **nie** jest publikowany do internetu (tylko sieć wewnętrzna compose / równoważna). `GET /metrics` api — scrape z sieci ops / localhost, nie publiczny endpoint internetowy.
 
@@ -36,7 +41,9 @@ B-7. `GET /api/v1/health` może być bez auth do probe — **bez** wrażliwych d
 
 B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, **`SMTP_PASS`**, klucze vendorów, **raw token zaproszenia**) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, treści opinii (`Feedback.body`), labelach Prometheus, stdout procesu w `production`. Dump treści hopu chat na stdout adaptera LLM **wyłącznie** przy `NODE_ENV=development`; w polach tekstowych wartość `GATEWAY_KEY` zastępowana `[REDACTED]`. **Wyjątek `development`:** wolno zalogować URL akceptacji zaproszenia (odpowiednik treści maila). Nie rozluźniać B-8 dla `production`.
 
-**503** `MAIL_DELIVERY_FAILED` **nie** jest wyciekiem sekretu — w `details` wyłącznie `id` zaproszenia (`docs/dokumentacja_komunikacji.md`). **409** `CONFLICT` na publicznym accept-invite przy zajętym `User.email` jest **kanonem** (świadoma enumeracja) — nie luką do „naprawienia” na `401`.
+**503** `MAIL_DELIVERY_FAILED` **nie** jest wyciekiem sekretu — w `details` wyłącznie `id` zaproszenia (`docs/dokumentacja_komunikacji.md`). **409** `CONFLICT` przy zajętym `User.email` na publicznym accept-invite **oraz** na `PATCH /auth/me` jest **kanonem** (świadoma enumeracja) — nie luką do „naprawienia” na `401`.
+
+Zmiana względem wersji 5: enumeracja `409` na zajęty email obejmowała tylko accept-invite.
 
 Zmiana względem wersji 4 / B-8: lista sekretów bez hasła SMTP i raw tokenu zaproszenia; brak normy 503/`details.id` i 409 na accept.
 
@@ -51,7 +58,7 @@ B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/s
 | Obszar | Norma |
 |--------|--------|
 | Konfiguracja | **`@nestjs/config`** w `apps/api` + walidowany obiekt env przy starcie (fail-fast — B-1; pełne egzekwowanie krytycznych env może dojść w Fazie 2 major, deps/ConfigModule wcześniej) |
-| FE | Tylko bezpieczne `NEXT_PUBLIC_*` (np. URL api) |
+| FE | Brak URL-a api w `NEXT_PUBLIC_*`; `API_BASE_URL` tylko serwer Next |
 | Auth transport | Cookie-only MVP — `SPEC-AUTH.md` / `SPEC-FRONTEND.md` |
 | Logi vs metrics | Logi procesu: **Pino** / `nestjs-pino` (stdout); logi runu = DB/SSE; metrics = ops procesu — bez mieszania i bez sekretów (`docs/observability.md`) |
 | Deploy | Compose: volume SQLite, sekrety z env, HTTPS przed FE/api w production; lokalnie api **PORT=3001** (`docs/deployment.md`) |
@@ -75,6 +82,7 @@ B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/s
 - Drugiego `admin` w MVP.
 - `Authorization: Bearer` jako modelu auth MVP.
 - Cichego fallbacku kontekstu z `.md` (`SPEC-PERSISTENCE.md`).
+- URL-a api w `NEXT_PUBLIC_*` (B-5a).
 
 ### Zatwierdzony stack (obszar)
 

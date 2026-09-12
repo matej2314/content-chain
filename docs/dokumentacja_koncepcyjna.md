@@ -36,7 +36,9 @@ Zmiana względem wcześniejszego zapisu „świadomie ograniczony pierwszym slic
 - Persistence: **SQLite wyłącznie w MVP** (port/adapter Prisma) — **także** po dodaniu Content. **PostgreSQL** — obowiązkowe przejście w fazie **V1 — rozbudowa** (ops / skala; **nie** warunek dodania kanału Content). Cutover: nowa historia migracji Prisma + pusta baza (ew. osobny import danych) — `spec/SPEC-PERSISTENCE.md`.
 - Logi runów: pełna czytelność przebiegu.
 - Bramka kompletności kontekstu w DB (patrz niżej) — do spełnienia **każdy** `POST /runs` (Social i Content) jest zablokowany.
-- **Fundament feedbacku (zapis):** tabela opinii tekstowych (aplikacja / agent / run), ocena gwiazdkowa runu (`1–5` albo `null`) oraz flaga edycji outputu — API + DB; kontrolki zapisu na dashboardzie przy majorze FE. **Pełne wprowadzenie** (panel administracyjny, analityka, stopień edycji) — faza **V1 — rozbudowa**. Szczegóły: `ux_dashboard.md`, `dokumentacja_komunikacji.md`.
+- **Fundament feedbacku (zapis):** tabela opinii tekstowych (aplikacja / agent / run), ocena gwiazdkowa runu (`1–5` albo `null`) oraz **zapis edycji wyniku** (nadpis kanonicznego `result` + flaga `outputEdited`) — API + DB; kontrolki na dashboardzie. **Pełne wprowadzenie** (panel administracyjny, analityka, diff / stopień edycji / historia wersji) — faza **V1 — rozbudowa**. Szczegóły: `ux_dashboard.md`, `dokumentacja_komunikacji.md`.
+
+Zmiana względem: fundament edycji = wyłącznie flaga, oryginał agentów bez nadpisu w MVP.
 
 ### Bramka kompletności kontekstu firmy
 
@@ -104,7 +106,7 @@ Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza M
 - Marketingowy traffic / „produkt dla agencji” jako cel MVP.
 - Uznanie samego API bez auth i dashboardu za finalne MVP.
 - Panel administracyjny opinii / średnich ocen / analityki feedbacku (V1 — rozbudowa).
-- Stopień edycji outputu (diff / procent) — poza fundamentem flagi w MVP.
+- Stopień edycji outputu (diff / procent / historia wersji) — poza MVP; **zapis zastępujący** kanoniczny wynik + flaga `outputEdited` **są** w MVP.
 - Zmiana oceny gwiazdkowej po zatwierdzeniu / zamknięciu przeglądu runu.
 
 ## Główne założenia
@@ -126,7 +128,7 @@ Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza M
 - Logi runu są **w pełni czytelne** i pozwalają odtworzyć przebieg.
 - Auth działa w formie docelowej (bootstrap admina + zaproszenia `user`); dashboard umożliwia pracę self-host bez obchodzenia API „na piechotę” jako jedynego UX.
 - Integracja z gateway LLM działa end-to-end dla pipeline’u Social i Content.
-- Fundament feedbacku: opinia tekstowa, ocena runu (`null` albo `1–5`) i flaga edycji outputu **zapisują się w DB** przez API (bez panelu analitycznego w MVP).
+- Fundament feedbacku: opinia tekstowa, ocena runu (`null` albo `1–5`) i **zapis edycji wyniku** (treść + `outputEdited`) **zapisują się w DB** przez API (bez panelu analitycznego i bez diff w MVP).
 
 ## Słownik skrótowy
 

@@ -270,7 +270,7 @@ Szczegóły: `dictionary.md` (hasła `interrupted`, Recovery runu), `SPEC-RUNY.m
 | Nieznany `taskType` w composite (wewnętrznie) | status `failed` + `UNKNOWN_TASK_TYPE` |
 | Crash procesu przy `running` | Boot: `interrupted` (lub `failed` przy capie); claim pod `MAX_CONCURRENT_RUNS`; SSE `run.status` |
 | Ocena / Edytuj / finalize **albo** opinia tekstowa o runie (`POST /feedback` `targetType=run`) gdy nie `completed`/`failed` | **409** `RUN_NOT_REVIEWABLE` |
-| Zmiana oceny lub flagi po finalize | **409** `REVIEW_LOCKED` |
+| Zmiana oceny lub flagi / treści wyniku po finalize | **409** `REVIEW_LOCKED` |
 | Ocena / edycja / opinia o runie obcej osoby | **403** `FORBIDDEN` |
 | `GET /runs/user/:userId` z cudzym id | **403** `FORBIDDEN` |
 
@@ -282,13 +282,13 @@ Po `completed` albo `failed` (także gdy autor edytował output) — **poza graf
 
 ```text
 status completed | failed
-  → autor: gwiazdki 1–5 albo zostaw null; opcjonalnie Edytuj → outputEdited=true
-  → Zamknij/zapisz przegląd → reviewFinalizedAt; dalsze zmiany oceny/flagi zablokowane
+  → autor: gwiazdki 1–5 albo zostaw null; opcjonalnie Edytuj → zapis nowej treści result + outputEdited=true
+  → Zamknij/zapisz przegląd → reviewFinalizedAt; dalsze zmiany oceny / treści wyniku / flagi zablokowane
 ```
 
-Opinia tekstowa (`POST /feedback`) jest niezależna od finalize runu (append; target aplikacja / agent / run — `REVIEW_LOCKED` **nie** dotyczy tekstu). Gdy `targetType = run`, zapis tylko po `completed` \| `failed` (to samo okno co gwiazdki; w toku → **409** `RUN_NOT_REVIEWABLE`). Target `application` / `agent` bez warunku statusu. Katalog agentów = stały enum, nie węzły `LoadContext` / `Persist*` / `Refine*`.
+Zmiana względem wcześniejszego zapisu §8: Edytuj tylko stawiało flagę bez nadpisu `result`. Od tej wersji zapis edycji zastępuje kanoniczny wynik (`dokumentacja_komunikacji.md`). Niezależność opinii tekstowej od finalize zostaje; bramka statusu wyłącznie dla opinii o konkretnym runie.
 
-Zmiana względem wcześniejszego zapisu §8: niezależność od finalize zostaje; dopisano bramkę statusu wyłącznie dla opinii o konkretnym runie.
+Opinia tekstowa (`POST /feedback`) jest niezależna od finalize runu (append; target aplikacja / agent / run — `REVIEW_LOCKED` **nie** dotyczy tekstu). Gdy `targetType = run`, zapis tylko po `completed` \| `failed` (to samo okno co gwiazdki; w toku → **409** `RUN_NOT_REVIEWABLE`). Target `application` / `agent` bez warunku statusu. Katalog agentów = stały enum, nie węzły `LoadContext` / `Persist*` / `Refine*`.
 
 Nie mylić z HITL (wybór pomysłów w trakcie pipeline).
 

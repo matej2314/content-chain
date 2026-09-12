@@ -54,7 +54,7 @@ Wszystkie bounded contexty w `apps/api` stosują ten sam wzorzec warstw (cienki 
 | Auth, Company Context, Runs / Logs, Feedback        | Klasyczne warstwy NestJS: HTTP → use-case → domain / porty → adaptery                                                                            |
 | Social pipeline (posty, rolki, weryfikacja, HITL)   | **Orchestracja / graf** (LangChain/LangGraph) ukryty za application service; stan runu w DB; węzły = kroki pipeline’u, nie logika w controllerze |
 | Content pipeline (outline, page copy, weryfikacja, HITL) | **Orchestracja / graf** jak Social; osobny folder BC; **zakaz** wciągania stron do `social/` |
-| `apps/frontend`                                     | Cienki klient: UI + stan serwerowy z API; App Router z podziałem Server/Client bez przenoszenia domeny do Next                                   |
+| `apps/frontend`                                     | Cienki klient + **BFF**: przeglądarka → same-origin `/api/v1`; Next proxy do `apps/api` (cookie na originie FE). App Router: Server/Client bez domeny SM/Content w Next. SSE przez proxy bez bufora |
 | `apps/ai-provider-gateway`                          | Osobny bounded deployable: wyłącznie warstwa providerów / routingu LLM                                                                           |
 
 ### Poza zakresem styli w MVP
