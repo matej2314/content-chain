@@ -17,7 +17,6 @@ dist/
 *.db
 *.db-journal
 
-.cursor/
 graphify-out/cache/
 graphify-out/2026-*
 

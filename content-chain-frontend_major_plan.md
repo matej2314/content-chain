@@ -7,6 +7,10 @@
 **Źródła:** `docs/` (w tym `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `docs/brand_types.md`, `docs/security.md`, `docs/deployment.md`), `spec/SPEC-*.md` (w tym `SPEC-FRONTEND.md`, `SPEC-AUTH.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-RUNY.md`, `SPEC-FEEDBACK.md`, `SPEC-BEZPIECZENSTWO.md`).  
 **Kolejność priorytetów:** Fazy 1 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Archiwum Runy (Krok 3.5) zakłada backend **10.3**; Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE i BFF **nie** czekają na Fazę 10.
 
+**Język wizualny (skill, nie osobna faza):** powierzchnie UI w `apps/frontend` (karty, chrome, widoki, stany loading/empty/error, prezentacja statusu live) wymagają skilla **`content-chain-product-ui`** (`.cursor/skills/content-chain-product-ui/`). IA, copy, trasy i stack nadal biorą `docs/` + `spec/` — skill nie nadpisuje kanonu. **Visual lock** jest jednorazowy w Fazie 1 (Krok 1.4 + karty wejścia 1.1–1.3); Fazy 2–6 **dziedziczą** tokeny, bez nowej palety na widok. Skill **nie** dotyczy: BFF / `apiFetch` / cookie / rejestru `EventSource` (Krok 1.6 i równoważne w późniejszych krokach), typów kontraktu (Krok 1.5), ani `content-chain-backend_major_plan.md` Faza 10.
+
+**Feature plany:** przy `/create-feature-implementation-plan` na wycinku z powierzchnią UI dołącz ten skill (`@content-chain-product-ui`). HOW i kod w feature planie mają już spełniać lock / dziedziczenie — nie odkładaj smaku na implementację. Kotwicę wskazuj jawnie na **ten** major (nie na backend / Fazę 10).
+
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
 
@@ -16,7 +20,7 @@
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Produktowy start cienkiego klienta na istniejącym szkielecie: BFF (przeglądarka wyłącznie origin FE), probe sesji i wrapper **401 → refresh → jeden retry** na każdym produktowym fetchu, strona główna jako karta logowania (first-run = tryb tego samego formularza), publiczny deep link **`/invite/accept?token=`** (gotowość pod Fazę 6; ten sam kształt co mail), layout zalogowany ze slotami późniejszych widoków, header tożsamości, rejestr `EventSource` (pusty) i slot floating boxa. Typy semantyczne kontraktu z `docs/brand_types.md` na granicach UI. Zgodnie z `docs/ux_dashboard.md`, `docs/deployment.md`, `SPEC-FRONTEND.md` F-1/F-2/F-4a, `SPEC-AUTH.md`, `SPEC-BEZPIECZENSTWO.md` B-5a, `docs/brand_types.md`.
+**Opis:** Produktowy start cienkiego klienta na istniejącym szkielecie: BFF (przeglądarka wyłącznie origin FE), probe sesji i wrapper **401 → refresh → jeden retry** na każdym produktowym fetchu, strona główna jako karta logowania (first-run = tryb tego samego formularza), publiczny deep link **`/invite/accept?token=`** (gotowość pod Fazę 6; ten sam kształt co mail), layout zalogowany ze slotami późniejszych widoków, header tożsamości, rejestr `EventSource` (pusty) i slot floating boxa. Typy semantyczne kontraktu z `docs/brand_types.md` na granicach UI. Zgodnie z `docs/ux_dashboard.md`, `docs/deployment.md`, `SPEC-FRONTEND.md` F-1/F-2/F-4a, `SPEC-AUTH.md`, `SPEC-BEZPIECZENSTWO.md` B-5a, `docs/brand_types.md`. Powierzchnie karty logowania, accept-invite i chrome: **`content-chain-product-ui`** (visual lock w Kroku 1.4). Krok 1.5 i 1.6 bez tego skilla.
 
 **DoD (faza):**
 
@@ -29,12 +33,13 @@
 - Identyfikatory i enumy kontraktu na granicach UI pochodzą ze wspólnego pakietu typów (`docs/brand_types.md`), nie z doraźnych stringów.
 - Język chrome / etykiet: polski; envelope błędów: `code` + `message` **jak z API**; sekrety LLM nie trafiają do klienta.
 - SSE da się później strumieniować przez BFF (bez pełnego bufora odpowiedzi) — szkielet proxy na to gotowy.
+- Tokeny i chrome (karta + layout po sesji) są po visual locku `content-chain-product-ui` — Fazy 2–6 nie dostają drugiej palety ani stock-fioletu shadcn.
 
 ### Krok 1.1 — Sesja i strona główna
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Po starcie / przeładowaniu klient odczytuje tożsamość same-origin. Brak sesji → karta logowania. Udane logowanie → dashboard. Cookie httpOnly na **originie FE** (BFF przekazuje `Set-Cookie`).
+**Opis:** Po starcie / przeładowaniu klient odczytuje tożsamość same-origin. Brak sesji → karta logowania. Udane logowanie → dashboard. Cookie httpOnly na **originie FE** (BFF przekazuje `Set-Cookie`). Wygląd karty (nie probe / cookie): **`content-chain-product-ui`**.
 
 **DoD (krok):**
 
@@ -46,7 +51,7 @@
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Pusta instancja nie dostaje osobnego ekranu bootstrapu. Ten sam formularz strony głównej tworzy pierwszego administratora i sesję jak po loginie.
+**Opis:** Pusta instancja nie dostaje osobnego ekranu bootstrapu. Ten sam formularz strony głównej tworzy pierwszego administratora i sesję jak po loginie. Powierzchnia karty: ten sam lock co 1.1 (`content-chain-product-ui`); bez osobnej estetyki first-run.
 
 **DoD (krok):**
 
@@ -58,7 +63,7 @@
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Ekran spoza dashboardu na **`/invite/accept?token=`** (legalizacja URL z mailera api — bez zmiany ścieżki w mailu). Token z odnośnika → pierwsze hasło → powrót na stronę główną. Gotowość pod Fazę 6; bez budowania listy użytkowników w tej fazie.
+**Opis:** Ekran spoza dashboardu na **`/invite/accept?token=`** (legalizacja URL z mailera api — bez zmiany ścieżki w mailu). Token z odnośnika → pierwsze hasło → powrót na stronę główną. Gotowość pod Fazę 6; bez budowania listy użytkowników w tej fazie. Formularz hasła: **`content-chain-product-ui`** (ten sam język co karta logowania).
 
 **DoD (krok):**
 
@@ -71,7 +76,7 @@
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Chrome dashboardu od razu z miejscami na późniejsze fazy — żeby Fazy 2–6 nie przebudowywały szkieletu. Sidebar = widoki. Header = tożsamość, wyrównanie do prawej.
+**Opis:** Chrome dashboardu od razu z miejscami na późniejsze fazy — żeby Fazy 2–6 nie przebudowywały szkieletu. Sidebar = widoki. Header = tożsamość, wyrównanie do prawej. Tu zapada **visual lock** (`content-chain-product-ui`): tokeny w `globals.css` / shadcn, Geist, stany kontrolek; Fazy 2–6 tylko wypełniają sloty w tym języku.
 
 **DoD (krok):**
 
@@ -93,11 +98,17 @@ Hierarchia tożsamości i modal; zawartość headera do prawej.
 
 Miejsca w chrome na chip kompletności (Faza 2), pusty kontener floating boxa (Faza 3) oraz globalny zapis opinii (Faza 5) — bez pełnej treści tych funkcji w Fazie 1.
 
+#### Podkrok 1.4.4 — Visual lock (`content-chain-product-ui`)
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+Jednorazowe spięcie motywu (akcent, szarości, radius, `--font-sans` → Geist, stany Button/input/modal) zanim Faza 2 wypełni Kontekst. Feature plan tego chrome **dołącza** skill; HOW nie zostawia stock-fioletu shadcn „na później”. Zakaz hero/bento/GSAP i zmiany IA.
+
 ### Krok 1.5 — Kontrakt typów i język UI
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Granice klienta używają typów semantycznych i enumów z dokumentacji brand types. Chrome po polsku; envelope API **bez** mapy tłumaczeń (next-intl = V1).
+**Opis:** Granice klienta używają typów semantycznych i enumów z dokumentacji brand types. Chrome po polsku; envelope API **bez** mapy tłumaczeń (next-intl = V1). Ten krok = kontrakt typów i copy envelope — **bez** `content-chain-product-ui` (smak chrome jest w 1.4).
 
 **DoD (krok):**
 
@@ -109,7 +120,7 @@ Miejsca w chrome na chip kompletności (Faza 2), pusty kontener floating boxa (F
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Next pośredniczy same-origin `/api/v1/...` do `apps/api` (`API_BASE_URL` server-only). Jeden helper klienta: przy **401** → `POST /auth/refresh` → **jednorazowy** retry; kolejny 401 → karta logowania (nie tylko probe startowy). RSC **wolno** czytać chronione dane (cookie na originie FE). Rejestr layoutu: max jedno `EventSource` na `runId` (podłączenie w Fazie 3). Proxy **strumieniuje** SSE — zakaz pełnego bufora body.
+**Opis:** Next pośredniczy same-origin `/api/v1/...` do `apps/api` (`API_BASE_URL` server-only). Jeden helper klienta: przy **401** → `POST /auth/refresh` → **jednorazowy** retry; kolejny 401 → karta logowania (nie tylko probe startowy). RSC **wolno** czytać chronione dane (cookie na originie FE). Rejestr layoutu: max jedno `EventSource` na `runId` (podłączenie w Fazie 3). Proxy **strumieniuje** SSE — zakaz pełnego bufora body. **Bez** `content-chain-product-ui` (transport, nie wygląd).
 
 **DoD (krok):**
 
@@ -130,6 +141,7 @@ Miejsca w chrome na chip kompletności (Faza 2), pusty kontener floating boxa (F
 - Niezalogowany nie widzi dashboardu.
 - Header: login jako przycisk → „Wyloguj się” + modal; zawartość do prawej.
 - Sloty nawigacji i wskaźników nie wymuszają reworku layoutu w Fazach 2–6; brak chipa „w toku” jako kanonu.
+- Visual lock Fazy 1 (`content-chain-product-ui`, Krok 1.4) jest na miejscu; wolno wypełniać widoki bez nowej palety.
 - Typy semantyczne kontraktu są używane na granicach UI.
 - Przeglądarka nie zna URL-a api.
 - Akceptacja przejścia do Fazy 2.
@@ -140,7 +152,7 @@ Miejsca w chrome na chip kompletności (Faza 2), pusty kontener floating boxa (F
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Widok Kontekst firmy: sekcje bramki i opcjonalne extras. Chip „agenci aktywni / nieaktywni” w chrome. Start runów nadal nie jest tematem tej fazy, ale sygnał kompletności musi być gotowy, bo Faza 3 go czyta. Zgodnie z `docs/ux_dashboard.md`, docs kontekstu firmy, `SPEC-FRONTEND.md`.
+**Opis:** Widok Kontekst firmy: sekcje bramki i opcjonalne extras. Chip „agenci aktywni / nieaktywni” w chrome. Start runów nadal nie jest tematem tej fazy, ale sygnał kompletności musi być gotowy, bo Faza 3 go czyta. Zgodnie z `docs/ux_dashboard.md`, docs kontekstu firmy, `SPEC-FRONTEND.md`. Widok i chip: **`content-chain-product-ui`** (dziedziczenie locku Fazy 1, bez nowej palety).
 
 **DoD (faza):**
 
@@ -191,7 +203,7 @@ Miejsca w chrome na chip kompletności (Faza 2), pusty kontener floating boxa (F
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Widok **Konto** = **jedyny** formularz startu + **Moje runy** (wszystkie statusy autora, live). Po `POST /runs` **zostajemy na Koncie**. Szczegóły Run: live status i logi dla **własnego** `running` \| `awaiting_hitl` \| `interrupted` (rejestr SSE z Fazy 1). **Floating box** własnych runów w toku na widokach **innych niż Konto** (zwijany; status + link; nie HITL/wynik). Widok **Runy** = archiwum instancji `completed` \| `failed` (wejście + co **15 min**; bez startu, bez SSE). Na szczegółach **slot** HITL/wyniku (Faza 4) i przeglądu (Faza 5); zakaz `conversationId`. Prefill startu ze **snapshotu** `GET /runs/:runId`. `queued` = wyłącznie GET. Zgodnie z `docs/ux_dashboard.md`, `SPEC-RUNY.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-FRONTEND.md` F-5/F-5a/F-8.
+**Opis:** Widok **Konto** = **jedyny** formularz startu + **Moje runy** (wszystkie statusy autora, live). Po `POST /runs` **zostajemy na Koncie**. Szczegóły Run: live status i logi dla **własnego** `running` \| `awaiting_hitl` \| `interrupted` (rejestr SSE z Fazy 1). **Floating box** własnych runów w toku na widokach **innych niż Konto** (zwijany; status + link; nie HITL/wynik). Widok **Runy** = archiwum instancji `completed` \| `failed` (wejście + co **15 min**; bez startu, bez SSE). Na szczegółach **slot** HITL/wyniku (Faza 4) i przeglądu (Faza 5); zakaz `conversationId`. Prefill startu ze **snapshotu** `GET /runs/:runId`. `queued` = wyłącznie GET. Zgodnie z `docs/ux_dashboard.md`, `SPEC-RUNY.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-FRONTEND.md` F-5/F-5a/F-8. Powierzchnie (formularz, listy, box, prezentacja statusu — w tym `interrupted` ≠ `running`): **`content-chain-product-ui`**. Rejestr `EventSource` / BFF SSE: bez tego skilla.
 
 **Zależność api (tylko archiwum):** `content-chain-backend_major_plan.md`, Faza 10 / Krok **10.3** (`NIE_ROZPOCZĘTY`) — `GET /runs?status=completed,failed`. Kroki 3.1–3.4 **nie** czekają na Fazę 10.
 
@@ -235,7 +247,7 @@ Miejsca w chrome na chip kompletności (Faza 2), pusty kontener floating boxa (F
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Podstrona po `runId`: meta, status, logi. Slot na HITL/wynik (Faza 4) i na przegląd (Faza 5). EventSource tylko gdy run **własny** i `running` \| `awaiting_hitl` \| `interrupted` — przez rejestr layoutu (jedno połączenie na id). Archiwum terminalne: wyłącznie GET.
+**Opis:** Podstrona po `runId`: meta, status, logi. Slot na HITL/wynik (Faza 4) i na przegląd (Faza 5). EventSource tylko gdy run **własny** i `running` \| `awaiting_hitl` \| `interrupted` — przez rejestr layoutu (jedno połączenie na id). Archiwum terminalne: wyłącznie GET. Wygląd statusu/logów: **`content-chain-product-ui`**. Cykl `EventSource`: bez tego skilla.
 
 **DoD (krok):**
 
@@ -295,7 +307,7 @@ Miejsca w chrome na chip kompletności (Faza 2), pusty kontener floating boxa (F
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Na widoku szczegółów: pauza HITL (Social: wielokrotny wybór z listy; Content: akceptacja outline) oraz prezentacja wyniku po zakończeniu (listy vs skalar wg typu tasku). Zgodnie z `docs/ux_dashboard.md`, `SPEC-SOCIAL.md`, `SPEC-CONTENT.md`, `SPEC-FRONTEND.md`.
+**Opis:** Na widoku szczegółów: pauza HITL (Social: wielokrotny wybór z listy; Content: akceptacja outline) oraz prezentacja wyniku po zakończeniu (listy vs skalar wg typu tasku). Zgodnie z `docs/ux_dashboard.md`, `SPEC-SOCIAL.md`, `SPEC-CONTENT.md`, `SPEC-FRONTEND.md`. Panel i wynik: **`content-chain-product-ui`** (dziedziczenie locku).
 
 **DoD (faza):**
 
@@ -355,7 +367,7 @@ Miejsca w chrome na chip kompletności (Faza 2), pusty kontener floating boxa (F
 1. Zapis edycji wyniku przyjmuje treść wyniku i **zastępuje** kanoniczny artefakt oraz stawia flagę edycji — pipeline / verifier **nie** startują ponownie. Dotychczasowa semantyka „tylko flaga” nie obowiązuje.
 2. Zmiana własnego adresu e-mail jest kontraktem sesji zalogowanego (zajęty adres = konflikt). Nie idzie przez aktualizację cudzego konta przez admina.
 
-Zgodnie z `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md`, `SPEC-FEEDBACK.md`, `SPEC-AUTH.md`, `SPEC-FRONTEND.md`.
+Zgodnie z `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md`, `SPEC-FEEDBACK.md`, `SPEC-AUTH.md`, `SPEC-FRONTEND.md`. Powierzchnie przeglądu, opinii i formularza email: **`content-chain-product-ui`**. Kontrakt 10.1 / 10.2: bez tego skilla.
 
 **DoD (faza):**
 
@@ -433,7 +445,7 @@ Zapis jak globalny CTA; CTA layoutu pozostaje.
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Widok Użytkownicy (tylko admin): lista kont, zaproszenie samym emailem, pending (w tym wygasłe), resend / revoke. Spójność z deep linkiem **`/invite/accept?token=`** z Fazy 1. Sidebar ukrywa Użytkowników przed `user`. Brak sekretów w kliencie. Zgodnie z `docs/ux_dashboard.md`, `SPEC-AUTH.md`, `SPEC-FRONTEND.md`, `docs/security.md`.
+**Opis:** Widok Użytkownicy (tylko admin): lista kont, zaproszenie samym emailem, pending (w tym wygasłe), resend / revoke. Spójność z deep linkiem **`/invite/accept?token=`** z Fazy 1. Sidebar ukrywa Użytkowników przed `user`. Brak sekretów w kliencie. Zgodnie z `docs/ux_dashboard.md`, `SPEC-AUTH.md`, `SPEC-FRONTEND.md`, `docs/security.md`. Widok admina: **`content-chain-product-ui`** (ten sam lock; ekran accept zostaje z Fazy 1).
 
 **DoD (faza):**
 
@@ -490,5 +502,6 @@ Zapis jak globalny CTA; CTA layoutu pozostaje.
 - Faza 6 spełnia swoje DoD (lub `WYKONANY`).
 - Fazy 1–6 mają status `WYKONANY` albo równoważnie spełnione obowiązkowe DoD.
 - Wejście, BFF, header (login → wylogowanie, zawartość do prawej), sidebar, Kontekst, Konto (start / Moje runy / email / opinia), Runy (archiwum), szczegóły (live / HITL / wynik / przegląd), floating box, Użytkownicy (admin) i zapis opinii są obserwowalne w produkcie.
+- Język wizualny od Fazy 1 przez Fazę 6 jest jednym lockiem (`content-chain-product-ui`); brak drugiej palety i brak landingowych wzorców.
 - Świadomie poza tym majorem pozostaje to, co zapisano na wstępie (m.in. panel odczytu opinii, hasło zalogowanego, testy FE, next-intl, limit per-user). Zmiany api pod ten major: `content-chain-backend_major_plan.md`, Faza 10 (10.1 / 10.2 / 10.3).
 - Akceptacja zamknięcia majoru frontendowego.
