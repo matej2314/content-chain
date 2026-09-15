@@ -3220,5 +3220,17 @@
     "seen": 1789403048.3044875,
     "ast_hash": "52a6f436c5d6efc941be363de8452b15",
     "semantic_hash": "52a6f436c5d6efc941be363de8452b15"
+  },
+  "apps/frontend/src/modules/auth/api/session.types.ts": {
+    "mtime": 1789468076.2968016,
+    "seen": 1789468091.511165,
+    "ast_hash": "0fc1e9c0faca22f6699a6a8cb980c078",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/shared/api/envelope.ts": {
+    "mtime": 1789468076.2850225,
+    "seen": 1789468091.5111694,
+    "ast_hash": "be16c9ba523bcd2a1b7c8b91121fe6b3",
+    "semantic_hash": ""
   }
 }

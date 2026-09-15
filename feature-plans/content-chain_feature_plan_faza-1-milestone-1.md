@@ -38,7 +38,7 @@ Kolejność `KROK` w tym pliku **≠** numeracja major 1.1 → 1.6 (pass rozwojo
 
 ### KROK 1 — Kontrakt typów FE i envelope
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Granice UI używają `UserId` / `UserRole` i envelope `{ code, message }` jak z API. Major 1.5; `docs/brand_types.md`; `SPEC-FRONTEND.md` F-3 / F-7; `SPEC-KOMUNIKACJA.md` K-1.
 
@@ -153,7 +153,7 @@ export function parseAuthUserWrapper(value: unknown): SessionUser {
 
 ### KROK 2 — Env, BFF, `apiFetch`, szkielet proxy SSE
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Przeglądarka woła wyłącznie same-origin `/api/v1/...`. 401 → `POST /auth/refresh` → jednorazowy retry. SSE proxy bez pełnego bufora body. Major 1.6 (transport); `SPEC-FRONTEND.md` F-2 / F-4a; `SPEC-BEZPIECZENSTWO.md` B-5a; `docs/deployment.md`. **Bez** `content-chain-product-ui`.
 
@@ -336,14 +336,17 @@ function toApiError(status: number, body: unknown): ApiError {
 
 async function refreshSession(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight;
-  refreshInFlight = (async () => {
+
+  const runRefresh = async (): Promise<boolean> => {
     const response = await fetch('/api/v1/auth/refresh', {
       method: 'POST',
       credentials: 'same-origin',
       cache: 'no-store',
     });
     return response.ok;
-  })().finally(() => {
+  };
+
+  refreshInFlight = runRefresh().finally(() => {
     refreshInFlight = null;
   });
   return refreshInFlight;
@@ -405,12 +408,12 @@ export type Credentials = {
 export async function fetchBootstrapStatus(): Promise<boolean> {
   const body = await apiFetch('/auth/bootstrap-status', { skipAuthRefresh: true });
   if (!isRecord(body) || typeof body.available !== 'boolean') {
-    throw new Error('Invalid bootstrap-status payload');
+    throw new Error('Invalid bootstraap status payload');
   }
   return body.available;
 }
 
-export async function fetchSessionUser(): Promise<SessionUser> {
+export async function fetchUserSession(): Promise<SessionUser> {
   const body = await apiFetch('/auth/me');
   return parseSessionUser(body);
 }
@@ -831,7 +834,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { ApiError } from '@/shared/api/envelope';
 import { setApiFetchUnauthorizedHandler } from '@/shared/api/api-fetch';
-import { fetchSessionUser } from '@/modules/auth/api/auth.api';
+import { fetchUserSession } from '@/modules/auth/api/auth.api';
 import type { SessionUser } from '@/modules/auth/api/session.types';
 
 export type SessionState =
@@ -871,7 +874,7 @@ export function SessionProvider({ children }: { readonly children: ReactNode }) 
     let cancelled = false;
     void (async () => {
       try {
-        const user = await fetchSessionUser();
+        const user = await fetchUserSession();
         if (!cancelled) setState({ status: 'authenticated', user });
       } catch (reason: unknown) {
         if (cancelled) return;
