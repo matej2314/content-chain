@@ -3330,15 +3330,33 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/login-card.tsx": {
-    "mtime": 1789477330.5835261,
-    "seen": 1789477472.7095914,
-    "ast_hash": "a8beef6fb54c33f53f6744d58807904b",
+    "mtime": 1789479332.9901524,
+    "seen": 1789479360.6435554,
+    "ast_hash": "8c949bb6e76b5268d1c8f7aabbff6d86",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/session-provider.tsx": {
     "mtime": 1789477321.1053076,
     "seen": 1789477472.7095933,
     "ast_hash": "8560e694e2e2db7746e4d04b819b09c2",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/app/invite/accept/page.tsx": {
+    "mtime": 1789480099.044857,
+    "seen": 1789480130.2236812,
+    "ast_hash": "8fc268a91e7a38a1df5e392d44e2e4d7",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/auth/components/accept-invite-form.tsx": {
+    "mtime": 1789480094.8765154,
+    "seen": 1789480130.2236938,
+    "ast_hash": "3552cf0decb2d570bd4f9afa7889711b",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/auth/password-policy.ts": {
+    "mtime": 1789480083.931795,
+    "seen": 1789480130.223702,
+    "ast_hash": "7fff301a90e29dbfcd5aa67783753c47",
     "semantic_hash": ""
   }
 }

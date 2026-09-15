@@ -1100,7 +1100,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
 
 ### KROK 5 — First-run jako tryb tej samej karty
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Pusta instancja nie dostaje osobnej strony. Ten sam formularz submituje `POST /auth/bootstrap-admin`. Major 1.2; `SPEC-AUTH.md` A-1 / A-1a; `SPEC-FRONTEND.md` F-4a.
 
@@ -1251,7 +1251,7 @@ CTA zostaje **„Zaloguj się”** (ten sam widok, nie drugi branding first-run)
 
 ### KROK 6 — Publiczny `/invite/accept?token=`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Deep link jak w mailu. Sukces **nie** otwiera dashboardu. Major 1.3; `SPEC-AUTH.md` A-7b; `SPEC-FRONTEND.md` F-8. Formularz: ten sam lock co karta logowania.
 
