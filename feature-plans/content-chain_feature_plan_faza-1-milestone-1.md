@@ -545,7 +545,7 @@ export default nextConfig;
 
 ### KROK 3 — Visual lock tokenów i prymitywów shadcn
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jednorazowy język wizualny karty i chrome. Major 1.4.4; skill `content-chain-product-ui` (`rules-taste.md`, `rules-states.md`, `rules-anti-tells.md`, `preflight.md`). Fazy 2–6 nie dostają drugiej palety.
 
@@ -803,7 +803,7 @@ export function EnvelopeError({
 
 ### KROK 4 — Probe sesji i karta logowania
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Brak sesji → karta na `/`. Udane `POST /auth/login` → `/account`. Cookie httpOnly na originie FE. Major 1.1; `SPEC-FRONTEND.md` F-4a / F-8; `docs/ux_dashboard.md`. Powierzchnia karty: `content-chain-product-ui`.
 
