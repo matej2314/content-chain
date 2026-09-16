@@ -1,7 +1,10 @@
 import { createUserId, type RunId } from '@content-chain/shared';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
-import type { RunRepository, RunSnapshot } from '../domain/run.port';
-import { makeSocialRun } from '../run-record.test-helpers';
+import type { RunRepository } from '../domain/run.port';
+import {
+  makeSocialSnapshot,
+  type SocialRunSnapshot,
+} from '../run-record.test-helpers';
 import { FinalizeReviewUseCase } from './finalize-review.use-case';
 
 const ACTOR: AuthUserContext = {
@@ -36,18 +39,15 @@ function unusedRepo(overrides: Partial<RunRepository> = {}): RunRepository {
   };
 }
 
-function snapshot(overrides: Partial<RunSnapshot> = {}): RunSnapshot {
-  return {
-    ...makeSocialRun({
-      status: 'completed',
-      startedByUserId: ACTOR.id,
-    }),
+function snapshot(
+  overrides: Partial<SocialRunSnapshot> = {},
+): SocialRunSnapshot {
+  return makeSocialSnapshot({
+    status: 'completed',
+    startedByUserId: ACTOR.id,
     startedBy: { id: ACTOR.id, email: ACTOR.email },
-    userRating: null,
-    outputEdited: false,
-    reviewFinalizedAt: null,
     ...overrides,
-  };
+  });
 }
 
 describe('FinalizeReviewUseCase', () => {

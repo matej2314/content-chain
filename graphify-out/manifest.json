@@ -1782,16 +1782,16 @@
     "semantic_hash": "aeca542d095be645072522d6623a25a4"
   },
   "apps/api/src/runs/runs.controller.ts": {
-    "mtime": 1789142224.0,
-    "seen": 1789403048.3047528,
-    "ast_hash": "5be5e99dc6cb28647123cfdf3df31c48",
-    "semantic_hash": "5be5e99dc6cb28647123cfdf3df31c48"
+    "mtime": 1789558195.2646499,
+    "seen": 1789558462.5201273,
+    "ast_hash": "c4fea9dec82d134fe1bd50a75cfdbf40",
+    "semantic_hash": ""
   },
   "apps/api/src/runs/runs.module.ts": {
-    "mtime": 1789069392.0,
-    "seen": 1789403048.3047552,
-    "ast_hash": "cd9510d25be4de8ee42d14c4614b1253",
-    "semantic_hash": "cd9510d25be4de8ee42d14c4614b1253"
+    "mtime": 1789558195.264697,
+    "seen": 1789558462.5201292,
+    "ast_hash": "dd7253144f362b09ff2a152b085935b1",
+    "semantic_hash": ""
   },
   "apps/api/src/social/social.module.ts": {
     "mtime": 1788614240.0,
@@ -2178,15 +2178,15 @@
     "semantic_hash": ""
   },
   "docs/architektura.md": {
-    "mtime": 1789211018.0,
-    "seen": 1789404214.6347063,
-    "ast_hash": "4b2a9f29dd41b020647226ae924819e1",
+    "mtime": 1789558195.2653391,
+    "seen": 1789558462.520298,
+    "ast_hash": "2da85b4dc4bf85b697562a11efda9c89",
     "semantic_hash": ""
   },
   "docs/architektura_katalogi_pliki.md": {
-    "mtime": 1789211024.0,
-    "seen": 1789404214.6347082,
-    "ast_hash": "842f67affac5fda4a1635b28cc1f6546",
+    "mtime": 1789558195.2654564,
+    "seen": 1789558462.5203001,
+    "ast_hash": "90532cc8b6257ae2be1f29c4cd74b83d",
     "semantic_hash": ""
   },
   "docs/brand_types.md": {
@@ -2220,9 +2220,9 @@
     "semantic_hash": ""
   },
   "docs/dokumentacja_koncepcyjna.md": {
-    "mtime": 1789157174.0,
-    "seen": 1789404214.634718,
-    "ast_hash": "4b83a5431d8ddfe21f03c11fb43cf29d",
+    "mtime": 1789558195.2655585,
+    "seen": 1789558462.5203118,
+    "ast_hash": "683444f2ffe9b467587a4d143107707d",
     "semantic_hash": ""
   },
   "docs/observability.md": {
@@ -2232,16 +2232,16 @@
     "semantic_hash": "59e9459f84805c2b0cfb4f8a1ca3f8cd"
   },
   "docs/security.md": {
-    "mtime": 1789211012.0,
-    "seen": 1789404214.6347213,
-    "ast_hash": "978f3f05ff632a2aa3112c3ef284bbd6",
+    "mtime": 1789558195.2656343,
+    "seen": 1789558462.5203156,
+    "ast_hash": "36c3ad306f68db163732afb7c3cca303",
     "semantic_hash": ""
   },
   "docs/testy.md": {
-    "mtime": 1789063698.0,
-    "seen": 1789404214.6347227,
-    "ast_hash": "e0ba372038d201bd9bd2c01d5f4dde27",
-    "semantic_hash": "e0ba372038d201bd9bd2c01d5f4dde27"
+    "mtime": 1789558195.2656999,
+    "seen": 1789558462.5203176,
+    "ast_hash": "1b96ac07873a70d55e15370adaedc92d",
+    "semantic_hash": ""
   },
   "docs/ux_dashboard.md": {
     "mtime": 1789210994.0,
@@ -2382,10 +2382,10 @@
     "semantic_hash": "210f65fc79a9f769078328287c43c9bb"
   },
   "apps/api/src/social/domain/social-result.port.ts": {
-    "mtime": 1788614240.0,
-    "seen": 1789403048.3048193,
+    "mtime": 1789556254.434955,
+    "seen": 1789556352.9089575,
     "ast_hash": "c4801e14fb6396c426d88a59aa80c437",
-    "semantic_hash": "c4801e14fb6396c426d88a59aa80c437"
+    "semantic_hash": ""
   },
   "apps/api/src/social/domain/social.types.ts": {
     "mtime": 1788614240.0,
@@ -2628,10 +2628,10 @@
     "semantic_hash": "55eced3a65b80b28820fe4e12c46b382"
   },
   "apps/api/src/social/infrastructure/persistence/prisma-social-result.adapter.ts": {
-    "mtime": 1788614240.0,
-    "seen": 1789403048.3048534,
+    "mtime": 1789556255.6983676,
+    "seen": 1789556352.9089916,
     "ast_hash": "4091e2236a7c7853067969f5a6599c0c",
-    "semantic_hash": "4091e2236a7c7853067969f5a6599c0c"
+    "semantic_hash": ""
   },
   "apps/api/src/runs/domain/run-lifecycle.port.ts": {
     "mtime": 1788359196.0,
@@ -2652,10 +2652,10 @@
     "semantic_hash": "7cc50bac7d8eb94b53ad63f4dc392a11"
   },
   "apps/api/src/runs/run-lifecycle.module.ts": {
-    "mtime": 1788359196.0,
-    "seen": 1789403048.3047488,
-    "ast_hash": "cfc8906ae11cdf485a2df6bef0b8016c",
-    "semantic_hash": "cfc8906ae11cdf485a2df6bef0b8016c"
+    "mtime": 1789558195.2643728,
+    "seen": 1789558462.5201232,
+    "ast_hash": "512e420c3b4e8f9ccc520efb62c204fa",
+    "semantic_hash": ""
   },
   "apps/api/src/social/application/social-run.executor.ts": {
     "mtime": 1788386656.0,
@@ -2796,10 +2796,10 @@
     "semantic_hash": "9757913cff621cfbd0249a083bd5ef36"
   },
   "apps/api/src/runs/run-record.test-helpers.ts": {
-    "mtime": 1788386656.0,
-    "seen": 1789403048.3047512,
-    "ast_hash": "8b95cab1e3f0c3ee3a7d14aa01bdd64a",
-    "semantic_hash": "8b95cab1e3f0c3ee3a7d14aa01bdd64a"
+    "mtime": 1789558370.9448361,
+    "seen": 1789558462.5201254,
+    "ast_hash": "26edbe725fddeb48aca4ac07bf8d502f",
+    "semantic_hash": ""
   },
   "apps/api/src/shared/llm/llm-hop.ts": {
     "mtime": 1789133450.0,
@@ -3173,12 +3173,6 @@
     "ast_hash": "31206b552f48e277c85710760593006d",
     "semantic_hash": "31206b552f48e277c85710760593006d"
   },
-  "apps/api/src/runs/application/flag-output-edited.use-case.ts": {
-    "mtime": 1789071434.0,
-    "seen": 1789403048.3046844,
-    "ast_hash": "b30385a373a4130d74b2b5f51a370fa2",
-    "semantic_hash": "b30385a373a4130d74b2b5f51a370fa2"
-  },
   "apps/api/src/runs/application/list-runs-user.use-case.ts": {
     "mtime": 1789055878.0,
     "seen": 1789403048.3046932,
@@ -3330,9 +3324,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/login-card.tsx": {
-    "mtime": 1789479332.9901524,
-    "seen": 1789479360.6435554,
-    "ast_hash": "8c949bb6e76b5268d1c8f7aabbff6d86",
+    "mtime": 1789480692.0239375,
+    "seen": 1789548756.0561514,
+    "ast_hash": "899d4ba714e9e5cd2655c767871d171b",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/session-provider.tsx": {
@@ -3357,6 +3351,30 @@
     "mtime": 1789480083.931795,
     "seen": 1789480130.223702,
     "ast_hash": "7fff301a90e29dbfcd5aa67783753c47",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/application/output-edited-result.schemas.ts": {
+    "mtime": 1789558195.2931452,
+    "seen": 1789558462.5200593,
+    "ast_hash": "6295d46c9e14aa187e748c7f1a57190a",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/application/save-output-edited.use-case.ts": {
+    "mtime": 1789558195.2933507,
+    "seen": 1789558462.5200758,
+    "ast_hash": "c8ba371adc9d3ddcc3d7a996faa39fbc",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/domain/output-edited-writer.port.ts": {
+    "mtime": 1789558195.293423,
+    "seen": 1789558462.5200841,
+    "ast_hash": "e0a28fb77bb453d4e48e7ee2868bb600",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/infrastructure/prisma-output-edited.adapter.ts": {
+    "mtime": 1789558195.293556,
+    "seen": 1789558462.520115,
+    "ast_hash": "557c2a4689e19e6d553d4764b1e09a11",
     "semantic_hash": ""
   }
 }

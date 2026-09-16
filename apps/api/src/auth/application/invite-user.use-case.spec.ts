@@ -7,7 +7,10 @@ import type {
   InvitationRecord,
   InvitationRepository,
 } from '../domain/invitation-repository.port';
-import type { TransactionalMailer } from '../domain/transactional-mailer.port';
+import type {
+  TransactionalMailer,
+  UserInvitedMail,
+} from '../domain/transactional-mailer.port';
 import type {
   UserForAuth,
   UserRepository,
@@ -113,7 +116,9 @@ describe('InviteUserUseCase', () => {
       async (input: CreateInvitationInput): Promise<CreatePendingResult> =>
         echoPending(input),
     );
-    const send = jest.fn(async (): Promise<void> => undefined);
+    const send = jest.fn(
+      async (_message: UserInvitedMail): Promise<void> => undefined,
+    );
     const useCase = new InviteUserUseCase(
       unusedUsers({
         findForAuth: async () => null,
@@ -159,7 +164,9 @@ describe('InviteUserUseCase', () => {
         reason: 'pending-exists',
       }),
     );
-    const send = jest.fn(async (): Promise<void> => undefined);
+    const send = jest.fn(
+      async (_message: UserInvitedMail): Promise<void> => undefined,
+    );
     const useCase = new InviteUserUseCase(
       unusedUsers({
         findForAuth: async () => existing,
@@ -188,7 +195,9 @@ describe('InviteUserUseCase', () => {
         reason: 'pending-exists',
       }),
     );
-    const send = jest.fn(async (): Promise<void> => undefined);
+    const send = jest.fn(
+      async (_message: UserInvitedMail): Promise<void> => undefined,
+    );
     const useCase = new InviteUserUseCase(
       unusedUsers({
         findForAuth: async () => null,
@@ -217,7 +226,9 @@ describe('InviteUserUseCase', () => {
   });
 
   it('rejects a createPending race with CONFLICT', async () => {
-    const send = jest.fn(async (): Promise<void> => undefined);
+    const send = jest.fn(
+      async (_message: UserInvitedMail): Promise<void> => undefined,
+    );
     const useCase = new InviteUserUseCase(
       unusedUsers({
         findForAuth: async () => null,

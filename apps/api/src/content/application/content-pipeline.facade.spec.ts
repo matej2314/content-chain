@@ -95,7 +95,7 @@ function unusedHop(): LlmHopService {
     chatJson: async () => {
       throw new Error('unexpected hop');
     },
-  } as LlmHopService;
+  } as unknown as LlmHopService;
 }
 
 function makeFacade(

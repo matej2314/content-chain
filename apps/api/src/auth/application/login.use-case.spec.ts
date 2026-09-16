@@ -1,5 +1,5 @@
 import { hash as bcryptHash } from 'bcrypt';
-import { JwtService } from '@nestjs/jwt';
+import type { JwtService } from '@nestjs/jwt';
 import { createUserId } from '@content-chain/shared';
 import { validateEnv } from '../../shared/config/env.schema';
 import type { AuthUser } from '../domain/auth-user.types';
@@ -73,7 +73,7 @@ function unusedSessions(
 function makeJwt(): JwtService {
   return {
     signAsync: jest.fn(async () => ACCESS_TOKEN),
-  } as JwtService;
+  } as unknown as JwtService;
 }
 
 function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {

@@ -10,6 +10,7 @@
     "start": "node dist/main",
     "test": "jest",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typecheck:tests": "tsc -p tsconfig.test.json --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
@@ -43,7 +44,7 @@
     "rxjs": "^7.8.0",
     "swagger-ui-express": "^5.0.0",
     "ts-jest": "^29.2.5",
-    "uuid": "^14.0.0",
+    "uuid": "^11.1.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

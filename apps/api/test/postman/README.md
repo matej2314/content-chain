@@ -63,7 +63,7 @@ Cel: żywy HTTP Fazy 6 — przegląd runu (`SPEC-RUNY.md` R-10) i zapis opinii (
 
 1. **Setup** — login admina, `GET /auth/me` (zapis `userId` / syntetyczny `otherUserId` pod R8/R9), PUT kontekstu Acme, completeness `true`. Bez PATCH nieznanego `extras` (to D-20 w Social/Content).
 2. **Fixtures** — dwa `post_ideas` aż `completed` (`completedRunId`, `ratedCompletedRunId`) oraz `post_ideas_then_content` aż `awaiting_hitl` (`inProgressRunId`, zapis `hitlIdeaId`). Status nieterminalny zostaje stabilny pod R6/R7c/E7/E8; wznowienie HITL jest w ostatnim folderze.
-3. **Review** — ocena 4 → `null` → flaga edycji → snapshot pól przeglądu → finalize bez gwiazdek oraz z oceną 5 → `409 REVIEW_LOCKED` na rating / `output-edited` / ponownym finalize → `409 RUN_NOT_REVIEWABLE` na rating / edycji / finalize przy `awaiting_hitl`.
+3. **Review** — ocena 4 → `null` → `POST .../output-edited` z `{ result: { ideas } }` (te same id co fixture) → snapshot: treść = body klienta **oraz** `outputEdited: true` → finalize bez gwiazdek oraz z oceną 5 → `409 REVIEW_LOCKED` na rating / `output-edited` / ponownym finalize → `409 RUN_NOT_REVIEWABLE` na rating / edycji / finalize przy `awaiting_hitl`.
 4. **Feedback** — `201` na zfinalizowanym runie, drugi wpis = nowy `fbk_…` (Fbk-2), `404 RUN_NOT_FOUND`, `409` na runie w toku, `application` / `agent`, `400` na nieznany `agentKey` i zły format `runId`.
 5. **Lista autora** — `GET /runs/user/:userId` (200) i cudze id (403).
 6. **Authz druga sesja** — `POST /auth/logout` admina → rating bez sesji **401**; login `user`; cudzy `completed` → 403 na rating / edycji / finalize / feedback (nie `REVIEW_LOCKED`, nie 404); cudzy `awaiting_hitl` → feedback 403 (Fbk-3a), ocena 409 (R-10); brak runu → 404; lista admina 403; własna lista pusta; `rating: 6` → 400.
@@ -110,7 +110,7 @@ W **Social i Content** Setup jest ten sam:
 | Content | **A. page_copy** | `POST /runs` bez `platform`, z `contentKind: "blog"`, `brief` bez `ideaCount` → poll `completed` → `result.pageDocument.body` + logi |
 | Content | **B. page_outline_then_copy** | poll `awaiting_hitl` → `ideaId` z `hitl.options[0].id` albo `result.pageOutline.id` → HITL `[outline.id]` → poll `completed` + `pageDocument`. Gdy sekcja ma `role`, musi być z zamkniętego enumu (D-18 / D-22) |
 | Review | **Fixtures** | dwa `post_ideas` → `completed`; `post_ideas_then_content` → `awaiting_hitl` (zapis `hitlIdeaId`) |
-| Review | **Review** | R1–R6 (+ R4b/R4c, R5b/R5c, R6b/R6c): rating, `output-edited`, snapshot, finalize, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE` |
+| Review | **Review** | R1–R6 (+ R4b/R4c, R5b/R5c, R6b/R6c): rating, `output-edited` z `{ result }`, snapshot treści, finalize, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE` |
 | Review | **Feedback** | R7–R7g: `POST /feedback` na run (także po finalize + append), 404, 409 w toku, `application` / `agent`, 400 |
 | Review | **Lista autora** | R8/R9: `GET /runs/user/:userId` — sesja 200, cudze id 403 |
 | Review | **Authz druga sesja** | E0 logout admina; E0b rating bez sesji → 401; E1–E13: login `user`; 403 na cudzy `completed`; feedback na cudzy HITL → 403; ocena na cudzy HITL → 409; 404; pusta lista usera; `rating: 6` → 400 |
@@ -138,7 +138,7 @@ Skalar `result.content` / `result.reelScript` na dwuetapowych (`post_ideas_then_
 
 | ID | Co sprawdza | Gdzie |
 |----|-------------|--------|
-| **R-10** | Ocena 1–5 i `null`; flaga `outputEdited`; finalize (także przy `userRating: null`); lock po `reviewFinalizedAt`; `409 RUN_NOT_REVIEWABLE` poza `completed` \| `failed`; cudzy `completed` → 403 | Postman Review R1–R6c + Authz E3–E5 / E8 / E13; snapshot zawsze z `userRating` / `outputEdited` / `reviewFinalizedAt` |
+| **R-10** / **D-12** | Ocena 1–5 i `null`; `POST .../output-edited` z `{ result }` zastępuje kanoniczny wynik i stawia `outputEdited`; GET snapshot zwraca treść po edycji; finalize (także przy `userRating: null`); lock po `reviewFinalizedAt`; `409 RUN_NOT_REVIEWABLE` poza `completed` \| `failed`; cudzy `completed` → 403 | Postman Review R1–R6c + Authz E3–E5 / E8 / E13; snapshot po R3: treść = body klienta + `outputEdited: true` |
 | **Fbk-1 / Fbk-4** | `POST /feedback` `application` i `agent` (whitelist `agentKey`); nieznany klucz → 400 | Postman R7d–R7f |
 | **Fbk-2** | Drugi wpis tego samego autora na ten sam target → nowy wiersz | Postman R7a |
 | **Fbk-3 / Fbk-3a** | Własny `completed` (także po finalize) → 201; brak runu → 404; zły format `runId` → 400; run w toku → 409 `RUN_NOT_REVIEWABLE`; cudzy `completed` → 403 (nie 404); cudzy w toku → 403 (nie 409) | Postman R7 / R7b / R7c / R7g + E6 / E7 / E10 |

@@ -22,7 +22,7 @@ import {
 import { RunLifecycleModule } from './run-lifecycle.module';
 import { RunsController } from './runs.controller';
 import { RateRunUseCase } from './application/rate-run.use-case';
-import { FlagOutputEditedUseCase } from './application/flag-output-edited.use-case';
+import { SaveOutputEditedUseCase } from './application/save-output-edited.use-case';
 import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
 
 export type RunsModuleAsyncOptions = {
@@ -50,7 +50,7 @@ export type RunsModuleAsyncOptions = {
     ListRunsUseCase,
     ListRunsUserUseCase,
     RateRunUseCase,
-    FlagOutputEditedUseCase,
+    SaveOutputEditedUseCase,
     FinalizeReviewUseCase,
   ],
   exports: [RunLifecycleModule],

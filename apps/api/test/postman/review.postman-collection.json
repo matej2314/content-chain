@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "b7e4c1a9-2f6d-4c8b-9a31-5e0d8f4b2c17",
     "name": "Content Chain — Review + feedback (Faza 6)",
-    "description": "Happy path przeglądu runu (R-10) i feedbacku tekstowego (Fbk-1 / Fbk-2 / Fbk-3 / Fbk-3a / Fbk-4): Setup (login admina → cookie `cc_access` / `cc_refresh` → `GET /auth/me` → PUT kontekstu), fixture dwóch `completed` (finalize z `null` oraz z oceną 1–5) + `awaiting_hitl`, potem R1–R9 (+ R4b/R4c, R5b/R5c, R6b/R6c, R7a, R7d–R7g), **Authz druga sesja** (E0 logout admina → E0b 401 → E1–E13), na końcu **Dokończ HITL** (`POST .../hitl` 1 id → `completed`).\n\n`awaiting_hitl` jest stabilnym statusem nieterminalnym pod R6/R6b/R6c/R7c/E7/E8 (ten sam 409 `RUN_NOT_REVIEWABLE` co `running` / `queued` / `interrupted` — bez wyścigu z LLM). HITL wznawiane dopiero po tych negatywach.\n\nWymaga żywego `apps/api` (`:3001`), lokalnego gateway, **istniejącego admina** (`adminEmail` / `adminPassword` — jak `auth.postman-collection.json`) oraz **istniejącego konta `user`** (`userEmail` / `userPassword` — to z `invitations-pipeline.postman-collection.json`). Folder Authz nie startuje runu usera: drugi użytkownik może mieć puste `GET /runs/user/:id`. W Postmanie włącz cookie jar. Kolekcja nie woła gateway — klient uderza wyłącznie w api. Nie dubluje negatywów HITL z Social B.\n\nNie jest to suite `pnpm test:e2e`. Import → Collection Runner: **Setup → Fixtures → Review → Feedback → Lista autora → Authz druga sesja → Dokończ HITL**.",
+    "description": "Happy path przeglądu runu (R-10, w tym POST output-edited z `{ result }`) i feedbacku tekstowego (Fbk-1 / Fbk-2 / Fbk-3 / Fbk-3a / Fbk-4): Setup (login admina → cookie `cc_access` / `cc_refresh` → `GET /auth/me` → PUT kontekstu), fixture dwóch `completed` (finalize z `null` oraz z oceną 1–5) + `awaiting_hitl`, potem R1–R9 (+ R4b/R4c, R5b/R5c, R6b/R6c, R7a, R7d–R7g), **Authz druga sesja** (E0 logout admina → E0b 401 → E1–E13), na końcu **Dokończ HITL** (`POST .../hitl` 1 id → `completed`).\n\n`awaiting_hitl` jest stabilnym statusem nieterminalnym pod R6/R6b/R6c/R7c/E7/E8 (ten sam 409 `RUN_NOT_REVIEWABLE` co `running` / `queued` / `interrupted` — bez wyścigu z LLM). HITL wznawiane dopiero po tych negatywach.\n\nWymaga żywego `apps/api` (`:3001`), lokalnego gateway, **istniejącego admina** (`adminEmail` / `adminPassword` — jak `auth.postman-collection.json`) oraz **istniejącego konta `user`** (`userEmail` / `userPassword` — to z `invitations-pipeline.postman-collection.json`). Folder Authz nie startuje runu usera: drugi użytkownik może mieć puste `GET /runs/user/:id`. W Postmanie włącz cookie jar. Kolekcja nie woła gateway — klient uderza wyłącznie w api. Nie dubluje negatywów HITL z Social B.\n\nNie jest to suite `pnpm test:e2e`. Import → Collection Runner: **Setup → Fixtures → Review → Feedback → Lista autora → Authz druga sesja → Dokończ HITL**.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -76,6 +76,18 @@
     },
     {
       "key": "firstFeedbackId",
+      "value": ""
+    },
+    {
+      "key": "completedIdeasJson",
+      "value": ""
+    },
+    {
+      "key": "editedIdeasJson",
+      "value": ""
+    },
+    {
+      "key": "editedResultBody",
       "value": ""
     }
   ],
@@ -344,6 +356,18 @@
                   "  pm.expect(body.outputEdited).to.eql(false);",
                   "  pm.expect(body.reviewFinalizedAt).to.eql(null);",
                   "});",
+                  "pm.test('result.ideas present for output-edited', function () {",
+                  "  pm.expect(body.result).to.be.an('object');",
+                  "  pm.expect(body.result.ideas).to.be.an('array').that.is.not.empty;",
+                  "  body.result.ideas.forEach(function (idea) {",
+                  "    pm.expect(idea.id).to.be.a('string').that.is.not.empty;",
+                  "    pm.expect(idea.title).to.be.a('string').that.is.not.empty;",
+                  "    pm.expect(idea.angle).to.be.a('string').that.is.not.empty;",
+                  "    pm.expect(idea.hook).to.be.a('string').that.is.not.empty;",
+                  "  });",
+                  "});",
+                  "pm.collectionVariables.set('completedIdeasJson', JSON.stringify(body.result.ideas));",
+                  "",
                   "pm.collectionVariables.set('pollCountCompleted', '0');"
                 ]
               }
@@ -604,7 +628,7 @@
     },
     {
       "name": "Review",
-      "description": "R1–R6: ocena, flaga edycji, snapshot, finalize z `null` (R4) i z oceną 5 (R4b/R4c), lock na rating / output-edited / ponownym finalize (R5/R5b/R5c) i status nieterminalny (R6/R6b/R6c). `completedRunId` / `ratedCompletedRunId` / `inProgressRunId` z Fixtures.",
+      "description": "R1–R6: ocena, zapis edycji wyniku z `{ result }` (te same id co fixture), snapshot treści + `outputEdited`, finalize z `null` (R4) i z oceną 5 (R4b/R4c), lock na rating / output-edited / ponownym finalize (R5/R5b/R5c) i status nieterminalny (R6/R6b/R6c). `completedRunId` / `ratedCompletedRunId` / `inProgressRunId` z Fixtures. R5b/R6b wysyłają poprawny kształt `{ result }`, żeby 409 nie zamienił się w 400.",
       "item": [
         {
           "name": "R1. PATCH rating 4",
@@ -690,6 +714,46 @@
           "name": "R3. POST output-edited",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const raw = pm.collectionVariables.get('completedIdeasJson');",
+                  "let ideas;",
+                  "try {",
+                  "  ideas = JSON.parse(raw || '[]');",
+                  "} catch (error) {",
+                  "  throw new Error('completedIdeasJson is not valid JSON — run Fixtures first');",
+                  "}",
+                  "if (!Array.isArray(ideas) || ideas.length === 0) {",
+                  "  throw new Error('completedIdeasJson is empty — run Fixtures first');",
+                  "}",
+                  "const edited = ideas.map(function (idea, index) {",
+                  "  if (!idea || typeof idea.id !== 'string' || idea.id.length === 0) {",
+                  "    throw new Error('fixture idea is missing id');",
+                  "  }",
+                  "  const next = {",
+                  "    id: idea.id,",
+                  "    title: 'CC-edited-' + (index + 1),",
+                  "    angle: idea.angle,",
+                  "    hook: idea.hook",
+                  "  };",
+                  "  if (typeof idea.cta === 'string' && idea.cta.length > 0) {",
+                  "    next.cta = idea.cta;",
+                  "  }",
+                  "  return next;",
+                  "});",
+                  "pm.collectionVariables.set('editedIdeasJson', JSON.stringify(edited));",
+                  "const payload = JSON.stringify({ result: { ideas: edited } });",
+                  "pm.collectionVariables.set('editedResultBody', payload);",
+                  "pm.request.body.update({",
+                  "  mode: 'raw',",
+                  "  raw: payload",
+                  "});"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
@@ -711,9 +775,18 @@
           ],
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/runs/{{completedRunId}}/output-edited",
-            "description": "200 `{ runId, outputEdited: true }`."
+            "description": "200 `{ runId, outputEdited: true }`. Body `{ result: { ideas: […] } }` — te same `id` co fixture `post_ideas` (`completedIdeasJson`). Prerequest ustawia tytuły `CC-edited-N` i `editedResultBody`. Odczyt treści = kolejny GET snapshot.",
+            "body": {
+              "mode": "raw",
+              "raw": "{{editedResultBody}}"
+            }
           }
         },
         {
@@ -731,11 +804,31 @@
                   "  return;",
                   "}",
                   "const body = pm.response.json();",
+                  "let expected;",
+                  "try {",
+                  "  expected = JSON.parse(pm.collectionVariables.get('editedIdeasJson') || '[]');",
+                  "} catch (error) {",
+                  "  expected = [];",
+                  "}",
                   "pm.test('review fields always present', function () {",
                   "  pm.expect(body).to.include.keys('userRating', 'outputEdited', 'reviewFinalizedAt');",
                   "  pm.expect(body.userRating).to.eql(null);",
                   "  pm.expect(body.outputEdited).to.eql(true);",
                   "  pm.expect(body.reviewFinalizedAt).to.eql(null);",
+                  "});",
+                  "pm.test('snapshot result.ideas matches edited body', function () {",
+                  "  pm.expect(expected, 'editedIdeasJson from R3').to.be.an('array').that.is.not.empty;",
+                  "  pm.expect(body.result.ideas).to.be.an('array').that.has.lengthOf(expected.length);",
+                  "  expected.forEach(function (idea, index) {",
+                  "    const stored = body.result.ideas[index];",
+                  "    pm.expect(stored.id).to.eql(idea.id);",
+                  "    pm.expect(stored.title).to.eql(idea.title);",
+                  "    pm.expect(stored.angle).to.eql(idea.angle);",
+                  "    pm.expect(stored.hook).to.eql(idea.hook);",
+                  "    if (idea.cta !== undefined) {",
+                  "      pm.expect(stored.cta).to.eql(idea.cta);",
+                  "    }",
+                  "  });",
                   "});"
                 ]
               }
@@ -745,7 +838,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/runs/{{completedRunId}}",
-            "description": "DoD: `userRating`, `outputEdited`, `reviewFinalizedAt` zawsze w JSON. Po R2/R3: null / true / null."
+            "description": "DoD D-12: `userRating` / `outputEdited` / `reviewFinalizedAt` zawsze w JSON. Po R2/R3: null / true / null. `result.ideas` = body klienta z R3 (te same id, tytuły `CC-edited-N`)."
           }
         },
         {
@@ -912,9 +1005,18 @@
           ],
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/runs/{{completedRunId}}/output-edited",
-            "description": "Po finalize → 409 `REVIEW_LOCKED` (R-10: lock także na fladze edycji)."
+            "description": "Po finalize → 409 `REVIEW_LOCKED` (R-10: lock także na zapisie edycji). Body ma poprawny kształt `{ result }`, żeby parse nie zwrócił 400 przed lockiem.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"result\": {\n    \"ideas\": [\n      {\n        \"id\": \"idea_placeholder\",\n        \"title\": \"placeholder\",\n        \"angle\": \"placeholder\",\n        \"hook\": \"placeholder\"\n      }\n    ]\n  }\n}\n"
+            }
           }
         },
         {
@@ -1002,9 +1104,18 @@
           ],
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/runs/{{inProgressRunId}}/output-edited",
-            "description": "Ta sama bramka R-10 co R6 — flaga edycji na nieterminalnym runie → 409 `RUN_NOT_REVIEWABLE`."
+            "description": "Ta sama bramka R-10 co R6 — zapis edycji na nieterminalnym runie → 409 `RUN_NOT_REVIEWABLE`. Body ma poprawny kształt `{ result }`, żeby parse nie zwrócił 400 przed statusem.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"result\": {\n    \"ideas\": [\n      {\n        \"id\": \"idea_placeholder\",\n        \"title\": \"placeholder\",\n        \"angle\": \"placeholder\",\n        \"hook\": \"placeholder\"\n      }\n    ]\n  }\n}\n"
+            }
           }
         },
         {
@@ -1661,9 +1772,18 @@
           ],
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/runs/{{completedRunId}}/output-edited",
-            "description": "Cudzy `completed` → 403 `FORBIDDEN` (R-10.3), nie `REVIEW_LOCKED`."
+            "description": "Cudzy `completed` → 403 `FORBIDDEN` (R-10.3), nie `REVIEW_LOCKED`. Body ma poprawny kształt `{ result }`, żeby parse nie zwrócił 400 przed authz.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"result\": {\n    \"ideas\": [\n      {\n        \"id\": \"idea_placeholder\",\n        \"title\": \"placeholder\",\n        \"angle\": \"placeholder\",\n        \"hook\": \"placeholder\"\n      }\n    ]\n  }\n}\n"
+            }
           }
         },
         {

@@ -593,9 +593,18 @@
           "name": "POST output-edited",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"result\": {\n    \"ideas\": [\n      {\n        \"id\": \"{{ideaId}}\",\n        \"title\": \"CC-edited-1\",\n        \"angle\": \"angle\",\n        \"hook\": \"hook\"\n      }\n    ]\n  }\n}\n"
+            },
             "url": "{{baseUrl}}/runs/{{runId}}/output-edited",
-            "description": "200 `{ runId, outputEdited: true }`. Jednokierunkowa flaga — nie nadpisuje payloadu SM. Te same authz / status / lock co ocena."
+            "description": "200 `{ runId, outputEdited: true }`. Body `{ result }` — jeden lub więcej kluczy snapshotu właściwych dla `taskType` (tu przykład `ideas`; te same `id` co w zapisanym wyniku). Zastępuje kanoniczny wynik i stawia `outputEdited`. Odczyt treści = GET snapshot. Te same authz / status / lock co ocena. Puste `result` / obcy kanał / zmiana id → 400 `VALIDATION_FAILED`."
           }
         },
         {

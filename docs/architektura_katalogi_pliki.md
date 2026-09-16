@@ -112,10 +112,10 @@ apps/api/src/content/
 ```text
 apps/api/src/runs/
 ├── runs.module.ts
-├── runs.controller.ts               # status, logi, HITL, lista user/:userId, ocena, flaga edycji, finalize
+├── runs.controller.ts               # status, logi, HITL, lista user/:userId, ocena, zapis edycji wyniku, finalize
 ├── run-record.test-helpers.ts       # unit: makeSocialRun / makeContentRun; nie e2e (`apps/api/test/`)
 ├── application/
-├── domain/                          # statusy runu, polityka przejść, lock przeglądu, porty (executor, lifecycle, odczyt wyniku)
+├── domain/                          # statusy runu, polityka przejść, lock przeglądu, porty (executor, lifecycle, odczyt wyniku, OutputEditedWriter)
 └── infrastructure/
 ```
 

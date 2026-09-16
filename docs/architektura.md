@@ -62,7 +62,7 @@ Wszystkie bounded contexty w `apps/api` stosują ten sam wzorzec warstw (cienki 
 - Mikroserwisy domenowe i event-driven między wieloma serwisami biznesowymi
 - CQRS / Event Sourcing jako styl globalny
 - „Fat” LangGraph / reguły SM albo Content w controllerze lub w gateway
-- Opinie, gwiazdki i flaga edycji outputu wewnątrz grafu Social / Content (to komendy Runs / Feedback po zakończeniu przebiegu)
+- Opinie, gwiazdki i zapis edycji wyniku wewnątrz grafu Social / Content (to komendy Runs / Feedback po zakończeniu przebiegu; Edytuj **nie** re-invoke grafu)
 - Pełna ceremonialna Clean Architecture w `frontend/`
 - **Czyste taktyczne DDD** jako obowiązkowy styl globalny (świadomie odłożone względem MVP)
 
@@ -74,7 +74,7 @@ Wszystkie bounded contexty w `apps/api` stosują ten sam wzorzec warstw (cienki 
 | **Company Context** | Kanoniczny kontekst firmy w DB, bramka kompletności                                  | Do kompletności — start **każdego** `POST /runs` zablokowany |
 | **Social**          | Post ideas/content **oraz** reel ideas/script (LI / FB / IG, PL / EN), weryfikacja spójności z kontekstem | Task jednoetapowy = full-auto; dwuetapowy = HITL przy wyborze z listy; **bez** własnych tras HTTP; **bez** page copy w tym folderze |
 | **Content**         | Copy stron / long-form (`page_copy`, `page_outline_then_copy`; `ContentKind`) w **podstawowej formie** | Graf za fasadą; HITL model B (outline); **bez** własnych tras HTTP; **bez** importu Social i odwrotnie |
-| **Runs / Logs**     | Cykl życia async runu, statusy, czytelne logi powiązane z `runId`                    | DB = źródło prawdy dla logów widocznych w UI; stdout = ops; ocena gwiazdkowa + flaga edycji outputu + zamknięcie przeglądu — metadane runu (nie graf) |
+| **Runs / Logs**     | Cykl życia async runu, statusy, czytelne logi powiązane z `runId`                    | DB = źródło prawdy dla logów widocznych w UI; stdout = ops; ocena gwiazdkowa + zapis edycji wyniku (`result` + `outputEdited`, port `OutputEditedWriter` w jednej transakcji z flagą) + zamknięcie przeglądu — nie graf. Pipeline Social zapisuje tablice `contents` / `reelScripts` przez `clear`+`append` na porcie wyniku Social (nie `replaceContents`) |
 | **Feedback**        | Opinie tekstowe o aplikacji / agencie / runie (append-only)                           | Zapis w DB; odczyt analityczny / panel admina = **V1 — rozbudowa**; nie w LangGraph |
 
 Zmiana względem: „rolki itd. = V1” oraz „jeden executor Social w MVP”. Content wchodzi w **MVP**; klej nadal ręczny (dwa executory w `AppModule` / `registerAsync`); self-register nadal poza MVP. PostgreSQL odpięty od „kolejnych workflowów” — cutover = V1 ops/skala (`spec/SPEC-PERSISTENCE.md`), niezależnie od tego, że Content jest w MVP.
@@ -132,9 +132,9 @@ Pipeline produktowy działa jako **asynchroniczny run**:
 4. Przy tasku dwuetapowym run przechodzi w stan oczekiwania na **HITL** (wybór z listy pomysłów / rolek / outline’u); wznowienie osobnym wywołaniem API.
 5. Task jednoetapowy kończy się bez pauzy selekcji.
 6. Wynik (addytywny snapshot: ideas / content / **contents** / reelIdeas / reelScript / **reelScripts** / pageOutline / pageDocument) i werdykt weryfikacji spójności są zapisane w DB i dostępne przez API / UI.
-7. Po `completed` albo `failed` autor runu (`startedBy`) może: oznaczyć edycję outputu (flaga), ustawić ocenę `1–5` albo zostawić `null`, potem **zatwierdzić / zamknąć przegląd** — od tej chwili ocena i flaga są niemutowalne. Opinia tekstowa (aplikacja / agent / run) jest osobnym zapisem (BC Feedback), niezależnym od grafu.
+7. Po `completed` albo `failed` autor runu (`startedBy`) może: zapisać edycję wyniku (`POST .../output-edited` z `{ result }` — zastępuje kanoniczny wynik **oraz** stawia `outputEdited`), ustawić ocenę `1–5` albo zostawić `null`, potem **zatwierdzić / zamknąć przegląd** — od tej chwili ocena i treść/`outputEdited` są niemutowalne. Opinia tekstowa (aplikacja / agent / run) jest osobnym zapisem (BC Feedback), niezależnym od grafu.
 
-Zmiana względem wcześniejszego zapisu w tym dokumencie: zamiast opierania obserwacji runu na samym pollingu HTTP — **SSE od MVP** (szczegóły kontraktu: `dokumentacja_komunikacji.md`). Dopisano fundament feedbacku (zapis w MVP; panel analityczny = V1 — rozbudowa). Dopisano, że strumień SSE kończy się po evencie terminalnym (wcześniej tylko „live przez SSE”, bez końca połączenia). Snapshot addytywny obejmuje `contents` / `reelScripts` (pusta tablica gdy brak kanału) — nie tylko skalary `content` / `reelScript`.
+Zmiana względem wcześniejszego zapisu w tym dokumencie: zamiast opierania obserwacji runu na samym pollingu HTTP — **SSE od MVP** (szczegóły kontraktu: `dokumentacja_komunikacji.md`). Dopisano fundament feedbacku (zapis w MVP; panel analityczny = V1 — rozbudowa). Dopisano, że strumień SSE kończy się po evencie terminalnym (wcześniej tylko „live przez SSE”, bez końca połączenia). Snapshot addytywny obejmuje `contents` / `reelScripts` (pusta tablica gdy brak kanału) — nie tylko skalary `content` / `reelScript`. **Edytuj:** pkt 7 wcześniej opisywał wyłącznie flagę; od tej wersji `POST .../output-edited` nadpisuje kanoniczny `result` (`dokumentacja_komunikacji.md`). Tablice pipeline Social: `clear`+`append` na porcie wyniku; zapis Edytuj = `OutputEditedWriter` w Runs (nie `replaceContents` / `replaceReelScripts` na `SocialResultStore`).
 
 ## Auth
 

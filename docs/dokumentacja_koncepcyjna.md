@@ -81,7 +81,7 @@ Zakres produktowy MVP obejmuje auth i dashboard od początku koncepcji. Kolejno�
 
 1. **api + gateway + oba pipeline’y (Social posty i rolki + Content podstawowa forma) + SQLite** — DoD pośredni: happy path weryfikowany Postmanem (pre-auth).
 2. **Auth** (admin + użytkownicy).
-3. **Fundament zapisu feedbacku** (opinie, ocena runu, flaga edycji) — API + DB; Postman bez UI.
+3. **Fundament zapisu feedbacku** (opinie, ocena runu, zapis edycji wyniku) — API + DB; Postman bez UI.
 4. **Web / dashboard** — domknięcie self-host UX (w tym kontrolki zapisu opinii / gwiazdek / Edytuj).
 
 Sam wynik Postmana **nie** jest ostatecznym publicznym MVP. Bramka mapowania (oba zespoły agentów + klej na otwartym API) **nie** zastępuje publicznego MVP.
@@ -143,6 +143,6 @@ Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza M
 | HITL | Pauza na wybór użytkownika, gdy kolejny krok zależy od selekcji z listy. Social dwuetapowy: K z N → K artefaktów; Content: akceptacja outline |
 | Gateway | Osobna aplikacja pośrednicząca w wywołaniach LLM |
 | Bramka kontekstu | Programowy warunek kompletności sekcji wymaganych przed **każdym** `POST /runs` |
-| Opinia / ocena runu | Zapis feedbacku użytkownika: tekst (aplikacja, agent, run) oraz gwiazdki `1–5` \| `null` na zakończonym przebiegu; flaga edycji wyniku |
+| Opinia / ocena runu | Zapis feedbacku użytkownika: tekst (aplikacja, agent, run) oraz gwiazdki `1–5` \| `null` na zakończonym przebiegu; zapis edycji wyniku (`result` + `outputEdited`) |
 
 Szczegóły pojęć: `dictionary.md`. Brand types: `brand_types.md`. Komunikacja: `dokumentacja_komunikacji.md`. UI: `ux_dashboard.md`.

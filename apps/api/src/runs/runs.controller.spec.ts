@@ -14,7 +14,7 @@ import { ListRunsUseCase } from './application/list-runs.use-case';
 import { ListRunsUserUseCase } from './application/list-runs-user.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { RateRunUseCase } from './application/rate-run.use-case';
-import { FlagOutputEditedUseCase } from './application/flag-output-edited.use-case';
+import { SaveOutputEditedUseCase } from './application/save-output-edited.use-case';
 import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
 import { RUN_SSE_HUB, type RunSseEvent } from './domain/run-sse.port';
@@ -41,7 +41,7 @@ describe('RunsController', () => {
   let listRunsUser: { execute: jest.Mock };
   let resumeHitl: { execute: jest.Mock };
   let rateRun: { execute: jest.Mock };
-  let flagOutputEdited: { execute: jest.Mock };
+  let saveOutputEdited: { execute: jest.Mock };
   let finalizeReview: { execute: jest.Mock };
   let sse: { subscribe: jest.Mock; publish: jest.Mock; complete: jest.Mock };
 
@@ -53,7 +53,7 @@ describe('RunsController', () => {
     listRunsUser = { execute: jest.fn() };
     resumeHitl = { execute: jest.fn() };
     rateRun = { execute: jest.fn() };
-    flagOutputEdited = { execute: jest.fn() };
+    saveOutputEdited = { execute: jest.fn() };
     finalizeReview = { execute: jest.fn() };
     sse = { subscribe: jest.fn(), publish: jest.fn(), complete: jest.fn() };
 
@@ -67,7 +67,7 @@ describe('RunsController', () => {
         { provide: ListRunsUserUseCase, useValue: listRunsUser },
         { provide: ResumeHitlUseCase, useValue: resumeHitl },
         { provide: RateRunUseCase, useValue: rateRun },
-        { provide: FlagOutputEditedUseCase, useValue: flagOutputEdited },
+        { provide: SaveOutputEditedUseCase, useValue: saveOutputEdited },
         { provide: FinalizeReviewUseCase, useValue: finalizeReview },
         { provide: RUN_SSE_HUB, useValue: sse },
         {
@@ -263,15 +263,22 @@ describe('RunsController', () => {
     expect(rateRun.execute).toHaveBeenCalledWith(runId, body, sessionUser);
   });
 
-  it('delegates POST :runId/output-edited to FlagOutputEditedUseCase', async () => {
+  it('delegates POST :runId/output-edited to SaveOutputEditedUseCase', async () => {
     const runId = newRunId();
-    const flagged = { runId, outputEdited: true };
-    flagOutputEdited.execute.mockResolvedValue(flagged);
+    const body = {
+      result: { content: { body: 'nowy tekst', hashtags: ['#a'] } },
+    };
+    const saved = { runId, outputEdited: true };
+    saveOutputEdited.execute.mockResolvedValue(saved);
 
     await expect(
-      controller.postOutputEdited(runId, sessionUser),
-    ).resolves.toBe(flagged);
-    expect(flagOutputEdited.execute).toHaveBeenCalledWith(runId, sessionUser);
+      controller.postOutputEdited(runId, body, sessionUser),
+    ).resolves.toBe(saved);
+    expect(saveOutputEdited.execute).toHaveBeenCalledWith(
+      runId,
+      body,
+      sessionUser,
+    );
   });
 
   it('delegates POST :runId/finalize-review to FinalizeReviewUseCase', async () => {

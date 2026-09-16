@@ -120,8 +120,8 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(express@5.2.1(supports-color@8.1.1))
       uuid:
-        specifier: ^14.0.0
-        version: 14.0.1
+        specifier: ^11.1.1
+        version: 11.1.1
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -292,8 +292,8 @@ importers:
         specifier: ^29.2.5
         version: 29.4.12(@babel/core@7.29.7(supports-color@8.1.1))(@jest/transform@30.4.1(supports-color@8.1.1))(@jest/types@30.4.1)(babel-jest@30.4.1(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(jest-util@30.4.1)(jest@30.4.2(@types/node@22.20.1)(supports-color@8.1.1))(typescript@5.9.3)
       uuid:
-        specifier: ^14.0.0
-        version: 14.0.1
+        specifier: ^11.1.1
+        version: 11.1.1
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -6508,8 +6508,8 @@ packages:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
 
-  uuid@14.0.1:
-    resolution: {integrity: sha512-6ZxzVpzDXDa3bJWaHilVayA+BH/1zmxCJoVgvmqJnid/gPoKHxUrS/aC/T6LGQtNHT+XHG9fXPJB4d+IrU30Ew==}
+  uuid@11.1.1:
+    resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
     hasBin: true
 
   v8-compile-cache-lib@3.0.1:
@@ -13965,7 +13965,7 @@ snapshots:
 
   utils-merge@1.0.1: {}
 
-  uuid@14.0.1: {}
+  uuid@11.1.1: {}
 
   v8-compile-cache-lib@3.0.1: {}
 

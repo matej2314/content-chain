@@ -1,24 +1,23 @@
 import { createUserId } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
-import { makeSocialRun } from '../run-record.test-helpers';
+import {
+  makeSocialSnapshot,
+  type SocialRunSnapshot,
+} from '../run-record.test-helpers';
 import { assertRunReviewable } from './assert-run-reviewable';
-import type { RunSnapshot } from './run.port';
 
 const ACTOR = createUserId('usr_11111111-1111-4111-8111-111111111111');
 const OTHER = createUserId('usr_22222222-2222-4222-8222-222222222222');
 
-function snapshot(overrides: Partial<RunSnapshot> = {}): RunSnapshot {
-  return {
-    ...makeSocialRun({
-      status: 'completed',
-      startedByUserId: ACTOR,
-    }),
+function snapshot(
+  overrides: Partial<SocialRunSnapshot> = {},
+): SocialRunSnapshot {
+  return makeSocialSnapshot({
+    status: 'completed',
+    startedByUserId: ACTOR,
     startedBy: { id: ACTOR, email: 'user@example.com' },
-    userRating: null,
-    outputEdited: false,
-    reviewFinalizedAt: null,
     ...overrides,
-  };
+  });
 }
 
 function expectDomain(

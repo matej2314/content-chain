@@ -1,5 +1,13 @@
 import { newConversationId, newRunId } from '../shared/http/new-ids';
+import type { RunStartedBy } from './domain/run.port';
 import type { ContentRunRecord, SocialRunRecord } from './domain/run.types';
+
+export type SocialRunSnapshot = SocialRunRecord & {
+  startedBy: RunStartedBy | null;
+  userRating: number | null;
+  outputEdited: boolean;
+  reviewFinalizedAt: Date | null;
+};
 
 export function makeSocialRun(
   overrides: Partial<SocialRunRecord> = {},
@@ -47,6 +55,19 @@ export function makeContentRun(
     copyRefineCount: 0,
     recoveryAttempts: 0,
     createdAt: new Date(),
+    ...overrides,
+  };
+}
+
+export function makeSocialSnapshot(
+  overrides: Partial<SocialRunSnapshot> = {},
+): SocialRunSnapshot {
+  return {
+    ...makeSocialRun(),
+    startedBy: null,
+    userRating: null,
+    outputEdited: false,
+    reviewFinalizedAt: null,
     ...overrides,
   };
 }
