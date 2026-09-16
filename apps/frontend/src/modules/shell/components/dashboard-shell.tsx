@@ -21,8 +21,8 @@ export function DashboardShell({ children }: { readonly children: ReactNode }) {
 
   if (state.status !== 'authenticated') {
     return (
-      <div className="flex min-h-[100dvh]">
-        <Skeleton className="hidden h-[100dvh] w-56 md:block" />
+      <div className="flex min-h-dvh">
+        <Skeleton className="hidden h-dvh w-56 md:block" />
         <div className="flex flex-1 flex-col">
           <Skeleton className="h-12 w-full" />
           <div className="p-4">
@@ -35,7 +35,7 @@ export function DashboardShell({ children }: { readonly children: ReactNode }) {
 
   return (
     <EventSourceRegistryProvider>
-      <div className="flex min-h-[100dvh] bg-background">
+      <div className="flex min-h-dvh bg-background">
         <div className="hidden md:block">
           <AppSidebar role={state.user.role} />
         </div>

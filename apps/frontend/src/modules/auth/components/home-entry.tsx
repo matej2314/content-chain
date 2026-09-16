@@ -18,7 +18,7 @@ export function HomeEntry() {
 
   if (state.status === 'loading' || state.status === 'authenticated') {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-background p-4">
+      <div className="flex min-h-dvh items-center justify-center bg-background p-4">
         <div className="flex w-full max-w-md flex-col gap-3 rounded-lg border bg-card p-6">
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-9 w-full" />
@@ -30,7 +30,7 @@ export function HomeEntry() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background p-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background p-4">
       <LoginCard />
     </div>
   );

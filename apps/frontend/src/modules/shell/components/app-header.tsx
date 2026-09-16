@@ -31,7 +31,7 @@ export function AppHeader({ user }: AppHeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-[var(--z-chrome)] flex h-12 items-center justify-end gap-2 border-b bg-background px-3">
+    <header className="sticky top-0 z-(--z-chrome) flex h-12 items-center justify-end gap-2 border-b bg-background px-3">
       <div className="md:hidden">
         <Sheet>
           <SheetTrigger asChild>

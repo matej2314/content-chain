@@ -17,7 +17,7 @@ export function FloatingBoxSlot() {
   return (
     <div
       data-slot="floating-box"
-      className="pointer-events-none fixed right-4 bottom-4 z-[var(--z-overlay)] w-80 max-w-[calc(100%-2rem)]"
+      className="pointer-events-none fixed right-4 bottom-4 z-(--z-overlay) w-80 max-w-[calc(100%-2rem)]"
     />
   );
 }

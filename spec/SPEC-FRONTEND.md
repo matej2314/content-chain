@@ -1,7 +1,7 @@
 ---
-wersja: 20
+wersja: 21
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-12
+data_modyfikacji: 2026-09-16
 ---
 
 # SPEC — Frontend
@@ -197,7 +197,8 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 
 ## Poza zakresem
 
-- Playwright / testy FE, dark/light jako wymóg.
+- Playwright / testy FE.
+- Motywy jasny / ciemny (**V1 — rozbudowa**, obowiązkowy): oba tryby w produkcie oraz **dynamiczne** przełączanie przez użytkownika **dedykowanym przełącznikiem** w UI (`docs/ux_dashboard.md`). W MVP motyw produktowy pozostaje jasny.
 - i18n / next-intl (**V1 — rozbudowa**).
 - Limit per-user runów w toku (**V1 — rozbudowa**, obowiązkowy).
 - Pixel-perfect / Figma jako norma.
@@ -208,3 +209,5 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - `selectedIdeaIds` na starcie; `conversationId` w UI.
 - Panel admina opinii / diff / historia wersji outputu.
 - Nowy endpoint SSE „moje runy”.
+
+Zmiana względem wersji 20 / „Poza zakresem”: „Playwright / testy FE, dark/light jako wymóg” (jedna linia, bez fazy). Od tej wersji Playwright zostaje poza MVP; dual-mode = **obowiązek V1** z dedykowanym przełącznikiem.

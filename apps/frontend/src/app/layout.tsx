@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html lang="pl" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="flex min-h-[100dvh] flex-col">
+      <body className="flex min-h-dvh flex-col">
         <SessionProvider>{children}</SessionProvider>
       </body>
     </html>

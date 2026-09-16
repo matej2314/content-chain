@@ -39,7 +39,7 @@ export function LogoutDialog({ open, onOpenChange }: LogoutDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="z-[var(--z-modal)] sm:max-w-md">
+      <DialogContent className="z-(--z-modal) sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Wylogować się?</DialogTitle>
           <DialogDescription>Zakończysz sesję i wrócisz na kartę logowania.</DialogDescription>

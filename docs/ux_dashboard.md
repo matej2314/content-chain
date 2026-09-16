@@ -193,7 +193,7 @@ Zmiana względem: widok Users i accept-invite jako „przyszły FE / gdy ekran p
 - Panel administracyjny opinii / średnich ocen / analityki feedbacku (**V1 — rozbudowa**)  
 - Stopień edycji outputu (diff / procent / historia wersji) — w MVP zapis **zastępuje** wynik i stawia flagę; bez porównywania z outputem agentów  
 - Zmiana oceny po „Zamknij / zapisz przegląd”  
-- Motywy dark/light jako wymóg  
+- Motywy jasny / ciemny — **obowiązkowy** temat **V1 — rozbudowa**: oba tryby w produkcie oraz **dynamiczne** przełączanie przez użytkownika **dedykowanym przełącznikiem** w interfejsie (nie sam `prefers-color-scheme` bez kontrolki). W MVP motyw produktowy pozostaje jasny  
 - Pipeline builder, drag-and-drop agentów  
 - Otwarta rejestracja / aktywny przycisk „Zarejestruj się!” na stronie głównej (w MVP pozostaje nieaktywny)  
 - Automatyczne testy FE (`testy.md` — poza MVP)  
@@ -201,3 +201,5 @@ Zmiana względem: widok Users i accept-invite jako „przyszły FE / gdy ekran p
 - SSE na `queued` oraz nowy endpoint „SSE moich runów” (obowiązuje N× istniejące `.../runs/:runId/events`)
 
 Implementacja wizualna statusu live należy do frontu; ten dokument ustala **wymaganie zachowania** (live + atrakcyjna animacja statusu), nie konkretną bibliotekę motion.
+
+Zmiana względem: „Motywy dark/light jako wymóg” na liście poza MVP, bez fazy i bez sterowania. Od tej wersji dual-mode jest **obowiązkiem V1** z dedykowanym przełącznikiem w UI; MVP bez zmiany locku jasnego.
