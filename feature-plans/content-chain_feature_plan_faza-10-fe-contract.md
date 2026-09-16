@@ -1387,7 +1387,7 @@ describe('UpdateMeEmailUseCase', () => {
 
 ### KROK 3 — Filtr `status` wielowartościowy na `GET /runs`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Query `status` = jeden `RunStatus` **albo** CSV unikalnych wartości. Major 10.3. `SPEC-RUNY.md` R-3a, `SPEC-KOMUNIKACJA.md` K-2a, `SPEC-TESTY.md` D-28, `docs/ux_dashboard.md` (archiwum `completed,failed`).
 

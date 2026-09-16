@@ -2052,10 +2052,10 @@
     "semantic_hash": "5ecb61163a29474765387eebee9f0188"
   },
   "apps/api/src/runs/domain/run.port.ts": {
-    "mtime": 1789054236.0,
-    "seen": 1789403048.3047245,
-    "ast_hash": "d0fc3ff31362234f99c713fbe1fdc5e3",
-    "semantic_hash": "d0fc3ff31362234f99c713fbe1fdc5e3"
+    "mtime": 1789562997.555628,
+    "seen": 1789563056.4468122,
+    "ast_hash": "22978bf734859960e49c8a4351293110",
+    "semantic_hash": ""
   },
   "apps/api/src/runs/domain/run.types.ts": {
     "mtime": 1788614240.0,
@@ -2070,10 +2070,10 @@
     "semantic_hash": "20a24ad6ddd727fdc8abce4298ffdf04"
   },
   "apps/api/src/runs/infrastructure/prisma-run.adapter.ts": {
-    "mtime": 1789055144.0,
-    "seen": 1789403048.3047426,
-    "ast_hash": "39e663537f835788bff5a6ec2826849f",
-    "semantic_hash": "39e663537f835788bff5a6ec2826849f"
+    "mtime": 1789563000.36847,
+    "seen": 1789563056.446842,
+    "ast_hash": "b1455616bc44d22c9e38c22574c49ccc",
+    "semantic_hash": ""
   },
   "apps/api/src/runs/infrastructure/run-sse.hub.ts": {
     "mtime": 1788359196.0,
@@ -2364,10 +2364,10 @@
     "semantic_hash": "7e6c9f258dc33d56f4b87edf81740039"
   },
   "apps/api/src/runs/http/dto/list-runs-query.dto.ts": {
-    "mtime": 1788614240.0,
-    "seen": 1789403048.304733,
-    "ast_hash": "347d46da466316ea135c79dd5893320e",
-    "semantic_hash": "347d46da466316ea135c79dd5893320e"
+    "mtime": 1789562995.6204872,
+    "seen": 1789563056.446826,
+    "ast_hash": "e268764d9799ea3a35611133da02702b",
+    "semantic_hash": ""
   },
   "apps/api/src/social/application/social.schemas.ts": {
     "mtime": 1788614240.0,

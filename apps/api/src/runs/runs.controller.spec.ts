@@ -157,7 +157,7 @@ describe('RunsController', () => {
 
     const query: ListRunsQueryDto = {
       page: 2,
-      status: 'completed',
+      status: ['completed'],
       taskType: 'post_ideas',
       platform: 'linkedin',
     };
@@ -165,7 +165,7 @@ describe('RunsController', () => {
     await expect(controller.list(query)).resolves.toBe(listed);
     expect(listRuns.execute).toHaveBeenCalledWith({
       page: 2,
-      status: 'completed',
+      status: ['completed'],
       taskType: 'post_ideas',
       platform: 'linkedin',
       userId: undefined,

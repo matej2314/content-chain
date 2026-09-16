@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31), `update-mvp-contract-plan.md` (Faza 4.3), `multi-hitl-plan.md` (HITL Social min. 1 / N→N — legalizacja kanonu Fazy 4.3).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (`WYKONANY`) — Zod 4 w `apps/api`; bez własnego milestone’u. **Dopisek:** **Faza 10** (`NIE_ROZPOCZĘTY`) — kontrakt api wymagany przez `content-chain-frontend_major_plan.md` (edycja wyniku, własny email, filtr wielowartościowy `GET /runs`); **bez** zmiany MILESTONE 6 (`OSIĄGNIĘTY`) i **bez** MILESTONE 10.
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (`WYKONANY`) — Zod 4 w `apps/api`; bez własnego milestone’u. **Faza 10** (`WYKONANY`) — kontrakt api wymagany przez `content-chain-frontend_major_plan.md` (edycja wyniku, własny email, filtr wielowartościowy `GET /runs`); **bez** zmiany MILESTONE 6 (`OSIĄGNIĘTY`) i **bez** MILESTONE 10.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -1041,7 +1041,7 @@ Zmiana względem: status Fazy 9 oraz kroków 9.1–9.2 (`NIE_ROZPOCZĘTY`). Pow�
 
 ## Faza 10 — Kontrakt api pod dashboard FE (edycja wyniku, własny email, filtr listy)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Wymagane przez:** `content-chain-frontend_major_plan.md` — Faza 5 (Edytuj z treścią; własny email na Koncie) oraz Faza 3 (archiwum Runy: `GET /runs?status=completed,failed`).
 
@@ -1053,6 +1053,9 @@ Zmiana względem: status Fazy 9 oraz kroków 9.1–9.2 (`NIE_ROZPOCZĘTY`). Pow�
 
 **Poza zakresem tej fazy:** zmiana hasła zalogowanego; usuwanie własnego konta; panel odczytu opinii; limit per-user (V1); implementacja UI (major frontendowy); BFF Next (major FE).
 
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-10-fe-contract.md` (KROK 1 `WYKONANY` → major 10.1; KROK 2 `WYKONANY` → major 10.2; KROK 3 `WYKONANY` → major 10.3). `SaveOutputEditedUseCase` + Zod `{ result }` (nadpis store Social/Content + `outputEdited`, bez grafu), `PATCH /auth/me` / `UpdateMeEmailUseCase` + `UserRepository.updateEmail`, `ListRunsQuery.status` jako `RunStatus[]` + CSV w `ListRunsQueryDto`, e2e D-12 / D-27 / D-28. **Brak MILESTONE 10** — nic nie oznaczać `OSIĄGNIĘTY`. MILESTONE 5 i 6 bez zmian (`OSIĄGNIĘTY`).
+Zmiana względem: status Fazy 10 oraz kroków 10.1–10.3 (`NIE_ROZPOCZĘTY`). Powód: ślad do major po implementacji `content-chain_feature_plan_faza-10-fe-contract.md`.
+
 **DoD (faza):**
 
 - Zapis edycji wyniku przyjmuje treść, zastępuje kanoniczny wynik i stawia `outputEdited`; GET snapshot zwraca treść po edycji; graf nie jest wołany.
@@ -1063,7 +1066,7 @@ Zmiana względem: status Fazy 9 oraz kroków 9.1–9.2 (`NIE_ROZPOCZĘTY`). Pow�
 
 ### Krok 10.1 — Zapis edycji wyniku z treścią (`output-edited`)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Refaktor względem:** Faza 6 / Krok 6.3 (`WYKONANY`) — flaga bez nadpisu artefaktu.
 
@@ -1079,7 +1082,7 @@ Zmiana względem: status Fazy 9 oraz kroków 9.1–9.2 (`NIE_ROZPOCZĘTY`). Pow�
 
 ### Krok 10.2 — Zmiana własnego emaila (`PATCH /auth/me`)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Refaktor względem:** Faza 5 / Krok 5.1 (`WYKONANY`) — wyłącznie odczyt `/auth/me`.
 
@@ -1094,7 +1097,7 @@ Zmiana względem: status Fazy 9 oraz kroków 9.1–9.2 (`NIE_ROZPOCZĘTY`). Pow�
 
 ### Krok 10.3 — Filtr `status` wielowartościowy na `GET /runs`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Refaktor względem:** Faza 3 / Krok 3.3 (`WYKONANY`) — query `status` jako pojedynczy enum.
 

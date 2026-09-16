@@ -12,7 +12,8 @@ export const PAGE_SIZE = 10;
 
 export type ListRunsQuery = {
   page: number;
-  status?: RunStatus;
+  /** Znormalizowany zbiór statusów (1…n). Brak / pusta = bez filtra. */
+  status?: RunStatus[];
   taskType?: RunRecord['taskType'];
   platform?: RunRecord['platform'];
   userId?: UserId;

@@ -595,4 +595,71 @@ describe('Runs list (e2e)', () => {
       .expect(400);
     expect(rejected.body.code).toBe('VALIDATION_FAILED');
   });
+
+  it('D-28: filters status=completed,failed; single interrupted; rejects unknown', async () => {
+    const failedId = `run_${randomUUID()}`;
+    const interruptedId = `run_${randomUUID()}`;
+    await prisma.run.create({
+      data: {
+        id: failedId,
+        conversationId: `conv_${randomUUID()}`,
+        taskType: 'post_ideas',
+        platform: 'linkedin',
+        language: 'pl',
+        status: 'failed',
+        brief: { topic: 'd28-failed' },
+      },
+    });
+    await prisma.run.create({
+      data: {
+        id: interruptedId,
+        conversationId: `conv_${randomUUID()}`,
+        taskType: 'post_ideas',
+        platform: 'linkedin',
+        language: 'pl',
+        status: 'interrupted',
+        brief: { topic: 'd28-interrupted' },
+        recoveryAttempts: 1,
+      },
+    });
+
+    const mixed = await agent.get('/api/v1/runs').query({
+      status: 'completed,failed',
+    });
+    expect(mixed.status).toBe(200);
+    const mixedBody = readListBody(mixed.body);
+    expect(mixedBody.pageSize).toBe(10);
+    expect(
+      mixedBody.items.every(
+        (item) => item.status === 'completed' || item.status === 'failed',
+      ),
+    ).toBe(true);
+    for (let i = 1; i < mixedBody.items.length; i += 1) {
+      expect(
+        Date.parse(mixedBody.items[i - 1]!.createdAt),
+      ).toBeGreaterThanOrEqual(Date.parse(mixedBody.items[i]!.createdAt));
+    }
+    expect(mixedBody.items.some((item) => item.runId === failedId)).toBe(true);
+    expect(
+      mixedBody.items.every((item) => item.runId !== interruptedId),
+    ).toBe(true);
+
+    const single = await agent.get('/api/v1/runs').query({
+      status: 'interrupted',
+    });
+    expect(single.status).toBe(200);
+    const singleBody = readListBody(single.body);
+    expect(singleBody.items.every((item) => item.status === 'interrupted')).toBe(
+      true,
+    );
+    expect(singleBody.items.some((item) => item.runId === interruptedId)).toBe(
+      true,
+    );
+
+    const bad = await agent.get('/api/v1/runs').query({
+      status: 'completed,nope',
+    });
+    expect(bad.status).toBe(400);
+    expect(bad.body.code).toBe('VALIDATION_FAILED');
+  });
 });

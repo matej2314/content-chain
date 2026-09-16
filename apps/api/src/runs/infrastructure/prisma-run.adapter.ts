@@ -215,7 +215,9 @@ export class PrismaRunAdapter implements RunRepository {
   async list(query: ListRunsQuery): Promise<ListRunsResult> {
     const page = query.page ?? 1;
     const where = {
-      ...(query.status ? { status: query.status } : {}),
+      ...(query.status && query.status.length > 0
+        ? { status: { in: query.status } }
+        : {}),
       ...(query.taskType ? { taskType: query.taskType } : {}),
       ...(query.platform ? { platform: query.platform } : {}),
       ...(query.userId ? { startedByUserId: query.userId } : {}),

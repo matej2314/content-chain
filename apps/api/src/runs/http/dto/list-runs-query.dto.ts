@@ -1,10 +1,36 @@
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import {
+  ArrayUnique,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 import {
   RUN_PLATFORMS,
   RUN_STATUSES,
   RUN_TASK_TYPES,
+  type RunStatus,
 } from '@content-chain/shared';
+
+function parseStatusQuery(value: unknown): RunStatus[] | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    return value as RunStatus[];
+  }
+  if (typeof value !== 'string') {
+    return value as RunStatus[];
+  }
+  const parts = value
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  return [...new Set(parts)] as RunStatus[];
+}
 
 export class ListRunsQueryDto {
   @IsOptional()
@@ -14,8 +40,11 @@ export class ListRunsQueryDto {
   page?: number = 1;
 
   @IsOptional()
-  @IsIn([...RUN_STATUSES])
-  status?: (typeof RUN_STATUSES)[number];
+  @Transform(({ value }) => parseStatusQuery(value))
+  @IsArray()
+  @ArrayUnique()
+  @IsIn([...RUN_STATUSES], { each: true })
+  status?: RunStatus[];
 
   @IsOptional()
   @IsIn([...RUN_TASK_TYPES])
