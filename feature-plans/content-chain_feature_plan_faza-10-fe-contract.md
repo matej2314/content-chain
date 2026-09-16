@@ -1127,7 +1127,7 @@ DoD (dopisek): `VALIDATION_FAILED` bez `commit` (flaga nie wstaje); `REVIEW_LOCK
 
 ### KROK 2 — Zmiana własnego emaila (`PATCH /auth/me`)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Zalogowany (admin i `user`) zmienia własny email. Major 10.2. `SPEC-AUTH.md` A-3b, `SPEC-TESTY.md` D-27, `docs/dokumentacja_komunikacji.md`, `docs/security.md`.
 

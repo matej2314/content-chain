@@ -10,6 +10,7 @@ import { LoginUseCase } from './application/login.use-case';
 import { LogoutUseCase } from './application/logout.use-case';
 import { MeUseCase } from './application/me.use-case';
 import { RefreshUseCase } from './application/refresh.use-case';
+import { UpdateMeEmailUseCase } from './application/update-me-email.use-case';
 import {
   AcceptInviteUseCase,
   type AcceptInviteResult,
@@ -79,6 +80,7 @@ describe('AuthController', () => {
   let refresh: { execute: jest.Mock };
   let me: { execute: jest.Mock };
   let acceptInvite: { execute: jest.Mock };
+  let updateMeEmail: { execute: jest.Mock };
   const env = { JWT_ACCESS_TTL: ACCESS_TTL } as Env;
   const res = {} as Response;
 
@@ -90,6 +92,7 @@ describe('AuthController', () => {
     refresh = { execute: jest.fn() };
     me = { execute: jest.fn() };
     acceptInvite = { execute: jest.fn() };
+    updateMeEmail = { execute: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
@@ -101,6 +104,7 @@ describe('AuthController', () => {
         { provide: RefreshUseCase, useValue: refresh },
         { provide: MeUseCase, useValue: me },
         { provide: AcceptInviteUseCase, useValue: acceptInvite },
+        { provide: UpdateMeEmailUseCase, useValue: updateMeEmail },
         { provide: ENV, useValue: env },
       ],
     }).compile();
@@ -122,6 +126,7 @@ describe('AuthController', () => {
     expect(isPublic(proto.postRefresh)).toBe(true);
     expect(isPublic(proto.postLogout)).toBe(false);
     expect(isPublic(proto.getMe)).toBe(false);
+    expect(isPublic(proto.patchMe)).toBe(false);
 
     expect(Reflect.getMetadata('path', proto.getBootstrapStatus)).toBe(
       'bootstrap-status',
@@ -136,6 +141,7 @@ describe('AuthController', () => {
     expect(Reflect.getMetadata('path', proto.postRefresh)).toBe('refresh');
     expect(Reflect.getMetadata('path', proto.postLogout)).toBe('logout');
     expect(Reflect.getMetadata('path', proto.getMe)).toBe('me');
+    expect(Reflect.getMetadata('path', proto.patchMe)).toBe('me');
 
     expect(Reflect.getMetadata('method', proto.getBootstrapStatus)).toBe(
       RequestMethod.GET,
@@ -145,6 +151,9 @@ describe('AuthController', () => {
     );
     expect(Reflect.getMetadata('method', proto.postAcceptInvite)).toBe(
       RequestMethod.POST,
+    );
+    expect(Reflect.getMetadata('method', proto.patchMe)).toBe(
+      RequestMethod.PATCH,
     );
   });
 
@@ -276,6 +285,20 @@ describe('AuthController', () => {
 
     await expect(controller.getMe(sessionUser)).resolves.toBe(meResult);
     expect(me.execute).toHaveBeenCalledWith(sessionUser);
+    expect(setAuthCookies).not.toHaveBeenCalled();
+  });
+
+  it('delegates PATCH me to UpdateMeEmailUseCase', async () => {
+    const body = { email: 'new@example.com' };
+    const updated = {
+      id: sessionUser.id,
+      email: body.email,
+      role: sessionUser.role,
+    };
+    updateMeEmail.execute.mockResolvedValue(updated);
+
+    await expect(controller.patchMe(sessionUser, body)).resolves.toBe(updated);
+    expect(updateMeEmail.execute).toHaveBeenCalledWith(sessionUser, body);
     expect(setAuthCookies).not.toHaveBeenCalled();
   });
 });

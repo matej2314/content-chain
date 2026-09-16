@@ -149,7 +149,7 @@ Skalar `result.content` / `result.reelScript` na dwuetapowych (`post_ideas_then_
 - `post_content` solo
 - `reel_script` solo (Jest e2e, nie Postman)
 - SSE (`GET .../events`)
-- Pełna suite auth (bootstrap, refresh, logout, invite+accept w jednym runnerze z soft-delete) — `auth.postman-collection.json`
+- Pełna suite auth (bootstrap, refresh, logout, invite+accept, soft-delete/reaktywacja D-26, własny email D-27) — `auth.postman-collection.json`
 - Resend / revoke zaproszenia (osobne foldery, nie v1 tego pipeline)
 - Suite CI PR
 - Pełny happy path **2 id → 2 hopów LLM** na żywym gateway (Jest + fake LLM)

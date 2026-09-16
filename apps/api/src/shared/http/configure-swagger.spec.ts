@@ -13,6 +13,7 @@ import { MeUseCase } from '../../auth/application/me.use-case';
 import { RefreshUseCase } from '../../auth/application/refresh.use-case';
 import { ReactivateUserUseCase } from '../../auth/application/reactivate-user.use-case';
 import { SoftDeleteUserUseCase } from '../../auth/application/soft-delete-user.use-case';
+import { UpdateMeEmailUseCase } from '../../auth/application/update-me-email.use-case';
 import { UsersController } from '../../auth/users.controller';
 import { HealthController } from '../../health/health.controller';
 import { HealthService } from '../../health/health.service';
@@ -28,7 +29,7 @@ jest.mock('@nestjs/jwt', () => ({
   JwtService: class JwtService {},
 }));
 
-type OpenApiMethod = 'get' | 'post' | 'delete';
+type OpenApiMethod = 'get' | 'post' | 'patch' | 'delete';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -141,6 +142,7 @@ describe('SwaggerModule.createDocument (auth + users + health)', () => {
         { provide: RefreshUseCase, useValue: stubExecute },
         { provide: MeUseCase, useValue: stubExecute },
         { provide: AcceptInviteUseCase, useValue: stubExecute },
+        { provide: UpdateMeEmailUseCase, useValue: stubExecute },
         { provide: ListUsersUseCase, useValue: stubExecute },
         { provide: SoftDeleteUserUseCase, useValue: stubExecute },
         { provide: ReactivateUserUseCase, useValue: stubExecute },
@@ -165,6 +167,9 @@ describe('SwaggerModule.createDocument (auth + users + health)', () => {
     expect(getOperation(document, '/api/v1/auth/me', 'get').security).toEqual([
       { [COOKIE_AUTH_NAME]: [] },
     ]);
+    expect(getOperation(document, '/api/v1/auth/me', 'patch').security).toEqual(
+      [{ [COOKIE_AUTH_NAME]: [] }],
+    );
     expect(getOperation(document, '/api/v1/users', 'get').security).toEqual([
       { [COOKIE_AUTH_NAME]: [] },
     ]);

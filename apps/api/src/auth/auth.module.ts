@@ -24,6 +24,7 @@ import { LoginUseCase } from './application/login.use-case';
 import { LogoutUseCase } from './application/logout.use-case';
 import { RefreshUseCase } from './application/refresh.use-case';
 import { MeUseCase } from './application/me.use-case';
+import { UpdateMeEmailUseCase } from './application/update-me-email.use-case';
 import { parseTtlSeconds } from './application/auth.helpers';
 import { UsersController } from './users.controller';
 import { InvitationsController } from './invitations.controller';
@@ -86,6 +87,7 @@ import { LoggingMailerAdapter } from './infrastructure/logging-mailer.adapter';
     AcceptInviteUseCase,
     SoftDeleteUserUseCase,
     ReactivateUserUseCase,
+    UpdateMeEmailUseCase,
   ],
   exports: [USER_REPOSITORY, JwtModule],
 })

@@ -12,8 +12,7 @@ export type CreateAdminIfNoneData = {
 };
 
 export type CreateAdminIfNoneResult =
-  | { ok: true; user: AuthUser }
-  | { ok: false; reason: 'admin-exists' };
+  { ok: true; user: AuthUser } | { ok: false; reason: 'admin-exists' };
 
 export interface UserRepository {
   findForAuth(email: string): Promise<UserForAuth | null>;
@@ -30,4 +29,5 @@ export interface UserRepository {
   ): Promise<CreateAdminIfNoneResult>;
   setActive(id: UserId, isActive: boolean): Promise<void>;
   list(): Promise<AuthUser[]>;
+  updateEmail(id: UserId, email: string): Promise<AuthUser>;
 }

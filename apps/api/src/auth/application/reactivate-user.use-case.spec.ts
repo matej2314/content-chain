@@ -21,6 +21,7 @@ function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
     createAdminIfNone: unexpected,
     setActive: unexpected,
     list: unexpected,
+    updateEmail: unexpected,
     ...overrides,
   };
 }
@@ -156,7 +157,11 @@ describe('ReactivateUserUseCase', () => {
     expect(setActive).not.toHaveBeenCalled();
   });
 
-  it.each([{ isActive: false }, { isActive: true, role: 'admin' }])(
+  it.each([
+    { isActive: false },
+    { isActive: true, role: 'admin' },
+    { isActive: true, email: 'x@example.com' },
+  ])(
     'rejects body %j with VALIDATION_FAILED and skips lookup',
     async (body) => {
       const findById = jest.fn(async () => makeUser());

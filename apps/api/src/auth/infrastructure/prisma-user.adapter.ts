@@ -135,4 +135,19 @@ export class PrismaUserAdapter implements UserRepository {
     });
     return rows.map((row) => this.toUser(row));
   }
+
+  async updateEmail(id: UserId, email: string): Promise<AuthUser> {
+    try {
+      const row = await this.prisma.user.update({
+        where: { id },
+        data: { email },
+      });
+      return this.toUser(row);
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        throw new DomainException('CONFLICT', 'Email already in use', 409);
+      }
+      throw error;
+    }
+  }
 }

@@ -5,6 +5,7 @@ import {
   HttpCode,
   Inject,
   Post,
+  Patch,
   Req,
   Res,
   UnauthorizedException,
@@ -23,6 +24,7 @@ import { LoginUseCase } from './application/login.use-case';
 import { LogoutUseCase } from './application/logout.use-case';
 import { RefreshUseCase } from './application/refresh.use-case';
 import { MeUseCase } from './application/me.use-case';
+import { UpdateMeEmailUseCase } from './application/update-me-email.use-case';
 import { AcceptInviteUseCase } from './application/accept-invite.use-case';
 import { BootstrapAdminDto } from './http/bootstrap-admin.dto';
 import { LoginDto } from './http/login.dto';
@@ -43,6 +45,7 @@ export class AuthController {
     private readonly refresh: RefreshUseCase,
     private readonly me: MeUseCase,
     private readonly acceptInvite: AcceptInviteUseCase,
+    private readonly updateMeEmail: UpdateMeEmailUseCase,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -120,5 +123,12 @@ export class AuthController {
   @Get('me')
   async getMe(@CurrentUser() user: AuthUserContext) {
     return this.me.execute(user);
+  }
+
+  @ApiCookieAuth(COOKIE_AUTH_NAME)
+  @Patch('me')
+  @HttpCode(200)
+  async patchMe(@CurrentUser() user: AuthUserContext, @Body() body: unknown) {
+    return this.updateMeEmail.execute(user, body);
   }
 }

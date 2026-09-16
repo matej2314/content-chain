@@ -1,4 +1,3 @@
-import type { JwtService } from '@nestjs/jwt';
 import { createUserId } from '@content-chain/shared';
 import { validateEnv } from '../../shared/config/env.schema';
 import type { AuthUser } from '../domain/auth-user.types';
@@ -16,6 +15,8 @@ import { BootstrapAdminUseCase } from './bootstrap-admin.use-case';
 jest.mock('@nestjs/jwt', () => ({
   JwtService: class JwtService {},
 }));
+
+type JwtDep = ConstructorParameters<typeof BootstrapAdminUseCase>[2];
 
 const ADMIN_ID = createUserId('usr_22222222-2222-4222-8222-222222222222');
 const CREATED_AT = new Date('2026-01-01T00:00:00.000Z');
@@ -47,6 +48,7 @@ function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
     createAdminIfNone: unexpected,
     setActive: unexpected,
     list: unexpected,
+    updateEmail: unexpected,
     ...overrides,
   };
 }
@@ -68,10 +70,10 @@ function unusedSessions(
   };
 }
 
-function makeJwt(): JwtService {
+function makeJwt(): JwtDep {
   return {
     signAsync: jest.fn(async () => ACCESS_TOKEN),
-  } as unknown as JwtService;
+  } as unknown as JwtDep;
 }
 
 function makeAdmin(overrides: Partial<AuthUser> = {}): AuthUser {

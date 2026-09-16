@@ -48,6 +48,7 @@ function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
     createAdminIfNone: unexpected,
     setActive: unexpected,
     list: unexpected,
+    updateEmail: unexpected,
     ...overrides,
   };
 }

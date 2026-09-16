@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "c3a1b8e4-7d2f-4a91-9c6e-2f8b4d1e5a70",
     "name": "Content Chain — Auth",
-    "description": "Suite testująca endpointy `apps/api/src/auth` (sesja, bootstrap, zaproszenia, accept-invite, users) na żywym api (`:3001`, prefix `/api/v1`).\n\nSesja idzie przez httpOnly cookies `cc_access` i `cc_refresh` (path `/`). W Postmanie włącz cookie jar (Cookies → pozwól na localhost). Newman trzyma jar w ramach jednego `run`.\n\nKolejność folderów w Collection Runnerze: **Unauthenticated → Bootstrap → Session → Invitations → Accept-invite**. Folder Session kończy się `logout` (czyści cookie) — Invitations zaczyna od `POST /auth/login` adminem. Accept-invite czyści cookie jar originu api (request bez sesji admina).\n\nBootstrap admina jest jednorazowy: pierwsze udane `POST /auth/bootstrap-admin` → 201; kolejne → 409 `CONFLICT`. Login po bootstrapie (albo gdy admin już istnieje) używa `adminEmail` / `adminPassword`.\n\nRaw token zaproszenia **nie** wraca w JSON. Po `POST /invitations` i szczególnie po **resend** (rotacja tokenu) wklej `inviteToken` z logu api (`LoggingMailerAdapter`: `Token: …`). Happy path Newman: `NODE_ENV=development` → adapter logujący → 201 na create/resend. `inviteEmail` nie może już istnieć jako `User` (także soft-deleted → 409).\n\nTo nie jest `pnpm test:e2e`. Odpalić: Import tej kolekcji, potem Collection Runner albo `npx --yes newman run apps/api/test/postman/auth.postman-collection.json`.",
+    "description": "Suite testująca endpointy `apps/api/src/auth` (sesja, bootstrap, zaproszenia, accept-invite, users, własny email) na żywym api (`:3001`, prefix `/api/v1`).\n\nSesja idzie przez httpOnly cookies `cc_access` i `cc_refresh` (path `/`). W Postmanie włącz cookie jar (Cookies → pozwól na localhost). Newman trzyma jar w ramach jednego `run`.\n\nKolejność folderów w Collection Runnerze: **Unauthenticated → Bootstrap → Session → Invitations → Accept-invite → Own email (D-27)**. Folder Session kończy się `logout` (czyści cookie) — Invitations zaczyna od `POST /auth/login` adminem. Accept-invite czyści cookie jar originu api (request bez sesji admina). D-27 startuje od sesji reaktywowanego `user` (ostatni login w Accept-invite), potem przywraca `inviteEmail` i sprawdza regresję `PATCH /users/:id` z polem `email`.\n\nBootstrap admina jest jednorazowy: pierwsze udane `POST /auth/bootstrap-admin` → 201; kolejne → 409 `CONFLICT`. Login po bootstrapie (albo gdy admin już istnieje) używa `adminEmail` / `adminPassword`.\n\nRaw token zaproszenia **nie** wraca w JSON. Po `POST /invitations` i szczególnie po **resend** (rotacja tokenu) wklej `inviteToken` z logu api (`LoggingMailerAdapter`: `Token: …`). Happy path Newman: `NODE_ENV=development` → adapter logujący → 201 na create/resend. `inviteEmail` nie może już istnieć jako `User` (także soft-deleted → 409).\n\nTo nie jest `pnpm test:e2e`. Odpalić: Import tej kolekcji, potem Collection Runner albo `npx --yes newman run apps/api/test/postman/auth.postman-collection.json`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -41,6 +41,10 @@
     {
       "key": "invitedUserId",
       "value": ""
+    },
+    {
+      "key": "patchedEmail",
+      "value": "patched-user@example.com"
     },
     {
       "key": "bootstrapAvailable",
@@ -1745,6 +1749,273 @@
             },
             "url": "{{baseUrl}}/auth/login",
             "description": "D-26: po PATCH `{ isActive: true }` login tym samym emailem → 200 + cookie."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Own email (D-27)",
+      "description": "D-27 (`SPEC-TESTY.md`): `PATCH /auth/me` `{ email }` na sesji reaktywowanego `user` (ostatni login w Accept-invite) → 200 + `GET /auth/me` zgadza się; zajęty `adminEmail` → 409; przywrócenie `inviteEmail`; `PATCH /users/:id` z polem `email` nadal 400; bez sesji → 401.",
+      "item": [
+        {
+          "name": "PATCH me own email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('id email role with new address', function () {",
+                  "  pm.expect(body).to.include.keys('id', 'email', 'role');",
+                  "  pm.expect(body.id).to.eql(pm.collectionVariables.get('invitedUserId'));",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get('patchedEmail'));",
+                  "  pm.expect(body.role).to.eql('user');",
+                  "  pm.expect(body).to.not.have.property('passwordHash');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{patchedEmail}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/me",
+            "description": "D-27: sesja `user` zmienia własny email. 200 `{ id, email, role }`."
+          }
+        },
+        {
+          "name": "GET me after email change",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('GET me matches patched email', function () {",
+                  "  pm.expect(body.id).to.eql(pm.collectionVariables.get('invitedUserId'));",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get('patchedEmail'));",
+                  "  pm.expect(body.role).to.eql('user');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "D-27: probe po PATCH zwraca ten sam nowy email (odczyt z DB)."
+          }
+        },
+        {
+          "name": "PATCH me occupied email (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('CONFLICT when email taken', function () {",
+                  "  pm.expect(body.code).to.eql('CONFLICT');",
+                  "  pm.expect(body.message).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/me",
+            "description": "D-27: zajęty `User.email` (admin) → 409 CONFLICT."
+          }
+        },
+        {
+          "name": "PATCH me restore invite email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('restored inviteEmail', function () {",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get('inviteEmail'));",
+                  "  pm.expect(body.id).to.eql(pm.collectionVariables.get('invitedUserId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{inviteEmail}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Przywraca `inviteEmail`, żeby kolejne runy / inne kolekcje mogły logować `user` znanym adresem."
+          }
+        },
+        {
+          "name": "POST login as admin for users email ban",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('sets cc_access and cc_refresh cookies', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.include('cc_access=');",
+                  "  pm.expect(cookies).to.include('cc_refresh=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Sesja admina pod regresję `PATCH /users/:id` z polem `email`."
+          }
+        },
+        {
+          "name": "PATCH users with email (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('invitedUserId is set', function () {",
+                  "  pm.expect(pm.collectionVariables.get('invitedUserId'), 'invitedUserId').to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('VALIDATION_FAILED — email forbidden on PATCH users', function () {",
+                  "  pm.expect(body.code).to.eql('VALIDATION_FAILED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": true,\n  \"email\": \"{{patchedEmail}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/users/{{invitedUserId}}",
+            "description": "D-27: `PATCH /users/:id` nadal bez `email` (A-10a / PatchUserDto). Extra key → 400 VALIDATION_FAILED."
+          }
+        },
+        {
+          "name": "PATCH me without cookies (401)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const origin = pm.collectionVariables.get('originUrl') || 'http://localhost:3001';",
+                  "try {",
+                  "  pm.cookies.jar().clear(origin, function () {});",
+                  "} catch (e) {",
+                  "  console.warn('cookie jar clear skipped', e);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{patchedEmail}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/me",
+            "description": "D-27: brak sesji → 401 (global JwtAuthGuard)."
           }
         }
       ]

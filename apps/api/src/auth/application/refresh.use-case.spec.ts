@@ -1,4 +1,3 @@
-import type { JwtService } from '@nestjs/jwt';
 import { createUserId } from '@content-chain/shared';
 import { validateEnv } from '../../shared/config/env.schema';
 import { generateRefreshToken, hashRefreshToken } from './auth.helpers';
@@ -14,6 +13,8 @@ import { RefreshUseCase } from './refresh.use-case';
 jest.mock('@nestjs/jwt', () => ({
   JwtService: class JwtService {},
 }));
+
+type JwtDep = ConstructorParameters<typeof RefreshUseCase>[2];
 
 const USER_ID = createUserId('usr_11111111-1111-4111-8111-111111111111');
 const CREATED_AT = new Date('2026-01-01T00:00:00.000Z');
@@ -47,6 +48,7 @@ function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
     createAdminIfNone: unexpected,
     setActive: unexpected,
     list: unexpected,
+    updateEmail: unexpected,
     ...overrides,
   };
 }
@@ -68,10 +70,10 @@ function unusedSessions(
   };
 }
 
-function makeJwt(): JwtService {
+function makeJwt(): JwtDep {
   return {
     signAsync: jest.fn(async () => ACCESS_TOKEN),
-  } as unknown as JwtService;
+  } as unknown as JwtDep;
 }
 
 function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {
