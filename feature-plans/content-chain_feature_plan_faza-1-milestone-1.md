@@ -1416,7 +1416,7 @@ Token: surowy `string` z query (nie brand). Nie renderować tokenu w UI. Brak tr
 
 ### KROK 7 — Layout po sesji: sidebar, header, sloty, rejestr EventSource
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Chrome dashboardu z miejscami na Fazy 2–6. Header: tożsamość → Wyloguj → modal. Rejestr SSE w layoucie (pusty użyciem). Major 1.4.1–1.4.3 + rejestr 1.6; `docs/ux_dashboard.md` tabela nawigacji.
 

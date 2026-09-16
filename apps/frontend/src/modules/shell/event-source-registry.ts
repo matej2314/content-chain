@@ -4,6 +4,7 @@ export type EventSourceRegistry = {
   acquire: (runId: RunId) => EventSource;
   release: (runId: RunId) => void;
   peek: (runId: RunId) => EventSource | undefined;
+  closeAll: () => void;
 };
 
 export function createEventSourceRegistry(): EventSourceRegistry {
@@ -27,6 +28,12 @@ export function createEventSourceRegistry(): EventSourceRegistry {
     },
     peek(runId: RunId): EventSource | undefined {
       return connections.get(runId);
+    },
+    closeAll(): void {
+      for (const source of connections.values()) {
+        source.close();
+      }
+      connections.clear();
     },
   };
 }

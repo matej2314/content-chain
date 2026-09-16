@@ -14,7 +14,7 @@ export type Credentials = {
 export async function fetchBootstrapStatus(): Promise<boolean> {
   const body = await apiFetch('/auth/bootstrap-status', { skipAuthRefresh: true });
   if (!isRecord(body) || typeof body.available !== 'boolean') {
-    throw new Error('Invalid bootstraap status payload');
+    throw new Error('Invalid bootstrap status payload');
   }
   return body.available;
 }

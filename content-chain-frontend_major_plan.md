@@ -5,7 +5,7 @@
 **Poza tym plikiem:** trzy zmiany kontraktu api — **`content-chain-backend_major_plan.md`, Faza 10** (Krok 10.1 zapis treści przy Edytuj; Krok 10.2 własny email; Krok 10.3 filtr wielowartościowy `GET /runs`); panel administracyjny odczytu opinii; zmiana hasła zalogowanego / usuwanie własnego konta; soft-delete użytkowników w UI; otwarta rejestracja; `selectedIdeaIds` na starcie w UI; `conversationId` w UI; limit per-user runów w toku; next-intl / mapa tłumaczeń envelope; Playwright / automatyczne testy FE; Docker/`production` jako temat tego planu; PostgreSQL / V1 — rozbudowa. Aplikacja frontu **już istnieje** jako boilerplate (backend Faza 1 / Krok 1.3) — ten major nie tworzy jej od zera.
 
 **Źródła:** `docs/` (w tym `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `docs/brand_types.md`, `docs/security.md`, `docs/deployment.md`), `spec/SPEC-*.md` (w tym `SPEC-FRONTEND.md`, `SPEC-AUTH.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-RUNY.md`, `SPEC-FEEDBACK.md`, `SPEC-BEZPIECZENSTWO.md`).  
-**Kolejność priorytetów:** Fazy 1 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Archiwum Runy (Krok 3.5) zakłada backend **10.3**; Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE i BFF **nie** czekają na Fazę 10.
+**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); Fazy 2 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Archiwum Runy (Krok 3.5) zakłada backend **10.3**; Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE i BFF **nie** czekają na Fazę 10.
 
 **Język wizualny (skill, nie osobna faza):** powierzchnie UI w `apps/frontend` (karty, chrome, widoki, stany loading/empty/error, prezentacja statusu live) wymagają skilla **`content-chain-product-ui`** (`.cursor/skills/content-chain-product-ui/`). IA, copy, trasy i stack nadal biorą `docs/` + `spec/` — skill nie nadpisuje kanonu. **Visual lock** jest jednorazowy w Fazie 1 (Krok 1.4 + karty wejścia 1.1–1.3); Fazy 2–6 **dziedziczą** tokeny, bez nowej palety na widok. Skill **nie** dotyczy: BFF / `apiFetch` / cookie / rejestru `EventSource` (Krok 1.6 i równoważne w późniejszych krokach), typów kontraktu (Krok 1.5), ani `content-chain-backend_major_plan.md` Faza 10.
 
@@ -18,9 +18,12 @@
 
 ## Faza 1 — Wejście, BFF i szkielet po sesji
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Produktowy start cienkiego klienta na istniejącym szkielecie: BFF (przeglądarka wyłącznie origin FE), probe sesji i wrapper **401 → refresh → jeden retry** na każdym produktowym fetchu, strona główna jako karta logowania (first-run = tryb tego samego formularza), publiczny deep link **`/invite/accept?token=`** (gotowość pod Fazę 6; ten sam kształt co mail), layout zalogowany ze slotami późniejszych widoków, header tożsamości, rejestr `EventSource` (pusty) i slot floating boxa. Typy semantyczne kontraktu z `docs/brand_types.md` na granicach UI. Zgodnie z `docs/ux_dashboard.md`, `docs/deployment.md`, `SPEC-FRONTEND.md` F-1/F-2/F-4a, `SPEC-AUTH.md`, `SPEC-BEZPIECZENSTWO.md` B-5a, `docs/brand_types.md`. Powierzchnie karty logowania, accept-invite i chrome: **`content-chain-product-ui`** (visual lock w Kroku 1.4). Krok 1.5 i 1.6 bez tego skilla.
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-1-milestone-1.md` (KROK 1 `WYKONANY` → major 1.5; KROK 2 `WYKONANY` → major 1.6 transport; KROK 3 `WYKONANY` → major 1.4.4; KROK 4 `WYKONANY` → major 1.1; KROK 5 `WYKONANY` → major 1.2; KROK 6 `WYKONANY` → major 1.3; KROK 7 `WYKONANY` → major 1.4.1–1.4.3 + rejestr EventSource z 1.6). Envelope `{ code, message }` + branded `UserId` / `UserRole`, BFF catch-all `/api/v1` + `apiFetch` (401 → refresh → jeden retry, strumień SSE bez bufora), visual lock, karta logowania z trybem first-run, publiczny `/invite/accept?token=`, chrome po sesji (sidebar, header z wylogowaniem, sloty). **MILESTONE 1** → `OSIĄGNIĘTY`. Faza 2 pozostaje `NIE_ROZPOCZĘTY`.
+Zmiana względem: status Fazy 1, kroków 1.1–1.6 (w tym 1.4.4) (`NIE_ROZPOCZĘTY`) oraz MILESTONE 1 (bez statusu). Powód: ślad do major po implementacji `content-chain_feature_plan_faza-1-milestone-1.md`.
 
 **DoD (faza):**
 
@@ -37,7 +40,7 @@
 
 ### Krok 1.1 — Sesja i strona główna
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Po starcie / przeładowaniu klient odczytuje tożsamość same-origin. Brak sesji → karta logowania. Udane logowanie → dashboard. Cookie httpOnly na **originie FE** (BFF przekazuje `Set-Cookie`). Wygląd karty (nie probe / cookie): **`content-chain-product-ui`**.
 
@@ -49,7 +52,7 @@
 
 ### Krok 1.2 — First-run jako tryb tej samej karty
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Pusta instancja nie dostaje osobnego ekranu bootstrapu. Ten sam formularz strony głównej tworzy pierwszego administratora i sesję jak po loginie. Powierzchnia karty: ten sam lock co 1.1 (`content-chain-product-ui`); bez osobnej estetyki first-run.
 
@@ -61,7 +64,7 @@
 
 ### Krok 1.3 — Publiczny deep link akceptacji zaproszenia
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Ekran spoza dashboardu na **`/invite/accept?token=`** (legalizacja URL z mailera api — bez zmiany ścieżki w mailu). Token z odnośnika → pierwsze hasło → powrót na stronę główną. Gotowość pod Fazę 6; bez budowania listy użytkowników w tej fazie. Formularz hasła: **`content-chain-product-ui`** (ten sam język co karta logowania).
 
@@ -74,7 +77,7 @@
 
 ### Krok 1.4 — Layout zalogowany: sidebar, header, sloty
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Chrome dashboardu od razu z miejscami na późniejsze fazy — żeby Fazy 2–6 nie przebudowywały szkieletu. Sidebar = widoki. Header = tożsamość, wyrównanie do prawej. Tu zapada **visual lock** (`content-chain-product-ui`): tokeny w `globals.css` / shadcn, Geist, stany kontrolek; Fazy 2–6 tylko wypełniają sloty w tym języku.
 
@@ -100,13 +103,13 @@ Miejsca w chrome na chip kompletności (Faza 2), pusty kontener floating boxa (F
 
 #### Podkrok 1.4.4 — Visual lock (`content-chain-product-ui`)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 Jednorazowe spięcie motywu (akcent, szarości, radius, `--font-sans` → Geist, stany Button/input/modal) zanim Faza 2 wypełni Kontekst. Feature plan tego chrome **dołącza** skill; HOW nie zostawia stock-fioletu shadcn „na później”. Zakaz hero/bento/GSAP i zmiany IA.
 
 ### Krok 1.5 — Kontrakt typów i język UI
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Granice klienta używają typów semantycznych i enumów z dokumentacji brand types. Chrome po polsku; envelope API **bez** mapy tłumaczeń (next-intl = V1). Ten krok = kontrakt typów i copy envelope — **bez** `content-chain-product-ui` (smak chrome jest w 1.4).
 
@@ -118,7 +121,7 @@ Jednorazowe spięcie motywu (akcent, szarości, radius, `--font-sans` → Geist,
 
 ### Krok 1.6 — BFF, `apiFetch` i rejestr SSE
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Next pośredniczy same-origin `/api/v1/...` do `apps/api` (`API_BASE_URL` server-only). Jeden helper klienta: przy **401** → `POST /auth/refresh` → **jednorazowy** retry; kolejny 401 → karta logowania (nie tylko probe startowy). RSC **wolno** czytać chronione dane (cookie na originie FE). Rejestr layoutu: max jedno `EventSource` na `runId` (podłączenie w Fazie 3). Proxy **strumieniuje** SSE — zakaz pełnego bufora body. **Bez** `content-chain-product-ui` (transport, nie wygląd).
 
@@ -132,6 +135,8 @@ Jednorazowe spięcie motywu (akcent, szarości, radius, `--font-sans` → Geist,
 ---
 
 ## MILESTONE 1 — Wejście, BFF i chrome dashboardu
+
+**Status:** `OSIĄGNIĘTY`
 
 **Opis:** Bramka po Fazie 1. Duży skok: self-host ma kartę logowania (w tym first-run), akceptację zaproszenia na ścieżce z maila, BFF z cyklem 401 oraz szkielet zalogowany (sidebar + header z wylogowaniem). Wolno budować pierwszy widok roboczy (kontekst firmy).
 
