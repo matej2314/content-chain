@@ -999,7 +999,7 @@ Po evencie terminalnym wiersz zostaje na liście (Moje runy = wszystkie statusy)
 
 ### KROK 3 — Konto: formularz startu
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jedyny start MVP. Major 3.1; `SPEC-FRONTEND.md` F-6/F-7/F-8.
 
