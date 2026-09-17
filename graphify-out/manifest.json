@@ -3492,8 +3492,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/company-context/components/completeness-chip.tsx": {
-    "mtime": 1789643445.2719219,
-    "seen": 1789645782.9396808,
+    "mtime": 1789650838.8679287,
+    "seen": 1789651269.772681,
     "ast_hash": "d85e4893d34b01fb72e22dd65c25e960",
     "semantic_hash": ""
   },
@@ -3549,6 +3549,18 @@
     "mtime": 1789648063.5801237,
     "seen": 1789648092.5181212,
     "ast_hash": "fe1b35ba524f5a94961d159a0ef592f9",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/app/(app)/runs/[runId]/page.tsx": {
+    "mtime": 1789652421.6587467,
+    "seen": 1789652580.372473,
+    "ast_hash": "0d2312bf740ddcddbda82dc20ec6f17f",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/components/run-details-view.tsx": {
+    "mtime": 1789652533.239178,
+    "seen": 1789652580.3724995,
+    "ast_hash": "3791b51c922d6041f1ac8b0ae8f31149",
     "semantic_hash": ""
   }
 }
