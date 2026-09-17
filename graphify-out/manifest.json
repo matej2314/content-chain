@@ -3240,9 +3240,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/event-source-registry.ts": {
-    "mtime": 1789578385.8032477,
-    "seen": 1789579218.2734303,
-    "ast_hash": "2014fd6a6fee3bed0f5bedbe8f03e525",
+    "mtime": 1789647222.717858,
+    "seen": 1789647263.3757503,
+    "ast_hash": "e647cfd9c0dd194ed01c92b82031f517",
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/api/api-fetch.ts": {
@@ -3432,9 +3432,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/dashboard-shell.tsx": {
-    "mtime": 1789640120.91087,
-    "seen": 1789640579.1861858,
-    "ast_hash": "98067152436e21e9589f7946a0e0a0be",
+    "mtime": 1789647251.5046277,
+    "seen": 1789647263.3757484,
+    "ast_hash": "7873643398ec59723f8d998546cfa08c",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/event-source-registry-provider.tsx": {
@@ -3513,6 +3513,24 @@
     "mtime": 1789645750.37185,
     "seen": 1789645782.9396856,
     "ast_hash": "ac7a359d585c21a129a7e38ba45e4bb6",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/components/own-runs-provider.tsx": {
+    "mtime": 1789647246.8476648,
+    "seen": 1789647263.3757427,
+    "ast_hash": "08da910b7784d152c16307e3e01e361f",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/components/run-status.tsx": {
+    "mtime": 1789647232.8987765,
+    "seen": 1789647263.3757443,
+    "ast_hash": "d4b0635e5bab96a6df7c9c332867eba2",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/components/use-run-event-source.ts": {
+    "mtime": 1789647244.8656807,
+    "seen": 1789647263.3757453,
+    "ast_hash": "e1d94ff924b349c43a66123a986bb0fb",
     "semantic_hash": ""
   }
 }

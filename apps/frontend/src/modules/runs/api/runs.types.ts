@@ -30,7 +30,9 @@ export function isLiveRunStatus(status: RunStatus): status is LiveRunStatus {
   return (LIVE_RUN_STATUSES as readonly RunStatus[]).includes(status);
 }
 
-export function isTerminalRunStatus(status: RunStatus): boolean {
+export function isTerminalRunStatus(
+  status: RunStatus,
+): status is 'completed' | 'failed' {
   return status === 'completed' || status === 'failed';
 }
 

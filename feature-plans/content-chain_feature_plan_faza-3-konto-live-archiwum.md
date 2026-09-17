@@ -610,7 +610,7 @@ Nie eksportuj zbędnych aliasów `ARCHIVE_*` jeśli używasz bezpośrednio stał
 
 ### KROK 2 — Status live i subskrypcja EventSource
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jedno gniazdo na `runId`, wspólna prezentacja statusu, provider listy własnych runów. Major 3.3/3.4 (fundament); `SPEC-FRONTEND.md` F-5/F-5a.
 

@@ -7,31 +7,41 @@ export type EventSourceRegistry = {
   closeAll: () => void;
 };
 
+type RegistryEntry = {
+  readonly source: EventSource;
+  refs: number;
+};
+
 export function createEventSourceRegistry(): EventSourceRegistry {
-  const connections = new Map<RunId, EventSource>();
+  const connections = new Map<RunId, RegistryEntry>();
 
   return {
     acquire(runId: RunId): EventSource {
       const existing = connections.get(runId);
-      if (existing) return existing;
+      if (existing) {
+        existing.refs += 1;
+        return existing.source;
+      }
       const source = new EventSource(`/api/v1/runs/${runId}/events`, {
         withCredentials: true,
       });
-      connections.set(runId, source);
+      connections.set(runId, { source, refs: 1 });
       return source;
     },
     release(runId: RunId): void {
       const existing = connections.get(runId);
       if (!existing) return;
-      existing.close();
+      existing.refs -= 1;
+      if (existing.refs > 0) return;
+      existing.source.close();
       connections.delete(runId);
     },
     peek(runId: RunId): EventSource | undefined {
-      return connections.get(runId);
+      return connections.get(runId)?.source;
     },
     closeAll(): void {
-      for (const source of connections.values()) {
-        source.close();
+      for (const entry of connections.values()) {
+        entry.source.close();
       }
       connections.clear();
     },
