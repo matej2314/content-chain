@@ -1,13 +1,13 @@
 # Content Chain — major plan (frontend)
 
-**Zakres tego pliku:** cienki klient produktowy `apps/frontend` — **BFF** (same-origin `/api/v1` → `apps/api`), strona główna (karta logowania / first-run jako ten sam formularz), publiczny deep link **`/invite/accept?token=`**, dashboard po sesji (sidebar + header + obszar roboczy) aż do kompletnego UX MVP: Kontekst firmy, **Konto** (start + Moje runy + live), **Runy** (archiwum `completed` \| `failed`), szczegóły Run (live własnego runu, HITL, wynik, przegląd), Użytkownicy (admin), zapis opinii, floating box. Numeracja faz **1–6 jest własna tego majoru** (nie kontynuuje `content-chain-backend_major_plan.md`).
+**Zakres tego pliku:** cienki klient produktowy `apps/frontend` — **BFF** (same-origin `/api/v1` → `apps/api`), strona główna (karta logowania / first-run jako ten sam formularz), publiczny deep link **`/invite/accept?token=`**, dashboard po sesji (sidebar + header + obszar roboczy) aż do kompletnego UX MVP: Kontekst firmy, **Konto** (start + Moje runy + live), **Runy** (archiwum `completed` \| `failed`), szczegóły Run (live własnego runu, HITL, wynik, przegląd), Użytkownicy (admin), zapis opinii, floating box. Numeracja faz **1–6 plus Faza 2.1 (między 2 a 3)** jest własna tego majoru (nie kontynuuje `content-chain-backend_major_plan.md`).
 
 **Poza tym plikiem:** trzy zmiany kontraktu api — **`content-chain-backend_major_plan.md`, Faza 10** (Krok 10.1 zapis treści przy Edytuj; Krok 10.2 własny email; Krok 10.3 filtr wielowartościowy `GET /runs`); panel administracyjny odczytu opinii; zmiana hasła zalogowanego / usuwanie własnego konta; soft-delete użytkowników w UI; otwarta rejestracja; `selectedIdeaIds` na starcie w UI; `conversationId` w UI; limit per-user runów w toku; next-intl / mapa tłumaczeń envelope; Playwright / automatyczne testy FE; Docker/`production` jako temat tego planu; PostgreSQL / V1 — rozbudowa. Aplikacja frontu **już istnieje** jako boilerplate (backend Faza 1 / Krok 1.3) — ten major nie tworzy jej od zera.
 
 **Źródła:** `docs/` (w tym `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `docs/brand_types.md`, `docs/security.md`, `docs/deployment.md`), `spec/SPEC-*.md` (w tym `SPEC-FRONTEND.md`, `SPEC-AUTH.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-RUNY.md`, `SPEC-FEEDBACK.md`, `SPEC-BEZPIECZENSTWO.md`).  
-**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); **Faza 2** (`WYKONANY`) / Milestone 2 (`OSIĄGNIĘTY`); Fazy 3 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Archiwum Runy (Krok 3.5) zakłada backend **10.3**; Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE i BFF **nie** czekają na Fazę 10.
+**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); **Faza 2** (`WYKONANY`) / Milestone 2 (`OSIĄGNIĘTY`); **Faza 2.1** (`WYKONANY`) / Milestone 2.1 (`OSIĄGNIĘTY`); Fazy 3 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Faza 2.1 **nie** blokuje Fazy 3. Archiwum Runy (Krok 3.5) zakłada backend **10.3**; Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE i BFF **nie** czekają na Fazę 10.
 
-**Język wizualny (skill, nie osobna faza):** powierzchnie UI w `apps/frontend` (karty, chrome, widoki, stany loading/empty/error, prezentacja statusu live) wymagają skilla **`content-chain-product-ui`** (`.cursor/skills/content-chain-product-ui/`). IA, copy, trasy i stack nadal biorą `docs/` + `spec/` — skill nie nadpisuje kanonu. **Visual lock** jest jednorazowy w Fazie 1 (Krok 1.4 + karty wejścia 1.1–1.3); Fazy 2–6 **dziedziczą** tokeny, bez nowej palety na widok. Skill **nie** dotyczy: BFF / `apiFetch` / cookie / rejestru `EventSource` (Krok 1.6 i równoważne w późniejszych krokach), typów kontraktu (Krok 1.5), ani `content-chain-backend_major_plan.md` Faza 10.
+**Język wizualny (skill, nie osobna faza):** powierzchnie UI w `apps/frontend` (karty, chrome, widoki, stany loading/empty/error, prezentacja statusu live) wymagają skilla **`content-chain-product-ui`** (`.cursor/skills/content-chain-product-ui/`). IA, copy, trasy i stack nadal biorą `docs/` + `spec/` — skill nie nadpisuje kanonu. **Visual lock** jest jednorazowy w Fazie 1 (Krok 1.4 + karty wejścia 1.1–1.3); Fazy 2, **2.1**, 3–6 **dziedziczą** tokeny, bez nowej palety na widok. Skill **nie** dotyczy: BFF / `apiFetch` / cookie / rejestru `EventSource` (Krok 1.6 i równoważne w późniejszych krokach), typów kontraktu (Krok 1.5), ani `content-chain-backend_major_plan.md` Faza 10.
 
 **Feature plany:** przy `/create-feature-implementation-plan` na wycinku z powierzchnią UI dołącz ten skill (`@content-chain-product-ui`). HOW i kod w feature planie mają już spełniać lock / dziedziczenie — nie odkładaj smaku na implementację. Kotwicę wskazuj jawnie na **ten** major (nie na backend / Fazę 10).
 
@@ -206,6 +206,55 @@ Zmiana względem: status Fazy 2, kroków 2.1–2.2 (`NIE_ROZPOCZĘTY`) oraz MILE
 - Kontekst jest edytowalny przez admina i czytelny dla `user`.
 - Chip kompletności działa na layoutcie z Fazy 1.
 - Akceptacja przejścia do Fazy 3.
+
+---
+
+## Faza 2.1 — Zakładki widoku Kontekst firmy
+
+**Status:** `WYKONANY`
+
+**Opis:** Refaktor prezentacji widoku Kontekst firmy: sekcje w **zakładkach** zamiast jednego ciągu. Zgodnie z `docs/ux_dashboard.md` (Widok: Kontekst firmy), `SPEC-FRONTEND.md` F-8. Powierzchnia: **`content-chain-product-ui`** (dziedziczenie locku Fazy 1, bez nowej palety). Chip w chrome, `CompletenessProvider`, trasa `/context`, authz i kontrakt `GET`/`PUT` / `completeness` **bez zmian**.
+
+Refaktor względem: Faza 2 / Krok 2.1 (`WYKONANY`). Cel: ten sam formularz i ten sam jeden `PUT`; inna IA (zakładki + kropki na triggerach bramki).
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-2-1-zakladki-kontekstu.md` (KROK 1–3 `WYKONANY` → major 2.1.1: typy/`missing` + `GateCompletenessDot` → kit `Tabs` → refaktor formularza na sześć zakładek). Ten sam jeden `PUT`; kropki tylko na bramce ze `missing`; Dodatki bez kropki; chip/BFF/Faza 3 poza zakresem. **MILESTONE 2.1** → `OSIĄGNIĘTY`. Faza 2 / Krok 2.1 i MILESTONE 2 bez zmian (historia). Faza 3 pozostaje `NIE_ROZPOCZĘTY`.
+Zmiana względem: status Fazy 2.1 i Kroku 2.1.1 (`NIE_ROZPOCZĘTY`) oraz MILESTONE 2.1 (bez statusu). Powód: ślad do major po implementacji `content-chain_feature_plan_faza-2-1-zakladki-kontekstu.md`.
+
+**DoD (faza):**
+
+- Sześć zakładek: Tożsamość (domyślnie otwarta), Oferta, Głos SM, CTA / kanały, Odbiorca, Dodatki.
+- Bez zagnieżdżeń i bez podzakładek; extras w jednej zakładce Dodatki.
+- Kropki tylko na zakładkach bramki; źródło = `missing` z ostatniego GET/PUT (nie draft, nie lokalne `isComplete`).
+- Dodatki bez kropki bramki.
+- Zapis nadal jeden `PUT` całości; CTA zapisu na każdej zakładce; `user` read-only.
+- Chip „Agenci aktywni” i egzekucja bramki w api bez zmian.
+
+### Krok 2.1.1 — Zakładki i indykatory kompletności
+
+**Status:** `WYKONANY`
+
+**Opis:** Podział istniejącego formularza kontekstu na zakładki; indykator na triggerze sekcji bramki.
+
+**DoD (krok):**
+
+- Wejście na `/context` otwiera Tożsamość.
+- Trigger bramki pokazuje zieloną kropkę, gdy sekcji nie ma w `missing`, czerwoną gdy jest; kolor nie jest jedynym sygnałem.
+- Zakładka Dodatki nie ma kropki bramki.
+- Przełączenie zakładki nie zapisuje; zapis = pełny `PUT` (także pól z nieaktywnych zakładek).
+
+---
+
+## MILESTONE 2.1 — Zakładki kontekstu
+
+**Status:** `OSIĄGNIĘTY`
+
+**Opis:** Bramka po Fazie 2.1. Operator nawiguje kontekst zakładkami; kompletność sekcji bramki widać na triggerze. Faza 3 (Konto) nie zależy od tej bramki.
+
+**DoD (milestone):**
+
+- Faza 2.1 spełnia swoje DoD (lub `WYKONANY`).
+- Kanon `docs/ux_dashboard.md` (zakładki) jest obserwowalny na `/context`.
+- Faza 2 / Krok 2.1 i MILESTONE 2 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`) — bez przepisywania.
 
 ---
 
@@ -510,7 +559,7 @@ Zapis jak globalny CTA; CTA layoutu pozostaje.
 **DoD (milestone):**
 
 - Faza 6 spełnia swoje DoD (lub `WYKONANY`).
-- Fazy 1–6 mają status `WYKONANY` albo równoważnie spełnione obowiązkowe DoD.
+- Fazy 1–6 oraz Faza 2.1 mają status `WYKONANY` albo równoważnie spełnione obowiązkowe DoD.
 - Wejście, BFF, header (login → wylogowanie, zawartość do prawej), sidebar, Kontekst, Konto (start / Moje runy / email / opinia), Runy (archiwum), szczegóły (live / HITL / wynik / przegląd), floating box, Użytkownicy (admin) i zapis opinii są obserwowalne w produkcie.
 - Język wizualny od Fazy 1 przez Fazę 6 jest jednym lockiem (`content-chain-product-ui`); brak drugiej palety i brak landingowych wzorców.
 - Świadomie poza tym majorem pozostaje to, co zapisano na wstępie (m.in. panel odczytu opinii, hasło zalogowanego, testy FE, next-intl, limit per-user). Zmiany api pod ten major: `content-chain-backend_major_plan.md`, Faza 10 (10.1 / 10.2 / 10.3).

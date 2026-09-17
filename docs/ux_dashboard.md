@@ -1,3 +1,9 @@
+---
+wersja: 1
+data_utworzenia: 2026-09-17
+data_modyfikacji: 2026-09-17
+---
+
 # UX Dashboard — Content Chain
 
 Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / design systemu — widoki, stany i zachowanie względem API/SSE.
@@ -85,10 +91,25 @@ Zmiana względem: drugi sygnał = chip w chrome (instancja, w tym cudze); lista 
 
 ## Widok: Kontekst firmy
 
-- Formularze / sekcje bramki: tożsamość, oferta, głos SM, CTA/kanały, odbiorca.
-- Opcjonalne sekcje **`extras`** (case studies, obiekcje, hashtagi, catalogNotes, performanceNotes) — admin może edytować; **nie** blokują „Agenci aktywni”.
-- Widoczny status kompletności per sekcja bramki.
-- Zapis: tylko admin; user — read-only z komunikatem.
+Formularze w **zakładkach** (nie jeden ciąg sekcji na stronie). Dokładnie **sześć** zakładek, **bez** zagnieżdżeń i **bez** podzakładek:
+
+| Zakładka | Zawartość | Indykator bramki |
+|----------|-----------|------------------|
+| **Tożsamość** | Sekcja bramki `identity` | tak |
+| **Oferta** | Sekcja bramki `offer` | tak |
+| **Głos SM** | Sekcja bramki `voice` | tak |
+| **CTA / kanały** | Sekcja bramki `cta` | tak |
+| **Odbiorca** | Sekcja bramki `audience` | tak |
+| **Dodatki** | Całe **`extras`** (case studies, obiekcje, hashtagi, catalogNotes, performanceNotes) w **jednym** panelu | **nie** |
+
+- Wejście na widok: otwarta zakładka **Tożsamość**.
+- Dodatki: admin może edytować; **nie** blokują „Agenci aktywni”.
+- Na triggerze każdej zakładki **bramki**: indykator kompletności — **zielona** kropka, gdy klucz sekcji **nie** jest w `missing`; **czerwona**, gdy jest. Źródło: `completeness.missing` z ostatniego `GET` / `PUT` kontekstu (ten sam werdykt co chip „Agenci aktywni”). **Nie** z niezapisanego draftu i **nie** z lokalnej kopii `isComplete`.
+- Zakładka Dodatki: **bez** kropki bramki.
+- Kolor nie jest jedynym sygnałem (etykieta dostępności: kompletna / niekompletna).
+- Zapis: jeden `PUT` całego kontekstu (wszystkie zakładki, także nieaktywna); tylko admin; `user` — read-only z komunikatem. CTA zapisu dostępne na każdej zakładce.
+
+Zmiana względem: jeden widok ciągiem z tekstem „Kompletna” / „Niekompletna” przy nagłówku sekcji. Od tej wersji: zakładki + kropki na triggerach bramki; extras w jednej zakładce Dodatki bez kropki.
 
 ## Widok: Runy (archiwum firmy)
 

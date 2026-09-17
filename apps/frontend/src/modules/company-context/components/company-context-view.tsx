@@ -92,9 +92,8 @@ export function CompanyContextView() {
     return (
       <div className="flex max-w-3xl flex-col gap-3">
         <Skeleton className="h-7 w-48" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-40 w-full" />
       </div>
     );
   }

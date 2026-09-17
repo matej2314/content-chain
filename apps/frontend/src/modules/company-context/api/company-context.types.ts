@@ -16,6 +16,27 @@ export function isGateSection(value: string): value is GateSection {
   return (GATE_SECTIONS as readonly string[]).includes(value);
 }
 
+export const CONTEXT_TABS = [...GATE_SECTIONS, 'extras'] as const;
+
+export type ContextTab = (typeof CONTEXT_TABS)[number];
+
+export const DEFAULT_CONTEXT_TAB: ContextTab = 'identity';
+
+export const CONTEXT_TAB_LABELS = {
+  ...GATE_SECTION_LABELS,
+  extras: 'Dodatki',
+} as const satisfies Record<ContextTab, string>;
+
+export function isContextTab(value: string): value is ContextTab {
+  return (CONTEXT_TABS as readonly string[]).includes(value);
+}
+
+/** `null` = zakładka poza bramką (Dodatki). `true` = klucz jest w `missing`. */
+export function gateTabIsMissing(tab: ContextTab, missing: readonly GateSection[]): boolean | null {
+  if (tab === 'extras') return null;
+  return missing.includes(tab);
+}
+
 export type OfferItem = {
   readonly name: string;
   readonly benefit: readonly string[];
