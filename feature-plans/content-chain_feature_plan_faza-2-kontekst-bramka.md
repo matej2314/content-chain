@@ -42,7 +42,7 @@ Odpowiada major **Faza 2**.
 
 ### KROK 1 — Typy, API kontekstu, CompletenessProvider
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Granica FE rozumie `GET/PUT /company-context` i `GET /company-context/completeness`. Chrome po sesji ma jeden stan kompletności do chipa (ten krok) i do późniejszego disable CTA startu (major 3.1, poza tym plikiem). Major 2.2 (fundament); `SPEC-FRONTEND.md` F-3 / F-6; `SPEC-KONTEKST-FIRMY.md` C-2 / C-3 / C-4; `docs/dokumentacja_komunikacji.md` (Company context).
 
@@ -476,7 +476,9 @@ export function CompletenessProvider({ children }: { readonly children: ReactNod
   }, []);
 
   useEffect(() => {
-    void refetch();
+    (async () => {
+      await refetch();
+    })();
   }, [refetch]);
 
   const value = useMemo(() => ({ state, refetch }), [state, refetch]);
@@ -565,7 +567,7 @@ Provider tylko w gałęzi `authenticated` (już po early-return). Mobile `AppSid
 
 ### KROK 2 — Widok Kontekst firmy
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Admin uzupełnia i zapisuje sekcje bramki oraz extras jednym PUT. `user` widzi ten sam układ tylko do odczytu. Status kompletności per sekcja z `missing` odpowiedzi. Extras nie sterują chipem. Major 2.1; `docs/ux_dashboard.md` (Widok: Kontekst firmy); `SPEC-KONTEKST-FIRMY.md` C-4 / C-8; `SPEC-FRONTEND.md` F-8.
 

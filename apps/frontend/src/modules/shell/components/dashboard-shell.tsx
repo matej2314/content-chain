@@ -7,6 +7,7 @@ import { useSession } from '@/modules/auth/components/session-provider';
 import { AppHeader } from '@/modules/shell/components/app-header';
 import { AppSidebar } from '@/modules/shell/components/app-sidebar';
 import { FloatingBoxSlot } from '@/modules/shell/components/chrome-slots';
+import { CompletenessProvider } from '@/modules/company-context/components/completeness-provider';
 import { EventSourceRegistryProvider } from '@/modules/shell/components/event-source-registry-provider';
 
 export function DashboardShell({ children }: { readonly children: ReactNode }) {
@@ -35,6 +36,7 @@ export function DashboardShell({ children }: { readonly children: ReactNode }) {
 
   return (
     <EventSourceRegistryProvider>
+      <CompletenessProvider>
       <div className="flex min-h-dvh bg-background">
         <div className="hidden md:block">
           <AppSidebar role={state.user.role} />
@@ -45,6 +47,7 @@ export function DashboardShell({ children }: { readonly children: ReactNode }) {
         </div>
         <FloatingBoxSlot />
       </div>
+      </CompletenessProvider>
     </EventSourceRegistryProvider>
   );
 }
