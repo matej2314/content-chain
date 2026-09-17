@@ -1401,7 +1401,7 @@ Strona zostaje Server Component (Context7: import klienta z RSC). Fetch sesyjny 
 
 ### KROK 3 — Chip kompletności w chrome
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Wypełnić slot Fazy 1: stały sygnał „agenci aktywni / nieaktywni” na widokach po sesji, z listą braków i drogą do `/context`. Nie mylić z runami w toku. Major 2.2; `docs/ux_dashboard.md` (Globalny wskaźnik); `SPEC-FRONTEND.md` F-6 / F-8; `docs/dictionary.md` (Agenci aktywni).
 

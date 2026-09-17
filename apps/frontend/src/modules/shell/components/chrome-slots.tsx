@@ -1,9 +1,10 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { CompletenessChip } from '@/modules/company-context/components/completeness-chip';
 
 export function CompletenessChipSlot() {
-  return <div data-slot="completeness-chip" className="min-h-6" />;
+  return <CompletenessChip />;
 }
 
 export function FeedbackCtaSlot() {

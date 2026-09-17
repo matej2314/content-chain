@@ -3426,9 +3426,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/chrome-slots.tsx": {
-    "mtime": 1789581414.6440458,
-    "seen": 1789638428.3510287,
-    "ast_hash": "b7be7fabcce5add0924abc4fe5b78e88",
+    "mtime": 1789642975.7917132,
+    "seen": 1789643086.7288,
+    "ast_hash": "dd47dc7fa3b65dc563c849b9897f76e5",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/dashboard-shell.tsx": {
@@ -3489,6 +3489,12 @@
     "mtime": 1789641527.1539135,
     "seen": 1789641641.0002062,
     "ast_hash": "56150977f3e7a922756365aba5693246",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/company-context/components/completeness-chip.tsx": {
+    "mtime": 1789643071.180533,
+    "seen": 1789643086.728796,
+    "ast_hash": "d85e4893d34b01fb72e22dd65c25e960",
     "semantic_hash": ""
   }
 }
