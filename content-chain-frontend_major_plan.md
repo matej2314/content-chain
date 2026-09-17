@@ -5,7 +5,7 @@
 **Poza tym plikiem:** trzy zmiany kontraktu api — **`content-chain-backend_major_plan.md`, Faza 10** (Krok 10.1 zapis treści przy Edytuj; Krok 10.2 własny email; Krok 10.3 filtr wielowartościowy `GET /runs`); panel administracyjny odczytu opinii; zmiana hasła zalogowanego / usuwanie własnego konta; soft-delete użytkowników w UI; otwarta rejestracja; `selectedIdeaIds` na starcie w UI; `conversationId` w UI; limit per-user runów w toku; next-intl / mapa tłumaczeń envelope; Playwright / automatyczne testy FE; Docker/`production` jako temat tego planu; PostgreSQL / V1 — rozbudowa. Aplikacja frontu **już istnieje** jako boilerplate (backend Faza 1 / Krok 1.3) — ten major nie tworzy jej od zera.
 
 **Źródła:** `docs/` (w tym `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `docs/brand_types.md`, `docs/security.md`, `docs/deployment.md`), `spec/SPEC-*.md` (w tym `SPEC-FRONTEND.md`, `SPEC-AUTH.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-RUNY.md`, `SPEC-FEEDBACK.md`, `SPEC-BEZPIECZENSTWO.md`).  
-**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); Fazy 2 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Archiwum Runy (Krok 3.5) zakłada backend **10.3**; Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE i BFF **nie** czekają na Fazę 10.
+**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); **Faza 2** (`WYKONANY`) / Milestone 2 (`OSIĄGNIĘTY`); Fazy 3 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Archiwum Runy (Krok 3.5) zakłada backend **10.3**; Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE i BFF **nie** czekają na Fazę 10.
 
 **Język wizualny (skill, nie osobna faza):** powierzchnie UI w `apps/frontend` (karty, chrome, widoki, stany loading/empty/error, prezentacja statusu live) wymagają skilla **`content-chain-product-ui`** (`.cursor/skills/content-chain-product-ui/`). IA, copy, trasy i stack nadal biorą `docs/` + `spec/` — skill nie nadpisuje kanonu. **Visual lock** jest jednorazowy w Fazie 1 (Krok 1.4 + karty wejścia 1.1–1.3); Fazy 2–6 **dziedziczą** tokeny, bez nowej palety na widok. Skill **nie** dotyczy: BFF / `apiFetch` / cookie / rejestru `EventSource` (Krok 1.6 i równoważne w późniejszych krokach), typów kontraktu (Krok 1.5), ani `content-chain-backend_major_plan.md` Faza 10.
 
@@ -155,9 +155,12 @@ Jednorazowe spięcie motywu (akcent, szarości, radius, `--font-sans` → Geist,
 
 ## Faza 2 — Kontekst firmy i bramka agentów
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Widok Kontekst firmy: sekcje bramki i opcjonalne extras. Chip „agenci aktywni / nieaktywni” w chrome. Start runów nadal nie jest tematem tej fazy, ale sygnał kompletności musi być gotowy, bo Faza 3 go czyta. Zgodnie z `docs/ux_dashboard.md`, docs kontekstu firmy, `SPEC-FRONTEND.md`. Widok i chip: **`content-chain-product-ui`** (dziedziczenie locku Fazy 1, bez nowej palety).
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-2-kontekst-bramka.md` (KROK 1 `WYKONANY` → typy / `GET|PUT` / `CompletenessProvider` pod major 2.2 i później 3.1; KROK 2 `WYKONANY` → major 2.1; KROK 3 `WYKONANY` → major 2.2). Zapis = jeden `PUT` (bramka + extras); chip czyta provider, nie własny fetch; `useCompleteness` publiczny pod CTA startu (Faza 3). **MILESTONE 2** → `OSIĄGNIĘTY`. Faza 3 pozostaje `NIE_ROZPOCZĘTY`.
+Zmiana względem: status Fazy 2, kroków 2.1–2.2 (`NIE_ROZPOCZĘTY`) oraz MILESTONE 2 (bez statusu). Powód: ślad do major po implementacji `content-chain_feature_plan_faza-2-kontekst-bramka.md`.
 
 **DoD (faza):**
 
@@ -168,7 +171,7 @@ Jednorazowe spięcie motywu (akcent, szarości, radius, `--font-sans` → Geist,
 
 ### Krok 2.1 — Widok Kontekst firmy
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Formularze sekcji bramki i extras; status kompletności per sekcja bramki.
 
@@ -180,7 +183,7 @@ Jednorazowe spięcie motywu (akcent, szarości, radius, `--font-sans` → Geist,
 
 ### Krok 2.2 — Chip kompletności w chrome
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Wypełnienie slotu z Fazy 1: stały sygnał, czy można uruchamiać runy produktowe.
 
@@ -192,6 +195,8 @@ Jednorazowe spięcie motywu (akcent, szarości, radius, `--font-sans` → Geist,
 ---
 
 ## MILESTONE 2 — Kontekst i bramka widoczne
+
+**Status:** `OSIĄGNIĘTY`
 
 **Opis:** Bramka po Fazie 2. Duży skok: operator widzi i (jako admin) wypełnia kontekst; chrome mówi, czy agenci są aktywni. Wolno budować start i live na Koncie.
 

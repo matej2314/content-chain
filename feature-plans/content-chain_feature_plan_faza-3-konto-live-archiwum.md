@@ -42,7 +42,7 @@ Odpowiada major **Faza 3**. Numer `FAZA 2` jest porządkowy w zestawie (plik 1 =
 
 ### KROK 1 — Typy, parsery i API runów
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Granica FE dla list, snapshotu, startu i logów. Major 3.1–3.5 (fundament); `SPEC-RUNY.md` R-3a/R-3c/R-3d; `docs/dokumentacja_komunikacji.md`.
 
