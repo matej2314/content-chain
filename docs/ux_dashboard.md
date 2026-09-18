@@ -1,5 +1,5 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-09-17
 data_modyfikacji: 2026-09-18
 ---
@@ -83,11 +83,46 @@ CTA „Start runu” (wyłącznie na **Koncie**) disabled + tooltip, gdy agenci 
 | Inny widok po sesji (Kontekst, Runy, szczegóły, Użytkownicy, …) | **Floating box**: pozycja per taki run (status + skrót meta + link do szczegółów). Copy: `running` / `awaiting_hitl` — „Trwa run…”; `interrupted` — **inne** („Przerwany — wznowienie przy wolnym slocie”). HITL / wynik / przegląd **nie** żyją w boxie (tylko na szczegółach). Box można **zwinąć** do mniejszej wersji i rozwinąć |
 | `queued` | **Bez** pozycji w boxie i **bez** SSE. Widać na Koncie ze snapshotu GET |
 
-Live: **N×** `EventSource` na `GET .../runs/:runId/events` (istniejący kontrakt per `runId`; **bez** nowego endpointu SSE). Rejestr połączeń w layoutcie zalogowanym (jedno połączenie na `runId`). `queued` nie otwiera socketa. Po `completed` / `failed` — `close()` i zniknięcie z boxa (zakończony wpadnie do archiwum Runy przy następnym odświeżeniu).
+Live: **N×** `EventSource` na `GET .../runs/:runId/events` (istniejący kontrakt per `runId`; **bez** nowego endpointu SSE). Rejestr połączeń w layoutcie zalogowanym (jedno połączenie na `runId`). `queued` nie otwiera socketa. Po `completed` / `failed` — `close()` i zniknięcie z boxa (zakończony wpadnie do archiwum Runy przy następnym odświeżeniu). Toast terminalu **nie** zatrzymuje boxa: box i tak znika; toast zastępuje **ciszę**, nie pozycję boxa (sekcja „Feedback zdarzeń”).
 
 Cudzy run w toku **nie** ma sygnału w chrome (archiwum Runy go też nie pokazuje).
 
 Zmiana względem: drugi sygnał = chip w chrome (instancja, w tym cudze); lista Runy niosła wszystkie statusy na żywo.
+
+## Feedback zdarzeń (toast)
+
+Trzy kanały — **nie wolno** ich zlewać:
+
+| Kanał | Powierzchnia | Czas życia |
+|-------|--------------|------------|
+| **Dzieje się** | Moje runy, floating box, status na szczegółach + SSE | dopóki status live |
+| **Wydarzyło się** | Toast (Sonner) w layoutcie **po sesji** | sekundy; **nie** store, **nie** GET |
+| **Request padł przy formularzu / bloku** | envelope (`code` + `message`) w miejscu błędu | dopóki operator nie poprawi / nie zejdzie |
+
+**Zmiana względem:** wcześniej brak warstwy „wydarzyło się”; jedyny sygnał poza envelope to live (box / Moje runy) i zmiana wiersza po 202. Od tej wersji toast **zastępuje ciszę** po udanej mutacji oraz po terminalu runu poza szczegółami — **nie** zastępuje boxa, chipa, kropek ani envelope.
+
+Po `completed` / `failed` floating box **nadal znika**. Chip / kropki / box **zostają** w kanonie. Toast **nie** jest źródłem prawdy statusu ani powodu `failed` — po reloadzie obowiązuje GET run / GET logs. `failed` na szczegółach: status + logi z powodem **zostają** (sekcja „Widok: Run (szczegóły)” i „Stany puste i błędy”).
+
+### Mapa MVP minimum
+
+Sukces toasta: **polski**, krótki tytuł. Błąd w toaście **tylko** gdy na tym evencie nie ma powierzchni envelope (w MVP minimum: **brak** takiego przypadku przy mutacjach formularza — 400/409 zostają przy polu). Gdy toast błędu kiedyś wejdzie (poza formularzem): **`code` + `message`** z envelope, **bez** mapy PL.
+
+| Zdarzenie | Toast? | Copy (sukces) / zachowanie |
+|-----------|--------|----------------------------|
+| `PUT /company-context` **200** | tak | „Kontekst zapisany” |
+| `PUT /company-context` **400** (walidacja / bramka) | **nie** | envelope + `details` przy formularzu |
+| `POST /runs` **202** | tak | „Run wystartował” (zostajemy na Koncie — bez zmiany) |
+| `POST /runs` **409** `CONTEXT_INCOMPLETE` / **400** | **nie** | envelope na formularzu startu |
+| SSE `run.completed` / `run.failed` **i** operator **nie** jest na `/runs/:runId` **tego** runu | tak | „Run zakończony” / „Run nieudany” + akcja **Szczegóły** (link) |
+| SSE terminal **na** `/runs/:runId` tego runu | **nie** | status + logi na szczegółach |
+| GET listy / snapshot / completeness (błąd strony) | **nie** | envelope w bloku |
+| Pulse `running`, `run.log`, heartbeat | **nie** | box / szczegóły |
+| Login / bootstrap / accept-invite | **nie** | envelope na karcie (brak Toastera poza sesją) |
+| `awaiting_hitl` | **nie** (MVP) | box już zmienia copy; HITL później na tym samym prymitywie |
+
+Później (HITL, opinia, `PATCH /auth/me`, zaproszenia): **ten sam** kanał toasta, nadal **nie** toast na walidację przy polu.
+
+Toaster wyłącznie w gałęzi zalogowanej (warstwa toast w chrome; nie zasłania headera — np. `top-right`; floating box zostaje `bottom-right`).
 
 ## Widok: Kontekst firmy
 
@@ -202,8 +237,8 @@ Zmiana względem: widok Users i accept-invite jako „przyszły FE / gdy ekran p
 
 - Brak admina: strona główna (ten sam formularz) → bootstrap → dashboard.
 - Pusty kontekst / po pierwszym wejściu admina: onboarding → uzupełnij kontekst → „Agenci aktywni”.
-- Błędy API (MVP): pokazać **`code` i `message` tak, jak zwraca envelope** (komunikaty API są po angielsku). **Bez** stack trace. Chrome i etykiety poza envelope — po polsku. Tłumaczenie UI (np. next-intl) = **V1 — rozbudowa**, nie MVP.
-- `failed` run: status + ostatnie logi z powodem (verifier / gateway).
+- Błędy API (MVP): pokazać **`code` i `message` tak, jak zwraca envelope** (komunikaty API są po angielsku). **Bez** stack trace. Chrome i etykiety poza envelope — po polsku. Tłumaczenie UI (np. next-intl) = **V1 — rozbudowa**, nie MVP. Przy formularzu / błędzie GET bloku: envelope **w miejscu błędu** — **nie** toast (sekcja „Feedback zdarzeń”).
+- `failed` run: status + ostatnie logi z powodem (verifier / gateway) **zostają** na szczegółach. Toast terminalu poza szczegółami („Run nieudany”) **nie** jest magazynem powodu.
 - `interrupted` run: status + informacja, że wznowienie czeka na wolny slot (bez panelu HITL i bez oceny).
 
 ## Poza zakresem UX MVP
@@ -222,7 +257,9 @@ Zmiana względem: widok Users i accept-invite jako „przyszły FE / gdy ekran p
 - Otwarta rejestracja / aktywny przycisk „Zarejestruj się!” na stronie głównej (w MVP pozostaje nieaktywny)  
 - Automatyczne testy FE (`testy.md` — poza MVP)  
 - Chip / stos chipów „run w toku” w chrome (zastąpiony floating boxem)  
-- SSE na `queued` oraz nowy endpoint „SSE moich runów” (obowiązuje N× istniejące `.../runs/:runId/events`)
+- SSE na `queued` oraz nowy endpoint „SSE moich runów” (obowiązuje N× istniejące `.../runs/:runId/events`)  
+- Browser Notification API; mail przy `failed` runu; toast na `running` / `run.log` / heartbeat; trzymanie „właśnie skończonych” w floating boxie  
+- Toast jako kopia GET / React Query / Context „server state”
 
 Implementacja wizualna statusu live należy do frontu; ten dokument ustala **wymaganie zachowania** (live + atrakcyjna animacja statusu), nie konkretną bibliotekę motion.
 

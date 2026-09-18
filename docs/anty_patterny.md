@@ -1,3 +1,9 @@
+---
+wersja: 1
+data_utworzenia: 2026-09-18
+data_modyfikacji: 2026-09-18
+---
+
 # Anty-patterny — Content Chain
 
 Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego źle → zamiast tego. Ogólny podręcznik Nest/Next — poza zakresem.
@@ -63,6 +69,10 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | Feedback / gwiazdki / edycja wyniku w LangGraph | Miesza jakość UX z pipeline LLM | Komendy Runs + BC Feedback po `completed`/`failed`. Edycja treści = `POST .../output-edited` (nadpis `result` + flaga), **nie** re-invoke grafu. Przy `POST /feedback` `targetType=run` bramka statusu jest w **API** (409 `RUN_NOT_REVIEWABLE`); sam disable na UI nie wystarcza |
 | Edytuj tylko jako flaga, przy kanonie „zapis treści” | UI i snapshot rozjeżdżają się z DB | Zapis edycji zastępuje kanoniczny wynik (`dokumentacja_komunikacji.md`, `ux_dashboard.md`) |
 | Select „wszystkie moje runy” przez łamanie `pageSize=10` na `GET /runs` | Psuje listę dashboardu | Osobny `GET /runs/user/:userId` (bez paginacji 10) |
+| Toast / Sonner jako kanał live statusu runu | Zlewa „dzieje się” z „wydarzyło się”; gubi SSE i box | SSE + box / Moje runy / szczegóły (`ux_dashboard.md`, `SPEC-FRONTEND.md` F-5) |
+| Toast na błąd walidacji / 400 przy polu | Operator traci envelope przy formularzu; druga mapa błędów | Envelope (`code` + `message`) w miejscu błędu |
+| Toast z payloadu `run.failed` jako jedyny powód porażki | Po reloadzie cisza; kanon powodu to logi | `run.log` + GET snapshot; toast tylko „nieudany” + link |
+| Store toasta w Context jako kopia GET | Fałszywy server state; drift z listą po odświeżeniu | Sonner efemeryczny; GET zostaje źródłem list |
 
 ---
 

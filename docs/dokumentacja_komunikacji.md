@@ -1,5 +1,5 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-09-18
 data_modyfikacji: 2026-09-18
 ---
@@ -28,6 +28,8 @@ Zmiana względem kanonu Fazy 4.3 (HITL Social dwuetapowy = dokładnie 1 `selecte
 Zmiana względem kanonu Users (`POST /api/v1/users` z `email` + `password`): ta trasa **wypada z kanonu**. Jedyna droga na `role = user` = zaproszenie (admin, tylko email) → publiczny `POST /auth/accept-invite`. Soft-delete (`DELETE /users/:id`) **bez zmian**.
 
 Zmiana względem wiersza PATCH Users („Aktualizacja (np. reaktywacja)” bez body; API „pod późniejsze V1”): w MVP `PATCH /api/v1/users/:id` jest **obowiązkowy** i **wyłącznie** reaktywacją — body `{ "isActive": true }`; dezaktywacja zostaje `DELETE`. UI nadal poza MVP.
+
+Zmiana względem: komunikacja opisywała tylko transport SSE; nie mówiła, że UI dashboardu może z `run.completed` / `run.failed` zrobić sygnał poza widokiem szczegółów. Payloady eventów, statusy runu i kody HTTP PUT/POST (**200** / **202** / **400** / **409**) **bez zmian**.
 
 ---
 
@@ -557,6 +559,8 @@ Zdarzenia (`event:` / `data:` JSON):
 | `run.completed` | Sukces | `{ runId, resultSummary? }` |
 | `run.failed` | Porażka | `{ runId, code?, message }` |
 | `heartbeat` | Co ~25 s (keep-alive) | `""` — klient **ignoruje** |
+
+**Konsumpcja terminalu w dashboardzie.** Klient dashboardu **wolno** użyć `run.completed` / `run.failed` do toasta (norma `docs/ux_dashboard.md`). Źródło prawdy statusu i powodu po reloadzie: GET run / GET logs — **nie** pamięć toasta. Payload `run.failed` `{ code?, message }` **nie** staje się kolumną Run ani jedynym miejscem powodu (kanon logów — poza tym plikiem). Kody HTTP PUT/POST **bez zmian** (200 / 202 / 400 / 409).
 
 **Koniec strumienia.** Po wyemitowaniu `run.completed` albo `run.failed` serwer **kończy** SSE (Observable complete → zamknięcie odpowiedzi HTTP). Subskrypcja, gdy snapshot runu jest już `completed` \| `failed`: serwer emituje `run.status` z **najświeższego** odczytu z DB i kończy stream — bez wiszącego połączenia.
 

@@ -1,5 +1,5 @@
 ---
-wersja: 23
+wersja: 24
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-09-18
 ---
@@ -14,6 +14,8 @@ Norma **implementacji obu powierzchni I/O** Content Chain:
 2. klient `apps/api` → `apps/ai-provider-gateway` (natywny chat).
 
 Uszczegóławia `docs/dokumentacja_komunikacji.md` oraz korelację ID z `docs/brand_types.md` / `docs/dictionary.md`. **Nie** redefiniuje listy endpointów ani payloadów — odwołuje się do docs; tu obowiązują wzorce warstw, walidacja, envelope, SSE i adapter LLM.
+
+Zmiana względem wersji 23 / cel: dopisano konsumpcję `run.completed` / `run.failed` w dashboardzie (toast). **Bez** nowych kodów HTTP, eventów SSE i endpointów.
 
 ## Powiązanie ze stylem z docs
 
@@ -94,11 +96,13 @@ Zmiana względem wersji 4: dopisano fundament zapisu feedbacku (wcześniej tylko
 
 Zmiana względem wersji 2: dopisano obowiązek listingu kolekcji runów pod FE (wcześniej tylko POST + GET by id / SSE).
 
-K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed) idzie wyłącznie przez **SSE** `GET /api/v1/runs/:runId/events`. Zdarzenia i statusy jak w docs komunikacji — `run.status` może nieść `interrupted`.
+K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed) idzie wyłącznie przez **SSE** `GET /api/v1/runs/:runId/events`. Zdarzenia i statusy jak w docs komunikacji — `run.status` może nieść `interrupted`. Dashboard **może** zareagować na `run.completed` / `run.failed` toasteem wg `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`; to **nie** jest nowy endpoint, nowy event ani polling. Źródło prawdy statusu i powodu po reloadzie: GET run / GET logs — nie pamięć toasta. Payload `run.failed` `{ code?, message }` **nie** zastępuje `run.log` (`SPEC-RUNY.md` R-2).
 
 Zmiana względem wersji 5: zbiór statusów SSE / filtra listy rozszerzony o `interrupted`; K-2 (POST `queued` \| `running`) **bez** zmiany statusów startowych.
 
-K-3a. Koniec strumienia SSE: po wyemitowaniu `run.completed` albo `run.failed` handler **kończy** `Observable` (Nest zamyka response). Subskrypcja przy snapshotcie już `completed` \| `failed`: `run.status` z **najnowszego** odczytu z DB (drugi `getRun.execute` przed `subscribe`), potem complete — bez zostawiania subjectu na zawsze. Stream **nie** kończy się na `awaiting_hitl` ani `interrupted`. Reconnect klienta tylko po nieoczekiwanym zerwaniu przy statusie nieterminalnym — kontrakt w `docs/dokumentacja_komunikacji.md`.
+Zmiana względem wersji 23 / K-3: K-3 milczało o konsumpcji UI poza widokiem szczegółów. Payloady eventów i kody HTTP **bez zmian**.
+
+K-3a. Koniec strumienia SSE: po wyemitowaniu `run.completed` albo `run.failed` handler **kończy** `Observable` (Nest zamyka response). Subskrypcja przy snapshotcie już `completed` \| `failed`: `run.status` z **najnowszego** odczytu z DB (drugi `getRun.execute` przed `subscribe`), potem complete — bez zostawiania subjectu na zawsze. Stream **nie** kończy się na `awaiting_hitl` ani `interrupted`. Reconnect klienta tylko po nieoczekiwanym zerwaniu przy statusie nieterminalnym — kontrakt w `docs/dokumentacja_komunikacji.md`. Toast dashboardu **nie** zmienia K-3a (serwer i tak kończy Observable; klient i tak `close()` — `SPEC-FRONTEND.md` F-5a).
 
 Zmiana względem wersji 6 / K-3: K-3 wymieniało eventy completed/failed jako treść live, bez normy zamknięcia połączenia HTTP ani late-join na skończonym runie.
 
@@ -172,6 +176,7 @@ Zakaz: FE generuje `RequestId` „na zapas”; zakaz nowego `ConversationId` per
 - Wspólny filter mapujący wyjątki domenowe i walidację na envelope + właściwy status HTTP.
 - `@Sse()` na `GET .../events` z auth guardem jak pozostałe chronione trasy.
 - Kończyć `Observable` po `run.completed` / `run.failed` oraz na late-join, gdy snapshot jest już terminalny (K-3a).
+- Konsumpcję `run.completed` / `run.failed` w dashboardzie jako toast wg `SPEC-FRONTEND.md` — bez nowego endpointu i bez zmiany payloadu.
 - Adapter gateway używający natywnego chat; zapis `requestId` z odpowiedzi do logu kroku.
 - Dump kształtu hopu na stdout wyłącznie gdy `NODE_ENV=development`, z `[REDACTED]` zamiast `GATEWAY_KEY` (helper `llm-gateway-chat.log.ts`).
 - Opcjonalnie `POST .../chat/stream` gateway, gdy konkretny węzeł pipeline’u tego wymaga (finalizacja węzła po domknięciu streamu).
@@ -183,6 +188,7 @@ Zmiana względem wersji 8 / wiersz Application: odczyt snapshotu był milcząco 
 ### Nie wolno
 
 - Pollingu statusu runu jako kanału **live** (zamiast SSE).
+- Traktowania payloadu `run.failed` (`code?`, `message`) jako zamiennika kanonicznych `run.log` (`SPEC-RUNY.md` R-2).
 - Zostawiania otwartego SSE po evencie terminalnym albo na runie już `completed` \| `failed`.
 - Unbounded mapy Subject per `runId` bez evikcji po terminalu (cykl życia huba — `SPEC-RUNY.md`).
 - Subjectu bez TTL automatu ewikcji — zombie Subject przy hung runie powoduje memory leak (K-3b).
@@ -200,6 +206,8 @@ Zmiana względem wersji 8 / wiersz Application: odczyt snapshotu był milcząco 
 - Rozwijania publicznego API pod `/api/v2` w MVP.
 - Montowania Swagger UI pod ścieżką `/api` (kolizja z prefiksem produktowym `/api/v1` — norma: `/docs`).
 - Składania snapshotu `result`/`hitl` przez `RunsModule imports SocialModule` / `forwardRef` (`SPEC-RUNY.md`).
+
+Zmiana względem wersji 23 / „Nie wolno”: dopisano zakaz zastępowania `SPEC-RUNY.md` R-2 payloadem `run.failed`.
 
 ### Zatwierdzony stack (obszar)
 
@@ -226,7 +234,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - [ ] `GET /api/v1/runs` listuje runy instancji zgodnie z docs (paginacja 10, filtry, `startedBy`).
 - [ ] `GET /api/v1/runs/user/:userId` i `POST /feedback` oraz rating/edit/finalize istnieją w kontrakcie docs; kody `REVIEW_LOCKED` / `RUN_NOT_REVIEWABLE` w envelope.
 - [ ] `PATCH /api/v1/auth/me` `{ email }` w kontrakcie docs (**409** gdy zajęty); nie przez `PATCH /users/:id`.
-- [ ] Klient otrzymuje live status wyłącznie przez SSE; GET run/logs = snapshot.
+- [ ] Klient otrzymuje live status wyłącznie przez SSE; GET run/logs = snapshot. Toast terminalu w dashboardzie (gdy mapa UX na to zezwala) **nie** dodaje endpointu ani eventu.
 - [ ] SSE na skończonym runie (`completed` \| `failed`) emituje snapshot statusu i **kończy** strumień; po `run.completed` / `run.failed` serwer zamyka połączenie. `awaiting_hitl` / `interrupted` nie kończą SSE.
 - [ ] SSE wymaga sesji cookie jak API; brak tokenu w query i brak wymogu Bearer.
 - [ ] Adapter gateway woła natywny chat z `X-Gateway-Key`, bez `x-request-id` z CC; `conversationId` stały w runie; `requestId` z odpowiedzi w logu kroku. Hop mieści się w limicie native **10 000** znaków. Dump pełnej treści hopu na stdout tylko w `development`, z redakcją sekretu.
