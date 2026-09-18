@@ -11,6 +11,7 @@ import {
   DEFAULT_CONTEXT_TAB,
   GATE_SECTIONS,
   GATE_SECTION_LABELS,
+  companyContextForPut,
   type CompanyContext,
   type CompanyContextExtras,
   type Completeness,
@@ -19,6 +20,11 @@ import {
   GateCompletenessDot,
   gateTabAriaLabel,
 } from '@/modules/company-context/components/gate-completeness-dot';
+import {
+  canRemoveOfferItem,
+  isComplete,
+  offerItemFieldErrors,
+} from '@/modules/company-context/lib/is-complete';
 
 type CompanyContextFormProps = {
   readonly value: CompanyContext;
@@ -55,21 +61,31 @@ function extrasOrEmpty(extras: CompanyContextExtras | null): CompanyContextExtra
 function FormActions({
   readOnly,
   pending,
+  canSubmit,
   error,
 }: {
   readonly readOnly: boolean;
   readonly pending: boolean;
+  readonly canSubmit: boolean;
   readonly error: { readonly code: string; readonly message: string } | null;
 }) {
+  const submitBlocked = !readOnly && !canSubmit && !pending;
   return (
     <div className="flex flex-col gap-3 pt-2">
       {error ? <EnvelopeError code={error.code} message={error.message} /> : null}
       {readOnly ? (
         <p className="text-sm text-muted-foreground">Tylko administrator może zapisać kontekst.</p>
       ) : (
-        <Button type="submit" disabled={pending} className="self-start">
-          {pending ? 'Zapisywanie…' : 'Zapisz kontekst'}
-        </Button>
+        <>
+          <Button type="submit" disabled={pending || !canSubmit} className="self-start">
+            {pending ? 'Zapisywanie…' : 'Zapisz kontekst'}
+          </Button>
+          {submitBlocked ? (
+            <p className="text-xs text-muted-foreground">
+              Zapis wymaga kompletnej bramki. Puste wymagane pole albo kaleka usługa blokują PUT.
+            </p>
+          ) : null}
+        </>
       )}
     </div>
   );
@@ -85,6 +101,7 @@ export function CompanyContextForm({
   onSubmit,
 }: CompanyContextFormProps) {
   const extras = extrasOrEmpty(value.extras);
+  const canSubmit = isComplete(companyContextForPut(value)).complete;
 
   function patch(next: CompanyContext): void {
     onChange(next);
@@ -93,8 +110,10 @@ export function CompanyContextForm({
   return (
     <form
       className="flex max-w-3xl flex-col gap-4"
+      noValidate
       onSubmit={(event) => {
         event.preventDefault();
+        if (readOnly || pending || !canSubmit) return;
         onSubmit();
       }}
     >
@@ -129,6 +148,7 @@ export function CompanyContextForm({
               id="identity-name"
               value={value.identity.name}
               disabled={readOnly}
+              aria-required
               onChange={(event) =>
                 patch({
                   ...value,
@@ -142,6 +162,7 @@ export function CompanyContextForm({
               id="identity-description"
               value={value.identity.description}
               disabled={readOnly}
+              aria-required
               onChange={(event) =>
                 patch({
                   ...value,
@@ -150,86 +171,116 @@ export function CompanyContextForm({
               }
             />
           </FormField>
-          <FormActions readOnly={readOnly} pending={pending} error={error} />
+          <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
         </TabsContent>
 
         <TabsContent value="offer" className="flex flex-col gap-3">
           <p className="text-xs text-muted-foreground">
-            Minimum jedna usługa z nazwą i co najmniej jedną korzyścią.
+            Minimum jedna kompletna usługa: nazwa, opis i co najmniej jedna korzyść. Każda pozycja
+            na liście musi być kompletna.
           </p>
           <div className="flex flex-col divide-y divide-border">
-            {value.offer.items.map((item, index) => (
-              <div key={`offer-${index}`} className="flex flex-col gap-3 py-3 first:pt-0">
-                <FormField label="Nazwa" htmlFor={`offer-name-${index}`}>
-                  <Input
-                    id={`offer-name-${index}`}
-                    value={item.name}
-                    disabled={readOnly}
-                    onChange={(event) => {
-                      const items = value.offer.items.map((current, currentIndex) =>
-                        currentIndex === index ? { ...current, name: event.target.value } : current,
-                      );
-                      patch({ ...value, offer: { items } });
-                    }}
-                  />
-                </FormField>
-                <FormField
-                  label="Korzyści"
-                  htmlFor={`offer-benefit-${index}`}
-                  hint="Jedna korzyść na linię."
-                >
-                  <Textarea
-                    id={`offer-benefit-${index}`}
-                    value={listToLines(item.benefit)}
-                    disabled={readOnly}
-                    onChange={(event) => {
-                      const items = value.offer.items.map((current, currentIndex) =>
-                        currentIndex === index
-                          ? { ...current, benefit: linesToList(event.target.value) }
-                          : current,
-                      );
-                      patch({ ...value, offer: { items } });
-                    }}
-                  />
-                </FormField>
-                <FormField label="Opis" htmlFor={`offer-description-${index}`}>
-                  <Textarea
-                    id={`offer-description-${index}`}
-                    value={item.description}
-                    disabled={readOnly}
-                    onChange={(event) => {
-                      const items = value.offer.items.map((current, currentIndex) =>
-                        currentIndex === index
-                          ? { ...current, description: event.target.value }
-                          : current,
-                      );
-                      patch({ ...value, offer: { items } });
-                    }}
-                  />
-                </FormField>
-                {readOnly ? null : (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="self-start"
-                    onClick={() =>
-                      patch({
-                        ...value,
-                        offer: {
-                          items: value.offer.items.filter(
-                            (_, currentIndex) => currentIndex !== index,
-                          ),
-                        },
-                      })
-                    }
+            {value.offer.items.map((item, index) => {
+              const fieldErrors = offerItemFieldErrors(item);
+              const removeAllowed = canRemoveOfferItem(value.offer.items, index);
+              return (
+                <div key={`offer-${index}`} className="flex flex-col gap-3 py-3 first:pt-0">
+                  <FormField
+                    label="Nazwa"
+                    htmlFor={`offer-name-${index}`}
+                    error={fieldErrors.name ?? undefined}
                   >
-                    <Icon icon="lucide:trash-2" className="size-3.5" />
-                    Usuń usługę
-                  </Button>
-                )}
-              </div>
-            ))}
+                    <Input
+                      id={`offer-name-${index}`}
+                      value={item.name}
+                      disabled={readOnly}
+                      aria-required
+                      aria-invalid={fieldErrors.name !== null}
+                      onChange={(event) => {
+                        const items = value.offer.items.map((current, currentIndex) =>
+                          currentIndex === index
+                            ? { ...current, name: event.target.value }
+                            : current,
+                        );
+                        patch({ ...value, offer: { items } });
+                      }}
+                    />
+                  </FormField>
+                  <FormField
+                    label="Korzyści"
+                    htmlFor={`offer-benefit-${index}`}
+                    hint="Jedna korzyść na linię."
+                    error={fieldErrors.benefit ?? undefined}
+                  >
+                    <Textarea
+                      id={`offer-benefit-${index}`}
+                      value={listToLines(item.benefit)}
+                      disabled={readOnly}
+                      aria-required
+                      aria-invalid={fieldErrors.benefit !== null}
+                      onChange={(event) => {
+                        const items = value.offer.items.map((current, currentIndex) =>
+                          currentIndex === index
+                            ? { ...current, benefit: linesToList(event.target.value) }
+                            : current,
+                        );
+                        patch({ ...value, offer: { items } });
+                      }}
+                    />
+                  </FormField>
+                  <FormField
+                    label="Opis"
+                    htmlFor={`offer-description-${index}`}
+                    error={fieldErrors.description ?? undefined}
+                  >
+                    <Textarea
+                      id={`offer-description-${index}`}
+                      value={item.description}
+                      disabled={readOnly}
+                      aria-required
+                      aria-invalid={fieldErrors.description !== null}
+                      onChange={(event) => {
+                        const items = value.offer.items.map((current, currentIndex) =>
+                          currentIndex === index
+                            ? { ...current, description: event.target.value }
+                            : current,
+                        );
+                        patch({ ...value, offer: { items } });
+                      }}
+                    />
+                  </FormField>
+                  {readOnly ? null : (
+                    <span
+                      className="self-start"
+                      title={
+                        removeAllowed ? undefined : 'Nie można usunąć ostatniej kompletnej usługi.'
+                      }
+                    >
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={!removeAllowed}
+                        onClick={() => {
+                          if (!removeAllowed) return;
+                          patch({
+                            ...value,
+                            offer: {
+                              items: value.offer.items.filter(
+                                (_, currentIndex) => currentIndex !== index,
+                              ),
+                            },
+                          });
+                        }}
+                      >
+                        <Icon icon="lucide:trash-2" className="size-3.5" />
+                        Usuń usługę
+                      </Button>
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
           {readOnly ? null : (
             <Button
@@ -250,7 +301,7 @@ export function CompanyContextForm({
               Dodaj usługę
             </Button>
           )}
-          <FormActions readOnly={readOnly} pending={pending} error={error} />
+          <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
         </TabsContent>
 
         <TabsContent value="voice" className="flex flex-col gap-3">
@@ -259,6 +310,7 @@ export function CompanyContextForm({
               id="voice-we-do"
               value={value.voice.weDo}
               disabled={readOnly}
+              aria-required
               onChange={(event) =>
                 patch({ ...value, voice: { ...value.voice, weDo: event.target.value } })
               }
@@ -269,12 +321,13 @@ export function CompanyContextForm({
               id="voice-we-dont"
               value={value.voice.weDont}
               disabled={readOnly}
+              aria-required
               onChange={(event) =>
                 patch({ ...value, voice: { ...value.voice, weDont: event.target.value } })
               }
             />
           </FormField>
-          <FormActions readOnly={readOnly} pending={pending} error={error} />
+          <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
         </TabsContent>
 
         <TabsContent value="cta" className="flex flex-col gap-3">
@@ -286,9 +339,12 @@ export function CompanyContextForm({
                     id={`cta-label-${index}`}
                     value={item.label}
                     disabled={readOnly}
+                    aria-required
                     onChange={(event) => {
                       const items = value.cta.items.map((current, currentIndex) =>
-                        currentIndex === index ? { ...current, label: event.target.value } : current,
+                        currentIndex === index
+                          ? { ...current, label: event.target.value }
+                          : current,
                       );
                       patch({ ...value, cta: { items } });
                     }}
@@ -347,7 +403,7 @@ export function CompanyContextForm({
               Dodaj CTA
             </Button>
           )}
-          <FormActions readOnly={readOnly} pending={pending} error={error} />
+          <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
         </TabsContent>
 
         <TabsContent value="audience" className="flex flex-col gap-3">
@@ -363,6 +419,7 @@ export function CompanyContextForm({
                     id={`audience-${index}`}
                     value={profile.description}
                     disabled={readOnly}
+                    aria-required
                     onChange={(event) => {
                       const profiles = value.audience.profiles.map((current, currentIndex) =>
                         currentIndex === index ? { description: event.target.value } : current,
@@ -412,7 +469,7 @@ export function CompanyContextForm({
               Dodaj profil
             </Button>
           )}
-          <FormActions readOnly={readOnly} pending={pending} error={error} />
+          <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
         </TabsContent>
 
         <TabsContent value="extras" className="flex flex-col gap-3">
@@ -461,7 +518,10 @@ export function CompanyContextForm({
           <div className="flex flex-col gap-3">
             <p className="text-sm font-medium">Case studies</p>
             {(extras.caseStudies ?? []).map((item, index) => (
-              <div key={`case-${index}`} className="flex flex-col gap-3 border-t border-border pt-3">
+              <div
+                key={`case-${index}`}
+                className="flex flex-col gap-3 border-t border-border pt-3"
+              >
                 <FormField label="Tytuł" htmlFor={`case-title-${index}`}>
                   <Input
                     id={`case-title-${index}`}
@@ -469,7 +529,9 @@ export function CompanyContextForm({
                     disabled={readOnly}
                     onChange={(event) => {
                       const caseStudies = (extras.caseStudies ?? []).map((current, currentIndex) =>
-                        currentIndex === index ? { ...current, title: event.target.value } : current,
+                        currentIndex === index
+                          ? { ...current, title: event.target.value }
+                          : current,
                       );
                       patch({ ...value, extras: { ...extras, caseStudies } });
                     }}
@@ -565,7 +627,9 @@ export function CompanyContextForm({
                     disabled={readOnly}
                     onChange={(event) => {
                       const objections = (extras.objections ?? []).map((current, currentIndex) =>
-                        currentIndex === index ? { ...current, label: event.target.value } : current,
+                        currentIndex === index
+                          ? { ...current, label: event.target.value }
+                          : current,
                       );
                       patch({ ...value, extras: { ...extras, objections } });
                     }}
@@ -631,7 +695,7 @@ export function CompanyContextForm({
               </Button>
             )}
           </div>
-          <FormActions readOnly={readOnly} pending={pending} error={error} />
+          <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
         </TabsContent>
       </Tabs>
     </form>

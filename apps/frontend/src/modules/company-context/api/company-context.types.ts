@@ -307,11 +307,16 @@ export function companyContextForPut(context: CompanyContext): CompanyContext {
       description: context.identity.description,
     },
     offer: {
-      items: context.offer.items.map((item) => ({
-        name: item.name,
-        description: item.description,
-        benefit: [...item.benefit],
-      })),
+      items: context.offer.items
+        .filter(
+          (item) =>
+            nonEmpty(item.name) || nonEmpty(item.description) || item.benefit.some(nonEmpty),
+        )
+        .map((item) => ({
+          name: item.name,
+          description: item.description,
+          benefit: [...item.benefit],
+        })),
     },
     voice: { weDo: context.voice.weDo, weDont: context.voice.weDont },
     cta: {

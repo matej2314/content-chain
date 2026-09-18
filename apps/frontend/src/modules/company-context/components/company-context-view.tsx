@@ -11,11 +11,13 @@ import {
   putCompanyContext,
 } from '@/modules/company-context/api/company-context.api';
 import {
+  companyContextForPut,
   withDraftRows,
   type CompanyContext,
   type Completeness,
 } from '@/modules/company-context/api/company-context.types';
 import { CompanyContextForm } from '@/modules/company-context/components/company-context-form';
+import { isComplete } from '@/modules/company-context/lib/is-complete';
 
 type ViewState =
   | { readonly status: 'loading' }
@@ -67,6 +69,7 @@ export function CompanyContextView() {
 
   async function onSubmit(): Promise<void> {
     if (view.status !== 'ready' || readOnly) return;
+    if (!isComplete(companyContextForPut(view.context)).complete) return;
     setPending(true);
     setSubmitError(null);
     try {

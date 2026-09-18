@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31), `update-mvp-contract-plan.md` (Faza 4.3), `multi-hitl-plan.md` (HITL Social min. 1 / N→N — legalizacja kanonu Fazy 4.3).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (`WYKONANY`) — Zod 4 w `apps/api`; bez własnego milestone’u. **Faza 10** (`WYKONANY`) — kontrakt api wymagany przez `content-chain-frontend_major_plan.md` (edycja wyniku, własny email, filtr wielowartościowy `GET /runs`); **bez** zmiany MILESTONE 6 (`OSIĄGNIĘTY`) i **bez** MILESTONE 10. **Faza 11** (`NIE_ROZPOCZĘTY`) — twardy zapis kontekstu firmy (PUT/PATCH wyłącznie przy kompletnej bramce); **bez** MILESTONE 11 (jak Faza 10). Faza 3 / Krok 3.1 i MILESTONE 3 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`).
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (`WYKONANY`) — Zod 4 w `apps/api`; bez własnego milestone’u. **Faza 10** (`WYKONANY`) — kontrakt api wymagany przez `content-chain-frontend_major_plan.md` (edycja wyniku, własny email, filtr wielowartościowy `GET /runs`); **bez** zmiany MILESTONE 6 (`OSIĄGNIĘTY`) i **bez** MILESTONE 10. **Faza 11** (`WYKONANY`) — twardy zapis kontekstu firmy (PUT/PATCH wyłącznie przy kompletnej bramce); **bez** zmiany MILESTONE 3 (`OSIĄGNIĘTY`) i **bez** MILESTONE 11. Faza 3 / Krok 3.1 i MILESTONE 3 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`).
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -1115,7 +1115,7 @@ Zmiana względem: status Fazy 10 oraz kroków 10.1–10.3 (`NIE_ROZPOCZĘTY`). P
 
 ## Faza 11 — Twardy zapis kontekstu firmy (kompletna bramka)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Zależność FE:** `content-chain-frontend_major_plan.md` Faza 3.5 — ten major nie implementuje UI. W produkcie backend **przed** frontem (feature plan 11, potem FE 3.5).
 
@@ -1127,6 +1127,9 @@ Zmiana względem: status Fazy 10 oraz kroków 10.1–10.3 (`NIE_ROZPOCZĘTY`). P
 
 **Poza zakresem tej fazy:** UI (major FE Faza 3.5); migracja Prisma (`identityName` `@default("")` zostaje na bootstrap GET); zmiana semantyki C-5 / 409 na starcie runu; logika domeny w `packages/shared`; ciche czyszczenie już zapisanych kalekich ofert w SQLite; wymaganie `extras` / `cta.target`.
 
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-11-twardy-zapis-kontekstu.md` (KROK 1 `WYKONANY` → major 11.1; KROK 2 `WYKONANY` → major 11.2 application/domain; KROK 3 `WYKONANY` → major 11.2 HTTP). `isCompleteOfferItem` + oferta / CTA / audience `length ≥ 1` ∧ `every`, `collectGateItemPaths`, `mergeCompanyContext`, `assertCompanyContextWritable` przed `repository.put`, PATCH: get → merge → asercja → `put` (ścieżka HTTP bez `repository.patch`), e2e D-29 + regresja D-1 / D-20, Postman 400 na kalekiej bramce. **Brak MILESTONE 11** — nic nie oznaczać `OSIĄGNIĘTY`. MILESTONE 3 bez zmian (`OSIĄGNIĘTY`).
+Zmiana względem: status Fazy 11 oraz kroków 11.1–11.2 (`NIE_ROZPOCZĘTY`). Powód: ślad do major po implementacji `content-chain_feature_plan_faza-11-twardy-zapis-kontekstu.md`.
+
 **DoD (faza):**
 
 - `PutCompanyContextUseCase` / `PatchCompanyContextUseCase` (wynik merge) wołają domain **przed** `repository.put`; niekompletne → 400 `VALIDATION_FAILED`, brak upsert.
@@ -1137,7 +1140,7 @@ Zmiana względem: status Fazy 10 oraz kroków 10.1–10.3 (`NIE_ROZPOCZĘTY`). P
 
 ### Krok 11.1 — Predykat oferty i `isComplete`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Refaktor względem:** Faza 3 / Krok 3.1 (`WYKONANY`) — predykat oferty (wystarczyła jedna pozycja z nazwą i korzyścią; `description` poza bramką; kalekie rodzeństwo mogło leżeć w JSON).
 
@@ -1151,7 +1154,7 @@ Zmiana względem: status Fazy 10 oraz kroków 10.1–10.3 (`NIE_ROZPOCZĘTY`). P
 
 ### Krok 11.2 — PUT/PATCH odrzut przed persist
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Refaktor względem:** Faza 3 / Krok 3.1 (`WYKONANY`) — zapis niezależny od kompletności bramki.
 
@@ -1186,5 +1189,5 @@ Zmiana względem: status Fazy 10 oraz kroków 10.1–10.3 (`NIE_ROZPOCZĘTY`). P
 | Zod (api vs gateway) | `SPEC-KOMUNIKACJA.md` (Zod w application, bez pinu major); Faza 9 — `zod@^4.4.x` w `apps/api` jak `apps/ai-provider-gateway` |
 | Auth | `SPEC-AUTH.md` |
 | Faza 10 — edycja wyniku, własny email, filtr `status` | `content-chain-frontend_major_plan.md` (Faza 3 archiwum, Faza 5 przegląd/email), `docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`, `SPEC-RUNY.md` R-10 / R-3a, `SPEC-AUTH.md` A-3b, `SPEC-TESTY.md` D-12 / D-27 / D-28 |
-| Faza 11 — twardy zapis kontekstu (kompletna bramka) | `SPEC-KONTEKST-FIRMY.md` C-1/C-4, `docs/dokumentacja_koncepcyjna.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-TESTY.md` (D-1 / D-20 + nowy D-* na PUT), `content-chain-frontend_major_plan.md` Faza 3.5 |
+| Faza 11 — twardy zapis kontekstu (kompletna bramka) | `SPEC-KONTEKST-FIRMY.md` C-1/C-4, `docs/dokumentacja_koncepcyjna.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-TESTY.md` D-1 / D-20 / D-29, `content-chain-frontend_major_plan.md` Faza 3.5 |
 | Kolejność budowy | `docs/dokumentacja_koncepcyjna.md`, `content-chain_brief.md` |

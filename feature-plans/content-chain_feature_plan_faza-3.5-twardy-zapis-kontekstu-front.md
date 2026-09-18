@@ -80,7 +80,7 @@ Odpowiada major **Faza 3.5**. Jedna faza w tym zestawie.
 
 ### KROK 1 — Lokalna kopia C-1 i strip placeholderów oferty
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** FE ma czystą kopię predykatu C-1 i payload PUT bez w pełni pustych wierszy oferty. Major 3.5.1 (warstwa helperów); `SPEC-KONTEKST-FIRMY.md` C-1; `SPEC-FRONTEND.md` F-8 (kopia wyłącznie do disable / błędów pól w KROK 2–3).
 
@@ -238,7 +238,7 @@ To jest **kopia** reguły C-1 (oraz HOW oferty z planu api Fazy 11), nie współ
 
 ### KROK 2 — Formularz: hint, błędy kalekiej usługi, ostatnie Usuń
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Widok Kontekst nie pozwala zejść do PUT z `offer.items: []` przez usunięcie ostatniej kompletnej usługi; kaleka usługa ma błąd pola; hint zgodny z minimum C-1. Major 3.5.1 (warstwa UI); `docs/ux_dashboard.md`; skill product-ui (błąd pod polem, `FormField` `gap-2` już jest).
 
@@ -448,7 +448,7 @@ Kropki na triggerach: **bez zmian** (`completeness.missing` z props). Zakładka 
 
 ### KROK 3 — Submit, envelope, chip
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Widok nie woła PUT, gdy predykat na podglądzie body pada. 400 z api (ominiecie UI / wyścig) pokazuje envelope as-is i nie rusza chipa. Major 3.5.2; F-7 / F-8; C-4 egzekwuje api, nie ten krok.
 

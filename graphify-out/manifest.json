@@ -3462,9 +3462,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/company-context/api/company-context.types.ts": {
-    "mtime": 1789666163.7324464,
-    "seen": 1789666168.6186118,
-    "ast_hash": "cb5b081020107ccfaa2ef9f353abb088",
+    "mtime": 1789743450.02851,
+    "seen": 1789743483.3286548,
+    "ast_hash": "8345b18a7acb900b80cac30b71e7dca4",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/company-context/components/completeness-provider.tsx": {
@@ -3474,15 +3474,15 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/company-context/components/company-context-form.tsx": {
-    "mtime": 1789668960.1953676,
-    "seen": 1789668971.5675561,
-    "ast_hash": "d8bf8003cf8fe374fbdc95eae2163c60",
+    "mtime": 1789744632.737723,
+    "seen": 1789744688.0644674,
+    "ast_hash": "537a2bfabee6eab3fa0b3d758167af9c",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/company-context/components/company-context-view.tsx": {
-    "mtime": 1789668960.4431968,
-    "seen": 1789668971.5675583,
-    "ast_hash": "5ac772707a00edd39d9f65c553371d06",
+    "mtime": 1789744634.5367086,
+    "seen": 1789744688.064472,
+    "ast_hash": "c81083ab10b90eda6c5c847c3b259def",
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/ui/textarea.tsx": {
@@ -3615,6 +3615,12 @@
     "mtime": 1789742412.125953,
     "seen": 1789742458.5818176,
     "ast_hash": "583ca441c3840348ed98d974b000458e",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/company-context/lib/is-complete.ts": {
+    "mtime": 1789743478.639757,
+    "seen": 1789743483.328663,
+    "ast_hash": "81778538cab49e80d758e16653088497",
     "semantic_hash": ""
   }
 }
