@@ -135,6 +135,8 @@ export function StartRunForm({ draft, onDraftChange }: StartRunFormProps) {
     return null;
   }, [agentsActive, completeness]);
 
+  const inputReady = useMemo(() => toInput(draft) !== null, [draft]);
+
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const input = toInput(draft);
@@ -279,7 +281,7 @@ export function StartRunForm({ draft, onDraftChange }: StartRunFormProps) {
       {disableReason ? <p className="text-xs text-muted-foreground">{disableReason}</p> : null}
       <Button
         type="submit"
-        disabled={pending || !agentsActive || !toInput(draft)}
+        disabled={pending || !agentsActive || !inputReady}
         className="self-start"
       >
         {pending ? 'Uruchamianie…' : 'Uruchom run'}

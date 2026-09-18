@@ -5,7 +5,7 @@
 **Poza tym plikiem:** trzy zmiany kontraktu api — **`content-chain-backend_major_plan.md`, Faza 10** (Krok 10.1 zapis treści przy Edytuj; Krok 10.2 własny email; Krok 10.3 filtr wielowartościowy `GET /runs`); panel administracyjny odczytu opinii; zmiana hasła zalogowanego / usuwanie własnego konta; soft-delete użytkowników w UI; otwarta rejestracja; `selectedIdeaIds` na starcie w UI; `conversationId` w UI; limit per-user runów w toku; next-intl / mapa tłumaczeń envelope; Playwright / automatyczne testy FE; Docker/`production` jako temat tego planu; PostgreSQL / V1 — rozbudowa. Aplikacja frontu **już istnieje** jako boilerplate (backend Faza 1 / Krok 1.3) — ten major nie tworzy jej od zera.
 
 **Źródła:** `docs/` (w tym `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `docs/brand_types.md`, `docs/security.md`, `docs/deployment.md`), `spec/SPEC-*.md` (w tym `SPEC-FRONTEND.md`, `SPEC-AUTH.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-RUNY.md`, `SPEC-FEEDBACK.md`, `SPEC-BEZPIECZENSTWO.md`).  
-**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); **Faza 2** (`WYKONANY`) / Milestone 2 (`OSIĄGNIĘTY`); **Faza 2.1** (`WYKONANY`) / Milestone 2.1 (`OSIĄGNIĘTY`); Fazy 3 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Faza 2.1 **nie** blokuje Fazy 3. Archiwum Runy (Krok 3.5) zakłada backend **10.3**; Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE i BFF **nie** czekają na Fazę 10.
+**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); **Faza 2** (`WYKONANY`) / Milestone 2 (`OSIĄGNIĘTY`); **Faza 2.1** (`WYKONANY`) / Milestone 2.1 (`OSIĄGNIĘTY`); **Faza 3** (`WYKONANY`) / Milestone 3 (`OSIĄGNIĘTY`); Fazy 4 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Faza 2.1 **nie** blokuje Fazy 3. Archiwum Runy (Krok 3.5) korzysta z backend **10.3** (`WYKONANY` w majorze api); Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE i BFF **nie** czekają na Fazę 10.
 
 **Język wizualny (skill, nie osobna faza):** powierzchnie UI w `apps/frontend` (karty, chrome, widoki, stany loading/empty/error, prezentacja statusu live) wymagają skilla **`content-chain-product-ui`** (`.cursor/skills/content-chain-product-ui/`). IA, copy, trasy i stack nadal biorą `docs/` + `spec/` — skill nie nadpisuje kanonu. **Visual lock** jest jednorazowy w Fazie 1 (Krok 1.4 + karty wejścia 1.1–1.3); Fazy 2, **2.1**, 3–6 **dziedziczą** tokeny, bez nowej palety na widok. Skill **nie** dotyczy: BFF / `apiFetch` / cookie / rejestru `EventSource` (Krok 1.6 i równoważne w późniejszych krokach), typów kontraktu (Krok 1.5), ani `content-chain-backend_major_plan.md` Faza 10.
 
@@ -260,11 +260,14 @@ Zmiana względem: status Fazy 2.1 i Kroku 2.1.1 (`NIE_ROZPOCZĘTY`) oraz MILESTO
 
 ## Faza 3 — Konto: start i live, szczegóły live, archiwum Runy
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Widok **Konto** = **jedyny** formularz startu + **Moje runy** (wszystkie statusy autora, live). Po `POST /runs` **zostajemy na Koncie**. Szczegóły Run: live status i logi dla **własnego** `running` \| `awaiting_hitl` \| `interrupted` (rejestr SSE z Fazy 1). **Floating box** własnych runów w toku na widokach **innych niż Konto** (zwijany; status + link; nie HITL/wynik). Widok **Runy** = archiwum instancji `completed` \| `failed` (wejście + co **15 min**; bez startu, bez SSE). Na szczegółach **slot** HITL/wyniku (Faza 4) i przeglądu (Faza 5); zakaz `conversationId`. Prefill startu ze **snapshotu** `GET /runs/:runId`. `queued` = wyłącznie GET. Zgodnie z `docs/ux_dashboard.md`, `SPEC-RUNY.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-FRONTEND.md` F-5/F-5a/F-8. Powierzchnie (formularz, listy, box, prezentacja statusu — w tym `interrupted` ≠ `running`): **`content-chain-product-ui`**. Rejestr `EventSource` / BFF SSE: bez tego skilla.
 
-**Zależność api (tylko archiwum):** `content-chain-backend_major_plan.md`, Faza 10 / Krok **10.3** (`NIE_ROZPOCZĘTY`) — `GET /runs?status=completed,failed`. Kroki 3.1–3.4 **nie** czekają na Fazę 10.
+**Zależność api (tylko archiwum):** `content-chain-backend_major_plan.md`, Faza 10 / Krok **10.3** (`WYKONANY`) — `GET /runs?status=completed,failed`. Kroki 3.1–3.4 **nie** czekają na Fazę 10.
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-3-konto-live-archiwum.md` (KROK 1 `WYKONANY` → typy / parsery / `runs.api` pod major 3.1–3.5; KROK 2 `WYKONANY` → refcount SSE, `RunStatusView`, `OwnRunsProvider`; KROK 3 `WYKONANY` → major 3.1; KROK 4 + 4.1 `WYKONANY` → major 3.3; KROK 5 `WYKONANY` → major 3.2; KROK 6 `WYKONANY` → major 3.4; KROK 7 `WYKONANY` → major 3.5). Start na Koncie + Moje runy + prefill ze snapshotu; szczegóły live z identycznością `snapshot.runId === runId`; floating box poza Kontem; archiwum `GET /runs?status=completed,failed`. **MILESTONE 3** → `OSIĄGNIĘTY`. Faza 4 pozostaje `NIE_ROZPOCZĘTY`.
+Zmiana względem: status Fazy 3, kroków 3.1–3.5 (`NIE_ROZPOCZĘTY`) oraz MILESTONE 3 (bez statusu); nota zależności 10.3 (`NIE_ROZPOCZĘTY` → `WYKONANY` w majorze api). Powód: ślad do major po implementacji `content-chain_feature_plan_faza-3-konto-live-archiwum.md`.
 
 **DoD (faza):**
 
@@ -279,7 +282,7 @@ Zmiana względem: status Fazy 2.1 i Kroku 2.1.1 (`NIE_ROZPOCZĘTY`) oraz MILESTO
 
 ### Krok 3.1 — Konto: start runu
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Jedyny formularz nowego runu w MVP. Ten sam kanon pól później służy prefillowi z wiersza (Krok 3.2).
 
@@ -292,7 +295,7 @@ Zmiana względem: status Fazy 2.1 i Kroku 2.1.1 (`NIE_ROZPOCZĘTY`) oraz MILESTO
 
 ### Krok 3.2 — Konto: Moje runy i prefill
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Listing autora: `GET /runs/user/:userId` (`userId` z `/auth/me`), wszystkie statusy. Klik → szczegóły. Prefill z wiersza = **nowy** run; brief / `contentKind` z `GET /runs/:runId`, nie z wiersza listy user.
 
@@ -304,7 +307,7 @@ Zmiana względem: status Fazy 2.1 i Kroku 2.1.1 (`NIE_ROZPOCZĘTY`) oraz MILESTO
 
 ### Krok 3.3 — Szczegóły Run: live, logi, rejestr SSE
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Podstrona po `runId`: meta, status, logi. Slot na HITL/wynik (Faza 4) i na przegląd (Faza 5). EventSource tylko gdy run **własny** i `running` \| `awaiting_hitl` \| `interrupted` — przez rejestr layoutu (jedno połączenie na id). Archiwum terminalne: wyłącznie GET. Wygląd statusu/logów: **`content-chain-product-ui`**. Cykl `EventSource`: bez tego skilla.
 
@@ -319,7 +322,7 @@ Zmiana względem: status Fazy 2.1 i Kroku 2.1.1 (`NIE_ROZPOCZĘTY`) oraz MILESTO
 
 ### Krok 3.4 — Floating box (własne runy w toku)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Wypełnienie slotu z Fazy 1. Pozycje z `GET /runs/user/:userId` w `running` \| `awaiting_hitl` \| `interrupted`. Live = ten sam rejestr SSE co Moje runy i szczegóły. **Nie** chip w chrome.
 
@@ -333,9 +336,9 @@ Zmiana względem: status Fazy 2.1 i Kroku 2.1.1 (`NIE_ROZPOCZĘTY`) oraz MILESTO
 
 ### Krok 3.5 — Lista Runy (archiwum firmy)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
-**Implementacja api:** `content-chain-backend_major_plan.md`, Faza 10 / Krok 10.3 (`NIE_ROZPOCZĘTY`). Ten krok FE zakłada `status` jako jeden enum **albo** listę przecinkową; nie implementuje api.
+**Implementacja api:** `content-chain-backend_major_plan.md`, Faza 10 / Krok 10.3 (`WYKONANY`). Ten krok FE zakłada `status` jako jeden enum **albo** listę przecinkową; nie implementuje api.
 
 **Opis:** Listing `GET /runs?status=completed,failed`: kolumny, filtry w zbiorze terminalnym, strona po 10, klik → szczegóły (snapshot, bez SSE).
 
@@ -350,6 +353,8 @@ Zmiana względem: status Fazy 2.1 i Kroku 2.1.1 (`NIE_ROZPOCZĘTY`) oraz MILESTO
 ---
 
 ## MILESTONE 3 — Start na Koncie, live i archiwum
+
+**Status:** `OSIĄGNIĘTY`
 
 **Opis:** Bramka po Fazie 3. Duży skok: operator startuje run z Konta, śledzi własne w toku (lista + box + szczegóły) i przegląda archiwum firmy. Wolno dokładać HITL i wynik.
 

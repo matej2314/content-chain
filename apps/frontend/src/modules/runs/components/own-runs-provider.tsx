@@ -79,12 +79,10 @@ export function OwnRunsProvider({ children }: { readonly children: ReactNode }) 
   }, [userId]);
 
   useEffect(() => {
-    void (async () => {
+    async function load(): Promise<void> {
       await refresh();
-    })();
-    return () => {
-      requestIdRef.current += 1;
-    };
+    }
+    void load();
   }, [refresh]);
 
   useEffect(() => {
