@@ -82,7 +82,7 @@ function FormActions({
           </Button>
           {submitBlocked ? (
             <p className="text-xs text-muted-foreground">
-              Zapis wymaga kompletnej bramki. Puste wymagane pole albo kaleka usługa blokują PUT.
+              Kontekst firmy nie jest kompletny. Uzupełnij wszystkie wymagane pola.
             </p>
           ) : null}
         </>
