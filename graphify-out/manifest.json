@@ -3426,9 +3426,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/chrome-slots.tsx": {
-    "mtime": 1789644101.5366983,
-    "seen": 1789645782.9396884,
-    "ast_hash": "10f38bce6d5733fa7e095359ddc03310",
+    "mtime": 1789720975.444792,
+    "seen": 1789720995.020719,
+    "ast_hash": "18dc358c2e86296a1acb687c7722681b",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/dashboard-shell.tsx": {
@@ -3516,9 +3516,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/own-runs-provider.tsx": {
-    "mtime": 1789717082.5661101,
-    "seen": 1789718223.4293418,
-    "ast_hash": "c00f9a902ebcb4fe43f0bf861f073d3f",
+    "mtime": 1789719903.5010896,
+    "seen": 1789720995.0207095,
+    "ast_hash": "8fca0775f79feba7545ae6ad41f163c9",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/run-status.tsx": {
@@ -3570,15 +3570,21 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/account-view.tsx": {
-    "mtime": 1789718207.1841772,
-    "seen": 1789718223.429302,
-    "ast_hash": "84f17e6c4bf68c640fb0e4fcea933978",
+    "mtime": 1789720471.6968994,
+    "seen": 1789720995.0207036,
+    "ast_hash": "681e09b9384932053e4def0d7af373d2",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/my-runs-list.tsx": {
     "mtime": 1789718219.1771195,
     "seen": 1789718223.4293356,
     "ast_hash": "2db7aeb72c6ec40b836d05d03a99102b",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/components/floating-runs-box.tsx": {
+    "mtime": 1789720989.7324886,
+    "seen": 1789720995.0207064,
+    "ast_hash": "94143de81fb978f926601cc443c6003e",
     "semantic_hash": ""
   }
 }

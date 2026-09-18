@@ -1906,7 +1906,7 @@ export default function AccountPage() {
 
 ### KROK 6 — Floating box
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Własne runy w toku poza Kontem. Major 3.4.
 
