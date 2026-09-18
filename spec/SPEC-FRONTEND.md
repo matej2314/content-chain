@@ -1,7 +1,7 @@
 ---
-wersja: 22
+wersja: 23
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-17
+data_modyfikacji: 2026-09-18
 ---
 
 # SPEC — Frontend
@@ -56,7 +56,7 @@ Zmiana względem wersji 19 / F-5a: zakaz otwarcia obejmował tylko terminal; `qu
 
 Zmiana względem wersji 5 / F-5: F-5 i „Wolno: Reconnect SSE” bez rozróżnienia terminal vs. awaria i bez obowiązku `close()` / braku subskrypcji skończonego runu.
 
-F-6. Bramka „Agenci aktywni” i disable CTA startu runu — UX na bazie `GET .../completeness`; **egzekucja** nadal w api (`409` `CONTEXT_INCOMPLETE`).
+F-6. Bramka „Agenci aktywni” i disable CTA startu runu — UX na bazie `GET .../completeness`; **egzekucja** nadal w api (`409` `CONTEXT_INCOMPLETE`). Chip i disable startu **bez zmiany sensu** względem v22.
 
 F-7. Język chrome / etykiet: **polski**. Envelope błędów MVP: pokazać **`code` i `message` jak z API** (angielskie `message` — bez mapy tłumaczeń). next-intl / i18n envelope = **V1 — rozbudowa**. Treści SM: PL/EN wg briefu runu. Formularz startu runu (**tylko Konto**): pola briefu **wg `taskType`** — post/reel: liczba pomysłów, bez kąta/długości; `page_*`: kąt i długość opcjonalnie, **bez** liczby pomysłów (`docs/ux_dashboard.md`).
 
@@ -67,7 +67,7 @@ Zmiana względem wersji 8 / F-7: język UI bez rozróżnienia pól briefu kanał
 F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 
 - Strona główna: tło + karta logowania + nieaktywny **„Nie masz konta? Zarejestruj się!”**; first-run = tryb submitu tej karty; **akceptacja zaproszenia** na **`/invite/accept?token=`** (tożsame z URL w mailu `{APP_PUBLIC_URL}/invite/accept?token=…`) → `POST /auth/accept-invite` → strona główna — dashboard dopiero po loginie;
-- Kontekst firmy: **sześć zakładek** — Tożsamość (domyślnie otwarta), Oferta, Głos SM, CTA / kanały, Odbiorca, Dodatki (`extras` w jednym panelu, bez podzakładek). Na triggerach zakładek bramki indykator z `completeness.missing` ostatniego GET/PUT (zielona = kompletna, czerwona = brak); zakładka Dodatki **bez** kropki bramki. Zapis = jeden `PUT` całości. Szczegóły: `docs/ux_dashboard.md` (Widok: Kontekst firmy);
+- Kontekst firmy: **sześć zakładek** — Tożsamość (domyślnie otwarta), Oferta, Głos SM, CTA / kanały, Odbiorca, Dodatki (`extras` w jednym panelu, bez podzakładek). Na triggerach zakładek bramki indykator z `completeness.missing` ostatniego **udanego** GET/PUT (zielona = kompletna, czerwona = brak); zakładka Dodatki **bez** kropki bramki. Zapis = jeden `PUT` całości. Submit **nie** wysyła, gdy draft nie spełnia bramki (puste wymagane pole albo kaleka oferta); lokalny predykat identyczny z C-1 **wyłącznie** do disable CTA zapisu i błędów pól — kropki i chip nadal z `missing` odpowiedzi. Placeholdery pustej oferty stripowane; kalekiej usługi nie stripujemy. Nie da się usunąć ostatniej kompletnej usługi tak, by PUT poszedł z `items: []`. Szczegóły: `docs/ux_dashboard.md` (Widok: Kontekst firmy);
 - **Runy** = archiwum instancji `completed` \| `failed` (`GET /runs?status=completed,failed`, strona 10, odświeżanie przy wejściu i co **15 min**). **Bez** startu, **bez** SSE, **bez** runów w toku (także cudzych);
 - **Konto**: email (`PATCH /auth/me`); **Moje runy** (`GET /runs/user/:userId`, wszystkie statusy); **jedyny** formularz **startu** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId`); opinia. Po **202** startu — zostajemy na Koncie;
 - Run szczegóły: HITL / wynik **post vs rolka vs strona** / przegląd (bez `conversationId` w UI); live SSE tylko własny `running` \| `awaiting_hitl` \| `interrupted` (ten sam rejestr co box);
@@ -91,6 +91,7 @@ Zmiana względem wersji 15 / F-8: „Konto (tylko logout)” jako widok. Od v16 
 Zmiana względem wersji 16 / F-8: z powrotem **widok Konto** (email, moje runy, szybki start, opinia); Runy bez zmian (instancja); wylogowanie w chrome zostaje.
 Zmiana względem wersji 18 / F-8: „Wyloguj się” w chrome (sidebar lub header). Od tej wersji hierarchia **header → przycisk loginu → Wyloguj się**; zawartość headera do prawej.
 Zmiana względem wersji 21 / F-8: Kontekst firmy = sekcje bramki + extras w jednym ciągu, status per sekcja przy nagłówku bloku. Od tej wersji: sześć zakładek (default Tożsamość); kropki bramki na triggerach z `missing` ostatniego GET/PUT; Dodatki bez kropki i bez podzakładek; zapis nadal jeden `PUT`.
+Zmiana względem wersji 22 / F-8: submit mógł wysłać niekompletną bramkę (api zapisywało). Od tej wersji UI nie wysyła pustych wymaganych / kalekiej oferty; lokalny predykat C-1 tylko do disable i błędów pól. Źródło kropek i chipa **bez zmiany**. Egzekucja persist: `SPEC-KONTEKST-FIRMY.md` C-4.
 
 F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. UI **filtruje** pozycje do `completed` \| `failed` (lista API zostaje pełna — `SPEC-RUNY.md` R-3c). Select agentów = enum z shared (labelki PL). Ocena i Edytuj tylko gdy snapshot mówi, że sesja jest `startedBy` i przegląd niezamknięty. Submit `targetType=run` przy innym statusie i tak → **409** `RUN_NOT_REVIEWABLE` (`SPEC-FEEDBACK.md` Fbk-3a).
 
@@ -128,6 +129,7 @@ apps/frontend/src/
 - N× EventSource w rejestrze layoutu (jedno na `runId`); szczegóły **reuse** tego połączenia.
 - Read-only podgląd kontekstu dla `user`; edycja tylko gdy sesja `admin`.
 - Widok Kontekst firmy jako zakładki (`docs/ux_dashboard.md`); default Tożsamość; CTA zapisu na każdej zakładce przy jednym `PUT`.
+- Lokalna kopia predykatu C-1 (`isComplete` / `isCompleteOfferItem`) w `modules/company-context` **wyłącznie** do disable CTA zapisu i błędów pól — **nie** import z `apps/api`; **nie** źródło kropek / chipa.
 - Indykator kompletności na triggerze zakładki bramki z `completeness.missing` ostatniego GET/PUT (kropka + etykieta dostępności kompletna / niekompletna). Semantyczna zieleń / czerwień statusu — nie drugi brand produktu.
 - First-run jako tryb submitu **tej samej** karty logowania.
 - Nieaktywny przycisk „Zarejestruj się!”.
@@ -153,7 +155,9 @@ apps/frontend/src/
 - Formularza startu na widoku **Runy**.
 - Traktowania GET archiwum (15 min) jako kanału live szczegółów.
 - Egzekucji bramki kompletności **tylko** w UI.
-- Liczenia kompletności sekcji z draftu formularza albo lokalnej kopii `isComplete` (obowiązuje `missing` z ostatniego GET/PUT).
+- Liczenia **kropek / chipa** z draftu formularza albo z lokalnej kopii `isComplete` (obowiązuje `missing` z ostatniego udanego GET/PUT). Lokalny predykat C-1 **nie** zastępuje C-4 / C-5 w api.
+- Polegania na samym atrybucie `required` HTML jako bramce zapisu.
+- Zapisywania kalekiej oferty (PUT z niepełną pozycją albo `items: []`).
 - `PATCH` per zakładka w MVP (zapis kontekstu = jeden `PUT` całości).
 - Indykatora bramki (kropki) na zakładce Dodatki.
 - Zagnieżdżonych zakładek / podzakładek `extras`.
@@ -175,6 +179,7 @@ apps/frontend/src/
 
 Zmiana względem wersji 19 / „Nie wolno”: kanon Runy+start+chip oraz fetch wprost na api — unieważnione na rzecz BFF, archiwum, Konta jako startu, boxa.
 Zmiana względem wersji 21 / „Nie wolno”: dopisano zakaz lokalnego werdyktu kompletności na zakładkach, `PATCH` per zakładka, kropki na Dodatki i zagnieżdżeń extras.
+Zmiana względem wersji 22 / „Nie wolno”: całkowity zakaz lokalnej kopii `isComplete` — od tej wersji kopia C-1 **wolna** wyłącznie do disable submitu i błędów pól; kropki / chip nadal z odpowiedzi. Dopisano zakaz samego `required` HTML oraz zapisu kalekiej oferty.
 
 Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flagą” unieważniony — kanon to zapis treści + flaga (`docs/ux_dashboard.md`). „Gdy powstanie” na Users / accept-invite unieważnione.
 
@@ -203,6 +208,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Opinia / gwiazdki / Edytuj / finalize wg kontraktu; HITL Social multi-select; wynik then_* = listy.
 - [ ] Envelope błędu: `code` + `message` z API.
 - [ ] Kontekst firmy: sześć zakładek (default Tożsamość); kropki bramki z `missing` ostatniego GET/PUT; Dodatki bez kropki; jeden `PUT`; `user` read-only.
+- [ ] Admin nie utrwali pustej nazwy firmy ani kalekiej usługi (submit zablokowany; 400 z api gdy UI ominięte); `user` read-only.
 
 ## Poza zakresem
 

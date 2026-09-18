@@ -8,6 +8,7 @@ import { Skeleton } from '@/shared/ui/skeleton';
 import { useOwnRuns } from '@/modules/runs/components/own-runs-provider';
 import { RunStatusView } from '@/modules/runs/components/run-status';
 import { RUN_PLATFORM_LABELS, RUN_TASK_TYPE_LABELS } from '@/modules/runs/api/run-labels';
+import { IsoDateTime } from '@/shared/datetime/iso-date-time';
 
 type MyRunsListProps = {
   readonly onPrefill: (runId: RunId) => void;
@@ -59,7 +60,9 @@ export function MyRunsList({ onPrefill }: MyRunsListProps) {
               <td className="py-2 pr-3">
                 <RunStatusView status={item.status} compact />
               </td>
-              <td className="py-2 pr-3 font-mono text-xs tabular-nums">{item.createdAt}</td>
+              <td className="py-2 pr-3">
+                <IsoDateTime iso={item.createdAt} />
+              </td>
               <td className="py-2">
                 <Button
                   type="button"

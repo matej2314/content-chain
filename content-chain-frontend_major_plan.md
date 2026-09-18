@@ -1,13 +1,13 @@
 # Content Chain — major plan (frontend)
 
-**Zakres tego pliku:** cienki klient produktowy `apps/frontend` — **BFF** (same-origin `/api/v1` → `apps/api`), strona główna (karta logowania / first-run jako ten sam formularz), publiczny deep link **`/invite/accept?token=`**, dashboard po sesji (sidebar + header + obszar roboczy) aż do kompletnego UX MVP: Kontekst firmy, **Konto** (start + Moje runy + live), **Runy** (archiwum `completed` \| `failed`), szczegóły Run (live własnego runu, HITL, wynik, przegląd), Użytkownicy (admin), zapis opinii, floating box. Numeracja faz **1–6 plus Faza 2.1 (między 2 a 3)** jest własna tego majoru (nie kontynuuje `content-chain-backend_major_plan.md`).
+**Zakres tego pliku:** cienki klient produktowy `apps/frontend` — **BFF** (same-origin `/api/v1` → `apps/api`), strona główna (karta logowania / first-run jako ten sam formularz), publiczny deep link **`/invite/accept?token=`**, dashboard po sesji (sidebar + header + obszar roboczy) aż do kompletnego UX MVP: Kontekst firmy, **Konto** (start + Moje runy + live), **Runy** (archiwum `completed` \| `failed`), szczegóły Run (live własnego runu, HITL, wynik, przegląd), Użytkownicy (admin), zapis opinii, floating box. Numeracja faz **1–6 plus Faza 2.1 (między 2 a 3) oraz Faza 3.5 (między 3 a 4)** jest własna tego majoru (nie kontynuuje `content-chain-backend_major_plan.md`). **Uwaga o kolizji nazw:** istniejący **Krok 3.5** (Lista Runy / archiwum, `WYKONANY`) **nie** jest Fazą 3.5 — nie mylić tych kotwic.
 
-**Poza tym plikiem:** trzy zmiany kontraktu api — **`content-chain-backend_major_plan.md`, Faza 10** (Krok 10.1 zapis treści przy Edytuj; Krok 10.2 własny email; Krok 10.3 filtr wielowartościowy `GET /runs`); panel administracyjny odczytu opinii; zmiana hasła zalogowanego / usuwanie własnego konta; soft-delete użytkowników w UI; otwarta rejestracja; `selectedIdeaIds` na starcie w UI; `conversationId` w UI; limit per-user runów w toku; next-intl / mapa tłumaczeń envelope; Playwright / automatyczne testy FE; Docker/`production` jako temat tego planu; PostgreSQL / V1 — rozbudowa. Aplikacja frontu **już istnieje** jako boilerplate (backend Faza 1 / Krok 1.3) — ten major nie tworzy jej od zera.
+**Poza tym plikiem:** trzy zmiany kontraktu api — **`content-chain-backend_major_plan.md`, Faza 10** (Krok 10.1 zapis treści przy Edytuj; Krok 10.2 własny email; Krok 10.3 filtr wielowartościowy `GET /runs`); **twardy zapis kontekstu firmy — `content-chain-backend_major_plan.md`, Faza 11** (PUT/PATCH wyłącznie przy kompletnej bramce; ten major nie implementuje api); panel administracyjny odczytu opinii; zmiana hasła zalogowanego / usuwanie własnego konta; soft-delete użytkowników w UI; otwarta rejestracja; `selectedIdeaIds` na starcie w UI; `conversationId` w UI; limit per-user runów w toku; next-intl / mapa tłumaczeń envelope; Playwright / automatyczne testy FE; Docker/`production` jako temat tego planu; PostgreSQL / V1 — rozbudowa. Aplikacja frontu **już istnieje** jako boilerplate (backend Faza 1 / Krok 1.3) — ten major nie tworzy jej od zera.
 
 **Źródła:** `docs/` (w tym `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `docs/brand_types.md`, `docs/security.md`, `docs/deployment.md`), `spec/SPEC-*.md` (w tym `SPEC-FRONTEND.md`, `SPEC-AUTH.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-RUNY.md`, `SPEC-FEEDBACK.md`, `SPEC-BEZPIECZENSTWO.md`).  
-**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); **Faza 2** (`WYKONANY`) / Milestone 2 (`OSIĄGNIĘTY`); **Faza 2.1** (`WYKONANY`) / Milestone 2.1 (`OSIĄGNIĘTY`); **Faza 3** (`WYKONANY`) / Milestone 3 (`OSIĄGNIĘTY`); Fazy 4 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Faza 2.1 **nie** blokuje Fazy 3. Archiwum Runy (Krok 3.5) korzysta z backend **10.3** (`WYKONANY` w majorze api); Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE i BFF **nie** czekają na Fazę 10.
+**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); **Faza 2** (`WYKONANY`) / Milestone 2 (`OSIĄGNIĘTY`); **Faza 2.1** (`WYKONANY`) / Milestone 2.1 (`OSIĄGNIĘTY`); **Faza 3** (`WYKONANY`) / Milestone 3 (`OSIĄGNIĘTY`); **Faza 3.5** (`NIE_ROZPOCZĘTY`) / Milestone 3.5; Fazy 4 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Faza 2.1 **nie** blokuje Fazy 3. **Faza 3.5 blokuje Fazę 4** — start Fazy 4 dopiero po Milestone 3.5 (inaczej niż 2.1 vs 3). Archiwum Runy (**Krok 3.5**, nie Faza 3.5) korzysta z backend **10.3** (`WYKONANY` w majorze api); twardy PUT kontekstu zakłada backend **Faza 11**; Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE i BFF **nie** czekają na Fazę 10.
 
-**Język wizualny (skill, nie osobna faza):** powierzchnie UI w `apps/frontend` (karty, chrome, widoki, stany loading/empty/error, prezentacja statusu live) wymagają skilla **`content-chain-product-ui`** (`.cursor/skills/content-chain-product-ui/`). IA, copy, trasy i stack nadal biorą `docs/` + `spec/` — skill nie nadpisuje kanonu. **Visual lock** jest jednorazowy w Fazie 1 (Krok 1.4 + karty wejścia 1.1–1.3); Fazy 2, **2.1**, 3–6 **dziedziczą** tokeny, bez nowej palety na widok. Skill **nie** dotyczy: BFF / `apiFetch` / cookie / rejestru `EventSource` (Krok 1.6 i równoważne w późniejszych krokach), typów kontraktu (Krok 1.5), ani `content-chain-backend_major_plan.md` Faza 10.
+**Język wizualny (skill, nie osobna faza):** powierzchnie UI w `apps/frontend` (karty, chrome, widoki, stany loading/empty/error, prezentacja statusu live) wymagają skilla **`content-chain-product-ui`** (`.cursor/skills/content-chain-product-ui/`). IA, copy, trasy i stack nadal biorą `docs/` + `spec/` — skill nie nadpisuje kanonu. **Visual lock** jest jednorazowy w Fazie 1 (Krok 1.4 + karty wejścia 1.1–1.3); Fazy 2, **2.1**, 3, **3.5**, 4–6 **dziedziczą** tokeny, bez nowej palety na widok. Skill **nie** dotyczy: BFF / `apiFetch` / cookie / rejestru `EventSource` (Krok 1.6 i równoważne w późniejszych krokach), typów kontraktu (Krok 1.5), ani `content-chain-backend_major_plan.md` Faza 10 / Faza 11.
 
 **Feature plany:** przy `/create-feature-implementation-plan` na wycinku z powierzchnią UI dołącz ten skill (`@content-chain-product-ui`). HOW i kod w feature planie mają już spełniać lock / dziedziczenie — nie odkładaj smaku na implementację. Kotwicę wskazuj jawnie na **ten** major (nie na backend / Fazę 10).
 
@@ -367,11 +367,73 @@ Zmiana względem: status Fazy 3, kroków 3.1–3.5 (`NIE_ROZPOCZĘTY`) oraz MILE
 
 ---
 
+## Faza 3.5 — Twardy zapis kontekstu firmy
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**To nie jest Krok 3.5** (Lista Runy / archiwum, `WYKONANY` w Fazie 3). Ta faza = twardy PUT bramki na `/context`; kroki poniżej to **3.5.1** / **3.5.2**.
+
+**Refaktor względem:** Faza 2 / Krok 2.1 (`WYKONANY`) oraz Faza 2.1 (`WYKONANY`) — ten sam jeden PUT i te same zakładki/kropki; zmiana: nie wysyłamy i nie przyjmujemy niekompletnej bramki. Oferta: każda usługa kompletna (nazwa + opis + ≥ 1 korzyść).
+
+**Zależność api:** `content-chain-backend_major_plan.md` Faza 11 (`NIE_ROZPOCZĘTY` do czasu feature planu 11). Ten major nie implementuje api. W produkcie: najpierw api Faza 11, potem ta faza.
+
+**Powierzchnia:** `content-chain-product-ui` (dziedziczenie locku Fazy 1, bez nowej palety). Chip / `CompletenessProvider` / źródło `missing` **bez zmiany kanonu F-8**.
+
+**DoD (faza):**
+
+- Submit zablokowany, gdy draft nie spełnia bramki (lokalny predykat = C-1).
+- Puste placeholdery oferty stripowane; kaleka usługa = błąd pola, nie PUT.
+- Nie da się usunąć ostatniej kompletnej usługi tak, by PUT poszedł z `items: []`.
+- 400 z api → envelope as-is; DB bez zmiany (gdyby ktoś ominął UI).
+- `user` read-only bez zmian.
+- Kropki i chip nadal z ostatniego udanego GET/PUT.
+
+### Krok 3.5.1 — Predykat i formularz
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+Numer kroku **3.5.1**, nie 3.5 — unik kolizji z Krokiem 3.5 (archiwum Runy).
+
+**Opis:** Lokalna kopia `isComplete` / `isCompleteOfferItem` w `modules/company-context` (kopia C-1, nie import z `apps/api`). `companyContextForPut` stripuje w pełni puste placeholdery; kalekich wierszy **nie** stripuje (zostają w drafcie, submit padnie). `required` na polach bramki; disable ostatniego „Usuń” gdy został jeden kompletny item.
+
+**DoD (krok):**
+
+- Predykat oferty: `items.length ≥ 1` ∧ każda pozycja z niepustym `name`, `description`, `benefit` (≥ 1 niepusty string, bez pustych wpisów).
+- Placeholder pustej oferty nie jest usługą i nie wchodzi do body.
+- `Usuń usługę` nie pozwala zejść do zera kompletnych pozycji w PUT.
+- Kropki na triggerach nadal z `missing` odpowiedzi, nie z draftu.
+
+### Krok 3.5.2 — Submit i envelope
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Opis:** Widok nie woła PUT, gdy predykat pada. CTA Zapisz `disabled` przy niekompletnej bramce (po strip placeholderów w pamięci podglądu). 400 pokazuje `code` + `message` as-is. `refetch` chipa tylko po 200.
+
+**DoD (krok):**
+
+- Admin nie utrwali pustej nazwy / kalekiej usługi przez UI.
+- Envelope 400 bez mapy tłumaczeń; chip nie skacze z draftu.
+- Happy path kompletny → jeden PUT całości (zakładki bez zmian z Fazy 2.1).
+
+---
+
+## MILESTONE 3.5 — Zapis kontekstu bez dziur w bramce
+
+**Opis:** Bramka przed Fazą 4. Faza 2 / 2.1 / 3 i ich milestone’y zostają historią (`WYKONANY` / `OSIĄGNIĘTY`). Wolno startować HITL dopiero po tej bramce.
+
+**DoD (milestone):**
+
+- Faza 3.5 spełnia swoje DoD (lub ma status `WYKONANY`).
+- PUT z UI nie przechodzi przy pustym wymaganym polu ani kalekiej ofercie; chip/kropki nadal z ostatniego udanego GET/PUT.
+- Akceptacja przejścia do Fazy 4.
+
+---
+
 ## Faza 4 — HITL i wynik
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Opis:** Na widoku szczegółów: pauza HITL (Social: wielokrotny wybór z listy; Content: akceptacja outline) oraz prezentacja wyniku po zakończeniu (listy vs skalar wg typu tasku). Zgodnie z `docs/ux_dashboard.md`, `SPEC-SOCIAL.md`, `SPEC-CONTENT.md`, `SPEC-FRONTEND.md`. Panel i wynik: **`content-chain-product-ui`** (dziedziczenie locku).
+**Opis:** Start po Milestone 3.5 (twardy zapis kontekstu). Na widoku szczegółów: pauza HITL (Social: wielokrotny wybór z listy; Content: akceptacja outline) oraz prezentacja wyniku po zakończeniu (listy vs skalar wg typu tasku). Zgodnie z `docs/ux_dashboard.md`, `SPEC-SOCIAL.md`, `SPEC-CONTENT.md`, `SPEC-FRONTEND.md`. Panel i wynik: **`content-chain-product-ui`** (dziedziczenie locku).
 
 **DoD (faza):**
 

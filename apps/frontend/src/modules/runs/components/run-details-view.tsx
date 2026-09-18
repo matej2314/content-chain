@@ -17,19 +17,20 @@ import { isLiveRunStatus, type RunLogItem, type RunSnapshot } from '@/modules/ru
 import { RunStatusView } from '@/modules/runs/components/run-status';
 import { useRunEventSource } from '@/modules/runs/components/use-run-event-source';
 import { useOwnRuns } from '@/modules/runs/components/own-runs-provider';
+import { IsoDateTime } from '@/shared/datetime/iso-date-time';
 
 type DetailsState =
   | { readonly status: 'loading' }
   | {
-      readonly status: 'error';
-      readonly envelope: { code: string; message: string };
-      readonly forRunId: RunId;
-    }
+    readonly status: 'error';
+    readonly envelope: { code: string; message: string };
+    readonly forRunId: RunId;
+  }
   | {
-      readonly status: 'ready';
-      readonly snapshot: RunSnapshot;
-      readonly logs: readonly RunLogItem[];
-    };
+    readonly status: 'ready';
+    readonly snapshot: RunSnapshot;
+    readonly logs: readonly RunLogItem[];
+  };
 
 const FALLBACK = { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' };
 
@@ -154,7 +155,9 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
           {snapshot.contentKind ? ` · ${CONTENT_KIND_LABELS[snapshot.contentKind]}` : ''}
           {` · ${LANGUAGE_LABELS[snapshot.language]}`}
           {snapshot.startedBy ? ` · ${snapshot.startedBy.email}` : ''}
-          <span className="ml-2 font-mono text-xs tabular-nums">{snapshot.createdAt}</span>
+          <span className="ml-2">
+            <IsoDateTime iso={snapshot.createdAt} />
+          </span>
         </p>
         <RunStatusView status={snapshot.status} />
       </header>
@@ -166,8 +169,8 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
           <ol className="divide-y divide-border text-sm">
             {logs.map((item) => (
               <li key={logKey(item)} className="flex flex-col gap-0.5 py-2">
-                <p className="font-mono text-xs tabular-nums text-muted-foreground">
-                  {item.at}
+                <p className="text-muted-foreground">
+                  <IsoDateTime iso={item.at} kind="log" />
                   {item.step ? ` · ${item.step}` : ''}
                   {` · ${item.level}`}
                 </p>

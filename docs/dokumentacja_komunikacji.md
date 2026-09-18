@@ -1,3 +1,9 @@
+---
+wersja: 1
+data_utworzenia: 2026-09-18
+data_modyfikacji: 2026-09-18
+---
+
 # Dokumentacja komunikacji — Content Chain
 
 Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
@@ -48,7 +54,7 @@ Zmiana względem wiersza PATCH Users („Aktualizacja (np. reaktywacja)” bez b
 
 `requestId` w envelope dotyczy **tego** żądania HTTP do `apps/api` (nie „wszystkich” wywołań LLM w runie).
 
-Gdy `code` = `VALIDATION_FAILED` pochodzi z application Zod (`parseWithZod` w `apps/api/src/shared/`), elementy `details` mają `path` = ścieżkę Zod (`issue.path`) z separatorem `'.'` (spójnie Runs i company-context `extras`). Tabela kodów HTTP bez zmian.
+Gdy `code` = `VALIDATION_FAILED` pochodzi z application Zod (`parseWithZod` w `apps/api/src/shared/`), elementy `details` mają `path` = ścieżkę Zod (`issue.path`) z separatorem `'.'` (spójnie Runs i company-context `extras`). Gdy `VALIDATION_FAILED` pochodzi z bramki kompletności przy `PUT` / `PATCH /company-context`, `details` wskazują brakujące sekcje i/lub ścieżki pozycji (np. `{ "section": "offer" }`, `{ "path": "offer.items.1.description" }`) — **ten sam** envelope, nie nowy kod. Tabela kodów HTTP bez zmian. **Nie** reuse `CONTEXT_INCOMPLETE` na zapisie kontekstu.
 
 Wybrane kody domenowe:
 
@@ -56,8 +62,8 @@ Wybrane kody domenowe:
 |--------|-------------|-----------|
 | `UNAUTHORIZED` | 401 | Brak / nieważna sesja |
 | `FORBIDDEN` | 403 | Brak uprawnień (np. user edytuje kontekst) |
-| `VALIDATION_FAILED` | 400 | Błąd walidacji DTO |
-| `CONTEXT_INCOMPLETE` | 409 | Bramka kontekstu — start runu zablokowany |
+| `VALIDATION_FAILED` | 400 | Błąd walidacji DTO **albo** niekompletna bramka przy PUT/PATCH kontekstu |
+| `CONTEXT_INCOMPLETE` | 409 | Bramka kontekstu — **start runu** zablokowany (`POST /runs`); **nie** kod zapisu kontekstu |
 | `HITL_REQUIRED` | 409 | Operacja wymaga stanu oczekiwania na wybór / odwrotnie |
 | `HITL_INVALID_SELECTION` | 400 | Selekcja HITL niezgodna z kanonem: Content — `selectedIdeaIds` ≠ `[outline.id]`; Social dwuetapowy — długość `< 1`, duplikaty, albo id spoza draftu / `hitl.options` (**2+ legalne**, gdy wszystkie ∈ options) |
 | `RUN_NOT_FOUND` | 404 | Nieznany `runId` |
@@ -224,15 +230,19 @@ Mail zawiera jednorazowy token (link + ten sam token jako tekst pod Postman). **
 **UI dashboard (MVP):** admin podaje **email** (nie hasło) przy zaproszeniu; ekran akceptacji = publiczny formularz pierwszego hasła, potem osobne logowanie. Weryfikacja samego API = Postman (poniżej) — **nie** zastępuje ekranów w `ux_dashboard.md`.
 
 ### Company context
-Bramka kompletności: sekcje z dokumentacji koncepcyjnej (tożsamość, oferta, głos SM, CTA/kanały, odbiorca). Opcjonalnie **`extras`** (`CompanyContextExtras`) — poza bramką.
+Bramka kompletności: sekcje z dokumentacji koncepcyjnej (tożsamość, oferta, głos SM, CTA/kanały, odbiorca). Opcjonalnie **`extras`** (`CompanyContextExtras`) — poza bramką **i** poza warunkiem udanego PUT/PATCH.
 
 #### `GET /api/v1/company-context`
 
-**200** — aktualny kontekst (w tym `extras`: obiekt albo `null`) + flaga / obiekt `completeness` (które sekcje **bramki** spełnione). `extras` nie wpływa na `complete`.
+**200** — aktualny kontekst (w tym `extras`: obiekt albo `null`) + flaga / obiekt `completeness` (które sekcje **bramki** spełnione). `extras` nie wpływa na `complete`. Pusta instancja (same `""` / `[]`) jest legalnym **odczytem**; chip kompletności czerwony.
 
 #### `PUT` lub `PATCH /api/v1/company-context` — tylko `admin`
 
-Zapis sekcji bramki + opcjonalne `extras`. **403** dla `user`.
+Zapis sekcji bramki + opcjonalne `extras`. **403** dla `user` (bez zmian).
+
+Po walidacji kształtu `extras`: wynik zapisu (PUT = zmapowane body; PATCH = **merge** z aktualnym stanem w DB) **musi** spełniać bramkę z `dokumentacja_koncepcyjna.md`. Inaczej — w tym kaleka albo pusta oferta, pusta nazwa firmy, puste wymagane pole sekcji — **400** `VALIDATION_FAILED`; **brak** `upsert`. `details` wystarczają, by UI i Postman wiedziały **która sekcja** i/lub **która pozycja** (np. `offer.items.1.description`). Kompletna bramka → **200** + `completeness` jak dziś.
+
+**Nie** reuse **409** `CONTEXT_INCOMPLETE` na zapisie — ten kod zostaje na `POST /runs`.
 
 | Pole `extras` | Typ | Wymagane | Opis |
 |---------------|-----|----------|------|
@@ -242,7 +252,9 @@ Zapis sekcji bramki + opcjonalne `extras`. **403** dla `user`.
 | `catalogNotes` | `string` | nie | Skrót katalogu (nie zastępuje `offer.items`) |
 | `performanceNotes` | `string` | nie | Luźne notatki performance |
 
-Walidacja: Zod `.strict()` na obiekcie `extras` — nieznane klucze → **400** `VALIDATION_FAILED`. Brak `extras` / `null` = OK (omit preferowane względem pustych tablic). Jakość merytoryczna po stronie admina; programowo tylko kształt.
+Walidacja `extras`: Zod `.strict()` na obiekcie — nieznane klucze → **400** `VALIDATION_FAILED`. Brak `extras` / `null` = OK (omit preferowane względem pustych tablic). `extras` **nie** wchodzą do bramki ani do warunku persist; programowo na extras tylko kształt. Wiersz case study / obiekcji, **jeśli podany**, nadal wymaga swoich niepustych pól. Jakość merytoryczna copy po stronie admina.
+
+Zmiana względem: wcześniejszy kontrakt PUT/PATCH walidował przy zapisie wyłącznie kształt `extras`; niekompletna bramka była legalnym persist (kompletność tylko przy `POST /runs`).
 
 #### `GET /api/v1/company-context/completeness`
 

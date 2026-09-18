@@ -17,6 +17,7 @@ import { ApiError } from '@/shared/api/envelope';
 import { Button } from '@/shared/ui/button';
 import { EnvelopeError, FormField } from '@/shared/ui/form-field';
 import { NativeSelect } from '@/shared/ui/native-select';
+import { IsoDateTime } from '@/shared/datetime/iso-date-time';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { useSession } from '@/modules/auth/components/session-provider';
 import {
@@ -55,9 +56,12 @@ export function ArchiveRunsView() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAdmin) {
+    const setInitiatorsState = async () => {
       setInitiators([]);
       setInitiatorsError(null);
+    }
+    if (!isAdmin) {
+      void setInitiatorsState();
       return;
     }
     void fetchInitiatorOptions()
@@ -271,7 +275,9 @@ export function ArchiveRunsView() {
                   <td className="py-2 pr-3">
                     <RunStatusView status={item.status} compact />
                   </td>
-                  <td className="py-2 pr-3 font-mono text-xs tabular-nums">{item.createdAt}</td>
+                  <td className="py-2 pr-3">
+                    <IsoDateTime iso={item.createdAt} />
+                  </td>
                   <td className="py-2">{item.startedBy?.email ?? 'brak'}</td>
                 </tr>
               ))}

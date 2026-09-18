@@ -1,3 +1,9 @@
+---
+wersja: 1
+data_utworzenia: 2026-09-18
+data_modyfikacji: 2026-09-18
+---
+
 # Dokumentacja koncepcyjna — Content Chain
 
 ## Cel produktu
@@ -35,26 +41,28 @@ Zmiana względem wcześniejszego zapisu „świadomie ograniczony pierwszym slic
 - Weryfikacja wygenerowanej treści względem kontekstu firmy.
 - Persistence: **SQLite wyłącznie w MVP** (port/adapter Prisma) — **także** po dodaniu Content. **PostgreSQL** — obowiązkowe przejście w fazie **V1 — rozbudowa** (ops / skala; **nie** warunek dodania kanału Content). Cutover: nowa historia migracji Prisma + pusta baza (ew. osobny import danych) — `spec/SPEC-PERSISTENCE.md`.
 - Logi runów: pełna czytelność przebiegu.
-- Bramka kompletności kontekstu w DB (patrz niżej) — do spełnienia **każdy** `POST /runs` (Social i Content) jest zablokowany.
+- Bramka kompletności kontekstu w DB (patrz niżej) — do spełnienia **udany PUT/PATCH** kontekstu oraz **każdy** `POST /runs` (Social i Content) są zablokowane.
 - **Fundament feedbacku (zapis):** tabela opinii tekstowych (aplikacja / agent / run), ocena gwiazdkowa runu (`1–5` albo `null`) oraz **zapis edycji wyniku** (nadpis kanonicznego `result` + flaga `outputEdited`) — API + DB; kontrolki na dashboardzie. **Pełne wprowadzenie** (panel administracyjny, analityka, diff / stopień edycji / historia wersji) — faza **V1 — rozbudowa**. Szczegóły: `ux_dashboard.md`, `dokumentacja_komunikacji.md`.
 
 Zmiana względem: fundament edycji = wyłącznie flaga, oryginał agentów bez nadpisu w MVP.
 
 ### Bramka kompletności kontekstu firmy
 
-Start runów (Social i Content) odblokowany dopiero gdy w DB uzupełnione są **wszystkie** sekcje:
+Niepusty string = `trim().length > 0`. `null` / `undefined` na wymaganym polu = niekompletne.
+
+Udany **PUT/PATCH** kontekstu oraz start runów (Social i Content) wymagają, by w zapisanym stanie DB uzupełnione były **wszystkie** sekcje:
 
 | Sekcja | Minimalna treść |
 |--------|-----------------|
 | **Tożsamość** | Nazwa firmy + krótki opis / misja (1–3 zdania) |
-| **Oferta** | ≥ 1 usługa/produkt: nazwa + korzyść biznesowa |
+| **Oferta** | ≥ 1 **kompletna** usługa/produkt; **każda** pozycja na liście: nazwa + opis + ≥ 1 korzyść biznesowa **i** bez pustych wpisów w tablicy korzyści; kalekich obiektów w zapisanym kontekście **nie ma** |
 | **Głos SM** | Ton komunikacji (jak mówimy / jak nie mówimy) |
-| **CTA / kanały** | ≥ 1 domyślne CTA lub kierunek (kontakt, link w bio, follow itd.) |
-| **Odbiorca** | ≥ 1 profil grupy docelowej (stanowisko / branża / kontekst) |
+| **CTA / kanały** | ≥ 1 CTA; **każda** pozycja z niepustą etykietą; kierunek (`target`) opcjonalny |
+| **Odbiorca** | ≥ 1 profil grupy docelowej; **każdy** z niepustym opisem (stanowisko / branża / kontekst) |
 
-Jakość merytoryczna treści kontekstu pozostaje po stronie użytkownika (admina); programowo egzekwowana jest kompletność wymaganych sekcji.
+Jakość merytoryczna treści kontekstu pozostaje po stronie użytkownika (admina); programowo egzekwowana jest kompletność wymaganych sekcji — przy **każdym** udanym zapisie oraz przy starcie runu (ta sama tabela).
 
-**Poza bramką MVP** (nie blokuje runów) — nazwane opcjonalne sekcje modelu `CompanyContextExtras` (`extras`):
+**Poza bramką MVP** (nie blokuje zapisu ani runów) — nazwane opcjonalne sekcje modelu `CompanyContextExtras` (`extras`):
 
 | Sekcja | Kształt (skrót) |
 |--------|-----------------|
@@ -64,9 +72,11 @@ Jakość merytoryczna treści kontekstu pozostaje po stronie użytkownika (admin
 | `catalogNotes` | wolny tekst / skrót katalogu (nie zastępuje `offer.items`) |
 | `performanceNotes` | luźne notatki (nie pełny pack performance produktu) |
 
-Programowo: walidacja **kształtu** przy zapisie (Zod `.strict()` na znanym obiekcie); **nie** kompletność. Puste / brak `extras` = OK (`null` albo omit). Świadome: jedna bramka na cały `POST /runs` (w tym głos SM dla page_*).
+`extras` pozostają **poza** tabelą bramki i **poza** warunkiem PUT/PATCH: programowo walidowany jest **kształt** (Zod `.strict()` na znanym obiekcie). Puste / brak `extras` = OK (`null` albo omit). Wiersz case study / obiekcji, **jeśli podany**, nadal wymaga swoich niepustych pól. Świadome: jedna bramka na cały produkt (w tym głos SM dla page_*).
 
-Zmiana względem: wcześniejsza luźna lista „case studies, obiekcje, katalog, performance, hashtagi” bez nazwanego modelu pól.
+Zmiana względem wcześniejszego akapitu programowego tej sekcji: przy zapisie walidowany był wyłącznie kształt `extras` (**nie** kompletność bramki) — niekompletna tożsamość albo kaleka oferta mogły leżeć w DB, a bramka blokowała wyłącznie `POST /runs`. Od tej wersji udany PUT/PATCH wymaga spełnienia tabeli bramki (niepuste wymagane pola; oferta: każda pozycja kompletna, `description` w minimum). `extras` nadal poza bramką i poza warunkiem zapisu. Start runów nadal zablokowany do kompletności **w DB** (`409` `CONTEXT_INCOMPLETE` — bez zmiany sensu).
+
+Zmiana względem: wcześniejsza luźna lista „case studies, obiekcje, katalog, performance, hashtagi” bez nazwanego modelu pól. Wcześniejsza oferta w bramce: wystarczyła jedna pozycja z nazwą i korzyścią; opis **nie** wchodził do minimum, a kalekie rodzeństwo mogło zostać w JSON.
 
 W zakresie MVP (Social / Content) kontrakt wyniku obejmuje także: sugerowane `cta` na pomyśle SM, `characterCount` na post content, opcjonalne `role` na sekcji outline; HITL Social dwuetapowy = **K z N** (min. 1 unikalne id ⊆ draftu) → **K** osobnych artefaktów (`contents[]` / `reelScripts[]` + `sourceIdeaId`). Zmiana względem: „HITL SM = dokładnie jeden wybór”.
 
@@ -142,7 +152,7 @@ Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza M
 | Content (BC) | Copy stron/long-form — nie nazwa produktu Content Chain |
 | HITL | Pauza na wybór użytkownika, gdy kolejny krok zależy od selekcji z listy. Social dwuetapowy: K z N → K artefaktów; Content: akceptacja outline |
 | Gateway | Osobna aplikacja pośrednicząca w wywołaniach LLM |
-| Bramka kontekstu | Programowy warunek kompletności sekcji wymaganych przed **każdym** `POST /runs` |
+| Bramka kontekstu | Programowy warunek kompletności sekcji wymaganych przed udanym PUT/PATCH kontekstu **oraz** przed **każdym** `POST /runs` |
 | Opinia / ocena runu | Zapis feedbacku użytkownika: tekst (aplikacja, agent, run) oraz gwiazdki `1–5` \| `null` na zakończonym przebiegu; zapis edycji wyniku (`result` + `outputEdited`) |
 
 Szczegóły pojęć: `dictionary.md`. Brand types: `brand_types.md`. Komunikacja: `dokumentacja_komunikacji.md`. UI: `ux_dashboard.md`.

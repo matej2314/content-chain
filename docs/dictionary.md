@@ -1,3 +1,9 @@
+---
+wersja: 1
+data_utworzenia: 2026-09-18
+data_modyfikacji: 2026-09-18
+---
+
 # Słownik — Content Chain
 
 Kanoniczne definicje pojęć domenowych i technicznych. Identyfikatory typów, kodów i pól API w backtickach; opisy po polsku.
@@ -14,6 +20,8 @@ Zmiana względem jednego „Brief SM” na cały `POST /runs`: kanon to **`Socia
 
 Zmiana względem luźnej listy „poza bramką”: kanon **`CompanyContextExtras`** (typowane `extras`); addytywne pola wyniku SM (`cta?`, `characterCount`) i opcjonalne `role` na sekcji outline.
 
+Zmiana względem: bramka i `isComplete` wyłącznie przy `POST /runs`; oferta = ≥ 1 usługa z nazwą i korzyścią. Od tej wersji udany PUT/PATCH wymaga kompletnej bramki; oferta = każda pozycja kompletna (nazwa + opis + korzyść).
+
 Zmiana względem kanonu Fazy 4.3 (HITL Social dwuetapowy = dokładnie 1 `selectedIdeaId`; HITL SM = 1 id w kontrakcie MVP): Social = podzbiór draftu, min. 1 unikalne id, N→N (`contents[]` / `reelScripts[]` + `sourceIdeaId`). Content bez zmiany: `[outline.id]`.
 
 Zmiana względem kanonu „admin zakłada konto `user` emailem i hasłem” (`POST /users`): jedyna droga na `role = user` to **zaproszenie e-mail** (Invitation) → publiczna akceptacja z pierwszym hasłem. Bootstrap admina (email + hasło, bez maila) **bez zmian**.
@@ -26,10 +34,10 @@ Zmiana względem kanonu „admin zakłada konto `user` emailem i hasłem” (`PO
 |---------|-----------|
 | **Content Chain** | Publiczna, self-hostowalna aplikacja agentowa do generowania treści **Social** (posty i rolki) oraz **Content (BC)** (copy stron / long-form) z weryfikacją względem kontekstu firmy, zapisem wyników i obserwowalnymi runami. |
 | **Kontekst firmy** (`Company Context`) | Kanoniczny zestaw informacji o organizacji w DB (jedna instancja = jedna firma); wejście do generowania i weryfikacji spójności. |
-| **Bramka kontekstu** / kompletność | Programowy warunek: wymagane sekcje kontekstu uzupełnione → start **każdego** `POST /runs` odblokowany (Social i Content); inaczej start runu zablokowany (`CONTEXT_INCOMPLETE`). Werdykt: `isComplete`. Jedna bramka na cały produkt w MVP (w tym głos SM dla page_* — świadome). |
-| **`isComplete`** | Czysta funkcja domeny kontekstu: `{ complete, missing }` (`missing` = klucze niespełnionych sekcji bramki). Jedyny werdykt programowy przed startem runu; unit-testowalna bez DB/HTTP. |
-| **Sekcje bramki** | Tożsamość, oferta (≥1 usługa + korzyść), głos SM, CTA/kanały, odbiorca — patrz docs koncepcyjne. |
-| **`CompanyContextExtras`** | Opcjonalny obiekt `extras` kontekstu firmy **poza bramką**: `caseStudies?`, `objections?`, `hashtags?`, `catalogNotes?`, `performanceNotes?`. Walidacja kształtu (Zod `.strict()`); **nie** wchodzi do `missing` / `isComplete`. Brak danych = `null` / omit całego `extras` (preferowane względem pustych tablic). |
+| **Bramka kontekstu** / kompletność | Programowy warunek: wymagane sekcje kontekstu uzupełnione. Udany `PUT` / `PATCH` kontekstu tylko gdy bramka spełniona (inaczej **400** `VALIDATION_FAILED`). Start **każdego** `POST /runs` odblokowany przy kompletności **w DB** (Social i Content); inaczej start runu zablokowany (`409` `CONTEXT_INCOMPLETE`). Werdykt: `isComplete`. Jedna bramka na cały produkt w MVP (w tym głos SM dla page_* — świadome). |
+| **`isComplete`** | Czysta funkcja domeny kontekstu: `{ complete, missing }` (`missing` = klucze niespełnionych sekcji bramki). Ten sam werdykt dla GET completeness, PUT/PATCH i startu runu; unit-testowalna bez DB/HTTP. |
+| **Sekcje bramki** | Tożsamość, oferta (≥ 1 **kompletna** usługa: nazwa + opis + ≥ 1 korzyść, bez kalekich pozycji), głos SM, CTA/kanały, odbiorca — patrz docs koncepcyjne. |
+| **`CompanyContextExtras`** | Opcjonalny obiekt `extras` kontekstu firmy **poza bramką** i **poza** warunkiem PUT/PATCH: `caseStudies?`, `objections?`, `hashtags?`, `catalogNotes?`, `performanceNotes?`. Walidacja kształtu (Zod `.strict()`); **nie** wchodzi do `missing` / `isComplete`. Brak danych = `null` / omit całego `extras` (preferowane względem pustych tablic). |
 | **Post ideas** | Lista pomysłów na posty SM (`result.ideas`; `SocialIdea`: `id`, `title`, `angle`, `hook`, **`cta?`** — sugerowane CTA). |
 | **Post content** | Gotowe copy posta (`SocialContent`: `body`, `hashtags`, `cta?`, **`characterCount`** — integer ≥ 0; kanon: pipeline ustawia z `body.length` po sukcesie writer/refine; wartość z LLM ignorowana / nadpisywana). Jednoetapowy `post_content`: skalar `result.content`. Dwuetapowy `post_ideas_then_content` po fazie 2: kanon **`result.contents[]`** (długość = `selectedIdeaIds.length`; każdy element = kształt `SocialContent` + **`sourceIdeaId`**); skalar `result.content` = **`null`** (nie alias pierwszego). |
 | **Reel ideas** | Lista pomysłów na rolki (`result.reelIdeas`; `ReelIdea`: `id`, `title`, `description`, `hook`, `durationSeconds`, **`cta?`**). |

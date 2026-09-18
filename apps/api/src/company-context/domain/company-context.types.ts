@@ -50,3 +50,6 @@ export const emptyCompanyContext = (): CompanyContext => ({
   audience: { profiles: [] },
   extras: null,
 });
+
+export type CompanyContextWriteDetail =
+  { readonly section: GateSection } | { readonly path: string };

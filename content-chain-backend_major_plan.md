@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31), `update-mvp-contract-plan.md` (Faza 4.3), `multi-hitl-plan.md` (HITL Social min. 1 / N→N — legalizacja kanonu Fazy 4.3).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (`WYKONANY`) — Zod 4 w `apps/api`; bez własnego milestone’u. **Faza 10** (`WYKONANY`) — kontrakt api wymagany przez `content-chain-frontend_major_plan.md` (edycja wyniku, własny email, filtr wielowartościowy `GET /runs`); **bez** zmiany MILESTONE 6 (`OSIĄGNIĘTY`) i **bez** MILESTONE 10.
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (`WYKONANY`) — Zod 4 w `apps/api`; bez własnego milestone’u. **Faza 10** (`WYKONANY`) — kontrakt api wymagany przez `content-chain-frontend_major_plan.md` (edycja wyniku, własny email, filtr wielowartościowy `GET /runs`); **bez** zmiany MILESTONE 6 (`OSIĄGNIĘTY`) i **bez** MILESTONE 10. **Faza 11** (`NIE_ROZPOCZĘTY`) — twardy zapis kontekstu firmy (PUT/PATCH wyłącznie przy kompletnej bramce); **bez** MILESTONE 11 (jak Faza 10). Faza 3 / Krok 3.1 i MILESTONE 3 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`).
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -1113,6 +1113,59 @@ Zmiana względem: status Fazy 10 oraz kroków 10.1–10.3 (`NIE_ROZPOCZĘTY`). P
 
 ---
 
+## Faza 11 — Twardy zapis kontekstu firmy (kompletna bramka)
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Zależność FE:** `content-chain-frontend_major_plan.md` Faza 3.5 — ten major nie implementuje UI. W produkcie backend **przed** frontem (feature plan 11, potem FE 3.5).
+
+**Refaktor względem:** Faza 3 / Krok 3.1 (`WYKONANY`) — PUT/PATCH zapisywały niekompletną bramkę; `isComplete` tylko informował i blokował `POST /runs`. Faza 4.3 / Krok 4.3.2 (`WYKONANY`) — Zod extras i completeness ignorujące extras **zostają**; zmienia się warunek persist bramki, nie kształt extras.
+
+**Opis:** Udany zapis `PUT` / `PATCH /company-context` wyłącznie gdy wynik (PATCH: po merge z aktualnym stanem) spełnia bramkę: `isComplete(...).complete === true`. Oferta: `items.length ≥ 1` **oraz** każda pozycja kompletna (niepuste `name`, `description`, `benefit` z ≥ 1 niepustym stringiem i bez pustych wpisów). Kalekich obiektów oferty **nie** zapisujemy — **zakaz** cichego `filter` w use-case / adapterze. `extras` poza bramką i poza tym PUT-gate (`null` / omit OK). GET pustego singletona (same `""` / `[]`) bez zmian. `POST /runs` nadal **409** `CONTEXT_INCOMPLETE` (C-5) — **nie** reuse tego kodu na zapisie. Niekompletny PUT/PATCH → **400** `VALIDATION_FAILED`, `details` z brakującymi sekcjami i/lub ścieżkami pozycji (np. `offer.items.1.description`); **brak** `upsert`. Źródło: `docs/dokumentacja_koncepcyjna.md`, `docs/dokumentacja_komunikacji.md`, `spec/SPEC-KONTEKST-FIRMY.md` C-1/C-4 (po hotfixie zapisu), `spec/SPEC-TESTY.md` (nowy D-* na odrzut PUT).
+
+**Bez MILESTONE 11** — korekta warunku zapisu istniejącego BC, nie nowy skok produktowy backendu. MILESTONE 3 (`OSIĄGNIĘTY`) bez edycji.
+
+**Poza zakresem tej fazy:** UI (major FE Faza 3.5); migracja Prisma (`identityName` `@default("")` zostaje na bootstrap GET); zmiana semantyki C-5 / 409 na starcie runu; logika domeny w `packages/shared`; ciche czyszczenie już zapisanych kalekich ofert w SQLite; wymaganie `extras` / `cta.target`.
+
+**DoD (faza):**
+
+- `PutCompanyContextUseCase` / `PatchCompanyContextUseCase` (wynik merge) wołają domain **przed** `repository.put`; niekompletne → 400 `VALIDATION_FAILED`, brak upsert.
+- `isComplete`: oferta `every` + wymagany `description`; unit zaktualizowany.
+- `POST /runs` nadal 409 `CONTEXT_INCOMPLETE` (C-5).
+- GET pustego singletona bez zmian.
+- Case DoD (nowy D-* z `SPEC-TESTY.md`) + regresja D-20 / D-1 przechodzą.
+
+### Krok 11.1 — Predykat oferty i `isComplete`
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Refaktor względem:** Faza 3 / Krok 3.1 (`WYKONANY`) — predykat oferty (wystarczyła jedna pozycja z nazwą i korzyścią; `description` poza bramką; kalekie rodzeństwo mogło leżeć w JSON).
+
+**Opis:** Domain: `isCompleteOfferItem` + zmiana sekcji `offer` w `is-complete.ts`. Kompletna usługa = niepuste `name`, `description`, `benefit` (trim, ≥ 1 wpis, bez pustych stringów w tablicy). Sekcja `offer` kompletna ⇔ `items.length ≥ 1` ∧ `items.every(isCompleteOfferItem)`. Ta sama `isComplete` dla GET completeness, PUT/PATCH i startu runu.
+
+**DoD (krok):**
+
+- Unit: kaleka pozycja, puste `description`, druga niepełna usługa, sam whitespace → `missing` zawiera `offer`; `complete === false`.
+- Jedna kompletna usługa przy `length ≥ 1` → sekcja `offer` kompletna (przy reszcie bramki).
+- `extras` nadal poza `isComplete`.
+
+### Krok 11.2 — PUT/PATCH odrzut przed persist
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Refaktor względem:** Faza 3 / Krok 3.1 (`WYKONANY`) — zapis niezależny od kompletności bramki.
+
+**Opis:** Use-case’y wywołują asercję zapisywalności **przed** `put`. PATCH: werdykt na **merge** z aktualnym stanem. HTTP / e2e: pusta nazwa przy pełnej reszcie; kaleka oferta; PATCH wyzerowujący `identity.name`; happy path kompletny + extras `null`. **Zakaz** `items.filter(isCompleteOfferItem)` w adapterze. `details` jak start runu (`{ section }`) **plus** ścieżki kalekiej oferty.
+
+**DoD (krok):**
+
+- Niekompletne body → 400 `VALIDATION_FAILED`; GET singletonu bez zmiany (brak upsert).
+- Kaleka oferta (brak opisu / pusta korzyść / druga niepełna pozycja) → 400; ścieżka w `details` pozwala wskazać pozycję.
+- Kompletna bramka + extras `null` → 200 + `completeness` jak dziś.
+- Use-case z mock repo: przy odrzucie `put` **nie** wołane.
+
+---
+
 ## Mapa odwołań (lekka)
 
 | Obszar | Docs / SPEC |
@@ -1133,4 +1186,5 @@ Zmiana względem: status Fazy 10 oraz kroków 10.1–10.3 (`NIE_ROZPOCZĘTY`). P
 | Zod (api vs gateway) | `SPEC-KOMUNIKACJA.md` (Zod w application, bez pinu major); Faza 9 — `zod@^4.4.x` w `apps/api` jak `apps/ai-provider-gateway` |
 | Auth | `SPEC-AUTH.md` |
 | Faza 10 — edycja wyniku, własny email, filtr `status` | `content-chain-frontend_major_plan.md` (Faza 3 archiwum, Faza 5 przegląd/email), `docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`, `SPEC-RUNY.md` R-10 / R-3a, `SPEC-AUTH.md` A-3b, `SPEC-TESTY.md` D-12 / D-27 / D-28 |
+| Faza 11 — twardy zapis kontekstu (kompletna bramka) | `SPEC-KONTEKST-FIRMY.md` C-1/C-4, `docs/dokumentacja_koncepcyjna.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-TESTY.md` (D-1 / D-20 + nowy D-* na PUT), `content-chain-frontend_major_plan.md` Faza 3.5 |
 | Kolejność budowy | `docs/dokumentacja_koncepcyjna.md`, `content-chain_brief.md` |

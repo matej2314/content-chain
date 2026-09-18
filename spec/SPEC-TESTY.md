@@ -1,7 +1,7 @@
 ---
-wersja: 19
+wersja: 20
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-12
+data_modyfikacji: 2026-09-18
 ---
 
 # SPEC — Testy
@@ -68,7 +68,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-18 | `page_outline_then_copy`: HITL outline → dokument → `completed`; HITL z obcym id → **400** `HITL_INVALID_SELECTION`, status zostaje `awaiting_hitl` |
 | D-19 | `taskType` spoza enumu HTTP → **400** `VALIDATION_FAILED`; composite: nieznany typ wewnętrzny → `failed` / `UNKNOWN_TASK_TYPE` (unit `execute` / `assertNever`) |
 | D-19a | Unit Zod / HTTP: `page_*` + `brief.ideaCount` → **400** `VALIDATION_FAILED`; Social + `brief.angle` (lub `targetLength`) → **400** `VALIDATION_FAILED` |
-| D-20 | Unit Zod `CompanyContextExtras`: znany kształt OK; nieznany klucz → fail; `isComplete` ignoruje extras. Unit/e2e unknown key → **400**; ścieżki w `details` zgodne z separatorem `'.'` wspólnego `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`). Bez wymogu osobnego testu wyłącznie na lokalizację pliku helpera. |
+| D-20 | Unit Zod `CompanyContextExtras`: znany kształt OK; nieznany klucz → fail; `isComplete` ignoruje extras. Unit/e2e unknown key → **400**; ścieżki w `details` zgodne z separatorem `'.'` wspólnego `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`). Case na **kompletnym** body bramki (niekompletny zapis = D-29). Bez wymogu osobnego testu wyłącznie na lokalizację pliku helpera. |
 | D-21 | HITL Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): 0 id, duplikat albo obcy id → **400** `HITL_INVALID_SELECTION` (bez zapisu, status `awaiting_hitl`); **2 poprawne** id → `completed` z 2 artefaktami (`contents[]` / `reelScripts[]`, `sourceIdeaId`); 1 poprawny → tablica długości 1 |
 | D-22 | GET result: `characterCount === body.length` (skalar lub każda pozycja `contents[]`); outline z `role` enum przechodzi parse; nieznany `role` → fail |
 | D-23 | Zaproszenie (admin, cookie): `POST /invitations` `{ email }` → pending; publiczny `POST /auth/accept-invite` `{ token, password }` → `User` `role=user`; potem `POST /auth/login` nowym kontem. Artefakt E2E: istniejąca kolekcja Postman (`T-5` — bez pinu runnera) |
@@ -77,11 +77,13 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-26 | Reaktywacja: `PATCH /users/:id` `{ isActive: true }` na soft-deleted `user` → **200** `isActive: true`; następnie `POST /auth/login` tym kontem → **200**. `isActive: false` → **400**. `user` woła PATCH → **403**. |
 | D-27 | `PATCH /auth/me` `{ email }` (sesja): **200** `{ id, email, role }` z nowym emailem; `GET /auth/me` zgadza się. Drugi użytkownik / ten sam email zajęty → **409**. `PATCH /users/:id` z `email` nadal **400**. |
 | D-28 | `GET /runs?status=completed,failed`: tylko te statusy, `pageSize=10`, sort `createdAt` desc (mieszane); pojedynczy `status=interrupted` bez regresji; nieznana wartość w liście → **400** `VALIDATION_FAILED` |
+| D-29 | PUT/PATCH `/company-context` przy niekompletnej bramce (w tym kaleka oferta: brak opisu / pusta korzyść / druga niepełna pozycja) → **400** `VALIDATION_FAILED`; singleton w DB **bez zmiany** (brak upsert). D-1 (start → 409 `CONTEXT_INCOMPLETE`) **zostaje**. |
 
+Zmiana względem wersji 19: dopisano D-29 (twardy zapis kontekstu — C-4). D-1…D-28 bez kasowania treści. D-20 uściślone: extras round-trip na kompletnym body bramki.
 Zmiana względem wersji 18: T-5 i kryteria akceptacji obejmują też D-28 (wcześniej D-28 było w tabeli, bez jawnego pinu w T-5 / checklistcie D-1…D-28).
 Zmiana względem wersji 17: dopisano D-28 (filtr `status` wielowartościowy pod archiwum UI). D-1…D-27 bez kasowania treści.
 
-D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila) **oraz** D-28 (filtr `status` wielowartościowy). T-3 (cookie) **bez zmian**.
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila) **oraz** D-28 (filtr `status` wielowartościowy) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400). T-3 (cookie) **bez zmian**.
 
 Zmiana względem wersji 16: dopisano D-27 (`PATCH /auth/me` email; 409 zajęty; `PATCH /users/:id` bez email). D-1…D-26 bez kasowania treści.
 
@@ -147,7 +149,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-28 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23…D-28) pokryte testami (warstwa adekwatna do przypadku).
+- [ ] Przypadki D-1…D-29 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23…D-29) pokryte testami (warstwa adekwatna do przypadku).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

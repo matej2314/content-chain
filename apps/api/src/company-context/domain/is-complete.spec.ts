@@ -1,5 +1,9 @@
 import { emptyCompanyContext } from './company-context.types';
-import { isComplete } from './is-complete';
+import {
+  collectGateItemPaths,
+  isComplete,
+  isCompleteOfferItem,
+} from './is-complete';
 
 const complete = {
   identity: { name: 'Acme', description: 'Robimy X.' },
@@ -17,6 +21,46 @@ const complete = {
   audience: { profiles: [{ description: 'Founder SaaS B2B' }] },
   extras: { hashtags: ['#acme'] },
 };
+
+describe('isCompleteOfferItem', () => {
+  it('rejects whitespace name, empty description, empty benefit entries', () => {
+    expect(
+      isCompleteOfferItem({
+        name: 'Audyt',
+        description: 'ok',
+        benefit: ['Oszczędność'],
+      }),
+    ).toBe(true);
+    expect(
+      isCompleteOfferItem({
+        name: '  ',
+        description: 'ok',
+        benefit: ['Oszczędność'],
+      }),
+    ).toBe(false);
+    expect(
+      isCompleteOfferItem({
+        name: 'Audyt',
+        description: '  ',
+        benefit: ['Oszczędność'],
+      }),
+    ).toBe(false);
+    expect(
+      isCompleteOfferItem({
+        name: 'Audyt',
+        description: 'ok',
+        benefit: [],
+      }),
+    ).toBe(false);
+    expect(
+      isCompleteOfferItem({
+        name: 'Audyt',
+        description: 'ok',
+        benefit: ['ok', '  '],
+      }),
+    ).toBe(false);
+  });
+});
 
 describe('isComplete', () => {
   it('returns all gate keys missing for an empty context', () => {
@@ -43,23 +87,80 @@ describe('isComplete', () => {
     expect(result.missing).toContain('identity');
   });
 
-  it('requires an offer item with non-empty name and at least one non-empty benefit', () => {
-    const withoutBenefit = isComplete({
+  it('rejects a kaleka offer sibling, empty description, and whitespace benefit', () => {
+    const noDescription = isComplete({
+      ...complete,
+      offer: {
+        items: [{ name: 'Audyt', benefit: ['Oszczędność'], description: '' }],
+      },
+    });
+    expect(noDescription.complete).toBe(false);
+    expect(noDescription.missing).toContain('offer');
+
+    const secondKaleka = isComplete({
+      ...complete,
+      offer: {
+        items: [
+          complete.offer.items[0],
+          { name: 'Druga', benefit: ['x'], description: '' },
+        ],
+      },
+    });
+    expect(secondKaleka.complete).toBe(false);
+    expect(secondKaleka.missing).toContain('offer');
+
+    const whitespaceBenefit = isComplete({
       ...complete,
       offer: {
         items: [{ name: 'Audyt', benefit: ['  '], description: 'ok' }],
       },
     });
-    expect(withoutBenefit.complete).toBe(false);
-    expect(withoutBenefit.missing).toContain('offer');
+    expect(whitespaceBenefit.complete).toBe(false);
+    expect(whitespaceBenefit.missing).toContain('offer');
+  });
 
-    const withoutName = isComplete({
+  it('rejects a kaleka CTA or audience sibling', () => {
+    const kalekaCta = isComplete({
       ...complete,
-      offer: {
-        items: [{ name: '  ', benefit: ['Oszczędność'], description: 'ok' }],
+      cta: {
+        items: [
+          { label: 'Napisz do nas', target: '/kontakt' },
+          { label: '  ' },
+        ],
       },
     });
-    expect(withoutName.complete).toBe(false);
-    expect(withoutName.missing).toContain('offer');
+    expect(kalekaCta.complete).toBe(false);
+    expect(kalekaCta.missing).toContain('cta');
+
+    const kalekaAudience = isComplete({
+      ...complete,
+      audience: {
+        profiles: [{ description: 'Founder SaaS B2B' }, { description: '   ' }],
+      },
+    });
+    expect(kalekaAudience.complete).toBe(false);
+    expect(kalekaAudience.missing).toContain('audience');
+  });
+});
+
+describe('collectGateItemPaths', () => {
+  it('points at the kaleka offer description with a 0-based index', () => {
+    expect(
+      collectGateItemPaths({
+        ...complete,
+        offer: {
+          items: [
+            complete.offer.items[0],
+            { name: 'Druga', benefit: ['x'], description: '' },
+          ],
+        },
+      }),
+    ).toEqual([{ path: 'offer.items.1.description' }]);
+  });
+
+  it('returns no item paths for an empty offer list', () => {
+    expect(collectGateItemPaths({ ...complete, offer: { items: [] } })).toEqual(
+      [],
+    );
   });
 });

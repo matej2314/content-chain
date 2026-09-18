@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-09-17
+data_modyfikacji: 2026-09-18
 ---
 
 # UX Dashboard — Content Chain
@@ -96,7 +96,7 @@ Formularze w **zakładkach** (nie jeden ciąg sekcji na stronie). Dokładnie **s
 | Zakładka | Zawartość | Indykator bramki |
 |----------|-----------|------------------|
 | **Tożsamość** | Sekcja bramki `identity` | tak |
-| **Oferta** | Sekcja bramki `offer` | tak |
+| **Oferta** | Sekcja bramki `offer`: ≥ 1 kompletna usługa (nazwa + opis + ≥ 1 korzyść); hint formularza zgodny z tym minimum | tak |
 | **Głos SM** | Sekcja bramki `voice` | tak |
 | **CTA / kanały** | Sekcja bramki `cta` | tak |
 | **Odbiorca** | Sekcja bramki `audience` | tak |
@@ -104,12 +104,15 @@ Formularze w **zakładkach** (nie jeden ciąg sekcji na stronie). Dokładnie **s
 
 - Wejście na widok: otwarta zakładka **Tożsamość**.
 - Dodatki: admin może edytować; **nie** blokują „Agenci aktywni”.
-- Na triggerze każdej zakładki **bramki**: indykator kompletności — **zielona** kropka, gdy klucz sekcji **nie** jest w `missing`; **czerwona**, gdy jest. Źródło: `completeness.missing` z ostatniego `GET` / `PUT` kontekstu (ten sam werdykt co chip „Agenci aktywni”). **Nie** z niezapisanego draftu i **nie** z lokalnej kopii `isComplete`.
+- Na triggerze każdej zakładki **bramki**: indykator kompletności — **zielona** kropka, gdy klucz sekcji **nie** jest w `missing`; **czerwona**, gdy jest. Źródło: `completeness.missing` z ostatniego **udanego** `GET` / `PUT` kontekstu (ten sam werdykt co chip „Agenci aktywni”). **Nie** z niezapisanego draftu i **nie** z lokalnej kopii `isComplete` jako źródła kropek / chipa.
 - Zakładka Dodatki: **bez** kropki bramki.
 - Kolor nie jest jedynym sygnałem (etykieta dostępności: kompletna / niekompletna).
 - Zapis: jeden `PUT` całego kontekstu (wszystkie zakładki, także nieaktywna); tylko admin; `user` — read-only z komunikatem. CTA zapisu dostępne na każdej zakładce.
+- CTA zapisu **nie** przechodzi, gdy którekolwiek wymagane pole bramki jest puste albo oferta zawiera kaleką usługę (pozycja częściowo wypełniona). Placeholder pustej oferty **nie** jest usługą — strip przed PUT; kalekiej pozycji **nie** stripujemy (blokada submitu + błąd przy pozycji).
+- Nie da się usunąć ostatniej kompletnej usługi tak, by lista spadła do 0 i poszła w PUT.
+- Copy / hint oferty: minimum = nazwa + opis + ≥ 1 korzyść biznesowa (każda pozycja kompletna).
 
-Zmiana względem: jeden widok ciągiem z tekstem „Kompletna” / „Niekompletna” przy nagłówku sekcji. Od tej wersji: zakładki + kropki na triggerach bramki; extras w jednej zakładce Dodatki bez kropki.
+Zmiana względem: jeden widok ciągiem z tekstem „Kompletna” / „Niekompletna” przy nagłówku sekcji. Od zakładek: kropki na triggerach bramki; extras w jednej zakładce Dodatki bez kropki. Od tej wersji: zapis zablokowany przy pustym wymaganym polu / kalekiej ofercie; źródło kropek i chipa **bez zmiany** (ostatni udany GET/PUT, nie draft).
 
 ## Widok: Runy (archiwum firmy)
 

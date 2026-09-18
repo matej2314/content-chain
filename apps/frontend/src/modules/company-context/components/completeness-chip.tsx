@@ -33,7 +33,7 @@ export function CompletenessChip() {
         <Icon icon="lucide:check" className="mt-0.5 size-3.5 shrink-0" />
         <div className="flex flex-col gap-0.5">
           <p className="font-medium">Agenci aktywni</p>
-          <p className="text-muted-foreground">Można uruchamiać runy produktowe.</p>
+          <p className="text-muted-foreground">Można uruchamiać zadania agentowe.</p>
         </div>
       </div>
     );
