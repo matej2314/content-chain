@@ -383,7 +383,7 @@ describe('collectGateItemPaths', () => {
 
 ### KROK 2 — Merge + asercja przed `put`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Use-case’y wołają domain **przed** `repository.put`. PATCH ocenia **merge** z aktualnym stanem. Przy odrzucie brak upsert. Major 11.2 (warstwa application/domain). `SPEC-KONTEKST-FIRMY.md` C-4.
 
@@ -807,7 +807,7 @@ describe('PatchCompanyContextUseCase', () => {
 
 ### KROK 3 — HTTP / e2e D-29 + regresja D-1 / D-20
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Obserwowalny kontrakt HTTP z `docs/dokumentacja_komunikacji.md` i `SPEC-TESTY.md` D-29. D-1 zostaje 409. D-20 (unknown extras) nadal na **kompletnym** body bramki. Controller **bez** nowej logiki bramki (C-4 w application/domain).
 

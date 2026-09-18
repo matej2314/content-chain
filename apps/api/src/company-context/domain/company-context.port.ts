@@ -5,7 +5,6 @@ export const COMPANY_CONTEXT_REPOSITORY = Symbol('COMPANY_CONTEXT_REPOSITORY');
 export interface CompanyContextRepository {
   get(): Promise<CompanyContext>;
   put(context: CompanyContext): Promise<CompanyContext>;
-  patch(partial: PartialCompanyContext): Promise<CompanyContext>;
 }
 
 export type PartialCompanyContext = {

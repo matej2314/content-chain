@@ -5,7 +5,6 @@ import { COMPANY_CONTEXT_SINGLETON_ID } from '../domain/company-context.constant
 import { toInputJson } from '../../shared/persistence/to-input-json';
 import type {
   CompanyContextRepository,
-  PartialCompanyContext,
 } from '../domain/company-context.port';
 import {
   emptyCompanyContext,
@@ -57,21 +56,6 @@ export class PrismaCompanyContextAdapter implements CompanyContextRepository {
       update: this.toRow(context),
     });
     return this.toDomain(row);
-  }
-
-  async patch(partial: PartialCompanyContext): Promise<CompanyContext> {
-    const current = await this.get();
-    const merged: CompanyContext = {
-      identity: { ...current.identity, ...partial.identity },
-      offer: { items: partial.offer?.items ?? current.offer.items },
-      voice: { ...current.voice, ...partial.voice },
-      cta: { items: partial.cta?.items ?? current.cta.items },
-      audience: {
-        profiles: partial.audience?.profiles ?? current.audience.profiles,
-      },
-      extras: partial.extras === undefined ? current.extras : partial.extras,
-    };
-    return this.put(merged);
   }
 
   private toRow(context: CompanyContext) {

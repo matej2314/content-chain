@@ -238,4 +238,138 @@ describe('Company context (e2e)', () => {
     );
     expectNoFileFallback(response.body);
   });
+
+  it('D-29 PUT incomplete identity does not upsert on an empty database', async () => {
+    await prisma.companyContext.deleteMany();
+
+    const response = await agent
+      .put('/api/v1/company-context')
+      .send({ ...completeBody, identity: { name: '', description: 'ok' } })
+      .expect(400);
+
+    expect(response.body.code).toBe('VALIDATION_FAILED');
+    expect(response.body.details).toEqual(
+      expect.arrayContaining([{ section: 'identity' }]),
+    );
+    expect(await prisma.companyContext.count()).toBe(0);
+
+    const completeness = await agent
+      .get('/api/v1/company-context/completeness')
+      .expect(200);
+    expect(completeness.body.complete).toBe(false);
+  });
+
+  it('D-29 PUT kaleka offer (missing description / second item) leaves the singleton unchanged', async () => {
+    await agent.put('/api/v1/company-context').send(completeBody).expect(200);
+
+    const missingDescription = await agent
+      .put('/api/v1/company-context')
+      .send({
+        ...completeBody,
+        offer: {
+          items: [
+            {
+              name: 'Audyt',
+              benefit: ['Oszczędność czasu'],
+              description: '',
+            },
+          ],
+        },
+      })
+      .expect(400);
+    expect(missingDescription.body.code).toBe('VALIDATION_FAILED');
+    expect(missingDescription.body.details).toEqual(
+      expect.arrayContaining([
+        { section: 'offer' },
+        { path: 'offer.items.0.description' },
+      ]),
+    );
+
+    const secondKaleka = await agent
+      .put('/api/v1/company-context')
+      .send({
+        ...completeBody,
+        offer: {
+          items: [
+            completeBody.offer.items[0],
+            { name: 'Druga', benefit: ['x'], description: '' },
+          ],
+        },
+      })
+      .expect(400);
+    expect(secondKaleka.body.details).toEqual(
+      expect.arrayContaining([{ path: 'offer.items.1.description' }]),
+    );
+
+    const emptyBenefit = await agent
+      .put('/api/v1/company-context')
+      .send({
+        ...completeBody,
+        offer: {
+          items: [{ name: 'Audyt', benefit: [''], description: 'ok' }],
+        },
+      })
+      .expect(400);
+    expect(emptyBenefit.body.code).toBe('VALIDATION_FAILED');
+
+    const stored = await agent.get('/api/v1/company-context').expect(200);
+    expect(stored.body.identity).toEqual(completeBody.identity);
+    expect(stored.body.offer).toEqual(completeBody.offer);
+    expect(stored.body.completeness.complete).toBe(true);
+  });
+
+  it('D-29 PATCH clearing identity.name returns 400 and does not persist', async () => {
+    await agent.put('/api/v1/company-context').send(completeBody).expect(200);
+
+    const response = await agent
+      .patch('/api/v1/company-context')
+      .send({ identity: { name: '' } })
+      .expect(400);
+
+    expect(response.body.code).toBe('VALIDATION_FAILED');
+    expect(response.body.details).toEqual(
+      expect.arrayContaining([{ section: 'identity' }]),
+    );
+
+    const stored = await agent.get('/api/v1/company-context').expect(200);
+    expect(stored.body.identity.name).toBe(completeBody.identity.name);
+  });
+
+  it('D-29 PUT complete gate with extras null returns 200', async () => {
+    const response = await agent
+      .put('/api/v1/company-context')
+      .send({ ...completeBody, extras: null })
+      .expect(200);
+
+    expect(response.body.extras).toBeNull();
+    expect(response.body.completeness).toEqual({ complete: true, missing: [] });
+  });
+
+  it('D-29 PUT kaleka CTA sibling returns 400', async () => {
+    await agent.put('/api/v1/company-context').send(completeBody).expect(200);
+
+    const response = await agent
+      .put('/api/v1/company-context')
+      .send({
+        ...completeBody,
+        cta: {
+          items: [
+            { label: 'Napisz do nas', target: '/kontakt' },
+            { label: '' },
+          ],
+        },
+      })
+      .expect(400);
+
+    expect(response.body.code).toBe('VALIDATION_FAILED');
+    expect(response.body.details).toEqual(
+      expect.arrayContaining([
+        { section: 'cta' },
+        { path: 'cta.items.1.label' },
+      ]),
+    );
+
+    const stored = await agent.get('/api/v1/company-context').expect(200);
+    expect(stored.body.cta).toEqual(completeBody.cta);
+  });
 });

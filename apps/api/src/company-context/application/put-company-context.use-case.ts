@@ -3,6 +3,7 @@ import {
   COMPANY_CONTEXT_REPOSITORY,
   type CompanyContextRepository,
 } from '../domain/company-context.port';
+import { assertCompanyContextWritable } from '../domain/assert-company-context-writable';
 import { isComplete } from '../domain/is-complete';
 import { toPublicCompanyContext } from './company-context.mapper';
 import type { CompanyContext } from '../domain/company-context.types';
@@ -15,6 +16,7 @@ export class PutCompanyContextUseCase {
   ) {}
 
   async execute(context: CompanyContext) {
+    assertCompanyContextWritable(context);
     const saved = await this.repository.put(context);
     return toPublicCompanyContext(saved, isComplete(saved));
   }

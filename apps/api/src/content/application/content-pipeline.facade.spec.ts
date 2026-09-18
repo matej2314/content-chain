@@ -62,7 +62,7 @@ function unusedContext(): CompanyContextRepository {
   const unexpected = async () => {
     throw new Error('unexpected context call');
   };
-  return { get: unexpected, put: unexpected, patch: unexpected };
+  return { get: unexpected, put: unexpected };
 }
 
 function unusedStore(): ContentResultStore {

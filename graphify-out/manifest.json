@@ -1866,16 +1866,16 @@
     "semantic_hash": "a850d6afa58ccf803bb8fb22fc3a4a98"
   },
   "apps/api/src/company-context/application/patch-company-context.use-case.ts": {
-    "mtime": 1788359196.0,
-    "seen": 1789403048.304554,
-    "ast_hash": "e0cce4592fdc245bc6239f064c38a0fb",
-    "semantic_hash": "e0cce4592fdc245bc6239f064c38a0fb"
+    "mtime": 1789740323.5636213,
+    "seen": 1789740390.0067394,
+    "ast_hash": "d8fb8745984f86c73d965d3eb7c65d72",
+    "semantic_hash": ""
   },
   "apps/api/src/company-context/application/put-company-context.use-case.ts": {
-    "mtime": 1788359196.0,
-    "seen": 1789403048.3045561,
-    "ast_hash": "38f3da639ffec2f2d9cf977ef6304be9",
-    "semantic_hash": "38f3da639ffec2f2d9cf977ef6304be9"
+    "mtime": 1789740323.5566213,
+    "seen": 1789740390.0067415,
+    "ast_hash": "2367e046cbaa5031bcaecc33bf34a094",
+    "semantic_hash": ""
   },
   "apps/api/src/company-context/domain/company-context.constants.ts": {
     "mtime": 1788359196.0,
@@ -1884,10 +1884,10 @@
     "semantic_hash": "8b0f4cab3b9e573d891a633bf599d1d2"
   },
   "apps/api/src/company-context/domain/company-context.port.ts": {
-    "mtime": 1788359196.0,
-    "seen": 1789403048.304565,
-    "ast_hash": "72a0232c8b604d30ddd1fdd088816ed9",
-    "semantic_hash": "72a0232c8b604d30ddd1fdd088816ed9"
+    "mtime": 1789741815.6365514,
+    "seen": 1789742458.5818145,
+    "ast_hash": "e93676ef8c2c6f7e303629512b673894",
+    "semantic_hash": ""
   },
   "apps/api/src/company-context/domain/company-context.types.ts": {
     "mtime": 1789738051.4385993,
@@ -1908,10 +1908,10 @@
     "semantic_hash": "9d389d7e2dabfa1159537681825b3641"
   },
   "apps/api/src/company-context/infrastructure/prisma-company-context.adapter.ts": {
-    "mtime": 1788880918.0,
-    "seen": 1789403048.304574,
-    "ast_hash": "347de7866855ba94caa940526fb29886",
-    "semantic_hash": "347de7866855ba94caa940526fb29886"
+    "mtime": 1789741792.9701562,
+    "seen": 1789742458.581819,
+    "ast_hash": "581471f3566cf0449bb9ab6eb81cd9ed",
+    "semantic_hash": ""
   },
   "apps/api/src/health/health.controller.ts": {
     "mtime": 1788777810.0,
@@ -3603,6 +3603,18 @@
     "mtime": 1789731969.5205607,
     "seen": 1789739217.5564442,
     "ast_hash": "5382c5bda35cb4454eefa5f52d2fa870",
+    "semantic_hash": ""
+  },
+  "apps/api/src/company-context/domain/assert-company-context-writable.ts": {
+    "mtime": 1789740246.9331005,
+    "seen": 1789740390.0067456,
+    "ast_hash": "382a8a314e39075f7b26634380832dd5",
+    "semantic_hash": ""
+  },
+  "apps/api/src/company-context/domain/merge-company-context.ts": {
+    "mtime": 1789742412.125953,
+    "seen": 1789742458.5818176,
+    "ast_hash": "583ca441c3840348ed98d974b000458e",
     "semantic_hash": ""
   }
 }
