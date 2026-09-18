@@ -59,18 +59,25 @@ export function useRunEventSource(
 
     const onStatus = (event: Event): void => {
       if (!(event instanceof MessageEvent) || typeof event.data !== 'string') return;
-      const parsed = parseSseStatusData(parseEventData(event.data));
-      onStatusLive(parsed.status);
-      if (isTerminalRunStatus(parsed.status)) {
-        onTerminalLive(parsed.status);
-        releaseOnce();
+      try {
+        const parsed = parseSseStatusData(parseEventData(event.data));
+        onStatusLive(parsed.status);
+        if (isTerminalRunStatus(parsed.status)) {
+          onTerminalLive(parsed.status);
+          releaseOnce();
+        }
+      } catch {
+        /* zły event; kanał zostaje */
       }
     };
 
     const onLog = (event: Event): void => {
       if (!(event instanceof MessageEvent) || typeof event.data !== 'string') return;
-      const data = parseEventData(event.data);
-      onLogLive(parseRunLogItem(data));
+      try {
+        onLogLive(parseRunLogItem(parseEventData(event.data)));
+      } catch {
+        /* zły event; kanał zostaje */
+      }
     };
 
     const onCompleted = (): void => {
@@ -89,6 +96,7 @@ export function useRunEventSource(
       if (released) return;
       void fetchRunSnapshot(runId)
         .then((snapshot) => {
+          if (released) return;
           onStatusLive(snapshot.status);
           if (!isLiveRunStatus(snapshot.status)) {
             if (isTerminalRunStatus(snapshot.status)) {

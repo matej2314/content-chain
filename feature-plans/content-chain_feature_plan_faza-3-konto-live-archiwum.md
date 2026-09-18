@@ -1994,7 +1994,7 @@ Import `FloatingRunsBox`. Usuń `pointer-events-none`. Chip i feedback slot bez 
 
 ### KROK 7 — Lista Runy (archiwum firmy)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** `completed` \| `failed`, strona 10, odświeżanie wejście + 15 min. Major 3.5.
 
