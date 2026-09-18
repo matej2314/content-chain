@@ -6774,7 +6774,7 @@
       "file_type": "code",
       "norm_label": "ownrunscontextvalue",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L24"
+      "source_location": "L25"
     },
     {
       "id": "apps_frontend_src_modules_runs_components_own_runs_provider_ownrunsstate",
@@ -6787,7 +6787,7 @@
       "file_type": "code",
       "norm_label": "ownrunsstate",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L19"
+      "source_location": "L20"
     },
     {
       "id": "apps_frontend_src_modules_runs_components_run_details_view_detailsstate",
@@ -22884,7 +22884,7 @@
       "file_type": "code",
       "norm_label": "liveitemsubscription()",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L37"
+      "source_location": "L38"
     },
     {
       "id": "apps_frontend_src_modules_runs_components_own_runs_provider_ownrunsprovider",
@@ -22896,7 +22896,7 @@
       "file_type": "code",
       "norm_label": "ownrunsprovider()",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L52"
+      "source_location": "L53"
     },
     {
       "id": "apps_frontend_src_modules_runs_components_own_runs_provider_ownrunsprovider_onfocus",
@@ -22908,7 +22908,7 @@
       "file_type": "code",
       "norm_label": "onfocus()",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L76"
+      "source_location": "L86"
     },
     {
       "id": "apps_frontend_src_modules_runs_components_own_runs_provider_useownruns",
@@ -22920,7 +22920,7 @@
       "file_type": "code",
       "norm_label": "useownruns()",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L111"
+      "source_location": "L121"
     },
     {
       "id": "apps_frontend_src_modules_runs_components_run_details_view_envelopefromunknown",
@@ -39915,7 +39915,7 @@
       "file_type": "code",
       "norm_label": "fallback",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L32"
+      "source_location": "L33"
     },
     {
       "id": "apps_frontend_src_modules_runs_components_own_runs_provider_ownrunscontext",
@@ -39926,7 +39926,7 @@
       "file_type": "code",
       "norm_label": "ownrunscontext",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L31"
+      "source_location": "L32"
     },
     {
       "id": "apps_frontend_src_modules_runs_components_run_details_view",
@@ -65684,31 +65684,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L44",
-      "weight": 1.0
-    },
-    {
-      "source": "apps_frontend_src_modules_runs_components_own_runs_provider_ownrunsprovider",
-      "target": "apps_frontend_src_modules_auth_components_session_provider_usesession",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L53",
-      "weight": 1.0
-    },
-    {
-      "source": "apps_frontend_src_modules_runs_components_own_runs_provider_ownrunsprovider",
-      "target": "apps_frontend_src_modules_runs_api_runs_api_fetchuserruns",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L60",
+      "source_location": "L45",
       "weight": 1.0
     },
     {
@@ -65720,7 +65696,31 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L94",
+      "source_location": "L104",
+      "weight": 1.0
+    },
+    {
+      "source": "apps_frontend_src_modules_runs_components_own_runs_provider_ownrunsprovider",
+      "target": "apps_frontend_src_modules_auth_components_session_provider_usesession",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
+      "source_location": "L54",
+      "weight": 1.0
+    },
+    {
+      "source": "apps_frontend_src_modules_runs_components_own_runs_provider_ownrunsprovider",
+      "target": "apps_frontend_src_modules_runs_api_runs_api_fetchuserruns",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
+      "source_location": "L63",
       "weight": 1.0
     },
     {
@@ -65924,7 +65924,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/frontend/src/modules/runs/components/use-run-event-source.ts",
-      "source_location": "L52",
+      "source_location": "L62",
       "weight": 1.0
     },
     {
@@ -65936,7 +65936,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/frontend/src/modules/runs/components/use-run-event-source.ts",
-      "source_location": "L52",
+      "source_location": "L62",
       "weight": 1.0
     },
     {
@@ -65948,7 +65948,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/frontend/src/modules/runs/components/use-run-event-source.ts",
-      "source_location": "L54",
+      "source_location": "L64",
       "weight": 1.0
     },
     {
@@ -65960,7 +65960,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/frontend/src/modules/runs/components/use-run-event-source.ts",
-      "source_location": "L63",
+      "source_location": "L73",
       "weight": 1.0
     },
     {
@@ -65972,7 +65972,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/frontend/src/modules/runs/components/use-run-event-source.ts",
-      "source_location": "L80",
+      "source_location": "L90",
       "weight": 1.0
     },
     {
@@ -65984,7 +65984,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/frontend/src/modules/runs/components/use-run-event-source.ts",
-      "source_location": "L83",
+      "source_location": "L93",
       "weight": 1.0
     },
     {
@@ -116067,7 +116067,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L13",
+      "source_location": "L14",
       "weight": 1.0
     },
     {
@@ -116079,7 +116079,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L13",
+      "source_location": "L14",
       "weight": 1.0
     },
     {
@@ -116091,7 +116091,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L14",
+      "source_location": "L15",
       "weight": 1.0
     },
     {
@@ -116103,7 +116103,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L15",
+      "source_location": "L16",
       "weight": 1.0
     },
     {
@@ -116115,7 +116115,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L16",
+      "source_location": "L17",
       "weight": 1.0
     },
     {
@@ -116127,7 +116127,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L16",
+      "source_location": "L17",
       "weight": 1.0
     },
     {
@@ -116139,7 +116139,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L17",
+      "source_location": "L18",
       "weight": 1.0
     },
     {
@@ -140029,7 +140029,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L13",
+      "source_location": "L14",
       "weight": 1.0
     },
     {
@@ -140041,7 +140041,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L14",
+      "source_location": "L15",
       "weight": 1.0
     },
     {
@@ -140053,7 +140053,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L15",
+      "source_location": "L16",
       "weight": 1.0
     },
     {
@@ -140065,7 +140065,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L16",
+      "source_location": "L17",
       "weight": 1.0
     },
     {
@@ -140077,7 +140077,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L17",
+      "source_location": "L18",
       "weight": 1.0
     },
     {
@@ -169062,7 +169062,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L111",
+      "source_location": "L121",
       "weight": 1.0
     },
     {
@@ -169073,7 +169073,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L19",
+      "source_location": "L20",
       "weight": 1.0
     },
     {
@@ -169084,7 +169084,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L24",
+      "source_location": "L25",
       "weight": 1.0
     },
     {
@@ -169095,7 +169095,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L31",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -169106,7 +169106,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L32",
+      "source_location": "L33",
       "weight": 1.0
     },
     {
@@ -169117,7 +169117,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L37",
+      "source_location": "L38",
       "weight": 1.0
     },
     {
@@ -169128,7 +169128,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L52",
+      "source_location": "L53",
       "weight": 1.0
     },
     {
@@ -185590,7 +185590,7 @@
       "confidence_score": 0.85,
       "context": "argument",
       "source_file": "apps/frontend/src/modules/runs/components/own-runs-provider.tsx",
-      "source_location": "L79",
+      "source_location": "L89",
       "weight": 1.0
     },
     {
@@ -185769,5 +185769,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "8ef20c46ae2330053c3c89bdba2902108734b137"
+  "built_at_commit": "3e82616ab4a0c3b67061bf53f45bd5a942d3556f"
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent } from 'react';
 import type { RunId, RunStatus } from '@content-chain/shared';
 import { useEventSourceRegistry } from '@/modules/shell/components/event-source-registry-provider';
 import {
@@ -33,8 +33,18 @@ export function useRunEventSource(
   handlers: RunLiveHandlers,
 ): void {
   const registry = useEventSourceRegistry();
-  const handlersRef = useRef(handlers);
-  handlersRef.current = handlers;
+
+  const onStatusLive = useEffectEvent((status: RunStatus) => {
+    handlers.onStatus(status);
+  });
+
+  const onLogLive = useEffectEvent((item: RunLogItem) => {
+    handlers.onLog?.(item);
+  });
+
+  const onTerminalLive = useEffectEvent((status: 'completed' | 'failed') => {
+    handlers.onTerminal?.(status);
+  });
 
   useEffect(() => {
     if (!runId || !enabled) return;
@@ -50,9 +60,9 @@ export function useRunEventSource(
     const onStatus = (event: Event): void => {
       if (!(event instanceof MessageEvent) || typeof event.data !== 'string') return;
       const parsed = parseSseStatusData(parseEventData(event.data));
-      handlersRef.current.onStatus(parsed.status);
+      onStatusLive(parsed.status);
       if (isTerminalRunStatus(parsed.status)) {
-        handlersRef.current.onTerminal?.(parsed.status);
+        onTerminalLive(parsed.status);
         releaseOnce();
       }
     };
@@ -60,18 +70,18 @@ export function useRunEventSource(
     const onLog = (event: Event): void => {
       if (!(event instanceof MessageEvent) || typeof event.data !== 'string') return;
       const data = parseEventData(event.data);
-      handlersRef.current.onLog?.(parseRunLogItem(data));
+      onLogLive(parseRunLogItem(data));
     };
 
     const onCompleted = (): void => {
-      handlersRef.current.onStatus('completed');
-      handlersRef.current.onTerminal?.('completed');
+      onStatusLive('completed');
+      onTerminalLive('completed');
       releaseOnce();
     };
 
     const onFailed = (): void => {
-      handlersRef.current.onStatus('failed');
-      handlersRef.current.onTerminal?.('failed');
+      onStatusLive('failed');
+      onTerminalLive('failed');
       releaseOnce();
     };
 
@@ -79,10 +89,10 @@ export function useRunEventSource(
       if (released) return;
       void fetchRunSnapshot(runId)
         .then((snapshot) => {
-          handlersRef.current.onStatus(snapshot.status);
+          onStatusLive(snapshot.status);
           if (!isLiveRunStatus(snapshot.status)) {
             if (isTerminalRunStatus(snapshot.status)) {
-              handlersRef.current.onTerminal?.(snapshot.status);
+              onTerminalLive(snapshot.status);
             }
             releaseOnce();
           }

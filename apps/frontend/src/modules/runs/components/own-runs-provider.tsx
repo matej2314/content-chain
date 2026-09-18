@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -53,13 +54,17 @@ export function OwnRunsProvider({ children }: { readonly children: ReactNode }) 
   const { state: session } = useSession();
   const userId = session.status === 'authenticated' ? session.user.id : null;
   const [state, setState] = useState<OwnRunsState>({ status: 'loading' });
+  const requestIdRef = useRef(0);
 
   const refresh = useCallback(async () => {
     if (!userId) return;
+    const requestId = ++requestIdRef.current;
     try {
       const items = await fetchUserRuns(userId);
+      if (requestId !== requestIdRef.current) return;
       setState({ status: 'ready', items });
     } catch (reason: unknown) {
+      if (requestId !== requestIdRef.current) return;
       if (reason instanceof ApiError) {
         setState({ status: 'error', envelope: reason.envelope });
         return;
@@ -69,7 +74,12 @@ export function OwnRunsProvider({ children }: { readonly children: ReactNode }) 
   }, [userId]);
 
   useEffect(() => {
-    void refresh();
+    void (async () => {
+      await refresh();
+    })();
+    return () => {
+      requestIdRef.current += 1;
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -90,8 +100,11 @@ export function OwnRunsProvider({ children }: { readonly children: ReactNode }) 
     });
   }, []);
 
-  const inProgress =
-    state.status === 'ready' ? state.items.filter((item) => isLiveRunStatus(item.status)) : [];
+  const inProgress = useMemo(() => {
+    if (state.status !== 'ready') return [];
+    return state.items.filter((item) => isLiveRunStatus(item.status));
+  }, [state])
+    
 
   const value = useMemo(
     () => ({ state, inProgress, refresh, patchStatus }),
