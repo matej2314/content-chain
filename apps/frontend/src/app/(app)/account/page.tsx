@@ -1,5 +1,5 @@
-import { AccountStartSection } from '@/modules/runs/components/account-start-section';
+import { AccountView } from '@/modules/runs/components/account-view';
 
 export default function AccountPage() {
-  return <AccountStartSection />;
+  return <AccountView />;
 }

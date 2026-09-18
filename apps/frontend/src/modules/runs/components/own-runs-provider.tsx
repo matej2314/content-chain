@@ -38,14 +38,19 @@ const FALLBACK: ApiErrorEnvelope = {
 function LiveItemSubscription({
   runId,
   onStatus,
+  onTerminal,
 }: {
   readonly runId: RunId;
   readonly onStatus: (runId: RunId, status: RunStatus) => void;
+  readonly onTerminal: () => void;
 }) {
   useRunEventSource(runId, true, {
     onStatus: (status) => {
       onStatus(runId, status);
     },
+    onTerminal: () => {
+      onTerminal();
+    }
   });
   return null;
 }
@@ -114,7 +119,14 @@ export function OwnRunsProvider({ children }: { readonly children: ReactNode }) 
   return (
     <OwnRunsContext.Provider value={value}>
       {inProgress.map((item) => (
-        <LiveItemSubscription key={item.runId} runId={item.runId} onStatus={patchStatus} />
+        <LiveItemSubscription 
+        key={item.runId} 
+        runId={item.runId} 
+        onStatus={patchStatus}
+        onTerminal={() => {
+          void refresh();
+        }} 
+        />
       ))}
       {children}
     </OwnRunsContext.Provider>

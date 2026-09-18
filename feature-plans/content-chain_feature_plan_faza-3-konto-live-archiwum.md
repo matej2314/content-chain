@@ -1740,7 +1740,7 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
 
 ### KROK 5 — Konto: Moje runy i prefill
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Lista autora, klik → szczegóły, prefill = **nowy** run ze snapshotu. Major 3.2.
 
