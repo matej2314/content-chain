@@ -18,6 +18,7 @@ import {
 } from '@/modules/company-context/api/company-context.types';
 import { CompanyContextForm } from '@/modules/company-context/components/company-context-form';
 import { isComplete } from '@/modules/company-context/lib/is-complete';
+import { notifyProduct } from '@/modules/notifications/notify-product';
 
 type ViewState =
   | { readonly status: 'loading' }
@@ -80,6 +81,7 @@ export function CompanyContextView() {
         completeness: payload.completeness,
       });
       await refetch();
+      notifyProduct({ kind: 'success', title: 'Kontekst zapisany' });
     } catch (reason: unknown) {
       if (reason instanceof ApiError) {
         setSubmitError({ code: reason.envelope.code, message: reason.envelope.message });

@@ -89,7 +89,7 @@ Odpowiada major **Faza 3.6**. Jedna faza w tym zestawie.
 
 ### KROK 1 — Toaster i kontrakt
 
-**Status:** `W_TRAKCIE`
+**Status:** `WYKONANY`
 
 **Cel:** Po sesji wisi jeden Toaster locku; produkt woła wyłącznie `notifyProduct` / `notifyRunTerminal`; `viewingRunId` z pathname. Major 3.6.1, `SPEC-FRONTEND.md` F-8 / Wolno (wrapper, `--z-toast`), `docs/ux_dashboard.md` (Toaster top-right).
 
@@ -357,7 +357,7 @@ import { Toaster } from '@/shared/ui/sonner';
 
 ### KROK 2 — Mutacje (kontekst, start)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Cisza po udanym PUT/POST znika; błędy formularza zostają przy polu. Major 3.6.2, `SPEC-FRONTEND.md` F-7 / F-8, `docs/ux_dashboard.md` mapa MVP.
 
@@ -466,7 +466,7 @@ import { notifyProduct } from '@/modules/notifications/notify-product';
 
 ### KROK 3 — Terminal poza szczegółami
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jeden toast per `runId` przy `run.completed` / `run.failed`, gdy operator nie stoi na szczegółach **tego** runu. Major 3.6.3, `SPEC-FRONTEND.md` F-5a, `SPEC-KOMUNIKACJA.md` K-3.
 

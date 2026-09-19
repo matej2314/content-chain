@@ -16,6 +16,8 @@ import { useSession } from '@/modules/auth/components/session-provider';
 import { fetchUserRuns } from '@/modules/runs/api/runs.api';
 import { isLiveRunStatus, type UserRunItem } from '@/modules/runs/api/runs.types';
 import { useRunEventSource } from '@/modules/runs/components/use-run-event-source';
+import { notifyRunTerminal } from '@/modules/notifications/notify-product';
+import { useViewingRunId } from '@/modules/notifications/use-viewing-run-id';
 
 type OwnRunsState =
   | { readonly status: 'loading' }
@@ -42,15 +44,15 @@ function LiveItemSubscription({
 }: {
   readonly runId: RunId;
   readonly onStatus: (runId: RunId, status: RunStatus) => void;
-  readonly onTerminal: () => void;
+  readonly onTerminal: (runId: RunId, status: 'completed' | 'failed') => void;
 }) {
   useRunEventSource(runId, true, {
     onStatus: (status) => {
       onStatus(runId, status);
     },
-    onTerminal: () => {
-      onTerminal();
-    }
+    onTerminal: (status) => {
+      onTerminal(runId, status);
+    },
   });
   return null;
 }
@@ -58,6 +60,7 @@ function LiveItemSubscription({
 export function OwnRunsProvider({ children }: { readonly children: ReactNode }) {
   const { state: session } = useSession();
   const userId = session.status === 'authenticated' ? session.user.id : null;
+  const viewingRunId = useViewingRunId();
   const [state, setState] = useState<OwnRunsState>({ status: 'loading' });
   const requestIdRef = useRef(0);
 
@@ -106,8 +109,7 @@ export function OwnRunsProvider({ children }: { readonly children: ReactNode }) 
   const inProgress = useMemo(() => {
     if (state.status !== 'ready') return [];
     return state.items.filter((item) => isLiveRunStatus(item.status));
-  }, [state])
-    
+  }, [state]);
 
   const value = useMemo(
     () => ({ state, inProgress, refresh, patchStatus }),
@@ -117,13 +119,18 @@ export function OwnRunsProvider({ children }: { readonly children: ReactNode }) 
   return (
     <OwnRunsContext.Provider value={value}>
       {inProgress.map((item) => (
-        <LiveItemSubscription 
-        key={item.runId} 
-        runId={item.runId} 
-        onStatus={patchStatus}
-        onTerminal={() => {
-          void refresh();
-        }} 
+        <LiveItemSubscription
+          key={item.runId}
+          runId={item.runId}
+          onStatus={patchStatus}
+          onTerminal={(terminalRunId, status) => {
+            notifyRunTerminal({
+              runId: terminalRunId,
+              outcome: status,
+              viewingRunId,
+            });
+            void refresh();
+          }}
         />
       ))}
       {children}

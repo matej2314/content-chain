@@ -10,6 +10,7 @@ import { FloatingBoxSlot } from '@/modules/shell/components/chrome-slots';
 import { CompletenessProvider } from '@/modules/company-context/components/completeness-provider';
 import { OwnRunsProvider } from '@/modules/runs/components/own-runs-provider';
 import { EventSourceRegistryProvider } from '@/modules/shell/components/event-source-registry-provider';
+import { Toaster } from '@/shared/ui/sonner';
 
 export function DashboardShell({ children }: { readonly children: ReactNode }) {
   const router = useRouter();
@@ -49,6 +50,7 @@ export function DashboardShell({ children }: { readonly children: ReactNode }) {
             </div>
             <FloatingBoxSlot />
           </div>
+          <Toaster />
         </OwnRunsProvider>
       </CompletenessProvider>
     </EventSourceRegistryProvider>

@@ -24,6 +24,7 @@ import { ApiError } from '@/shared/api/envelope';
 import { useCompleteness } from '@/modules/company-context/components/completeness-provider';
 import { useOwnRuns } from '@/modules/runs/components/own-runs-provider';
 import { startRun } from '@/modules/runs/api/runs.api';
+import { notifyProduct } from '@/modules/notifications/notify-product';
 import {
   CONTENT_KIND_LABELS,
   LANGUAGE_LABELS,
@@ -146,6 +147,7 @@ export function StartRunForm({ draft, onDraftChange }: StartRunFormProps) {
     try {
       await startRun(input);
       await refresh();
+      notifyProduct({ kind: 'success', title: 'Run wystartował' });
     } catch (reason: unknown) {
       if (reason instanceof ApiError) {
         setError({ code: reason.envelope.code, message: reason.envelope.message });

@@ -144,3 +144,15 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Sonner: warstwa toast locku; nie richColors */
+[data-sonner-toaster] {
+  z-index: var(--z-toast) !important;
+}
+
+[data-sonner-toaster][data-sonner-theme='light'] {
+  --normal-bg: var(--card);
+  --normal-border: var(--border);
+  --normal-text: var(--foreground);
+  --border-radius: var(--radius);
+}
