@@ -24,6 +24,15 @@ export async function fetchUserSession(): Promise<SessionUser> {
   return parseSessionUser(body);
 }
 
+export async function patchOwnEmail(email: string): Promise<SessionUser> {
+  const body = await apiFetch('/auth/me', {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  return parseSessionUser(body);
+}
+
 export async function loginWithPassword(credentials: Credentials): Promise<SessionUser> {
   const body = await apiFetch('/auth/login', {
     method: 'POST',

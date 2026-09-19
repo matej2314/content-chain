@@ -48,7 +48,7 @@ Odpowiada major **Faza 5**. Numer `FAZA 2` jest porządkowy w zestawie.
 
 ### KROK 1 — Przegląd na szczegółach (ocena, Edytuj, finalize)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Wypełnienie slotu `data-slot="run-review"`. Major 5.1. `SPEC-RUNY.md` R-10; `docs/ux_dashboard.md` (Edytuj = treść kanoniczna + flaga).
 
@@ -1114,7 +1114,7 @@ Stan `editing` w widoku szczegółów. Gdy `editing`, **nie** pokazuj `RunResult
 
 ### KROK 2 — Globalny formularz opinii
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Major 5.2. CTA w slocie headera Fazy 1. `SPEC-FEEDBACK.md`, `SPEC-FRONTEND.md` F-9, `docs/ux_dashboard.md` (Zostaw opinię).
 
@@ -1514,7 +1514,7 @@ export function FeedbackCtaSlot() {
 
 ### KROK 3 — Konto: email i opinia
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Major 5.3 (5.3.1 email, 5.3.2 opinia). `SPEC-AUTH.md` A-3b. Nie zastępuje startu, Moich runów ani wylogowania w headerze.
 

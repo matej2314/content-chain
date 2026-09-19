@@ -22,7 +22,11 @@ import {
   type StartRunInput,
   type UserRunItem,
 } from '@/modules/runs/api/runs.types';
-import { parseHitlAccepted, type HitlAccepted } from '@/modules/runs/api/runs-result.types';
+import {
+  parseHitlAccepted,
+  type HitlAccepted,
+  type UserRating,
+} from '@/modules/runs/api/runs-result.types';
 
 export async function fetchUserRuns(userId: UserId): Promise<readonly UserRunItem[]> {
   const body = await apiFetch(`/runs/user/${userId}`);
@@ -98,4 +102,55 @@ export async function submitHitl(
     body: JSON.stringify({ selectedIdeaIds: [...selectedIdeaIds] }),
   });
   return parseHitlAccepted(body);
+}
+
+function isUserRating(value: number): value is UserRating {
+  return value === 1 || value === 2 || value === 3 || value === 4 || value === 5;
+}
+
+export async function patchRunRating(
+  runId: RunId,
+  rating: UserRating | null,
+): Promise<{ readonly userRating: UserRating | null }> {
+  const body = await apiFetch(`/runs/${runId}/rating`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ rating }),
+  });
+  if (!isRecord(body)) {
+    throw new Error('Invalid rating payload');
+  }
+  if (body.userRating === null) {
+    return { userRating: null };
+  }
+  if (typeof body.userRating !== 'number' || !isUserRating(body.userRating)) {
+    throw new Error('Invalid userRating');
+  }
+  return { userRating: body.userRating };
+}
+
+export async function saveOutputEdited(
+  runId: RunId,
+  payload: { readonly result: Record<string, unknown> },
+): Promise<void> {
+  const body = await apiFetch(`/runs/${runId}/output-edited`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!isRecord(body) || body.outputEdited !== true) {
+    throw new Error('Invalid output-edited payload');
+  }
+}
+
+export async function finalizeRunReview(
+  runId: RunId,
+): Promise<{ readonly reviewFinalizedAt: string }> {
+  const body = await apiFetch(`/runs/${runId}/finalize-review`, {
+    method: 'POST',
+  });
+  if (!isRecord(body) || typeof body.reviewFinalizedAt !== 'string') {
+    throw new Error('Invalid finalize payload');
+  }
+  return { reviewFinalizedAt: body.reviewFinalizedAt };
 }
