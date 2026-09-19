@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRunId, isRunId, type RunId } from '@content-chain/shared';
 import { ApiError } from '@/shared/api/envelope';
 import { EnvelopeError } from '@/shared/ui/form-field';
@@ -14,6 +14,8 @@ import {
   RUN_TASK_TYPE_LABELS,
 } from '@/modules/runs/api/run-labels';
 import { isLiveRunStatus, type RunLogItem, type RunSnapshot } from '@/modules/runs/api/runs.types';
+import { HitlPanel } from '@/modules/runs/components/hitl-panel';
+import { RunResultView } from '@/modules/runs/components/run-result-view';
 import { RunStatusView } from '@/modules/runs/components/run-status';
 import { useRunEventSource } from '@/modules/runs/components/use-run-event-source';
 import { useOwnRuns } from '@/modules/runs/components/own-runs-provider';
@@ -22,15 +24,15 @@ import { IsoDateTime } from '@/shared/datetime/iso-date-time';
 type DetailsState =
   | { readonly status: 'loading' }
   | {
-    readonly status: 'error';
-    readonly envelope: { code: string; message: string };
-    readonly forRunId: RunId;
-  }
+      readonly status: 'error';
+      readonly envelope: { code: string; message: string };
+      readonly forRunId: RunId;
+    }
   | {
-    readonly status: 'ready';
-    readonly snapshot: RunSnapshot;
-    readonly logs: readonly RunLogItem[];
-  };
+      readonly status: 'ready';
+      readonly snapshot: RunSnapshot;
+      readonly logs: readonly RunLogItem[];
+    };
 
 const FALLBACK = { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' };
 
@@ -50,29 +52,52 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
 
   const runId = isRunId(runIdParam) ? createRunId(runIdParam) : null;
   const runIdRef = useRef(runId);
+  const hadHitlRef = useRef(false);
+  const detailsEpochRef = useRef(0);
+
+  const reloadDetails = useCallback(
+    async (requestedId: RunId, isCancelled?: () => boolean): Promise<RunSnapshot | undefined> => {
+      const epoch = ++detailsEpochRef.current;
+      const isStale = (): boolean =>
+        epoch !== detailsEpochRef.current ||
+        Boolean(isCancelled?.()) ||
+        runIdRef.current !== requestedId;
+      try {
+        const [snapshot, logs] = await Promise.all([
+          fetchRunSnapshot(requestedId),
+          fetchRunLogs(requestedId),
+        ]);
+        if (isStale()) return undefined;
+        hadHitlRef.current = snapshot.hitl !== null;
+        setView({ status: 'ready', snapshot, logs });
+        return snapshot;
+      } catch (reason: unknown) {
+        if (isStale()) return undefined;
+        hadHitlRef.current = false;
+        setView({
+          status: 'error',
+          envelope: envelopeFromUnknown(reason),
+          forRunId: requestedId,
+        });
+        return undefined;
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     runIdRef.current = runId;
     if (!runId) return;
     const requestedId = runId;
     let cancelled = false;
-    void Promise.all([fetchRunSnapshot(requestedId), fetchRunLogs(requestedId)])
-      .then(([snapshot, logs]) => {
-        if (cancelled || runIdRef.current !== requestedId) return;
-        setView({ status: 'ready', snapshot, logs });
-      })
-      .catch((reason: unknown) => {
-        if (cancelled || runIdRef.current !== requestedId) return;
-        setView({
-          status: 'error',
-          envelope: envelopeFromUnknown(reason),
-          forRunId: requestedId,
-        });
-      });
+    const loadDetails = () => {
+      void reloadDetails(requestedId, () => cancelled);
+    };
+    loadDetails();
     return () => {
       cancelled = true;
     };
-  }, [runId]);
+  }, [reloadDetails, runId]);
 
   const own =
     view.status === 'ready' &&
@@ -94,6 +119,9 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
         return { ...current, snapshot: { ...current.snapshot, status } };
       });
       if (runId) patchStatus(runId, status);
+      if (runId !== null && (status === 'awaiting_hitl' || hadHitlRef.current)) {
+        void reloadDetails(runId);
+      }
     },
     onLog: (item) => {
       setView((current) => {
@@ -106,19 +134,7 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
     onTerminal: () => {
       const requestedId = runId;
       if (!requestedId) return;
-      void Promise.all([fetchRunSnapshot(requestedId), fetchRunLogs(requestedId)])
-        .then(([snapshot, logs]) => {
-          if (runIdRef.current !== requestedId) return;
-          setView({ status: 'ready', snapshot, logs });
-        })
-        .catch((reason: unknown) => {
-          if (runIdRef.current !== requestedId) return;
-          setView({
-            status: 'error',
-            envelope: envelopeFromUnknown(reason),
-            forRunId: requestedId,
-          });
-        });
+      void reloadDetails(requestedId);
       void refresh();
     },
   });
@@ -180,8 +196,23 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
           </ol>
         )}
       </section>
-      <div data-slot="run-hitl" />
-      <div data-slot="run-result" />
+      <HitlPanel
+        key={snapshot.runId}
+        snapshot={snapshot}
+        onSubmitted={async () => {
+          await reloadDetails(snapshot.runId);
+          patchStatus(snapshot.runId, 'running');
+          void refresh();
+        }}
+        onStaleStatus={async () => {
+          const next = await reloadDetails(snapshot.runId);
+          if (next !== undefined) {
+            patchStatus(next.runId, next.status);
+          }
+          void refresh();
+        }}
+      />
+      <RunResultView snapshot={snapshot} />
       <div data-slot="run-review" />
     </article>
   );

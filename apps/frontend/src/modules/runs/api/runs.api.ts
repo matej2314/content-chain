@@ -22,6 +22,7 @@ import {
   type StartRunInput,
   type UserRunItem,
 } from '@/modules/runs/api/runs.types';
+import { parseHitlAccepted, type HitlAccepted } from '@/modules/runs/api/runs-result.types';
 
 export async function fetchUserRuns(userId: UserId): Promise<readonly UserRunItem[]> {
   const body = await apiFetch(`/runs/user/${userId}`);
@@ -85,4 +86,16 @@ export async function fetchInitiatorOptions(): Promise<readonly InitiatorOption[
     }
     return { id: createUserId(item.id), email: item.email };
   });
+}
+
+export async function submitHitl(
+  runId: RunId,
+  selectedIdeaIds: readonly string[],
+): Promise<HitlAccepted> {
+  const body = await apiFetch(`/runs/${runId}/hitl`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ selectedIdeaIds: [...selectedIdeaIds] }),
+  });
+  return parseHitlAccepted(body);
 }

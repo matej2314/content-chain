@@ -22,6 +22,14 @@ import {
   type UserId,
 } from '@content-chain/shared';
 import { isRecord } from '@/shared/api/envelope';
+import {
+  parseReviewFields,
+  parseRunHitl,
+  parseRunResult,
+  type RunHitl,
+  type RunResult,
+  type RunReviewFields,
+} from '@/modules/runs/api/runs-result.types';
 
 export const LIVE_RUN_STATUSES = ['running', 'awaiting_hitl', 'interrupted'] as const;
 export type LiveRunStatus = (typeof LIVE_RUN_STATUSES)[number];
@@ -98,7 +106,9 @@ export type RunSnapshot = {
   readonly status: RunStatus;
   readonly createdAt: string;
   readonly startedBy: StartedBy | null;
-};
+  readonly result: RunResult;
+  readonly hitl: RunHitl | null;
+} & RunReviewFields;
 
 export type StartRunInput =
   | {
@@ -268,11 +278,17 @@ export function parseRunSnapshot(value: unknown): RunSnapshot {
         : (() => {
             throw new Error('Invalid contentKind');
           })();
+  const review = parseReviewFields(value);
   return {
     ...core,
     contentKind,
     brief: parseBrief(core.taskType, value.brief),
     startedBy: parseStartedBy(value.startedBy),
+    result: parseRunResult(value.result),
+    hitl: parseRunHitl(core.taskType, value.hitl),
+    userRating: review.userRating,
+    outputEdited: review.outputEdited,
+    reviewFinalizedAt: review.reviewFinalizedAt,
   };
 }
 

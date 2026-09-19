@@ -50,7 +50,7 @@ Odpowiada major **Faza 4**. Numer `FAZA 1` jest porządkowy w zestawie.
 
 ### KROK 1 — Typy snapshotu (hitl, result, pola przeglądu) i klient HITL
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Granica FE czyta ten sam snapshot co api (`SPEC-RUNY.md` R-3b/R-3g) i umie wznowić HITL (`POST .../hitl`). Major 4.1–4.2 (fundament). UI panelu i wyniku = KROK 2–3. UI przeglądu = plik 2.
 
@@ -604,7 +604,7 @@ export const PAGE_OUTLINE_ROLE_LABELS = {
 
 ### KROK 2 — Panel HITL
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Wypełnienie slotu `data-slot="run-hitl"`. Major 4.1. Social: multi-select min. 1; Content: akceptacja outline `[outline.id]`. `SPEC-RUNY.md` R-3f, `SPEC-CONTENT.md`, `docs/ux_dashboard.md`.
 
@@ -901,7 +901,7 @@ Wyciągnij `reloadDetails` przed `useRunEventSource`, żeby `onTerminal` i HITL 
 
 ### KROK 3 — Widok wyniku
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Wypełnienie slotu `data-slot="run-result"`. Major 4.2. Listy vs skalar wg `taskType`; `characterCount` / `cta?` / `role?` gdy są. `docs/ux_dashboard.md`, `SPEC-FRONTEND.md` F-8.
 

@@ -5,7 +5,7 @@
 **Poza tym plikiem:** trzy zmiany kontraktu api — **`content-chain-backend_major_plan.md`, Faza 10** (Krok 10.1 zapis treści przy Edytuj; Krok 10.2 własny email; Krok 10.3 filtr wielowartościowy `GET /runs`); **twardy zapis kontekstu firmy — `content-chain-backend_major_plan.md`, Faza 11** (PUT/PATCH wyłącznie przy kompletnej bramce; ten major nie implementuje api). **Faza 3.6** (toast) **nie** dodaje fazy api, **nie** zmienia HTTP/SSE/Prisma i **nie** jest backend Fazą 11. Dalej poza tym plikiem: panel administracyjny odczytu opinii; zmiana hasła zalogowanego / usuwanie własnego konta; soft-delete użytkowników w UI; otwarta rejestracja; `selectedIdeaIds` na starcie w UI; `conversationId` w UI; limit per-user runów w toku; next-intl / mapa tłumaczeń envelope; Playwright / automatyczne testy FE; Docker/`production` jako temat tego planu; PostgreSQL / V1 — rozbudowa. Aplikacja frontu **już istnieje** jako boilerplate (backend Faza 1 / Krok 1.3) — ten major nie tworzy jej od zera.
 
 **Źródła:** `docs/` (w tym `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `docs/brand_types.md`, `docs/security.md`, `docs/deployment.md`), `spec/SPEC-*.md` (w tym `SPEC-FRONTEND.md`, `SPEC-AUTH.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-RUNY.md`, `SPEC-FEEDBACK.md`, `SPEC-BEZPIECZENSTWO.md`).  
-**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); **Faza 2** (`WYKONANY`) / Milestone 2 (`OSIĄGNIĘTY`); **Faza 2.1** (`WYKONANY`) / Milestone 2.1 (`OSIĄGNIĘTY`); **Faza 3** (`WYKONANY`) / Milestone 3 (`OSIĄGNIĘTY`); **Faza 3.5** (`WYKONANY`) / Milestone 3.5 (`OSIĄGNIĘTY`); **Faza 3.6** (`NIE_ROZPOCZĘTY`) / Milestone 3.6; Fazy 4 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Faza 2.1 **nie** blokuje Fazy 3. **Faza 3.5 blokuje Fazę 4**. **Faza 3.6 blokuje Fazę 4** — start Fazy 4 dopiero po Milestone 3.5 **oraz** Milestone 3.6 (inaczej niż 2.1 vs 3). Faza 3.6 **nie** blokuje Fazy 3.5 (i odwrotnie). Archiwum Runy (**Krok 3.5**, nie Faza 3.5) korzysta z backend **10.3** (`WYKONANY` w majorze api); twardy PUT kontekstu zakłada backend **Faza 11**; Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE, BFF i toast **nie** czekają na Fazę 10 / 11.
+**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); **Faza 2** (`WYKONANY`) / Milestone 2 (`OSIĄGNIĘTY`); **Faza 2.1** (`WYKONANY`) / Milestone 2.1 (`OSIĄGNIĘTY`); **Faza 3** (`WYKONANY`) / Milestone 3 (`OSIĄGNIĘTY`); **Faza 3.5** (`WYKONANY`) / Milestone 3.5 (`OSIĄGNIĘTY`); **Faza 3.6** (`WYKONANY`) / Milestone 3.6 (`OSIĄGNIĘTY`); **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`); Fazy 5 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Faza 2.1 **nie** blokuje Fazy 3. **Faza 3.5 blokuje Fazę 4**. **Faza 3.6 blokuje Fazę 4** — start Fazy 4 dopiero po Milestone 3.5 **oraz** Milestone 3.6 (inaczej niż 2.1 vs 3). Faza 3.6 **nie** blokuje Fazy 3.5 (i odwrotnie). Archiwum Runy (**Krok 3.5**, nie Faza 3.5) korzysta z backend **10.3** (`WYKONANY` w majorze api); twardy PUT kontekstu zakłada backend **Faza 11**; Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE, BFF i toast **nie** czekają na Fazę 10 / 11.
 
 **Język wizualny (skill, nie osobna faza):** powierzchnie UI w `apps/frontend` (karty, chrome, widoki, stany loading/empty/error, prezentacja statusu live, Toaster) wymagają skilla **`content-chain-product-ui`** (`.cursor/skills/content-chain-product-ui/`). IA, copy, trasy i stack nadal biorą `docs/` + `spec/` — skill nie nadpisuje kanonu. **Visual lock** jest jednorazowy w Fazie 1 (Krok 1.4 + karty wejścia 1.1–1.3); Fazy 2, **2.1**, 3, **3.5**, **3.6**, 4–6 **dziedziczą** tokeny, bez nowej palety na widok. Toaster (Faza 3.6) = warstwa `--z-toast` (token już w locku), nie nowa paleta ani `richColors` Sonnera z pudełka. Skill **nie** dotyczy: BFF / `apiFetch` / cookie / rejestru `EventSource` (Krok 1.6 i równoważne w późniejszych krokach), typów kontraktu (Krok 1.5), ani `content-chain-backend_major_plan.md` Faza 10 / Faza 11.
 
@@ -436,7 +436,7 @@ Numer kroku **3.5.1**, nie 3.5 — unik kolizji z Krokiem 3.5 (archiwum Runy).
 
 ## Faza 3.6 — Feedback zdarzeń (toast)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **To nie jest Krok 3.5** (Lista Runy / archiwum, `WYKONANY`) **ani Faza 3.5** (twardy PUT kontekstu). Ta faza = efemeryczny sygnał „wydarzyło się” w layoutcie po sesji (Sonner).
 
@@ -447,6 +447,9 @@ Numer kroku **3.5.1**, nie 3.5 — unik kolizji z Krokiem 3.5 (archiwum Runy).
 **Zależność api:** brak. Payload SSE, kody HTTP i Prisma **bez zmian**. Ta faza **nie** jest `content-chain-backend_major_plan.md` Fazą 11 (kontekst) i **nie** czeka na Fazę 3.5 — toast po PUT 200 działa także przed twardą bramką. Faza 3.6 **nie** blokuje 3.5.
 
 **Powierzchnia:** `content-chain-product-ui` (dziedziczenie locku Fazy 1, bez nowej palety). Toaster = warstwa `--z-toast` (token już w `globals.css`). Chip / kropki / floating box **bez zmiany kanonu**.
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-3.6-feedback-zdarzen-toast.md` (KROK 1 `WYKONANY` → major 3.6.1: `sonner`, kit `Toaster` (lock, `--z-toast`, `top-right`), unia `ProductToast`, `notifyProduct` / `notifyRunTerminal`, `viewingRunId` z pathname, mount wyłącznie w authenticated `DashboardShell`; KROK 2 `WYKONANY` → major 3.6.2: PUT 200 „Kontekst zapisany”, POST 202 „Run wystartował”; gałęzie 400/409 / predykat 3.5 / GET bloku nietknięte; KROK 3 `WYKONANY` → major 3.6.3: `OwnRunsProvider` woła `notifyRunTerminal` przy terminalu, dedup `run-terminal:${runId}`, no-op na `/runs/:runId` tego runu, `close()` / `refresh` bez zmiany sensu 3.4). **MILESTONE 3.6** → `OSIĄGNIĘTY`. Faza 3 / MILESTONE 3 / Krok 3.1 i 3.4 oraz Faza 3.5 / MILESTONE 3.5 bez zmian (historia). Faza 4 pozostaje `NIE_ROZPOCZĘTY` do Milestone 3.5 **oraz** 3.6.
+Zmiana względem: status Fazy 3.6, kroków 3.6.1–3.6.3 (`NIE_ROZPOCZĘTY`) oraz MILESTONE 3.6 (`NIE_ROZPOCZĘTY`). Powód: ślad do major po implementacji `content-chain_feature_plan_faza-3.6-feedback-zdarzen-toast.md`.
 
 **DoD (faza):**
 
@@ -460,7 +463,7 @@ Numer kroku **3.5.1**, nie 3.5 — unik kolizji z Krokiem 3.5 (archiwum Runy).
 
 ### Krok 3.6.1 — Toaster i kontrakt
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Pakiet `sonner` przez kit shadcn w `apps/frontend`. Wrapper typowany (`notifyProduct` / `notifyRunTerminal`; unia `ProductToast` — sukces z tytułem PL albo błąd z `EnvelopeRef`). Mount Toastera wyłącznie w gałęzi authenticated `DashboardShell`. Tokeny locku; zakaz tęczowych `richColors` Sonnera z pudełka. `packages/shared` nadal bez logiki UI / toastów.
 
@@ -473,7 +476,7 @@ Numer kroku **3.5.1**, nie 3.5 — unik kolizji z Krokiem 3.5 (archiwum Runy).
 
 ### Krok 3.6.2 — Mutacje (kontekst, start)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Po udanym zapisie kontekstu i po 202 startu — toast sukcesu. Gałęzie błędu formularza (`EnvelopeError` / `ApiError`) **nietknięte** (F-7). Bez `toast.promise` na pending tych formularzy.
 
@@ -485,7 +488,7 @@ Numer kroku **3.5.1**, nie 3.5 — unik kolizji z Krokiem 3.5 (archiwum Runy).
 
 ### Krok 3.6.3 — Terminal poza szczegółami
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Istniejący live w `OwnRunsProvider` woła `notifyRunTerminal` przy evencie terminalnym. Dedup: id toasta `` `run-terminal:${runId}` `` (gdy szczegóły i Moje runy oba dostaną terminal). Akcja **Szczegóły** — nawigacja App Router na `/runs/:runId`, bez pełnego reloadu. `close()` i odświeżenie GET **bez zmiany sensu** Kroku 3.4. **Zakaz** otwierania SSE na runie terminalnym „żeby pokazać toast”.
 
@@ -502,7 +505,7 @@ Numer kroku **3.5.1**, nie 3.5 — unik kolizji z Krokiem 3.5 (archiwum Runy).
 
 ## MILESTONE 3.6 — Operator wie, że się udało / skończyło
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `OSIĄGNIĘTY`
 
 **Opis:** Bramka przed Fazą 4 (**obok** Milestone 3.5). Faza 3 / MILESTONE 3 oraz Krok 3.1 i 3.4 zostają historią (`WYKONANY` / `OSIĄGNIĘTY`). Wolno startować HITL dopiero po tej bramce **oraz** po Milestone 3.5.
 
@@ -516,9 +519,12 @@ Numer kroku **3.5.1**, nie 3.5 — unik kolizji z Krokiem 3.5 (archiwum Runy).
 
 ## Faza 4 — HITL i wynik
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Start po Milestone 3.5 (twardy zapis kontekstu) **oraz** Milestone 3.6 (feedback zdarzeń / toast). Na widoku szczegółów: pauza HITL (Social: wielokrotny wybór z listy; Content: akceptacja outline) oraz prezentacja wyniku po zakończeniu (listy vs skalar wg typu tasku). Zgodnie z `docs/ux_dashboard.md`, `SPEC-SOCIAL.md`, `SPEC-CONTENT.md`, `SPEC-FRONTEND.md`. Panel i wynik: **`content-chain-product-ui`** (dziedziczenie locku).
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-4-hitl-wynik.md` (KROK 1 `WYKONANY` → parser snapshotu `result` / `hitl` / pola przeglądu + `submitHitl` jako fundament major 4.1–4.2; KROK 2 `WYKONANY` → major 4.1; KROK 3 `WYKONANY` → major 4.2). Panel HITL na szczegółach (Social multi-select min. 1, Content `[outline.id]`); wynik wg `taskType` (lista vs skalar); slot przeglądu pusty (Faza 5). **MILESTONE 4** → `OSIĄGNIĘTY`. Fazy 5–6 i ich milestone’y bez zmian.
+Zmiana względem: status Fazy 4, kroków 4.1–4.2 (`NIE_ROZPOCZĘTY`) oraz MILESTONE 4 (bez statusu). Powód: ślad do major po implementacji `content-chain_feature_plan_faza-4-hitl-wynik.md`.
 
 **DoD (faza):**
 
@@ -529,7 +535,7 @@ Numer kroku **3.5.1**, nie 3.5 — unik kolizji z Krokiem 3.5 (archiwum Runy).
 
 ### Krok 4.1 — Panel HITL
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Wybór w trakcie pipeline na szczegółach runu.
 
@@ -541,7 +547,7 @@ Numer kroku **3.5.1**, nie 3.5 — unik kolizji z Krokiem 3.5 (archiwum Runy).
 
 ### Krok 4.2 — Widok wyniku
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Prezentacja artefaktów po `completed` (i tego, co zdążyło się zapisać przy `failed`).
 
@@ -554,6 +560,8 @@ Numer kroku **3.5.1**, nie 3.5 — unik kolizji z Krokiem 3.5 (archiwum Runy).
 ---
 
 ## MILESTONE 4 — HITL i wynik na szczegółach
+
+**Status:** `OSIĄGNIĘTY`
 
 **Opis:** Bramka po Fazie 4. Duży skok: da się przeprowadzić selekcję w pipeline i zobaczyć wynik. Wolno zamykać przegląd, zapisywać opinię i dołożyć email / opinię na Koncie.
 

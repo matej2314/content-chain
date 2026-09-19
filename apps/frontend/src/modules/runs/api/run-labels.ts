@@ -5,6 +5,7 @@ import type {
   RunStatus,
   RunTaskType,
 } from '@content-chain/shared';
+import type { PageOutlineSectionRole } from '@/modules/runs/api/runs-result.types';
 
 export const RUN_TASK_TYPE_LABELS = {
   post_ideas: 'Pomysły na posty',
@@ -52,3 +53,14 @@ export const RUN_STATUS_SHORT_LABELS = {
   completed: 'Zakończony',
   failed: 'Nieudany',
 } as const satisfies Record<RunStatus, string>;
+
+export const PAGE_OUTLINE_ROLE_LABELS = {
+  audience_world: 'Świat odbiorcy',
+  pain: 'Ból',
+  challenger: 'Challenger',
+  insight: 'Insight',
+  proof: 'Dowód',
+  objection: 'Zastrzeżenie',
+  cta: 'CTA',
+  other: 'Inne',
+} as const satisfies Record<PageOutlineSectionRole, string>;
