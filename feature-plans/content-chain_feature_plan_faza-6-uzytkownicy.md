@@ -46,7 +46,7 @@ Odpowiada major **Faza 6**.
 
 ### KROK 1 — Widok Użytkownicy (admin)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Major 6.1. Lista kont + zaproszenia. `docs/ux_dashboard.md`, `SPEC-AUTH.md` A-7.
 
@@ -605,7 +605,7 @@ Usuń lokalny parse `items` z tej funkcji (żeby nie było dwóch parserów list
 
 ### KROK 2 — Spójność zaproszenia z wejściem
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Major 6.2. Ścieżka mail → Faza 1 → karta logowania. **Bez** nowego ekranu accept.
 
@@ -644,7 +644,7 @@ Jeśli audyt znajdzie lukę (np. `setAuthenticated` po accept, inna ścieżka, w
 
 ### KROK 3 — Role w chrome i zamknięcie klienta
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Major 6.3. Zgodność sidebara/headera z rolami; brak sekretów w kliencie.
 

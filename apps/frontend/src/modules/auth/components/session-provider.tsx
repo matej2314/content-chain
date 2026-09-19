@@ -43,7 +43,6 @@ export function SessionProvider({ children }: { readonly children: ReactNode }) 
   useEffect(() => {
     setApiFetchUnauthorizedHandler(() => {
       setState({ status: 'anonymous' });
-      router.replace('/');
     });
     return () => setApiFetchUnauthorizedHandler(undefined);
   }, [router]);

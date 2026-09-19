@@ -5,7 +5,7 @@
 **Poza tym plikiem:** trzy zmiany kontraktu api — **`content-chain-backend_major_plan.md`, Faza 10** (Krok 10.1 zapis treści przy Edytuj; Krok 10.2 własny email; Krok 10.3 filtr wielowartościowy `GET /runs`); **twardy zapis kontekstu firmy — `content-chain-backend_major_plan.md`, Faza 11** (PUT/PATCH wyłącznie przy kompletnej bramce; ten major nie implementuje api). **Faza 3.6** (toast) **nie** dodaje fazy api, **nie** zmienia HTTP/SSE/Prisma i **nie** jest backend Fazą 11. Dalej poza tym plikiem: panel administracyjny odczytu opinii; zmiana hasła zalogowanego / usuwanie własnego konta; soft-delete użytkowników w UI; otwarta rejestracja; `selectedIdeaIds` na starcie w UI; `conversationId` w UI; limit per-user runów w toku; next-intl / mapa tłumaczeń envelope; Playwright / automatyczne testy FE; Docker/`production` jako temat tego planu; PostgreSQL / V1 — rozbudowa. Aplikacja frontu **już istnieje** jako boilerplate (backend Faza 1 / Krok 1.3) — ten major nie tworzy jej od zera.
 
 **Źródła:** `docs/` (w tym `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `docs/brand_types.md`, `docs/security.md`, `docs/deployment.md`), `spec/SPEC-*.md` (w tym `SPEC-FRONTEND.md`, `SPEC-AUTH.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-RUNY.md`, `SPEC-FEEDBACK.md`, `SPEC-BEZPIECZENSTWO.md`).  
-**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); **Faza 2** (`WYKONANY`) / Milestone 2 (`OSIĄGNIĘTY`); **Faza 2.1** (`WYKONANY`) / Milestone 2.1 (`OSIĄGNIĘTY`); **Faza 3** (`WYKONANY`) / Milestone 3 (`OSIĄGNIĘTY`); **Faza 3.5** (`WYKONANY`) / Milestone 3.5 (`OSIĄGNIĘTY`); **Faza 3.6** (`WYKONANY`) / Milestone 3.6 (`OSIĄGNIĘTY`); **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`); Fazy 5 → 6 z bramką `MILESTONE` po każdej fazie; Milestone 6 zamyka ten plik. Faza 2.1 **nie** blokuje Fazy 3. **Faza 3.5 blokuje Fazę 4**. **Faza 3.6 blokuje Fazę 4** — start Fazy 4 dopiero po Milestone 3.5 **oraz** Milestone 3.6 (inaczej niż 2.1 vs 3). Faza 3.6 **nie** blokuje Fazy 3.5 (i odwrotnie). Archiwum Runy (**Krok 3.5**, nie Faza 3.5) korzysta z backend **10.3** (`WYKONANY` w majorze api); twardy PUT kontekstu zakłada backend **Faza 11**; Edytuj z treścią i własny email (Faza 5) zakładają **10.1** i **10.2**. Start, Moje runy, SSE, BFF i toast **nie** czekają na Fazę 10 / 11.
+**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); **Faza 2** (`WYKONANY`) / Milestone 2 (`OSIĄGNIĘTY`); **Faza 2.1** (`WYKONANY`) / Milestone 2.1 (`OSIĄGNIĘTY`); **Faza 3** (`WYKONANY`) / Milestone 3 (`OSIĄGNIĘTY`); **Faza 3.5** (`WYKONANY`) / Milestone 3.5 (`OSIĄGNIĘTY`); **Faza 3.6** (`WYKONANY`) / Milestone 3.6 (`OSIĄGNIĘTY`); **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`); **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`); **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Milestone 6 zamyka ten plik. Faza 2.1 **nie** blokuje Fazy 3. **Faza 3.5 blokuje Fazę 4**. **Faza 3.6 blokuje Fazę 4** — start Fazy 4 dopiero po Milestone 3.5 **oraz** Milestone 3.6 (inaczej niż 2.1 vs 3). Faza 3.6 **nie** blokuje Fazy 3.5 (i odwrotnie). Archiwum Runy (**Krok 3.5**, nie Faza 3.5) korzysta z backend **10.3** (`WYKONANY` w majorze api); twardy PUT kontekstu zakłada backend **Faza 11**; Edytuj z treścią i własny email (Faza 5) korzystają z backend **10.1** i **10.2** (`WYKONANY` w majorze api). Start, Moje runy, SSE, BFF i toast **nie** czekają na Fazę 10 / 11.
 
 **Język wizualny (skill, nie osobna faza):** powierzchnie UI w `apps/frontend` (karty, chrome, widoki, stany loading/empty/error, prezentacja statusu live, Toaster) wymagają skilla **`content-chain-product-ui`** (`.cursor/skills/content-chain-product-ui/`). IA, copy, trasy i stack nadal biorą `docs/` + `spec/` — skill nie nadpisuje kanonu. **Visual lock** jest jednorazowy w Fazie 1 (Krok 1.4 + karty wejścia 1.1–1.3); Fazy 2, **2.1**, 3, **3.5**, **3.6**, 4–6 **dziedziczą** tokeny, bez nowej palety na widok. Toaster (Faza 3.6) = warstwa `--z-toast` (token już w locku), nie nowa paleta ani `richColors` Sonnera z pudełka. Skill **nie** dotyczy: BFF / `apiFetch` / cookie / rejestru `EventSource` (Krok 1.6 i równoważne w późniejszych krokach), typów kontraktu (Krok 1.5), ani `content-chain-backend_major_plan.md` Faza 10 / Faza 11.
 
@@ -575,11 +575,11 @@ Zmiana względem: status Fazy 4, kroków 4.1–4.2 (`NIE_ROZPOCZĘTY`) oraz MILE
 
 ## Faza 5 — Przegląd, opinia, email na Koncie
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Na szczegółach: gwiazdki, Edytuj (zapis **treści** wyniku), finalize. Globalny formularz opinii (i ten sam kanon na Koncie). Na **Koncie** (start i Moje runy już z Fazy 3): formularz własnego emaila oraz blok opinii. Wylogowanie pozostaje w headerze z Fazy 1.
 
-**Zależność api:** szczegóły implementacji w **`content-chain-backend_major_plan.md`, Faza 10** (`NIE_ROZPOCZĘTY`) — Krok 10.1 (Edytuj / treść wyniku), Krok 10.2 (własny email). Ten major ich nie implementuje. Opinia i gwiazdki / finalize korzystają z istniejącego kontraktu Fazy 5–6 backendu.
+**Zależność api:** szczegóły implementacji w **`content-chain-backend_major_plan.md`, Faza 10** (`WYKONANY`) — Krok 10.1 (Edytuj / treść wyniku), Krok 10.2 (własny email). Ten major ich nie implementuje. Opinia i gwiazdki / finalize korzystają z istniejącego kontraktu Fazy 5–6 backendu.
 
 **Charakter zmian w api (skrót; pełny opis = backend Faza 10):**
 
@@ -587,6 +587,9 @@ Zmiana względem: status Fazy 4, kroków 4.1–4.2 (`NIE_ROZPOCZĘTY`) oraz MILE
 2. Zmiana własnego adresu e-mail jest kontraktem sesji zalogowanego (zajęty adres = konflikt). Nie idzie przez aktualizację cudzego konta przez admina.
 
 Zgodnie z `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md`, `SPEC-FEEDBACK.md`, `SPEC-AUTH.md`, `SPEC-FRONTEND.md`. Powierzchnie przeglądu, opinii i formularza email: **`content-chain-product-ui`**. Kontrakt 10.1 / 10.2: bez tego skilla.
+
+**Nota (po feature planie):** `feature-plans/wykonane/content-chain_feature_plan_faza-5-przeglad-opinia-email.md` (KROK 1 `WYKONANY` → major 5.1; KROK 2 `WYKONANY` → major 5.2; KROK 3 `WYKONANY` → major 5.3). Gwiazdki + Edytuj `{ result }` + finalize na szczegółach (slot przeglądu); globalny Dialog opinii w headerze (select własnych `completed` \| `failed`); Konto: `PATCH /auth/me` + ten sam formularz opinii. **MILESTONE 5** → `OSIĄGNIĘTY`. Faza 4 bez zmian (`WYKONANY` / Milestone 4 `OSIĄGNIĘTY` wg pliku 1). Faza 6 bez zmian.
+Zmiana względem: status Fazy 5, kroków 5.1–5.3 (`NIE_ROZPOCZĘTY`) oraz MILESTONE 5 (bez statusu); nota zależności 10.1 / 10.2 (`NIE_ROZPOCZĘTY` → `WYKONANY` w majorze api). Powód: ślad do major po implementacji `content-chain_feature_plan_faza-5-przeglad-opinia-email.md`.
 
 **DoD (faza):**
 
@@ -598,11 +601,11 @@ Zgodnie z `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY
 
 ### Krok 5.1 — Przegląd na szczegółach (ocena, Edytuj, finalize)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Wypełnienie slotu z Fazy 3. Edycja to treść kanonicznego wyniku, nie sama flaga i nie ponowne odpalenie agentów.
 
-**Implementacja api:** `content-chain-backend_major_plan.md`, Faza 10 / Krok 10.1 (`NIE_ROZPOCZĘTY`). Ten krok FE zakłada ten kontrakt; nie implementuje api.
+**Implementacja api:** `content-chain-backend_major_plan.md`, Faza 10 / Krok 10.1 (`WYKONANY`). Ten krok FE zakłada ten kontrakt; nie implementuje api.
 
 **DoD (krok):**
 
@@ -613,7 +616,7 @@ Zgodnie z `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY
 
 ### Krok 5.2 — Globalny formularz opinii
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** CTA z layoutu (slot Fazy 1): aplikacja / agent / run; zapis bez ekranu listy opinii.
 
@@ -625,7 +628,7 @@ Zgodnie z `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY
 
 ### Krok 5.3 — Konto: email i opinia
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Dopełnienie widoku Konto z Fazy 3 o profil email i zapis opinii. Nie zastępuje Runy, startu, Moich runów ani wylogowania. Własny email: implementacja api w `content-chain-backend_major_plan.md`, Faza 10 / Krok 10.2.
 
@@ -639,7 +642,7 @@ Zgodnie z `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY
 
 Zmiana własnego adresu.
 
-**Implementacja api:** `content-chain-backend_major_plan.md`, Faza 10 / Krok 10.2 (`NIE_ROZPOCZĘTY`). Ten podkrok FE zakłada ten kontrakt; nie implementuje api.
+**Implementacja api:** `content-chain-backend_major_plan.md`, Faza 10 / Krok 10.2 (`WYKONANY`). Ten podkrok FE zakłada ten kontrakt; nie implementuje api.
 
 #### Podkrok 5.3.2 — Opinia na Koncie
 
@@ -648,6 +651,8 @@ Zapis jak globalny CTA; CTA layoutu pozostaje.
 ---
 
 ## MILESTONE 5 — Przegląd, opinia i email
+
+**Status:** `OSIĄGNIĘTY`
 
 **Opis:** Bramka po Fazie 5. Duży skok: autor zamyka przegląd wyniku, zapisuje opinię, a Konto ma profil email obok startu i własnych runów z Fazy 3. Wolno domknąć admina użytkowników.
 
@@ -662,9 +667,12 @@ Zapis jak globalny CTA; CTA layoutu pozostaje.
 
 ## Faza 6 — Użytkownicy i domknięcie UX self-host
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Widok Użytkownicy (tylko admin): lista kont, zaproszenie samym emailem, pending (w tym wygasłe), resend / revoke. Spójność z deep linkiem **`/invite/accept?token=`** z Fazy 1. Sidebar ukrywa Użytkowników przed `user`. Brak sekretów w kliencie. Zgodnie z `docs/ux_dashboard.md`, `SPEC-AUTH.md`, `SPEC-FRONTEND.md`, `docs/security.md`. Widok admina: **`content-chain-product-ui`** (ten sam lock; ekran accept zostaje z Fazy 1).
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-6-uzytkownicy.md` (KROK 1 `WYKONANY` → major 6.1; KROK 2 `WYKONANY` → major 6.2; KROK 3 `WYKONANY` → major 6.3). Lista kont + zaproszenie samym emailem; pending w tym wygasłe, resend/revoke; accept z Fazy 1 bez drugiego ekranu; chrome ról bez `NEXT_PUBLIC_*`. **MILESTONE 6** → `OSIĄGNIĘTY`. Fazy 1–5 oraz 2.1 / 3.5 / 3.6 bez zmian (historia).
+Zmiana względem: status Fazy 6, kroków 6.1–6.3 (`NIE_ROZPOCZĘTY`) oraz MILESTONE 6 (bez statusu). Powód: ślad do major po implementacji `content-chain_feature_plan_faza-6-uzytkownicy.md`.
 
 **DoD (faza):**
 
@@ -676,7 +684,7 @@ Zapis jak globalny CTA; CTA layoutu pozostaje.
 
 ### Krok 6.1 — Widok Użytkownicy (admin)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Lista kont + zaproszenia. Bez edycji / dezaktywacji / soft-delete w UI.
 
@@ -689,7 +697,7 @@ Zapis jak globalny CTA; CTA layoutu pozostaje.
 
 ### Krok 6.2 — Spójność zaproszenia z wejściem
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Ścieżka z maila korzysta z ekranu Fazy 1 (`/invite/accept`); po akceptacji nadal karta logowania.
 
@@ -700,7 +708,7 @@ Zapis jak globalny CTA; CTA layoutu pozostaje.
 
 ### Krok 6.3 — Role w chrome i zamknięcie klienta
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Ostateczna zgodność sidebara i headera z rolami; brak wycieku sekretów.
 
@@ -713,6 +721,8 @@ Zapis jak globalny CTA; CTA layoutu pozostaje.
 ---
 
 ## MILESTONE 6 — Dashboard MVP frontendu
+
+**Status:** `OSIĄGNIĘTY`
 
 **Opis:** Bramka zamykająca ten plik (po Fazie 6). Duży skok: cienki klient self-host realizuje kanon `docs/ux_dashboard.md` — od karty logowania i BFF po Konto (start + live), archiwum Runy, szczegóły, opinię, floating box i zaproszenia — bez wchodzenia w zakres V1 ani w implementację api w tym majorze.
 

@@ -1,11 +1,4 @@
-import {
-  createUserId,
-  isUserId,
-  type RunId,
-  type RunPlatform,
-  type RunTaskType,
-  type UserId,
-} from '@content-chain/shared';
+import { type RunId, type RunPlatform, type RunTaskType, type UserId } from '@content-chain/shared';
 import { apiFetch } from '@/shared/api/api-fetch';
 import { isRecord } from '@/shared/api/envelope';
 import {
@@ -27,6 +20,7 @@ import {
   type HitlAccepted,
   type UserRating,
 } from '@/modules/runs/api/runs-result.types';
+import { fetchUsers } from '@/modules/users/api/users.api';
 
 export async function fetchUserRuns(userId: UserId): Promise<readonly UserRunItem[]> {
   const body = await apiFetch(`/runs/user/${userId}`);
@@ -77,19 +71,8 @@ export type InitiatorOption = {
 };
 
 export async function fetchInitiatorOptions(): Promise<readonly InitiatorOption[]> {
-  const body = await apiFetch('/users');
-  if (!isRecord(body) || !Array.isArray(body.items)) {
-    throw new Error('Invalid users payload');
-  }
-  return body.items.map((item) => {
-    if (!isRecord(item) || typeof item.id !== 'string' || !isUserId(item.id)) {
-      throw new Error('Invalid user item');
-    }
-    if (typeof item.email !== 'string' || item.email.length === 0) {
-      throw new Error('Invalid user email');
-    }
-    return { id: createUserId(item.id), email: item.email };
-  });
+  const items = await fetchUsers();
+  return items.map((item) => ({ id: item.id, email: item.email }));
 }
 
 export async function submitHitl(

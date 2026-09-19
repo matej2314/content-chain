@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useSession } from '@/modules/auth/components/session-provider';
+import { UsersView } from '@/modules/users/components/users-view';
 
 export default function UsersPage() {
   const { state } = useSession();
@@ -17,13 +18,5 @@ export default function UsersPage() {
       </section>
     );
   }
-  return (
-    <section className="flex max-w-xl flex-col gap-2">
-      <h1 className="text-lg font-medium">Użytkownicy</h1>
-      <p className="text-sm text-muted-foreground">
-        Lista kont i zaproszenia pojawią się później. Akceptacja zaproszenia jest pod
-        /invite/accept.
-      </p>
-    </section>
-  );
+  return <UsersView />;
 }
