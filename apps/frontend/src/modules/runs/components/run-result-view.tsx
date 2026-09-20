@@ -134,8 +134,7 @@ export function RunResultView({ snapshot }: RunResultViewProps) {
   const failed = snapshot.status === 'failed';
 
   return (
-    <section data-slot="run-result" className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium">Wynik</h2>
+    <>
       {!runResultHasArtifacts(result) ? <EmptyResult failed={failed} /> : null}
 
       {taskType === 'post_ideas' || taskType === 'post_ideas_then_content' ? (
@@ -204,6 +203,6 @@ export function RunResultView({ snapshot }: RunResultViewProps) {
         result.pageDocument ? (
         <DocumentBlock document={result.pageDocument} />
       ) : null}
-    </section>
+    </>
   );
 }

@@ -77,4 +77,4 @@ Sukces:
 
 Fail — `ok` false oraz niepuste tablice. Każdy element to **string** (nie obiekt `{itemId, issue}`):
 
-{"ok":false,"contextIssues":["idea_…: «fraza» — liczba / usługa spoza JSON kontekstu"],"languageIssues":[]}
+{"ok":false,"contextIssues":["idea_…: "fraza" — liczba / usługa spoza JSON kontekstu"],"languageIssues":[]}

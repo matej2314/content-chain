@@ -15,7 +15,7 @@ import {
 } from '@/modules/runs/api/run-labels';
 import { isLiveRunStatus, type RunLogItem, type RunSnapshot } from '@/modules/runs/api/runs.types';
 import { HitlPanel } from '@/modules/runs/components/hitl-panel';
-import { RunResultView } from '@/modules/runs/components/run-result-view';
+import { RunResultSection } from '@/modules/runs/components/run-result-section';
 import { RunReviewPanel } from '@/modules/runs/components/run-review-panel';
 import { RunStatusView } from '@/modules/runs/components/run-status';
 import { useRunEventSource } from '@/modules/runs/components/use-run-event-source';
@@ -50,7 +50,7 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
   const { state: session } = useSession();
   const { patchStatus, refresh } = useOwnRuns();
   const [view, setView] = useState<DetailsState>({ status: 'loading' });
-  const [editingRunId, setEditingRunId] = useState<RunId | null>(null);
+  const [resultEditing, setResultEditing] = useState(false);
 
   const runId = isRunId(runIdParam) ? createRunId(runIdParam) : null;
   const runIdRef = useRef(runId);
@@ -164,7 +164,6 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
   }
 
   const { snapshot, logs } = view;
-  const editing = editingRunId === snapshot.runId;
   return (
     <article className="flex max-w-3xl flex-col gap-6">
       <header className="flex flex-col gap-2">
@@ -215,13 +214,19 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
           void refresh();
         }}
       />
-      {editing ? null : <RunResultView snapshot={snapshot} />}
+      <RunResultSection
+        snapshot={snapshot}
+        userId={session.status === 'authenticated' ? session.user.id : null}
+        onReload={async () => {
+          await reloadDetails(snapshot.runId);
+        }}
+        onEditingChange={setResultEditing}
+      />
       {session.status === 'authenticated' ? (
         <RunReviewPanel
           snapshot={snapshot}
           userId={session.user.id}
-          editing={editing}
-          onEditingChange={(next) => setEditingRunId(next ? snapshot.runId : null)}
+          finalizeDisabled={resultEditing}
           onReload={async () => {
             await reloadDetails(snapshot.runId);
           }}

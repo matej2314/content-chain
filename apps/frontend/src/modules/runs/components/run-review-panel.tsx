@@ -6,18 +6,15 @@ import type { UserId } from '@content-chain/shared';
 import { Button } from '@/shared/ui/button';
 import { EnvelopeError } from '@/shared/ui/form-field';
 import { ApiError } from '@/shared/api/envelope';
-import { finalizeRunReview, patchRunRating, saveOutputEdited } from '@/modules/runs/api/runs.api';
-import { buildOutputEditedBody, canEditResult } from '@/modules/runs/api/result-edit-payload';
+import { finalizeRunReview, patchRunRating } from '@/modules/runs/api/runs.api';
 import type { RunSnapshot } from '@/modules/runs/api/runs.types';
-import type { RunResult, UserRating } from '@/modules/runs/api/runs-result.types';
+import type { UserRating } from '@/modules/runs/api/runs-result.types';
 import { canReviewSnapshot } from '@/modules/runs/components/run-review-access';
-import { RunResultEditor } from '@/modules/runs/components/run-result-editor';
 
 type RunReviewPanelProps = {
   readonly snapshot: RunSnapshot;
   readonly userId: UserId;
-  readonly editing: boolean;
-  readonly onEditingChange: (editing: boolean) => void;
+  readonly finalizeDisabled: boolean;
   readonly onReload: () => Promise<void>;
 };
 
@@ -27,35 +24,14 @@ const FALLBACK = { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać o
 export function RunReviewPanel({
   snapshot,
   userId,
-  editing,
-  onEditingChange,
+  finalizeDisabled,
   onReload,
 }: RunReviewPanelProps) {
   const locked = snapshot.reviewFinalizedAt !== null;
   const author = snapshot.startedBy !== null && snapshot.startedBy.id === userId;
   const reviewable = canReviewSnapshot(snapshot, userId);
-  const [draft, setDraft] = useState<RunResult>(snapshot.result);
-  const [draftSource, setDraftSource] = useState({
-    runId: snapshot.runId,
-    outputEdited: snapshot.outputEdited,
-    result: snapshot.result,
-  });
   const [pending, setPending] = useState(false);
   const [envelope, setEnvelope] = useState<{ code: string; message: string } | null>(null);
-
-  if (
-    !editing &&
-    (draftSource.runId !== snapshot.runId ||
-      draftSource.outputEdited !== snapshot.outputEdited ||
-      draftSource.result !== snapshot.result)
-  ) {
-    setDraftSource({
-      runId: snapshot.runId,
-      outputEdited: snapshot.outputEdited,
-      result: snapshot.result,
-    });
-    setDraft(snapshot.result);
-  }
 
   if (!author || (snapshot.status !== 'completed' && snapshot.status !== 'failed')) {
     return null;
@@ -124,55 +100,14 @@ export function RunReviewPanel({
           </Button>
         ) : null}
       </div>
-      {reviewable && canEditResult(snapshot.taskType, snapshot.result) ? (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={pending}
-            onClick={() => {
-              setDraft(snapshot.result);
-              onEditingChange(!editing);
-            }}
-          >
-            {editing ? 'Anuluj edycję' : 'Edytuj'}
-          </Button>
-          {editing ? (
-            <Button
-              type="button"
-              disabled={pending}
-              onClick={() => {
-                void runAction(async () => {
-                  await saveOutputEdited(
-                    snapshot.runId,
-                    buildOutputEditedBody(snapshot.taskType, draft),
-                  );
-                  onEditingChange(false);
-                });
-              }}
-            >
-              Zapisz treść
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-      {editing && reviewable ? (
-        <RunResultEditor
-          taskType={snapshot.taskType}
-          result={draft}
-          disabled={pending}
-          idPrefix="review-edit"
-          onChange={setDraft}
-        />
-      ) : null}
       {reviewable ? (
         <Button
           type="button"
-          disabled={pending}
+          disabled={pending || finalizeDisabled}
+          title={finalizeDisabled ? 'Najpierw zapisz albo anuluj edycję wyniku.' : undefined}
           onClick={() => {
             void runAction(async () => {
               await finalizeRunReview(snapshot.runId);
-              onEditingChange(false);
             });
           }}
         >

@@ -199,7 +199,7 @@ export function RunResultEditor({
       {(taskType === 'post_ideas' || taskType === 'post_ideas_then_content') &&
         result.ideas.map((idea, index) => (
           <fieldset key={idea.id} className="flex flex-col gap-2">
-            <legend className="text-sm font-medium">Pomysł {index + 1}</legend>
+            <legend className="text-sm font-medium mb-2">Pomysł {index + 1}</legend>
             <FormField label="Tytuł" htmlFor={`${idPrefix}-idea-${idea.id}-title`}>
               <Input
                 id={`${idPrefix}-idea-${idea.id}-title`}
@@ -230,7 +230,7 @@ export function RunResultEditor({
                 }
               />
             </FormField>
-            <FormField label="Kąt" htmlFor={`${idPrefix}-idea-${idea.id}-angle`}>
+            <FormField label="Perspektywa" htmlFor={`${idPrefix}-idea-${idea.id}-angle`}>
               <Input
                 id={`${idPrefix}-idea-${idea.id}-angle`}
                 value={idea.angle}

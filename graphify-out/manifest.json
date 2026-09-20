@@ -3552,9 +3552,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/run-details-view.tsx": {
-    "mtime": 1789818315.5008512,
-    "seen": 1789818347.1813626,
-    "ast_hash": "895d17af55907099c37994f95c6eceab",
+    "mtime": 1789901698.8212914,
+    "seen": 1789901733.4730303,
+    "ast_hash": "da6a304fc03e6a98867dc5827121f608",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/company-context/components/gate-completeness-dot.tsx": {
@@ -3660,9 +3660,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/run-result-view.tsx": {
-    "mtime": 1789814746.1706595,
-    "seen": 1789814760.0238035,
-    "ast_hash": "4b17d54a4a11843a3ebedcc866029068",
+    "mtime": 1789901694.0916626,
+    "seen": 1789901733.4730363,
+    "ast_hash": "bb9d05a4b585bf3711d10a15e3b0bbe5",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/api/result-edit-payload.ts": {
@@ -3684,9 +3684,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/run-review-panel.tsx": {
-    "mtime": 1789818331.6288636,
-    "seen": 1789818347.181369,
-    "ast_hash": "6576c4068341781655cb176f721a8051",
+    "mtime": 1789901693.825665,
+    "seen": 1789901733.4730377,
+    "ast_hash": "ea54f5a345b342134356308ca67fee91",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/feedback/api/feedback-labels.ts": {
@@ -3759,6 +3759,30 @@
     "mtime": 1789899744.320702,
     "seen": 1789899759.2274566,
     "ast_hash": "a62e2dea93e6e6d1ad59aec68991dbd5",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/components/run-edit-access.ts": {
+    "mtime": 1789901706.9272983,
+    "seen": 1789901733.4730325,
+    "ast_hash": "e35b09de93e3386cfcebbaa62d917abe",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/components/run-result-edit-actions.tsx": {
+    "mtime": 1789901706.967555,
+    "seen": 1789901733.4730334,
+    "ast_hash": "616e67e392d38a585b0df7c54ab072e2",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/components/run-result-section.tsx": {
+    "mtime": 1789901706.9885805,
+    "seen": 1789901733.4730356,
+    "ast_hash": "d8fd9a5c4e4a81727f51830ffd143fe1",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/components/use-run-result-edit.ts": {
+    "mtime": 1789901706.9565551,
+    "seen": 1789901733.473041,
+    "ast_hash": "36f1af3e0aecbf363b0d7bbebe4886a4",
     "semantic_hash": ""
   }
 }
