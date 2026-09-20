@@ -21,8 +21,8 @@ import { Input } from '@/shared/ui/input';
 import { NativeSelect } from '@/shared/ui/native-select';
 import { EnvelopeError, FormField } from '@/shared/ui/form-field';
 import { ApiError } from '@/shared/api/envelope';
-import { useCompleteness } from '@/modules/company-context/components/completeness-provider';
 import { useOwnRuns } from '@/modules/runs/components/own-runs-provider';
+import { AgentsGateTooltip, useStartRunGate } from '@/modules/runs/components/start-run-gate';
 import { startRun } from '@/modules/runs/api/runs.api';
 import { notifyProduct } from '@/modules/notifications/notify-product';
 import {
@@ -115,26 +115,28 @@ function toInput(draft: StartRunDraft): StartRunInput | null {
   };
 }
 
+type StartRunFormHeading = 'visible' | 'none';
+
 type StartRunFormProps = {
   readonly draft: StartRunDraft;
   readonly onDraftChange: (next: StartRunDraft) => void;
+  readonly idPrefix: string;
+  readonly heading: StartRunFormHeading;
+  readonly onSuccess?: () => void;
 };
 
-export function StartRunForm({ draft, onDraftChange }: StartRunFormProps) {
-  const { state: completeness } = useCompleteness();
+export function StartRunForm({
+  draft,
+  onDraftChange,
+  idPrefix,
+  heading,
+  onSuccess,
+}: StartRunFormProps) {
   const { refresh } = useOwnRuns();
+  const { agentsActive, disableReason } = useStartRunGate();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
-
-  const agentsActive = completeness.status === 'ready' && completeness.completeness.complete;
   const pageTask = isContentTaskType(draft.taskType);
-
-  const disableReason = useMemo(() => {
-    if (completeness.status === 'loading') return 'Sprawdzanie kompletności kontekstu…';
-    if (completeness.status === 'error') return 'Nie można potwierdzić bramki kontekstu.';
-    if (!agentsActive) return 'Agenci nieaktywni. Uzupełnij kontekst firmy.';
-    return null;
-  }, [agentsActive, completeness]);
 
   const inputReady = useMemo(() => toInput(draft) !== null, [draft]);
 
@@ -148,6 +150,7 @@ export function StartRunForm({ draft, onDraftChange }: StartRunFormProps) {
       await startRun(input);
       await refresh();
       notifyProduct({ kind: 'success', title: 'Run wystartował' });
+      onSuccess?.();
     } catch (reason: unknown) {
       if (reason instanceof ApiError) {
         setError({ code: reason.envelope.code, message: reason.envelope.message });
@@ -160,11 +163,11 @@ export function StartRunForm({ draft, onDraftChange }: StartRunFormProps) {
   }
 
   return (
-    <form className="flex max-w-xl flex-col gap-4" onSubmit={(event) => void onSubmit(event)}>
-      <h2 className="text-base font-medium">Start runu</h2>
-      <FormField label="Typ zadania" htmlFor="start-task-type">
+    <form className="flex flex-col gap-4" onSubmit={(event) => void onSubmit(event)}>
+      {heading === 'visible' ? <h2 className="text-base font-medium">Start runu</h2> : null}
+      <FormField label="Typ zadania" htmlFor={`${idPrefix}-task-type`}>
         <NativeSelect
-          id="start-task-type"
+          id={`${idPrefix}-task-type`}
           value={draft.taskType}
           onChange={(event) => {
             if (!isRunTaskType(event.target.value)) return;
@@ -179,9 +182,9 @@ export function StartRunForm({ draft, onDraftChange }: StartRunFormProps) {
         </NativeSelect>
       </FormField>
       {pageTask ? (
-        <FormField label="Rodzaj strony" htmlFor="start-content-kind">
+        <FormField label="Rodzaj strony" htmlFor={`${idPrefix}-content-kind`}>
           <NativeSelect
-            id="start-content-kind"
+            id={`${idPrefix}-content-kind`}
             value={draft.contentKind}
             onChange={(event) => {
               if (!isContentKind(event.target.value)) return;
@@ -196,9 +199,9 @@ export function StartRunForm({ draft, onDraftChange }: StartRunFormProps) {
           </NativeSelect>
         </FormField>
       ) : (
-        <FormField label="Platforma" htmlFor="start-platform">
+        <FormField label="Platforma" htmlFor={`${idPrefix}-platform`}>
           <NativeSelect
-            id="start-platform"
+            id={`${idPrefix}-platform`}
             value={draft.platform}
             onChange={(event) => {
               if (!isSocialPlatform(event.target.value)) return;
@@ -213,9 +216,9 @@ export function StartRunForm({ draft, onDraftChange }: StartRunFormProps) {
           </NativeSelect>
         </FormField>
       )}
-      <FormField label="Język" htmlFor="start-language">
+      <FormField label="Język" htmlFor={`${idPrefix}-language`}>
         <NativeSelect
-          id="start-language"
+          id={`${idPrefix}-language`}
           value={draft.language}
           onChange={(event) => {
             if (!isContentLanguage(event.target.value)) return;
@@ -229,40 +232,40 @@ export function StartRunForm({ draft, onDraftChange }: StartRunFormProps) {
           ))}
         </NativeSelect>
       </FormField>
-      <FormField label="Temat" htmlFor="start-topic">
+      <FormField label="Temat" htmlFor={`${idPrefix}-topic`}>
         <Input
-          id="start-topic"
+          id={`${idPrefix}-topic`}
           value={draft.topic}
           onChange={(event) => onDraftChange({ ...draft, topic: event.target.value })}
           required
         />
       </FormField>
-      <FormField label="Grupa (opcjonalnie)" htmlFor="start-audience">
+      <FormField label="Grupa (opcjonalnie)" htmlFor={`${idPrefix}-audience`}>
         <Input
-          id="start-audience"
+          id={`${idPrefix}-audience`}
           value={draft.audience}
           onChange={(event) => onDraftChange({ ...draft, audience: event.target.value })}
         />
       </FormField>
-      <FormField label="Cel (opcjonalnie)" htmlFor="start-goal">
+      <FormField label="Cel (opcjonalnie)" htmlFor={`${idPrefix}-goal`}>
         <Input
-          id="start-goal"
+          id={`${idPrefix}-goal`}
           value={draft.goal}
           onChange={(event) => onDraftChange({ ...draft, goal: event.target.value })}
         />
       </FormField>
       {pageTask ? (
         <>
-          <FormField label="Perpsektywa (opcjonalnie)" htmlFor="start-angle">
+          <FormField label="Perpsektywa (opcjonalnie)" htmlFor={`${idPrefix}-angle`}>
             <Input
-              id="start-angle"
+              id={`${idPrefix}-angle`}
               value={draft.angle}
               onChange={(event) => onDraftChange({ ...draft, angle: event.target.value })}
             />
           </FormField>
-          <FormField label="Długość w słowach (opcjonalnie)" htmlFor="start-length">
+          <FormField label="Długość w słowach (opcjonalnie)" htmlFor={`${idPrefix}-length`}>
             <Input
-              id="start-length"
+              id={`${idPrefix}-length`}
               inputMode="numeric"
               value={draft.targetLength}
               onChange={(event) => onDraftChange({ ...draft, targetLength: event.target.value })}
@@ -270,9 +273,9 @@ export function StartRunForm({ draft, onDraftChange }: StartRunFormProps) {
           </FormField>
         </>
       ) : (
-        <FormField label="Liczba pomysłów (opcjonalnie)" htmlFor="start-idea-count">
+        <FormField label="Liczba pomysłów (opcjonalnie)" htmlFor={`${idPrefix}-idea-count`}>
           <Input
-            id="start-idea-count"
+            id={`${idPrefix}-idea-count`}
             inputMode="numeric"
             value={draft.ideaCount}
             onChange={(event) => onDraftChange({ ...draft, ideaCount: event.target.value })}
@@ -281,13 +284,15 @@ export function StartRunForm({ draft, onDraftChange }: StartRunFormProps) {
       )}
       {error ? <EnvelopeError code={error.code} message={error.message} /> : null}
       {disableReason ? <p className="text-xs text-muted-foreground">{disableReason}</p> : null}
-      <Button
-        type="submit"
-        disabled={pending || !agentsActive || !inputReady}
-        className="self-start"
-      >
-        {pending ? 'Uruchamianie…' : 'Uruchom run'}
-      </Button>
+      <AgentsGateTooltip reason={disableReason}>
+        <Button
+          type="submit"
+          disabled={pending || !agentsActive || !inputReady}
+          className="self-start"
+        >
+          {pending ? 'Uruchamianie…' : 'Uruchom agenta'}
+        </Button>
+      </AgentsGateTooltip>
     </form>
   );
 }

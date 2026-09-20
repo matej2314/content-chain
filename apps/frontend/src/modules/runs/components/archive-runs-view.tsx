@@ -32,6 +32,7 @@ import {
   RUN_TASK_TYPE_LABELS,
 } from '@/modules/runs/api/run-labels';
 import { RunStatusView } from '@/modules/runs/components/run-status';
+import { StartAgentDialog } from '@/modules/runs/components/start-agent-dialog';
 import type { ArchiveRunsPage } from '@/modules/runs/api/runs.types';
 
 const REFRESH_MS = 15 * 60 * 1000;
@@ -59,7 +60,7 @@ export function ArchiveRunsView() {
     const setInitiatorsState = async () => {
       setInitiators([]);
       setInitiatorsError(null);
-    }
+    };
     if (!isAdmin) {
       void setInitiatorsState();
       return;
@@ -126,11 +127,14 @@ export function ArchiveRunsView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-lg font-medium">Runy</h1>
-        <p className="text-sm text-muted-foreground">
-          Archiwum zakończonych i nieudanych runów instancji. Start jest na Koncie.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-lg font-medium">Runy</h1>
+          <p className="text-sm text-muted-foreground">
+            Archiwum zakończonych i nieudanych runów instancji.
+          </p>
+        </div>
+        <StartAgentDialog />
       </div>
       <div className="flex flex-wrap gap-3">
         <FormField label="Status" htmlFor="archive-status">

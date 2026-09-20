@@ -47,7 +47,9 @@ export function AccountView() {
         <h2 className="text-base font-medium">Email</h2>
         <AccountEmailForm />
       </section>
-      <StartRunForm draft={draft} onDraftChange={setDraft} />
+      <div className="max-w-xl">
+        <StartRunForm draft={draft} onDraftChange={setDraft} idPrefix="start" heading="visible" />
+      </div>
       {prefillError ? (
         <EnvelopeError code={prefillError.code} message={prefillError.message} />
       ) : null}

@@ -2172,9 +2172,9 @@
     "semantic_hash": "7a69357bb31830d407c539fe9b9eab6d"
   },
   "docs/anty_patterny.md": {
-    "mtime": 1789753174.1735983,
-    "seen": 1789755465.3026917,
-    "ast_hash": "cdacc2e53cd44b317173a4dada48e9e1",
+    "mtime": 1789906431.1847498,
+    "seen": 1789908752.0520895,
+    "ast_hash": "e24296f5d954709423fbafc1f196e95e",
     "semantic_hash": ""
   },
   "docs/architektura.md": {
@@ -2208,9 +2208,9 @@
     "semantic_hash": ""
   },
   "docs/dictionary.md": {
-    "mtime": 1789753152.0318592,
-    "seen": 1789755465.3026974,
-    "ast_hash": "ba2274a011a932007b522e156f6d7422",
+    "mtime": 1789906427.6369805,
+    "seen": 1789908752.052094,
+    "ast_hash": "ba94cdb5f538da34feeb8f5756ac7484",
     "semantic_hash": ""
   },
   "docs/dokumentacja_komunikacji.md": {
@@ -2244,9 +2244,9 @@
     "semantic_hash": ""
   },
   "docs/ux_dashboard.md": {
-    "mtime": 1789753141.1195548,
-    "seen": 1789755465.3027034,
-    "ast_hash": "b07edd696206120899321f0e862be559",
+    "mtime": 1789906415.0710914,
+    "seen": 1789908752.0521045,
+    "ast_hash": "0686eee72e97914eb9fb4f685c6b8b16",
     "semantic_hash": ""
   },
   "spec/SPEC-AUTH.md": {
@@ -2268,9 +2268,9 @@
     "semantic_hash": "ffada314fbd05a1edc0ddc8bbee0de56"
   },
   "spec/SPEC-FRONTEND.md": {
-    "mtime": 1789753229.271949,
-    "seen": 1789755465.302708,
-    "ast_hash": "829acc56137a00ce73b7e8e78b83b0af",
+    "mtime": 1789906478.4905326,
+    "seen": 1789908752.0521095,
+    "ast_hash": "009530a98330db62e7211e132ead1734",
     "semantic_hash": ""
   },
   "spec/SPEC-KOMUNIKACJA.md": {
@@ -3432,9 +3432,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/dashboard-shell.tsx": {
-    "mtime": 1789755441.5238326,
-    "seen": 1789755465.302658,
-    "ast_hash": "f2a7dd37d716c657db9b44a172c36a1e",
+    "mtime": 1789908737.1326933,
+    "seen": 1789908752.052061,
+    "ast_hash": "8921a0f4929fa711b940a9f5ab09f001",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/event-source-registry-provider.tsx": {
@@ -3480,9 +3480,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/company-context/components/company-context-view.tsx": {
-    "mtime": 1789755889.3680496,
-    "seen": 1789755951.7549765,
-    "ast_hash": "794e2dc6b48ea21fa26bb2f9933386b2",
+    "mtime": 1789906735.294394,
+    "seen": 1789908752.0520098,
+    "ast_hash": "2b582a4e8fa088947442f8bf5ce832cf",
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/ui/textarea.tsx": {
@@ -3534,9 +3534,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/start-run-form.tsx": {
-    "mtime": 1789905130.0864666,
-    "seen": 1789905732.0582404,
-    "ast_hash": "6c57c31a86e1fa7ade3816a15164e57c",
+    "mtime": 1789908711.5999153,
+    "seen": 1789908752.0520551,
+    "ast_hash": "b35a42115f3b56004a9f1f49a39749ac",
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/ui/native-select.tsx": {
@@ -3570,9 +3570,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/account-view.tsx": {
-    "mtime": 1789838609.4841862,
-    "seen": 1789840641.265804,
-    "ast_hash": "90c6e375dd5f7491fae764d328bc76e4",
+    "mtime": 1789908737.1916928,
+    "seen": 1789908752.0520298,
+    "ast_hash": "957da2e64cfa187da10bea99ba28938c",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/my-runs-list.tsx": {
@@ -3588,9 +3588,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/archive-runs-view.tsx": {
-    "mtime": 1789732068.876014,
-    "seen": 1789739217.5564237,
-    "ast_hash": "1e0a4757cc0de9bba68920ebc49eb4f7",
+    "mtime": 1789909205.9276145,
+    "seen": 1789909210.8168864,
+    "ast_hash": "46feeb508e5000edaa912833628a3b89",
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/datetime/format-iso-datetime.ts": {
@@ -3795,6 +3795,24 @@
     "mtime": 1789904239.8292763,
     "seen": 1789904254.184309,
     "ast_hash": "13f9d01ef371337077f5e2a457148a4d",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/components/start-run-gate.tsx": {
+    "mtime": 1789908682.8422728,
+    "seen": 1789908752.0520563,
+    "ast_hash": "18167b7518bf24154d6195f4146b96cc",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/shared/ui/tooltip.tsx": {
+    "mtime": 1789908967.1256921,
+    "seen": 1789909210.816926,
+    "ast_hash": "ed54bdc02b16654a48cd480372ff4693",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/components/start-agent-dialog.tsx": {
+    "mtime": 1789909196.9786923,
+    "seen": 1789909210.8168988,
+    "ast_hash": "fef77cc64cf4caf697149b8716a2821f",
     "semantic_hash": ""
   }
 }

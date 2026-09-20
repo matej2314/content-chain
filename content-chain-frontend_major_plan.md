@@ -5,7 +5,7 @@
 **Poza tym plikiem:** trzy zmiany kontraktu api — **`content-chain-backend_major_plan.md`, Faza 10** (Krok 10.1 zapis treści przy Edytuj; Krok 10.2 własny email; Krok 10.3 filtr wielowartościowy `GET /runs`); **twardy zapis kontekstu firmy — `content-chain-backend_major_plan.md`, Faza 11** (PUT/PATCH wyłącznie przy kompletnej bramce; ten major nie implementuje api). **Faza 3.6** (toast) **nie** dodaje fazy api, **nie** zmienia HTTP/SSE/Prisma i **nie** jest backend Fazą 11. Dalej poza tym plikiem: panel administracyjny odczytu opinii; zmiana hasła zalogowanego / usuwanie własnego konta; soft-delete użytkowników w UI; otwarta rejestracja; `selectedIdeaIds` na starcie w UI; `conversationId` w UI; limit per-user runów w toku; next-intl / mapa tłumaczeń envelope; Playwright / automatyczne testy FE; Docker/`production` jako temat tego planu; PostgreSQL / V1 — rozbudowa. Aplikacja frontu **już istnieje** jako boilerplate (backend Faza 1 / Krok 1.3) — ten major nie tworzy jej od zera.
 
 **Źródła:** `docs/` (w tym `docs/ux_dashboard.md`, `docs/dokumentacja_komunikacji.md`, `docs/brand_types.md`, `docs/security.md`, `docs/deployment.md`), `spec/SPEC-*.md` (w tym `SPEC-FRONTEND.md`, `SPEC-AUTH.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-RUNY.md`, `SPEC-FEEDBACK.md`, `SPEC-BEZPIECZENSTWO.md`).  
-**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); **Faza 2** (`WYKONANY`) / Milestone 2 (`OSIĄGNIĘTY`); **Faza 2.1** (`WYKONANY`) / Milestone 2.1 (`OSIĄGNIĘTY`); **Faza 3** (`WYKONANY`) / Milestone 3 (`OSIĄGNIĘTY`); **Faza 3.5** (`WYKONANY`) / Milestone 3.5 (`OSIĄGNIĘTY`); **Faza 3.6** (`WYKONANY`) / Milestone 3.6 (`OSIĄGNIĘTY`); **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`); **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`); **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`); **Faza 7** (`NIE_ROZPOCZĘTY`) — **bez** milestone'u po niej. Milestone 6 zamknął kanon Fazy 1–6. Faza 2.1 **nie** blokuje Fazy 3. **Faza 3.5 blokuje Fazę 4**. **Faza 3.6 blokuje Fazę 4** — start Fazy 4 dopiero po Milestone 3.5 **oraz** Milestone 3.6 (inaczej niż 2.1 vs 3). Faza 3.6 **nie** blokuje Fazy 3.5 (i odwrotnie). Archiwum Runy (**Krok 3.5**, nie Faza 3.5) korzysta z backend **10.3** (`WYKONANY` w majorze api); twardy PUT kontekstu zakłada backend **Faza 11**; Edytuj z treścią i własny email (Faza 5) korzystają z backend **10.1** i **10.2** (`WYKONANY` w majorze api). Start, Moje runy, SSE, BFF i toast **nie** czekają na Fazę 10 / 11. **Faza 7** nie dodaje fazy api.
+**Kolejność priorytetów:** **Faza 1** (`WYKONANY`) / Milestone 1 (`OSIĄGNIĘTY`); **Faza 2** (`WYKONANY`) / Milestone 2 (`OSIĄGNIĘTY`); **Faza 2.1** (`WYKONANY`) / Milestone 2.1 (`OSIĄGNIĘTY`); **Faza 3** (`WYKONANY`) / Milestone 3 (`OSIĄGNIĘTY`); **Faza 3.5** (`WYKONANY`) / Milestone 3.5 (`OSIĄGNIĘTY`); **Faza 3.6** (`WYKONANY`) / Milestone 3.6 (`OSIĄGNIĘTY`); **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`); **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`); **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`); **Faza 7** (`WYKONANY`) — **bez** milestone'u po niej. Milestone 6 zamknął kanon Fazy 1–6. Faza 2.1 **nie** blokuje Fazy 3. **Faza 3.5 blokuje Fazę 4**. **Faza 3.6 blokuje Fazę 4** — start Fazy 4 dopiero po Milestone 3.5 **oraz** Milestone 3.6 (inaczej niż 2.1 vs 3). Faza 3.6 **nie** blokuje Fazy 3.5 (i odwrotnie). Archiwum Runy (**Krok 3.5**, nie Faza 3.5) korzysta z backend **10.3** (`WYKONANY` w majorze api); twardy PUT kontekstu zakłada backend **Faza 11**; Edytuj z treścią i własny email (Faza 5) korzystają z backend **10.1** i **10.2** (`WYKONANY` w majorze api). Start, Moje runy, SSE, BFF i toast **nie** czekają na Fazę 10 / 11. **Faza 7** nie dodaje fazy api.
 
 **Język wizualny (skill, nie osobna faza):** powierzchnie UI w `apps/frontend` (karty, chrome, widoki, stany loading/empty/error, prezentacja statusu live, Toaster) wymagają skilla **`content-chain-product-ui`** (`.cursor/skills/content-chain-product-ui/`). IA, copy, trasy i stack nadal biorą `docs/` + `spec/` — skill nie nadpisuje kanonu. **Visual lock** jest jednorazowy w Fazie 1 (Krok 1.4 + karty wejścia 1.1–1.3); Fazy 2, **2.1**, 3, **3.5**, **3.6**, 4–6 **oraz Faza 7** **dziedziczą** tokeny, bez nowej palety na widok. Toaster (Faza 3.6) = warstwa `--z-toast` (token już w locku), nie nowa paleta ani `richColors` Sonnera z pudełka. Skill **nie** dotyczy: BFF / `apiFetch` / cookie / rejestru `EventSource` (Krok 1.6 i równoważne w późniejszych krokach), typów kontraktu (Krok 1.5), ani `content-chain-backend_major_plan.md` Faza 10 / Faza 11.
 
@@ -739,7 +739,7 @@ Zmiana względem: status Fazy 6, kroków 6.1–6.3 (`NIE_ROZPOCZĘTY`) oraz MILE
 
 ## Faza 7 — Start agenta z archiwum Runy
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Refaktor względem:** Faza 3 / Krok 3.1 i Krok 3.5 (`WYKONANY`) oraz MILESTONE 3 (`OSIĄGNIĘTY`). Ten sam formularz briefu i ten sam `POST /runs`; zmiana: druga powierzchnia startu — CTA **„Uruchom agenta”** + modal na widoku **Runy**. Konto **zostaje** powierzchnią startu (inline). Prefill ze snapshotu **zostaje wyłącznie** na Koncie (Krok 3.2). Archiwum nadal bez SSE i bez wierszy w toku (sens Kroku 3.5 **bez zmiany** poza CTA). Faza 3 / MILESTONE 3 / Faza 6 / MILESTONE 6 **bez przepisywania**.
 
@@ -748,6 +748,9 @@ Zmiana względem: status Fazy 6, kroków 6.1–6.3 (`NIE_ROZPOCZĘTY`) oraz MILE
 **Zależność api:** brak. `POST /runs`, bramka `CONTEXT_INCOMPLETE` i SSE **bez zmian**. Ta faza **nie** dodaje kroku w `content-chain-backend_major_plan.md`.
 
 **Powierzchnia:** `content-chain-product-ui` (dziedziczenie locku Fazy 1, bez nowej palety). Overlay = istniejący `Dialog` shadcn (jak logout / opinia), nie nowy kit.
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-7-start-archiwum.md` (KROK 1 `WYKONANY` → fundament major 7.2 + część 7.1: hostowalny `StartRunForm` + kit Tooltip + `useStartRunGate`; KROK 2 `WYKONANY` → major 7.1 + reszta 7.2: CTA/modal na `/runs`). Reuse briefu z Konta w Dialogu; `TooltipProvider` po sesji; toast 202 bez dublowania; lista archiwum bez `fetchArchiveRuns` po starcie. **Brak** milestone’u po Fazie 7 — nic nie oznaczono `OSIĄGNIĘTY`. Faza 3 / Krok 3.1 / 3.5 / MILESTONE 3 / Faza 6 / MILESTONE 6 bez zmian (historia).
+Zmiana względem: status Fazy 7, kroków 7.1–7.2 (`NIE_ROZPOCZĘTY`). Powód: ślad do major po implementacji `content-chain_feature_plan_faza-7-start-archiwum.md`.
 
 **DoD (faza):**
 
@@ -760,7 +763,7 @@ Zmiana względem: status Fazy 6, kroków 6.1–6.3 (`NIE_ROZPOCZĘTY`) oraz MILE
 
 ### Krok 7.1 — CTA i modal na archiwum
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Widok Runy (Krok 3.5) dostaje przycisk **„Uruchom agenta”** otwierający modal. Lista, filtry, paginacja 10, odświeżanie 15 min i brak SSE **bez zmiany sensu**.
 
@@ -772,7 +775,7 @@ Zmiana względem: status Fazy 6, kroków 6.1–6.3 (`NIE_ROZPOCZĘTY`) oraz MILE
 
 ### Krok 7.2 — Ten sam brief, sukces i bramka
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Modal hostuje ten sam formularz co Konto (reuse, nie druga kopia pól). Draft startowy pusty. Po 202 — widok źródłowy Runy.
 

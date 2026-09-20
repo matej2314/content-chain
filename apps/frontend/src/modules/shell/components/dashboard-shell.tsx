@@ -11,6 +11,7 @@ import { CompletenessProvider } from '@/modules/company-context/components/compl
 import { OwnRunsProvider } from '@/modules/runs/components/own-runs-provider';
 import { EventSourceRegistryProvider } from '@/modules/shell/components/event-source-registry-provider';
 import { Toaster } from '@/shared/ui/sonner';
+import { TooltipProvider } from '@/shared/ui/tooltip';
 
 export function DashboardShell({ children }: { readonly children: ReactNode }) {
   const router = useRouter();
@@ -40,17 +41,19 @@ export function DashboardShell({ children }: { readonly children: ReactNode }) {
     <EventSourceRegistryProvider>
       <CompletenessProvider>
         <OwnRunsProvider>
-          <div className="flex min-h-dvh bg-background">
-            <div className="hidden md:block">
-              <AppSidebar role={state.user.role} />
+          <TooltipProvider>
+            <div className="flex min-h-dvh bg-background">
+              <div className="hidden md:block">
+                <AppSidebar role={state.user.role} />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <AppHeader user={state.user} />
+                <main className="min-w-0 flex-1 p-4 text-sm">{children}</main>
+              </div>
+              <FloatingBoxSlot />
             </div>
-            <div className="flex min-w-0 flex-1 flex-col">
-              <AppHeader user={state.user} />
-              <main className="min-w-0 flex-1 p-4 text-sm">{children}</main>
-            </div>
-            <FloatingBoxSlot />
-          </div>
-          <Toaster />
+            <Toaster />
+          </TooltipProvider>
         </OwnRunsProvider>
       </CompletenessProvider>
     </EventSourceRegistryProvider>
