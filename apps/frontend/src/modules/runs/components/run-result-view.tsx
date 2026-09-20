@@ -157,9 +157,9 @@ export function RunResultView({ snapshot }: RunResultViewProps) {
           <div className="divide-y divide-border">
             {result.contents.map((item) => (
               <div key={item.sourceIdeaId} className="flex flex-col gap-1 py-2">
-                <p className="text-xs text-muted-foreground">
+                <h2 className="text-sm font-medium">
                   Pomysł: {ideaTitle(result.ideas, item.sourceIdeaId)}
-                </p>
+                </h2>
                 <ContentBlock content={item} />
               </div>
             ))}
@@ -201,7 +201,7 @@ export function RunResultView({ snapshot }: RunResultViewProps) {
       ) : null}
 
       {(taskType === 'page_outline_then_copy' || taskType === 'page_copy') &&
-      result.pageDocument ? (
+        result.pageDocument ? (
         <DocumentBlock document={result.pageDocument} />
       ) : null}
     </section>

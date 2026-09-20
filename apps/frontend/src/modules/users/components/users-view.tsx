@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import type { InvitationId } from '@content-chain/shared';
 import { ApiError } from '@/shared/api/envelope';
+import { useSession } from '@/modules/auth/components/session-provider';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { EnvelopeError, FormField } from '@/shared/ui/form-field';
@@ -33,6 +35,23 @@ import { IsoDateTime } from '@/shared/datetime/iso-date-time';
 const FALLBACK = { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' };
 
 export function UsersView() {
+  const { state } = useSession();
+  if (state.status !== 'authenticated') return null;
+  if (state.user.role !== 'admin') {
+    return (
+      <section className="flex max-w-xl flex-col gap-2">
+        <h1 className="text-lg font-medium">Użytkownicy</h1>
+        <p className="text-sm text-muted-foreground">Brak dostępu.</p>
+        <Link href="/account" className="text-sm text-primary underline-offset-4 hover:underline">
+          Wróć na Konto
+        </Link>
+      </section>
+    );
+  }
+  return <UsersAdminView />;
+}
+
+function UsersAdminView() {
   const [users, setUsers] = useState<readonly UserListItem[] | null>(null);
   const [invites, setInvites] = useState<readonly InvitationListItem[] | null>(null);
   const [loadError, setLoadError] = useState<{ code: string; message: string } | null>(null);

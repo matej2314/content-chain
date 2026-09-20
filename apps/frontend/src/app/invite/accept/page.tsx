@@ -1,7 +1,12 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
+import type { Metadata } from 'next';
 import { AcceptInviteForm } from '@/modules/auth/components/accept-invite-form';
+
+export const metadata: Metadata = {
+  title: 'Content Chain - Akceptacja zaproszenia'
+}
 
 export default function AcceptInvitePage() {
   const params = useSearchParams();

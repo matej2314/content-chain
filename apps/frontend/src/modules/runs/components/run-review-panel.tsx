@@ -77,7 +77,6 @@ export function RunReviewPanel({
 
   return (
     <section data-slot="run-review" className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium">Przegląd</h2>
       {locked ? (
         <p className="text-sm text-muted-foreground">
           <span>Przegląd zamknięty.</span>
