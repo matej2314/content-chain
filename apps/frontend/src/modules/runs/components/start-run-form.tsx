@@ -253,7 +253,7 @@ export function StartRunForm({ draft, onDraftChange }: StartRunFormProps) {
       </FormField>
       {pageTask ? (
         <>
-          <FormField label="Kąt (opcjonalnie)" htmlFor="start-angle">
+          <FormField label="Perpsektywa (opcjonalnie)" htmlFor="start-angle">
             <Input
               id="start-angle"
               value={draft.angle}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { Icon } from '@iconify/react';
 import { Button } from '@/shared/ui/button';
@@ -12,6 +12,15 @@ export function FloatingRunsBox() {
   const { inProgress } = useOwnRuns();
   const [collapsed, setCollapsed] = useState(false);
 
+  function toggleCollapsed(): void {
+    setCollapsed((value) => !value);
+  }
+
+  function handleChevronClick(event: MouseEvent<HTMLButtonElement>): void {
+    event.stopPropagation();
+    toggleCollapsed();
+  }
+
   if (inProgress.length === 0) return null;
 
   return (
@@ -19,7 +28,10 @@ export function FloatingRunsBox() {
       data-slot="floating-box"
       className="fixed right-4 bottom-4 z-(--z-overlay) w-80 max-w-[calc(100%-2rem)] rounded-lg border border-border bg-card text-sm"
     >
-      <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+      <header
+        className="flex cursor-pointer select-none items-center justify-between gap-2 border-b px-3 py-2 hover:bg-muted/50"
+        onClick={toggleCollapsed}
+      >
         <p className="font-medium">Runy w toku ({inProgress.length})</p>
         <Button
           type="button"
@@ -27,14 +39,14 @@ export function FloatingRunsBox() {
           size="icon-xs"
           aria-expanded={!collapsed}
           aria-label={collapsed ? 'Rozwiń' : 'Zwiń'}
-          onClick={() => setCollapsed((value) => !value)}
+          onClick={handleChevronClick}
         >
           <Icon
             icon={collapsed ? 'lucide:chevron-up' : 'lucide:chevron-down'}
             className="size-3.5"
           />
         </Button>
-      </div>
+      </header>
       {collapsed ? null : (
         <ul className="flex flex-col divide-y divide-border">
           {inProgress.map((item) => (

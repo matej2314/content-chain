@@ -15,6 +15,7 @@ import {
 } from '@/modules/runs/api/run-labels';
 import { isLiveRunStatus, type RunLogItem, type RunSnapshot } from '@/modules/runs/api/runs.types';
 import { HitlPanel } from '@/modules/runs/components/hitl-panel';
+import { RunLogMessage } from '@/modules/runs/components/run-log-message';
 import { RunResultSection } from '@/modules/runs/components/run-result-section';
 import { RunReviewPanel } from '@/modules/runs/components/run-review-panel';
 import { RunStatusView } from '@/modules/runs/components/run-status';
@@ -192,7 +193,7 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
                   {item.step ? ` · ${item.step}` : ''}
                   {` · ${item.level}`}
                 </p>
-                <p>{item.message}</p>
+                <RunLogMessage message={item.message} />
               </li>
             ))}
           </ol>
