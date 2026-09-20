@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-18
+data_modyfikacji: 2026-09-20
 ---
 
 # Anty-patterny — Content Chain
@@ -63,7 +63,7 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | Zostawianie `EventSource` po `completed`/`failed` (auto-reconnect) | Pętla GET `.../events` na skończonym runie | `close()` po evencie terminalnym; nie otwierać SSE, gdy snapshot już terminalny (`ux_dashboard.md`) |
 | Buforowanie SSE w BFF Next (rewrite zbiera cały stream) | Live „stoi”, potem wali się naraz | Proxy strumieniowe; `text/event-stream` bez pełnego bufora |
 | `NEXT_PUBLIC_API_BASE_URL` i bezpośredni fetch przeglądarki na port api | Cookie na złym originie; psuje `SameSite=strict` | BFF: same-origin `/api/v1`; `API_BASE_URL` tylko na serwerze Next |
-| Start runu na widoku Runy / chip „w toku” instancji | Rozjazd z kanonem Konto + floating box | Start i live własne = Konto; archiwum = Runy; box poza Kontem |
+| Start runu jako live na archiwum / chip „w toku” instancji / inny brief niż na Koncie | Rozjazd z kanonem: archiwum terminalne + dwie powierzchnie **tego samego** formularza + floating box | Konto = start inline + Moje runy live; Runy = archiwum `completed` \| `failed` **oraz** modal **„Uruchom agenta”** (ten sam brief, pusty draft); po `202` widok źródłowy; live poza Kontem = box. **Nie** SSE / wiersze w toku na liście Runy; **nie** chip w chrome; **nie** drugi kontrakt startu. Zmiana względem: „Start runu na widoku Runy” jako zakaz samej powierzchni (`ux_dashboard.md`) |
 | Duplikacja brand types / DTO poza `packages/shared` | Rozjazd kontraktu FE/BE | Import z shared + walidacja na granicach (HTTP: class-validator; api application: Zod — nie w shared) |
 | Logika kompletności kontekstu tylko w UI | Da się obejść API | Egzekucja bramki w `apps/api` |
 | Feedback / gwiazdki / edycja wyniku w LangGraph | Miesza jakość UX z pipeline LLM | Komendy Runs + BC Feedback po `completed`/`failed`. Edycja treści = `POST .../output-edited` (nadpis `result` + flaga), **nie** re-invoke grafu. Przy `POST /feedback` `targetType=run` bramka statusu jest w **API** (409 `RUN_NOT_REVIEWABLE`); sam disable na UI nie wystarcza |

@@ -23,14 +23,14 @@ import { notifyProduct } from '@/modules/notifications/notify-product';
 type ViewState =
   | { readonly status: 'loading' }
   | {
-      readonly status: 'error';
-      readonly envelope: { readonly code: string; readonly message: string };
-    }
+    readonly status: 'error';
+    readonly envelope: { readonly code: string; readonly message: string };
+  }
   | {
-      readonly status: 'ready';
-      readonly context: CompanyContext;
-      readonly completeness: Completeness;
-    };
+    readonly status: 'ready';
+    readonly context: CompanyContext;
+    readonly completeness: Completeness;
+  };
 
 const FALLBACK = { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' };
 
@@ -112,7 +112,7 @@ export function CompanyContextView() {
       <div className="flex max-w-3xl flex-col gap-1">
         <h1 className="text-lg font-medium">Kontekst firmy</h1>
         <p className="text-sm text-muted-foreground">
-          Sekcje bramki odblokowują agentów. Dodatki są opcjonalne.
+          Uzupełnij wszystkie obowiązkowe pola. Dodatki są opcjonalne.
         </p>
       </div>
       <CompanyContextForm

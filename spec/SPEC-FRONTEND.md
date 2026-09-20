@@ -1,7 +1,7 @@
 ---
-wersja: 24
+wersja: 25
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-18
+data_modyfikacji: 2026-09-20
 ---
 
 # SPEC — Frontend
@@ -19,6 +19,7 @@ Zmiana względem wersji 14 / cel: strona główna = karta logowania (nie osobny 
 Zmiana względem wersji 15 / cel: wylogowanie z modalem w chrome dashboardu od pierwszego layoutu po sesji.
 Zmiana względem wersji 18 / cel: miejsce wylogowania było „chrome (sidebar lub header)”. Od tej wersji wyłącznie **header** (login jako przycisk → „Wyloguj się”; zawartość headera do prawej).
 Zmiana względem wersji 23 / cel: kanon milczał o kanale „wydarzyło się”. Od tej wersji toast (Sonner) w layoutcie po sesji — obok live (F-5) i envelope (F-7); `docs/ux_dashboard.md`.
+Zmiana względem wersji 24 / cel: F-8 nadal wymaga widoku **Konto** (start inline). Od tej wersji **druga** powierzchnia startu = modal **„Uruchom agenta”** na Runach (`docs/ux_dashboard.md`).
 
 ## Powiązanie ze stylem z docs / wyjątek
 
@@ -59,9 +60,11 @@ Zmiana względem wersji 5 / F-5: F-5 i „Wolno: Reconnect SSE” bez rozróżni
 
 Zmiana względem wersji 23 / F-5a: `close()` i zakaz SSE na terminalu **bez zmiany**; dopisano toast poza szczegółami (`docs/ux_dashboard.md`).
 
-F-6. Bramka „Agenci aktywni” i disable CTA startu runu — UX na bazie `GET .../completeness`; **egzekucja** nadal w api (`409` `CONTEXT_INCOMPLETE`). Chip i disable startu **bez zmiany sensu** względem v22.
+F-6. Bramka „Agenci aktywni” i disable CTA startu runu — UX na bazie `GET .../completeness`; **egzekucja** nadal w api (`409` `CONTEXT_INCOMPLETE`). Chip i disable startu **bez zmiany sensu** względem v22. Disable dotyczy **obu** powierzchni: submit na Koncie **oraz** przycisk/modal **„Uruchom agenta”** na Runach.
 
-F-7. Język chrome / etykiet: **polski**. Envelope błędów MVP: pokazać **`code` i `message` jak z API** (angielskie `message` — bez mapy tłumaczeń). next-intl / i18n envelope = **V1 — rozbudowa**. Treści SM: PL/EN wg briefu runu. Formularz startu runu (**tylko Konto**): pola briefu **wg `taskType`** — post/reel: liczba pomysłów, bez kąta/długości; `page_*`: kąt i długość opcjonalnie, **bez** liczby pomysłów (`docs/ux_dashboard.md`). Błędy przy formularzu / błędzie GET bloku = `code` + `message` **w miejscu błędu**. Toast **nie** zastępuje envelope przy polu. Toast sukcesu mutacji = **polski** tytuł (`docs/ux_dashboard.md`). Jeśli toast błędu (poza formularzem, gdy mapa UX na to zezwala): te same `code` + `message`, bez tłumaczenia.
+Zmiana względem wersji 24 / F-6: disable było opisane bez drugiej powierzchni; sens bramki **bez unieważnienia**.
+
+F-7. Język chrome / etykiet: **polski**. Envelope błędów MVP: pokazać **`code` i `message` jak z API** (angielskie `message` — bez mapy tłumaczeń). next-intl / i18n envelope = **V1 — rozbudowa**. Treści SM: PL/EN wg briefu runu. Formularz startu runu (**Konto inline oraz modal na Runach** — ten sam brief): pola briefu **wg `taskType`** — post/reel: liczba pomysłów, bez kąta/długości; `page_*`: kąt i długość opcjonalnie, **bez** liczby pomysłów (`docs/ux_dashboard.md`). Błędy przy formularzu / błędzie GET bloku = `code` + `message` **w miejscu błędu** (także w modalu). Toast **nie** zastępuje envelope przy polu. Toast sukcesu mutacji = **polski** tytuł (`docs/ux_dashboard.md`). Jeśli toast błędu (poza formularzem, gdy mapa UX na to zezwala): te same `code` + `message`, bez tłumaczenia.
 
 Zmiana względem wersji 19 / F-7: błędy miały być „zrozumiałe po polsku” bez rozstrzygnięcia envelope. Od tej wersji envelope as-is; i18n = V1.
 
@@ -69,12 +72,14 @@ Zmiana względem wersji 8 / F-7: język UI bez rozróżnienia pól briefu kanał
 
 Zmiana względem wersji 23 / F-7: F-7 milczało o sukcesie mutacji (cisza po 200/202). Envelope as-is **bez unieważnienia**; toast nie zastępuje envelope przy polu.
 
+Zmiana względem wersji 24 / F-7: formularz startu był „**(tylko Konto)**”. Od tej wersji **Konto (inline) i Runy (modal)**; pola briefu **bez zmiany**.
+
 F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 
 - Strona główna: tło + karta logowania + nieaktywny **„Nie masz konta? Zarejestruj się!”**; first-run = tryb submitu tej karty; **akceptacja zaproszenia** na **`/invite/accept?token=`** (tożsame z URL w mailu `{APP_PUBLIC_URL}/invite/accept?token=…`) → `POST /auth/accept-invite` → strona główna — dashboard dopiero po loginie;
 - Kontekst firmy: **sześć zakładek** — Tożsamość (domyślnie otwarta), Oferta, Głos SM, CTA / kanały, Odbiorca, Dodatki (`extras` w jednym panelu, bez podzakładek). Na triggerach zakładek bramki indykator z `completeness.missing` ostatniego **udanego** GET/PUT (zielona = kompletna, czerwona = brak); zakładka Dodatki **bez** kropki bramki. Zapis = jeden `PUT` całości. Submit **nie** wysyła, gdy draft nie spełnia bramki (puste wymagane pole albo kaleka oferta); lokalny predykat identyczny z C-1 **wyłącznie** do disable CTA zapisu i błędów pól — kropki i chip nadal z `missing` odpowiedzi. Placeholdery pustej oferty stripowane; kalekiej usługi nie stripujemy. Nie da się usunąć ostatniej kompletnej usługi tak, by PUT poszedł z `items: []`. Szczegóły: `docs/ux_dashboard.md` (Widok: Kontekst firmy);
-- **Runy** = archiwum instancji `completed` \| `failed` (`GET /runs?status=completed,failed`, strona 10, odświeżanie przy wejściu i co **15 min**). **Bez** startu, **bez** SSE, **bez** runów w toku (także cudzych);
-- **Konto**: email (`PATCH /auth/me`); **Moje runy** (`GET /runs/user/:userId`, wszystkie statusy); **jedyny** formularz **startu** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId`); opinia. Po **202** startu — zostajemy na Koncie **oraz** toast „Run wystartował”;
+- **Runy** = archiwum instancji `completed` \| `failed` (`GET /runs?status=completed,failed`, strona 10, odświeżanie przy wejściu i co **15 min**). **Bez** SSE, **bez** runów w toku na liście (także cudzych). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). Po **202** z modalu — zostajemy na Runach, modal zamknięty, toast „Run wystartował”; live = floating box;
+- **Konto**: email (`PATCH /auth/me`); **Moje runy** (`GET /runs/user/:userId`, wszystkie statusy); formularz **startu inline** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId` z wiersza „Moje runy”); opinia. Po **202** startu **z Konta** — zostajemy na Koncie **oraz** toast „Run wystartował”;
 - `PUT` kontekstu **200** → toast „Kontekst zapisany”; **400** → envelope przy formularzu, **zero** toasta (lokalny predykat / envelope);
 - Layout **zalogowany**: Toaster (warstwa `--z-toast`); pozycja **nie** gryzie się z floating boxem (toast `top-right`; box `bottom-right`). **Brak** Toastera na karcie logowania / first-run / accept-invite;
 - Run szczegóły: HITL / wynik **post vs rolka vs strona** / przegląd (bez `conversationId` w UI); live SSE tylko własny `running` \| `awaiting_hitl` \| `interrupted` (ten sam rejestr co box);
@@ -100,6 +105,7 @@ Zmiana względem wersji 18 / F-8: „Wyloguj się” w chrome (sidebar lub heade
 Zmiana względem wersji 21 / F-8: Kontekst firmy = sekcje bramki + extras w jednym ciągu, status per sekcja przy nagłówku bloku. Od tej wersji: sześć zakładek (default Tożsamość); kropki bramki na triggerach z `missing` ostatniego GET/PUT; Dodatki bez kropki i bez podzakładek; zapis nadal jeden `PUT`.
 Zmiana względem wersji 22 / F-8: submit mógł wysłać niekompletną bramkę (api zapisywało). Od tej wersji UI nie wysyła pustych wymaganych / kalekiej oferty; lokalny predykat C-1 tylko do disable i błędów pól. Źródło kropek i chipa **bez zmiany**. Egzekucja persist: `SPEC-KONTEKST-FIRMY.md` C-4.
 Zmiana względem wersji 23 / F-8: layout po sesji nie miał Toastera; 200 / 202 / terminal poza szczegółami = cisza. Floating box **bez zmiany** (w toku, znika na terminalu).
+Zmiana względem wersji 24 / F-8: Runy „**Bez** startu”; Konto = **jedyny** formularz startu; po `202` wyłącznie Konto. Od tej wersji: dwie powierzchnie tego samego briefu (Konto inline + modal na Runach); po `202` widok źródłowy; archiwum nadal bez SSE / bez w toku na liście (`docs/ux_dashboard.md`). Powód: pierwsze testy UI w przeglądarce.
 
 F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. UI **filtruje** pozycje do `completed` \| `failed` (lista API zostaje pełna — `SPEC-RUNY.md` R-3c). Select agentów = enum z shared (labelki PL). Ocena i Edytuj tylko gdy snapshot mówi, że sesja jest `startedBy` i przegląd niezamknięty. Submit `targetType=run` przy innym statusie i tak → **409** `RUN_NOT_REVIEWABLE` (`SPEC-FEEDBACK.md` Fbk-3a).
 
@@ -142,8 +148,9 @@ apps/frontend/src/
 - First-run jako tryb submitu **tej samej** karty logowania.
 - Nieaktywny przycisk „Zarejestruj się!”.
 - Header: zawartość **do prawej**; login → „Wyloguj się”; modal; `POST /auth/logout` → `/`.
-- Widok **Konto**: email, Moje runy (live), **start**, opinia; po starcie zostajemy tutaj.
-- Widok **Runy**: archiwum `completed` \| `failed`; GET co 15 min + przy wejściu.
+- Widok **Konto**: email, Moje runy (live), **start inline**, opinia; po starcie **z Konta** zostajemy tutaj.
+- Widok **Runy**: archiwum `completed` \| `failed`; GET co 15 min + przy wejściu; CTA/modal **„Uruchom agenta”** (ten sam brief); po **202** z Run — zostać, zamknąć modal.
+- Client components dla modalu startu (Dialog kitu shadcn).
 - Floating box poza Kontem (zwijany).
 - Cienki wrapper `notifyProduct` / `notifyRunTerminal` (Sonner jako adapter; unia produktowa, bez `any`).
 - Odczyt pathname App Router (`usePathname` lub równoważny) do `viewingRunId` przy toaście terminalu.
@@ -163,7 +170,11 @@ apps/frontend/src/
 - Zostawiania `EventSource` otwartego po `completed`/`failed` ani reconnectu po zamknięciu terminalnym.
 - Prezentowania `interrupted` tą samą animacją / copy co `running`.
 - Chipu / stosu chipów „w toku” w chrome (obowiązuje floating box).
-- Formularza startu na widoku **Runy**.
+- Innego briefu / innego `POST /runs` na Runach niż na Koncie.
+- Startu w sidebarze / headerze albo na szczegółach `/runs/:runId`.
+- Prefillu startu z wiersza archiwum (obowiązuje wyłącznie „Moje runy” na Koncie).
+- SSE albo wierszy `queued` / `running` / `awaiting_hitl` / `interrupted` na liście Runy (także po starcie z modalu).
+- Wymuszania nawigacji na szczegóły po `202`.
 - Traktowania GET archiwum (15 min) jako kanału live szczegółów.
 - Egzekucji bramki kompletności **tylko** w UI.
 - Liczenia **kropek / chipa** z draftu formularza albo z lokalnej kopii `isComplete` (obowiązuje `missing` z ostatniego udanego GET/PUT). Lokalny predykat C-1 **nie** zastępuje C-4 / C-5 w api.
@@ -200,6 +211,7 @@ Zmiana względem wersji 19 / „Nie wolno”: kanon Runy+start+chip oraz fetch w
 Zmiana względem wersji 21 / „Nie wolno”: dopisano zakaz lokalnego werdyktu kompletności na zakładkach, `PATCH` per zakładka, kropki na Dodatki i zagnieżdżeń extras.
 Zmiana względem wersji 22 / „Nie wolno”: całkowity zakaz lokalnej kopii `isComplete` — od tej wersji kopia C-1 **wolna** wyłącznie do disable submitu i błędów pól; kropki / chip nadal z odpowiedzi. Dopisano zakaz samego `required` HTML oraz zapisu kalekiej oferty.
 Zmiana względem wersji 23 / „Nie wolno”: dopisano zakaz toasta na walidację, na `run.log`, store toasta jako server state, Toastera poza sesją, Browser Notification i maila przy failu.
+Zmiana względem wersji 24 / „Nie wolno”: zakaz „Formularza startu na widoku **Runy**” **unieważniony** — kanon to dwie powierzchnie tego samego briefu. Od tej wersji zakaz dotyczy live na archiwum, drugiego kontraktu startu, CTA w chrome/szczegółach, prefillu z archiwum i zrzutu na szczegóły po `202`.
 
 Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flagą” unieważniony — kanon to zapis treści + flaga (`docs/ux_dashboard.md`). „Gdy powstanie” na Users / accept-invite unieważnione.
 
@@ -220,7 +232,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Strona główna: karta logowania + nieaktywny „Zarejestruj się!”; first-run = tryb tej karty; **`/invite/accept?token=`** → logowanie; chrome po polsku; dashboard tylko po sesji.
 - [ ] Header: do prawej; login → „Wyloguj się”; modal → logout → `/`.
 - [ ] Fetch same-origin `/api/v1`; 401 → refresh → retry; cookie httpOnly na originie FE.
-- [ ] **Runy** = archiwum `completed` \| `failed` (15 min + wejście); **Konto** = start + Moje runy live; po starcie Konto.
+- [ ] **Runy** = archiwum `completed` \| `failed` (15 min + wejście) **oraz** CTA/modal **„Uruchom agenta”**; **Konto** = start inline + Moje runy live; po `202` widok źródłowy.
 - [ ] N× SSE tylko własne `running` / `awaiting_hitl` / `interrupted`; `close()` na terminalu; `queued` bez socketa; floating box poza Kontem.
 - [ ] Start zablokowany w UI przy niekompletności **i** api 409.
 - [ ] Konto: email; moje runy → szczegóły; start (prefill ze snapshotu); opinia.
@@ -231,6 +243,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Kontekst firmy: sześć zakładek (default Tożsamość); kropki bramki z `missing` ostatniego GET/PUT; Dodatki bez kropki; jeden `PUT`; `user` read-only.
 - [ ] Admin nie utrwali pustej nazwy firmy ani kalekiej usługi (submit zablokowany; 400 z api gdy UI ominięte); `user` read-only.
 - [ ] Po 202 na Koncie: wiersz **oraz** toast „Run wystartował”.
+- [ ] Po 202 na Runach: toast „Run wystartował”, modal zamknięty, floating box; lista archiwum **bez** nowego wiersza dopóki run nie jest `completed` \| `failed`.
 - [ ] PUT kontekstu 200 → toast PL; 400 → envelope, zero toasta.
 - [ ] Terminal SSE poza `/runs/:id` tego runu: jeden toast + link Szczegóły; box pusty po `close()`.
 - [ ] Na `/runs/:id` tego runu: **brak** toasta terminalu; status + logi na szczegółach.
@@ -248,6 +261,8 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - Otwarta rejestracja.
 - Zmiana hasła zalogowanego / usuwanie własnego konta; soft-delete users w UI.
 - `selectedIdeaIds` na starcie; `conversationId` w UI.
+- CTA startu w sidebarze / headerze oraz na szczegółach `/runs/:runId`.
+- Prefill startu z wiersza archiwum Runy.
 - Panel admina opinii / diff / historia wersji outputu.
 - Nowy endpoint SSE „moje runy”.
 - Browser Notification API; mail przy `failed` runu.

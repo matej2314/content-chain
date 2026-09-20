@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-18
+data_modyfikacji: 2026-09-20
 ---
 
 # Słownik — Content Chain
@@ -27,6 +27,8 @@ Zmiana względem kanonu Fazy 4.3 (HITL Social dwuetapowy = dokładnie 1 `selecte
 Zmiana względem kanonu „admin zakłada konto `user` emailem i hasłem” (`POST /users`): jedyna droga na `role = user` to **zaproszenie e-mail** (Invitation) → publiczna akceptacja z pierwszym hasłem. Bootstrap admina (email + hasło, bez maila) **bez zmian**.
 
 Zmiana względem: kanon milczał o toaście dashboardu. Od tej wersji **Toast (dashboard MVP)** jest osobnym hasłem — **nie** envelope HTTP i **nie** kanał live (`ux_dashboard.md`).
+
+Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez startu): od tej wersji **dwie** powierzchnie tego samego formularza (Konto inline + modal **„Uruchom agenta”** na Runach). Archiwum nadal bez SSE i bez wierszy w toku. Po `POST /runs` operator zostaje na widoku źródłowym. Powód: pierwsze testy UI w przeglądarce (`ux_dashboard.md`).
 
 ---
 
@@ -58,8 +60,8 @@ Zmiana względem: kanon milczał o toaście dashboardu. Od tej wersji **Toast (d
 | **Full-auto** | Wykonanie tasku jednoetapowego bez wymuszonej pauzy selekcji. |
 | **Self-host** | Uruchomienie we własnej infrastrukturze operatora; licencja MIT. |
 | **First-run** | Stan pustej instancji: `GET /api/v1/auth/bootstrap-status` → `available: true` → jednorazowy `POST .../bootstrap-admin`. W UI **nie** jest osobną stroną — to tryb strony głównej (karta logowania). Potem endpoint bootstrap trwale niedostępny. |
-| **Konto (widok)** | Osobna pozycja sidebara (admin i `user`): zmiana własnego emaila, lista **własnych** runów (**live** dla `running` / `awaiting_hitl` / `interrupted`), **start** runu, opinia tekstowa. **Nie** mylić z widokiem **Runy** (archiwum `completed` \| `failed` instancji, paginacja 10). Wylogowanie jest w **headerze**. Po `POST /runs` użytkownik zostaje na Koncie. |
-| **Runy (widok)** | Archiwum firmy: tylko `completed` \| `failed`, `GET /runs?status=completed,failed`, odświeżanie przy wejściu i co **15 min**. Bez startu i bez SSE. |
+| **Konto (widok)** | Osobna pozycja sidebara (admin i `user`): zmiana własnego emaila, lista **własnych** runów (**live** dla `running` / `awaiting_hitl` / `interrupted`), **start** runu (**inline**, ten sam brief co modal na Runach), opinia tekstowa. Prefill startu wyłącznie z wiersza „Moje runy” (snapshot `GET /runs/:runId`). **Nie** mylić z widokiem **Runy** (archiwum `completed` \| `failed` instancji, paginacja 10 + CTA/modal startu). Wylogowanie jest w **headerze**. Po `POST /runs` **z Konta** użytkownik zostaje na Koncie. |
+| **Runy (widok)** | Archiwum firmy: tylko `completed` \| `failed`, `GET /runs?status=completed,failed`, odświeżanie przy wejściu i co **15 min**. CTA **„Uruchom agenta”** otwiera modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). **Bez** SSE i **bez** runów w toku na liście. Po `POST /runs` **z modalu** operator zostaje na Runach; live nowego runu = floating box. |
 | **Floating box** | Sygnał własnych runów w toku poza widokiem Konto; zwiniecie/rozwinięcie. N× EventSource per `runId` (bez nowego hubu). `queued` poza boxem. |
 | **Agenci aktywni** | Sygnał UX: bramka `complete === true` (można startować runy produktowe: Social i Content). **Nie** oznacza „run w toku”. Odwrotnie: agenci nieaktywni / zablokowani = kontekst niekompletny. |
 | **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, gateway, **SQLite**, logi, SSE, fundament feedbacku, **Social (posty i rolki)** oraz **Content (BC) w podstawowej formie**; w kontrakcie slice’u także typowane `extras`, HITL Social dwuetapowy (min. 1 unikalne id ⊆ draftu, N→N), pola wyniku SM (`cta?`, `characterCount`, `contents[]` / `reelScripts[]`, `sourceIdeaId`) oraz opcjonalne `role` outline — **nie** kolejne workflowy. Zmiana względem: „HITL SM = 1 id” jako kanon slice’u. |
