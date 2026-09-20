@@ -1,12 +1,11 @@
+'use client';
+
+import { useSearchParams } from 'next/navigation';
 import { AcceptInviteForm } from '@/modules/auth/components/accept-invite-form';
 
-type AcceptInvitePageProps = {
-  searchParams: Promise<{ token?: string | string[] }>;
-};
-
-export default async function AcceptInvitePage({ searchParams }: AcceptInvitePageProps) {
-  const params = await searchParams;
-  const raw = params.token;
+export default function AcceptInvitePage() {
+  const params = useSearchParams();
+  const raw = params.get('token');
   const token = typeof raw === 'string' ? raw : Array.isArray(raw) ? (raw[0] ?? '') : '';
 
   return (

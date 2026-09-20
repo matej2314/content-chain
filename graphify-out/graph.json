@@ -30517,7 +30517,7 @@
       "file_type": "code",
       "norm_label": "usesession()",
       "source_file": "apps/frontend/src/modules/auth/components/session-provider.tsx",
-      "source_location": "L79"
+      "source_location": "L78"
     },
     {
       "id": "apps_frontend_src_modules_shell_components_app_header_appheader",
@@ -67245,7 +67245,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/frontend/src/modules/auth/components/session-provider.tsx",
-      "source_location": "L55",
+      "source_location": "L54",
       "weight": 1.0
     },
     {
@@ -176244,7 +176244,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/frontend/src/modules/auth/components/session-provider.tsx",
-      "source_location": "L79",
+      "source_location": "L78",
       "weight": 1.0
     },
     {
@@ -195924,5 +195924,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "6865a7468fa2f529f4084a3fceab0964918589b0"
+  "built_at_commit": "2a59a4d3c67e5b349686f54050a4f3ee3e543160"
 }

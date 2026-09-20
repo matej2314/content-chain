@@ -3072,10 +3072,10 @@
     "semantic_hash": "c000edaef6ea0f6d3064b25bad803bd0"
   },
   "apps/api/src/auth/infrastructure/logging-mailer.adapter.ts": {
-    "mtime": 1788880918.0,
-    "seen": 1789403048.3045301,
-    "ast_hash": "a2236365d856ba5c24c49685d6ae2285",
-    "semantic_hash": "a2236365d856ba5c24c49685d6ae2285"
+    "mtime": 1789895622.116585,
+    "seen": 1789895632.0052705,
+    "ast_hash": "14484c79dc6dcc88383dcdafa865a0fc",
+    "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/nodemailer-smtp-mailer.adapter.ts": {
     "mtime": 1788880918.0,
@@ -3330,9 +3330,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/session-provider.tsx": {
-    "mtime": 1789477321.1053076,
-    "seen": 1789477472.7095933,
-    "ast_hash": "8560e694e2e2db7746e4d04b819b09c2",
+    "mtime": 1789843090.1858523,
+    "seen": 1789895632.0054364,
+    "ast_hash": "9f27afead37108f75b77737744ecc8e5",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/invite/accept/page.tsx": {
@@ -3756,9 +3756,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/users/components/users-view.tsx": {
-    "mtime": 1789841744.3753903,
-    "seen": 1789841786.257217,
-    "ast_hash": "a2056e901061557e383686aa3de11a0b",
+    "mtime": 1789895631.9712062,
+    "seen": 1789895632.005474,
+    "ast_hash": "6a83700c0c2a8fdada2ce926b9d04b5e",
     "semantic_hash": ""
   }
 }

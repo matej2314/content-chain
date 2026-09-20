@@ -133,8 +133,7 @@ export function UsersView() {
       <div className="flex flex-col gap-1">
         <h1 className="text-lg font-medium">Użytkownicy</h1>
         <p className="text-sm text-muted-foreground">
-          Zaproszenie idzie na email. Zaproszony ustawia hasło pod /invite/accept, potem loguje się
-          na stronie głównej.
+          Zaproszenie wysyłane jest na podany adres e-mail.
         </p>
       </div>
 
