@@ -7,6 +7,7 @@ export type SocialRunSnapshot = SocialRunRecord & {
   userRating: number | null;
   outputEdited: boolean;
   reviewFinalizedAt: Date | null;
+  cancelledAt: Date | null;
 };
 
 export function makeSocialRun(
@@ -29,6 +30,7 @@ export function makeSocialRun(
     outlineRefineCount: 0,
     copyRefineCount: 0,
     recoveryAttempts: 0,
+    cancelRequested: false,
     createdAt: new Date(),
     ...overrides,
   };
@@ -54,6 +56,7 @@ export function makeContentRun(
     outlineRefineCount: 0,
     copyRefineCount: 0,
     recoveryAttempts: 0,
+    cancelRequested: false,
     createdAt: new Date(),
     ...overrides,
   };
@@ -68,6 +71,7 @@ export function makeSocialSnapshot(
     userRating: null,
     outputEdited: false,
     reviewFinalizedAt: null,
+    cancelledAt: null,
     ...overrides,
   };
 }

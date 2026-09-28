@@ -40,6 +40,7 @@ export type RunRecordBase = {
   selectedIdeaIds: string[] | null;
   startedByUserId: UserId | null;
   recoveryAttempts: number;
+  cancelRequested: boolean;
   createdAt: Date;
 };
 

@@ -68,7 +68,7 @@ Odpowiada części „enum/DB → CAS” z opisu Fazy 12 majoru.
 
 ### KROK 1 — Shared `cancelled`, maszyna przejść, pola runu i SSE
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** `RunStatus` i `RUN_STATUSES` zawierają `cancelled`; legalne krawędzie do `cancelled`; `RunRecord` / snapshot / port SSE gotowe pod CAS i HTTP. Major Faza 12 + `SPEC-RUNY.md` Statusy / R-4a / R-11. Metrics auto-zbierze nowy status przez pętlę `RUN_STATUSES`.
 

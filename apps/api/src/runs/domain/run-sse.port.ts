@@ -12,7 +12,8 @@ export type RunSseEvent =
   | {
       event: 'run.failed';
       data: { runId: RunId; code?: string; message: string };
-    };
+    }
+  | { event: 'run.cancelled'; data: { runId: RunId } };
 
 export interface RunSseHub {
   subscribe(runId: RunId): Observable<RunSseEvent>;

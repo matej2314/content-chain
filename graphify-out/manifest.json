@@ -1830,10 +1830,10 @@
     "semantic_hash": "968f5ee833e750f6bc3413257b942efd"
   },
   "packages/shared/src/branded/enums.ts": {
-    "mtime": 1789052380.0,
-    "seen": 1789403048.304871,
-    "ast_hash": "cafb1a40c3c371f70c12d022219e953f",
-    "semantic_hash": "cafb1a40c3c371f70c12d022219e953f"
+    "mtime": 1790594667.5082834,
+    "seen": 1790595237.8936214,
+    "ast_hash": "2d32e84969d48525ee094189917e3e4c",
+    "semantic_hash": ""
   },
   "packages/shared/src/branded/ids.ts": {
     "mtime": 1789052074.0,
@@ -2046,27 +2046,27 @@
     "semantic_hash": "796430c7e64e3079bece634d18c9aeb5"
   },
   "apps/api/src/runs/domain/run-sse.port.ts": {
-    "mtime": 1788359196.0,
-    "seen": 1789403048.3047228,
-    "ast_hash": "5ecb61163a29474765387eebee9f0188",
-    "semantic_hash": "5ecb61163a29474765387eebee9f0188"
+    "mtime": 1790595062.2019784,
+    "seen": 1790595237.8934898,
+    "ast_hash": "01797c97d77066c8bd60b404910705c8",
+    "semantic_hash": ""
   },
   "apps/api/src/runs/domain/run.port.ts": {
-    "mtime": 1789562997.555628,
-    "seen": 1789563056.4468122,
-    "ast_hash": "22978bf734859960e49c8a4351293110",
+    "mtime": 1790595025.261225,
+    "seen": 1790595237.8934917,
+    "ast_hash": "13c018b62eb1f90ddf8f0cb8eab7a535",
     "semantic_hash": ""
   },
   "apps/api/src/runs/domain/run.types.ts": {
-    "mtime": 1788614240.0,
-    "seen": 1789403048.3047268,
-    "ast_hash": "5b0182dd0c72b5c57456e55480f98904",
-    "semantic_hash": "5b0182dd0c72b5c57456e55480f98904"
+    "mtime": 1790594988.679994,
+    "seen": 1790595237.8934927,
+    "ast_hash": "7592f1a725f273d9b5cfd2c8389436eb",
+    "semantic_hash": ""
   },
   "apps/api/src/runs/domain/status-transitions.ts": {
-    "mtime": 1789928648.9198515,
-    "seen": 1790533770.1825755,
-    "ast_hash": "ec1d60c8de5572b010ac8f7955d3ed6a",
+    "mtime": 1790594854.7598715,
+    "seen": 1790595237.8934932,
+    "ast_hash": "fdae105fa7888b91a4fa7655387bb317",
     "semantic_hash": ""
   },
   "apps/api/src/runs/infrastructure/prisma-run.adapter.ts": {
@@ -2262,21 +2262,21 @@
     "semantic_hash": ""
   },
   "spec/SPEC-FEEDBACK.md": {
-    "mtime": 1789063716.0,
-    "seen": 1789404214.634731,
-    "ast_hash": "ffada314fbd05a1edc0ddc8bbee0de56",
-    "semantic_hash": "ffada314fbd05a1edc0ddc8bbee0de56"
+    "mtime": 1790534007.4909117,
+    "seen": 1790595237.8936415,
+    "ast_hash": "48d3bc57d604189d0d720b1b51a3dc8b",
+    "semantic_hash": ""
   },
   "spec/SPEC-FRONTEND.md": {
-    "mtime": 1789906478.4905326,
-    "seen": 1789908752.0521095,
-    "ast_hash": "009530a98330db62e7211e132ead1734",
+    "mtime": 1790534049.341311,
+    "seen": 1790595237.893642,
+    "ast_hash": "3c35df84b62bef9c68ad5d32caccb4c3",
     "semantic_hash": ""
   },
   "spec/SPEC-KOMUNIKACJA.md": {
-    "mtime": 1789753305.3561926,
-    "seen": 1789755465.3027086,
-    "ast_hash": "8ad9bcd05757436570a88eb2dce69f02",
+    "mtime": 1790533996.851427,
+    "seen": 1790595237.8936427,
+    "ast_hash": "b6eeea304bdb21a0778686a143e90d72",
     "semantic_hash": ""
   },
   "spec/SPEC-KONTEKST-FIRMY.md": {
@@ -2292,21 +2292,21 @@
     "semantic_hash": "38449efd9506bb83e8295c3a8b760746"
   },
   "spec/SPEC-PERSISTENCE.md": {
-    "mtime": 1788880918.0,
-    "seen": 1789404214.634739,
-    "ast_hash": "802f44d7a015d8cc5de83c6b868b1530",
-    "semantic_hash": "802f44d7a015d8cc5de83c6b868b1530"
+    "mtime": 1790534074.2040565,
+    "seen": 1790595237.8936455,
+    "ast_hash": "7899956b000696479cfd48a9cae80756",
+    "semantic_hash": ""
   },
   "spec/SPEC-README.md": {
-    "mtime": 1788614240.0,
-    "seen": 1789404214.6347408,
-    "ast_hash": "4bf535212dcc650803342368160fcb49",
-    "semantic_hash": "4bf535212dcc650803342368160fcb49"
+    "mtime": 1790534093.206083,
+    "seen": 1790595237.8936462,
+    "ast_hash": "1189cc0fc47290f610ee768346ccac35",
+    "semantic_hash": ""
   },
   "spec/SPEC-RUNY.md": {
-    "mtime": 1789211182.0,
-    "seen": 1789404214.634742,
-    "ast_hash": "8d02553539a3aeec24543b377e1a04ba",
+    "mtime": 1790533956.5365057,
+    "seen": 1790595237.893647,
+    "ast_hash": "53e0d4f427b8f954fd402ec55bd2c761",
     "semantic_hash": ""
   },
   "spec/SPEC-SOCIAL.md": {
@@ -2316,9 +2316,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-TESTY.md": {
-    "mtime": 1789735300.766127,
-    "seen": 1789739217.5564923,
-    "ast_hash": "da16aeb352d5d691e605bfb62c68d2f4",
+    "mtime": 1790534089.203926,
+    "seen": 1790595237.8936484,
+    "ast_hash": "dc56859e4f0250fd4ee639ee90286db7",
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/resume-hitl.use-case.ts": {
@@ -2796,9 +2796,9 @@
     "semantic_hash": "9757913cff621cfbd0249a083bd5ef36"
   },
   "apps/api/src/runs/run-record.test-helpers.ts": {
-    "mtime": 1789558370.9448361,
-    "seen": 1789558462.5201254,
-    "ast_hash": "26edbe725fddeb48aca4ac07bf8d502f",
+    "mtime": 1790595227.852482,
+    "seen": 1790595237.8935032,
+    "ast_hash": "1e49ee0059fb95fbe77676013cb3bd02",
     "semantic_hash": ""
   },
   "apps/api/src/shared/llm/llm-hop.ts": {

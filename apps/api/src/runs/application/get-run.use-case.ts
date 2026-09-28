@@ -48,6 +48,7 @@ export interface GetRunOutput {
   userRating: number | null;
   outputEdited: boolean;
   reviewFinalizedAt: string | null;
+  cancelledAt: string | null;
   result: {
     ideas: SocialIdea[];
     content: SocialContent | null;
@@ -145,6 +146,7 @@ export class GetRunUseCase {
       userRating: run.userRating,
       outputEdited: run.outputEdited,
       reviewFinalizedAt: run.reviewFinalizedAt?.toISOString() ?? null,
+      cancelledAt: run.cancelledAt?.toISOString() ?? null,
       result: {
         ideas,
         content: thenContent ? null : (stored?.content ?? null),

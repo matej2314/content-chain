@@ -26,6 +26,7 @@ export type RunSnapshot = RunRecord & {
   userRating: number | null;
   outputEdited: boolean;
   reviewFinalizedAt: Date | null;
+  cancelledAt: Date | null;
 };
 
 export type LightRunItem = {

@@ -5,7 +5,7 @@
 
 export type UserRole = 'admin' | 'user';
 export type RunStatus =
-  'queued' | 'running' | 'interrupted' | 'awaiting_hitl' | 'completed' | 'failed';
+  'queued' | 'running' | 'interrupted' | 'awaiting_hitl' | 'completed' | 'failed' | 'cancelled';
 export type SocialTaskType =
   | 'post_ideas'
   | 'post_content'
@@ -50,6 +50,7 @@ export const RUN_STATUSES = [
   'awaiting_hitl',
   'completed',
   'failed',
+  'cancelled',
 ] as const satisfies readonly RunStatus[];
 
 export const SOCIAL_TASK_TYPES = [

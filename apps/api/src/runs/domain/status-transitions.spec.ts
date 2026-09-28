@@ -1,4 +1,8 @@
-import { assertTransition, canTransition } from './status-transitions';
+import {
+  assertTransition,
+  canTransition,
+  CANCELABLE_RUN_STATUSES,
+} from './status-transitions';
 import { isRunStatus, RUN_STATUSES } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 
@@ -65,6 +69,50 @@ describe('assertTransition', () => {
           details: [{ from, to }],
         });
       }
+    }
+  });
+
+  it('exports cancelled in RUN_STATUSES', () => {
+    expect(isRunStatus('cancelled')).toBe(true);
+    expect(RUN_STATUSES).toContain('cancelled');
+  });
+
+  it('allows queued|running|awaiting_hitl|interrupted => cancelled', () => {
+    for (const from of CANCELABLE_RUN_STATUSES) {
+      expect(canTransition(from, 'cancelled')).toBe(true);
+      expect(() => assertTransition(from, 'cancelled')).not.toThrow();
+    }
+  });
+
+  it('rejects completed|failed|cancelled => cancelled', () => {
+    for (const from of ['completed', 'failed', 'cancelled'] as const) {
+      expect(canTransition(from, 'cancelled')).toBe(false);
+      try {
+        assertTransition(from, 'cancelled');
+        fail('expected DomainException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(DomainException);
+        expect(error).toMatchObject({
+          code: 'CONFLICT',
+          httpStatus: 409,
+          details: [{ from, to: 'cancelled' }],
+        });
+      }
+    }
+  });
+
+  it('rejects cancelled => running', () => {
+    expect(canTransition('cancelled', 'running')).toBe(false);
+    try {
+      assertTransition('cancelled', 'running');
+      fail('expected DomainException');
+    } catch (error) {
+      expect(error).toBeInstanceOf(DomainException);
+      expect(error).toMatchObject({
+        code: 'CONFLICT',
+        httpStatus: 409,
+        details: [{ from: 'cancelled', to: 'running' }],
+      });
     }
   });
 });

@@ -113,6 +113,7 @@ export class StartRunUseCase {
         selectedIdeaIds: null,
         startedByUserId,
         recoveryAttempts: 0,
+        cancelRequested: false,
         createdAt: new Date(),
       } satisfies ContentRunRecord;
     } else {
@@ -133,6 +134,7 @@ export class StartRunUseCase {
         selectedIdeaIds: parsedCommand.selectedIdeaIds ?? null,
         startedByUserId,
         recoveryAttempts: 0,
+        cancelRequested: false,
         createdAt: new Date(),
       } satisfies SocialRunRecord;
     }
