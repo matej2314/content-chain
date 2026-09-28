@@ -19,6 +19,8 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     appendLog: unexpected,
     listLogs: unexpected,
     list: unexpected,
+    setCancelRequested: unexpected,
+    attemptCancel: unexpected,
     saveSelectedIdeaIds: unexpected,
     listByUser: unexpected,
     saveRating: unexpected,

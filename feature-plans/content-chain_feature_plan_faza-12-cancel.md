@@ -225,7 +225,7 @@ Dodaj `cancelledAt: string | null` (ISO albo `null`); mapowanie w `execute` z `r
 
 ### KROK 2 — Prisma + adapter: kolumny, mapowanie, `setCancelRequested` / `attemptCancel`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Trwałe `cancelRequested` + `cancelledAt`; CAS `attemptCancel` (R-11); claim interrupted **bez** flagi. `SPEC-RUNY.md` R-11 / R-9; Context7: `updateMany` + `count`.
 

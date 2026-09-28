@@ -65,6 +65,8 @@ model Run {
   userRating         Int?
   outputEdited       Boolean            @default(false)
   reviewFinalizedAt  DateTime?
+  cancelRequested    Boolean            @default(false)
+  cancelledAt        DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   startedBy          User?              @relation("RunStartedBy", fields: [startedByUserId], references: [id])

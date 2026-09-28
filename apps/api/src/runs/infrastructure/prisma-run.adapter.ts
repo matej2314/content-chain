@@ -28,16 +28,17 @@ import {
   type RunRepository,
   type RunSnapshot,
 } from '../domain/run.port';
+import {
+  contentBriefSchema,
+  socialBriefSchema,
+} from '../application/run.schemas';
+import { CANCELABLE_RUN_STATUSES } from '../domain/status-transitions';
 import type {
   ContentRunRecord,
   RunLogEntry,
   RunRecord,
   SocialRunRecord,
 } from '../domain/run.types';
-import {
-  contentBriefSchema,
-  socialBriefSchema,
-} from '../application/run.schemas';
 
 type RunRow = {
   id: string;
@@ -57,6 +58,8 @@ type RunRow = {
   copyRefineCount: number;
   recoveryAttempts: number;
   userRating: number | null;
+  cancelRequested: boolean;
+  cancelledAt: Date | null;
   outputEdited: boolean;
   reviewFinalizedAt: Date | null;
   createdAt: Date;
@@ -75,7 +78,11 @@ type RunLogRow = {
 
 type RunReviewFields = Pick<
   RunSnapshot,
-  'startedBy' | 'userRating' | 'outputEdited' | 'reviewFinalizedAt'
+  | 'startedBy'
+  | 'userRating'
+  | 'outputEdited'
+  | 'reviewFinalizedAt'
+  | 'cancelledAt'
 >;
 
 function toPipelinePhase(value: string | null): RunRecord['pipelinePhase'] {
@@ -166,13 +173,17 @@ export class PrismaRunAdapter implements RunRepository {
 
   async claimNextInterrupted(): Promise<RunRecord | null> {
     const next = await this.prisma.run.findFirst({
-      where: { status: 'interrupted' },
+      where: { status: 'interrupted', cancelRequested: false },
       orderBy: { createdAt: 'asc' },
     });
     if (!next) return null;
     assertTransition(next.status as RunStatus, 'running');
     const claimed = await this.prisma.run.updateMany({
-      where: { id: next.id, status: 'interrupted' },
+      where: {
+        id: next.id,
+        status: 'interrupted',
+        cancelRequested: false,
+      },
       data: { status: 'running' },
     });
     if (claimed.count !== 1) {
@@ -320,6 +331,31 @@ export class PrismaRunAdapter implements RunRepository {
     });
   }
 
+  async setCancelRequested(id: RunId): Promise<void> {
+    await this.prisma.run.updateMany({
+      where: {
+        id,
+        status: { in: [...CANCELABLE_RUN_STATUSES] },
+      },
+      data: { cancelRequested: true },
+    });
+  }
+
+  async attemptCancel(id: RunId, cancelledAt: Date): Promise<boolean> {
+    const result = await this.prisma.run.updateMany({
+      where: {
+        id,
+        status: { in: [...CANCELABLE_RUN_STATUSES] },
+      },
+      data: {
+        status: 'cancelled',
+        cancelledAt,
+        cancelRequested: false,
+      },
+    });
+    return result.count === 1;
+  }
+
   private toLog(saved: RunLogRow): RunLogEntry {
     return {
       runId: createRunId(saved.runId),
@@ -361,6 +397,7 @@ export class PrismaRunAdapter implements RunRepository {
       outlineRefineCount: row.outlineRefineCount,
       copyRefineCount: row.copyRefineCount,
       recoveryAttempts: row.recoveryAttempts,
+      cancelRequested: row.cancelRequested,
       userRating: row.userRating,
       outputEdited: row.outputEdited,
       reviewFinalizedAt: row.reviewFinalizedAt,
@@ -384,6 +421,7 @@ export class PrismaRunAdapter implements RunRepository {
         platform: row.platform,
         contentKind: null,
         brief: briefParsed.data,
+        cancelledAt: row.cancelledAt,
       };
       return snapshot;
     }
@@ -409,6 +447,7 @@ export class PrismaRunAdapter implements RunRepository {
         platform: 'web',
         contentKind: row.contentKind,
         brief: briefParsed.data,
+        cancelledAt: row.cancelledAt,
       };
       return snapshot;
     }

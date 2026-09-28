@@ -58,6 +58,8 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     appendLog: unexpected,
     listLogs: unexpected,
     list: unexpected,
+    setCancelRequested: unexpected,
+    attemptCancel: unexpected,
     saveSelectedIdeaIds: unexpected,
     listByUser: unexpected,
     saveRating: unexpected,
@@ -87,6 +89,7 @@ function asSnapshot(run: RunRecord): RunSnapshot {
     userRating: null,
     outputEdited: false,
     reviewFinalizedAt: null,
+    cancelledAt: null,
   };
 }
 
@@ -126,6 +129,7 @@ describe('GetRunUseCase', () => {
       userRating: null,
       outputEdited: false,
       reviewFinalizedAt: null,
+      cancelledAt: null,
       result: {
         ideas,
         content: null,
@@ -166,6 +170,7 @@ describe('GetRunUseCase', () => {
       userRating: null,
       outputEdited: false,
       reviewFinalizedAt: null,
+      cancelledAt: null,
       result: {
         ideas: [],
         content: null,
@@ -386,6 +391,7 @@ describe('GetRunUseCase', () => {
       userRating: null,
       outputEdited: false,
       reviewFinalizedAt: null,
+      cancelledAt: null,
       result: {
         ideas: [],
         content: null,

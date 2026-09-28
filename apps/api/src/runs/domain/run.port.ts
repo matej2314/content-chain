@@ -12,7 +12,6 @@ export const PAGE_SIZE = 10;
 
 export type ListRunsQuery = {
   page: number;
-  /** Znormalizowany zbiór statusów (1…n). Brak / pusta = bez filtra. */
   status?: RunStatus[];
   taskType?: RunRecord['taskType'];
   platform?: RunRecord['platform'];
@@ -56,6 +55,8 @@ export interface RunRepository {
   appendLog(entry: RunLogEntry): Promise<RunLogEntry>;
   listLogs(id: RunId): Promise<RunLogEntry[]>;
   list(query: ListRunsQuery): Promise<ListRunsResult>;
+  setCancelRequested(id: RunId): Promise<void>;
+  attemptCancel(id: RunId, cancelledAt: Date): Promise<boolean>;
   saveSelectedIdeaIds(id: RunId, selectedIdeaIds: string[]): Promise<void>;
   listByUser(userId: UserId): Promise<LightRunItem[]>;
   saveRating(id: RunId, rating: number | null): Promise<boolean>;
