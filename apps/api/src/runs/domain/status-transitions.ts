@@ -1,7 +1,7 @@
 import type { RunStatus } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 
-const ALLOWED: Record<RunStatus, readonly RunStatus[]> = {
+const ALLOWED_RUN_STATES: Record<RunStatus, readonly RunStatus[]> = {
   queued: ['running'],
   running: ['awaiting_hitl', 'completed', 'failed', 'interrupted'],
   interrupted: ['running', 'failed'],
@@ -11,7 +11,7 @@ const ALLOWED: Record<RunStatus, readonly RunStatus[]> = {
 };
 
 export function assertTransition(from: RunStatus, to: RunStatus): void {
-  if (!ALLOWED[from].includes(to)) {
+  if (!ALLOWED_RUN_STATES[from].includes(to)) {
     throw new DomainException(
       'CONFLICT',
       `Illegal run status transition: ${from} -> ${to}`,
@@ -22,5 +22,5 @@ export function assertTransition(from: RunStatus, to: RunStatus): void {
 }
 
 export function canTransition(from: RunStatus, to: RunStatus): boolean {
-  return ALLOWED[from].includes(to);
+  return ALLOWED_RUN_STATES[from].includes(to);
 }

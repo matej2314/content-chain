@@ -1,7 +1,7 @@
 ---
-wersja: 20
+wersja: 21
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-18
+data_modyfikacji: 2026-09-27
 ---
 
 # SPEC — Testy
@@ -58,10 +58,10 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-9 | Kolejka: przy limicie współbieżności nowy run zostaje `queued`, potem startuje (`SPEC-RUNY.md`) |
 | D-9b | Drain: przy `MAX=1` dwa `interrupted` + jeden `queued` → kolejność execute: interrupted, interrupted, queued |
 | D-10 | Recovery: leftover `running` → `interrupted`; claim pod `MAX_CONCURRENT_RUNS`; leftover już `interrupted` bez inkrementu `recoveryAttempts`; 3× przerwany execute → `failed` + log |
-| D-11 | `POST /feedback`: zapis z `authorId`+`createdAt`; cudzy `runId` → `FORBIDDEN`; własny run w toku (`queued` / `running` / `awaiting_hitl` / `interrupted`) → **409** `RUN_NOT_REVIEWABLE` (bez zapisu); `completed` \| `failed` → 201; drugi wpis = nowy wiersz (także po finalize) |
-| D-12 | Ocena `null` \| 1–5 na `completed`/`failed` tylko autora; po finalize → `REVIEW_LOCKED`; `POST .../output-edited` z `{ result }` zastępuje kanoniczny wynik i stawia `outputEdited`; GET snapshot zwraca treść po edycji |
+| D-11 | `POST /feedback`: zapis z `authorId`+`createdAt`; cudzy `runId` → `FORBIDDEN`; własny run w toku (`queued` / `running` / `awaiting_hitl` / `interrupted`) → **409** `RUN_NOT_REVIEWABLE` (bez zapisu); `completed` \| `failed` → 201; `cancelled` **bez** wyniku → 409; `cancelled` **z** wynikiem → 201; drugi wpis = nowy wiersz (także po finalize) |
+| D-12 | Ocena `null` \| 1–5 na `completed`/`failed` tylko autora; na `cancelled` → **409** `RUN_NOT_REVIEWABLE`; po finalize → `REVIEW_LOCKED`; `POST .../output-edited` z `{ result }` zastępuje kanoniczny wynik i stawia `outputEdited`; GET snapshot zwraca treść po edycji |
 | D-13 | `GET /runs/user/:userId`: własne wszystkie; cudzy id → `403` |
-| D-14 | SSE: hub nie zatrzymuje subjectu po `completed`/`failed`; `GET .../events` na skończonym runie emituje `run.status` i kończy stream |
+| D-14 | SSE: hub nie zatrzymuje subjectu po `completed`/`failed`/`cancelled`; po cancel kolejność `run.status` → `run.cancelled` → complete; `GET .../events` na skończonym runie emituje `run.status` i kończy stream |
 | D-15 | `reel_ideas` full-auto: `running` → `completed`; `result.reelIdeas[0].id` |
 | D-16 | `reel_ideas_then_scripts`: `awaiting_hitl` (`options` = reelIdeas) → resume → `result.reelScripts[]` (każdy element + `sourceIdeaId`); skalar `result.reelScript` = `null` po completed fazy 2 |
 | D-17 | `page_copy` full-auto: completed + `pageDocument`; body **bez** `ideaCount` (`ContentBrief`) |
@@ -76,14 +76,21 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-25 | Soft-delete: `DELETE /users/:id` → `isActive = false`; nieaktywny nie loguje się (ten sam komunikat 401 co złe hasło — bez enumeracji) |
 | D-26 | Reaktywacja: `PATCH /users/:id` `{ isActive: true }` na soft-deleted `user` → **200** `isActive: true`; następnie `POST /auth/login` tym kontem → **200**. `isActive: false` → **400**. `user` woła PATCH → **403**. |
 | D-27 | `PATCH /auth/me` `{ email }` (sesja): **200** `{ id, email, role }` z nowym emailem; `GET /auth/me` zgadza się. Drugi użytkownik / ten sam email zajęty → **409**. `PATCH /users/:id` z `email` nadal **400**. |
-| D-28 | `GET /runs?status=completed,failed`: tylko te statusy, `pageSize=10`, sort `createdAt` desc (mieszane); pojedynczy `status=interrupted` bez regresji; nieznana wartość w liście → **400** `VALIDATION_FAILED` |
+| D-28 | `GET /runs?status=completed,failed,cancelled`: tylko te statusy, `pageSize=10`, sort `createdAt` desc (mieszane); pojedynczy `status=interrupted` bez regresji; nieznana wartość w liście → **400** `VALIDATION_FAILED` |
 | D-29 | PUT/PATCH `/company-context` przy niekompletnej bramce (w tym kaleka oferta: brak opisu / pusta korzyść / druga niepełna pozycja) → **400** `VALIDATION_FAILED`; singleton w DB **bez zmiany** (brak upsert). D-1 (start → 409 `CONTEXT_INCOMPLETE`) **zostaje**. |
+| D-30 | Cancel happy: `startedBy` woła `POST .../cancel` na nieterminalnym → **200**, `status=cancelled`, `cancelledAt` ustawione; log append; SSE `run.status` + `run.cancelled` + complete huba |
+| D-31 | Cancel idempotencja: drugi `POST .../cancel` na już `cancelled` → **200** (bez błędu) |
+| D-32 | Cancel race: status już `completed` \| `failed` → **409** `RUN_NOT_CANCELABLE`; obcy `startedBy` → **403** |
+| D-33 | Recovery + flaga: leftover `running` lub `interrupted` z `cancelRequested` na bootcie → `cancelled` (bez `recoveryAttempts++`); flaga na już-terminalnym ignorowana |
+| D-34 | HITL po cancel: `POST .../hitl` na `cancelled` → odrzucenie (nielegalny status; bez wznowienia pipeline) |
+
+Zmiana względem wersji 20: dopisano D-30…D-34 (anulowanie); D-11 / D-12 / D-14 / D-28 rozszerzone o `cancelled` / wynik / SSE. D-1…D-29 bez kasowania treści.
 
 Zmiana względem wersji 19: dopisano D-29 (twardy zapis kontekstu — C-4). D-1…D-28 bez kasowania treści. D-20 uściślone: extras round-trip na kompletnym body bramki.
 Zmiana względem wersji 18: T-5 i kryteria akceptacji obejmują też D-28 (wcześniej D-28 było w tabeli, bez jawnego pinu w T-5 / checklistcie D-1…D-28).
 Zmiana względem wersji 17: dopisano D-28 (filtr `status` wielowartościowy pod archiwum UI). D-1…D-27 bez kasowania treści.
 
-D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila) **oraz** D-28 (filtr `status` wielowartościowy) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400). T-3 (cookie) **bez zmian**.
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel). T-3 (cookie) **bez zmian**.
 
 Zmiana względem wersji 16: dopisano D-27 (`PATCH /auth/me` email; 409 zajęty; `PATCH /users/:id` bez email). D-1…D-26 bez kasowania treści.
 
@@ -131,7 +138,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 - Live OpenAI/Anthropic (lub innego vendora) na każdy PR.
 - Wymuszania suite automatycznego FE w v1/MVP.
 - Over-mockowania (testy tylko powtarzające implementację).
-- Odkładania testów bramki, HITL, recovery ani cyklu życia SSE (D-14) „na potem” poza DoD.
+- Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34) ani cyklu życia SSE (D-14) „na potem” poza DoD.
 - `apps/api/postman/` / `src/postman/` jako pozorne BC.
 - Seed Prisma/SQL kontekstu jako substytut Setupu E2E.
 
@@ -149,7 +156,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-29 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23…D-29) pokryte testami (warstwa adekwatna do przypadku).
+- [ ] Przypadki D-1…D-34 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23…D-29, D-30…D-34) pokryte testami (warstwa adekwatna do przypadku).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

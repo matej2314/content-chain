@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-09-20
+data_modyfikacji: 2026-09-27
 ---
 
 # UX Dashboard — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-09-20
 Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / design systemu — widoki, stany i zachowanie względem API/SSE.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`.
+
+Zmiana względem: brak modala potwierdzenia przed Stop w roboczym `cancel-run-state.md` — **unieważnione**. Obowiązuje modal **„Czy na pewno?”** (Tak = API cancel; Nie = zamknięcie, zero API). Archiwum Runy bez `cancelled` → z `cancelled` (`completed` \| `failed` \| `cancelled`). Floating box: po `cancelled` krótko label **„Anulowany”**, potem ukrycie pozycji po **200 ms** (doprecyzowanie kanonu „krótko pokazuje, potem się ukrywa”).
 
 ## Założenia UX
 
@@ -42,7 +44,7 @@ Klik **„Wyloguj się”** → **modal potwierdzenia** → **Tak** → `POST /a
 
 Zmiana względem: „Wyloguj się” w chrome (sidebar **lub** header), bez wskazania miejsca ani hierarchii login → wylogowanie.
 
-**Konto (MVP):** osobny widok w sidebarze (admin i `user`) — profil, **własne** runy (live) i formularz startu runu (**inline**). Druga powierzchnia startu = CTA **„Uruchom agenta”** na widoku **Runy** (modal, ten sam brief). Nie mylić Runy z listą live — Runy pozostają archiwum `completed` \| `failed`. Szczegóły: sekcje „Widok: Konto” i „Widok: Runy”.
+**Konto (MVP):** osobny widok w sidebarze (admin i `user`) — profil, **własne** runy (live) i formularz startu runu (**inline**). Druga powierzchnia startu = CTA **„Uruchom agenta”** na widoku **Runy** (modal, ten sam brief). Nie mylić Runy z listą live — Runy pozostają archiwum `completed` \| `failed` \| `cancelled`. Szczegóły: sekcje „Widok: Konto” i „Widok: Runy”.
 
 Zmiana względem: pozycja „Konto” tylko jako wylogowanie, bez podstrony i bez zmiany email.
 
@@ -53,9 +55,9 @@ Zmiana względem: **jedyny** formularz startu wyłącznie na Koncie (kanon Fazy 
 | Widok | Kto | Cel |
 |-------|-----|-----|
 | **Kontekst firmy** | admin: edycja; user: podgląd | Uzupełnienie sekcji bramki; podgląd completeness |
-| **Runy** | admin, user | **Archiwum firmy:** tylko runy instancji w `completed` \| `failed` (paginacja 10, najnowsze pierwsze). Klik wiersza → szczegóły (snapshot; **bez** SSE). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie. Cudzy run w toku **nie** jest na tej liście. Nowy run po starcie **nie** wpadnie na listę, dopóki nie jest terminalny (live = floating box) |
-| **Run (szczegóły)** | admin, user | Podstrona po kliknięciu w **Moich runach** (Konto) albo w archiwum Runy: logi, HITL, wynik, przegląd. Live SSE tylko gdy run jest własny i w `running` / `awaiting_hitl` / `interrupted`. **Bez** CTA startu |
-| **Konto** | każdy | Własny email; **Moje runy** (wszystkie statusy, live); **start** nowego runu (**inline**, ten sam brief co modal na Runach); opinia tekstowa. Po udanym `POST /runs` **z tego widoku** — **ten** widok (nie od razu pojedyncze szczegóły) |
+| **Runy** | admin, user | **Archiwum firmy:** tylko runy instancji w `completed` \| `failed` \| `cancelled` (paginacja 10, najnowsze pierwsze). Klik wiersza → szczegóły (snapshot; **bez** SSE). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie. Cudzy run w toku **nie** jest na tej liście. Nowy run po starcie **nie** wpadnie na listę, dopóki nie jest terminalny (live = floating box) |
+| **Run (szczegóły)** | admin, user | Podstrona po kliknięciu w **Moich runach** (Konto) albo w archiwum Runy: logi, HITL, wynik, przegląd; **Stop** na własnym nieterminalnym. Live SSE tylko gdy run jest własny i w `running` / `awaiting_hitl` / `interrupted`. **Bez** CTA startu |
+| **Konto** | każdy | Własny email; **Moje runy** (wszystkie statusy, live; **Stop** na własnym nieterminalnym); **start** nowego runu (**inline**, ten sam brief co modal na Runach); opinia tekstowa. Po udanym `POST /runs` **z tego widoku** — **ten** widok (nie od razu pojedyncze szczegóły) |
 | **Użytkownicy** | tylko admin | Lista kont + **zaproszenie (email)**; lista pending (w tym wygasłe); resend/revoke. **W zakresie MVP** dashboardu. Bez edycji / dezaktywacji / soft-delete kont w UI MVP |
 
 **Wyloguj się** nie jest pozycją sidebara — wyłącznie hierarchia przycisku loginu w headerze (wyżej).
@@ -84,10 +86,11 @@ CTA **„Uruchom agenta”** (Konto — submit formularza; Runy — przycisk otw
 | Stan UI | Zachowanie |
 |---------|------------|
 | Widok **Konto** | Box **ukryty** — live jest listą „Moje runy” |
-| Inny widok po sesji (Kontekst, Runy, szczegóły, Użytkownicy, …) | **Floating box**: pozycja per taki run (status + skrót meta + link do szczegółów). Copy: `running` / `awaiting_hitl` — „Trwa run…”; `interrupted` — **inne** („Przerwany — wznowienie przy wolnym slocie”). HITL / wynik / przegląd **nie** żyją w boxie (tylko na szczegółach). Box można **zwinąć** do mniejszej wersji i rozwinąć |
+| Inny widok po sesji (Kontekst, Runy, szczegóły, Użytkownicy, …) | **Floating box**: pozycja per taki run (status + skrót meta + link do szczegółów). Copy: `running` / `awaiting_hitl` — „Trwa run…”; `interrupted` — **inne** („Przerwany — wznowienie przy wolnym slocie”). **Bez** przycisku **Stop** (Stop tylko na Moich runach / szczegółach). HITL / wynik / przegląd **nie** żyją w boxie (tylko na szczegółach). Box można **zwinąć** do mniejszej wersji i rozwinąć |
 | `queued` | **Bez** pozycji w boxie i **bez** SSE. Widać na Koncie ze snapshotu GET |
+| Po `cancelled` | Pokazać krótko status **„Anulowany”**, potem **ukryć / zamknąć pozycję po 200 ms** (nie trzymać anulowanego runu w boxie) |
 
-Live: **N×** `EventSource` na `GET .../runs/:runId/events` (istniejący kontrakt per `runId`; **bez** nowego endpointu SSE). Rejestr połączeń w layoutcie zalogowanym (jedno połączenie na `runId`). `queued` nie otwiera socketa. Po `completed` / `failed` — `close()` i zniknięcie z boxa (zakończony wpadnie do archiwum Runy przy następnym odświeżeniu). Toast terminalu **nie** zatrzymuje boxa: box i tak znika; toast zastępuje **ciszę**, nie pozycję boxa (sekcja „Feedback zdarzeń”).
+Live: **N×** `EventSource` na `GET .../runs/:runId/events` (istniejący kontrakt per `runId`; **bez** nowego endpointu SSE). Rejestr połączeń w layoutcie zalogowanym (jedno połączenie na `runId`). `queued` nie otwiera socketa. Po `completed` / `failed` / `cancelled` — `close()`; przy `completed`/`failed` zniknięcie z boxa od razu; przy `cancelled` — label „Anulowany” → ukrycie po **200 ms** (zakończony wpadnie do archiwum Runy przy następnym odświeżeniu). Toast terminalu **nie** zatrzymuje boxa: box i tak znika (po delay przy cancel); toast zastępuje **ciszę**, nie pozycję boxa (sekcja „Feedback zdarzeń”).
 
 Cudzy run w toku **nie** ma sygnału w chrome (archiwum Runy go też nie pokazuje).
 
@@ -105,7 +108,7 @@ Trzy kanały — **nie wolno** ich zlewać:
 
 **Zmiana względem:** wcześniej brak warstwy „wydarzyło się”; jedyny sygnał poza envelope to live (box / Moje runy) i zmiana wiersza po 202. Od tej wersji toast **zastępuje ciszę** po udanej mutacji oraz po terminalu runu poza szczegółami — **nie** zastępuje boxa, chipa, kropek ani envelope.
 
-Po `completed` / `failed` floating box **nadal znika**. Chip / kropki / box **zostają** w kanonie. Toast **nie** jest źródłem prawdy statusu ani powodu `failed` — po reloadzie obowiązuje GET run / GET logs. `failed` na szczegółach: status + logi z powodem **zostają** (sekcja „Widok: Run (szczegóły)” i „Stany puste i błędy”).
+Po `completed` / `failed` floating box **nadal znika**; po `cancelled` — krótko „Anulowany”, potem ukrycie po **200 ms**. Chip / kropki / box **zostają** w kanonie. Toast **nie** jest źródłem prawdy statusu ani powodu `failed` — po reloadzie obowiązuje GET run / GET logs. `failed` na szczegółach: status + logi z powodem **zostają** (sekcja „Widok: Run (szczegóły)” i „Stany puste i błędy”). `cancelled` na szczegółach: status anulowany przez operatora (nie błąd pipeline).
 
 ### Mapa MVP minimum
 
@@ -117,8 +120,9 @@ Sukces toasta: **polski**, krótki tytuł. Błąd w toaście **tylko** gdy na ty
 | `PUT /company-context` **400** (walidacja / bramka) | **nie** | envelope + `details` przy formularzu |
 | `POST /runs` **202** | tak | „Run wystartował” (zostajemy na widoku, z którego wystartowano: Konto albo Runy; modal na Runach się zamyka). Live nowego runu: na Koncie = wiersz „Moje runy”; na Runach = floating box (lista archiwum **bez** nowego wiersza) |
 | `POST /runs` **409** `CONTEXT_INCOMPLETE` / **400** | **nie** | envelope na formularzu startu (także w modalu na Runach) |
-| SSE `run.completed` / `run.failed` **i** operator **nie** jest na `/runs/:runId` **tego** runu | tak | „Run zakończony” / „Run nieudany” + akcja **Szczegóły** (link) |
-| SSE terminal **na** `/runs/:runId` tego runu | **nie** | status + logi na szczegółach |
+| `POST .../cancel` **200** | tak | **„Run anulowany”** (zostajemy na widoku źródłowym). Gdy operator **nie** jest na `/runs/:runId` **tego** runu — toast z akcją **Szczegóły**. Gdy **jest** na szczegółach tego runu — toast mutacji bez nawigacji; SSE terminal **nie** dubluje (dedup per `runId`) |
+| SSE `run.completed` / `run.failed` / `run.cancelled` **i** operator **nie** jest na `/runs/:runId` **tego** runu | tak | „Run zakończony” / „Run nieudany” / **„Run anulowany”** + akcja **Szczegóły** (link); `notifyRunTerminal` z dedupem względem toasta mutacji cancel |
+| SSE terminal **na** `/runs/:runId` tego runu | **nie** | status + logi na szczegółach (bez dublowania toasta mutacji) |
 | GET listy / snapshot / completeness (błąd strony) | **nie** | envelope w bloku |
 | Pulse `running`, `run.log`, heartbeat | **nie** | box / szczegóły |
 | Login / bootstrap / accept-invite | **nie** | envelope na karcie (brak Toastera poza sesją) |
@@ -155,12 +159,12 @@ Zmiana względem: jeden widok ciągiem z tekstem „Kompletna” / „Niekomplet
 
 ## Widok: Runy (archiwum firmy)
 
-- Źródło: `GET /api/v1/runs?status=completed,failed` — **zakończone i nieudane runy całej instancji** (jeden listing, sort `createdAt` desc). Query `status` przyjmuje jedną wartość **albo** listę rozdzieloną przecinkiem (`docs/dokumentacja_komunikacji.md`).
+- Źródło: `GET /api/v1/runs?status=completed,failed,cancelled` — **zakończone, nieudane i anulowane runy całej instancji** (jeden listing, sort `createdAt` desc). Query `status` przyjmuje jedną wartość **albo** listę rozdzieloną przecinkiem (`docs/dokumentacja_komunikacji.md`).
 - Kolumny listy: `runId`, typ tasku, platforma (lub `web` przy page_*), `contentKind` gdy page_*, język, status, `createdAt`, email inicjatora (`startedBy.email`).
 - Paginacja: **10** na stronę, najnowsze pierwsze; stały rozmiar strony.
-- Filtry MVP na archiwum: `taskType` (post_*, reel_*, page_*), platforma (w tym `web`), użytkownik inicjujący (`userId`). Filtr statusu **tylko** w zbiorze `completed` \| `failed` (albo oba naraz — domyślnie oba).
+- Filtry MVP na archiwum: `taskType` (post_*, reel_*, page_*), platforma (w tym `web`), użytkownik inicjujący (`userId`). Filtr statusu **tylko** w zbiorze `completed` \| `failed` \| `cancelled` (albo dowolny podzbiór — domyślnie cały trójkąt).
 - CTA **„Uruchom agenta”** (admin i `user`) otwiera **modal** z tym samym formularzem briefu co na Koncie (pola wg `taskType`; bez `selectedIdeaIds`). Draft w modalu jest **pusty** — **bez** prefillu z wiersza archiwum (prefill zostaje na Koncie, z „Moich runów”). Tytuł modalu: **„Uruchom agenta”**.
-- Po **202** z modalu: zostajemy na Runach, modal się zamyka, toast „Run wystartował”; live nowego runu = **floating box**. Lista archiwum **nie** dostaje nowego wiersza, dopóki run nie jest `completed` \| `failed`.
+- Po **202** z modalu: zostajemy na Runach, modal się zamyka, toast „Run wystartował”; live nowego runu = **floating box**. Lista archiwum **nie** dostaje nowego wiersza, dopóki run nie jest `completed` \| `failed` \| `cancelled`.
 - **Bez** SSE i **bez** pokazywania `queued` / `running` / `awaiting_hitl` / `interrupted` na tej liście.
 - Odświeżanie: przy **wejściu** na widok oraz co **15 minut**, gdy widok jest otwarty. To **nie** jest kanał live statusu (`SPEC-FRONTEND.md`).
 - **Nawigacja:** klik wiersza → **Run (szczegóły)** — snapshot GET; EventSource **nie** otwierać (status terminalny). Szczegóły **bez** CTA startu.
@@ -176,9 +180,9 @@ Osobna pozycja sidebara (admin i `user`). **Nie** zastępuje widoku Runy.
 | Blok | Zachowanie |
 |------|------------|
 | **Email** | Prosty formularz zmiany **własnego** adresu (sesja). Zapis → `PATCH /api/v1/auth/me`. Unikalność jak w auth (zajęty → czytelny błąd). **Bez** zmiany hasła i **bez** usuwania konta na tym widoku |
-| **Moje runy** | Źródło: `GET /api/v1/runs/user/:userId` (`:userId` z `/auth/me`) — **wszystkie** statusy zalogowanego. Live: SSE per `runId` wyłącznie dla `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu). `queued` i terminalne: snapshot GET (wejście na Konto, po `POST /runs`, po evencie SSE innego własnego runu, focus okna). Klik wiersza → **Run (szczegóły)**. Pełny wynik / HITL / przegląd na szczegółach, nie na liście |
+| **Moje runy** | Źródło: `GET /api/v1/runs/user/:userId` (`:userId` z `/auth/me`) — **wszystkie** statusy zalogowanego. Live: SSE per `runId` wyłącznie dla `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu). `queued` i terminalne: snapshot GET (wejście na Konto, po `POST /runs`, po evencie SSE innego własnego runu, focus okna). Przycisk **Stop** na wierszu **własnego** runu w statusie nieterminalnym (`queued` \| `running` \| `awaiting_hitl` \| `interrupted`) → modal **„Czy na pewno?”** → **Tak** = `POST .../cancel`; **Nie** = zamknięcie modala, **zero** API. Po sukcesie: odświeżenie wiersza (`cancelled`); `queued` bez SSE. Klik wiersza → **Run (szczegóły)**. Pełny wynik / HITL / przegląd na szczegółach, nie na liście |
 | **Start runu** | Formularz startu **inline** (ten sam brief co modal **„Uruchom agenta”** na Runach — nie drugi kontrakt). Select `taskType` obejmuje rolki i page_*; **`contentKind` gdy page_***; **platforma ukryta/disabled gdy page_***; język. Brief **zależny od `taskType`**: post_* / reel_* — temat + opcjonalnie grupa, cel, **liczba pomysłów** (bez kąta/długości); `page_*` — temat + opcjonalnie grupa, cel, **kąt**, **długość słów** (bez liczby pomysłów). CTA nie jest polem briefu. **Bez** `selectedIdeaIds`. Start disabled + wyjaśnienie, gdy agenci nieaktywni. Z wiersza **Moje runy**: **nowy** run z prefill `taskType` + brief + platforma/`contentKind` **ze snapshotu** `GET /runs/:runId` (lista user **nie** niesie `brief` / `contentKind`). Prefill **nie** dotyczy wiersza archiwum Runy. Po **202** **z tego widoku**: zostajemy na Koncie (nowy wiersz); nie wymuszamy od razu szczegółów |
-| **Opinia tekstowa** | Na Koncie dostępny zapis opinii (`POST /feedback`) — ten sam kanon co globalny CTA „Zostaw opinię” (aplikacja / agent / run; select runów tylko własne `completed` \| `failed`). Globalny CTA w layoutcie **zostaje** |
+| **Opinia tekstowa** | Na Koncie dostępny zapis opinii (`POST /feedback`) — ten sam kanon co globalny CTA „Zostaw opinię” (aplikacja / agent / run; select runów: własne `completed` \| `failed` \| (`cancelled` **z** nie-`null` polem wyniku w snapshotcie)). Globalny CTA w layoutcie **zostaje** |
 
 Wylogowanie **nie** żyje na widoku Konto — header: przycisk loginu → „Wyloguj się” + modal, od pierwszego layoutu.
 
@@ -193,17 +197,18 @@ Wejście: z listy **Moje runy** na Koncie, z archiwum **Runy**, z floating boxa,
 | Element | Zachowanie |
 |---------|------------|
 | **Nagłówek / meta** | Te same podstawowe pola co wiersz listy. **`conversationId` poza MVP UI** (zostaje w API / logach / snapshotcie — dashboard go nie pokazuje) |
-| **Status live** | Gdy run jest własny i w `running` \| `awaiting_hitl` \| `interrupted`: ten sam `EventSource` co rejestr layoutu (nie drugie połączenie na ten `runId`). Prezentacja **animowana / atrakcyjna**. `queued` / `completed` / `failed` / cudzy run: **bez** nowej subskrypcji — GET snapshot |
+| **Stop** | Ten sam przepływ co na Moich runach: przycisk **Stop** dla **własnego** runu nieterminalnego → modal **„Czy na pewno?”** → Tak = `POST .../cancel`; Nie = close, zero API. Po `cancelled` panel HITL **znika**; przegląd (gwiazdki / Edytuj / finalize) **niedostępny** |
+| **Status live** | Gdy run jest własny i w `running` \| `awaiting_hitl` \| `interrupted`: ten sam `EventSource` co rejestr layoutu (nie drugie połączenie na ten `runId`). Prezentacja **animowana / atrakcyjna**. `queued` / `completed` / `failed` / `cancelled` / cudzy run: **bez** nowej subskrypcji — GET snapshot |
 | **Logi** | Przyrostowo z SSE `run.log` + możliwość dociągnięcia historii GET logs |
-| **HITL** | Panel wyboru: pomysły postu, pomysły rolek albo outline strony — wg `taskType` i `hitl.options`. Social dwuetapowy: **multi-select** (min. 1 unikalne id ⊆ options; np. checkboxy / chipy); Content: akceptacja outline’u (**bez** zmian — nadal `[outline.id]`). Submit → `POST .../hitl` |
-| **Wynik** | Po `completed`: widok **listy postów** (`ideas` / `contents[]` z `sourceIdeaId`; na liście pomysłów `cta` gdy jest; przy każdym content pokaż `characterCount`) albo **jednego** posta (`content` — task jednoetapowy `post_content`), **listy scenariuszy** (`reelIdeas` / `reelScripts[]`) albo **jednej** rolki (`reelScript` — `reel_script`), albo **strony** (`pageOutline` / `pageDocument` — etykieta `role` przy sekcji, gdy ustawione); przy `failed` — to, co zdążyło się zapisać. Dwuetapowy Social: **nie** jeden blok copy. Po zapisie Edytuj — **ta** treść (nie output agentów sprzed edycji). |
-| **Edytuj** | Po zakończeniu pracy agenta (`completed` albo `failed`, gdy jest wynik): przycisk **Edytuj** dla autora (`startedBy`), dopóki przegląd otwarty. Użytkownik **może, ale nie musi** z niego skorzystać. Edytowalna jest **każda treść wyniku** tego runu (post / lista postów, pomysły, scenariusz / lista scenariuszy, outline, dokument strony — wg tego, co jest w snapshotcie). **Zapis** → api przyjmuje nową treść (kształt jak `result` w snapshotcie), **zastępuje** kanoniczny wynik w DB **oraz** ustawia `outputEdited: true`. Od tego momentu GET/UI pokazują treść użytkownika jako wynik runu. Pipeline / verifier **nie** startują ponownie. Bez diff / % i bez osobnej kopii „oryginału agenta” w MVP. Wielokrotny zapis do finalize. |
-| **Ocena gwiazdkowa (1–5)** | Po `completed` **albo** `failed`, tylko autor runu. Dobrowolna: brak wyboru = w DB zostaje `userRating: null`. Do zatwierdzenia można zmieniać wybór (w tym wrócić do braku oceny). Czytelne gwiazdki, nie sam numeric input |
-| **Zamknij / zapisz przegląd** | Zatwierdza aktualną ocenę (`null` albo `1–5`) i flagę edycji. Po sukcesie kontrolki oceny i Edytuj są zablokowane |
+| **HITL** | Panel wyboru: pomysły postu, pomysły rolek albo outline strony — wg `taskType` i `hitl.options`. Social dwuetapowy: **multi-select** (min. 1 unikalne id ⊆ options; np. checkboxy / chipy); Content: akceptacja outline’u (**bez** zmian — nadal `[outline.id]`). Submit → `POST .../hitl`. Po `cancelled` panel **nie** jest pokazywany |
+| **Wynik** | Po `completed`: widok **listy postów** (`ideas` / `contents[]` z `sourceIdeaId`; na liście pomysłów `cta` gdy jest; przy każdym content pokaż `characterCount`) albo **jednego** posta (`content` — task jednoetapowy `post_content`), **listy scenariuszy** (`reelIdeas` / `reelScripts[]`) albo **jednej** rolki (`reelScript` — `reel_script`), albo **strony** (`pageOutline` / `pageDocument` — etykieta `role` przy sekcji, gdy ustawione); przy `failed` **albo** `cancelled` — to, co zdążyło się zapisać (partial jak przy `failed`). Dwuetapowy Social: **nie** jeden blok copy. Po zapisie Edytuj — **ta** treść (nie output agentów sprzed edycji). |
+| **Edytuj** | Po zakończeniu pracy agenta (`completed` albo `failed`, gdy jest wynik): przycisk **Edytuj** dla autora (`startedBy`), dopóki przegląd otwarty. **Niedostępne** przy `cancelled`. Użytkownik **może, ale nie musi** z niego skorzystać. Edytowalna jest **każda treść wyniku** tego runu (post / lista postów, pomysły, scenariusz / lista scenariuszy, outline, dokument strony — wg tego, co jest w snapshotcie). **Zapis** → api przyjmuje nową treść (kształt jak `result` w snapshotcie), **zastępuje** kanoniczny wynik w DB **oraz** ustawia `outputEdited: true`. Od tego momentu GET/UI pokazują treść użytkownika jako wynik runu. Pipeline / verifier **nie** startują ponownie. Bez diff / % i bez osobnej kopii „oryginału agenta” w MVP. Wielokrotny zapis do finalize. |
+| **Ocena gwiazdkowa (1–5)** | Po `completed` **albo** `failed`, tylko autor runu. **Niedostępna** przy `cancelled`. Dobrowolna: brak wyboru = w DB zostaje `userRating: null`. Do zatwierdzenia można zmieniać wybór (w tym wrócić do braku oceny). Czytelne gwiazdki, nie sam numeric input |
+| **Zamknij / zapisz przegląd** | Zatwierdza aktualną ocenę (`null` albo `1–5`) i flagę edycji. Po sukcesie kontrolki oceny i Edytuj są zablokowane. **Niedostępne** przy `cancelled` |
 
 Zmiana względem: „ewent. `conversationId` (ops light)” w nagłówku; Edytuj ustawiało wyłącznie flagę, oryginał agentów w DB bez nadpisu. Od tej wersji zapis edycji **jest** kanonicznym wynikiem; `conversationId` nie jest w UI MVP.
 
-**SSE — start i koniec.** Gdy snapshot GET już ma status `completed` albo `failed` **albo** `queued`, UI **nie** otwiera SSE. W trakcie live (`running` / `awaiting_hitl` / `interrupted`): po evencie `run.completed` albo `run.failed` UI **zamyka** `EventSource` (`close()`). Tego zamknięcia ani `onerror` po tym `close()` **nie** wolno traktować jako restartu api. Przeglądarka woła SSE **same-origin** (BFF Next — `docs/deployment.md`); `withCredentials` przy cross-origin nie dotyczy produktu MVP.
+**SSE — start i koniec.** Gdy snapshot GET już ma status `completed` albo `failed` albo `cancelled` **albo** `queued`, UI **nie** otwiera SSE. W trakcie live (`running` / `awaiting_hitl` / `interrupted`): po evencie `run.completed` albo `run.failed` albo `run.cancelled` UI **zamyka** `EventSource` (`close()`). Tego zamknięcia ani `onerror` po tym `close()` **nie** wolno traktować jako restartu api. Przeglądarka woła SSE **same-origin** (BFF Next — `docs/deployment.md`); `withCredentials` przy cross-origin nie dotyczy produktu MVP.
 
 Reconnect SSE: odtworzyć subskrypcję wyłącznie po nieoczekiwanym zerwaniu, gdy status runu jest wciąż nieterminalny; status i logi uzupełnić snapshotem GET. Po restarcie api snapshot może pokazać `interrupted` zanim znowu `running` — nie zakładać natychmiastowego powrotu do pulsu pipeline. Przeglądarkowy `EventSource` sam wznawia połączenie po close serwera — bez `close()` po terminalu powstaje pętla na `.../events`.
 
@@ -221,7 +226,7 @@ Modal / panel z layoutu (CTA globalny). Wymaga sesji.
 |------|------------|
 | **Co oceniasz** | Wybór: **aplikacja** \| **agent** \| **run** |
 | **Agent** | Gdy target = agent: **obowiązkowy** select stałego enumu: `IdeationAgent`, `ContentWriterAgent`, `ConsistencyVerifier`, `PageWriterAgent` (labelki PL w UI) |
-| **Run** | Gdy target = run: **obowiązkowy** select runów **zalogowanego** użytkownika — źródło `GET /api/v1/runs/user/:userId` (`:userId` = id z `/auth/me`). Endpoint zwraca **wszystkie** jego runy (bez paginacji 10 z dashboardu); UI **filtruje** do `completed` \| `failed` (run w toku nie jest opcją). API i tak odrzuci inny status (**409** `RUN_NOT_REVIEWABLE`) — filtr kliencki nie jest jedyną bramką. |
+| **Run** | Gdy target = run: **obowiązkowy** select runów **zalogowanego** użytkownika — źródło `GET /api/v1/runs/user/:userId` (`:userId` = id z `/auth/me`). Endpoint zwraca **wszystkie** jego runy (bez paginacji 10 z dashboardu); UI **filtruje** do `completed` \| `failed` \| (`cancelled` **i** jest nie-`null` pole wyniku w snapshotcie — lista user może wymagać dociągnięcia snapshotu albo reguły równoważnej; kanon: **nie** pokazywać `cancelled` bez wyniku). Run w toku nie jest opcją. API i tak odrzuci niedozwolony status / brak wyniku (**409** `RUN_NOT_REVIEWABLE`) — filtr kliencki nie jest jedyną bramką. |
 | **Treść** | Pole tekstowe opinii |
 
 Zapis → `POST /api/v1/feedback`. Wiele opinii w czasie (append). Brak ekranu listy opinii i panelu admina w MVP.
@@ -248,6 +253,7 @@ Zmiana względem: widok Users i accept-invite jako „przyszły FE / gdy ekran p
 - Pusty kontekst / po pierwszym wejściu admina: onboarding → uzupełnij kontekst → „Agenci aktywni”.
 - Błędy API (MVP): pokazać **`code` i `message` tak, jak zwraca envelope** (komunikaty API są po angielsku). **Bez** stack trace. Chrome i etykiety poza envelope — po polsku. Tłumaczenie UI (np. next-intl) = **V1 — rozbudowa**, nie MVP. Przy formularzu / błędzie GET bloku: envelope **w miejscu błędu** — **nie** toast (sekcja „Feedback zdarzeń”).
 - `failed` run: status + ostatnie logi z powodem (verifier / gateway) **zostają** na szczegółach. Toast terminalu poza szczegółami („Run nieudany”) **nie** jest magazynem powodu.
+- `cancelled` run: status **anulowany przez operatora** — **nie** błąd pipeline. Partial wynik widoczny jak przy `failed`; panel HITL i przegląd (gwiazdki / Edytuj / finalize) niedostępne. Toast mutacji / terminalu: „Run anulowany”.
 - `interrupted` run: status + informacja, że wznowienie czeka na wolny slot (bez panelu HITL i bez oceny).
 
 ## Poza zakresem UX MVP

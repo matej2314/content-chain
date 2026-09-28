@@ -2,6 +2,8 @@ deprecated/
 post-mvp-plan.md
 architecture_leaks.md
 workflow.md
+cancel-run-state.md
+cancel-run-state-changes-plan.md
 
 node_modules/
 .pnpm-store/

@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31), `update-mvp-contract-plan.md` (Faza 4.3), `multi-hitl-plan.md` (HITL Social min. 1 / N→N — legalizacja kanonu Fazy 4.3).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (`WYKONANY`) — Zod 4 w `apps/api`; bez własnego milestone’u. **Faza 10** (`WYKONANY`) — kontrakt api wymagany przez `content-chain-frontend_major_plan.md` (edycja wyniku, własny email, filtr wielowartościowy `GET /runs`); **bez** zmiany MILESTONE 6 (`OSIĄGNIĘTY`) i **bez** MILESTONE 10. **Faza 11** (`WYKONANY`) — twardy zapis kontekstu firmy (PUT/PATCH wyłącznie przy kompletnej bramce); **bez** zmiany MILESTONE 3 (`OSIĄGNIĘTY`) i **bez** MILESTONE 11. Faza 3 / Krok 3.1 i MILESTONE 3 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`).
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (`WYKONANY`) — Zod 4 w `apps/api`; bez własnego milestone’u. **Faza 10** (`WYKONANY`) — kontrakt api wymagany przez `content-chain-frontend_major_plan.md` (edycja wyniku, własny email, filtr wielowartościowy `GET /runs`); **bez** zmiany MILESTONE 6 (`OSIĄGNIĘTY`) i **bez** MILESTONE 10. **Faza 11** (`WYKONANY`) — twardy zapis kontekstu firmy (PUT/PATCH wyłącznie przy kompletnej bramce); **bez** zmiany MILESTONE 3 (`OSIĄGNIĘTY`) i **bez** MILESTONE 11. Faza 3 / Krok 3.1 i MILESTONE 3 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`). **Faza 12** (`NIE_ROZPOCZĘTY`) — anulowanie runu (`cancelled`): gate normy pod feature-plan; **bez** MILESTONE 12 i **bez** kroków implementacji kodu w tym majorze.
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -1169,6 +1169,30 @@ Zmiana względem: status Fazy 11 oraz kroków 11.1–11.2 (`NIE_ROZPOCZĘTY`). P
 
 ---
 
+## Faza 12 — Anulowanie runu (`cancelled`) — norma gotowa pod feature-plan
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Bez MILESTONE 12** — gate normy i gotowości pod osobny feature-plan; nie skok implementacyjny w tym majorze.
+
+**Refaktor względem:** Faza 3 / cykl życia runu (`WYKONANY`); Faza 7 / `interrupted` + recovery (`WYKONANY`); Faza 8 / SSE complete (`WYKONANY`); Faza 6 / przegląd + feedback (`WYKONANY`). Cel: trzeci terminal `cancelled`, HTTP cancel, CAS, `cancelRequested`, abort in-process, SSE `run.cancelled` — zgodnie z docs/spec po Fazach A–C planu `cancel-run-state-changes-plan.md`.
+
+**Zależność:** docs + SPEC z `cancel-run-state-changes-plan.md` (Fazy A–C) **wykonane** zanim powstanie feature-plan implementacyjny.
+
+**Zależność FE:** `content-chain-frontend_major_plan.md` Faza 8 (gate UX) — implementacja UI po kontrakcie api w osobnych feature-planach.
+
+**Opis:** Ta faza majoru **nie** zawiera kroków implementacji kodu. Oznacza, że norma produktowa i egzekwowalna jest w `docs/` + `spec/` i wolno otworzyć feature-plan (enum/DB → CAS/abort/recovery → HTTP/SSE → testy/Postman) bez dalszej zmiany kanonu w root `cancel-run-state.md`.
+
+**Poza zakresem tej fazy majoru:** implementacja w `apps/api`; abort na gateway/provider; admin cancel; resume; rollback wyniku; kroki kodu w tym pliku.
+
+**DoD (faza-gate):**
+
+- Fazy A–C `cancel-run-state-changes-plan.md` domknięte (docs + SPEC zawierają `cancelled`).
+- Istnieje ścieżka do feature-planu BE bez luk decyzyjnych w docs/spec.
+- Ten major nie oznacza implementacji jako `WYKONANY` z tej fazy-gate.
+
+---
+
 ## Mapa odwołań (lekka)
 
 | Obszar | Docs / SPEC |
@@ -1190,4 +1214,5 @@ Zmiana względem: status Fazy 11 oraz kroków 11.1–11.2 (`NIE_ROZPOCZĘTY`). P
 | Auth | `SPEC-AUTH.md` |
 | Faza 10 — edycja wyniku, własny email, filtr `status` | `content-chain-frontend_major_plan.md` (Faza 3 archiwum, Faza 5 przegląd/email), `docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`, `SPEC-RUNY.md` R-10 / R-3a, `SPEC-AUTH.md` A-3b, `SPEC-TESTY.md` D-12 / D-27 / D-28 |
 | Faza 11 — twardy zapis kontekstu (kompletna bramka) | `SPEC-KONTEKST-FIRMY.md` C-1/C-4, `docs/dokumentacja_koncepcyjna.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-TESTY.md` D-1 / D-20 / D-29, `content-chain-frontend_major_plan.md` Faza 3.5 |
+| Faza 12 — anulowanie runu (`cancelled`, gate) | `SPEC-RUNY.md`, `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md`, `docs/ux_dashboard.md` |
 | Kolejność budowy | `docs/dokumentacja_koncepcyjna.md`, `content-chain_brief.md` |

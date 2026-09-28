@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-08-15
-data_modyfikacji: 2026-09-10
+data_modyfikacji: 2026-09-27
 ---
 
 # SPEC — Feedback (opinie tekstowe)
@@ -43,9 +43,11 @@ Fbk-2. Wiele opinii tego samego autora na ten sam target — **dozwolone** (appe
 
 Fbk-3. Gdy `targetType = run`: `runId` musi istnieć **oraz** `startedBy` runu = autor sesji. Inaczej **403** `FORBIDDEN` (nieznany run dla obcego id: **404** `RUN_NOT_FOUND` albo 403 — spójnie: obcy run **nie** ujawnia istnienia ponad `FORBIDDEN` gdy id jest poprawnym `RunId` należącym do kogoś innego; nieznany format / nieistniejący → `RUN_NOT_FOUND` / `VALIDATION_FAILED`).
 
-Fbk-3a. Gdy `targetType = run`: status runu wyłącznie `completed` **albo** `failed`. Inny status (`queued` / `running` / `awaiting_hitl` / `interrupted`) → **409** `RUN_NOT_REVIEWABLE`, **bez** zapisu. Check **po** Fbk-3 (własność wcześniej niż status — cudzy run w toku zostaje 403, nie 409). Nie dotyczy `application` / `agent`. `reviewFinalizedAt` **nie** blokuje wpisu (append; to nie `REVIEW_LOCKED` z `SPEC-RUNY.md` R-10). Port odczytu runu zwraca `startedBy` **oraz** `status` — bez importu `RunsModule` / `assertRunReviewable`.
+Fbk-3a. Gdy `targetType = run`: status runu = `completed` **albo** `failed` **albo** (`cancelled` **oraz** istnieje wynik). „Istnieje wynik” = **dowolne nie-`null` pole wyniku** w snapshotcie addytywnym spośród: `ideas` / `content` / `contents` / `reelIdeas` / `reelScript` / `reelScripts` / `pageOutline` / `pageDocument` (które dotyczą danego runu). `cancelled` **bez** żadnego nie-`null` pola wyniku → **409** `RUN_NOT_REVIEWABLE`, **bez** zapisu. Inny status (`queued` / `running` / `awaiting_hitl` / `interrupted`) → **409** `RUN_NOT_REVIEWABLE`. Check **po** Fbk-3 (własność wcześniej niż status/wynik — cudzy run w toku zostaje 403, nie 409). Nie dotyczy `application` / `agent`. `reviewFinalizedAt` **nie** blokuje wpisu (append; to nie `REVIEW_LOCKED` z `SPEC-RUNY.md` R-10). Port odczytu runu zwraca `startedBy`, `status` **oraz** sygnał obecności wyniku (pola wyniku albo równoważny wskaźnik) — bez importu `RunsModule` / `assertRunReviewable`.
 
-Zmiana względem Fbk-3 (wcześniejsza norma): sam `startedBy` wystarczał do 201 na dowolnym statusie runu. Teraz okno zapisu tekstu o runie = to samo co ocena gwiazdkowa (`docs/dokumentacja_komunikacji.md`, `docs/anty_patterny.md`); lock finalize zostaje wyłącznie przy R-10.
+Zmiana względem Fbk-3 (wcześniejsza norma): sam `startedBy` wystarczał do 201 na dowolnym statusie runu. Potem okno = `completed` \| `failed` (tożsamość z R-10).
+
+Zmiana względem wersji 4 / Fbk-3a: okno = tylko `completed` \| `failed`. Od tej wersji dodatkowo `cancelled` **z** wynikiem; `cancelled` bez wyniku → 409. Przegląd (gwiazdki / Edytuj / finalize) **nadal** bez `cancelled` — `SPEC-RUNY.md` R-10. Źródło: `docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`.
 
 Fbk-4. Gdy `targetType = agent`: `agentKey` z whitelist enumu; brak lub spoza listy → `400` `VALIDATION_FAILED`.
 
@@ -71,7 +73,7 @@ apps/api/src/feedback/
 | Element | Norma |
 |---------|--------|
 | Warstwy | jak pozostałe BC poza Social |
-| Port runów | odczyt `startedBy` **oraz** `status` (Fbk-3 / Fbk-3a); bez SQL w domain Feedback; bez importu `RunsModule` |
+| Port runów | odczyt `startedBy`, `status` **oraz** obecności wyniku (Fbk-3 / Fbk-3a); bez SQL w domain Feedback; bez importu `RunsModule` |
 | Shared | `FeedbackId`, `FeedbackTargetType`, `FeedbackAgentKey` w `@content-chain/shared` |
 
 ### Wolno
@@ -86,8 +88,8 @@ apps/api/src/feedback/
 - Wołać graf Social albo Content z tego BC.
 - Przyjmować `authorId` z body (tylko sesja).
 - Pozwalać `user`/`admin` zapisać opinię o **cudzym** runie.
-- Zapisywać opinię o runie w statusie innym niż `completed` \| `failed` (Fbk-3a).
-- Wołać `assertRunReviewable` z BC Runs (ta asercja zamyka też finalize — za szeroka na tekst).
+- Zapisywać opinię o runie poza oknem Fbk-3a (`completed` \| `failed` \| (`cancelled` z wynikiem); w tym `cancelled` bez wyniku).
+- Wołać `assertRunReviewable` z BC Runs (ta asercja zamyka też finalize — za szeroka na tekst; na `cancelled` i tak blokuje przegląd).
 - Łamać `GET /runs` `pageSize=10` zamiast `GET /runs/user/:userId`.
 - Traktować opinii tekstowej jako zamiennika `userRating` na runie.
 
@@ -103,8 +105,8 @@ apps/api/src/feedback/
 ## Kryteria akceptacji
 
 - [ ] `POST /feedback` z sesją tworzy wiersz z `authorId` + `createdAt` + targetem.
-- [ ] Target `agent` wymaga poprawnego `agentKey`; `run` wymaga własnego `runId` **oraz** statusu `completed` \| `failed` (Fbk-3a).
-- [ ] Cudzy `runId` → `FORBIDDEN`; run w toku (własny) → `RUN_NOT_REVIEWABLE`; druga opinia tego samego autora — nowy wiersz (także po finalize).
+- [ ] Target `agent` wymaga poprawnego `agentKey`; `run` wymaga własnego `runId` **oraz** okna Fbk-3a (`completed` \| `failed` \| `cancelled`+wynik).
+- [ ] Cudzy `runId` → `FORBIDDEN`; run w toku (własny) → `RUN_NOT_REVIEWABLE`; `cancelled` bez wyniku (np. po cancel z `queued`) → 409; `cancelled` po persist pomysłów / partial wyniku → 201 (przy spełnieniu Fbk-3); druga opinia tego samego autora — nowy wiersz (także po finalize).
 - [ ] Brak GET panelu jako wymogu MVP.
 - [ ] Brak LangGraph w module.
 

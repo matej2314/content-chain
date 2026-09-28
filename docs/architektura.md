@@ -1,3 +1,9 @@
+---
+wersja: 1
+data_utworzenia: 2026-09-27
+data_modyfikacji: 2026-09-27
+---
+
 # Architektura — Content Chain
 
 ## Widok systemu
@@ -5,6 +11,8 @@
 Content Chain to **modularny monolit w monorepo** z trzema osobnymi procesami runtime oraz wspólnym pakietem kontraktów.
 
 Zmiana względem wcześniejszej wersji tego dokumentu: ścieżki aplikacji ujednolicono do `apps/api`, `apps/frontend`, `apps/ai-provider-gateway` (w rootcie monorepo, **bez** opakowania `src/apps/`). Szczegółowe drzewo: `architektura_katalogi_pliki.md`.
+
+Zmiana względem: dwa terminale SSE (`completed` / `failed`). Od tej wersji trzeci terminal **`cancelled`** (Stop / `POST .../cancel`); complete huba jak R-4a; mechanizm abortu v1 in-process + port `attemptCancel` (CAS) — norma w `SPEC-RUNY.md`.
 
 | Element                    | Rola                                                                                                        |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------- |
@@ -128,13 +136,22 @@ Pipeline produktowy działa jako **asynchroniczny run**:
 
 1. Klient tworzy run (brief **w kształcie kanału** — `SocialBrief` albo `ContentBrief` wg `taskType`, typ tasku, `platform` **albo** `contentKind`, język) → otrzymuje `runId`. Nie ma jednego uniwersalnego obiektu briefu SM na `page_*` (`dokumentacja_komunikacji.md`).
 2. Worker / kontynuacja w `apps/api` wykonuje graf (Social albo Content wg `taskType`); każdy istotny krok dopisuje **czytelny wpis logu** w DB.
-3. Live postęp (status, logi przyrostowe, sygnał HITL, completed/failed) idzie do klienta przez **SSE** (`GET /api/v1/runs/:runId/events`). Po `run.completed` / `run.failed` serwer **kończy** strumień; dalszy odczyt = GET. **GET** równolegle: snapshot logów runu oraz `GET /api/v1/health` — bez pollingu statusu jako kanału live. Szczegóły cyklu życia SSE: `dokumentacja_komunikacji.md`.
-4. Przy tasku dwuetapowym run przechodzi w stan oczekiwania na **HITL** (wybór z listy pomysłów / rolek / outline’u); wznowienie osobnym wywołaniem API.
+3. Live postęp (status, logi przyrostowe, sygnał HITL, completed/failed/**cancelled**) idzie do klienta przez **SSE** (`GET /api/v1/runs/:runId/events`). Po `run.completed` / `run.failed` / **`run.cancelled`** serwer **kończy** strumień (complete huba jak R-4a); dalszy odczyt = GET. **GET** równolegle: snapshot logów runu oraz `GET /api/v1/health` — bez pollingu statusu jako kanału live. Szczegóły cyklu życia SSE: `dokumentacja_komunikacji.md`.
+4. Przy tasku dwuetapowym run przechodzi w stan oczekiwania na **HITL** (wybór z listy pomysłów / rolek / outline’u); wznowienie osobnym wywołaniem API. Anulowanie w `awaiting_hitl` ma tę samą semantykę `cancelled` (porzucenie wyboru).
 5. Task jednoetapowy kończy się bez pauzy selekcji.
 6. Wynik (addytywny snapshot: ideas / content / **contents** / reelIdeas / reelScript / **reelScripts** / pageOutline / pageDocument) i werdykt weryfikacji spójności są zapisane w DB i dostępne przez API / UI.
-7. Po `completed` albo `failed` autor runu (`startedBy`) może: zapisać edycję wyniku (`POST .../output-edited` z `{ result }` — zastępuje kanoniczny wynik **oraz** stawia `outputEdited`), ustawić ocenę `1–5` albo zostawić `null`, potem **zatwierdzić / zamknąć przegląd** — od tej chwili ocena i treść/`outputEdited` są niemutowalne. Opinia tekstowa (aplikacja / agent / run) jest osobnym zapisem (BC Feedback), niezależnym od grafu.
+7. Po `completed` albo `failed` autor runu (`startedBy`) może: zapisać edycję wyniku (`POST .../output-edited` z `{ result }` — zastępuje kanoniczny wynik **oraz** stawia `outputEdited`), ustawić ocenę `1–5` albo zostawić `null`, potem **zatwierdzić / zamknąć przegląd** — od tej chwili ocena i treść/`outputEdited` są niemutowalne. Opinia tekstowa (aplikacja / agent / run) jest osobnym zapisem (BC Feedback), niezależnym od grafu. Na `cancelled` przegląd (gwiazdki/Edytuj/finalize) jest zakazany; opinia o runie — gdy jest partial wynik.
+8. **Anulowanie (Stop) v1:** autor woła `POST .../cancel` → CAS statusu (`attemptCancel`) + `cancelledAt` + SSE + **200** od razu; execute **nie** jest awaitowane w tym requeście. Abort hopu LLM = in-process `AbortSignal` (niżej).
 
-Zmiana względem wcześniejszego zapisu w tym dokumencie: zamiast opierania obserwacji runu na samym pollingu HTTP — **SSE od MVP** (szczegóły kontraktu: `dokumentacja_komunikacji.md`). Dopisano fundament feedbacku (zapis w MVP; panel analityczny = V1 — rozbudowa). Dopisano, że strumień SSE kończy się po evencie terminalnym (wcześniej tylko „live przez SSE”, bez końca połączenia). Snapshot addytywny obejmuje `contents` / `reelScripts` (pusta tablica gdy brak kanału) — nie tylko skalary `content` / `reelScript`. **Edytuj:** pkt 7 wcześniej opisywał wyłącznie flagę; od tej wersji `POST .../output-edited` nadpisuje kanoniczny `result` (`dokumentacja_komunikacji.md`). Tablice pipeline Social: `clear`+`append` na porcie wyniku; zapis Edytuj = `OutputEditedWriter` w Runs (nie `replaceContents` / `replaceReelScripts` na `SocialResultStore`).
+### Anulowanie runu — mechanizm v1 (wysoki poziom)
+
+- **`InProcessRunWorker`:** `Map<RunId, AbortController>` — przy starcie `execute` tworzy controller i wpisuje do mapy; po zakończeniu usuwa.
+- Cancel use-case → `requestCancel(runId)` → `controller.abort()`.
+- **`RunExecutorPort.execute`** przyjmuje `AbortSignal`; klient HTTP do `apps/ai-provider-gateway` przekazuje sygnał — hop w locie przerywany po stronie `apps/api`.
+- **Port `attemptCancel` (CAS)** na repozytorium Runs: warunkowy zapis `cancelled` tylko ze statusu nieterminalnego; spójnie z kanonem — szczegóły egzekwowalne w `spec/SPEC-RUNY.md`.
+- **Ograniczenie v1:** wyłącznie in-process (jeden proces Node `apps/api`). Abort na gateway / providerze LLM **poza** v1. Durable `cancelRequested` w DB zostaje guardem recovery po crashu — niezależnie od mapy in-memory.
+
+Zmiana względem wcześniejszego zapisu w tym dokumencie: zamiast opierania obserwacji runu na samym pollingu HTTP — **SSE od MVP** (szczegóły kontraktu: `dokumentacja_komunikacji.md`). Dopisano fundament feedbacku (zapis w MVP; panel analityczny = V1 — rozbudowa). Dopisano, że strumień SSE kończy się po evencie terminalnym (wcześniej tylko „live przez SSE”, bez końca połączenia). Snapshot addytywny obejmuje `contents` / `reelScripts` (pusta tablica gdy brak kanału) — nie tylko skalary `content` / `reelScript`. **Edytuj:** pkt 7 wcześniej opisywał wyłącznie flagę; od tej wersji `POST .../output-edited` nadpisuje kanoniczny `result` (`dokumentacja_komunikacji.md`). Tablice pipeline Social: `clear`+`append` na porcie wyniku; zapis Edytuj = `OutputEditedWriter` w Runs (nie `replaceContents` / `replaceReelScripts` na `SocialResultStore`). Dopisano trzeci terminal `cancelled` i mechanizm cancel v1.
 
 ## Auth
 

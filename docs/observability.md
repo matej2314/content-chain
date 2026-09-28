@@ -1,8 +1,16 @@
+---
+wersja: 1
+data_utworzenia: 2026-09-27
+data_modyfikacji: 2026-09-27
+---
+
 # Observability — Content Chain
 
 Co obserwujemy w MVP: **metryki procesu** vs **logi runu** (przebieg domenowy). Nie mylić ze sobą.
 
 Powiązane: `dokumentacja_komunikacji.md`, `data_flow.md`, `deployment.md`, `brand_types.md`, `security.md`.
+
+Zmiana względem wcześniejszej wersji (bez frontmatteru): gauge / liczniki `RunStatus` obejmują **`cancelled`**; ewent. log informacyjny przy cancel (append-only w `run.log`) — bez nowego kanału metryk poza statusem.
 
 ## Podział sygnałów
 
@@ -33,7 +41,7 @@ Minimalny zestaw (nazwy przykładowe — implementacja może użyć prefiksu `co
 | HTTP | Licznik requestów: method, route, status |
 | HTTP | Latencja (histogram / summary) per route |
 | Process | Uptime / żywy proces (gauge) |
-| Runy | Liczniki / gauge wg `RunStatus` (queued, running, interrupted, awaiting_hitl, completed, failed) |
+| Runy | Liczniki / gauge wg `RunStatus` (queued, running, interrupted, awaiting_hitl, completed, failed, **cancelled**) |
 | Gateway (z perspektywy api) | Licznik błędów / timeoutów wywołań do gateway (nie mylić z logiem runu) |
 
 Poza MVP metryk: pełny USE/RED, tracing OTel, biznesowe „jakość copy”, **analityka ocen / opinii** (panel admina — V1 — rozbudowa).
@@ -61,6 +69,8 @@ Kanoniczny wpis w DB, emitowany też jako SSE `run.log`.
 | `requestId` | gdy dotyczy | HTTP: z odpowiedzi api; LLM: z **odpowiedzi** gateway; brak przy timeoutie bez odpowiedzi |
 
 Zakaz w `message`: sekrety (`X-Gateway-Key`, JWT, hasła, klucze vendorów), pełne prompty z danymi wrażliwymi ponad potrzebę debugu MVP.
+
+Przy anulowaniu runu: wpis **informacyjny** (append-only) w `run.log`, że run anulował użytkownik — **bez** nowego kanału metryk poza gauge/licznikami `RunStatus` (w tym `cancelled`).
 
 ### Korelacja (ops)
 

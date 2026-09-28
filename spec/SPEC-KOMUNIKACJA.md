@@ -1,7 +1,7 @@
 ---
-wersja: 24
+wersja: 25
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-18
+data_modyfikacji: 2026-09-27
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -16,6 +16,8 @@ Norma **implementacji obu powierzchni I/O** Content Chain:
 Uszczegóławia `docs/dokumentacja_komunikacji.md` oraz korelację ID z `docs/brand_types.md` / `docs/dictionary.md`. **Nie** redefiniuje listy endpointów ani payloadów — odwołuje się do docs; tu obowiązują wzorce warstw, walidacja, envelope, SSE i adapter LLM.
 
 Zmiana względem wersji 23 / cel: dopisano konsumpcję `run.completed` / `run.failed` w dashboardzie (toast). **Bez** nowych kodów HTTP, eventów SSE i endpointów.
+
+Zmiana względem wersji 24 / cel: brak `POST .../cancel` i `run.cancelled`. Od tej wersji trzeci terminal SSE + kod `RUN_NOT_CANCELABLE` — skrót egzekwowalny; pełne payloady w docs.
 
 ## Powiązanie ze stylem z docs
 
@@ -36,6 +38,7 @@ Wiążące (`docs/architektura.md`):
 | Lista runów | `GET /api/v1/runs` | JSON (paginacja stała 10) |
 | Runy użytkownika (select opinii + Konto) | `GET /api/v1/runs/user/:userId` | JSON (wszystkie, bez pageSize=10) |
 | Live run | `GET /api/v1/runs/:runId/events` | SSE (`text/event-stream`) |
+| Anulowanie runu | `POST /api/v1/runs/:runId/cancel` | JSON (body puste; snapshot) |
 | Opinia tekstowa | `POST /api/v1/feedback` | JSON (zapis MVP) |
 | Ops metrics | `GET /metrics` (poza `/api/v1`) | Prometheus text |
 | DX OpenAPI (Swagger UI) | `GET /docs` (poza `/api/v1`) | HTML / OpenAPI JSON |
@@ -70,11 +73,13 @@ K-1. Każda odpowiedź błędu HTTP z `apps/api` ma envelope:
 
 K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId` i statusem `queued` | `running` — bez synchronicznego czekania na wynik LLM. `interrupted` **nie** jest statusem odpowiedzi POST. Body: unia dyskryminowana `taskType` (`platform` XOR `contentKind` **oraz** kształt `brief` XOR: `SocialBrief` vs `ContentBrief`) — `docs/dokumentacja_komunikacji.md`. Walidacja Zod `discriminatedUnion` w application + `.strict()` na gałęzi briefu. DTO HTTP może deklarować sumę kluczy briefu (`topic`, `audience`, `goal`, `ideaCount`, `angle`, `targetLength`); prawda = Zod. `taskType` spoza enumu → **400** `VALIDATION_FAILED`. Page + `brief.ideaCount` / Social + `brief.angle` → **400** `VALIDATION_FAILED`.
 
-K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry w tym `taskType` i `platform=web`, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`. Query `status`: **jeden** `RunStatus` **albo** lista unikalnych wartości rozdzielona przecinkiem (archiwum UI: `completed,failed`). Brak parametru = wszystkie statusy. Nieznana wartość → **400** `VALIDATION_FAILED`.
+K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry w tym `taskType` i `platform=web`, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`. Query `status`: **jeden** `RunStatus` **albo** lista unikalnych wartości rozdzielona przecinkiem (archiwum UI: `completed,failed,cancelled`). Brak parametru = wszystkie statusy. Nieznana wartość → **400** `VALIDATION_FAILED`.
 
 Zmiana względem wersji 21 / K-2a: `status` wyłącznie jako pojedynczy enum.
 
-K-2c. Snapshot `GET /runs/:id` — `brief` w kształcie zapisanym (unia); `result` addytywny: `ideas`, `content`, `contents`, `reelIdeas`, `reelScript`, `reelScripts`, `pageOutline`, `pageDocument`. HITL `options` zależne od `taskType`. Dwuetapowy Social po fazie 2: kanon tablic `contents[]` / `reelScripts[]` + `sourceIdeaId`; skalar `content` / `reelScript` = `null` (`docs/dokumentacja_komunikacji.md`).
+Zmiana względem wersji 24 / K-2a: archiwum UI `completed,failed`. Od tej wersji `completed,failed,cancelled`.
+
+K-2c. Snapshot `GET /runs/:id` — `brief` w kształcie zapisanym (unia); `result` addytywny: `ideas`, `content`, `contents`, `reelIdeas`, `reelScript`, `reelScripts`, `pageOutline`, `pageDocument`; meta m.in. **`cancelledAt`** (`null` \| ISO8601). HITL `options` zależne od `taskType`. Dwuetapowy Social po fazie 2: kanon tablic `contents[]` / `reelScripts[]` + `sourceIdeaId`; skalar `content` / `reelScript` = `null` (`docs/dokumentacja_komunikacji.md`).
 
 Zmiana względem wersji 12 / K-2: unia startu dotyczyła `platform` XOR `contentKind` przy jednym obiekcie briefu SM. Od tej wersji Zod rozdziela `socialBriefSchema` / `contentBriefSchema` (`SPEC-RUNY.md` R-3d).
 
@@ -82,9 +87,11 @@ Zmiana względem wersji 10: unia startu (K-2), listing `platform=web` / nowe `ta
 
 Zmiana względem wersji 15 / K-2c: enumeracja `result` bez `contents` / `reelScripts`; skalar na then_* udawał 1:1.
 
-K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora: select opinii **oraz** „Moje runy” na Koncie (live) (`SPEC-RUNY.md` R-3c, `docs/ux_dashboard.md`). W formularzu opinii UI filtruje `completed` \| `failed`; lista Konta pokazuje wszystkie statusy. `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`): przy `targetType=run` dodatkowo status `completed` \| `failed`, inaczej **409** `RUN_NOT_REVIEWABLE` (Fbk-3a). Ocena / **zapis edycji wyniku** (`POST .../output-edited` z `{ result }`) / finalize — `SPEC-RUNY.md` R-10. Payloady w `docs/dokumentacja_komunikacji.md`.
+K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora: select opinii **oraz** „Moje runy” na Koncie (live) (`SPEC-RUNY.md` R-3c, `docs/ux_dashboard.md`). W formularzu opinii UI filtruje `completed` \| `failed` \| (`cancelled` **z** wynikiem — Fbk-3a); lista Konta pokazuje wszystkie statusy. `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`): przy `targetType=run` okno `completed` \| `failed` \| (`cancelled` **oraz** istnieje wynik); inaczej **409** `RUN_NOT_REVIEWABLE` (Fbk-3a). Ocena / **zapis edycji wyniku** (`POST .../output-edited` z `{ result }`) / finalize — wyłącznie `completed` \| `failed` (`SPEC-RUNY.md` R-10; `cancelled` → **409** `RUN_NOT_REVIEWABLE`). Payloady w `docs/dokumentacja_komunikacji.md`.
 
 K-2d. `PATCH /api/v1/auth/me` — zmiana własnego emaila (sesja); **409** `CONFLICT` gdy zajęty. Nie `PATCH /users/:id`. `SPEC-AUTH.md` A-3b.
+
+K-2e. `POST /api/v1/runs/:runId/cancel` — body puste; sesja cookie. Authz `startedBy` (inaczej **403** `FORBIDDEN`). Odpowiedzi: **200** + snapshot (`status: cancelled`, `cancelledAt`) przy pierwszym legalnym cancelu **oraz** gdy run już `cancelled` (idempotencja); **404**; **409** `RUN_NOT_CANCELABLE` gdy status już `completed` \| `failed`. **200 nie czeka** na zwinięcie execute. Semantyka CAS / abort / recovery — `SPEC-RUNY.md` R-11. Pełny kontrakt: `docs/dokumentacja_komunikacji.md`.
 
 Zmiana względem wersji 19 / K-2b: endpoint user-runs tylko pod select opinii. Od tej wersji także lista Konta; dopisano K-2d.
 
@@ -92,19 +99,25 @@ Zmiana względem wersji 18 / K-2b: `output-edited` było wyłącznie flagą. Od 
 
 Zmiana względem wersji 17 / K-2b: `POST /feedback` `targetType=run` nie miał bramki statusu (tylko Fbk-3: autor). Od tej wersji to samo okno co R-10 (`completed` \| `failed`), bez locka finalize na tekście.
 
+Zmiana względem wersji 24 / K-2b: okno opinii = tylko `completed` \| `failed` (tożsamość z R-10). Od tej wersji opinia obejmuje też `cancelled`+wynik (Fbk-3a); przegląd pozostaje bez `cancelled`. Dopisano K-2e (HTTP cancel).
+
 Zmiana względem wersji 4: dopisano fundament zapisu feedbacku (wcześniej tylko listing dashboardu).
 
 Zmiana względem wersji 2: dopisano obowiązek listingu kolekcji runów pod FE (wcześniej tylko POST + GET by id / SSE).
 
-K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed) idzie wyłącznie przez **SSE** `GET /api/v1/runs/:runId/events`. Zdarzenia i statusy jak w docs komunikacji — `run.status` może nieść `interrupted`. Dashboard **może** zareagować na `run.completed` / `run.failed` toasteem wg `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`; to **nie** jest nowy endpoint, nowy event ani polling. Źródło prawdy statusu i powodu po reloadzie: GET run / GET logs — nie pamięć toasta. Payload `run.failed` `{ code?, message }` **nie** zastępuje `run.log` (`SPEC-RUNY.md` R-2).
+K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed/**cancelled**) idzie wyłącznie przez **SSE** `GET /api/v1/runs/:runId/events`. Zdarzenia i statusy jak w docs komunikacji — `run.status` może nieść `interrupted` / `cancelled`; event terminalny cancelu: **`run.cancelled`** `{ runId }`. Dashboard **może** zareagować na `run.completed` / `run.failed` / **`run.cancelled`** toasteem wg `SPEC-FRONTEND.md` / `docs/ux_dashboard.md` (dedup względem toasta mutacji cancel); to **nie** jest polling. Cancel **nie** wprowadza pollingu jako live. Źródło prawdy statusu i powodu po reloadzie: GET run / GET logs — nie pamięć toasta. Payload `run.failed` `{ code?, message }` **nie** zastępuje `run.log` (`SPEC-RUNY.md` R-2).
 
 Zmiana względem wersji 5: zbiór statusów SSE / filtra listy rozszerzony o `interrupted`; K-2 (POST `queued` \| `running`) **bez** zmiany statusów startowych.
 
 Zmiana względem wersji 23 / K-3: K-3 milczało o konsumpcji UI poza widokiem szczegółów. Payloady eventów i kody HTTP **bez zmian**.
 
-K-3a. Koniec strumienia SSE: po wyemitowaniu `run.completed` albo `run.failed` handler **kończy** `Observable` (Nest zamyka response). Subskrypcja przy snapshotcie już `completed` \| `failed`: `run.status` z **najnowszego** odczytu z DB (drugi `getRun.execute` przed `subscribe`), potem complete — bez zostawiania subjectu na zawsze. Stream **nie** kończy się na `awaiting_hitl` ani `interrupted`. Reconnect klienta tylko po nieoczekiwanym zerwaniu przy statusie nieterminalnym — kontrakt w `docs/dokumentacja_komunikacji.md`. Toast dashboardu **nie** zmienia K-3a (serwer i tak kończy Observable; klient i tak `close()` — `SPEC-FRONTEND.md` F-5a).
+Zmiana względem wersji 24 / K-3: terminal SSE bez `run.cancelled`. Od tej wersji trzeci event terminalny + toast UI z dedupem.
+
+K-3a. Koniec strumienia SSE: po wyemitowaniu `run.completed` albo `run.failed` albo **`run.cancelled`** handler **kończy** `Observable` (Nest zamyka response). Przy cancelu kolejność: `run.status` (`status: cancelled`) → `run.cancelled` → complete. Subskrypcja przy snapshotcie już `completed` \| `failed` \| `cancelled`: `run.status` z **najnowszego** odczytu z DB (drugi `getRun.execute` przed `subscribe`), potem complete — bez zostawiania subjectu na zawsze (late-join jak inne terminale). Stream **nie** kończy się na `awaiting_hitl` ani `interrupted`. Reconnect klienta tylko po nieoczekiwanym zerwaniu przy statusie nieterminalnym — kontrakt w `docs/dokumentacja_komunikacji.md`. Toast dashboardu **nie** zmienia K-3a (serwer i tak kończy Observable; klient i tak `close()` — `SPEC-FRONTEND.md` F-5a).
 
 Zmiana względem wersji 6 / K-3: K-3 wymieniało eventy completed/failed jako treść live, bez normy zamknięcia połączenia HTTP ani late-join na skończonym runie.
+
+Zmiana względem wersji 24 / K-3a: koniec SSE tylko na `completed` \| `failed`. Od tej wersji także `cancelled`.
 
 K-3b. Heartbeat keep-alive i TTL Subject:
 
@@ -128,7 +141,9 @@ K-7. Błędy gateway mapowane na logi runu i ewentualnie `run.failed` / retry wg
 
 Zmiana względem wersji 9 / K-7: wcześniejsza norma mówiła o logach produktowych i frontendzie — bez rozróżnienia dumpa diagnostycznego stdout w `development`.
 
-K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, `HITL_REQUIRED`, `HITL_INVALID_SELECTION`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, `CONFLICT`, `MAIL_DELIVERY_FAILED`, `INTERNAL_ERROR`, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach. Gdy `VALIDATION_FAILED` pochodzi z application Zod przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, nie lokalna kopia w BC): `details[].path` = `issue.path.join('.')`. PUT/PATCH `/company-context` przy niespełnionej bramce kompletności też zwraca **400** `VALIDATION_FAILED` (`docs/dokumentacja_komunikacji.md`) — `details` mogą mieć `section` i/lub `path` pozycji; **nie** 409 `CONTEXT_INCOMPLETE` (ten kod zostaje na `POST /runs`).
+K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, `HITL_REQUIRED`, `HITL_INVALID_SELECTION`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, **`RUN_NOT_CANCELABLE`**, `CONFLICT`, `MAIL_DELIVERY_FAILED`, `INTERNAL_ERROR`, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach. Skrót: `RUN_NOT_CANCELABLE` (409) = cancel gdy już `completed` \| `failed`; `RUN_NOT_REVIEWABLE` (409) = przegląd poza `completed` \| `failed` **oraz** opinia `targetType=run` poza `completed` \| `failed` \| (`cancelled`+wynik) — szczegóły `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-10 / R-11, `SPEC-FEEDBACK.md` Fbk-3a. Gdy `VALIDATION_FAILED` pochodzi z application Zod przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, nie lokalna kopia w BC): `details[].path` = `issue.path.join('.')`. PUT/PATCH `/company-context` przy niespełnionej bramce kompletności też zwraca **400** `VALIDATION_FAILED` (`docs/dokumentacja_komunikacji.md`) — `details` mogą mieć `section` i/lub `path` pozycji; **nie** 409 `CONTEXT_INCOMPLETE` (ten kod zostaje na `POST /runs`).
+
+Zmiana względem wersji 24 / K-8: brak `RUN_NOT_CANCELABLE`; opis `RUN_NOT_REVIEWABLE` bez rozszczepienia przegląd vs opinia na `cancelled`.
 
 Zmiana względem wersji 22 / K-8: dopisano, że twardy zapis kontekstu korzysta z istniejącego `VALIDATION_FAILED` (nie nowy kod envelope).
 
@@ -151,7 +166,7 @@ K-9. Kontrakt GET result pól addytywnych (`cta?`, `characterCount`, `role?`, `c
 | Controller | DTO + **class-validator** + globalny `ValidationPipe` (whitelist); mapowanie HTTP ↔ komendy use-case; bez ORM, bez promptów, bez klienta gateway |
 | Application | use-case’y; walidacja / parsing wewnętrzny **Zod** (w tym `discriminatedUnion` startu runu); orkiestracja startu/wznowienia runu; odczyt snapshotów (meta runu z Runs + wycinek `result`/`hitl` z composite readera — bez `imports: [SocialModule]` / `ContentModule` w `RunsModule`) |
 | Błędy HTTP | jeden wspólny **exception filter** (ew. interceptor korelacji) → envelope K-1 |
-| SSE | oficjalny mechanizm Nest: dekorator `@Sse()`, handler zwraca `Observable<MessageEvent>` ([NestJS SSE](https://docs.nestjs.com/techniques/server-sent-events)); Observable **kończy się** po terminalu runu; teardown (`complete` / `finalize`) przy disconnect i po `completed`/`failed` |
+| SSE | oficjalny mechanizm Nest: dekorator `@Sse()`, handler zwraca `Observable<MessageEvent>` ([NestJS SSE](https://docs.nestjs.com/techniques/server-sent-events)); Observable **kończy się** po terminalu runu; teardown (`complete` / `finalize`) przy disconnect i po `completed`/`failed`/`cancelled` |
 | LLM | port (np. `LlmGatewayPort`) w domain/application + **osobny adapter HTTP** w `infrastructure` |
 | Typy kontraktu | brand / enumy z `@content-chain/shared` (`docs/brand_types.md`); bez magicznych stringów ID w feature kodzie |
 
@@ -175,8 +190,8 @@ Zakaz: FE generuje `RequestId` „na zapas”; zakaz nowego `ConversationId` per
 - Globalny `ValidationPipe` z `whitelist` / `forbidNonWhitelisted` / `transform`.
 - Wspólny filter mapujący wyjątki domenowe i walidację na envelope + właściwy status HTTP.
 - `@Sse()` na `GET .../events` z auth guardem jak pozostałe chronione trasy.
-- Kończyć `Observable` po `run.completed` / `run.failed` oraz na late-join, gdy snapshot jest już terminalny (K-3a).
-- Konsumpcję `run.completed` / `run.failed` w dashboardzie jako toast wg `SPEC-FRONTEND.md` — bez nowego endpointu i bez zmiany payloadu.
+- Kończyć `Observable` po `run.completed` / `run.failed` / `run.cancelled` oraz na late-join, gdy snapshot jest już terminalny (K-3a).
+- Konsumpcję `run.completed` / `run.failed` / `run.cancelled` w dashboardzie jako toast wg `SPEC-FRONTEND.md` — bez pollingu; dedup względem toasta mutacji cancel.
 - Adapter gateway używający natywnego chat; zapis `requestId` z odpowiedzi do logu kroku.
 - Dump kształtu hopu na stdout wyłącznie gdy `NODE_ENV=development`, z `[REDACTED]` zamiast `GATEWAY_KEY` (helper `llm-gateway-chat.log.ts`).
 - Opcjonalnie `POST .../chat/stream` gateway, gdy konkretny węzeł pipeline’u tego wymaga (finalizacja węzła po domknięciu streamu).
@@ -189,7 +204,9 @@ Zmiana względem wersji 8 / wiersz Application: odczyt snapshotu był milcząco 
 
 - Pollingu statusu runu jako kanału **live** (zamiast SSE).
 - Traktowania payloadu `run.failed` (`code?`, `message`) jako zamiennika kanonicznych `run.log` (`SPEC-RUNY.md` R-2).
-- Zostawiania otwartego SSE po evencie terminalnym albo na runie już `completed` \| `failed`.
+- Zostawiania otwartego SSE po evencie terminalnym albo na runie już `completed` \| `failed` \| `cancelled`.
+- Pollingu statusu jako live w związku z cancel (obowiązuje SSE + GET snapshot).
+- Synchronicznego await execute w handlerze `POST .../cancel` (K-2e / `SPEC-RUNY.md` R-11).
 - Unbounded mapy Subject per `runId` bez evikcji po terminalu (cykl życia huba — `SPEC-RUNY.md`).
 - Subjectu bez TTL automatu ewikcji — zombie Subject przy hung runie powoduje memory leak (K-3b).
 - Braku heartbeat przy live SSE — cisza TCP >60 s grozi zamknięciem połączenia przez proxy i reconnectem klienta (K-3b).
@@ -232,10 +249,11 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - [ ] Błędy HTTP mają envelope z `code`, `message`, `requestId` (format `req_<uuid>`).
 - [ ] `POST /api/v1/runs` kończy się 202 z `runId` + `conversationId` bez czekania na LLM; unia `platform` / `contentKind` egzekwowana (400 przy konflikcie).
 - [ ] `GET /api/v1/runs` listuje runy instancji zgodnie z docs (paginacja 10, filtry, `startedBy`).
-- [ ] `GET /api/v1/runs/user/:userId` i `POST /feedback` oraz rating/edit/finalize istnieją w kontrakcie docs; kody `REVIEW_LOCKED` / `RUN_NOT_REVIEWABLE` w envelope.
+- [ ] `GET /api/v1/runs/user/:userId` i `POST /feedback` oraz rating/edit/finalize istnieją w kontrakcie docs; kody `REVIEW_LOCKED` / `RUN_NOT_REVIEWABLE` / `RUN_NOT_CANCELABLE` w envelope.
+- [ ] `POST /api/v1/runs/:runId/cancel`: 200 (legalne + idempotencja), 403, 404, 409 `RUN_NOT_CANCELABLE`; body puste; bez await execute.
 - [ ] `PATCH /api/v1/auth/me` `{ email }` w kontrakcie docs (**409** gdy zajęty); nie przez `PATCH /users/:id`.
-- [ ] Klient otrzymuje live status wyłącznie przez SSE; GET run/logs = snapshot. Toast terminalu w dashboardzie (gdy mapa UX na to zezwala) **nie** dodaje endpointu ani eventu.
-- [ ] SSE na skończonym runie (`completed` \| `failed`) emituje snapshot statusu i **kończy** strumień; po `run.completed` / `run.failed` serwer zamyka połączenie. `awaiting_hitl` / `interrupted` nie kończą SSE.
+- [ ] Klient otrzymuje live status wyłącznie przez SSE; GET run/logs = snapshot. Toast terminalu w dashboardzie (gdy mapa UX na to zezwala) **nie** dodaje pollingu.
+- [ ] SSE na skończonym runie (`completed` \| `failed` \| `cancelled`) emituje snapshot statusu i **kończy** strumień; po `run.completed` / `run.failed` / `run.cancelled` serwer zamyka połączenie. `awaiting_hitl` / `interrupted` nie kończą SSE.
 - [ ] SSE wymaga sesji cookie jak API; brak tokenu w query i brak wymogu Bearer.
 - [ ] Adapter gateway woła natywny chat z `X-Gateway-Key`, bez `x-request-id` z CC; `conversationId` stały w runie; `requestId` z odpowiedzi w logu kroku. Hop mieści się w limicie native **10 000** znaków. Dump pełnej treści hopu na stdout tylko w `development`, z redakcją sekretu.
 - [ ] DTO HTTP walidowane class-validator; use-case’y używają Zod tam, gdzie parsują / walidują dane aplikacji.
@@ -248,8 +266,9 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - Pełne skopiowanie OpenAPI `ai-provider-gateway`.
 - Traktowanie `/docs` jako kontraktu produktowego FE (to DX / ops lokalne).
 - Definicja grafu Social / Content, refine `max N`, treść promptów → `SPEC-SOCIAL.md` / `SPEC-CONTENT.md`.
-- Polityka przejść statusów runu, przegląd (ocena/edycja) i kanoniczny model logów DB → `SPEC-RUNY.md`.
+- Polityka przejść statusów runu, anulowanie (CAS / abort / recovery), przegląd (ocena/edycja) i kanoniczny model logów DB → `SPEC-RUNY.md`.
 - Opinie tekstowe → `SPEC-FEEDBACK.md`.
-- Implementacja UI EventSource / animacji statusu → `SPEC-FRONTEND.md`.
+- Implementacja UI EventSource / Stop + modal / animacji statusu → `SPEC-FRONTEND.md`.
+
 - Szczegółowy zestaw metryk Prometheus i dashboardy → docs observability / `SPEC-BEZPIECZENSTWO.md` (tu tylko istnienie ścieżki `/metrics`).
 - Sztywna liczba retry gateway (pozostaje „polityka api + czytelny log”).

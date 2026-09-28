@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-05
+data_modyfikacji: 2026-09-27
 ---
 
 # SPEC — README
@@ -32,11 +32,11 @@ SPEC **uszczegóławia** docs; nie zastępuje ich i nie tworzy równoległej dok
 | `SPEC-KONTEKST-FIRMY.md` | Company context, bramka kompletności |
 | `SPEC-SOCIAL.md` | Pipeline Social (posty **i** rolki), LangGraph, HITL model B |
 | `SPEC-CONTENT.md` | Pipeline Content (page copy / outline), LangGraph, HITL model B |
-| `SPEC-RUNY.md` | Cykl życia runu, logi, SSE, kolejka, recovery, ocena / edycja outputu, composite executor, unia `SocialBrief` / `ContentBrief` na `RunRecord` |
-| `SPEC-FEEDBACK.md` | Opinie tekstowe (zapis MVP; panel odczytu = V1) |
-| `SPEC-PERSISTENCE.md` | Prisma; SQLite w MVP; PostgreSQL od V1 — rozbudowa |
-| `SPEC-FRONTEND.md` | Next.js, modules/, shadcn, SSE UI |
-| `SPEC-TESTY.md` | Jest, supertest, piramida, DoD |
+| `SPEC-RUNY.md` | Cykl życia runu (`completed` / `failed` / **`cancelled`**), logi, SSE, kolejka, recovery, anulowanie (R-11), ocena / edycja outputu, composite executor, unia `SocialBrief` / `ContentBrief` na `RunRecord` |
+| `SPEC-FEEDBACK.md` | Opinie tekstowe (zapis MVP; panel odczytu = V1; okno `cancelled`+wynik) |
+| `SPEC-PERSISTENCE.md` | Prisma; SQLite w MVP; PostgreSQL od V1 — rozbudowa; pola Run `cancelledAt` / `cancelRequested` |
+| `SPEC-FRONTEND.md` | Next.js, modules/, shadcn, SSE UI, Stop + modal, archiwum z `cancelled` |
+| `SPEC-TESTY.md` | Jest, supertest, piramida, DoD (w tym D-30…D-34 cancel) |
 | `SPEC-BEZPIECZENSTWO.md` | Env, ekspozycja, Helmet, CORS, metrics/logi bez sekretów |
 
 ## Terminologia faz (skrót)
@@ -49,6 +49,7 @@ SPEC **uszczegóławia** docs; nie zastępuje ich i nie tworzy równoległej dok
 
 Zmiana względem wersji 5: dopisano kontrakt extras / HITL SM 1 id / pola SM / role outline jako część MVP (nie V1).
 Zmiana względem wersji 6: „HITL SM 1 id” unieważnione — kanon slice’u = K z N Social (`contents[]` / `reelScripts[]`); Content nadal `[outline.id]`.
+Zmiana względem wersji 7: mapa obszarów bez `cancelled` / Stop. Od tej wersji indeks wskazuje anulowanie w RUNY / FEEDBACK / FRONTEND / PERSISTENCE / TESTY.
 
 Szczegóły: `docs/dictionary.md`, `SPEC-PERSISTENCE.md`.
 

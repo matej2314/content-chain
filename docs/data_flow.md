@@ -1,6 +1,14 @@
+---
+wersja: 1
+data_utworzenia: 2026-09-27
+data_modyfikacji: 2026-09-27
+---
+
 # Przepływy danych — Content Chain
 
 Opis orkiestracji i ruchu danych w MVP. Kontrakty HTTP/SSE: `dokumentacja_komunikacji.md`. Identyfikatory: `brand_types.md`, `dictionary.md`.
+
+Zmiana względem wcześniejszej wersji (bez frontmatteru): dopisano ścieżkę **anulowania runu** (`cancelled`), gałęzie recovery z `cancelRequested`, konflikty cancel vs completed/failed oraz notę o slocie `MAX_CONCURRENT_RUNS` / persist bez rollbacku.
 
 ## Zasady wspólne
 
@@ -234,8 +242,10 @@ Crash / restart procesu zostawia rekord w DB (status `running`); semafor `inFlig
 flowchart TB
   Crash[Crash procesu przy running] --> Leftover[DB: leftover running]
   Leftover --> Boot[onModuleInit recovery]
-  Boot -->|attempts >= 3| Fail[failed + log]
-  Boot -->|attempts poniżej capu| Int[status interrupted + recoveryAttempts plus 1]
+  Boot -->|cancelRequested| Cancelled[cancelled]
+  Boot -->|bez flagi i attempts >= 3| Fail[failed + log]
+  Boot -->|bez flagi i attempts poniżej capu| Int[status interrupted + recoveryAttempts plus 1]
+  Int -->|cancelRequested| Cancelled
   Int --> Slot{Wolny slot MAX_CONCURRENT_RUNS?}
   Slot -->|nie| Wait[zostaje interrupted]
   Slot -->|tak| Claim[interrupted to running]
@@ -248,13 +258,51 @@ flowchart TB
 
 | Reguła | Norma |
 |--------|--------|
-| Źródło `interrupted` | wyłącznie leftover `running` na bootcie; nigdy `POST /runs` ani HITL |
-| Leftover już `interrupted` | bez `recoveryAttempts++`; wraca do pompy |
+| Źródło `interrupted` | wyłącznie leftover `running` **bez** `cancelRequested` na bootcie; nigdy `POST /runs` ani HITL |
+| Leftover `running` **z** `cancelRequested` | → `cancelled` (nie `interrupted`, nie ponowne execute; bez `recoveryAttempts++`) |
+| Leftover `interrupted` **z** `cancelRequested` | → `cancelled` (crash między flagą a zapisem statusu; bez `recoveryAttempts++`) |
+| Leftover już `interrupted` bez flagi | bez `recoveryAttempts++`; wraca do pompy |
+| Flaga na już-terminalnym | ignorowana (np. przegrany wyścig cancel vs `completed`/`failed`) |
 | Drain | najpierw `interrupted`, potem FIFO `queued` |
 | Cap | ten sam `MAX_CONCURRENT_RUNS` co przy `queued → running` |
 | `awaiting_hitl` | bez zmian; nie zużywa puli recovery |
+| Anulowanie użytkownika | nie zużywa `recoveryAttempts`; nie jest retryable |
 
-Szczegóły: `dictionary.md` (hasła `interrupted`, Recovery runu), `SPEC-RUNY.md` R-6 / R-9.
+Szczegóły: `dictionary.md` (hasła `interrupted`, `cancelled`, `cancelRequested`, Recovery runu), `SPEC-RUNY.md` R-6 / R-9.
+
+---
+
+## 6a. Anulowanie runu (`cancelled`)
+
+Ścieżka HTTP → CAS → SSE → abort w tle (v1 in-process):
+
+```mermaid
+sequenceDiagram
+  participant Op as Operator startedBy
+  participant API as apps/api HTTP
+  participant Repo as attemptCancel CAS
+  participant Hub as SSE hub
+  participant W as InProcessRunWorker
+
+  Op->>API: POST /runs/:runId/cancel
+  API->>Repo: attemptCancel id cancelledAt
+  alt CAS wygrał lub już cancelled
+    Repo-->>API: true / idempotent
+    API->>Hub: run.status cancelled + run.cancelled + complete
+    API-->>Op: 200 + snapshot
+    API->>W: requestCancel abort AbortSignal
+    Note over W: execute zwija się w tle; HTTP nie awaituje
+  else status już completed / failed
+    Repo-->>API: false
+    API-->>Op: 409 RUN_NOT_CANCELABLE
+  end
+```
+
+| Reguła | Norma |
+|--------|--------|
+| Slot `MAX_CONCURRENT_RUNS` | HTTP cancel **nie** dekrementuje licznika in-flight; zwalnia go `finally` execute po aborcie. Cancel `queued` / `awaiting_hitl` / `interrupted` **nie** zajmuje slotu execute |
+| Persist | **Bez rollbacku** wyniku już zacommitowanego. Hop w locie **nie** jest dopisywany po `cancelled` |
+| Logi | Append-only + wpis informujący o anulowaniu przez użytkownika |
 
 ---
 
@@ -265,13 +313,15 @@ Szczegóły: `dictionary.md` (hasła `interrupted`, Recovery runu), `SPEC-RUNY.m
 | Kontekst niekompletny | Brak grafu; **409** `CONTEXT_INCOMPLETE`; brak `ConversationId` runu |
 | Błąd / timeout gateway | Log kroku (bez `requestId` przy braku odpowiedzi); po polityce retry lub **`failed`** + SSE `run.failed` |
 | Verifier fail po `max N=2` | **`failed`**; w logach czytelny powód (kontekst i/lub język) |
-| HITL na runie nie w `awaiting_hitl` | **409** `HITL_REQUIRED` / `CONFLICT` |
+| HITL na runie nie w `awaiting_hitl` (w tym po `cancelled`) | **409** `HITL_REQUIRED` / `CONFLICT` |
 | `taskType` spoza enumu HTTP | **400** `VALIDATION_FAILED` (composite nie wołany) |
 | Nieznany `taskType` w composite (wewnętrznie) | status `failed` + `UNKNOWN_TASK_TYPE` |
-| Crash procesu przy `running` | Boot: `interrupted` (lub `failed` przy capie); claim pod `MAX_CONCURRENT_RUNS`; SSE `run.status` |
-| Ocena / Edytuj / finalize **albo** opinia tekstowa o runie (`POST /feedback` `targetType=run`) gdy nie `completed`/`failed` | **409** `RUN_NOT_REVIEWABLE` |
+| Crash procesu przy `running` | Boot: `interrupted` (lub `failed` przy capie) **albo** `cancelled` gdy `cancelRequested`; claim pod `MAX_CONCURRENT_RUNS`; SSE `run.status` |
+| Cancel vs `completed`/`failed` (wyścig) | **409** `RUN_NOT_CANCELABLE` |
+| Ocena / Edytuj / finalize gdy nie `completed`/`failed` (w tym `cancelled`) | **409** `RUN_NOT_REVIEWABLE` |
+| Opinia `targetType=run` gdy nie `completed`/`failed` i nie (`cancelled` z wynikiem) | **409** `RUN_NOT_REVIEWABLE` |
 | Zmiana oceny lub flagi / treści wyniku po finalize | **409** `REVIEW_LOCKED` |
-| Ocena / edycja / opinia o runie obcej osoby | **403** `FORBIDDEN` |
+| Ocena / edycja / opinia / cancel o runie obcej osoby | **403** `FORBIDDEN` |
 | `GET /runs/user/:userId` z cudzym id | **403** `FORBIDDEN` |
 
 ---
@@ -286,9 +336,11 @@ status completed | failed
   → Zamknij/zapisz przegląd → reviewFinalizedAt; dalsze zmiany oceny / treści wyniku / flagi zablokowane
 ```
 
-Zmiana względem wcześniejszego zapisu §8: Edytuj tylko stawiało flagę bez nadpisu `result`. Od tej wersji zapis edycji zastępuje kanoniczny wynik (`dokumentacja_komunikacji.md`). Niezależność opinii tekstowej od finalize zostaje; bramka statusu wyłącznie dla opinii o konkretnym runie.
+`cancelled` **nie** otwiera przeglądu (gwiazdki / Edytuj / finalize → **409** `RUN_NOT_REVIEWABLE`). Partial wynik na snapshotcie jest widoczny jak przy `failed`.
 
-Opinia tekstowa (`POST /feedback`) jest niezależna od finalize runu (append; target aplikacja / agent / run — `REVIEW_LOCKED` **nie** dotyczy tekstu). Gdy `targetType = run`, zapis tylko po `completed` \| `failed` (to samo okno co gwiazdki; w toku → **409** `RUN_NOT_REVIEWABLE`). Target `application` / `agent` bez warunku statusu. Katalog agentów = stały enum, nie węzły `LoadContext` / `Persist*` / `Refine*`.
+Zmiana względem wcześniejszego zapisu §8: Edytuj tylko stawiało flagę bez nadpisu `result`. Od tej wersji zapis edycji zastępuje kanoniczny wynik (`dokumentacja_komunikacji.md`). Niezależność opinii tekstowej od finalize zostaje; bramka statusu dla opinii o runie obejmuje także `cancelled` **z wynikiem**.
+
+Opinia tekstowa (`POST /feedback`) jest niezależna od finalize runu (append; target aplikacja / agent / run — `REVIEW_LOCKED` **nie** dotyczy tekstu). Gdy `targetType = run`, zapis po `completed` \| `failed` \| (`cancelled` **z** dowolnym nie-`null` polem wyniku); `cancelled` bez wyniku → **409** `RUN_NOT_REVIEWABLE`. Target `application` / `agent` bez warunku statusu. Katalog agentów = stały enum, nie węzły `LoadContext` / `Persist*` / `Refine*`.
 
 Nie mylić z HITL (wybór pomysłów w trakcie pipeline).
 

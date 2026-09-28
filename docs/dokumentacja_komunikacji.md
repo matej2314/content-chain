@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-18
+data_modyfikacji: 2026-09-27
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -12,6 +12,8 @@ Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
 2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
 
 **Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+
+Zmiana względem wcześniejszej wersji tego dokumentu: trzeci terminal **`cancelled`**; krawędzie z `queued` \| `running` \| `awaiting_hitl` \| `interrupted`; endpoint `POST .../cancel`; SSE `run.cancelled`; archiwum UI `completed,failed,cancelled`; rozszczep przegląd vs opinia na `cancelled`. `POST /runs` nadal nigdy nie tworzy `cancelled`.
 
 Zmiana względem wcześniejszej wersji tego dokumentu (korelacja): **`ConversationId` jest jeden na run agentowy** (główna oś kroków LLM). **`RequestId`** zawsze z **odpowiedzi** (`apps/api` dla HTTP, gateway dla LLM) — klienci nie generują go z góry. Formaty jak w gateway — patrz `brand_types.md` / `dictionary.md`.
 
@@ -70,7 +72,8 @@ Wybrane kody domenowe:
 | `HITL_INVALID_SELECTION` | 400 | Selekcja HITL niezgodna z kanonem: Content — `selectedIdeaIds` ≠ `[outline.id]`; Social dwuetapowy — długość `< 1`, duplikaty, albo id spoza draftu / `hitl.options` (**2+ legalne**, gdy wszystkie ∈ options) |
 | `RUN_NOT_FOUND` | 404 | Nieznany `runId` |
 | `REVIEW_LOCKED` | 409 | Przegląd runu zatwierdzony — zmiana oceny / flagi edycji zabroniona |
-| `RUN_NOT_REVIEWABLE` | 409 | Ocena / edycja / finalize **albo** `POST /feedback` z `targetType=run`, gdy status inny niż `completed` \| `failed` |
+| `RUN_NOT_REVIEWABLE` | 409 | **Przegląd** (ocena / Edytuj / finalize): status inny niż `completed` \| `failed` (w tym `cancelled`). **Opinia** `POST /feedback` `targetType=run`: poza oknem `completed` \| `failed` \| (`cancelled` **z** wynikiem — dowolne nie-`null` pole wyniku w snapshotcie); `cancelled` bez wyniku → ten kod |
+| `RUN_NOT_CANCELABLE` | 409 | Cancel gdy status już `completed` \| `failed` (wyścig z executorem) |
 | `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; `User.email` zajęty przy accept-invite **lub** `PATCH /auth/me` |
 | `MAIL_DELIVERY_FAILED` | 503 | Pad SMTP po zapisie zaproszenia (create / resend); w `details` wyłącznie `id` zaproszenia |
 | `INTERNAL_ERROR` | 500 | Błąd nieobsłużony |
@@ -81,7 +84,7 @@ Wybrane kody domenowe:
 
 | Kanał | Zastosowanie |
 |-------|--------------|
-| **SSE** `GET /api/v1/runs/:runId/events` | Live: status, logi przyrostowe, HITL, completed/failed; po terminalu serwer **kończy** strumień |
+| **SSE** `GET /api/v1/runs/:runId/events` | Live: status, logi przyrostowe, HITL, completed/failed/**cancelled**; po terminalu serwer **kończy** strumień |
 | **GET** logów | Snapshot / historia logów runu (nie zastępuje SSE dla statusu) |
 | **GET** `/api/v1/health` | Liveness „zdrowotny” `apps/api` |
 | **GET** `/metrics` | Metryki Prometheus procesu `apps/api` (ops — nie mylić z logami runu) |
@@ -294,14 +297,14 @@ Lista runów pod dashboard (widok tabeli → klik → szczegóły).
 | Query | Typ | Wymagane | Opis |
 |-------|-----|----------|------|
 | `page` | number | nie (default **1**) | Numer strony (1-based) |
-| `status` | jeden `RunStatus` **albo** lista unikalnych wartości rozdzielona przecinkiem | nie | Filtr statusu. Przykład archiwum dashboardu: `completed,failed`. Pusty / brak parametru = wszystkie statusy. Nieznana wartość → **400** `VALIDATION_FAILED`. Powtórki w liście = zbiór (bez błędu) |
+| `status` | jeden `RunStatus` **albo** lista unikalnych wartości rozdzielona przecinkiem | nie | Filtr statusu. Przykład archiwum dashboardu: `completed,failed,cancelled`. Pusty / brak parametru = wszystkie statusy. Nieznana wartość → **400** `VALIDATION_FAILED`. Powtórki w liście = zbiór (bez błędu) |
 | `taskType` | enum tasku | nie | Filtr typu tasku |
 | `platform` | `SocialPlatform` **lub** `web` | nie | Filtr kolumny platformy (w tym sentinel `web` dla page_*) |
 | `userId` | string (id użytkownika) | nie | Filtr: kto uruchomił run |
 
 **Paginacja MVP:** stały rozmiar strony **10** (klient **nie** nadpisuje `limit`). Sortowanie: **`createdAt` malejąco** (najnowsze pierwsze).
 
-Dashboard **Runy** (archiwum): FE woła `status=completed,failed` (`docs/ux_dashboard.md`). Listing **bez** filtra statusu nadal zwraca całą instancję (Postman / ops) — to nie jest kanon widoku Runy w UI.
+Dashboard **Runy** (archiwum): FE woła `status=completed,failed,cancelled` (`docs/ux_dashboard.md`). Listing **bez** filtra statusu nadal zwraca całą instancję (Postman / ops) — to nie jest kanon widoku Runy w UI.
 
 Zmiana względem: `status` wyłącznie jako pojedynczy enum.
 
@@ -393,11 +396,25 @@ Page + `platform: linkedin` → **400** `VALIDATION_FAILED`. Page + `selectedIde
 
 **202** — `{ "runId", "conversationId", "status": "queued" \| "running" }`.
 
-`interrupted` **nie** jest statusem startowym — `POST /runs` go nie zwraca.
+`interrupted` **nie** jest statusem startowym — `POST /runs` go nie zwraca. `cancelled` **nigdy** nie powstaje z `POST /runs`.
 
 - `runId` — `RunId` (`run_<uuid>`)
 - `conversationId` — `ConversationId` (`conv_<uuid>`), **stały przez cały run agentowy**
 - `requestId` tego HTTP — w **odpowiedzi** `apps/api` (klient nie generuje); nie jest ID hopów LLM (`brand_types.md`)
+
+#### `POST /api/v1/runs/:runId/cancel`
+
+Anulowanie runu przez **autora** (`startedBy`). Body **puste**. Sesja cookie jak pozostałe chronione trasy Runs.
+
+| Sytuacja | HTTP | Odpowiedź / `code` |
+|----------|------|---------------------|
+| pierwsze legalne anulowanie (status nieterminalny) | **200** | snapshot (`status: cancelled`, `cancelledAt`) |
+| run już `cancelled` | **200** | snapshot (idempotentne) |
+| sesja ≠ `startedBy` | **403** | `FORBIDDEN` |
+| brak runu | **404** | `RUN_NOT_FOUND` |
+| status już `completed` \| `failed` | **409** | `RUN_NOT_CANCELABLE` |
+
+**200 nie czeka** na zwinięcie execute / hopu LLM. Prawda dla klienta: snapshot i SSE; abort in-process leci w tle (`docs/architektura.md`, `docs/data_flow.md`).
 
 #### `GET /api/v1/runs/:runId`
 
@@ -416,6 +433,7 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
   "brief": { "topic": "Q3 launch" },
   "status": "completed",
   "createdAt": "2026-08-12T10:00:00.000Z",
+  "cancelledAt": null,
   "startedBy": { "id": "usr_…", "email": "user@example.com" },
   "userRating": null,
   "outputEdited": false,
@@ -438,10 +456,11 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
 - `contentKind` — `null` dla Social; ustawione dla `page_*`.
 - `platform` — enum SM albo `'web'` (page_*).
 - `brief` — zwracany w **kształcie zapisanym** (unia): `SocialBrief` albo `ContentBrief` wg `taskType`. Snapshot nie spłaszcza obu kształtów do jednego obiektu SM.
+- `cancelledAt` — `null` \| ISO8601; ustawiane przy pierwszym udanym przejściu do `cancelled`.
 - `userRating` — **zawsze** w JSON: `null` (brak gwiazdek) albo `1`…`5`. Pozytywna wartość tylko gdy autor faktycznie ocenił.
 - `outputEdited` — `true` po zapisie Edytuj (treść wyniku została zastąpiona przez autora; bez diff / historii wersji w MVP).
 - `reviewFinalizedAt` — `null` dopóki autor nie zatwierdzi przeglądu; po finalize ISO8601 i pola oceny/edycji niemutowalne.
-- `hitl` — metadane pauzy gdy `awaiting_hitl`; `options` zależne od `taskType` (post ideas / `reelIdeas` / outline); inaczej `null` (w tym przy `interrupted`).
+- `hitl` — metadane pauzy gdy `awaiting_hitl`; `options` zależne od `taskType` (post ideas / `reelIdeas` / outline); inaczej `null` (w tym przy `interrupted` i `cancelled`).
 
 **Pola wyniku (addytywne względem Milestone 4):**
 
@@ -504,10 +523,10 @@ Trasa statyczna `user/:userId` **przed** parametrem `:runId` w routerze Nest.
 
 Ustawienie oceny przez **autora** runu (`startedBy`). Body: `{ "rating": 1 | 2 | 3 | 4 | 5 | null }`. `null` = brak oceny (dopóki przegląd otwarty).
 
-Dozwolone wielokrotnie **do** finalize. Status runu: tylko `completed` \| `failed`.
+Dozwolone wielokrotnie **do** finalize. Status runu: tylko `completed` \| `failed` (**nie** `cancelled` → **409** `RUN_NOT_REVIEWABLE`).
 
 **200** — `{ "runId", "userRating", "reviewFinalizedAt" }`.  
-**403** gdy sesja ≠ autor. **409** `REVIEW_LOCKED` po finalize. **409** `RUN_NOT_REVIEWABLE` przy innym statusie.
+**403** gdy sesja ≠ autor. **409** `REVIEW_LOCKED` po finalize. **409** `RUN_NOT_REVIEWABLE` przy innym statusie (w tym `cancelled`).
 
 #### `POST /api/v1/runs/:runId/output-edited`
 
@@ -527,13 +546,13 @@ Te same warunki authz / status / lock co ocena.
 
 **200** — `{ "runId", "outputEdited": true }` (odczyt treści = GET snapshot).  
 **400** `VALIDATION_FAILED` — zły kształt, klucze obcego kanału, puste `result`, zmiana `sourceIdeaId` / liczby pozycji.  
-**403** gdy sesja ≠ autor. **409** `REVIEW_LOCKED` po finalize. **409** `RUN_NOT_REVIEWABLE` przy innym statusie niż `completed` \| `failed`.
+**403** gdy sesja ≠ autor. **409** `REVIEW_LOCKED` po finalize. **409** `RUN_NOT_REVIEWABLE` przy innym statusie niż `completed` \| `failed` (w tym `cancelled`).
 
 Zmiana względem: endpoint tylko stawiał flagę i **nie** nadpisywał payloadu wyniku w DB. Od tej wersji zapis edycji **jest** kanonicznym wynikiem (`docs/ux_dashboard.md`).
 
 #### `POST /api/v1/runs/:runId/finalize-review`
 
-Zatwierdzenie przeglądu: zapisuje aktualne `userRating` (`null` albo `1–5`) i `outputEdited`, ustawia `reviewFinalizedAt`. Dalszy `PATCH` oceny i `POST` edycji → **409** `REVIEW_LOCKED`.
+Zatwierdzenie przeglądu: zapisuje aktualne `userRating` (`null` albo `1–5`) i `outputEdited`, ustawia `reviewFinalizedAt`. Dalszy `PATCH` oceny i `POST` edycji → **409** `REVIEW_LOCKED`. Status runu: tylko `completed` \| `failed` (`cancelled` → **409** `RUN_NOT_REVIEWABLE`).
 
 **200** — `{ "runId", "userRating", "outputEdited", "reviewFinalizedAt" }`.  
 Idempotencja: ponowne finalize gdy już zamknięty → **409** `REVIEW_LOCKED`.
@@ -558,33 +577,38 @@ Zdarzenia (`event:` / `data:` JSON):
 | `run.hitl` | Oczekiwanie na wybór | `{ runId, options: [...] }` |
 | `run.completed` | Sukces | `{ runId, resultSummary? }` |
 | `run.failed` | Porażka | `{ runId, code?, message }` |
+| `run.cancelled` | Anulowanie przez operatora | `{ runId }` |
 | `heartbeat` | Co ~25 s (keep-alive) | `""` — klient **ignoruje** |
 
-**Konsumpcja terminalu w dashboardzie.** Klient dashboardu **wolno** użyć `run.completed` / `run.failed` do toasta (norma `docs/ux_dashboard.md`). Źródło prawdy statusu i powodu po reloadzie: GET run / GET logs — **nie** pamięć toasta. Payload `run.failed` `{ code?, message }` **nie** staje się kolumną Run ani jedynym miejscem powodu (kanon logów — poza tym plikiem). Kody HTTP PUT/POST **bez zmian** (200 / 202 / 400 / 409).
+**Konsumpcja terminalu w dashboardzie.** Klient dashboardu **wolno** użyć `run.completed` / `run.failed` / **`run.cancelled`** do toasta (norma `docs/ux_dashboard.md`; dedup względem toasta mutacji cancel). Źródło prawdy statusu i powodu po reloadzie: GET run / GET logs — **nie** pamięć toasta. Payload `run.failed` `{ code?, message }` **nie** staje się kolumną Run ani jedynym miejscem powodu (kanon logów — poza tym plikiem). Kody HTTP PUT/POST **bez zmian** (200 / 202 / 400 / 409) poza nowym `POST .../cancel`.
 
-**Koniec strumienia.** Po wyemitowaniu `run.completed` albo `run.failed` serwer **kończy** SSE (Observable complete → zamknięcie odpowiedzi HTTP). Subskrypcja, gdy snapshot runu jest już `completed` \| `failed`: serwer emituje `run.status` z **najświeższego** odczytu z DB i kończy stream — bez wiszącego połączenia.
+**Koniec strumienia.** Po wyemitowaniu `run.completed` albo `run.failed` albo **`run.cancelled`** serwer **kończy** SSE (Observable complete → zamknięcie odpowiedzi HTTP). Kolejność przy cancelu: `run.status` (`status: cancelled`) → `run.cancelled` → complete huba. Subskrypcja, gdy snapshot runu jest już `completed` \| `failed` \| `cancelled`: serwer emituje `run.status` z **najświeższego** odczytu z DB i kończy stream — bez wiszącego połączenia (late-join jak inne terminale).
 
-Strumień **nie** kończy się na `awaiting_hitl` ani `interrupted` (run nadal żywy; po HITL / claimie idą dalsze eventy).
+Strumień **nie** kończy się na `awaiting_hitl` ani `interrupted` (run nadal żywy; po HITL / claimie / cancelu idą dalsze eventy — dopiero terminal kończy).
 
 **Keep-alive.** Co ~25 s serwer wysyła event `heartbeat` z pustym `data`. Klient (FE, Postman) **ignoruje** tę wartość i nie traktuje jej jako zmiany statusu. Keep-alive zapobiega zamknięciu połączenia przez reverse proxy (np. Nginx timeout 60 s) i niepotrzebnemu reconnectowi klienta.
 
-**Reconnect.** Klient odtwarza subskrypcję wyłącznie po **nieoczekiwanym** zerwaniu przy statusie nieterminalnym (restart procesu api, drop sieci). Zamknięcie po `run.completed` / `run.failed` **nie** jest sygnałem do reconnectu. Eventy `heartbeat` **nie** są sygnałem do reconnectu. Po restarcie api status może być `interrupted`, zanim znowu `running` — uzupełnić snapshotem GET.
+**Reconnect.** Klient odtwarza subskrypcję wyłącznie po **nieoczekiwanym** zerwaniu przy statusie nieterminalnym (restart procesu api, drop sieci). Zamknięcie po `run.completed` / `run.failed` / `run.cancelled` **nie** jest sygnałem do reconnectu. Eventy `heartbeat` **nie** są sygnałem do reconnectu. Po restarcie api status może być `interrupted`, zanim znowu `running` — uzupełnić snapshotem GET.
 
-Zmiana względem wcześniejszego zapisu tej sekcji: wymieniono eventy terminalne i reconnect po restarcie api, ale nie określono, czy połączenie HTTP zostaje otwarte; reconnect nie rozróżniał terminalu od awarii. Dopisano `heartbeat` (keep-alive) oraz doprecyzowano, że pierwszy `run.status` przy live-join pochodzi z najświeższego odczytu DB.
+Zmiana względem wcześniejszego zapisu tej sekcji: wymieniono eventy terminalne i reconnect po restarcie api, ale nie określono, czy połączenie HTTP zostaje otwarte; reconnect nie rozróżniał terminalu od awarii. Dopisano `heartbeat` (keep-alive) oraz doprecyzowano, że pierwszy `run.status` przy live-join pochodzi z najświeższego odczytu DB. Dopisano trzeci terminal `run.cancelled`.
 
 Statusy runu (normatywnie):
 
 ```text
 queued → running → (awaiting_hitl → running) → completed
-              │                         ↘ failed
-              ├──→ failed
-              └──→ interrupted → running    (claim, gdy wolny slot)
-                              └→ failed     (cap recovery)
+  │         │                         ↘ failed
+  │         ├──→ failed
+  │         └──→ interrupted → running    (claim, gdy wolny slot)
+  │                         └→ failed     (cap recovery)
+  │
+  └──→ cancelled     (także z running / awaiting_hitl / interrupted)
 ```
 
-Trzy legalne krawędzie **do** `running`: `queued`, `interrupted`, `awaiting_hitl`. `POST /runs` nigdy nie tworzy `interrupted`. Reconnect SSE po restarcie api — jak w akapicie **Reconnect** powyżej (status może być `interrupted` zanim znowu `running`).
+Legalne wejścia do `cancelled`: `queued` \| `running` \| `awaiting_hitl` \| `interrupted`. `cancelled` **bez wyjść**. Zakaz: `completed` → `cancelled`, `failed` → `cancelled`, `cancelled` → cokolwiek. `POST /runs` nigdy nie tworzy `cancelled` ani `interrupted`.
 
-Ocena / Edytuj / finalize / opinia tekstowa o runie (`POST /feedback` `targetType=run`) oraz HITL na `interrupted` → istniejące **409** (`RUN_NOT_REVIEWABLE` / `HITL_REQUIRED`); bez osobnego kodu HTTP na MVP.
+Trzy legalne krawędzie **do** `running`: `queued`, `interrupted`, `awaiting_hitl`. Reconnect SSE po restarcie api — jak w akapicie **Reconnect** powyżej (status może być `interrupted` zanim znowu `running`).
+
+**Przegląd** (ocena / Edytuj / finalize): wyłącznie `completed` \| `failed`; `cancelled` → **409** `RUN_NOT_REVIEWABLE`. **Opinia** `POST /feedback` `targetType=run`: skrót — `completed` \| `failed` \| (`cancelled` z wynikiem); szczegóły w sekcji Feedback oraz `spec/SPEC-FEEDBACK.md`. HITL na `interrupted` / po `cancelled` → istniejące **409** (`HITL_REQUIRED` / status nie `awaiting_hitl`).
 
 #### `POST /api/v1/runs/:runId/hitl`
 
@@ -622,15 +646,15 @@ Wymaga sesji. Append-only.
 | `targetType` | `application` \| `agent` \| `run` | tak | Co dotyczy opinia |
 | `body` | string | tak | Treść (limit długości — SPEC; bez sekretów) |
 | `agentKey` | enum agentów | gdy `targetType = agent` | `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier` \| `PageWriterAgent` |
-| `runId` | `RunId` | gdy `targetType = run` | Run **autora** (sesja = `startedBy`); status wyłącznie `completed` \| `failed` |
+| `runId` | `RunId` | gdy `targetType = run` | Run **autora** (sesja = `startedBy`); status: `completed` \| `failed` \| (`cancelled` **gdy** snapshot ma dowolne nie-`null` pole wyniku — `ideas` / `content` / `contents` / `reelIdeas` / `reelScript` / `reelScripts` / `pageOutline` / `pageDocument`, które dotyczą runu) |
 
-Gdy `targetType = run`: sesja ≠ `startedBy` (także run bez inicjatora) → **403** `FORBIDDEN`; nieistniejący `runId` → **404** `RUN_NOT_FOUND`; zły format → **400** `VALIDATION_FAILED`; status inny niż `completed` \| `failed` (`queued` / `running` / `awaiting_hitl` / `interrupted`) → **409** `RUN_NOT_REVIEWABLE`. Kolejność: własność przed statusem (cudzy run w toku nie ujawnia się jako 409).
+Gdy `targetType = run`: sesja ≠ `startedBy` (także run bez inicjatora) → **403** `FORBIDDEN`; nieistniejący `runId` → **404** `RUN_NOT_FOUND`; zły format → **400** `VALIDATION_FAILED`; niedozwolony status / `cancelled` bez wyniku → **409** `RUN_NOT_REVIEWABLE`. Kolejność: własność przed statusem/wynikiem (cudzy run w toku nie ujawnia się jako 409). Pełna norma okna: `spec/SPEC-FEEDBACK.md` (Fbk-3a).
 
 `targetType = application` \| `agent` — **bez** warunku statusu runu.
 
 Finalize przeglądu (`reviewFinalizedAt`) **nie** blokuje kolejnego wpisu tekstowego (append-only; to nie `REVIEW_LOCKED`).
 
-Zmiana względem wcześniejszego zapisu tej sekcji: `targetType=run` wymagał tylko autora; status runu nie był bramką HTTP. Teraz to samo okno co ocena gwiazdkowa (`completed` \| `failed`), bez locka finalize na tekście.
+Zmiana względem wcześniejszego zapisu tej sekcji: okno opinii o runie = tylko `completed` \| `failed`. Od tej wersji także `cancelled` **z wynikiem**; przegląd (gwiazdki/Edytuj/finalize) pozostaje wyłącznie `completed` \| `failed`.
 
 **201:**
 

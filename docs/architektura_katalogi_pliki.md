@@ -1,6 +1,14 @@
+---
+wersja: 1
+data_utworzenia: 2026-09-27
+data_modyfikacji: 2026-09-27
+---
+
 # Architektura katalogów i plików — Content Chain
 
 Propozycja **docelowego drzewa** monorepo (greenfield). Odzwierciedla style i granice z `architektura.md`: trzy aplikacje pod `apps/`, wspólne typy w `packages/shared`, `docs/` w rootcie. **Bez** rootowego katalogu `src/` opakowującego aplikacje.
+
+Zmiana względem wcześniejszej wersji (bez frontmatteru): jedna linia o cancel — mapa `AbortController` w workerze Runs (v1 in-process).
 
 ## Tooling
 
@@ -75,7 +83,7 @@ apps/api/src/<context>/
 └── infrastructure/                  # adaptery (Prisma repos, …); klient LLM w `src/llm/`
 ```
 
-**1 BC ≠ obowiązkowo 1 plik `*.module.ts`.** Wolno wydzielić kernel lifecycle (port `appendLog` / `transition` + hub SSE + repozytorium runu) od HTTP/workera, jeśli to zamyka cykl importów Nest. To nadal ten sam BC Runs — nie nowy bounded context. Klej `RUN_EXECUTOR` w `app.module.ts` (albo `registerAsync`) **nie** jest BC; analogia: `health/` / `llm/` to też nie-BC, ale ops — klej pipeline’u zostaje przy starcie procesu, nie w `llm/`.
+**1 BC ≠ obowiązkowo 1 plik `*.module.ts`.** Wolno wydzielić kernel lifecycle (port `appendLog` / `transition` + hub SSE + repozytorium runu) od HTTP/workera, jeśli to zamyka cykl importów Nest. To nadal ten sam BC Runs — nie nowy bounded context. Klej `RUN_EXECUTOR` w `app.module.ts` (albo `registerAsync`) **nie** jest BC; analogia: `health/` / `llm/` to też nie-BC, ale ops — klej pipeline’u zostaje przy starcie procesu, nie w `llm/`. Worker in-process (cancel v1): `Map<RunId, AbortController>` przy execute + `attemptCancel` na repo — norma w `architektura.md` / `SPEC-RUNY.md`; **bez** osobnego katalogu BC.
 
 ### Social (wyjątek orchestracji)
 

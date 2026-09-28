@@ -37553,13 +37553,13 @@
       "source_location": "L1"
     },
     {
-      "id": "apps_api_src_runs_domain_status_transitions_allowed",
-      "label": "ALLOWED",
+      "id": "apps_api_src_runs_domain_status_transitions_allowed_run_states",
+      "label": "ALLOWED_RUN_STATES",
       "_origin": "ast",
       "community": 26,
       "community_name": "RunRepository",
       "file_type": "code",
-      "norm_label": "allowed",
+      "norm_label": "allowed_run_states",
       "source_file": "apps/api/src/runs/domain/status-transitions.ts",
       "source_location": "L4"
     },
@@ -175599,7 +175599,7 @@
     },
     {
       "source": "apps_api_src_runs_domain_status_transitions",
-      "target": "apps_api_src_runs_domain_status_transitions_allowed",
+      "target": "apps_api_src_runs_domain_status_transitions_allowed_run_states",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -197885,5 +197885,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "e2913f603a38db32cd94abe8cacc6e4de0324d56"
+  "built_at_commit": "eae70b42d3a633216de915131fc288f156dca17e"
 }

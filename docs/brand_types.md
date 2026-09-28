@@ -1,6 +1,14 @@
+---
+wersja: 1
+data_utworzenia: 2026-09-27
+data_modyfikacji: 2026-09-27
+---
+
 # Brand types — Content Chain
 
 Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time.
+
+Zmiana względem wcześniejszej wersji (bez frontmatteru): `RunStatus` += **`cancelled`**.
 
 ## Zasady
 
@@ -60,7 +68,7 @@ Docelowe pliki (propozycja):
 | Typ | Wartości MVP |
 |-----|-------------|
 | `UserRole` | `admin` \| `user` |
-| `RunStatus` | `queued` \| `running` \| `interrupted` \| `awaiting_hitl` \| `completed` \| `failed` |
+| `RunStatus` | `queued` \| `running` \| `interrupted` \| `awaiting_hitl` \| `completed` \| `failed` \| `cancelled` |
 | `RunTaskType` | `post_ideas` \| `post_content` \| `post_ideas_then_content` \| `reel_ideas` \| `reel_script` \| `reel_ideas_then_scripts` \| `page_copy` \| `page_outline_then_copy` |
 | `SocialPlatform` | `linkedin` \| `facebook` \| `instagram` — **nie** zawiera `'web'` |
 | `RunPlatform` | `SocialPlatform` \| `'web'` (unia w shared; `'web'` = sentinel kolumny `Run.platform` przy `page_*`, nie wartość `SocialPlatform`) |

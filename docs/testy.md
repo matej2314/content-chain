@@ -1,8 +1,16 @@
+---
+wersja: 1
+data_utworzenia: 2026-09-27
+data_modyfikacji: 2026-09-27
+---
+
 # Testy — Content Chain
 
 Strategia testów **MVP**. Cel: szybka pewność na domenie i granicach `apps/api` + kontrakt z gateway (przez port), bez rozdmuchanego E2E UI.
 
 Powiązane: `architektura.md`, `data_flow.md`, `anty_patterny.md`, `spec/SPEC-TESTY.md`.
+
+Zmiana względem wcześniejszej wersji (bez frontmatteru): skrót oczekiwań D-* na **anulowanie runu** (`cancelled`) — pełna norma przypadków w `spec/SPEC-TESTY.md`.
 
 ## Piramida (MVP)
 
@@ -68,9 +76,10 @@ Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATE
 - Orkiestracja: `taskType` spoza enumu HTTP → `400` `VALIDATION_FAILED`; nieznany typ wewnętrzny composite → `failed` / `UNKNOWN_TASK_TYPE` (D-19).
 - Verifier + refine: sukces po poprawce; fail po `max N=2`.
 - Błąd gateway (stub): run `failed` / retry wg polityki — czytelny log bez wycieku `X-Gateway-Key`.
-- Kolejka współbieżności i recovery runu — wg `spec/SPEC-RUNY.md` / `spec/SPEC-TESTY.md`: nowy run ponad cap → `queued`; leftover `running` → `interrupted` → claim pod `MAX_CONCURRENT_RUNS` (priorytet nad `queued`); 3× przerwany execute → `failed` + log.
+- Kolejka współbieżności i recovery runu — wg `spec/SPEC-RUNY.md` / `spec/SPEC-TESTY.md`: nowy run ponad cap → `queued`; leftover `running` → `interrupted` → claim pod `MAX_CONCURRENT_RUNS` (priorytet nad `queued`); 3× przerwany execute → `failed` + log; leftover z `cancelRequested` → `cancelled` (bez `recoveryAttempts++`).
+- Anulowanie (`cancelled`) — skrót oczekiwań (pełne D-* w `spec/SPEC-TESTY.md`): happy path cancel; idempotencja **200** gdy już `cancelled`; **409** `RUN_NOT_CANCELABLE` przy wyścigu z `completed`/`failed`; HITL po cancel nielegalny; feedback `cancelled` ± wynik; SSE `run.cancelled` + complete huba.
 - Feedback: zapis opinii z metadanymi; ocena `null`/`1–5`; `POST .../output-edited` z `{ result }` (nadpis kanonicznego wyniku + `outputEdited`); lock po finalize; `403` na cudzy run; `targetType=run` w toku → `409` `RUN_NOT_REVIEWABLE`; `GET /runs/user/:id` tylko własny id.
-- SSE: hub nie zatrzymuje subjectu po `completed`/`failed`; `GET .../events` na skończonym runie emituje snapshot statusu i **kończy** stream (nie wisi).
+- SSE: hub nie zatrzymuje subjectu po `completed`/`failed`/`cancelled`; `GET .../events` na skończonym runie emituje snapshot statusu i **kończy** stream (nie wisi).
 
 ## CI (MVP)
 

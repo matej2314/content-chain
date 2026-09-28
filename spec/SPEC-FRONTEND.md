@@ -1,7 +1,7 @@
 ---
-wersja: 25
+wersja: 26
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-20
+data_modyfikacji: 2026-09-27
 ---
 
 # SPEC — Frontend
@@ -20,6 +20,8 @@ Zmiana względem wersji 15 / cel: wylogowanie z modalem w chrome dashboardu od p
 Zmiana względem wersji 18 / cel: miejsce wylogowania było „chrome (sidebar lub header)”. Od tej wersji wyłącznie **header** (login jako przycisk → „Wyloguj się”; zawartość headera do prawej).
 Zmiana względem wersji 23 / cel: kanon milczał o kanale „wydarzyło się”. Od tej wersji toast (Sonner) w layoutcie po sesji — obok live (F-5) i envelope (F-7); `docs/ux_dashboard.md`.
 Zmiana względem wersji 24 / cel: F-8 nadal wymaga widoku **Konto** (start inline). Od tej wersji **druga** powierzchnia startu = modal **„Uruchom agenta”** na Runach (`docs/ux_dashboard.md`).
+
+Zmiana względem wersji 25 / cel: brak Stop / `cancelled` w UX. Od tej wersji anulowanie: przycisk **Stop** + modal, toast **„Run anulowany”**, archiwum z `cancelled`, floating box bez Stop (`docs/ux_dashboard.md`).
 
 ## Powiązanie ze stylem z docs / wyjątek
 
@@ -46,19 +48,33 @@ F-4a. Probe sesji **oraz każde** produktowe wywołanie do `/api/v1`: przy **401
 Zmiana względem wersji 19 / F-4a: refresh tylko przy starcie aplikacji. Od tej wersji ten sam cykl na każdym fetchu (TTL access ~15 min).
 Zmiana względem wersji 14 / F-4a: osobny ekran first-run albo logowanie. Od tej wersji jeden widok główny = logowanie; first-run = tryb submitu; rejestracja wizualna, nieaktywna (`docs/ux_dashboard.md`).
 
-F-5. Live status runu: **SSE** `.../runs/:runId/events` (same-origin BFF, ta sama sesja cookie). **N×** `EventSource` wyłącznie dla **własnych** runów w `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu: max jedno połączenie na `runId`). `queued` **bez** SSE (GET). Zakaz pollingu statusu **konkretnego** runu jako kanału live. GET archiwum Runy co 15 min **nie** jest kanałem live. Status wizualnie animowany / czytelny (`docs/ux_dashboard.md`) — w tym odrębny stan **`interrupted`**. Typ statusu z `@content-chain/shared`.
+F-5. Live status runu: **SSE** `.../runs/:runId/events` (same-origin BFF, ta sama sesja cookie). **N×** `EventSource` wyłącznie dla **własnych** runów w `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu: max jedno połączenie na `runId`). `queued` **bez** SSE (GET). Zakaz pollingu statusu **konkretnego** runu jako kanału live. GET archiwum Runy co 15 min **nie** jest kanałem live. Status wizualnie animowany / czytelny (`docs/ux_dashboard.md`) — w tym odrębny stan **`interrupted`** oraz terminal **`cancelled`** (nie mylić z `failed`). Typ statusu z `@content-chain/shared`.
 
 Zmiana względem wersji 19 / F-5: jeden SSE na stronie szczegółów; chip instancji. Od tej wersji rejestr N połączeń + floating box; archiwum bez live.
 
 Zmiana względem wersji 4 / F-5: zbiór statusów UI bez `interrupted`; po restarcie UI mogło mylić przestój recovery z aktywnym pipeline.
 
-F-5a. Cykl życia `EventSource`: gdy snapshot GET jest `completed` \| `failed` **albo** `queued`, UI **nie** otwiera SSE. Po evencie `run.completed` \| `run.failed` — `EventSource.close()`. Reconnect wyłącznie po nieoczekiwanym zerwaniu przy `running` / `awaiting_hitl` / `interrupted`. **Dodatkowo** (konsumpcja UI, nie nowy socket): jeden toast terminalu per `runId`, jeśli pathname **nie** jest szczegółami **tego** runu (`/runs/:runId`); na szczegółach tego runu — **zero** toasta terminalu. Dedup po id toasta. **Zakaz** otwierania SSE na runie terminalnym „żeby pokazać toast” — toast wyłącznie z już otwartego live w rejestrze layoutu (własne runy).
+Zmiana względem wersji 25 / F-5: brak odrębnego stanu UI dla `cancelled`.
+
+F-5a. Cykl życia `EventSource`: gdy snapshot GET jest `completed` \| `failed` \| `cancelled` **albo** `queued`, UI **nie** otwiera SSE. Po evencie `run.completed` \| `run.failed` \| **`run.cancelled`** — `EventSource.close()`. Reconnect wyłącznie po nieoczekiwanym zerwaniu przy `running` / `awaiting_hitl` / `interrupted`. **Dodatkowo** (konsumpcja UI, nie nowy socket): jeden toast terminalu per `runId`, jeśli pathname **nie** jest szczegółami **tego** runu (`/runs/:runId`); na szczegółach tego runu — **zero** toasta terminalu z SSE (toast mutacji cancel — F-5b — bez dublowania SSE). Dedup po id toasta / per `runId`. **Zakaz** otwierania SSE na runie terminalnym „żeby pokazać toast” — toast wyłącznie z już otwartego live w rejestrze layoutu (własne runy) albo z odpowiedzi mutacji cancel.
 
 Zmiana względem wersji 19 / F-5a: zakaz otwarcia obejmował tylko terminal; `queued` też bez socketa.
 
 Zmiana względem wersji 5 / F-5: F-5 i „Wolno: Reconnect SSE” bez rozróżnienia terminal vs. awaria i bez obowiązku `close()` / braku subskrypcji skończonego runu.
 
 Zmiana względem wersji 23 / F-5a: `close()` i zakaz SSE na terminalu **bez zmiany**; dopisano toast poza szczegółami (`docs/ux_dashboard.md`).
+
+Zmiana względem wersji 25 / F-5a: terminal close tylko `completed` \| `failed`. Od tej wersji także `run.cancelled`.
+
+F-5b. Anulowanie w UI (Stop):
+
+1. Przycisk etykieta **Stop** — wyłącznie na **Moich runach** (Konto) oraz **szczegółach runu**, dla **własnego** runu w statusie nieterminalnym (`queued` \| `running` \| `awaiting_hitl` \| `interrupted`). Floating box **bez** Stop.
+2. Przed API: modal **„Czy na pewno?”** — **Tak** = `POST /api/v1/runs/:runId/cancel`; **Nie** = zamknięcie modala, **zero** wywołań API.
+3. Po **200** z cancel: toast sukcesu mutacji **„Run anulowany”** (zostajemy na widoku źródłowym). Gdy **nie** na `/runs/:runId` tego runu — toast z akcją **Szczegóły** (jak mapa UX). Dedup względem toasta SSE `run.cancelled` / `notifyRunTerminal` (jeden toast per `runId`).
+4. Po sukcesie: odświeżenie wiersza / snapshotu (`cancelled`); na szczegółach panel HITL znika; przegląd (gwiazdki / Edytuj / finalize) niedostępny; partial wynik widoczny jak przy `failed`.
+5. Floating box: po `cancelled` krótko label **„Anulowany”**, potem usunięcie pozycji po **200 ms** (nie trzymać anulowanego runu w boxie).
+
+Zmiana względem: wcześniejszy kanon roboczy bez modala przed Stop — **unieważnione**; obowiązuje modal (`docs/ux_dashboard.md`).
 
 F-6. Bramka „Agenci aktywni” i disable CTA startu runu — UX na bazie `GET .../completeness`; **egzekucja** nadal w api (`409` `CONTEXT_INCOMPLETE`). Chip i disable startu **bez zmiany sensu** względem v22. Disable dotyczy **obu** powierzchni: submit na Koncie **oraz** przycisk/modal **„Uruchom agenta”** na Runach.
 
@@ -78,17 +94,17 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 
 - Strona główna: tło + karta logowania + nieaktywny **„Nie masz konta? Zarejestruj się!”**; first-run = tryb submitu tej karty; **akceptacja zaproszenia** na **`/invite/accept?token=`** (tożsame z URL w mailu `{APP_PUBLIC_URL}/invite/accept?token=…`) → `POST /auth/accept-invite` → strona główna — dashboard dopiero po loginie;
 - Kontekst firmy: **sześć zakładek** — Tożsamość (domyślnie otwarta), Oferta, Głos SM, CTA / kanały, Odbiorca, Dodatki (`extras` w jednym panelu, bez podzakładek). Na triggerach zakładek bramki indykator z `completeness.missing` ostatniego **udanego** GET/PUT (zielona = kompletna, czerwona = brak); zakładka Dodatki **bez** kropki bramki. Zapis = jeden `PUT` całości. Submit **nie** wysyła, gdy draft nie spełnia bramki (puste wymagane pole albo kaleka oferta); lokalny predykat identyczny z C-1 **wyłącznie** do disable CTA zapisu i błędów pól — kropki i chip nadal z `missing` odpowiedzi. Placeholdery pustej oferty stripowane; kalekiej usługi nie stripujemy. Nie da się usunąć ostatniej kompletnej usługi tak, by PUT poszedł z `items: []`. Szczegóły: `docs/ux_dashboard.md` (Widok: Kontekst firmy);
-- **Runy** = archiwum instancji `completed` \| `failed` (`GET /runs?status=completed,failed`, strona 10, odświeżanie przy wejściu i co **15 min**). **Bez** SSE, **bez** runów w toku na liście (także cudzych). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). Po **202** z modalu — zostajemy na Runach, modal zamknięty, toast „Run wystartował”; live = floating box;
-- **Konto**: email (`PATCH /auth/me`); **Moje runy** (`GET /runs/user/:userId`, wszystkie statusy); formularz **startu inline** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId` z wiersza „Moje runy”); opinia. Po **202** startu **z Konta** — zostajemy na Koncie **oraz** toast „Run wystartował”;
-- `PUT` kontekstu **200** → toast „Kontekst zapisany”; **400** → envelope przy formularzu, **zero** toasta (lokalny predykat / envelope);
+- **Runy** = archiwum instancji `completed` \| `failed` \| `cancelled` (`GET /runs?status=completed,failed,cancelled`, strona 10, odświeżanie przy wejściu i co **15 min**). **Bez** SSE, **bez** runów w toku na liście (także cudzych). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). Po **202** z modalu — zostajemy na Runach, modal zamknięty, toast „Run wystartował”; live = floating box;
+- **Konto**: email (`PATCH /auth/me`); **Moje runy** (`GET /runs/user/:userId`, wszystkie statusy; **Stop** + modal na własnym nieterminalnym — F-5b); formularz **startu inline** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId` z wiersza „Moje runy”); opinia. Po **202** startu **z Konta** — zostajemy na Koncie **oraz** toast „Run wystartował”;
+- `PUT` kontekstu **200** → toast „Kontekst zapisany”; **400** → envelope przy formularzu, **zero** toasta (lokalny predykat / envelope); `POST .../cancel` **200** → toast **„Run anulowany”** (F-5b);
 - Layout **zalogowany**: Toaster (warstwa `--z-toast`); pozycja **nie** gryzie się z floating boxem (toast `top-right`; box `bottom-right`). **Brak** Toastera na karcie logowania / first-run / accept-invite;
-- Run szczegóły: HITL / wynik **post vs rolka vs strona** / przegląd (bez `conversationId` w UI); live SSE tylko własny `running` \| `awaiting_hitl` \| `interrupted` (ten sam rejestr co box);
+- Run szczegóły: HITL / wynik **post vs rolka vs strona** / przegląd (bez `conversationId` w UI); **Stop** + modal (F-5b) dla własnego nieterminalnego; po `cancelled` HITL znika, przegląd niedostępny, partial wynik jak przy `failed`; live SSE tylko własny `running` \| `awaiting_hitl` \| `interrupted` (ten sam rejestr co box);
 - HITL Social: **multi-select** (min. 1); Content: `[outline.id]`;
 - Wynik dwuetapowy Social = listy `contents[]` / `reelScripts[]`; `characterCount` / `cta?` / `role?` jak UX;
 - Użytkownicy (admin): lista + zaproszenie email; pending w tym wygasłe; resend/revoke;
 - **Header**: zawartość do prawej; login → „Wyloguj się” → modal → `POST /auth/logout` → `/`;
-- Globalny CTA opinii; na szczegółach: Edytuj (`result` + flaga), gwiazdki, finalize;
-- Chip kompletności agentów; **floating box** własnych runów w toku poza Kontem (zwijany). **Nie** chip/stos w chrome.
+- Globalny CTA opinii; na szczegółach: Edytuj (`result` + flaga), gwiazdki, finalize — **tylko** gdy snapshot `completed` \| `failed` (nie na `cancelled`);
+- Chip kompletności agentów; **floating box** własnych runów w toku poza Kontem (zwijany; **bez** Stop). Po `cancelled`: krótko **„Anulowany”**, ukrycie pozycji po **200 ms**. **Nie** chip/stos w chrome.
 
 Zmiana względem wersji 19 / F-8: Runy = cała instancja + start; po starcie szczegóły; chip „w toku”. Od tej wersji: Runy = archiwum; start+live = Konto; box; trasa invite jak mailer.
 
@@ -107,9 +123,13 @@ Zmiana względem wersji 22 / F-8: submit mógł wysłać niekompletną bramkę (
 Zmiana względem wersji 23 / F-8: layout po sesji nie miał Toastera; 200 / 202 / terminal poza szczegółami = cisza. Floating box **bez zmiany** (w toku, znika na terminalu).
 Zmiana względem wersji 24 / F-8: Runy „**Bez** startu”; Konto = **jedyny** formularz startu; po `202` wyłącznie Konto. Od tej wersji: dwie powierzchnie tego samego briefu (Konto inline + modal na Runach); po `202` widok źródłowy; archiwum nadal bez SSE / bez w toku na liście (`docs/ux_dashboard.md`). Powód: pierwsze testy UI w przeglądarce.
 
-F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. UI **filtruje** pozycje do `completed` \| `failed` (lista API zostaje pełna — `SPEC-RUNY.md` R-3c). Select agentów = enum z shared (labelki PL). Ocena i Edytuj tylko gdy snapshot mówi, że sesja jest `startedBy` i przegląd niezamknięty. Submit `targetType=run` przy innym statusie i tak → **409** `RUN_NOT_REVIEWABLE` (`SPEC-FEEDBACK.md` Fbk-3a).
+Zmiana względem wersji 25 / F-8: archiwum `completed` \| `failed`; brak Stop; floating box znika na terminalu bez reguły „Anulowany” + 200 ms. Od tej wersji archiwum + Stop (F-5b) + box po cancel.
+
+F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. UI **filtruje** pozycje do `completed` \| `failed` \| (`cancelled` **oraz** istnieje nie-`null` pole wyniku w snapshotcie — per `SPEC-FEEDBACK.md` Fbk-3a; select może dociągnąć snapshot albo stosować regułę równoważną; **nie** pokazywać `cancelled` bez wyniku). Lista API zostaje pełna — `SPEC-RUNY.md` R-3c. Select agentów = enum z shared (labelki PL). Ocena i Edytuj tylko gdy snapshot mówi, że sesja jest `startedBy`, status `completed` \| `failed` i przegląd niezamknięty. Submit `targetType=run` poza oknem Fbk-3a i tak → **409** `RUN_NOT_REVIEWABLE`.
 
 Zmiana względem wersji 12 / F-9: select pokazywał wszystkie runy autora (w tym w toku). Od tej wersji filtr kliencki `completed` \| `failed`; bramka HTTP jak w docs komunikacji.
+
+Zmiana względem wersji 25 / F-9: filtr bez `cancelled`. Od tej wersji `cancelled` z wynikiem wchodzi do selecta.
 
 Zmiana względem wersji 1: Konto nie obejmuje zmiany hasła; dodano first-run; lista runów = cała instancja z nawigacją lista → szczegóły; admin users bez edycji/dezaktywacji w UI (soft-delete UI nadal poza MVP).
 
@@ -139,8 +159,11 @@ apps/frontend/src/
 ### Wolno
 
 - Client components dla SSE, formularzy, HITL, floating boxa.
-- Reconnect SSE wyłącznie po nieoczekiwanym zerwaniu przy `running` / `awaiting_hitl` / `interrupted` + uzupełnienie snapshotem; `EventSource.close()` po evencie terminalnym.
+- Reconnect SSE wyłącznie po nieoczekiwanym zerwaniu przy `running` / `awaiting_hitl` / `interrupted` + uzupełnienie snapshotem; `EventSource.close()` po evencie terminalnym (`completed` / `failed` / `cancelled`).
 - N× EventSource w rejestrze layoutu (jedno na `runId`); szczegóły **reuse** tego połączenia.
+- Stop + modal „Czy na pewno?” na Moich runach / szczegółach; `POST .../cancel` tylko po Tak (F-5b).
+- Toast mutacji „Run anulowany”; toast SSE `run.cancelled` w `notifyRunTerminal` z dedupem per `runId`.
+- Floating box: po `cancelled` label „Anulowany”, potem usunięcie po **200 ms**.
 - Read-only podgląd kontekstu dla `user`; edycja tylko gdy sesja `admin`.
 - Widok Kontekst firmy jako zakładki (`docs/ux_dashboard.md`); default Tożsamość; CTA zapisu na każdej zakładce przy jednym `PUT`.
 - Lokalna kopia predykatu C-1 (`isComplete` / `isCompleteOfferItem`) w `modules/company-context` **wyłącznie** do disable CTA zapisu i błędów pól — **nie** import z `apps/api`; **nie** źródło kropek / chipa.
@@ -149,7 +172,7 @@ apps/frontend/src/
 - Nieaktywny przycisk „Zarejestruj się!”.
 - Header: zawartość **do prawej**; login → „Wyloguj się”; modal; `POST /auth/logout` → `/`.
 - Widok **Konto**: email, Moje runy (live), **start inline**, opinia; po starcie **z Konta** zostajemy tutaj.
-- Widok **Runy**: archiwum `completed` \| `failed`; GET co 15 min + przy wejściu; CTA/modal **„Uruchom agenta”** (ten sam brief); po **202** z Run — zostać, zamknąć modal.
+- Widok **Runy**: archiwum `completed` \| `failed` \| `cancelled`; GET co 15 min + przy wejściu; CTA/modal **„Uruchom agenta”** (ten sam brief); po **202** z Run — zostać, zamknąć modal.
 - Client components dla modalu startu (Dialog kitu shadcn).
 - Floating box poza Kontem (zwijany).
 - Cienki wrapper `notifyProduct` / `notifyRunTerminal` (Sonner jako adapter; unia produktowa, bez `any`).
@@ -166,9 +189,12 @@ apps/frontend/src/
 - `NEXT_PUBLIC_API_BASE_URL` i bezpośredniego fetcha przeglądarki na origin api.
 - Buforowania SSE w BFF.
 - Pollingu statusu **jednego** runu zamiast SSE.
-- `EventSource` na `queued` / `completed` / `failed` albo drugiego socketa na ten sam `runId`.
-- Zostawiania `EventSource` otwartego po `completed`/`failed` ani reconnectu po zamknięciu terminalnym.
-- Prezentowania `interrupted` tą samą animacją / copy co `running`.
+- `EventSource` na `queued` / `completed` / `failed` / `cancelled` albo drugiego socketa na ten sam `runId`.
+- Zostawiania `EventSource` otwartego po `completed`/`failed`/`cancelled` ani reconnectu po zamknięciu terminalnym.
+- Prezentowania `interrupted` tą samą animacją / copy co `running`; traktowania `cancelled` jako `failed` w copy toasta / archiwum.
+- Stop we floating boxie; cancel **bez** modala „Czy na pewno?”; admin-cancel cudzego runu z UI.
+- Natychmiastowego usunięcia pozycji boxa po `cancelled` bez krótkiego labelu „Anulowany” (obowiązuje **200 ms**).
+- Podwójnego toasta mutacja cancel + SSE `run.cancelled` bez dedupu.
 - Chipu / stosu chipów „w toku” w chrome (obowiązuje floating box).
 - Innego briefu / innego `POST /runs` na Runach niż na Koncie.
 - Startu w sidebarze / headerze albo na szczegółach `/runs/:runId`.
@@ -213,6 +239,8 @@ Zmiana względem wersji 22 / „Nie wolno”: całkowity zakaz lokalnej kopii `i
 Zmiana względem wersji 23 / „Nie wolno”: dopisano zakaz toasta na walidację, na `run.log`, store toasta jako server state, Toastera poza sesją, Browser Notification i maila przy failu.
 Zmiana względem wersji 24 / „Nie wolno”: zakaz „Formularza startu na widoku **Runy**” **unieważniony** — kanon to dwie powierzchnie tego samego briefu. Od tej wersji zakaz dotyczy live na archiwum, drugiego kontraktu startu, CTA w chrome/szczegółach, prefillu z archiwum i zrzutu na szczegóły po `202`.
 
+Zmiana względem wersji 25 / „Nie wolno”: dopisano zakazy Stop bez modala / w boxie, podwójnego toasta cancel, mylenia `cancelled` z `failed`, natychmiastowego ukrycia boxa.
+
 Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flagą” unieważniony — kanon to zapis treści + flaga (`docs/ux_dashboard.md`). „Gdy powstanie” na Users / accept-invite unieważnione.
 
 ### Zatwierdzony stack (obszar)
@@ -232,8 +260,9 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Strona główna: karta logowania + nieaktywny „Zarejestruj się!”; first-run = tryb tej karty; **`/invite/accept?token=`** → logowanie; chrome po polsku; dashboard tylko po sesji.
 - [ ] Header: do prawej; login → „Wyloguj się”; modal → logout → `/`.
 - [ ] Fetch same-origin `/api/v1`; 401 → refresh → retry; cookie httpOnly na originie FE.
-- [ ] **Runy** = archiwum `completed` \| `failed` (15 min + wejście) **oraz** CTA/modal **„Uruchom agenta”**; **Konto** = start inline + Moje runy live; po `202` widok źródłowy.
-- [ ] N× SSE tylko własne `running` / `awaiting_hitl` / `interrupted`; `close()` na terminalu; `queued` bez socketa; floating box poza Kontem.
+- [ ] **Runy** = archiwum `completed` \| `failed` \| `cancelled` (15 min + wejście) **oraz** CTA/modal **„Uruchom agenta”**; **Konto** = start inline + Moje runy live + Stop; po `202` widok źródłowy.
+- [ ] N× SSE tylko własne `running` / `awaiting_hitl` / `interrupted`; `close()` na `completed`/`failed`/`cancelled`; `queued` bez socketa; floating box poza Kontem **bez** Stop; po cancel: „Anulowany” → ukrycie po 200 ms.
+- [ ] Stop + modal „Czy na pewno?” → cancel API; toast „Run anulowany”; dedup SSE; na `cancelled` brak przeglądu / HITL.
 - [ ] Start zablokowany w UI przy niekompletności **i** api 409.
 - [ ] Konto: email; moje runy → szczegóły; start (prefill ze snapshotu); opinia.
 - [ ] Admin: Users + zaproszenie; accept-invite → `/`.
@@ -243,10 +272,11 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Kontekst firmy: sześć zakładek (default Tożsamość); kropki bramki z `missing` ostatniego GET/PUT; Dodatki bez kropki; jeden `PUT`; `user` read-only.
 - [ ] Admin nie utrwali pustej nazwy firmy ani kalekiej usługi (submit zablokowany; 400 z api gdy UI ominięte); `user` read-only.
 - [ ] Po 202 na Koncie: wiersz **oraz** toast „Run wystartował”.
-- [ ] Po 202 na Runach: toast „Run wystartował”, modal zamknięty, floating box; lista archiwum **bez** nowego wiersza dopóki run nie jest `completed` \| `failed`.
-- [ ] PUT kontekstu 200 → toast PL; 400 → envelope, zero toasta.
-- [ ] Terminal SSE poza `/runs/:id` tego runu: jeden toast + link Szczegóły; box pusty po `close()`.
-- [ ] Na `/runs/:id` tego runu: **brak** toasta terminalu; status + logi na szczegółach.
+- [ ] Po 202 na Runach: toast „Run wystartował”, modal zamknięty, floating box; lista archiwum **bez** nowego wiersza dopóki run nie jest `completed` \| `failed` \| `cancelled`.
+- [ ] PUT kontekstu 200 → toast PL; 400 → envelope, zero toasta; cancel 200 → „Run anulowany”.
+- [ ] Terminal SSE (`completed`/`failed`/`cancelled`) poza `/runs/:id` tego runu: jeden toast + link Szczegóły; box: na `cancelled` krótko „Anulowany”, potem 200 ms.
+- [ ] Na `/runs/:id` tego runu: **brak** toasta terminalu z SSE (mutacja cancel może mieć toast bez nawigacji); status + logi na szczegółach.
+- [ ] Select opinii: `completed` \| `failed` \| (`cancelled` z wynikiem); bez `cancelled` bez wyniku.
 - [ ] Toaster tylko po sesji; `--z-toast`; nie zasłania floating boxa.
 
 ## Poza zakresem

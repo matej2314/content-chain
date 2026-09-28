@@ -1,7 +1,7 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-07
+data_modyfikacji: 2026-09-27
 ---
 
 # SPEC — Persistence
@@ -43,7 +43,7 @@ P-3. Identyfikatory w kolumnach: **brandowane stringi** zgodnie z `docs/brand_ty
 
 P-4. ORM / SQL / Prisma **zakazane** w `domain/` oraz w `packages/shared`. Application zależy od **portów**.
 
-P-5. DB jest kanoniczna dla kontekstu firmy, userów, **zaproszeń (Invitation)**, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
+P-5. DB jest kanoniczna dla kontekstu firmy, userów, **zaproszeń (Invitation)**, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`) **oraz** anulowania (`cancelledAt`, `cancelRequested`). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
 
 Kanon tabel (Auth): model **`Invitation`** (lub równoważna nazwa) — `id` (`inv_<uuid>`), `email`, `tokenHash`, `purpose` (`invite` w MVP; rezerwa pod `password_reset` bez zmiany modelu świata), `status` (`pending` \| `accepted` \| `revoked`), `expiresAt`, `invitedByUserId`, timestamps; **bez** kolumny raw tokenu. Invitation **nie** jest „User z pustym hasłem”. `User.passwordHash` nadal wymagany — wiersz `User` powstaje dopiero przy accept-invite.
 
@@ -66,6 +66,18 @@ Zmiana względem wersji 5 / P-5: milcząco brak normy typowanych extras i addyty
 Zmiana względem wersji 4 / P-5: milcząco jeden JSON briefu SM; od tej wersji unia kanałowa bez zmiany schemy Prisma.
 
 Kanon tabel (append, P-7): istniejące + `SocialReelIdea`, `SocialReelScript`, `ContentOutline`, `ContentDocument`; `Run.contentKind` nullable; `Run.platform` zostaje `String` NOT NULL (sentinel `'web'` przy page_*); na `Run` osobne liczniki refine Content: `outlineRefineCount`, `copyRefineCount` (`Int`, default `0`). Kolumny `ideasRefineCount` / `contentRefineCount` zostają **wyłącznie** Social (posty i rolki). Content **nie** zapisuje stanu refine do kolumn Social.
+
+Na modelu **`Run`** (kanon DB, migracja append):
+
+| Pole | Typ / semantyka |
+|------|-----------------|
+| `status` | obejmuje wartość **`cancelled`** (trzeci terminal — `docs/brand_types.md`, `SPEC-RUNY.md`) |
+| `cancelledAt` | `DateTime?` — `null` do pierwszego udanego przejścia do `cancelled`; potem ISO w snapshotcie |
+| `cancelRequested` | `Boolean` (default `false`) — durable guard recovery / wyścig cancel vs crash; zerowane przy wygranej `attemptCancel` |
+
+Bez osobnego `cancelledBy` (authz = `startedBy`). Semantyka CAS / recovery — `SPEC-RUNY.md` R-9 / R-11; bez rollbacku wyniku po cancel.
+
+Zmiana względem wersji 8 / P-5: kanon Run bez pól anulowania. Od tej wersji `cancelledAt` + `cancelRequested` + status `cancelled` w DB.
 
 Zmiana względem wersji 2: kanon obejmuje reel i Content; V1 = Postgres niezależnie od kanałów w MVP.
 
@@ -143,6 +155,7 @@ Zmiana względem wersji 7 / „Nie wolno”: dopisano zakaz „User pending z pu
 - [ ] Żaden plik w `domain/` nie importuje `@prisma/client`.
 - [ ] ID w DB mają prefiksy brandów z docs.
 - [ ] Brak ścieżki runtime fallbacku kontekstu z `.md`.
+- [ ] Model `Run` ma `cancelledAt`, `cancelRequested` oraz dopuszcza status `cancelled` (migracja w historii Prisma).
 - [ ] W dokumentacji implementacyjnej / README ops jest jasne: cutover PostgreSQL = nowa historia migracji + pusta baza + opcjonalny import danych; SQLite tylko MVP; V1 — rozbudowa = PostgreSQL.
 
 ## Poza zakresem

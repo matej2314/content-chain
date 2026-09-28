@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-20
+data_modyfikacji: 2026-09-27
 ---
 
 # Anty-patterny — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-09-20
 Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego źle → zamiast tego. Ogólny podręcznik Nest/Next — poza zakresem.
 
 Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `security.md`.
+
+Zmiana względem: brak wierszy o `cancelled` / Stop. Od tej wersji zakazy utożsamiania terminali, resume po cancel, rollbacku, Stop w boxie, cancel bez modala, natychmiastowego ukrycia boxa bez labelu, podwójnego toasta, admin-cancel i await execute w HTTP cancel.
 
 ---
 
@@ -38,7 +40,11 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | Synchroniczny HTTP = cały pipeline LLM | Timeouty, brak SSE, koszmar HITL | Async run + SSE; GET tylko snapshot logów / health / metrics |
 | Pomijanie `ConsistencyVerifier` „na skróty” | Łamie kryterium spójności (kontekst + język) | Verifier obowiązkowy; refine `max N=2`, potem `failed` |
 | Burst execute recovery ponad `MAX_CONCURRENT_RUNS` albo `running → queued` jako „naprawa” po crashu | Przeciąża LLM/RAM po restarcie; `queued` to kolejka **nowych** POST, nie zombie execute | Status `interrupted` + claim pod tym samym capem (`dictionary.md`, `SPEC-RUNY.md` R-6 / R-9) |
-| Mapa Subject SSE per `runId` bez `complete` / evikcji po terminalu | Wyciek pamięci przez życie procesu; wiszące sockety | Po `completed`/`failed`: complete Observable + usunięcie wpisu; late-join na skończonym runie też kończy stream (`dokumentacja_komunikacji.md`) |
+| Utożsamianie `cancelled` z `failed` / `interrupted` / LangGraph `interrupt()` | Fałszywy recovery albo błąd pipeline zamiast decyzji operatora | Trzy różne zakończenia: `failed` = błąd; `interrupted` = crash (nieterminalny); `cancelled` = Stop (`dictionary.md`) |
+| Resume / retry na tym samym `runId` po `cancelled` | Łamie terminal bez wyjść | Nowy przebieg = nowy `POST /runs` |
+| Rollback wyniku po cancel | Kasuje już zacommitowane artefakty; rozjazd z kanonem persist | Bez rollbacku; hop w locie nie jest dopisywany (`data_flow.md`) |
+| Await `execute` w requeście HTTP cancel | Timeouty; UI czeka na zwinięcie hopu | CAS + **200** od razu + abort w tle (`architektura.md`) |
+| Mapa Subject SSE per `runId` bez `complete` / evikcji po terminalu | Wyciek pamięci przez życie procesu; wiszące sockety | Po `completed`/`failed`/`cancelled`: complete Observable + usunięcie wpisu; late-join na skończonym runie też kończy stream (`dokumentacja_komunikacji.md`) |
 | Nieskończona pętla refine | Koszt LLM, zawieszony run | Twardy limit `max N=2` |
 | Osobne „mikroserwisy agentów” w MVP | Overengineering względem modularnego monolitu | Węzły w grafie BC w `apps/api` |
 | `forwardRef` Runs ↔ Social / Content (albo `RunsModule` importuje każdy graf) jako klej pipeline’u | Cykl Nest; orkiestrator zna katalog agentów | Graf woła port lifecycle Runs; composite `RUN_EXECUTOR` wiązany w `AppModule` / `registerAsync`; bez self-register w MVP |
@@ -60,13 +66,18 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | Sekrety LLM / `X-Gateway-Key` w `NEXT_PUBLIC_*` | Wyciek kluczy | Tylko `apps/api` ↔ gateway |
 | Polling statusu **konkretnego** runu zamiast SSE | Obciążenie, gorszy UX, rozjazd z kontraktem | SSE `.../events` dla `running` / `awaiting_hitl` / `interrupted`; GET logów = historia. GET archiwum co 15 min **nie** zastępuje SSE |
 | `EventSource` na `queued` albo drugi socket na ten sam `runId` (szczegóły + box) | Nadmiar połączeń; auto-reconnect na kolejce | Rejestr layoutu: max jedno połączenie na `runId`; `queued` tylko GET |
-| Zostawianie `EventSource` po `completed`/`failed` (auto-reconnect) | Pętla GET `.../events` na skończonym runie | `close()` po evencie terminalnym; nie otwierać SSE, gdy snapshot już terminalny (`ux_dashboard.md`) |
+| Zostawianie `EventSource` po `completed`/`failed`/`cancelled` (auto-reconnect) | Pętla GET `.../events` na skończonym runie | `close()` po evencie terminalnym; nie otwierać SSE, gdy snapshot już terminalny (`ux_dashboard.md`) |
 | Buforowanie SSE w BFF Next (rewrite zbiera cały stream) | Live „stoi”, potem wali się naraz | Proxy strumieniowe; `text/event-stream` bez pełnego bufora |
 | `NEXT_PUBLIC_API_BASE_URL` i bezpośredni fetch przeglądarki na port api | Cookie na złym originie; psuje `SameSite=strict` | BFF: same-origin `/api/v1`; `API_BASE_URL` tylko na serwerze Next |
-| Start runu jako live na archiwum / chip „w toku” instancji / inny brief niż na Koncie | Rozjazd z kanonem: archiwum terminalne + dwie powierzchnie **tego samego** formularza + floating box | Konto = start inline + Moje runy live; Runy = archiwum `completed` \| `failed` **oraz** modal **„Uruchom agenta”** (ten sam brief, pusty draft); po `202` widok źródłowy; live poza Kontem = box. **Nie** SSE / wiersze w toku na liście Runy; **nie** chip w chrome; **nie** drugi kontrakt startu. Zmiana względem: „Start runu na widoku Runy” jako zakaz samej powierzchni (`ux_dashboard.md`) |
+| Start runu jako live na archiwum / chip „w toku” instancji / inny brief niż na Koncie | Rozjazd z kanonem: archiwum terminalne + dwie powierzchnie **tego samego** formularza + floating box | Konto = start inline + Moje runy live; Runy = archiwum `completed` \| `failed` \| `cancelled` **oraz** modal **„Uruchom agenta”** (ten sam brief, pusty draft); po `202` widok źródłowy; live poza Kontem = box. **Nie** SSE / wiersze w toku na liście Runy; **nie** chip w chrome; **nie** drugi kontrakt startu. Zmiana względem: „Start runu na widoku Runy” jako zakaz samej powierzchni (`ux_dashboard.md`) |
+| Stop we floating boxie | Box ma być sygnałem informacyjnym, nie powierzchnią mutacji | Stop tylko na Moich runach / szczegółach; box **bez** Stop |
+| Cancel bez potwierdzenia modalnego | Przypadkowe anulowanie | Modal **„Czy na pewno?”** → Tak = API; Nie = close, zero API (`ux_dashboard.md`) |
+| Natychmiastowe usunięcie pozycji floating boxa po `cancelled` bez krótkiego labelu „Anulowany” | Operator nie widzi skutku Stop | Krótko **„Anulowany”**, potem ukrycie po **200 ms** |
+| Toast SSE `run.cancelled` + toast mutacji cancel bez dedupu | Podwójny toast na ten sam `runId` | Dedup per `runId`; na szczegółach SSE nie dubluje mutacji |
+| Traktowanie cancel jako przeglądu (gwiazdki / Edytuj / finalize) | Anulowanie ≠ ocena pipeline | Przegląd tylko `completed`\|`failed`; `cancelled` → 409 `RUN_NOT_REVIEWABLE` |
 | Duplikacja brand types / DTO poza `packages/shared` | Rozjazd kontraktu FE/BE | Import z shared + walidacja na granicach (HTTP: class-validator; api application: Zod — nie w shared) |
 | Logika kompletności kontekstu tylko w UI | Da się obejść API | Egzekucja bramki w `apps/api` |
-| Feedback / gwiazdki / edycja wyniku w LangGraph | Miesza jakość UX z pipeline LLM | Komendy Runs + BC Feedback po `completed`/`failed`. Edycja treści = `POST .../output-edited` (nadpis `result` + flaga), **nie** re-invoke grafu. Przy `POST /feedback` `targetType=run` bramka statusu jest w **API** (409 `RUN_NOT_REVIEWABLE`); sam disable na UI nie wystarcza |
+| Feedback / gwiazdki / edycja wyniku w LangGraph | Miesza jakość UX z pipeline LLM | Komendy Runs + BC Feedback po `completed`/`failed` (przegląd **bez** `cancelled`). Edycja treści = `POST .../output-edited` (nadpis `result` + flaga), **nie** re-invoke grafu. Przy `POST /feedback` `targetType=run` bramka statusu/wyniku jest w **API** (409 `RUN_NOT_REVIEWABLE`); sam disable na UI nie wystarcza |
 | Edytuj tylko jako flaga, przy kanonie „zapis treści” | UI i snapshot rozjeżdżają się z DB | Zapis edycji zastępuje kanoniczny wynik (`dokumentacja_komunikacji.md`, `ux_dashboard.md`) |
 | Select „wszystkie moje runy” przez łamanie `pageSize=10` na `GET /runs` | Psuje listę dashboardu | Osobny `GET /runs/user/:userId` (bez paginacji 10) |
 | Toast / Sonner jako kanał live statusu runu | Zlewa „dzieje się” z „wydarzyło się”; gubi SSE i box | SSE + box / Moje runy / szczegóły (`ux_dashboard.md`, `SPEC-FRONTEND.md` F-5) |
@@ -104,6 +115,7 @@ Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `b
 | Anty-pattern | Dlaczego źle | Zamiast tego |
 |--------------|--------------|--------------|
 | `user` edytuje kontekst firmy | Łamie model ról | Tylko `admin`; user uruchamia runy produktowe |
+| Admin cancel cudzego runu | Łamie authz Stop = wyłącznie `startedBy` | **403** `FORBIDDEN`; brak wyjątku admina (`dokumentacja_komunikacji.md`) |
 | Multi-tenant „przy okazji” (kontekst per user) | Inny produkt niż self-host jednej firmy | Jeden kontekst na instancję |
 | Drugi `admin` / awans user→admin w MVP | Łamie `security.md` | Tylko bootstrap jednego admina; potem wyłącznie `user` (przez zaproszenie) |
 | Admin ustawia hasło `user` / hasło w mailu / `POST /users` z `password` | Łamie kanon zaproszeń; admin zna sekret konta | Admin podaje **tylko email**; pierwsze hasło ustawia zaproszony na `accept-invite` |
