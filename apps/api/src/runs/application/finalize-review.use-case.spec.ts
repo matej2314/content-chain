@@ -144,4 +144,24 @@ describe('FinalizeReviewUseCase', () => {
     });
     expect(saveFinalizedAt).not.toHaveBeenCalled();
   });
+
+  it('rejects cancelled with RUN_NOT_REVIEWABLE and skips saveFinalizedAt', async () => {
+    const run = snapshot({ status: 'cancelled' });
+    const saveFinalizedAt = jest.fn(
+      async (_id: RunId, _at: Date): Promise<boolean> => true,
+    );
+    const useCase = new FinalizeReviewUseCase(
+      unusedRepo({
+        getById: async () => run,
+        saveFinalizedAt,
+      }),
+    );
+
+    await expect(useCase.execute(run.id, ACTOR)).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'RUN_NOT_REVIEWABLE',
+      httpStatus: 409,
+    });
+    expect(saveFinalizedAt).not.toHaveBeenCalled();
+  });
 });

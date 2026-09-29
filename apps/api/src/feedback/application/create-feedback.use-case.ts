@@ -57,7 +57,11 @@ export class CreateFeedbackUseCase {
           403,
         );
       }
-      if (lookup.status !== 'completed' && lookup.status !== 'failed') {
+      const reviewable =
+        lookup.status === 'completed' ||
+        lookup.status === 'failed' ||
+        (lookup.status === 'cancelled' && lookup.hasResult);
+      if (!reviewable) {
         throw new DomainException(
           'RUN_NOT_REVIEWABLE',
           'Run is not in a reviewable state',

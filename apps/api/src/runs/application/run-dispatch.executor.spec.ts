@@ -45,7 +45,7 @@ describe('RunDispatchExecutor', () => {
     await executor.execute(run);
 
     expect(social.execute).toHaveBeenCalledTimes(1);
-    expect(social.execute).toHaveBeenCalledWith(run);
+    expect(social.execute).toHaveBeenCalledWith(run, undefined);
     expect(content.execute).not.toHaveBeenCalled();
     expect(lifecycle.transition).not.toHaveBeenCalled();
     expect(lifecycle.appendLog).not.toHaveBeenCalled();
@@ -61,7 +61,7 @@ describe('RunDispatchExecutor', () => {
     await executor.execute(run);
 
     expect(content.execute).toHaveBeenCalledTimes(1);
-    expect(content.execute).toHaveBeenCalledWith(run);
+    expect(content.execute).toHaveBeenCalledWith(run, undefined);
     expect(social.execute).not.toHaveBeenCalled();
     expect(lifecycle.transition).not.toHaveBeenCalled();
     expect(lifecycle.appendLog).not.toHaveBeenCalled();

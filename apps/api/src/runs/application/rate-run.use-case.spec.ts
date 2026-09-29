@@ -183,4 +183,26 @@ describe('RateRunUseCase', () => {
     });
     expect(saveRating).not.toHaveBeenCalled();
   });
+
+  it('rejects cancelled with RUN_NOT_REVIEWABLE and skips saveRating', async () => {
+    const run = snapshot({ status: 'cancelled' });
+    const saveRating = jest.fn(
+      async (_id: RunId, _rating: number | null): Promise<boolean> => true,
+    );
+    const useCase = new RateRunUseCase(
+      unusedRepo({
+        getById: async () => run,
+        saveRating,
+      }),
+    );
+
+    await expect(
+      useCase.execute(run.id, { rating: 4 }, ACTOR),
+    ).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'RUN_NOT_REVIEWABLE',
+      httpStatus: 409,
+    });
+    expect(saveRating).not.toHaveBeenCalled();
+  });
 });

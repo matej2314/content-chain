@@ -33,6 +33,7 @@ import { GetRunUseCase } from './application/get-run.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
 import { RateRunUseCase } from './application/rate-run.use-case';
+import { CancelRunUseCase } from './application/cancel-run.use-case';
 import { SaveOutputEditedUseCase } from './application/save-output-edited.use-case';
 import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
 import {
@@ -74,6 +75,7 @@ export class RunsController {
     private readonly rateRun: RateRunUseCase,
     private readonly saveOutputEdited: SaveOutputEditedUseCase,
     private readonly finalizeReview: FinalizeReviewUseCase,
+    private readonly cancelRun: CancelRunUseCase,
     @Inject(RUN_SSE_HUB) private readonly sse: RunSseHub,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -202,5 +204,14 @@ export class RunsController {
     @CurrentUser() user: AuthUserContext,
   ) {
     return this.finalizeReview.execute(runId, user);
+  }
+
+  @Post(':runId/cancel')
+  @HttpCode(200)
+  cancel(
+    @Param('runId', ParseRunIdPipe) runId: RunId,
+    @CurrentUser() user: AuthUserContext,
+  ) {
+    return this.cancelRun.execute(runId, user.id);
   }
 }

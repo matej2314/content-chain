@@ -25,6 +25,7 @@ import { RunsController } from './runs.controller';
 import { RateRunUseCase } from './application/rate-run.use-case';
 import { SaveOutputEditedUseCase } from './application/save-output-edited.use-case';
 import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
+import { CancelRunUseCase } from './application/cancel-run.use-case';
 
 export type RunsModuleAsyncOptions = {
   imports?: ModuleMetadata['imports'];
@@ -54,6 +55,7 @@ export type RunsModuleAsyncOptions = {
     RateRunUseCase,
     SaveOutputEditedUseCase,
     FinalizeReviewUseCase,
+    CancelRunUseCase,
   ],
   exports: [RunLifecycleModule, RunAbortRegistry],
 })

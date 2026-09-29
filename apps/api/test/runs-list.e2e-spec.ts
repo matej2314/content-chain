@@ -596,8 +596,9 @@ describe('Runs list (e2e)', () => {
     expect(rejected.body.code).toBe('VALIDATION_FAILED');
   });
 
-  it('D-28: filters status=completed,failed; single interrupted; rejects unknown', async () => {
+  it('D-28: filters status=completed,failed,cancelled; single interrupted; rejects unknown', async () => {
     const failedId = `run_${randomUUID()}`;
+    const cancelledId = `run_${randomUUID()}`;
     const interruptedId = `run_${randomUUID()}`;
     await prisma.run.create({
       data: {
@@ -608,6 +609,18 @@ describe('Runs list (e2e)', () => {
         language: 'pl',
         status: 'failed',
         brief: { topic: 'd28-failed' },
+      },
+    });
+    await prisma.run.create({
+      data: {
+        id: cancelledId,
+        conversationId: `conv_${randomUUID()}`,
+        taskType: 'post_ideas',
+        platform: 'linkedin',
+        language: 'pl',
+        status: 'cancelled',
+        brief: { topic: 'd28-cancelled' },
+        cancelledAt: new Date('2026-09-29T12:00:00.000Z'),
       },
     });
     await prisma.run.create({
@@ -624,14 +637,17 @@ describe('Runs list (e2e)', () => {
     });
 
     const mixed = await agent.get('/api/v1/runs').query({
-      status: 'completed,failed',
+      status: 'completed,failed,cancelled',
     });
     expect(mixed.status).toBe(200);
     const mixedBody = readListBody(mixed.body);
     expect(mixedBody.pageSize).toBe(10);
     expect(
       mixedBody.items.every(
-        (item) => item.status === 'completed' || item.status === 'failed',
+        (item) =>
+          item.status === 'completed' ||
+          item.status === 'failed' ||
+          item.status === 'cancelled',
       ),
     ).toBe(true);
     for (let i = 1; i < mixedBody.items.length; i += 1) {
@@ -640,6 +656,9 @@ describe('Runs list (e2e)', () => {
       ).toBeGreaterThanOrEqual(Date.parse(mixedBody.items[i].createdAt));
     }
     expect(mixedBody.items.some((item) => item.runId === failedId)).toBe(true);
+    expect(mixedBody.items.some((item) => item.runId === cancelledId)).toBe(
+      true,
+    );
     expect(
       mixedBody.items.every((item) => item.runId !== interruptedId),
     ).toBe(true);

@@ -4,7 +4,7 @@ Powtarzalny happy path **bez UI**:
 
 - **Social** — Setup (login admina → kontekst przez HTTP), potem posty (`post_ideas`, `post_ideas_then_content`) i rolki (`reel_ideas`, `reel_ideas_then_scripts`)
 - **Content** — to samo Setup, potem `page_copy` i `page_outline_then_copy`
-- **Review + feedback** — `review.postman-collection.json`: login + kontekst, cienkie fixture’y runów, ocena / finalize / feedback, **Authz druga sesja**, na końcu **Dokończ HITL** (pełny `post_ideas_then_content`)
+- **Review + feedback** — `review.postman-collection.json`: login + kontekst, cienkie fixture’y runów, **Cancel** (`POST .../cancel` — D-30…D-32), ocena / finalize / feedback, **Authz druga sesja**, na końcu **Dokończ HITL** (pełny `post_ideas_then_content`)
 - **Zaproszenia** — `invitations-pipeline.postman-collection.json`: login admina → create → **token z maila** → accept (konto `user` zostaje w bazie)
 
 Katalog ręcznego Send (bez asercji Collection Runnera) jest w `apps/api/content-chain.postman-collection.json` — te same endpointy review/feedback do kliknięcia na dowolnym `runId`.
@@ -35,7 +35,7 @@ PUT/PATCH `/company-context` i start runów wymagają sesji **admina** (`cc_acce
 2. Collection Runner:
    - Social: foldery w kolejności **Setup → A → B → C → D**.
    - Content: foldery w kolejności **Setup → A → B**.
-   - Review: foldery w kolejności **Setup → Fixtures → Review → Feedback → Lista autora → Authz druga sesja → Dokończ HITL**.
+   - Review: foldery w kolejności **Setup → Fixtures → Cancel → Review → Feedback → Lista autora → Authz druga sesja → Dokończ HITL**.
    - Zaproszenia: najpierw **Setup → A. Create**, potem wklej `inviteToken` z maila, potem **B. Accept** (nie jeden ciągły run).
 3. Zmienna `baseUrl` (domyślnie `http://localhost:3001/api/v1`) — zmień tylko gdy api nie stoi na 3001. `adminEmail` / `adminPassword` zmieniaj tylko gdy lokalny admin ma inne dane niż w kolekcji auth. Folder **Authz druga sesja** w Review wymaga `userEmail` / `userPassword` istniejącego konta `user` (to z pipeline zaproszeń). Nie commituj prawdziwego adresu.
 
@@ -63,11 +63,12 @@ Cel: żywy HTTP Fazy 6 — przegląd runu (`SPEC-RUNY.md` R-10) i zapis opinii (
 
 1. **Setup** — login admina, `GET /auth/me` (zapis `userId` / syntetyczny `otherUserId` pod R8/R9), PUT kontekstu Acme, completeness `true`. Bez PATCH nieznanego `extras` (to D-20 w Social/Content).
 2. **Fixtures** — dwa `post_ideas` aż `completed` (`completedRunId`, `ratedCompletedRunId`) oraz `post_ideas_then_content` aż `awaiting_hitl` (`inProgressRunId`, zapis `hitlIdeaId`). Status nieterminalny zostaje stabilny pod R6/R7c/E7/E8; wznowienie HITL jest w ostatnim folderze.
-3. **Review** — ocena 4 → `null` → `POST .../output-edited` z `{ result: { ideas } }` (te same id co fixture) → snapshot: treść = body klienta **oraz** `outputEdited: true` → finalize bez gwiazdek oraz z oceną 5 → `409 REVIEW_LOCKED` na rating / `output-edited` / ponownym finalize → `409 RUN_NOT_REVIEWABLE` na rating / edycji / finalize przy `awaiting_hitl`.
-4. **Feedback** — `201` na zfinalizowanym runie, drugi wpis = nowy `fbk_…` (Fbk-2), `404 RUN_NOT_FOUND`, `409` na runie w toku, `application` / `agent`, `400` na nieznany `agentKey` i zły format `runId`.
-5. **Lista autora** — `GET /runs/user/:userId` (200) i cudze id (403).
-6. **Authz druga sesja** — `POST /auth/logout` admina → rating bez sesji **401**; login `user`; cudzy `completed` → 403 na rating / edycji / finalize / feedback (nie `REVIEW_LOCKED`, nie 404); cudzy `awaiting_hitl` → feedback 403 (Fbk-3a), ocena 409 (R-10); brak runu → 404; lista admina 403; własna lista pusta; `rating: 6` → 400.
-7. **Dokończ HITL** — ponowny login admina → `POST .../hitl` 1 id z `hitlIdeaId` → poll `completed` (`result.content === null`, `contents.length === 1`, przegląd otwarty).
+3. **Cancel** — osobny `post_ideas_then_content` → `awaiting_hitl` → `POST .../cancel` **200** (`cancelled` + `cancelledAt`) → drugi cancel **200** (D-31) → cancel `completedRunId` **409** `RUN_NOT_CANCELABLE` → login `user` → cancel cudzego **403** → login admina. Mapowanie R-11 / D-30…D-32.
+4. **Review** — ocena 4 → `null` → `POST .../output-edited` z `{ result: { ideas } }` (te same id co fixture) → snapshot: treść = body klienta **oraz** `outputEdited: true` → finalize bez gwiazdek oraz z oceną 5 → `409 REVIEW_LOCKED` na rating / `output-edited` / ponownym finalize → `409 RUN_NOT_REVIEWABLE` na rating / edycji / finalize przy `awaiting_hitl`.
+5. **Feedback** — `201` na zfinalizowanym runie, drugi wpis = nowy `fbk_…` (Fbk-2), `404 RUN_NOT_FOUND`, `409` na runie w toku, `application` / `agent`, `400` na nieznany `agentKey` i zły format `runId`.
+6. **Lista autora** — `GET /runs/user/:userId` (200) i cudze id (403).
+7. **Authz druga sesja** — `POST /auth/logout` admina → rating bez sesji **401**; login `user`; cudzy `completed` → 403 na rating / edycji / finalize / feedback (nie `REVIEW_LOCKED`, nie 404); cudzy `awaiting_hitl` → feedback 403 (Fbk-3a), ocena 409 (R-10); brak runu → 404; lista admina 403; własna lista pusta; `rating: 6` → 400.
+8. **Dokończ HITL** — ponowny login admina → `POST .../hitl` 1 id z `hitlIdeaId` → poll `completed` (`result.content === null`, `contents.length === 1`, przegląd otwarty).
 
 Cudzy `startedBy` jest w folderze Authz (wymaga `userEmail` / `userPassword`). Status `failed` nadal poza runnerem (fixture’y Review failują test przy `failed`). Unit: `assertRunReviewable` / `CreateFeedbackUseCase`.
 
@@ -110,6 +111,7 @@ W **Social i Content** Setup jest ten sam:
 | Content | **A. page_copy** | `POST /runs` bez `platform`, z `contentKind: "blog"`, `brief` bez `ideaCount` → poll `completed` → `result.pageDocument.body` + logi |
 | Content | **B. page_outline_then_copy** | poll `awaiting_hitl` → `ideaId` z `hitl.options[0].id` albo `result.pageOutline.id` → HITL `[outline.id]` → poll `completed` + `pageDocument`. Gdy sekcja ma `role`, musi być z zamkniętego enumu (D-18 / D-22) |
 | Review | **Fixtures** | dwa `post_ideas` → `completed`; `post_ideas_then_content` → `awaiting_hitl` (zapis `hitlIdeaId`) |
+| Review | **Cancel** | osobny HITL-run → `POST .../cancel` 200 (D-30) → idempotencja (D-31) → 409 na completed / 403 cudzy (D-32); przywrócenie sesji admina |
 | Review | **Review** | R1–R6 (+ R4b/R4c, R5b/R5c, R6b/R6c): rating, `output-edited` z `{ result }`, snapshot treści, finalize, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE` |
 | Review | **Feedback** | R7–R7g: `POST /feedback` na run (także po finalize + append), 404, 409 w toku, `application` / `agent`, 400 |
 | Review | **Lista autora** | R8/R9: `GET /runs/user/:userId` — sesja 200, cudze id 403 |

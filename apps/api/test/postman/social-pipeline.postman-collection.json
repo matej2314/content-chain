@@ -246,7 +246,7 @@
                   "});",
                   "",
                   "const body = pm.response.json();",
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "pm.test('runId present', function () {",
                   "  pm.expect(body.runId).to.be.a('string').that.is.not.empty;",
                   "});",
@@ -282,7 +282,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "const IN_FLIGHT = ['queued', 'running', 'interrupted'];",
                   "const MAX_POLLS = 120;",
                   "const POLL_MS = 3000;",
@@ -415,7 +415,7 @@
                   "});",
                   "",
                   "const body = pm.response.json();",
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "pm.test('runId present', function () {",
                   "  pm.expect(body.runId).to.be.a('string').that.is.not.empty;",
                   "});",
@@ -453,7 +453,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "const IN_FLIGHT = ['queued', 'running', 'interrupted'];",
                   "const MAX_POLLS = 120;",
                   "const POLL_MS = 3000;",
@@ -694,7 +694,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "const IN_FLIGHT = ['queued', 'running', 'interrupted', 'awaiting_hitl'];",
                   "const MAX_POLLS = 120;",
                   "const POLL_MS = 3000;",
@@ -781,7 +781,7 @@
                   "});",
                   "",
                   "const body = pm.response.json();",
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "pm.test('runId present', function () {",
                   "  pm.expect(body.runId).to.be.a('string').that.is.not.empty;",
                   "});",
@@ -817,7 +817,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "const IN_FLIGHT = ['queued', 'running', 'interrupted'];",
                   "const MAX_POLLS = 120;",
                   "const POLL_MS = 3000;",
@@ -953,7 +953,7 @@
                   "});",
                   "",
                   "const body = pm.response.json();",
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "pm.test('runId present', function () {",
                   "  pm.expect(body.runId).to.be.a('string').that.is.not.empty;",
                   "});",
@@ -991,7 +991,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "const IN_FLIGHT = ['queued', 'running', 'interrupted'];",
                   "const MAX_POLLS = 120;",
                   "const POLL_MS = 3000;",
@@ -1235,7 +1235,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "const IN_FLIGHT = ['queued', 'running', 'interrupted', 'awaiting_hitl'];",
                   "const MAX_POLLS = 120;",
                   "const POLL_MS = 3000;",

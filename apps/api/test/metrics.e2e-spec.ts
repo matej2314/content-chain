@@ -66,6 +66,9 @@ describe('Metrics (e2e)', () => {
       'content_chain_http_request_duration_seconds',
     );
     expect(response.text).toContain('content_chain_runs_by_status');
+    expect(response.text).toMatch(
+      /content_chain_runs_by_status\{status="cancelled"\}/,
+    );
     expect(response.text).toContain('content_chain_gateway_errors_total');
     expect(response.text).not.toMatch(
       /change-me-gateway-key|JWT_SECRET|password=/i,

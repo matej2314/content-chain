@@ -24,13 +24,26 @@ export class PrismaFeedbackRunReaderAdapter implements FeedbackRunReader {
     if (!isRunStatus(row.status)) {
       throw new Error(`Run.status is not a RunStatus: ${row.status}`);
     }
-    if (!row.startedByUserId || !isUserId(row.startedByUserId)) {
-      return { kind: 'found', startedBy: null, status: row.status };
-    }
-    return {
-      kind: 'found',
-      startedBy: createUserId(row.startedByUserId),
-      status: row.status,
-    };
+
+    const hasResult = await this.hasAnyRunResult(runId);
+    const startedBy =
+      row.startedByUserId && isUserId(row.startedByUserId)
+        ? createUserId(row.startedByUserId)
+        : null;
+
+    return { kind: 'found', startedBy, status: row.status, hasResult };
+  }
+
+  /** Fbk-3a: any persisted result row for the run (without assembling a Runs snapshot). */
+  private async hasAnyRunResult(runId: RunId): Promise<boolean> {
+    const counts = await Promise.all([
+      this.prisma.socialIdea.count({ where: { runId } }),
+      this.prisma.socialContent.count({ where: { runId } }),
+      this.prisma.socialReelIdea.count({ where: { runId } }),
+      this.prisma.socialReelScript.count({ where: { runId } }),
+      this.prisma.contentOutline.count({ where: { runId } }),
+      this.prisma.contentDocument.count({ where: { runId } }),
+    ]);
+    return counts.some((n) => n > 0);
   }
 }

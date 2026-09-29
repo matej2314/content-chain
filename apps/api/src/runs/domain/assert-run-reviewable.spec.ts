@@ -49,16 +49,19 @@ describe('assertRunReviewable', () => {
     expectDomain(() => assertRunReviewable(null, ACTOR), 'RUN_NOT_FOUND', 404);
   });
 
-  it.each(['queued', 'running', 'awaiting_hitl', 'interrupted'] as const)(
-    'throws 409 RUN_NOT_REVIEWABLE for status %s',
-    (status) => {
-      expectDomain(
-        () => assertRunReviewable(snapshot({ status }), ACTOR),
-        'RUN_NOT_REVIEWABLE',
-        409,
-      );
-    },
-  );
+  it.each([
+    'queued',
+    'running',
+    'awaiting_hitl',
+    'interrupted',
+    'cancelled',
+  ] as const)('throws 409 RUN_NOT_REVIEWABLE for status %s', (status) => {
+    expectDomain(
+      () => assertRunReviewable(snapshot({ status }), ACTOR),
+      'RUN_NOT_REVIEWABLE',
+      409,
+    );
+  });
 
   it('throws 403 FORBIDDEN when actor is not startedBy', () => {
     expectDomain(() => assertRunReviewable(snapshot(), OTHER), 'FORBIDDEN', 403);

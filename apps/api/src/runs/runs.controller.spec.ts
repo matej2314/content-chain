@@ -16,6 +16,7 @@ import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { RateRunUseCase } from './application/rate-run.use-case';
 import { SaveOutputEditedUseCase } from './application/save-output-edited.use-case';
 import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
+import { CancelRunUseCase } from './application/cancel-run.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
 import { RUN_SSE_HUB, type RunSseEvent } from './domain/run-sse.port';
 import { type ListRunsQueryDto } from './http/dto/list-runs-query.dto';
@@ -43,6 +44,7 @@ describe('RunsController', () => {
   let rateRun: { execute: jest.Mock };
   let saveOutputEdited: { execute: jest.Mock };
   let finalizeReview: { execute: jest.Mock };
+  let cancelRun: { execute: jest.Mock };
   let sse: { subscribe: jest.Mock; publish: jest.Mock; complete: jest.Mock };
 
   beforeEach(async () => {
@@ -55,6 +57,7 @@ describe('RunsController', () => {
     rateRun = { execute: jest.fn() };
     saveOutputEdited = { execute: jest.fn() };
     finalizeReview = { execute: jest.fn() };
+    cancelRun = { execute: jest.fn() };
     sse = { subscribe: jest.fn(), publish: jest.fn(), complete: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -69,6 +72,7 @@ describe('RunsController', () => {
         { provide: RateRunUseCase, useValue: rateRun },
         { provide: SaveOutputEditedUseCase, useValue: saveOutputEdited },
         { provide: FinalizeReviewUseCase, useValue: finalizeReview },
+        { provide: CancelRunUseCase, useValue: cancelRun },
         { provide: RUN_SSE_HUB, useValue: sse },
         {
           provide: ENV,
@@ -108,6 +112,7 @@ describe('RunsController', () => {
     expect(
       Reflect.getMetadata(IS_PUBLIC_KEY, proto.postFinalizeReview),
     ).toBeUndefined();
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.cancel)).toBeUndefined();
 
     expect(Reflect.getMetadata(ROLES_KEY, proto.create)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.logs)).toBeUndefined();
@@ -123,6 +128,7 @@ describe('RunsController', () => {
     expect(
       Reflect.getMetadata(ROLES_KEY, proto.postFinalizeReview),
     ).toBeUndefined();
+    expect(Reflect.getMetadata(ROLES_KEY, proto.cancel)).toBeUndefined();
   });
 
   it('declares parameterized routes before GET :runId', () => {
@@ -153,6 +159,7 @@ describe('RunsController', () => {
     expect(Reflect.getMetadata('path', proto.postFinalizeReview)).toBe(
       ':runId/finalize-review',
     );
+    expect(Reflect.getMetadata('path', proto.cancel)).toBe(':runId/cancel');
   });
 
   it('maps list query DTO to ListRunsQuery and delegates to ListRunsUseCase', async () => {
@@ -299,6 +306,21 @@ describe('RunsController', () => {
       controller.postFinalizeReview(runId, sessionUser),
     ).resolves.toBe(finalized);
     expect(finalizeReview.execute).toHaveBeenCalledWith(runId, sessionUser);
+  });
+
+  it('delegates POST :runId/cancel to CancelRunUseCase', async () => {
+    const runId = newRunId();
+    const cancelled = {
+      runId,
+      status: 'cancelled' as const,
+      cancelledAt: '2026-09-29T12:00:00.000Z',
+    };
+    cancelRun.execute.mockResolvedValue(cancelled);
+
+    await expect(controller.cancel(runId, sessionUser)).resolves.toBe(
+      cancelled,
+    );
+    expect(cancelRun.execute).toHaveBeenCalledWith(runId, sessionUser.id);
   });
 
   it('startWith emits latest status, not the earlier snapshot', async () => {

@@ -62,8 +62,14 @@ function unusedReader(
 function foundRun(args: {
   startedBy: UserId | null;
   status: RunStatus;
+  hasResult?: boolean;
 }): Extract<FeedbackRunLookup, { kind: 'found' }> {
-  return { kind: 'found', startedBy: args.startedBy, status: args.status };
+  return {
+    kind: 'found',
+    startedBy: args.startedBy,
+    status: args.status,
+    hasResult: args.hasResult ?? true,
+  };
 }
 
 function makeUseCase(args: {
@@ -191,6 +197,65 @@ describe('CreateFeedbackUseCase', () => {
       expect(save).toHaveBeenCalledTimes(1);
     },
   );
+
+  it('saves run feedback on cancelled when hasResult is true', async () => {
+    const save = jest.fn(async (_entry: FeedbackEntry) => undefined);
+    const getStartedBy = jest.fn(
+      async (_runId: RunId): Promise<FeedbackRunLookup> =>
+        foundRun({
+          startedBy: AUTHOR.id,
+          status: 'cancelled',
+          hasResult: true,
+        }),
+    );
+    const useCase = makeUseCase({
+      feedback: unusedFeedback({ save }),
+      runReader: unusedReader({ getStartedBy }),
+    });
+
+    const result = await useCase.execute(
+      { targetType: 'run', runId: OWN_RUN_ID, body: 'Partial cancel' },
+      AUTHOR,
+    );
+
+    expect(result).toMatchObject({
+      targetType: 'run',
+      runId: createRunId(OWN_RUN_ID),
+      body: 'Partial cancel',
+      authorId: AUTHOR.id,
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects cancelled without result with RUN_NOT_REVIEWABLE and skips persist', async () => {
+    const save = jest.fn(async (_entry: FeedbackEntry) => undefined);
+    const useCase = makeUseCase({
+      feedback: unusedFeedback({ save }),
+      runReader: unusedReader({
+        getStartedBy: async () =>
+          foundRun({
+            startedBy: AUTHOR.id,
+            status: 'cancelled',
+            hasResult: false,
+          }),
+      }),
+    });
+
+    const error = await useCase
+      .execute(
+        { targetType: 'run', runId: OWN_RUN_ID, body: 'Empty cancel' },
+        AUTHOR,
+      )
+      .catch((err: unknown) => err);
+
+    expect(error).toBeInstanceOf(DomainException);
+    expect(error).toMatchObject({
+      code: 'RUN_NOT_REVIEWABLE',
+      httpStatus: 409,
+      message: 'Run is not in a reviewable state',
+    });
+    expect(save).not.toHaveBeenCalled();
+  });
 
   it.each(NON_REVIEWABLE_STATUSES)(
     'rejects an owned %s run with RUN_NOT_REVIEWABLE and skips persist',

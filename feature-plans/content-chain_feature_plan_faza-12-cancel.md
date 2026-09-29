@@ -868,7 +868,7 @@ cancelled without consuming recoveryAttempts; hub closes like other terminals.
 
 ### KROK 1 — `CancelRunUseCase` + `POST .../cancel`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Kontrakt HTTP R-11 / `docs/dokumentacja_komunikacji.md`: authz `startedBy`, durable flaga, CAS, abort in-process, log info, SSE, **200** + snapshot `GetRunOutput` **bez** await `execute`; idempotencja już-`cancelled`; **409** `RUN_NOT_CANCELABLE` vs `completed`/`failed`.
 
@@ -1011,7 +1011,7 @@ Wzorce jak `rate-run` / `resume-hitl` (`unusedRepo` z `setCancelRequested` / `at
 
 ### KROK 2 — Feedback / rate / edit / finalize pod `cancelled`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** R-10: przegląd (rate / edit / finalize) **bez** `cancelled` → 409 `RUN_NOT_REVIEWABLE`. Fbk-3a: opinia `targetType=run` na `cancelled` **tylko z** wynikiem; bez wyniku → 409. Port feedback zwraca sygnał obecności wyniku **bez** importu `RunsModule` / `assertRunReviewable`.
 
@@ -1142,7 +1142,7 @@ Kolejność Fbk-3 → Fbk-3a **bez zmian**: najpierw własność (403), potem st
 
 ### KROK 3 — Testy D-30…D-34, regresje, Postman, metrics
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Dowód kontraktu `SPEC-TESTY.md` D-30…D-34 (+ regresje D-11 / D-12 / D-14 / D-28); Postman; sanity metrics.
 

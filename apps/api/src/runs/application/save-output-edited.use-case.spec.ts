@@ -319,5 +319,22 @@ describe('SaveOutputEditedUseCase', () => {
       ),
     ).rejects.toMatchObject({ code: 'RUN_NOT_REVIEWABLE' });
     expect(queuedCommit).not.toHaveBeenCalled();
+
+    const cancelled = snapshot({ status: 'cancelled' });
+    const cancelledCommit = jest.fn(async () => true);
+    const cancelledUc = new SaveOutputEditedUseCase(
+      unusedRuns({ getById: async () => cancelled }),
+      unusedSocial(),
+      unusedContent(),
+      unusedWriter({ commit: cancelledCommit }),
+    );
+    await expect(
+      cancelledUc.execute(
+        cancelled.id,
+        { result: { content: { body: 'y', hashtags: [] } } },
+        ACTOR,
+      ),
+    ).rejects.toMatchObject({ code: 'RUN_NOT_REVIEWABLE' });
+    expect(cancelledCommit).not.toHaveBeenCalled();
   });
 });

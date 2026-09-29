@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "b7e4c1a9-2f6d-4c8b-9a31-5e0d8f4b2c17",
     "name": "Content Chain — Review + feedback (Faza 6)",
-    "description": "Happy path przeglądu runu (R-10, w tym POST output-edited z `{ result }`) i feedbacku tekstowego (Fbk-1 / Fbk-2 / Fbk-3 / Fbk-3a / Fbk-4): Setup (login admina → cookie `cc_access` / `cc_refresh` → `GET /auth/me` → PUT kontekstu), fixture dwóch `completed` (finalize z `null` oraz z oceną 1–5) + `awaiting_hitl`, potem R1–R9 (+ R4b/R4c, R5b/R5c, R6b/R6c, R7a, R7d–R7g), **Authz druga sesja** (E0 logout admina → E0b 401 → E1–E13), na końcu **Dokończ HITL** (`POST .../hitl` 1 id → `completed`).\n\n`awaiting_hitl` jest stabilnym statusem nieterminalnym pod R6/R6b/R6c/R7c/E7/E8 (ten sam 409 `RUN_NOT_REVIEWABLE` co `running` / `queued` / `interrupted` — bez wyścigu z LLM). HITL wznawiane dopiero po tych negatywach.\n\nWymaga żywego `apps/api` (`:3001`), lokalnego gateway, **istniejącego admina** (`adminEmail` / `adminPassword` — jak `auth.postman-collection.json`) oraz **istniejącego konta `user`** (`userEmail` / `userPassword` — to z `invitations-pipeline.postman-collection.json`). Folder Authz nie startuje runu usera: drugi użytkownik może mieć puste `GET /runs/user/:id`. W Postmanie włącz cookie jar. Kolekcja nie woła gateway — klient uderza wyłącznie w api. Nie dubluje negatywów HITL z Social B.\n\nNie jest to suite `pnpm test:e2e`. Import → Collection Runner: **Setup → Fixtures → Review → Feedback → Lista autora → Authz druga sesja → Dokończ HITL**.",
+    "description": "Happy path przeglądu runu (R-10, w tym POST output-edited z `{ result }`) i feedbacku tekstowego (Fbk-1 / Fbk-2 / Fbk-3 / Fbk-3a / Fbk-4): Setup (login admina → cookie `cc_access` / `cc_refresh` → `GET /auth/me` → PUT kontekstu), fixture dwóch `completed` (finalize z `null` oraz z oceną 1–5) + `awaiting_hitl`, potem R1–R9 (+ R4b/R4c, R5b/R5c, R6b/R6c, R7a, R7d–R7g), **Authz druga sesja** (E0 logout admina → E0b 401 → E1–E13), na końcu **Dokończ HITL** (`POST .../hitl` 1 id → `completed`).\n\n`awaiting_hitl` jest stabilnym statusem nieterminalnym pod R6/R6b/R6c/R7c/E7/E8 (ten sam 409 `RUN_NOT_REVIEWABLE` co `running` / `queued` / `interrupted` — bez wyścigu z LLM). HITL wznawiane dopiero po tych negatywach.\n\nWymaga żywego `apps/api` (`:3001`), lokalnego gateway, **istniejącego admina** (`adminEmail` / `adminPassword` — jak `auth.postman-collection.json`) oraz **istniejącego konta `user`** (`userEmail` / `userPassword` — to z `invitations-pipeline.postman-collection.json`). Folder Authz nie startuje runu usera: drugi użytkownik może mieć puste `GET /runs/user/:id`. W Postmanie włącz cookie jar. Kolekcja nie woła gateway — klient uderza wyłącznie w api. Nie dubluje negatywów HITL z Social B.\n\nNie jest to suite `pnpm test:e2e`. Import → Collection Runner: **Setup → Fixtures → Cancel → Review → Feedback → Lista autora → Authz druga sesja → Dokończ HITL**.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -89,6 +89,14 @@
     {
       "key": "editedResultBody",
       "value": ""
+    },
+    {
+      "key": "cancelRunId",
+      "value": ""
+    },
+    {
+      "key": "pollCountCancel",
+      "value": "0"
     }
   ],
   "item": [
@@ -294,7 +302,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "const IN_FLIGHT = ['queued', 'running', 'interrupted'];",
                   "const MAX_POLLS = 120;",
                   "const POLL_MS = 3000;",
@@ -428,7 +436,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "const IN_FLIGHT = ['queued', 'running', 'interrupted'];",
                   "const MAX_POLLS = 120;",
                   "const POLL_MS = 3000;",
@@ -550,7 +558,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "const IN_FLIGHT = ['queued', 'running', 'interrupted'];",
                   "const MAX_POLLS = 120;",
                   "const POLL_MS = 3000;",
@@ -622,6 +630,313 @@
             "header": [],
             "url": "{{baseUrl}}/runs/{{inProgressRunId}}",
             "description": "Stabilny status nieterminalny pod R6/R7c/E7/E8. Zapisuje `hitlIdeaId` pod folder Dokończ HITL (1 id z draftu, jak Social B)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cancel",
+      "description": "R-11 / D-30…D-32: własny `post_ideas_then_content` → `awaiting_hitl` → `POST .../cancel` (200 + cancelledAt), idempotencja, 409 na completed, 403 cudza sesja (wymaga `userEmail` / `userPassword`). Nie rusza `inProgressRunId` z Fixtures (HITL zostaje na końcu).",
+      "item": [
+        {
+          "name": "C1. POST runs (post_ideas_then_content → cancelRunId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 202', function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});",
+                  "if (pm.response.code !== 202) {",
+                  "  return;",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test('runId present', function () {",
+                  "  pm.expect(body.runId).to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('cancelRunId', body.runId);",
+                  "pm.collectionVariables.set('pollCountCancel', '0');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskType\": \"post_ideas_then_content\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": { \"topic\": \"Cancel fixture\" }\n}\n"
+            },
+            "url": "{{baseUrl}}/runs",
+            "description": "Nowy run pod cancel — osobny od Fixtures/HITL."
+          }
+        },
+        {
+          "name": "C2. GET cancel run until awaiting_hitl",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
+                  "const IN_FLIGHT = ['queued', 'running', 'interrupted', 'awaiting_hitl'];",
+                  "const MAX_POLLS = 120;",
+                  "const POLL_MS = 3000;",
+                  "function wait(ms) {",
+                  "  const until = Date.now() + ms;",
+                  "  while (Date.now() < until) {}",
+                  "}",
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) { return; }",
+                  "const body = pm.response.json();",
+                  "pm.test('status is a run enum', function () {",
+                  "  pm.expect(RUN_STATUSES).to.include(body.status);",
+                  "});",
+                  "const polls = Number(pm.collectionVariables.get('pollCountCancel') || 0) + 1;",
+                  "pm.collectionVariables.set('pollCountCancel', String(polls));",
+                  "if (body.status === 'failed' || body.status === 'cancelled') {",
+                  "  pm.test('cancel fixture did not finish early', function () {",
+                  "    pm.expect.fail('unexpected status: ' + body.status);",
+                  "  });",
+                  "  return;",
+                  "}",
+                  "if (body.status !== 'awaiting_hitl') {",
+                  "  pm.test('still in-flight before cancel', function () {",
+                  "    pm.expect(IN_FLIGHT).to.include(body.status);",
+                  "  });",
+                  "  if (polls >= MAX_POLLS) {",
+                  "    pm.test('awaiting_hitl within poll budget', function () {",
+                  "      pm.expect.fail('timeout waiting for awaiting_hitl (last: ' + body.status + ')');",
+                  "    });",
+                  "    return;",
+                  "  }",
+                  "  wait(POLL_MS);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "  return;",
+                  "}",
+                  "pm.test('awaiting_hitl ready to cancel', function () {",
+                  "  pm.expect(body.status).to.eql('awaiting_hitl');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{cancelRunId}}",
+            "description": "Poll aż awaiting_hitl (stabilny nieterminal pod D-30)."
+          }
+        },
+        {
+          "name": "C3. POST cancel (200 cancelled) — D-30",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) { return; }",
+                  "const body = pm.response.json();",
+                  "pm.test('status cancelled', function () {",
+                  "  pm.expect(body.status).to.eql('cancelled');",
+                  "});",
+                  "pm.test('cancelledAt ISO', function () {",
+                  "  pm.expect(body.cancelledAt).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(Date.parse(body.cancelledAt)).to.not.be.NaN;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{cancelRunId}}/cancel",
+            "description": "R-11 / D-30: body puste, 200 + snapshot cancelled.",
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        },
+        {
+          "name": "C4. POST cancel again (200 idempotent) — D-31",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) { return; }",
+                  "const body = pm.response.json();",
+                  "pm.test('still cancelled', function () {",
+                  "  pm.expect(body.status).to.eql('cancelled');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{cancelRunId}}/cancel",
+            "description": "D-31: drugi cancel → 200.",
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        },
+        {
+          "name": "C5. POST cancel on completedRunId (409 RUN_NOT_CANCELABLE) — D-32",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('completedRunId is set', function () {",
+                  "  pm.expect(pm.collectionVariables.get('completedRunId'), 'completedRunId').to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status 409', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});",
+                  "if (pm.response.code !== 409) { return; }",
+                  "const body = pm.response.json();",
+                  "pm.test('RUN_NOT_CANCELABLE', function () {",
+                  "  pm.expect(body.code).to.eql('RUN_NOT_CANCELABLE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{completedRunId}}/cancel",
+            "description": "D-32: terminal completed → 409.",
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        },
+        {
+          "name": "C6a. POST login as user (session for 403 cancel)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('userEmail is set', function () {",
+                  "  pm.expect(pm.collectionVariables.get('userEmail'), 'userEmail').to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}\n"
+            },
+            "description": "Sesja cudzego użytkownika pod D-32 403."
+          }
+        },
+        {
+          "name": "C6b. POST cancel admin cancelled run as user (403 FORBIDDEN) — D-32",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "if (pm.response.code !== 403) { return; }",
+                  "const body = pm.response.json();",
+                  "pm.test('FORBIDDEN', function () {",
+                  "  pm.expect(body.code).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{cancelRunId}}/cancel",
+            "description": "Cudzy startedBy → 403 (nawet gdy status już cancelled).",
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        },
+        {
+          "name": "C6c. POST login as admin (restore session)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code !== 200) { return; }",
+                  "const body = pm.response.json();",
+                  "pm.test('admin session', function () {",
+                  "  pm.expect(body.user.role).to.eql('admin');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            },
+            "description": "Przywróć sesję admina przed Review / HITL."
           }
         }
       ]
@@ -2199,7 +2514,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed'];",
+                  "const RUN_STATUSES = ['queued', 'running', 'interrupted', 'awaiting_hitl', 'completed', 'failed', 'cancelled'];",
                   "const IN_FLIGHT = ['queued', 'running', 'interrupted', 'awaiting_hitl'];",
                   "const MAX_POLLS = 120;",
                   "const POLL_MS = 3000;",
