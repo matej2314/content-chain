@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31), `update-mvp-contract-plan.md` (Faza 4.3), `multi-hitl-plan.md` (HITL Social min. 1 / N→N — legalizacja kanonu Fazy 4.3).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (`WYKONANY`) — Zod 4 w `apps/api`; bez własnego milestone’u. **Faza 10** (`WYKONANY`) — kontrakt api wymagany przez `content-chain-frontend_major_plan.md` (edycja wyniku, własny email, filtr wielowartościowy `GET /runs`); **bez** zmiany MILESTONE 6 (`OSIĄGNIĘTY`) i **bez** MILESTONE 10. **Faza 11** (`WYKONANY`) — twardy zapis kontekstu firmy (PUT/PATCH wyłącznie przy kompletnej bramce); **bez** zmiany MILESTONE 3 (`OSIĄGNIĘTY`) i **bez** MILESTONE 11. Faza 3 / Krok 3.1 i MILESTONE 3 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`). **Faza 12** (`NIE_ROZPOCZĘTY`) — anulowanie runu (`cancelled`): gate normy pod feature-plan; **bez** MILESTONE 12 i **bez** kroków implementacji kodu w tym majorze.
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (`WYKONANY`) — Zod 4 w `apps/api`; bez własnego milestone’u. **Faza 10** (`WYKONANY`) — kontrakt api wymagany przez `content-chain-frontend_major_plan.md` (edycja wyniku, własny email, filtr wielowartościowy `GET /runs`); **bez** zmiany MILESTONE 6 (`OSIĄGNIĘTY`) i **bez** MILESTONE 10. **Faza 11** (`WYKONANY`) — twardy zapis kontekstu firmy (PUT/PATCH wyłącznie przy kompletnej bramce); **bez** zmiany MILESTONE 3 (`OSIĄGNIĘTY`) i **bez** MILESTONE 11. Faza 3 / Krok 3.1 i MILESTONE 3 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`). **Faza 12** (`WYKONANY`) — anulowanie runu (`cancelled`): gate normy + HOW w feature-planie; **bez** MILESTONE 12 i **bez** kroków implementacji kodu w tym majorze; MILESTONE 6 / 3 / … bez zmian (`OSIĄGNIĘTY`).
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -1171,7 +1171,7 @@ Zmiana względem: status Fazy 11 oraz kroków 11.1–11.2 (`NIE_ROZPOCZĘTY`). P
 
 ## Faza 12 — Anulowanie runu (`cancelled`) — norma gotowa pod feature-plan
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Bez MILESTONE 12** — gate normy i gotowości pod osobny feature-plan; nie skok implementacyjny w tym majorze.
 
@@ -1184,6 +1184,9 @@ Zmiana względem: status Fazy 11 oraz kroków 11.1–11.2 (`NIE_ROZPOCZĘTY`). P
 **Opis:** Ta faza majoru **nie** zawiera kroków implementacji kodu. Oznacza, że norma produktowa i egzekwowalna jest w `docs/` + `spec/` i wolno otworzyć feature-plan (enum/DB → CAS/abort/recovery → HTTP/SSE → testy/Postman) bez dalszej zmiany kanonu w root `cancel-run-state.md`.
 
 **Poza zakresem tej fazy majoru:** implementacja w `apps/api`; abort na gateway/provider; admin cancel; resume; rollback wyniku; kroki kodu w tym pliku.
+
+**Nota (po feature planie):** `feature-plans/wykonane/content-chain_feature_plan_faza-12-cancel.md` (FAZA 1–3 / KROK `WYKONANY` — postęp kodu wyłącznie w feature-planie; **bez** dodatkowych kroków w tym majorze). Shared `cancelled` + transitions + Prisma `cancelRequested`/`cancelledAt` + CAS `attemptCancel`, `RunAbortRegistry` + `AbortSignal` w execute/gateway, recovery leftover z flagą → `cancelled` bez `recoveryAttempts++`, `publishCancelled` (`run.status` → `run.cancelled` → complete), `POST .../cancel` + Fbk-3a / `assertRunReviewable`, e2e D-30…D-34 + regresje D-11/D-12/D-14/D-28 + Postman. **`WYKONANY` tej fazy = DoD gate** (docs/SPEC + ścieżka HOW); nie mylić z milestone’em produktowym. **Brak MILESTONE 12** — nic nie oznaczać `OSIĄGNIĘTY`. MILESTONE 6 / 3 / … bez zmian (`OSIĄGNIĘTY`).
+Zmiana względem: status Fazy 12 (`NIE_ROZPOCZĘTY`). Powód: ślad do major po domknięciu gate / implementacji `content-chain_feature_plan_faza-12-cancel.md`.
 
 **DoD (faza-gate):**
 
@@ -1214,5 +1217,5 @@ Zmiana względem: status Fazy 11 oraz kroków 11.1–11.2 (`NIE_ROZPOCZĘTY`). P
 | Auth | `SPEC-AUTH.md` |
 | Faza 10 — edycja wyniku, własny email, filtr `status` | `content-chain-frontend_major_plan.md` (Faza 3 archiwum, Faza 5 przegląd/email), `docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`, `SPEC-RUNY.md` R-10 / R-3a, `SPEC-AUTH.md` A-3b, `SPEC-TESTY.md` D-12 / D-27 / D-28 |
 | Faza 11 — twardy zapis kontekstu (kompletna bramka) | `SPEC-KONTEKST-FIRMY.md` C-1/C-4, `docs/dokumentacja_koncepcyjna.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-TESTY.md` D-1 / D-20 / D-29, `content-chain-frontend_major_plan.md` Faza 3.5 |
-| Faza 12 — anulowanie runu (`cancelled`, gate) | `SPEC-RUNY.md`, `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md`, `docs/ux_dashboard.md` |
+| Faza 12 — anulowanie runu (`cancelled`, gate) | `SPEC-RUNY.md` R-4a / R-9 / R-10 / R-11, `SPEC-KOMUNIKACJA.md`, `SPEC-FEEDBACK.md` Fbk-3a, `SPEC-TESTY.md` D-30…D-34, `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md` §6a, `docs/observability.md`, `docs/ux_dashboard.md`, `feature-plans/wykonane/content-chain_feature_plan_faza-12-cancel.md` |
 | Kolejność budowy | `docs/dokumentacja_koncepcyjna.md`, `content-chain_brief.md` |

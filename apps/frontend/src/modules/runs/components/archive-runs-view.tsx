@@ -37,13 +37,13 @@ import type { ArchiveRunsPage } from '@/modules/runs/api/runs.types';
 
 const REFRESH_MS = 15 * 60 * 1000;
 
-type StatusFilter = 'both' | 'completed' | 'failed';
+type StatusFilter = 'all' | 'completed' | 'failed' | 'cancelled';
 
 export function ArchiveRunsView() {
   const { state: session } = useSession();
   const isAdmin = session.status === 'authenticated' && session.user.role === 'admin';
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('both');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [taskType, setTaskType] = useState<RunTaskType | ''>('');
   const [platform, setPlatform] = useState<RunPlatform | ''>('');
   const [userId, setUserId] = useState<UserId | ''>('');
@@ -95,7 +95,10 @@ export function ArchiveRunsView() {
       try {
         const data = await fetchArchiveRuns({
           page,
-          status: statusFilter === 'both' ? ['completed', 'failed'] : [statusFilter],
+          status:
+            statusFilter === 'all'
+              ? (['completed', 'failed', 'cancelled'] as const)
+              : ([statusFilter] as const),
           ...(taskType === '' ? {} : { taskType }),
           ...(platform === '' ? {} : { platform }),
           ...(userId === '' ? {} : { userId }),
@@ -131,7 +134,7 @@ export function ArchiveRunsView() {
         <div className="flex flex-col gap-1">
           <h1 className="text-lg font-medium">Runy</h1>
           <p className="text-sm text-muted-foreground">
-            Archiwum zakończonych i nieudanych runów instancji.
+            Archiwum zakończonych, nieudanych i anulowanych runów instancji.
           </p>
         </div>
         <StartAgentDialog />
@@ -143,15 +146,21 @@ export function ArchiveRunsView() {
             value={statusFilter}
             onChange={(event) => {
               const value = event.target.value;
-              if (value === 'both' || value === 'completed' || value === 'failed') {
+              if (
+                value === 'all' ||
+                value === 'completed' ||
+                value === 'failed' ||
+                value === 'cancelled'
+              ) {
                 setStatusFilter(value);
                 setPage(1);
               }
             }}
           >
-            <option value="both">Zakończone i nieudane</option>
+            <option value="all">Wszystkie</option>
             <option value="completed">Zakończone</option>
             <option value="failed">Nieudane</option>
+            <option value="cancelled">Anulowane</option>
           </NativeSelect>
         </FormField>
         <FormField label="Typ" htmlFor="archive-task">

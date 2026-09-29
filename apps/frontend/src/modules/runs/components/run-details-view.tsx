@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRunId, isRunId, type RunId } from '@content-chain/shared';
 import { ApiError } from '@/shared/api/envelope';
+import { Button } from '@/shared/ui/button';
 import { EnvelopeError } from '@/shared/ui/form-field';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { useSession } from '@/modules/auth/components/session-provider';
@@ -13,7 +14,13 @@ import {
   RUN_PLATFORM_LABELS,
   RUN_TASK_TYPE_LABELS,
 } from '@/modules/runs/api/run-labels';
-import { isLiveRunStatus, type RunLogItem, type RunSnapshot } from '@/modules/runs/api/runs.types';
+import {
+  isCancelableRunStatus,
+  isLiveRunStatus,
+  type RunLogItem,
+  type RunSnapshot,
+} from '@/modules/runs/api/runs.types';
+import { CancelRunDialog } from '@/modules/runs/components/cancel-run-dialog';
 import { HitlPanel } from '@/modules/runs/components/hitl-panel';
 import { RunLogMessage } from '@/modules/runs/components/run-log-message';
 import { RunResultSection } from '@/modules/runs/components/run-result-section';
@@ -52,6 +59,7 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
   const { patchStatus, refresh } = useOwnRuns();
   const [view, setView] = useState<DetailsState>({ status: 'loading' });
   const [resultEditing, setResultEditing] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const runId = isRunId(runIdParam) ? createRunId(runIdParam) : null;
   const runIdRef = useRef(runId);
@@ -165,6 +173,8 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
   }
 
   const { snapshot, logs } = view;
+  const canCancel = own && isCancelableRunStatus(snapshot.status);
+
   return (
     <article className="flex max-w-3xl flex-col gap-6">
       <header className="flex flex-col gap-2">
@@ -178,8 +188,29 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
             <IsoDateTime iso={snapshot.createdAt} />
           </span>
         </p>
-        <RunStatusView status={snapshot.status} />
+        <div className="flex flex-wrap items-center gap-2">
+          <RunStatusView status={snapshot.status} />
+          {canCancel ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => setCancelOpen(true)}>
+              Stop
+            </Button>
+          ) : null}
+        </div>
       </header>
+      <CancelRunDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        runId={canCancel ? snapshot.runId : null}
+        onCancelled={(next) => {
+          setView((current) => {
+            if (current.status !== 'ready') return current;
+            if (current.snapshot.runId !== next.runId) return current;
+            return { ...current, snapshot: next };
+          });
+          patchStatus(next.runId, next.status);
+          void refresh();
+        }}
+      />
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">Logi</h2>
         {logs.length === 0 ? (

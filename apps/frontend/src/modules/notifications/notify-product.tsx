@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { toast } from 'sonner';
+import type { RunId } from '@content-chain/shared';
 import {
   runTerminalToastId,
   type ProductToast,
@@ -30,7 +31,12 @@ export function notifyProduct(input: ProductToast): void {
 export function notifyRunTerminal(input: RunTerminalInput): void {
   if (input.viewingRunId === input.runId) return;
 
-  const title = input.outcome === 'completed' ? 'Run zakończony' : 'Run nieudany';
+  const title =
+    input.outcome === 'completed'
+      ? 'Run zakończony'
+      : input.outcome === 'failed'
+        ? 'Run nieudany'
+        : 'Run anulowany';
 
   toast(title, {
     id: runTerminalToastId(input.runId),
@@ -39,5 +45,24 @@ export function notifyRunTerminal(input: RunTerminalInput): void {
         Szczegóły
       </Link>
     ),
+  });
+}
+
+export function notifyRunCancelled(input: {
+  readonly runId: RunId;
+  readonly viewingRunId: RunId | null;
+}): void {
+  if (input.viewingRunId === input.runId) {
+    notifyProduct({
+      kind: 'success',
+      title: 'Run anulowany',
+      id: runTerminalToastId(input.runId),
+    });
+    return;
+  }
+  notifyRunTerminal({
+    runId: input.runId,
+    outcome: 'cancelled',
+    viewingRunId: input.viewingRunId,
   });
 }

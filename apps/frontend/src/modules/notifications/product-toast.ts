@@ -17,7 +17,7 @@ export type ProductToast =
       readonly id?: string;
     };
 
-export type RunTerminalOutcome = 'completed' | 'failed';
+export type RunTerminalOutcome = 'completed' | 'failed' | 'cancelled';
 
 export type RunTerminalInput = {
   readonly runId: RunId;

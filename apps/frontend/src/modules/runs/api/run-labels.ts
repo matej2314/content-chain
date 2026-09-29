@@ -43,6 +43,7 @@ export const RUN_STATUS_LABELS = {
   interrupted: 'Przerwany. Wznowienie przy wolnym slocie',
   completed: 'Zakończony',
   failed: 'Nieudany',
+  cancelled: 'Anulowany',
 } as const satisfies Record<RunStatus, string>;
 
 export const RUN_STATUS_SHORT_LABELS = {
@@ -52,6 +53,7 @@ export const RUN_STATUS_SHORT_LABELS = {
   interrupted: 'Przerwany. Wznowienie przy wolnym slocie',
   completed: 'Zakończony',
   failed: 'Nieudany',
+  cancelled: 'Anulowany',
 } as const satisfies Record<RunStatus, string>;
 
 export const PAGE_OUTLINE_ROLE_LABELS = {

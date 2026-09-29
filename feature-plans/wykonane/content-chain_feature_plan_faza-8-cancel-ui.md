@@ -52,7 +52,7 @@ Odpowiada major **Faza 8**.
 
 ### KROK 1 — Kontrakt FE: enum, typy, cancel API, SSE terminal, toast
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** FE rozpoznaje `cancelled` end-to-end (shared → parsery → SSE close → toast), bez Stop UI. Major Faza 8 + `SPEC-FRONTEND.md` F-5 / F-5a / F-5b (fundament). `SPEC-RUNY.md` R-11 (kształt HTTP/SSE).
 
@@ -308,7 +308,7 @@ Dla `cancelled`: **bez** `text-destructive` (to nie `failed`); opcjonalnie `text
 
 ### KROK 2 — Stop + modal na Moich runach i szczegółach
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Operator anuluje własny nieterminalny run przez **Stop** → modal → API. Major Faza 8 + F-5b / F-8. `docs/ux_dashboard.md` (Moje runy / szczegóły).
 
@@ -463,7 +463,7 @@ Fragment akcji (orientacyjny):
 
 ### KROK 3 — Archiwum, floating box (200 ms), select opinii
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Domknięcie powierzchni kanonu po `cancelled`. F-5b pkt 5, F-8 archiwum, F-9 / Fbk-3a.
 

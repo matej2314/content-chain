@@ -46,9 +46,16 @@ export async function startRun(input: StartRunInput): Promise<StartRunAccepted> 
   return parseStartRunAccepted(body);
 }
 
+export async function cancelRun(runId: RunId): Promise<RunSnapshot> {
+  const body = await apiFetch(`/runs/${runId}/cancel`, {
+    method: 'POST',
+  });
+  return parseRunSnapshot(body);
+}
+
 export type ArchiveRunsQuery = {
   readonly page: number;
-  readonly status: readonly ('completed' | 'failed')[];
+  readonly status: readonly ('completed' | 'failed' | 'cancelled')[];
   readonly taskType?: RunTaskType;
   readonly platform?: RunPlatform;
   readonly userId?: UserId;

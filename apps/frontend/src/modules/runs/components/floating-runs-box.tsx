@@ -9,7 +9,7 @@ import { RunStatusView } from '@/modules/runs/components/run-status';
 import { RUN_TASK_TYPE_LABELS } from '@/modules/runs/api/run-labels';
 
 export function FloatingRunsBox() {
-  const { inProgress } = useOwnRuns();
+  const { boxItems } = useOwnRuns();
   const [collapsed, setCollapsed] = useState(false);
 
   function toggleCollapsed(): void {
@@ -21,7 +21,7 @@ export function FloatingRunsBox() {
     toggleCollapsed();
   }
 
-  if (inProgress.length === 0) return null;
+  if (boxItems.length === 0) return null;
 
   return (
     <section
@@ -32,7 +32,7 @@ export function FloatingRunsBox() {
         className="flex cursor-pointer select-none items-center justify-between gap-2 border-b px-3 py-2 hover:bg-muted/50"
         onClick={toggleCollapsed}
       >
-        <p className="font-medium">Runy w toku ({inProgress.length})</p>
+        <p className="font-medium">Runy w toku ({boxItems.length})</p>
         <Button
           type="button"
           variant="ghost"
@@ -49,7 +49,7 @@ export function FloatingRunsBox() {
       </header>
       {collapsed ? null : (
         <ul className="flex flex-col divide-y divide-border">
-          {inProgress.map((item) => (
+          {boxItems.map((item) => (
             <li key={item.runId} className="flex flex-col gap-1 px-3 py-2">
               <RunStatusView status={item.status} compact />
               <p className="text-xs text-muted-foreground">{RUN_TASK_TYPE_LABELS[item.taskType]}</p>

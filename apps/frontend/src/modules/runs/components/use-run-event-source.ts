@@ -9,13 +9,14 @@ import {
   parseRunLogItem,
   parseSseStatusData,
   type RunLogItem,
+  type SseTerminalRunStatus,
 } from '@/modules/runs/api/runs.types';
 import { fetchRunSnapshot } from '@/modules/runs/api/runs.api';
 
 export type RunLiveHandlers = {
   readonly onStatus: (status: RunStatus) => void;
   readonly onLog?: (item: RunLogItem) => void;
-  readonly onTerminal?: (status: 'completed' | 'failed') => void;
+  readonly onTerminal?: (status: SseTerminalRunStatus) => void;
 };
 
 function parseEventData(raw: string): unknown {
@@ -42,7 +43,7 @@ export function useRunEventSource(
     handlers.onLog?.(item);
   });
 
-  const onTerminalLive = useEffectEvent((status: 'completed' | 'failed') => {
+  const onTerminalLive = useEffectEvent((status: SseTerminalRunStatus) => {
     handlers.onTerminal?.(status);
   });
 
@@ -92,6 +93,12 @@ export function useRunEventSource(
       releaseOnce();
     };
 
+    const onCancelled = (): void => {
+      onStatusLive('cancelled');
+      onTerminalLive('cancelled');
+      releaseOnce();
+    };
+
     const onError = (): void => {
       if (released) return;
       void fetchRunSnapshot(runId)
@@ -114,6 +121,7 @@ export function useRunEventSource(
     source.addEventListener('run.log', onLog);
     source.addEventListener('run.completed', onCompleted);
     source.addEventListener('run.failed', onFailed);
+    source.addEventListener('run.cancelled', onCancelled);
     source.addEventListener('error', onError);
 
     return () => {
@@ -121,6 +129,7 @@ export function useRunEventSource(
       source.removeEventListener('run.log', onLog);
       source.removeEventListener('run.completed', onCompleted);
       source.removeEventListener('run.failed', onFailed);
+      source.removeEventListener('run.cancelled', onCancelled);
       source.removeEventListener('error', onError);
       releaseOnce();
     };

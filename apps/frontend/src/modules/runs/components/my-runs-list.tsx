@@ -1,12 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import type { RunId } from '@content-chain/shared';
 import { Button } from '@/shared/ui/button';
 import { EnvelopeError } from '@/shared/ui/form-field';
 import { Skeleton } from '@/shared/ui/skeleton';
+import { CancelRunDialog } from '@/modules/runs/components/cancel-run-dialog';
 import { useOwnRuns } from '@/modules/runs/components/own-runs-provider';
 import { RunStatusView } from '@/modules/runs/components/run-status';
+import { isCancelableRunStatus } from '@/modules/runs/api/runs.types';
 import { RUN_PLATFORM_LABELS, RUN_TASK_TYPE_LABELS } from '@/modules/runs/api/run-labels';
 import { IsoDateTime } from '@/shared/datetime/iso-date-time';
 
@@ -15,7 +18,8 @@ type MyRunsListProps = {
 };
 
 export function MyRunsList({ onPrefill }: MyRunsListProps) {
-  const { state } = useOwnRuns();
+  const { state, patchStatus, refresh } = useOwnRuns();
+  const [cancelTarget, setCancelTarget] = useState<RunId | null>(null);
 
   if (state.status === 'loading') {
     return (
@@ -64,19 +68,42 @@ export function MyRunsList({ onPrefill }: MyRunsListProps) {
                 <IsoDateTime iso={item.createdAt} />
               </td>
               <td className="py-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onPrefill(item.runId)}
-                >
-                  Nowy z tym briefem
-                </Button>
+                <div className="flex flex-wrap items-center gap-1">
+                  {isCancelableRunStatus(item.status) ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCancelTarget(item.runId)}
+                    >
+                      Stop
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onPrefill(item.runId)}
+                  >
+                    Nowy z tym briefem
+                  </Button>
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      <CancelRunDialog
+        open={cancelTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setCancelTarget(null);
+        }}
+        runId={cancelTarget}
+        onCancelled={(snapshot) => {
+          patchStatus(snapshot.runId, snapshot.status);
+          void refresh();
+        }}
+      />
     </div>
   );
 }

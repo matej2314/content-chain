@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   FEEDBACK_AGENT_KEYS,
   FEEDBACK_TARGET_TYPES,
@@ -17,10 +17,11 @@ import { NativeSelect } from '@/shared/ui/native-select';
 import { Textarea } from '@/shared/ui/textarea';
 import { EnvelopeError, FormField } from '@/shared/ui/form-field';
 import { ApiError } from '@/shared/api/envelope';
-import { isTerminalRunStatus } from '@/modules/runs/api/runs.types';
+import type { UserRunItem } from '@/modules/runs/api/runs.types';
 import { RUN_TASK_TYPE_LABELS } from '@/modules/runs/api/run-labels';
 import { useOwnRuns } from '@/modules/runs/components/own-runs-provider';
 import { createFeedback } from '@/modules/feedback/api/feedback.api';
+import { filterFeedbackRunOptions } from '@/modules/feedback/api/feedback-run-eligibility';
 import { FEEDBACK_BODY_MAX, type CreateFeedbackInput } from '@/modules/feedback/api/feedback.types';
 import {
   FEEDBACK_AGENT_LABELS,
@@ -56,11 +57,21 @@ export function FeedbackForm({ idPrefix }: FeedbackFormProps) {
   const [pending, setPending] = useState(false);
   const [saved, setSaved] = useState(false);
   const [envelope, setEnvelope] = useState<{ code: string; message: string } | null>(null);
+  const [runOptions, setRunOptions] = useState<readonly UserRunItem[]>([]);
 
-  const reviewableRuns = useMemo(() => {
-    if (state.status !== 'ready') return [];
-    return state.items.filter((item) => isTerminalRunStatus(item.status));
-  }, [state]);
+  useEffect(() => {
+    let cancelled = false;
+    if (targetType !== 'run' || state.status !== 'ready') {
+      setRunOptions([]);
+      return;
+    }
+    void filterFeedbackRunOptions(state.items).then((options) => {
+      if (!cancelled) setRunOptions(options);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state, targetType]);
 
   const input = toInput(targetType, agentKey, runId, body);
 
@@ -123,7 +134,7 @@ export function FeedbackForm({ idPrefix }: FeedbackFormProps) {
         <FormField
           label="Run"
           htmlFor={`${idPrefix}-run`}
-          hint="Tylko Twoje zakończone albo nieudane runy."
+          hint="Tylko Twoje zakończone, nieudane albo anulowane z wynikiem."
         >
           <NativeSelect
             id={`${idPrefix}-run`}
@@ -139,7 +150,7 @@ export function FeedbackForm({ idPrefix }: FeedbackFormProps) {
             }}
           >
             <option value="">Wybierz run</option>
-            {reviewableRuns.map((item) => (
+            {runOptions.map((item) => (
               <option key={item.runId} value={item.runId}>
                 {RUN_TASK_TYPE_LABELS[item.taskType]} ({item.createdAt})
               </option>

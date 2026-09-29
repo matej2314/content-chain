@@ -34,14 +34,42 @@ import {
 export const LIVE_RUN_STATUSES = ['running', 'awaiting_hitl', 'interrupted'] as const;
 export type LiveRunStatus = (typeof LIVE_RUN_STATUSES)[number];
 
+export const SSE_TERMINAL_STATUSES = ['completed', 'failed', 'cancelled'] as const;
+export type SseTerminalRunStatus = (typeof SSE_TERMINAL_STATUSES)[number];
+
+export const REVIEWABLE_STATUSES = ['completed', 'failed'] as const;
+export type ReviewableRunStatus = (typeof REVIEWABLE_STATUSES)[number];
+
+export const CANCELABLE_STATUSES = [
+  'queued',
+  'running',
+  'awaiting_hitl',
+  'interrupted',
+] as const;
+export type CancelableRunStatus = (typeof CANCELABLE_STATUSES)[number];
+
 export function isLiveRunStatus(status: RunStatus): status is LiveRunStatus {
   return (LIVE_RUN_STATUSES as readonly RunStatus[]).includes(status);
 }
 
+/** Terminal SSE / archiwum / close EventSource — obejmuje `cancelled`. */
 export function isTerminalRunStatus(
   status: RunStatus,
-): status is 'completed' | 'failed' {
-  return status === 'completed' || status === 'failed';
+): status is SseTerminalRunStatus {
+  return (SSE_TERMINAL_STATUSES as readonly RunStatus[]).includes(status);
+}
+
+/** Przegląd (gwiazdki / Edytuj / finalize) — bez `cancelled`. */
+export function isReviewableRunStatus(
+  status: RunStatus,
+): status is ReviewableRunStatus {
+  return (REVIEWABLE_STATUSES as readonly RunStatus[]).includes(status);
+}
+
+export function isCancelableRunStatus(
+  status: RunStatus,
+): status is CancelableRunStatus {
+  return (CANCELABLE_STATUSES as readonly RunStatus[]).includes(status);
 }
 
 export type SocialBrief = {
@@ -105,6 +133,7 @@ export type RunSnapshot = {
   readonly brief: RunBrief;
   readonly status: RunStatus;
   readonly createdAt: string;
+  readonly cancelledAt: string | null;
   readonly startedBy: StartedBy | null;
   readonly result: RunResult;
   readonly hitl: RunHitl | null;
@@ -279,10 +308,19 @@ export function parseRunSnapshot(value: unknown): RunSnapshot {
             throw new Error('Invalid contentKind');
           })();
   const review = parseReviewFields(value);
+  const cancelledAt =
+    value.cancelledAt === null
+      ? null
+      : typeof value.cancelledAt === 'string'
+        ? value.cancelledAt
+        : (() => {
+            throw new Error('Invalid cancelledAt');
+          })();
   return {
     ...core,
     contentKind,
     brief: parseBrief(core.taskType, value.brief),
+    cancelledAt,
     startedBy: parseStartedBy(value.startedBy),
     result: parseRunResult(value.result),
     hitl: parseRunHitl(core.taskType, value.hitl),

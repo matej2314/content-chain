@@ -20,6 +20,7 @@ export function RunStatusView({ status, compact = false, className }: RunStatusV
         status === 'interrupted' && 'text-muted-foreground',
         status === 'failed' && 'text-destructive',
         status === 'queued' && 'text-muted-foreground',
+        status === 'cancelled' && 'text-muted-foreground',
         className,
       )}
     >
@@ -30,6 +31,7 @@ export function RunStatusView({ status, compact = false, className }: RunStatusV
           status === 'running' && 'bg-foreground',
           status === 'awaiting_hitl' && 'rounded-sm bg-foreground/80',
           status === 'interrupted' && 'bg-muted-foreground',
+          status === 'cancelled' && 'bg-muted-foreground',
           liveMotion && 'motion-safe:animate-pulse',
         )}
       />
