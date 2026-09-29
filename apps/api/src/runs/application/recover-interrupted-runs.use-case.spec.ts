@@ -16,6 +16,7 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     claimNextQueued: unexpected,
     claimNextInterrupted: unexpected,
     findInterruptedRunning: unexpected,
+    findCancelRequestedLeftovers: unexpected,
     appendLog: unexpected,
     listLogs: unexpected,
     list: unexpected,
@@ -51,6 +52,7 @@ describe('RecoverInterruptedRunsUseCase', () => {
 
     const useCase = new RecoverInterruptedRunsUseCase(
       unusedRepo({
+        findCancelRequestedLeftovers: async () => [],
         findInterruptedRunning: async () => [exhausted],
         saveRecoveryAttempt,
       }),
@@ -84,6 +86,7 @@ describe('RecoverInterruptedRunsUseCase', () => {
 
     const useCase = new RecoverInterruptedRunsUseCase(
       unusedRepo({
+        findCancelRequestedLeftovers: async () => [],
         findInterruptedRunning: async () => [interrupted],
         saveRecoveryAttempt,
       }),
@@ -115,6 +118,7 @@ describe('RecoverInterruptedRunsUseCase', () => {
 
     const useCase = new RecoverInterruptedRunsUseCase(
       unusedRepo({
+        findCancelRequestedLeftovers: async () => [],
         findInterruptedRunning: async () =>
           store.filter((item) => item.status === 'running'),
         saveRecoveryAttempt,
@@ -156,6 +160,7 @@ describe('RecoverInterruptedRunsUseCase', () => {
 
     const useCase = new RecoverInterruptedRunsUseCase(
       unusedRepo({
+        findCancelRequestedLeftovers: async () => [],
         findInterruptedRunning: async () => [leftoverRunning],
         saveRecoveryAttempt,
       }),
@@ -178,5 +183,129 @@ describe('RecoverInterruptedRunsUseCase', () => {
       leftoverInterrupted,
       expect.anything(),
     );
+  });
+
+  it('cancels leftover running with cancelRequested via CAS and publishCancelled', async () => {
+    const leftover = makeSocialRun({
+      status: 'running',
+      cancelRequested: true,
+      recoveryAttempts: 2,
+    });
+    const attemptCancel = jest.fn().mockResolvedValue(true);
+    const saveRecoveryAttempt = jest.fn();
+    const publishCancelled = jest.fn();
+    const transition = jest.fn();
+
+    const useCase = new RecoverInterruptedRunsUseCase(
+      unusedRepo({
+        findCancelRequestedLeftovers: async () => [leftover],
+        findInterruptedRunning: async () => [],
+        attemptCancel,
+        saveRecoveryAttempt,
+      }),
+      {
+        appendLog: jest.fn(),
+        transition,
+        publishCancelled,
+      } as unknown as RunLifecycleService,
+    );
+
+    await useCase.execute();
+
+    expect(attemptCancel).toHaveBeenCalledWith(leftover.id, expect.any(Date));
+    expect(publishCancelled).toHaveBeenCalledWith(leftover.id);
+    expect(saveRecoveryAttempt).not.toHaveBeenCalled();
+    expect(transition).not.toHaveBeenCalled();
+  });
+
+  it('cancels leftover interrupted with cancelRequested the same way', async () => {
+    const leftover = makeSocialRun({
+      status: 'interrupted',
+      cancelRequested: true,
+      recoveryAttempts: 1,
+    });
+    const attemptCancel = jest.fn().mockResolvedValue(true);
+    const saveRecoveryAttempt = jest.fn();
+    const publishCancelled = jest.fn();
+
+    const useCase = new RecoverInterruptedRunsUseCase(
+      unusedRepo({
+        findCancelRequestedLeftovers: async () => [leftover],
+        findInterruptedRunning: async () => [],
+        attemptCancel,
+        saveRecoveryAttempt,
+      }),
+      {
+        appendLog: jest.fn(),
+        transition: jest.fn(),
+        publishCancelled,
+      } as unknown as RunLifecycleService,
+    );
+
+    await useCase.execute();
+
+    expect(attemptCancel).toHaveBeenCalledWith(leftover.id, expect.any(Date));
+    expect(publishCancelled).toHaveBeenCalledWith(leftover.id);
+    expect(saveRecoveryAttempt).not.toHaveBeenCalled();
+  });
+
+  it('skips publishCancelled and recovery when attemptCancel loses the race', async () => {
+    const leftover = makeSocialRun({
+      status: 'running',
+      cancelRequested: true,
+    });
+    const attemptCancel = jest.fn().mockResolvedValue(false);
+    const saveRecoveryAttempt = jest.fn();
+    const publishCancelled = jest.fn();
+
+    const useCase = new RecoverInterruptedRunsUseCase(
+      unusedRepo({
+        findCancelRequestedLeftovers: async () => [leftover],
+        findInterruptedRunning: async () => [],
+        attemptCancel,
+        saveRecoveryAttempt,
+      }),
+      {
+        appendLog: jest.fn(),
+        transition: jest.fn(),
+        publishCancelled,
+      } as unknown as RunLifecycleService,
+    );
+
+    await useCase.execute();
+
+    expect(attemptCancel).toHaveBeenCalled();
+    expect(publishCancelled).not.toHaveBeenCalled();
+    expect(saveRecoveryAttempt).not.toHaveBeenCalled();
+  });
+
+  it('still recovers running without flag after empty cancel leftovers', async () => {
+    const running = makeSocialRun({
+      status: 'running',
+      cancelRequested: false,
+      recoveryAttempts: 0,
+    });
+    const saveRecoveryAttempt = jest.fn();
+    const transition = jest.fn();
+    const publishCancelled = jest.fn();
+
+    const useCase = new RecoverInterruptedRunsUseCase(
+      unusedRepo({
+        findCancelRequestedLeftovers: async () => [],
+        findInterruptedRunning: async () => [running],
+        saveRecoveryAttempt,
+      }),
+      {
+        appendLog: jest.fn(),
+        transition,
+        publishCancelled,
+      } as unknown as RunLifecycleService,
+    );
+
+    await useCase.execute();
+
+    expect(publishCancelled).not.toHaveBeenCalled();
+    expect(saveRecoveryAttempt).toHaveBeenCalledWith(running.id, 1);
+    expect(transition).toHaveBeenCalledWith(running, 'interrupted');
   });
 });

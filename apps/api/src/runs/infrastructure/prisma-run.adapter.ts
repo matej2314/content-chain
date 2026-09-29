@@ -194,7 +194,17 @@ export class PrismaRunAdapter implements RunRepository {
 
   async findInterruptedRunning(): Promise<RunRecord[]> {
     const rows = await this.prisma.run.findMany({
-      where: { status: 'running' },
+      where: { status: 'running', cancelRequested: false },
+    });
+    return rows.map((row) => this.toSnapshot({ ...row, startedBy: null }));
+  }
+
+  async findCancelRequestedLeftovers(): Promise<RunRecord[]> {
+    const rows = await this.prisma.run.findMany({
+      where: {
+        cancelRequested: true,
+        status: { in: ['running', 'interrupted'] },
+      },
     });
     return rows.map((row) => this.toSnapshot({ ...row, startedBy: null }));
   }

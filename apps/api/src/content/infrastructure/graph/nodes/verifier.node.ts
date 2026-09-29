@@ -22,6 +22,7 @@ export function createVerifierNode(
     const { data, requestId } = await hop.chatJson({
       runId: state.runId,
       conversationId: state.conversationId,
+      signal: state.signal,
       step: 'ConsistencyVerifier',
       schema: verifierOutputSchema,
       userContent: renderPrompt(template, {

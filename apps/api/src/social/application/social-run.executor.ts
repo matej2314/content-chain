@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { LlmGatewayError } from '../../llm/llm-gateway.errors';
+import { isAbortError } from '../../shared/llm/is-abort-error';
 import {
   SOCIAL_RESULT_STORE,
   type SocialResultStore,
@@ -12,7 +13,10 @@ import {
 import { isReelTaskType } from '../domain/reel-task';
 import { SocialPipelineFacade } from './social-pipeline.facade';
 import type { PipelinePhase } from '../domain/social.types';
-import type { RunExecutorPort } from '../../runs/domain/run-executor.port';
+import type {
+  RunExecutorPort,
+  RunExecuteOptions,
+} from '../../runs/domain/run-executor.port';
 import {
   isSocialRunRecord,
   type RunRecord,
@@ -49,7 +53,7 @@ export class SocialRunExecutor implements RunExecutorPort {
     return 'ideas';
   }
 
-  async execute(run: RunRecord): Promise<void> {
+  async execute(run: RunRecord, options?: RunExecuteOptions): Promise<void> {
     if (!isSocialRunRecord(run)) {
       throw new Error(
         `SocialRunExecutor received non-social task type: ${run.taskType}`,
@@ -94,12 +98,17 @@ export class SocialRunExecutor implements RunExecutorPort {
       contentRefineCount: pipeline.contentRefineCount,
     });
 
+    if (options?.signal?.aborted) {
+      return;
+    }
+
     try {
       const outcome = await this.facade.invokePhase(socialRun, phase, {
         ideas,
         reelIdeas,
         ideasRefineCount: pipeline.ideasRefineCount,
         contentRefineCount: pipeline.contentRefineCount,
+        ...(options?.signal ? { signal: options.signal } : {}),
       });
 
       switch (outcome.kind) {
@@ -127,6 +136,9 @@ export class SocialRunExecutor implements RunExecutorPort {
             : 'content',
       });
     } catch (error) {
+      if (options?.signal?.aborted || isAbortError(error)) {
+        return;
+      }
       const failedCode =
         error instanceof DomainException
           ? error.code

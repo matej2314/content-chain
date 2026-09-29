@@ -35,4 +35,5 @@ export type SocialGraphState = {
   contentRefineCount: number;
   failedCode: string | null;
   failedMessage: string | null;
+  signal?: AbortSignal;
 };

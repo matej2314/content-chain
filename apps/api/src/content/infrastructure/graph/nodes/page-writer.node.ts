@@ -15,6 +15,7 @@ export function createPageWriterNode(hop: LlmHopService) {
     const { data } = await hop.chatJson({
       runId: state.runId,
       conversationId: state.conversationId,
+      signal: state.signal,
       step: 'PageWriterAgent',
       schema: pageDocumentOutputSchema,
       userContent: renderPrompt(template, {

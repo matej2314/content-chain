@@ -52,6 +52,8 @@ export interface RunRepository {
   claimNextQueued(): Promise<RunRecord | null>;
   claimNextInterrupted(): Promise<RunRecord | null>;
   findInterruptedRunning(): Promise<RunRecord[]>;
+  /** Boot R-9: running | interrupted with cancelRequested === true. */
+  findCancelRequestedLeftovers(): Promise<RunRecord[]>;
   appendLog(entry: RunLogEntry): Promise<RunLogEntry>;
   listLogs(id: RunId): Promise<RunLogEntry[]>;
   list(query: ListRunsQuery): Promise<ListRunsResult>;

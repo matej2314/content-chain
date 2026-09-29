@@ -19,6 +19,7 @@ export type LlmChatCommand = {
   conversationId: ConversationId;
   messages: LlmChatMessage[];
   params?: LlmChatParams;
+  signal?: AbortSignal;
 };
 
 export type LlmUsage = {

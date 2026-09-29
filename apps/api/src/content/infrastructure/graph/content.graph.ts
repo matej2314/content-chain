@@ -34,6 +34,7 @@ const ContentState = z.object({
   copyRefineCount: z.number(),
   failedCode: z.custom<ContentGraphState['failedCode']>(),
   failedMessage: z.custom<ContentGraphState['failedMessage']>(),
+  signal: z.custom<AbortSignal>().optional(),
 });
 
 interface CompileContentGraphOptions {

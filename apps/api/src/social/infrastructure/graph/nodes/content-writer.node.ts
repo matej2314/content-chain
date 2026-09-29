@@ -80,6 +80,7 @@ export function createContentWriterNode(hop: LlmHopService) {
       const { data } = await hop.chatJson({
         runId: state.runId,
         conversationId: state.conversationId,
+      signal: state.signal,
         step: 'ContentWriterAgent',
         schema: reelScriptOutputSchema,
         userContent: renderPrompt(reelTemplate, {
@@ -112,6 +113,7 @@ export function createContentWriterNode(hop: LlmHopService) {
     const { data } = await hop.chatJson({
       runId: state.runId,
       conversationId: state.conversationId,
+      signal: state.signal,
       step: 'ContentWriterAgent',
       schema: contentOutputSchema,
       userContent: renderPrompt(postTemplate, {

@@ -31,4 +31,5 @@ export type ContentGraphState = {
   copyRefineCount: number;
   failedCode: string | null;
   failedMessage: string | null;
+  signal?: AbortSignal;
 };

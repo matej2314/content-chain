@@ -578,6 +578,26 @@ describe('ContentRunExecutor', () => {
       });
     });
 
+    it('returns without failed when facade throws AbortError', async () => {
+      const run = makeContentRun();
+      const store = fakeStore();
+      const lifecycle = fakeLifecycle();
+      const facade = fakeFacade(async () => {
+        throw new DOMException('The operation was aborted', 'AbortError');
+      });
+      const executor = makeExecutor({ facade, lifecycle, store });
+      const controller = new AbortController();
+
+      await executor.execute(run, { signal: controller.signal });
+
+      expect(lifecycle.transition).not.toHaveBeenCalled();
+      expect(facade.invokePhase).toHaveBeenCalledWith(
+        run,
+        'copy',
+        expect.objectContaining({ signal: controller.signal }),
+      );
+    });
+
     it('maps a non-Error throw to EXECUTOR_FAILED with a default message', async () => {
       const run = makeContentRun();
       const store = fakeStore();

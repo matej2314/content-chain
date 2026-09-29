@@ -99,7 +99,9 @@ describe('RunsController', () => {
       Reflect.getMetadata(IS_PUBLIC_KEY, proto.getRunsByUser),
     ).toBeUndefined();
     expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.get)).toBeUndefined();
-    expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.patchRating)).toBeUndefined();
+    expect(
+      Reflect.getMetadata(IS_PUBLIC_KEY, proto.patchRating),
+    ).toBeUndefined();
     expect(
       Reflect.getMetadata(IS_PUBLIC_KEY, proto.postOutputEdited),
     ).toBeUndefined();
@@ -142,7 +144,9 @@ describe('RunsController', () => {
       'user/:userId',
     );
     expect(Reflect.getMetadata('path', proto.get)).toBe(':runId');
-    expect(Reflect.getMetadata('path', proto.patchRating)).toBe(':runId/rating');
+    expect(Reflect.getMetadata('path', proto.patchRating)).toBe(
+      ':runId/rating',
+    );
     expect(Reflect.getMetadata('path', proto.postOutputEdited)).toBe(
       ':runId/output-edited',
     );
@@ -465,6 +469,25 @@ describe('RunsController', () => {
     expect(sse.complete).not.toHaveBeenCalled();
     expect(events).toEqual([
       { type: 'run.status', data: { runId, status: 'completed' } },
+    ]);
+  });
+
+  it('on cancelled snapshot emits run.status and completes without subscribe', async () => {
+    const runId = newRunId();
+    getRun.execute.mockResolvedValue({
+      runId,
+      status: 'cancelled',
+    });
+
+    const stream = await controller.events(runId);
+    const events = await firstValueFrom(stream.pipe(toArray()));
+
+    expect(getRun.execute).toHaveBeenCalledTimes(1);
+    expect(getRun.execute).toHaveBeenCalledWith(runId);
+    expect(sse.subscribe).not.toHaveBeenCalled();
+    expect(sse.complete).not.toHaveBeenCalled();
+    expect(events).toEqual([
+      { type: 'run.status', data: { runId, status: 'cancelled' } },
     ]);
   });
 });

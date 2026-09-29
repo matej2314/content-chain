@@ -27,6 +27,7 @@ export function createIdeationNode(hop: LlmHopService) {
       const { data } = await hop.chatJson({
         runId: state.runId,
         conversationId: state.conversationId,
+      signal: state.signal,
         step: 'IdeationAgent',
         schema: reelIdeasOutputSchema,
         userContent: renderPrompt(reelTemplate, vars),
@@ -45,6 +46,7 @@ export function createIdeationNode(hop: LlmHopService) {
     const { data } = await hop.chatJson({
       runId: state.runId,
       conversationId: state.conversationId,
+      signal: state.signal,
       step: 'IdeationAgent',
       schema: ideasOutputSchema,
       userContent: renderPrompt(postTemplate, vars),

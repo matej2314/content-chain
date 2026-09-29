@@ -360,4 +360,25 @@ describe('LlmGatewayHttpAdapter', () => {
       expect(warnSpy).not.toHaveBeenCalled();
     },
   );
+
+  it('forwards AbortSignal to fetch', async () => {
+    const controller = new AbortController();
+    const fetchMock = jest.fn().mockResolvedValue(
+      jsonResponse(201, {
+        requestId: 'req_123e4567-e89b-12d3-a456-426614174000',
+        conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
+        model: 'chat-default',
+        output: { type: 'text', text: 'pong' },
+      }),
+    );
+    global.fetch = fetchMock;
+
+    const adapter = new LlmGatewayHttpAdapter(env);
+    await adapter.chat({ ...command, signal: controller.signal });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:3100/api/v1/chat',
+      expect.objectContaining({ signal: controller.signal }),
+    );
+  });
 });

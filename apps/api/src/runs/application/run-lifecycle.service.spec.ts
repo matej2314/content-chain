@@ -84,4 +84,25 @@ describe('RunLifecycleService', () => {
     await interrupted.service.transition(makeRun('running'), 'interrupted');
     expect(interrupted.sseHub.complete).not.toHaveBeenCalled();
   });
+
+  it('publishCancelled emits run.status(cancelled) then run.cancelled, then completes', async () => {
+    const { sseHub, service } = setup();
+    const runId = makeRun('running').id;
+
+    service.publishCancelled(runId);
+
+    expect(sseHub.publish).toHaveBeenNthCalledWith(1, {
+      event: 'run.status',
+      data: { runId, status: 'cancelled' },
+    });
+    expect(sseHub.publish).toHaveBeenNthCalledWith(2, {
+      event: 'run.cancelled',
+      data: { runId },
+    });
+    expect(sseHub.complete).toHaveBeenCalledWith(runId);
+
+    const secondPublishOrder = sseHub.publish.mock.invocationCallOrder[1];
+    const completeOrder = sseHub.complete.mock.invocationCallOrder[0];
+    expect(completeOrder).toBeGreaterThan(secondPublishOrder);
+  });
 });

@@ -14,6 +14,7 @@ import {
   type RunLifecyclePort,
 } from '../../runs/domain/run-lifecycle.port';
 import { DomainException } from '../exceptions/domain.exception';
+import { isAbortError } from './is-abort-error';
 import { parseLlmJson } from './parse-llm-json';
 import type { RunId } from '@content-chain/shared';
 import type { LlmGatewayPort } from '../../llm/llm-gateway.port';
@@ -25,6 +26,7 @@ interface ChatJsonInput<T extends z.ZodType> {
   step: string;
   userContent: string;
   schema: T;
+  signal?: AbortSignal;
 }
 
 const MAX_GATEWAY_ATTEMPTS = 3;
@@ -37,6 +39,9 @@ function isStructuredOutputInvalid(error: unknown): error is DomainException {
 }
 
 function isHopRetryable(error: unknown): boolean {
+  if (isAbortError(error)) {
+    return false;
+  }
   if (isStructuredOutputInvalid(error)) {
     return true;
   }
@@ -81,6 +86,11 @@ function hopErrorLogMessage(
   return prefix;
 }
 
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (!signal?.aborted) return;
+  throw new DOMException('The operation was aborted', 'AbortError');
+}
+
 @Injectable()
 export class LlmHopService {
   constructor(
@@ -97,6 +107,7 @@ export class LlmHopService {
     for (let attempt = 1; attempt <= MAX_GATEWAY_ATTEMPTS; attempt++) {
       let gatewayRequestId: string | undefined;
       try {
+        throwIfAborted(input.signal);
         const result = await this.gateway.chat({
           modelAlias: createGatewayModelAlias(this.env.GATEWAY_MODEL_ALIAS),
           conversationId: input.conversationId,
@@ -110,6 +121,7 @@ export class LlmHopService {
               ),
             },
           ],
+          signal: input.signal,
         });
         gatewayRequestId = unbrand(result.requestId);
         const data = parseLlmJson(input.schema, result.text);
@@ -127,17 +139,19 @@ export class LlmHopService {
         if (isStructuredOutputInvalid(error)) {
           lastParseError = error;
         }
-        await this.lifeCycle.appendLog({
-          runId: input.runId,
-          conversationId: input.conversationId,
-          level: 'error',
-          message: hopErrorLogMessage(input.step, attempt, error),
-          step: input.step,
-          requestId:
-            error instanceof LlmGatewayError
-              ? error.gatewayRequestId
-              : gatewayRequestId,
-        });
+        if (!isAbortError(error)) {
+          await this.lifeCycle.appendLog({
+            runId: input.runId,
+            conversationId: input.conversationId,
+            level: 'error',
+            message: hopErrorLogMessage(input.step, attempt, error),
+            step: input.step,
+            requestId:
+              error instanceof LlmGatewayError
+                ? error.gatewayRequestId
+                : gatewayRequestId,
+          });
+        }
         if (!isHopRetryable(error) || attempt === MAX_GATEWAY_ATTEMPTS) {
           throw error;
         }

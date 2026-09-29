@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { isContentTaskType, type ContentKind } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { LlmGatewayError } from '../../llm/llm-gateway.errors';
+import { isAbortError } from '../../shared/llm/is-abort-error';
 import {
   CONTENT_RESULT_STORE,
   type ContentResultStore,
@@ -15,7 +16,10 @@ import type {
   ContentPipelinePhase,
   PageOutline,
 } from '../domain/content.types';
-import type { RunExecutorPort } from '../../runs/domain/run-executor.port';
+import type {
+  RunExecutorPort,
+  RunExecuteOptions,
+} from '../../runs/domain/run-executor.port';
 import {
   isContentRunRecord,
   type ContentRunRecord,
@@ -68,7 +72,7 @@ export class ContentRunExecutor implements RunExecutorPort {
     return 'outline';
   }
 
-  async execute(run: RunRecord): Promise<void> {
+  async execute(run: RunRecord, options?: RunExecuteOptions): Promise<void> {
     if (!isContentRunRecord(run)) {
       throw new Error(
         `ContentRunExecutor received non-content taskType: ${run.taskType}`,
@@ -136,11 +140,16 @@ export class ContentRunExecutor implements RunExecutorPort {
       copyRefineCount: pipeline.copyRefineCount,
     });
 
+    if (options?.signal?.aborted) {
+      return;
+    }
+
     try {
       const outcome = await this.facade.invokePhase(contentRun, phase, {
         outline,
         outlineRefineCount: pipeline.outlineRefineCount,
         copyRefineCount: pipeline.copyRefineCount,
+        ...(options?.signal ? { signal: options.signal } : {}),
       });
 
       await this.resultStore.savePipelineState(contentRun.id, {
@@ -167,6 +176,9 @@ export class ContentRunExecutor implements RunExecutorPort {
         resultSummary: phase === 'outline' ? 'outline' : 'pageDocument',
       });
     } catch (error) {
+      if (options?.signal?.aborted || isAbortError(error)) {
+        return;
+      }
       const failedCode =
         error instanceof DomainException
           ? error.code

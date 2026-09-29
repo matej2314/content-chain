@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { RunId, RunStatus } from '@content-chain/shared';
 import type { RunLifecyclePort } from '../domain/run-lifecycle.port';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { RUN_SSE_HUB, type RunSseHub } from '../domain/run-sse.port';
 import { assertTransition } from '../domain/status-transitions';
 import type { RunLogEntry, RunRecord } from '../domain/run.types';
-import type { RunStatus } from '@content-chain/shared';
 
 export type TransitionExtras = {
   resultSummary?: string;
@@ -69,5 +69,18 @@ export class RunLifecycleService implements RunLifecyclePort {
       event: 'run.log',
       data: { ...saved, runId: saved.runId },
     });
+  }
+
+  /** SSE + hub complete after CAS `attemptCancel` already persisted `cancelled`. */
+  publishCancelled(runId: RunId): void {
+    this.sseHub.publish({
+      event: 'run.status',
+      data: { runId, status: 'cancelled' },
+    });
+    this.sseHub.publish({
+      event: 'run.cancelled',
+      data: { runId },
+    });
+    this.sseHub.complete(runId);
   }
 }

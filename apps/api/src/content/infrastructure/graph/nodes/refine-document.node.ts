@@ -17,6 +17,7 @@ export function createRefineDocumentNode(
     const { data } = await hop.chatJson({
       runId: state.runId,
       conversationId: state.conversationId,
+      signal: state.signal,
       step: 'RefineDocument',
       schema: pageDocumentOutputSchema,
       userContent: renderPrompt(template, {

@@ -26,6 +26,7 @@ export function createRefineContentNode(hop: LlmHopService) {
       const { data } = await hop.chatJson({
         runId: state.runId,
         conversationId: state.conversationId,
+      signal: state.signal,
         step: 'RefineContent',
         schema: reelScriptOutputSchema,
         userContent: renderPrompt(reelTemplate, {
@@ -50,6 +51,7 @@ export function createRefineContentNode(hop: LlmHopService) {
     const { data } = await hop.chatJson({
       runId: state.runId,
       conversationId: state.conversationId,
+      signal: state.signal,
       step: 'RefineContent',
       schema: contentOutputSchema,
       userContent: renderPrompt(postTemplate, {

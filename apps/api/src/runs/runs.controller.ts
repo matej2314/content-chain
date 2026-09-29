@@ -55,7 +55,9 @@ import type { ListRunsQuery } from './domain/run.port';
 import { PatchRunRatingDto } from './http/dto/patch-run-rating.dto';
 
 function isTerminalStatus(status: RunStatus): boolean {
-  return status === 'completed' || status === 'failed';
+  return (
+    status === 'completed' || status === 'failed' || status === 'cancelled'
+  );
 }
 
 @ApiTags('runs')

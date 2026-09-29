@@ -53,6 +53,7 @@ export class ContentPipelineFacade {
       outlineRefineCount: number;
       copyRefineCount: number;
       outline: PageOutline | null;
+      signal?: AbortSignal;
     },
   ): Promise<ContentPipelineOutcome> {
     if (!isContentRunRecord(run)) {
@@ -79,6 +80,7 @@ export class ContentPipelineFacade {
       copyRefineCount: extras.copyRefineCount,
       failedCode: null,
       failedMessage: null,
+      ...(extras.signal ? { signal: extras.signal } : {}),
     });
     return toOutcome(contentRun, phase, final);
   }

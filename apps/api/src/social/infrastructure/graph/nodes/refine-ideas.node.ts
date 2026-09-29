@@ -27,6 +27,7 @@ export function createRefineIdeasNode(hop: LlmHopService) {
       const { data } = await hop.chatJson({
         runId: state.runId,
         conversationId: state.conversationId,
+      signal: state.signal,
         step: 'RefineIdeas',
         schema: reelIdeasOutputSchema,
         userContent: renderPrompt(reelTemplate, {
@@ -51,6 +52,7 @@ export function createRefineIdeasNode(hop: LlmHopService) {
     const { data } = await hop.chatJson({
       runId: state.runId,
       conversationId: state.conversationId,
+      signal: state.signal,
       step: 'RefineIdeas',
       schema: ideasOutputSchema,
       userContent: renderPrompt(postTemplate, {

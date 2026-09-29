@@ -636,8 +636,8 @@ describe('Runs list (e2e)', () => {
     ).toBe(true);
     for (let i = 1; i < mixedBody.items.length; i += 1) {
       expect(
-        Date.parse(mixedBody.items[i - 1]!.createdAt),
-      ).toBeGreaterThanOrEqual(Date.parse(mixedBody.items[i]!.createdAt));
+        Date.parse(mixedBody.items[i - 1].createdAt),
+      ).toBeGreaterThanOrEqual(Date.parse(mixedBody.items[i].createdAt));
     }
     expect(mixedBody.items.some((item) => item.runId === failedId)).toBe(true);
     expect(

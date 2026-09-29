@@ -18,6 +18,7 @@ export function createRefineOutlineNode(
     const { data } = await hop.chatJson({
       runId: state.runId,
       conversationId: state.conversationId,
+      signal: state.signal,
       step: 'RefineOutline',
       schema: pageOutlineOutputSchema,
       userContent: renderPrompt(template, {

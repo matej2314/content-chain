@@ -8,6 +8,7 @@ import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { RUN_SSE_HUB, type RunSseHub } from '../domain/run-sse.port';
 import { RecoverInterruptedRunsUseCase } from './recover-interrupted-runs.use-case';
 import { RunLifecycleService } from './run-lifecycle.service';
+import { RunAbortRegistry } from './run-abort.registry';
 import type { RunRecord } from '../domain/run.types';
 
 const EXECUTOR_FAILED_MESSAGE = 'Run executor failed';
@@ -25,6 +26,7 @@ export class InProcessRunWorker implements OnModuleInit {
     @Inject(RUN_SSE_HUB) private readonly sseHub: RunSseHub,
     private readonly recover: RecoverInterruptedRunsUseCase,
     private readonly lifecycle: RunLifecycleService,
+    private readonly abortRegistry: RunAbortRegistry,
   ) {}
 
   async onModuleInit() {
@@ -77,8 +79,9 @@ export class InProcessRunWorker implements OnModuleInit {
   }
 
   private async executeViaExecutor(run: RunRecord): Promise<void> {
+    const signal = this.abortRegistry.begin(run.id);
     try {
-      await this.executor.execute(run);
+      await this.executor.execute(run, { signal });
     } catch {
       try {
         await this.lifecycle.appendLog({
@@ -109,6 +112,8 @@ export class InProcessRunWorker implements OnModuleInit {
           'could not mark run failed after executor error',
         );
       }
+    } finally {
+      this.abortRegistry.end(run.id);
     }
   }
 }

@@ -6,6 +6,7 @@ import type { RunSseHub } from '../domain/run-sse.port';
 import type { RunRecord } from '../domain/run.types';
 import { makeSocialRun } from '../run-record.test-helpers';
 import { InProcessRunWorker } from './in-process-run.worker';
+import { RunAbortRegistry } from './run-abort.registry';
 import type { RecoverInterruptedRunsUseCase } from './recover-interrupted-runs.use-case';
 import type { RunLifecycleService } from './run-lifecycle.service';
 
@@ -54,6 +55,7 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     claimNextQueued: unexpected,
     claimNextInterrupted: unexpected,
     findInterruptedRunning: unexpected,
+    findCancelRequestedLeftovers: unexpected,
     appendLog: unexpected,
     listLogs: unexpected,
     list: unexpected,
@@ -73,6 +75,7 @@ function makeWorker(args: {
   runs: RunRepository;
   executor: RunExecutorPort;
   lifecycle?: Pick<RunLifecycleService, 'appendLog' | 'transition'>;
+  abortRegistry?: RunAbortRegistry;
 }): InProcessRunWorker {
   return new InProcessRunWorker(
     { MAX_CONCURRENT_RUNS: args.maxConcurrent ?? 1 } as Env,
@@ -87,6 +90,7 @@ function makeWorker(args: {
       transition: jest.fn(),
       ...args.lifecycle,
     } as unknown as RunLifecycleService,
+    args.abortRegistry ?? new RunAbortRegistry(),
   );
 }
 
@@ -141,6 +145,7 @@ describe('InProcessRunWorker', () => {
         appendLog: jest.fn(),
         transition: jest.fn(),
       } as unknown as RunLifecycleService,
+      new RunAbortRegistry(),
     );
 
     worker.notifyQueued();
@@ -200,6 +205,7 @@ describe('InProcessRunWorker', () => {
         appendLog: jest.fn(),
         transition: jest.fn(),
       } as unknown as RunLifecycleService,
+      new RunAbortRegistry(),
     );
 
     worker.notifyQueued();
@@ -465,6 +471,7 @@ describe('InProcessRunWorker', () => {
         appendLog: jest.fn(),
         transition: jest.fn(),
       } as unknown as RunLifecycleService,
+      new RunAbortRegistry(),
     );
 
     worker.notifyQueued();
@@ -518,6 +525,7 @@ describe('InProcessRunWorker', () => {
         appendLog: jest.fn(),
         transition: jest.fn(),
       } as unknown as RunLifecycleService,
+      new RunAbortRegistry(),
     );
 
     await worker.onModuleInit();
@@ -528,5 +536,35 @@ describe('InProcessRunWorker', () => {
     await waitUntil(() => started.length === 2, 'second after slot frees');
     expect(started).toEqual([first.id, second.id]);
     expect(recoverExecute).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes AbortSignal to execute and does not mark failed when abort leaves status cancelled', async () => {
+    const run = makeSocialRun({ status: 'running' });
+    const appendLog = jest.fn().mockResolvedValue(undefined);
+    const transition = jest.fn();
+    const getById = jest
+      .fn()
+      .mockResolvedValue(asSnapshot({ ...run, status: 'cancelled' }));
+    const seenSignals: AbortSignal[] = [];
+
+    const worker = makeWorker({
+      runs: unusedRepo({ getById }),
+      executor: {
+        async execute(_run, options) {
+          if (options?.signal) {
+            seenSignals.push(options.signal);
+          }
+          throw new DOMException('The operation was aborted', 'AbortError');
+        },
+      },
+      lifecycle: { appendLog, transition },
+    });
+
+    worker.notifyHitlResumed(run);
+    await waitUntil(() => appendLog.mock.calls.length === 1, 'abort log');
+
+    expect(seenSignals).toHaveLength(1);
+    expect(seenSignals[0]?.aborted).toBe(false);
+    expect(transition).not.toHaveBeenCalled();
   });
 });

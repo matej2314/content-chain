@@ -36,6 +36,7 @@ const SocialState = z.object({
   contentRefineCount: z.number(),
   failedCode: z.custom<SocialGraphState['failedCode']>(),
   failedMessage: z.custom<SocialGraphState['failedMessage']>(),
+  signal: z.custom<AbortSignal>().optional(),
 });
 
 interface CompileSocialGraphOptions {

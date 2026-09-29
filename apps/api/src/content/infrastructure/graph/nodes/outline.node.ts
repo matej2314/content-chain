@@ -13,6 +13,7 @@ export function createOutlineNode(hop: LlmHopService) {
     const { data } = await hop.chatJson({
       runId: state.runId,
       conversationId: state.conversationId,
+      signal: state.signal,
       step: 'OutlineAgent',
       schema: pageOutlineOutputSchema,
       userContent: renderPrompt(template, {

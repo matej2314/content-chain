@@ -13,6 +13,7 @@ import { GetRunUseCase } from './application/get-run.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
 import { ListRunsUseCase } from './application/list-runs.use-case';
+import { RunAbortRegistry } from './application/run-abort.registry';
 import { ListRunsUserUseCase } from './application/list-runs-user.use-case';
 import { RUN_EXECUTOR, type RunExecutorPort } from './domain/run-executor.port';
 import {
@@ -41,6 +42,7 @@ export type RunsModuleAsyncOptions = {
   imports: [CompanyContextModule, RunLifecycleModule],
   controllers: [RunsController],
   providers: [
+    RunAbortRegistry,
     RecoverInterruptedRunsUseCase,
     InProcessRunWorker,
     StartRunUseCase,
@@ -53,7 +55,7 @@ export type RunsModuleAsyncOptions = {
     SaveOutputEditedUseCase,
     FinalizeReviewUseCase,
   ],
-  exports: [RunLifecycleModule],
+  exports: [RunLifecycleModule, RunAbortRegistry],
 })
 export class RunsModule {
   static registerAsync(options: RunsModuleAsyncOptions): DynamicModule {

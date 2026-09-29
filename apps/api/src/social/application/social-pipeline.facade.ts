@@ -59,6 +59,7 @@ export class SocialPipelineFacade {
       contentRefineCount: number;
       ideas: SocialIdea[];
       reelIdeas: ReelIdea[];
+      signal?: AbortSignal;
     },
   ): Promise<SocialPipelineOutcome> {
     if (!isSocialRunRecord(run)) {
@@ -91,6 +92,7 @@ export class SocialPipelineFacade {
       contentRefineCount: extras.contentRefineCount,
       failedCode: null,
       failedMessage: null,
+      ...(extras.signal ? { signal: extras.signal } : {}),
     };
 
     const selectedIdeaIds = socialRun.selectedIdeaIds;

@@ -13,6 +13,15 @@ export class RecoverInterruptedRunsUseCase {
   ) {}
 
   async execute(): Promise<void> {
+    const cancelLeftovers = await this.runs.findCancelRequestedLeftovers();
+    for (const run of cancelLeftovers) {
+      const won = await this.runs.attemptCancel(run.id, new Date());
+      if (won) {
+        this.lifeCycle.publishCancelled(run.id);
+      }
+      // false: already terminal / race — leftover flag ignored (R-9.7); no user-cancel log
+    }
+
     const leftoverRunning = await this.runs.findInterruptedRunning();
     for (const run of leftoverRunning) {
       if (

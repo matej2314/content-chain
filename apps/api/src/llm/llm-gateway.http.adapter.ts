@@ -15,6 +15,7 @@ import type {
   LlmChatResult,
   LlmUsage,
 } from './llm-gateway.types';
+import { isAbortError } from '../shared/llm/is-abort-error';
 
 type GatewayChatResponse = {
   requestId: string;
@@ -76,6 +77,7 @@ export class LlmGatewayHttpAdapter implements LlmGatewayPort {
           messages: command.messages,
           ...(command.params ? { params: command.params } : {}),
         }),
+        signal: command.signal,
       });
 
       if (response.status !== 201) {
@@ -133,6 +135,9 @@ export class LlmGatewayHttpAdapter implements LlmGatewayPort {
         finishReason: body.finishReason,
       };
     } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
       if (!(error instanceof LlmGatewayError)) {
         this.logger.warn('gateway chat transport error');
       }

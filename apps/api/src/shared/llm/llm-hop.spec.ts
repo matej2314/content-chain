@@ -207,4 +207,45 @@ describe('LlmHopService.chatJson', () => {
 
     expect(chat).toHaveBeenCalledTimes(1);
   });
+
+  it('throws AbortError without retry when signal is already aborted', async () => {
+    const chat = jest.fn().mockResolvedValue(chatResult(VALID_VERIFIER_JSON));
+    const lifecycle = fakeLifecycle();
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      makeHop({ chat }, lifecycle).chatJson({
+        ...input,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(chat).not.toHaveBeenCalled();
+    expect(lifecycle.appendLog).not.toHaveBeenCalled();
+  });
+
+  it('forwards signal to gateway.chat and does not retry AbortError', async () => {
+    const controller = new AbortController();
+    const chat = jest.fn().mockImplementation(() => {
+      controller.abort();
+      return Promise.reject(
+        new DOMException('The operation was aborted', 'AbortError'),
+      );
+    });
+    const lifecycle = fakeLifecycle();
+
+    await expect(
+      makeHop({ chat }, lifecycle).chatJson({
+        ...input,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(chat).toHaveBeenCalledTimes(1);
+    expect(chat.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ signal: controller.signal }),
+    );
+    expect(lifecycle.appendLog).not.toHaveBeenCalled();
+  });
 });
