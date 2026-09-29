@@ -1,14 +1,14 @@
 ---
-wersja: 12
+wersja: 13
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-12
+data_modyfikacji: 2026-09-29
 ---
 
 # SPEC — Auth
 
 ## Cel / zakres względem dokumentacji
 
-Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, **`PATCH /auth/me` (własny email)**, role `admin` | `user`, lista kont, **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite**, soft-delete, **reaktywacja PATCH**, polityka haseł i sesji.
+Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, **`PATCH /auth/me/email` (własny email + re-auth)**, role `admin` | `user`, lista kont, **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite**, soft-delete, **reaktywacja PATCH**, polityka haseł i sesji.
 
 Zmiana względem wersji 5: zakres „lista + tworzenie z hasłem” zastąpiony zaproszeniami + accept-invite (`docs/dokumentacja_komunikacji.md`).
 Zmiana względem wersji 6: A-10a — `PATCH /users/:id` obowiązkowy w MVP i wyłącznie reaktywacją (`{ isActive: true }`); UI nadal poza MVP.
@@ -34,7 +34,7 @@ Wiążące (`docs/architektura.md`): klasyczne warstwy Nest — HTTP → applica
 | Zaproszenia: create / lista pending / resend / revoke | tak | nie |
 | Soft-delete (`DELETE`) użytkownika | tak (API; UI MVP bez tego) | nie |
 | Reaktywacja (`PATCH /users/:id`, `{ isActive: true }`) | tak (API; UI MVP bez tego) | nie |
-| Zmiana własnego emaila (`PATCH /auth/me`) | tak | tak |
+| Zmiana własnego emaila (`PATCH /auth/me/email` + `currentPassword`) | tak | tak |
 | Akceptacja zaproszenia (`POST /auth/accept-invite`) | publiczna (bez roli / bez sesji) | publiczna (bez roli / bez sesji) |
 
 W systemie MVP jest **co najwyżej jeden** `admin` — ten z bootstrapu. Tworzenie / awans kolejnego admina → odrzucenie (`403` / `400`).
@@ -66,9 +66,12 @@ A-3. Refresh (`POST /api/v1/auth/refresh`) na podstawie cookie `cc_refresh`: wal
 
 A-3a. `GET /api/v1/auth/me` (wymaga ważnego `cc_access`): **200** `{ "id", "email", "role" }` wyłącznie; brak / nieważna sesja → **401** `UNAUTHORIZED`.
 
-A-3b. `PATCH /api/v1/auth/me` (ta sama sesja): body `{ "email" }` — zmiana **własnego** adresu. **200** `{ id, email, role }`. Zajęty email (w tym soft-deleted) → **409** `CONFLICT`. Zły kształt → **400**. **Nie** `PATCH /users/:id` (tam nadal zakaz `email`). Bez zmiany hasła / roli / `isActive`. Bez maila potwierdzającego w MVP.
+A-3b. `PATCH /api/v1/auth/me/email` (ta sama sesja): body `{ "email", "currentPassword" }` (`.strict()`) — zmiana **własnego** adresu po re-auth. **`GET /auth/me` = wyłącznie probe** (A-3a); **bez** mutacji na `PATCH /auth/me`. Kolejność: Zod → bcrypt compare `currentPassword` z hashem użytkownika sesji (jak login, A-2; **bez** polityki A-5 — to weryfikacja istniejącego hasła, nie ustawianie nowego) → zapis emaila gdy różny od obecnego. **200** `{ id, email, role }` także gdy email bez zmian (po udanym re-auth, bez UPDATE). Zajęty email (w tym soft-deleted) → **409** `CONFLICT` (dopiero po udanym re-auth). Brak / pusty `currentPassword` / zły kształt → **400**. Złe hasło → **401** `INVALID_PASSWORD`, `message`: `Invalid password` (**nie** `UNAUTHORIZED`). Brak sesji → **401** `UNAUTHORIZED`. **Nie** `PATCH /users/:id` (tam nadal zakaz `email`). Bez self-service **zmiany** hasła / roli / `isActive`. Bez maila potwierdzającego w MVP (V1). Sesja refresh / cookie **bez** rotacji z powodu A-3b. Wzorzec osobnej ścieżki mutacji + re-auth + `INVALID_PASSWORD` = fundament pod przyszłe `PATCH /auth/me/password` (poza MVP).
 
+Zmiana względem: A-3b na `PATCH /auth/me` z body `{ email }` lub `{ email, currentPassword }` i złe hasło jako `UNAUTHORIZED`.
 Zmiana względem wersji 9: self-service email był zakazany. Od tej wersji A-3b jest w MVP (`docs/ux_dashboard.md` widok Konto).
+
+**Uwaga o A-5:** re-auth na A-3b celowo **nie** stosuje polityki haseł (A-5) do `currentPassword` — analogicznie do loginu (A-2). Polityka dotyczy wyłącznie momentu **ustawiania** hasła (`bootstrap-admin`, `accept-invite`); hasło raz zaakceptowane pozostaje ważne do re-auth, nawet gdyby polityka A-5 później się zaostrzyła.
 
 Zmiana względem wersji 2: wcześniej brak osobnego probe; odczyt `user` z refresh był opcjonalny. Obowiązuje: **`/auth/me`** + flow FE me → (401) refresh → me.
 
@@ -121,7 +124,7 @@ Zmiana względem wersji 2 („dezaktywacja zamiast DELETE, jeśli implementacja 
 ```text
 apps/api/src/auth/
 ├── auth.module.ts
-├── auth.controller.ts          # bootstrap-status, bootstrap, login, refresh, logout, me, accept-invite
+├── auth.controller.ts          # bootstrap-status, bootstrap, login, refresh, logout, me, me/email, accept-invite
 ├── users.controller.ts         # GET/PATCH/DELETE users (admin) — bez POST create-z-hasłem
 ├── invitations.controller.ts   # GET/POST invitations, resend, revoke (admin) — lub równoważny podział
 ├── application/                # use-case’y (InviteUser, ListInvitations, Resend, Revoke, AcceptInvite, lista/soft-delete/reaktywacja)
@@ -167,11 +170,13 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - `Authorization: Bearer` jako modelu auth MVP.
 - OAuth / social login / 2FA w MVP.
 - Egzekucji ról wyłącznie po stronie UI.
-- Self-service w MVP: zmiana hasła **zalogowanego**, usuwanie własnego konta.
+- Self-service w MVP: zmiana hasła **zalogowanego**, usuwanie własnego konta; confirm e-mail przy zmianie adresu (V1).
   Zmiana względem: „żadnego ustawiania hasła przez użytkownika”. **Wyjątek (D13):** jednorazowe **pierwsze** hasło przy `accept-invite` to onboarding, nie self-service hasła.
-  Zmiana względem wersji 9: zakaz obejmował też zmianę email — od tej wersji `PATCH /auth/me` (A-3b) **jest** w MVP.
+  Zmiana względem wersji 9: zakaz obejmował też zmianę email — od tej wersji A-3b **jest** w MVP (re-auth: `PATCH /auth/me/email` + `currentPassword`).
+  Zmiana względem: A-3b na `PATCH /auth/me` bez re-auth / złe hasło jako `UNAUTHORIZED`.
+- Mutacji wrażliwej email / hasła na `PATCH /auth/me` (miesza probe z update) — obowiązuje osobna ścieżka A-3b.
 - Twardego DELETE użytkownika jako domyślnego zachowania MVP (obowiązuje soft-delete).
-- `PATCH /users/:id` z `role` / `email` / `password` albo `isActive: false` (dezaktywacja wyłącznie DELETE). Własny email = wyłącznie `PATCH /auth/me` (A-3b).
+- `PATCH /users/:id` z `role` / `email` / `password` albo `isActive: false` (dezaktywacja wyłącznie DELETE). Własny email = wyłącznie `PATCH /auth/me/email` (A-3b).
 - Refresh wyłącznie jako JWT w cookie **bez** wpisu w DB.
 - Wycieku hashów haseł, sekretów JWT, plaintext refresh ani raw tokenu zaproszenia (w `production`) do logów / envelope.
 
@@ -185,8 +190,8 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 | TTL env: access default 15m, refresh default 1d; `INVITE_TTL` default 7d | obowiązkowe |
 | Port mailera + **nodemailer** (adapter SMTP w `production`) | obowiązkowe |
 | Adapter logujący maila w `development` / `test` | obowiązkowe |
-| Bearer access / OAuth / 2FA / zmiana hasła zalogowanego / usuwanie siebie | poza MVP |
-| `GET /auth/me` + `PATCH /auth/me` (email) + `GET /auth/bootstrap-status` + `POST /auth/accept-invite` | obowiązkowe |
+| Bearer access / OAuth / 2FA / zmiana hasła zalogowanego / usuwanie siebie / confirm e-mail przy zmianie adresu | poza MVP (V1 confirm) |
+| `GET /auth/me` + `PATCH /auth/me/email` (`email` + `currentPassword`) + `GET /auth/bootstrap-status` + `POST /auth/accept-invite` | obowiązkowe |
 | `PATCH /users/:id` (reaktywacja `{ isActive: true }`) | obowiązkowe |
 
 ## Kryteria akceptacji
@@ -194,7 +199,7 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - [ ] `bootstrap-status` poprawnie sygnalizuje dostępność; bootstrap tworzy jedynego admina + sesję; ponowne wywołanie odrzucone.
 - [ ] Próba utworzenia drugiego admina przez API odrzucona.
 - [ ] Login ustawia `cc_access` i `cc_refresh` (httpOnly); body bez tokenów; chronione trasy działają na cookie.
-- [ ] `GET /auth/me` zwraca `{ id, email, role }` albo 401; `PATCH /auth/me` `{ email }` zmienia własny adres albo **409** gdy zajęty; refresh rotuje cookie; logout czyści oba i unieważnia sesję w DB.
+- [ ] `GET /auth/me` zwraca `{ id, email, role }` albo **401** `UNAUTHORIZED`; `PATCH /auth/me/email` `{ email, currentPassword }` zmienia własny adres po re-auth albo **409** gdy zajęty; złe hasło → **401** `INVALID_PASSWORD` / `Invalid password`; brak / pusty `currentPassword` → **400**; refresh rotuje cookie; logout czyści oba i unieważnia sesję w DB; A-3b **nie** rotuje sesji; **brak** mutacji na `PATCH /auth/me`.
 - [ ] Hasło niespełniające polityki → `VALIDATION_FAILED`; spełniające → bcrypt(cost 12) — także na accept-invite.
 - [ ] `user` nie przechodzi tras admin-only (`RolesGuard` → `FORBIDDEN`), w tym `POST /invitations` → 403.
 - [ ] Admin zaprasza (`POST /invitations`, tylko email) → pending + mail; konto `user` powstaje przez accept-invite → login; raw token nie wraca w JSON admina.
@@ -211,7 +216,7 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - Widoki UI (first-run, login, użytkownicy, konto, akceptacja zaproszenia) — **MVP dashboardu** → `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`. Ten SPEC nie wymaga ekranów jako DoD API (Postman zostaje).
 
 Zmiana względem wersji 7 / poza zakresem: doprecyzowano, że ekrany Users i accept-invite są w zakresie MVP FE, nie „przyszłe”.
-- Self-service: zmiana hasła **zalogowanego** / usuwanie własnego konta; OAuth, SSO, 2FA, recovery „lost admin”. Pierwsze hasło na accept-invite **jest** w zakresie (A-7b). **Zmiana własnego emaila (A-3b) jest w zakresie MVP.**
+- Self-service: zmiana hasła **zalogowanego** / usuwanie własnego konta; OAuth, SSO, 2FA, recovery „lost admin”; confirm e-mail przy zmianie adresu (**V1**). Pierwsze hasło na accept-invite **jest** w zakresie (A-7b). **Zmiana własnego emaila z re-auth (A-3b) jest w zakresie MVP** — wzorzec ścieżki + `INVALID_PASSWORD` = fundament pod przyszłe `PATCH /auth/me/password` (poza MVP).
 - Soft-delete / reaktywacja w UI admina (API tak; UI MVP nie) — płynne V1.
 - Szczegóły ekspozycji sieciowej gateway/metrics / reverse proxy → `SPEC-BEZPIECZENSTWO.md`.
 - Schema Prisma — `SPEC-PERSISTENCE.md` / implementacja, byle port sesji refresh, zaproszeń i flagi aktywności istniał.

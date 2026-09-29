@@ -1,7 +1,7 @@
 ---
-wersja: 21
+wersja: 23
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-09-29
 ---
 
 # SPEC — Testy
@@ -75,7 +75,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-24 | `user` woła `POST /invitations` → **403**. Drugi `POST` przy `pending` (także wygasłym) → **409**. `GET /invitations` zwraca też wygasłe pending |
 | D-25 | Soft-delete: `DELETE /users/:id` → `isActive = false`; nieaktywny nie loguje się (ten sam komunikat 401 co złe hasło — bez enumeracji) |
 | D-26 | Reaktywacja: `PATCH /users/:id` `{ isActive: true }` na soft-deleted `user` → **200** `isActive: true`; następnie `POST /auth/login` tym kontem → **200**. `isActive: false` → **400**. `user` woła PATCH → **403**. |
-| D-27 | `PATCH /auth/me` `{ email }` (sesja): **200** `{ id, email, role }` z nowym emailem; `GET /auth/me` zgadza się. Drugi użytkownik / ten sam email zajęty → **409**. `PATCH /users/:id` z `email` nadal **400**. |
+| D-27 | `PATCH /auth/me/email` `{ email, currentPassword }` (sesja, poprawne hasło): **200** `{ id, email, role }`; `GET /auth/me` zgadza się. Ten sam email co obecny + poprawne hasło → **200** bez zmiany wiersza. Złe hasło → **401** `INVALID_PASSWORD` / `Invalid password`, email w DB **bez** zmiany. Pusty / brak `currentPassword` → **400** `VALIDATION_FAILED`, email bez zmiany. Brak sesji → **401** `UNAUTHORIZED`. Drugi użytkownik / email zajęty (po udanym re-auth) → **409**. `PATCH /users/:id` z `email` nadal **400**. Brak mutacji na `PATCH /auth/me` (albo trasa nie istnieje / nie zmienia emaila). |
 | D-28 | `GET /runs?status=completed,failed,cancelled`: tylko te statusy, `pageSize=10`, sort `createdAt` desc (mieszane); pojedynczy `status=interrupted` bez regresji; nieznana wartość w liście → **400** `VALIDATION_FAILED` |
 | D-29 | PUT/PATCH `/company-context` przy niekompletnej bramce (w tym kaleka oferta: brak opisu / pusta korzyść / druga niepełna pozycja) → **400** `VALIDATION_FAILED`; singleton w DB **bez zmiany** (brak upsert). D-1 (start → 409 `CONTEXT_INCOMPLETE`) **zostaje**. |
 | D-30 | Cancel happy: `startedBy` woła `POST .../cancel` na nieterminalnym → **200**, `status=cancelled`, `cancelledAt` ustawione; log append; SSE `run.status` + `run.cancelled` + complete huba |
@@ -84,15 +84,18 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-33 | Recovery + flaga: leftover `running` lub `interrupted` z `cancelRequested` na bootcie → `cancelled` (bez `recoveryAttempts++`); flaga na już-terminalnym ignorowana |
 | D-34 | HITL po cancel: `POST .../hitl` na `cancelled` → odrzucenie (nielegalny status; bez wznowienia pipeline) |
 
+Zmiana względem: D-27 na `PATCH /auth/me` bez `currentPassword` / bez `INVALID_PASSWORD`. (Nota: recovery UI po 409 + brak wylogowania przy `INVALID_PASSWORD` = norma FE / `ux_dashboard.md`; D-27 pozostaje kontraktem HTTP api.)
+
 Zmiana względem wersji 20: dopisano D-30…D-34 (anulowanie); D-11 / D-12 / D-14 / D-28 rozszerzone o `cancelled` / wynik / SSE. D-1…D-29 bez kasowania treści.
 
 Zmiana względem wersji 19: dopisano D-29 (twardy zapis kontekstu — C-4). D-1…D-28 bez kasowania treści. D-20 uściślone: extras round-trip na kompletnym body bramki.
 Zmiana względem wersji 18: T-5 i kryteria akceptacji obejmują też D-28 (wcześniej D-28 było w tabeli, bez jawnego pinu w T-5 / checklistcie D-1…D-28).
 Zmiana względem wersji 17: dopisano D-28 (filtr `status` wielowartościowy pod archiwum UI). D-1…D-27 bez kasowania treści.
 
-D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel). T-3 (cookie) **bez zmian**.
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel). T-3 (cookie) **bez zmian**.
 
 Zmiana względem wersji 16: dopisano D-27 (`PATCH /auth/me` email; 409 zajęty; `PATCH /users/:id` bez email). D-1…D-26 bez kasowania treści.
+Zmiana względem: D-27 rozszerzone o `currentPassword` / `INVALID_PASSWORD` / trasę `/auth/me/email`.
 
 Zmiana względem wersji 14: dopisano D-26 (reaktywacja po soft-delete + login; `isActive: false` → 400; `user` → 403). D-1…D-25 bez kasowania treści.
 

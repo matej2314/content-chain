@@ -1,3 +1,9 @@
+---
+wersja: 2
+data_utworzenia: 2026-09-29
+data_modyfikacji: 2026-09-29
+---
+
 # Bezpieczeństwo — Content Chain
 
 Norma self-host dla `local` i `production`: auth, sekrety, ekspozycja powierzchni, bootstrap. Bez pełnego modelu STRIDE.
@@ -36,8 +42,10 @@ Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, 
 3. Po utworzeniu pierwszego admina endpoint bootstrap jest **trwale niedostępny** (np. **409** `CONFLICT` / **403**); `bootstrap-status.available === false`.
 4. **Twarda blokada:** tworzenie / awans kolejnych użytkowników z `role = admin` jest **zabronione** w MVP (API odrzuca). W systemie jest **co najwyżej jeden** admin — ten z bootstrapu.
 5. Pozostali `user` **zapraszani** przez jedynego admina (tylko email). Konto powstaje wyłącznie przy akceptacji zaproszenia — **nie** przez `POST /users` z hasłem. Zmiana względem: „pozostali użytkownicy tylko z `role = user` (tworzeni przez jedynego admina)”.
-6. **Self-service konta w MVP:** zalogowany może zmienić **własny email** (`PATCH /api/v1/auth/me`, widok Konto). **Poza MVP:** zmiana hasła zalogowanego, usuwanie własnego konta. **Wyjątek:** jednorazowe **pierwsze** hasło przy `POST /auth/accept-invite` to onboarding, nie self-service hasła. MVP: login / logout / bootstrap / zaproszenia + accept-invite + zmiana własnego emaila.
+6. **Self-service konta w MVP:** zalogowany może zmienić **własny email** (`PATCH /api/v1/auth/me/email`, widok Konto) wyłącznie po podaniu **aktualnego hasła** w body (`currentPassword`). To **re-auth** przy mutacji wrażliwej — **nie** jest self-service zmianą hasła. **`GET /auth/me` = wyłącznie probe** (bez mutacji na `PATCH /auth/me`). **Poza MVP:** zmiana hasła zalogowanego (planowany wzorzec: osobna trasa np. `PATCH /auth/me/password` + re-auth + `INVALID_PASSWORD`, po SMTP), usuwanie własnego konta, confirm e-mail przy zmianie adresu (V1). **Wyjątek:** jednorazowe **pierwsze** hasło przy `POST /auth/accept-invite` to onboarding, nie self-service hasła. MVP: login / logout / bootstrap / zaproszenia + accept-invite + zmiana własnego emaila z re-auth.
 
+Zmiana względem: mutacja na `PATCH /auth/me` + złe hasło jako `UNAUTHORIZED`. Powód: rozdział probe vs mutacja; uniknięcie konfliktu z cyklem sesji FE.
+Zmiana względem: self-service email bez re-auth (sam cookie). Powód: skradziona sesja nie może trwale przejąć identyfikatora konta bez znajomości hasła.
 Zmiana względem: „self-service email poza zakresem MVP”.
 7. **`DELETE /api/v1/users/:id`** = soft-delete (dezaktywacja); konto nieaktywne nie loguje się. **Reaktywacja** = **`PATCH /api/v1/users/:id`** z body `{ "isActive": true }` (API; UI nadal poza MVP). `PATCH` **nie** przyjmuje `role` (zakaz awansu do `admin`) ani `isActive: false` (dezaktywacja wyłącznie przez DELETE). Reaktywacja **nie** odtwarza sesji refresh — potem zwykły login.
 
@@ -57,6 +65,8 @@ Zmiana względem wcześniejszego punktu 7 (tylko DELETE / soft-delete): kanał p
 
 Niespełnienie → **400** `VALIDATION_FAILED` z czytelnym komunikatem (bez ujawniania hashów). Ta sama polityka obowiązuje przy **pierwszym** haśle na `accept-invite`.
 
+Przy `PATCH /api/v1/auth/me/email` pole `currentPassword` jest weryfikowane **tak samo jak przy logowaniu** — wyłącznie porównaniem bcrypt z hashem sesji, **bez** polityki haseł (polityka obowiązuje wyłącznie przy ustawianiu **nowego** hasła — bootstrap / accept-invite). Złe hasło → **401** `INVALID_PASSWORD`, `message`: `Invalid password` (osobny od sesyjnego `UNAUTHORIZED` i od loginu `Invalid credentials`). Plaintext `currentPassword` nigdy w logach ani odpowiedziach.
+
 Porównanie i unique `email` (**User** i **Invitation**) są **case-sensitive**, jak `findForAuth` / `User.email` dziś. Świadomie **bez** `trim` / `toLowerCase`. `Ada@x` i `ada@x` to dwa różne adresy.
 
 Na publicznym `accept-invite` kolizja `User.email` (P2002) → **409** `CONFLICT` jest **świadoma** (enumeracja „email zajęty”) — **nie** maskować jako `401`.
@@ -68,7 +78,7 @@ Na publicznym `accept-invite` kolizja `User.email` (P2002) → **409** `CONFLICT
 - Oba cookie: `Secure` + sensowny `SameSite` w `production`.
 - SSE i HTTP: ta sama sesja cookie — **zakaz** tokenu w query string; **zakaz** `Authorization: Bearer` jako modelu MVP (FE, Postman = cookie jar).
 - Body login/refresh **nie** zwraca tokenów (tylko `user` / `expiresIn` wg kontraktu API).
-- Probe tożsamości UI: **`GET /api/v1/auth/me`** → `{ id, email, role }` albo **401** (flow: me → przy 401 refresh → me). **Każde** wywołanie produktowe FE do API: przy **401** ten sam refresh + jednorazowy retry, potem karta logowania (`SPEC-FRONTEND.md`).
+- Probe tożsamości UI: **`GET /api/v1/auth/me`** → `{ id, email, role }` albo **401** `UNAUTHORIZED` (flow: me → przy sesyjnym 401 refresh → me). **Każde** wywołanie produktowe FE do API: przy **401** `UNAUTHORIZED` ten sam refresh + jednorazowy retry, potem karta logowania (`SPEC-FRONTEND.md`). **401** `INVALID_PASSWORD` (re-auth) **nie** wchodzi w ten cykl — błąd pod polem, sesja zostaje.
 - Wylogowanie unieważnia refresh w DB i czyści **oba** cookie.
 - **BFF (`apps/frontend`):** przeglądarka mówi wyłącznie z originem Next (ścieżki `/api/v1/...`). Next proxy’uje do `apps/api` (env serwerowe, nie `NEXT_PUBLIC_*`). Cookie sesji są na originie FE — `SameSite=strict` w `production` jest spójne z tym modelem. SSE musi iść przez to samo proxy **bez buforowania** całego strumienia.
 
@@ -110,7 +120,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 ## Poza zakresem MVP
 
 - OAuth / SSO / 2FA  
-- Self-service: zmiana hasła zalogowanego, usuwanie własnego konta (wyjątek: pierwsze hasło na accept-invite — onboarding). **Zmiana własnego emaila jest w MVP** (`PATCH /auth/me`)  
+- Self-service: zmiana hasła zalogowanego, usuwanie własnego konta (wyjątek: pierwsze hasło na accept-invite — onboarding). **Zmiana własnego emaila z re-auth hasłem jest w MVP** (`PATCH /auth/me/email` + `currentPassword` + `INVALID_PASSWORD`). Wzorzec osobnej mutacji + re-auth = fundament pod przyszłą zmianę hasła (po SMTP; poza MVP). **Confirm e-mail** przy zmianie adresu = **V1** (poza MVP)  
 - Rotacja wielu adminów / recovery „lost admin” (osobna procedura później)  
 - WAF / full pentest report  
 - Szyfrowanie pliku SQLite at-rest (opcjonalnie później)

@@ -1,7 +1,7 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-12
+data_modyfikacji: 2026-09-29
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -41,11 +41,15 @@ B-7. `GET /api/v1/health` może być bez auth do probe — **bez** wrażliwych d
 
 B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, **`SMTP_PASS`**, klucze vendorów, **raw token zaproszenia**) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, treści opinii (`Feedback.body`), labelach Prometheus, stdout procesu w `production`. Dump treści hopu chat na stdout adaptera LLM **wyłącznie** przy `NODE_ENV=development`; w polach tekstowych wartość `GATEWAY_KEY` zastępowana `[REDACTED]`. **Wyjątek `development`:** wolno zalogować URL akceptacji zaproszenia (odpowiednik treści maila). Nie rozluźniać B-8 dla `production`.
 
-**503** `MAIL_DELIVERY_FAILED` **nie** jest wyciekiem sekretu — w `details` wyłącznie `id` zaproszenia (`docs/dokumentacja_komunikacji.md`). **409** `CONFLICT` przy zajętym `User.email` na publicznym accept-invite **oraz** na `PATCH /auth/me` jest **kanonem** (świadoma enumeracja) — nie luką do „naprawienia” na `401`.
+**503** `MAIL_DELIVERY_FAILED` **nie** jest wyciekiem sekretu — w `details` wyłącznie `id` zaproszenia (`docs/dokumentacja_komunikacji.md`). **409** `CONFLICT` przy zajętym `User.email` na publicznym accept-invite **oraz** na `PATCH /auth/me/email` jest **kanonem** (świadoma enumeracja) — nie luką do „naprawienia” na `401`.
 
 Zmiana względem wersji 5: enumeracja `409` na zajęty email obejmowała tylko accept-invite.
 
 Zmiana względem wersji 4 / B-8: lista sekretów bez hasła SMTP i raw tokenu zaproszenia; brak normy 503/`details.id` i 409 na accept.
+
+B-8a. `currentPassword` w `PATCH /auth/me/email` jest sekretem jak hasło logowania: nigdy w logach, metrics, SSE, envelope sukcesu. Złe hasło → **401** `INVALID_PASSWORD`, `message`: `Invalid password` (nie mylić z sesyjnym `UNAUTHORIZED` ani z loginem `Invalid credentials`). Re-auth przy zmianie emaila jest **obowiązkowy** w MVP; confirm e-mail = V1 (`docs/security.md`). Wzorzec = fundament pod przyszłą zmianę hasła (poza MVP).
+
+Zmiana względem: mutacja email na `PATCH /auth/me` bez re-auth albo z `UNAUTHORIZED` na złe hasło.
 
 B-9. Minimalny zestaw `/metrics` (proces `apps/api`) zgodny z `docs/observability.md`: HTTP (licznik + latencja), uptime/process, liczniki/gauge statusów runów, sygnały błędów wywołań gateway — nazwy mogą mieć prefiks `content_chain_`.
 

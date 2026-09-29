@@ -1,7 +1,7 @@
 ---
-wersja: 26
+wersja: 27
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-09-29
 ---
 
 # SPEC — Frontend
@@ -43,10 +43,11 @@ F-3. Typy request/response / enumy / brand types z **`@content-chain/shared`** n
 
 F-4. Auth web: wyłącznie cookie **`cc_access`** i **`cc_refresh`** (httpOnly) — patrz `SPEC-AUTH.md`. FE **nie** przechowuje JWT w `localStorage`, memory jako store tokenu ani zmiennych `NEXT_PUBLIC_*`. Brak nagłówka `Authorization: Bearer` jako modelu MVP (także Postman — cookie jar).
 
-F-4a. Probe sesji **oraz każde** produktowe wywołanie do `/api/v1`: przy **401** → `POST /auth/refresh` → **jednorazowy** retry żądania; kolejny **401** → **strona główna (karta logowania)**. Start / reload: `GET /auth/me` → (401) refresh → `GET /auth/me`. Gdy `GET /auth/bootstrap-status` → `available: true`, **ten sam** formularz submituje `POST /auth/bootstrap-admin` zamiast `POST /auth/login`. Dashboard (sidebar) wyłącznie po sesji. Na stronie głównej przycisk **„Nie masz konta? Zarejestruj się!”** jest **nieaktywny** w MVP.
+F-4a. Probe sesji **oraz każde** produktowe wywołanie do `/api/v1`: przy **401** `UNAUTHORIZED` → `POST /auth/refresh` → **jednorazowy** retry żądania; kolejny **401** `UNAUTHORIZED` → **strona główna (karta logowania)**. Start / reload: `GET /auth/me` → (**401** `UNAUTHORIZED`) refresh → `GET /auth/me`. Gdy `GET /auth/bootstrap-status` → `available: true`, **ten sam** formularz submituje `POST /auth/bootstrap-admin` zamiast `POST /auth/login`. Dashboard (sidebar) wyłącznie po sesji. Na stronie głównej przycisk **„Nie masz konta? Zarejestruj się!”** jest **nieaktywny** w MVP. Cykl refresh → retry → karta logowania dotyczy wyłącznie **401** `UNAUTHORIZED` (sesja). **401** `INVALID_PASSWORD` (re-auth) **nie** uruchamia refresh ani `unauthorizedHandler` — błąd pod polem hasła, sesja zostaje.
 
 Zmiana względem wersji 19 / F-4a: refresh tylko przy starcie aplikacji. Od tej wersji ten sam cykl na każdym fetchu (TTL access ~15 min).
 Zmiana względem wersji 14 / F-4a: osobny ekran first-run albo logowanie. Od tej wersji jeden widok główny = logowanie; first-run = tryb submitu; rejestracja wizualna, nieaktywna (`docs/ux_dashboard.md`).
+Zmiana względem: F-4a traktowało każdy **401** jak wygaśnięcie sesji — od tej wersji wyłącznie `UNAUTHORIZED` (decyzja A1 / `docs/dokumentacja_komunikacji.md`).
 
 F-5. Live status runu: **SSE** `.../runs/:runId/events` (same-origin BFF, ta sama sesja cookie). **N×** `EventSource` wyłącznie dla **własnych** runów w `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu: max jedno połączenie na `runId`). `queued` **bez** SSE (GET). Zakaz pollingu statusu **konkretnego** runu jako kanału live. GET archiwum Runy co 15 min **nie** jest kanałem live. Status wizualnie animowany / czytelny (`docs/ux_dashboard.md`) — w tym odrębny stan **`interrupted`** oraz terminal **`cancelled`** (nie mylić z `failed`). Typ statusu z `@content-chain/shared`.
 
@@ -80,7 +81,7 @@ F-6. Bramka „Agenci aktywni” i disable CTA startu runu — UX na bazie `GET 
 
 Zmiana względem wersji 24 / F-6: disable było opisane bez drugiej powierzchni; sens bramki **bez unieważnienia**.
 
-F-7. Język chrome / etykiet: **polski**. Envelope błędów MVP: pokazać **`code` i `message` jak z API** (angielskie `message` — bez mapy tłumaczeń). next-intl / i18n envelope = **V1 — rozbudowa**. Treści SM: PL/EN wg briefu runu. Formularz startu runu (**Konto inline oraz modal na Runach** — ten sam brief): pola briefu **wg `taskType`** — post/reel: liczba pomysłów, bez kąta/długości; `page_*`: kąt i długość opcjonalnie, **bez** liczby pomysłów (`docs/ux_dashboard.md`). Błędy przy formularzu / błędzie GET bloku = `code` + `message` **w miejscu błędu** (także w modalu). Toast **nie** zastępuje envelope przy polu. Toast sukcesu mutacji = **polski** tytuł (`docs/ux_dashboard.md`). Jeśli toast błędu (poza formularzem, gdy mapa UX na to zezwala): te same `code` + `message`, bez tłumaczenia.
+F-7. Język chrome / etykiet: **polski**. Envelope błędów MVP: pokazać **`code` i `message` jak z API** (angielskie `message` — bez mapy tłumaczeń). next-intl / i18n envelope = **V1 — rozbudowa**. Treści SM: PL/EN wg briefu runu. Formularz startu runu (**Konto inline oraz modal na Runach** — ten sam brief): pola briefu **wg `taskType`** — post/reel: liczba pomysłów, bez kąta/długości; `page_*`: kąt i długość opcjonalnie, **bez** liczby pomysłów (`docs/ux_dashboard.md`). Błędy przy formularzu / błędzie GET bloku = `code` + `message` **w miejscu błędu** (także w modalu). Toast **nie** zastępuje envelope przy polu. Toast sukcesu mutacji = **polski** tytuł (`docs/ux_dashboard.md`), **z wyjątkiem** `PATCH /auth/me/email` (sukces i błędy — **bez** toastu; envelope pod polami modala). Jeśli toast błędu (poza formularzem, gdy mapa UX na to zezwala): te same `code` + `message`, bez tłumaczenia.
 
 Zmiana względem wersji 19 / F-7: błędy miały być „zrozumiałe po polsku” bez rozstrzygnięcia envelope. Od tej wersji envelope as-is; i18n = V1.
 
@@ -90,12 +91,14 @@ Zmiana względem wersji 23 / F-7: F-7 milczało o sukcesie mutacji (cisza po 200
 
 Zmiana względem wersji 24 / F-7: formularz startu był „**(tylko Konto)**”. Od tej wersji **Konto (inline) i Runy (modal)**; pola briefu **bez zmiany**.
 
+Zmiana względem: toast sukcesu mutacji bez wyjątku dla zmiany emaila — od tej wersji `PATCH /auth/me/email` **bez** toastu (`docs/ux_dashboard.md`).
+
 F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 
 - Strona główna: tło + karta logowania + nieaktywny **„Nie masz konta? Zarejestruj się!”**; first-run = tryb submitu tej karty; **akceptacja zaproszenia** na **`/invite/accept?token=`** (tożsame z URL w mailu `{APP_PUBLIC_URL}/invite/accept?token=…`) → `POST /auth/accept-invite` → strona główna — dashboard dopiero po loginie;
 - Kontekst firmy: **sześć zakładek** — Tożsamość (domyślnie otwarta), Oferta, Głos SM, CTA / kanały, Odbiorca, Dodatki (`extras` w jednym panelu, bez podzakładek). Na triggerach zakładek bramki indykator z `completeness.missing` ostatniego **udanego** GET/PUT (zielona = kompletna, czerwona = brak); zakładka Dodatki **bez** kropki bramki. Zapis = jeden `PUT` całości. Submit **nie** wysyła, gdy draft nie spełnia bramki (puste wymagane pole albo kaleka oferta); lokalny predykat identyczny z C-1 **wyłącznie** do disable CTA zapisu i błędów pól — kropki i chip nadal z `missing` odpowiedzi. Placeholdery pustej oferty stripowane; kalekiej usługi nie stripujemy. Nie da się usunąć ostatniej kompletnej usługi tak, by PUT poszedł z `items: []`. Szczegóły: `docs/ux_dashboard.md` (Widok: Kontekst firmy);
 - **Runy** = archiwum instancji `completed` \| `failed` \| `cancelled` (`GET /runs?status=completed,failed,cancelled`, strona 10, odświeżanie przy wejściu i co **15 min**). **Bez** SSE, **bez** runów w toku na liście (także cudzych). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). Po **202** z modalu — zostajemy na Runach, modal zamknięty, toast „Run wystartował”; live = floating box;
-- **Konto**: email (`PATCH /auth/me`); **Moje runy** (`GET /runs/user/:userId`, wszystkie statusy; **Stop** + modal na własnym nieterminalnym — F-5b); formularz **startu inline** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId` z wiersza „Moje runy”); opinia. Po **202** startu **z Konta** — zostajemy na Koncie **oraz** toast „Run wystartował”;
+- **Konto**: email — formularz → modal re-auth (email **disabled** + `currentPassword`) → `PATCH /auth/me/email` `{ email, currentPassword }` (każdy Potwierdź z obu pól); złe hasło (`INVALID_PASSWORD`) / `VALIDATION_FAILED` pod polem hasła (email zostaje disabled; **bez** cyklu F-4a); **409** → modal otwarty, clear pól, odblokowanie emaila, błąd pod polem email; sukces bez toastu + `GET /auth/me`; Anuluj bez API (draft formularza bez zmian względem otwarcia); **Moje runy** (`GET /runs/user/:userId`, wszystkie statusy; **Stop** + modal na własnym nieterminalnym — F-5b); formularz **startu inline** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId` z wiersza „Moje runy”); opinia. Po **202** startu **z Konta** — zostajemy na Koncie **oraz** toast „Run wystartował”;
 - `PUT` kontekstu **200** → toast „Kontekst zapisany”; **400** → envelope przy formularzu, **zero** toasta (lokalny predykat / envelope); `POST .../cancel` **200** → toast **„Run anulowany”** (F-5b);
 - Layout **zalogowany**: Toaster (warstwa `--z-toast`); pozycja **nie** gryzie się z floating boxem (toast `top-right`; box `bottom-right`). **Brak** Toastera na karcie logowania / first-run / accept-invite;
 - Run szczegóły: HITL / wynik **post vs rolka vs strona** / przegląd (bez `conversationId` w UI); **Stop** + modal (F-5b) dla własnego nieterminalnego; po `cancelled` HITL znika, przegląd niedostępny, partial wynik jak przy `failed`; live SSE tylko własny `running` \| `awaiting_hitl` \| `interrupted` (ten sam rejestr co box);
@@ -171,7 +174,7 @@ apps/frontend/src/
 - First-run jako tryb submitu **tej samej** karty logowania.
 - Nieaktywny przycisk „Zarejestruj się!”.
 - Header: zawartość **do prawej**; login → „Wyloguj się”; modal; `POST /auth/logout` → `/`.
-- Widok **Konto**: email, Moje runy (live), **start inline**, opinia; po starcie **z Konta** zostajemy tutaj.
+- Widok **Konto**: email z modalem re-auth (`PATCH /auth/me/email` + `currentPassword`; recovery **409**; `INVALID_PASSWORD` bez wylogowania), Moje runy (live), **start inline**, opinia; po starcie **z Konta** zostajemy tutaj.
 - Widok **Runy**: archiwum `completed` \| `failed` \| `cancelled`; GET co 15 min + przy wejściu; CTA/modal **„Uruchom agenta”** (ten sam brief); po **202** z Run — zostać, zamknąć modal.
 - Client components dla modalu startu (Dialog kitu shadcn).
 - Floating box poza Kontem (zwijany).
@@ -212,7 +215,9 @@ apps/frontend/src/
 - Logiki pipeline Social / Content / verifiera / promptów w FE.
 - Płaskiego `components/` bez `modules/`.
 - Bearer access jako modelu MVP.
-- Self-service hasła zalogowanego i usuwania własnego konta. **Zmiana własnego emaila jest w MVP.**
+- Self-service hasła zalogowanego i usuwania własnego konta; confirm e-mail przy zmianie adresu (V1). **Zmiana własnego emaila z re-auth jest w MVP** (modal + `PATCH /auth/me/email`).
+- Traktowania **401** `INVALID_PASSWORD` jak wygaśnięcie sesji (refresh / logout) — obowiązuje F-4a wyłącznie na `UNAUTHORIZED`.
+- Toasta sukcesu / walidacji / **409** przy `PATCH /auth/me/email` (obowiązuje envelope pod polami modala).
 - Ładowania listy instancji (`GET /runs` bez filtra terminalnego) jako „Moje runy”.
 - UI create użytkownika z hasłem; UI soft-delete w MVP.
 - Pomijania Users albo `/invite/accept` w MVP.
@@ -259,12 +264,12 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 
 - [ ] Strona główna: karta logowania + nieaktywny „Zarejestruj się!”; first-run = tryb tej karty; **`/invite/accept?token=`** → logowanie; chrome po polsku; dashboard tylko po sesji.
 - [ ] Header: do prawej; login → „Wyloguj się”; modal → logout → `/`.
-- [ ] Fetch same-origin `/api/v1`; 401 → refresh → retry; cookie httpOnly na originie FE.
+- [ ] Fetch same-origin `/api/v1`; **401** `UNAUTHORIZED` → refresh → retry; cookie httpOnly na originie FE; **401** `INVALID_PASSWORD` **bez** refresh/wylogowania.
 - [ ] **Runy** = archiwum `completed` \| `failed` \| `cancelled` (15 min + wejście) **oraz** CTA/modal **„Uruchom agenta”**; **Konto** = start inline + Moje runy live + Stop; po `202` widok źródłowy.
 - [ ] N× SSE tylko własne `running` / `awaiting_hitl` / `interrupted`; `close()` na `completed`/`failed`/`cancelled`; `queued` bez socketa; floating box poza Kontem **bez** Stop; po cancel: „Anulowany” → ukrycie po 200 ms.
 - [ ] Stop + modal „Czy na pewno?” → cancel API; toast „Run anulowany”; dedup SSE; na `cancelled` brak przeglądu / HITL.
 - [ ] Start zablokowany w UI przy niekompletności **i** api 409.
-- [ ] Konto: email; moje runy → szczegóły; start (prefill ze snapshotu); opinia.
+- [ ] Konto: email — modal re-auth (`PATCH /auth/me/email` `{ email, currentPassword }`); `INVALID_PASSWORD` / `VALIDATION_FAILED` pod hasłem (bez F-4a); **409** → clear + odblokowanie emaila + błąd pod emailem; sukces bez toastu + `GET /auth/me`; Anuluj bez API; moje runy → szczegóły; start (prefill ze snapshotu); opinia.
 - [ ] Admin: Users + zaproszenie; accept-invite → `/`.
 - [ ] `app/` + `modules/`; typy z shared; brak sekretów LLM; brak `NEXT_PUBLIC_` URL-a api.
 - [ ] Opinia / gwiazdki / Edytuj / finalize wg kontraktu; HITL Social multi-select; wynik then_* = listy.
@@ -289,7 +294,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - Publikacja postów na API portali (v2).
 - OAuth / social login.
 - Otwarta rejestracja.
-- Zmiana hasła zalogowanego / usuwanie własnego konta; soft-delete users w UI.
+- Zmiana hasła zalogowanego / usuwanie własnego konta; soft-delete users w UI; confirm e-mail przy zmianie adresu (**V1**). **Zmiana własnego emaila z re-auth (modal) jest w MVP.**
 - `selectedIdeaIds` na starcie; `conversationId` w UI.
 - CTA startu w sidebarze / headerze oraz na szczegółach `/runs/:runId`.
 - Prefill startu z wiersza archiwum Runy.

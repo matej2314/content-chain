@@ -1,7 +1,7 @@
 ---
-wersja: 25
+wersja: 26
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-09-29
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -43,7 +43,7 @@ Wiążące (`docs/architektura.md`):
 | Ops metrics | `GET /metrics` (poza `/api/v1`) | Prometheus text |
 | DX OpenAPI (Swagger UI) | `GET /docs` (poza `/api/v1`) | HTML / OpenAPI JSON |
 | Health | `GET /api/v1/health` | JSON |
-| Auth probe / bootstrap status / własny email | `GET /api/v1/auth/me`, `PATCH /api/v1/auth/me`, `GET /api/v1/auth/bootstrap-status` | JSON |
+| Auth probe / bootstrap status / własny email | `GET /api/v1/auth/me`, `PATCH /api/v1/auth/me/email`, `GET /api/v1/auth/bootstrap-status` | JSON |
 | Zaproszenia (admin) | `GET`/`POST /api/v1/invitations`, `POST .../:id/resend`, `DELETE .../:id` | JSON |
 | Akceptacja zaproszenia (publiczny) | `POST /api/v1/auth/accept-invite` | JSON |
 | Gateway (z api) | upstream `/api/v1/chat` (+ opcjonalnie stream) | JSON / SSE gateway |
@@ -89,7 +89,9 @@ Zmiana względem wersji 15 / K-2c: enumeracja `result` bez `contents` / `reelScr
 
 K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora: select opinii **oraz** „Moje runy” na Koncie (live) (`SPEC-RUNY.md` R-3c, `docs/ux_dashboard.md`). W formularzu opinii UI filtruje `completed` \| `failed` \| (`cancelled` **z** wynikiem — Fbk-3a); lista Konta pokazuje wszystkie statusy. `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`): przy `targetType=run` okno `completed` \| `failed` \| (`cancelled` **oraz** istnieje wynik); inaczej **409** `RUN_NOT_REVIEWABLE` (Fbk-3a). Ocena / **zapis edycji wyniku** (`POST .../output-edited` z `{ result }`) / finalize — wyłącznie `completed` \| `failed` (`SPEC-RUNY.md` R-10; `cancelled` → **409** `RUN_NOT_REVIEWABLE`). Payloady w `docs/dokumentacja_komunikacji.md`.
 
-K-2d. `PATCH /api/v1/auth/me` — zmiana własnego emaila (sesja); **409** `CONFLICT` gdy zajęty. Nie `PATCH /users/:id`. `SPEC-AUTH.md` A-3b.
+K-2d. `PATCH /api/v1/auth/me/email` — body `{ email, currentPassword }`; re-auth + zmiana własnego emaila (sesja); **400** (zły kształt / pusty `currentPassword`); **401** `UNAUTHORIZED` (brak sesji); **401** `INVALID_PASSWORD` (`Invalid password`); **409** `CONFLICT` gdy zajęty (po re-auth). **Bez** mutacji na `PATCH /auth/me`. Nie `PATCH /users/:id`. `SPEC-AUTH.md` A-3b.
+
+Zmiana względem wcześniejszego K-2d: trasa `PATCH /auth/me` (z lub bez `currentPassword`) / złe hasło jako `UNAUTHORIZED`.
 
 K-2e. `POST /api/v1/runs/:runId/cancel` — body puste; sesja cookie. Authz `startedBy` (inaczej **403** `FORBIDDEN`). Odpowiedzi: **200** + snapshot (`status: cancelled`, `cancelledAt`) przy pierwszym legalnym cancelu **oraz** gdy run już `cancelled` (idempotencja); **404**; **409** `RUN_NOT_CANCELABLE` gdy status już `completed` \| `failed`. **200 nie czeka** na zwinięcie execute. Semantyka CAS / abort / recovery — `SPEC-RUNY.md` R-11. Pełny kontrakt: `docs/dokumentacja_komunikacji.md`.
 
@@ -251,7 +253,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - [ ] `GET /api/v1/runs` listuje runy instancji zgodnie z docs (paginacja 10, filtry, `startedBy`).
 - [ ] `GET /api/v1/runs/user/:userId` i `POST /feedback` oraz rating/edit/finalize istnieją w kontrakcie docs; kody `REVIEW_LOCKED` / `RUN_NOT_REVIEWABLE` / `RUN_NOT_CANCELABLE` w envelope.
 - [ ] `POST /api/v1/runs/:runId/cancel`: 200 (legalne + idempotencja), 403, 404, 409 `RUN_NOT_CANCELABLE`; body puste; bez await execute.
-- [ ] `PATCH /api/v1/auth/me` `{ email }` w kontrakcie docs (**409** gdy zajęty); nie przez `PATCH /users/:id`.
+- [ ] `PATCH /api/v1/auth/me/email` `{ email, currentPassword }` w kontrakcie docs (**400** / **401** `UNAUTHORIZED` \| `INVALID_PASSWORD` / **409** gdy zajęty); nie przez `PATCH /users/:id`; brak mutacji na `PATCH /auth/me`.
 - [ ] Klient otrzymuje live status wyłącznie przez SSE; GET run/logs = snapshot. Toast terminalu w dashboardzie (gdy mapa UX na to zezwala) **nie** dodaje pollingu.
 - [ ] SSE na skończonym runie (`completed` \| `failed` \| `cancelled`) emituje snapshot statusu i **kończy** strumień; po `run.completed` / `run.failed` / `run.cancelled` serwer zamyka połączenie. `awaiting_hitl` / `interrupted` nie kończą SSE.
 - [ ] SSE wymaga sesji cookie jak API; brak tokenu w query i brak wymogu Bearer.

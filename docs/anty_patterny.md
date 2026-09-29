@@ -1,7 +1,7 @@
 ---
-wersja: 3
+wersja: 5
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-09-29
 ---
 
 # Anty-patterny — Content Chain
@@ -124,6 +124,11 @@ Zmiana względem: brak wierszy o `cancelled` / Stop. Od tej wersji zakazy utożs
 | OAuth w MVP „bo tak się robi” | Opóźnia dowód pipeline’u | JWT w httpOnly `cc_access` + `cc_refresh`, 2 role |
 | Token SSE w query string | Wyciek w logach proxy / historii | Ta sama sesja co API (cookie httpOnly) |
 | Access JWT w body / localStorage / Bearer jako model web | XSS i niespójność z cookie-only | Wyłącznie `cc_access` + `cc_refresh` (httpOnly); Postman = cookie jar |
+| Zmiana własnego emaila samym cookie (bez `currentPassword`) | Skradziona sesja przejmuje identyfikator konta | `PATCH /auth/me/email` wymaga `currentPassword` (bcrypt compare jak przy logowaniu, **bez** polityki haseł); UI = modal re-auth (`ux_dashboard.md`, `security.md`) |
+| Trust FE: „sprawdź hasło” tylko w przeglądarce / osobny endpoint verify bez mutacji | Race i fałszywe poczucie bezpieczeństwa | Jedna mutacja `PATCH /auth/me/email` z re-auth w use-case api |
+| Mutacja wrażliwa na `PATCH /auth/me` (miesza probe z update) | Konflikt z cyklem sesji FE; trudniejszy fundament pod zmianę hasła | `GET /auth/me` = probe; mutacje = osobne ścieżki (`/auth/me/email`, później `/password`) |
+| Traktować **401** `INVALID_PASSWORD` jak wygaśnięcie sesji (refresh → logout) | Wylogowanie przy złym haśle w modalu re-auth | Refresh/logout tylko przy `UNAUTHORIZED`; `INVALID_PASSWORD` → envelope pod polem |
+| Po 409 zajętości emaila: zamykać modal / toast zamiast recovery w Dialogu | Utrata kontekstu; mylenie z sukcesem | Modal zostaje; clear pól; odblokowanie emaila; błąd pod polem email (`ux_dashboard.md`) |
 
 ---
 

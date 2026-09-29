@@ -1,7 +1,7 @@
 ---
-wersja: 3
+wersja: 5
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-09-29
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -64,7 +64,8 @@ Wybrane kody domenowe:
 
 | `code` | Typowe HTTP | Znaczenie |
 |--------|-------------|-----------|
-| `UNAUTHORIZED` | 401 | Brak / nieważna sesja |
+| `UNAUTHORIZED` | 401 | Brak / nieważna sesja (wyłącznie sesja — **nie** złe hasło przy re-auth) |
+| `INVALID_PASSWORD` | 401 | Złe `currentPassword` przy re-auth (`PATCH /auth/me/email`); `message`: `Invalid password`. **Nie** mylić z `UNAUTHORIZED` ani z loginem `Invalid credentials` |
 | `FORBIDDEN` | 403 | Brak uprawnień (np. user edytuje kontekst) |
 | `VALIDATION_FAILED` | 400 | Błąd walidacji DTO **albo** niekompletna bramka przy PUT/PATCH kontekstu |
 | `CONTEXT_INCOMPLETE` | 409 | Bramka kontekstu — **start runu** zablokowany (`POST /runs`); **nie** kod zapisu kontekstu |
@@ -74,7 +75,7 @@ Wybrane kody domenowe:
 | `REVIEW_LOCKED` | 409 | Przegląd runu zatwierdzony — zmiana oceny / flagi edycji zabroniona |
 | `RUN_NOT_REVIEWABLE` | 409 | **Przegląd** (ocena / Edytuj / finalize): status inny niż `completed` \| `failed` (w tym `cancelled`). **Opinia** `POST /feedback` `targetType=run`: poza oknem `completed` \| `failed` \| (`cancelled` **z** wynikiem — dowolne nie-`null` pole wyniku w snapshotcie); `cancelled` bez wyniku → ten kod |
 | `RUN_NOT_CANCELABLE` | 409 | Cancel gdy status już `completed` \| `failed` (wyścig z executorem) |
-| `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; `User.email` zajęty przy accept-invite **lub** `PATCH /auth/me` |
+| `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; `User.email` zajęty przy accept-invite **lub** `PATCH /auth/me/email` |
 | `MAIL_DELIVERY_FAILED` | 503 | Pad SMTP po zapisie zaproszenia (create / resend); w `details` wyłącznie `id` zaproszenia |
 | `INTERNAL_ERROR` | 500 | Błąd nieobsłużony |
 
@@ -141,20 +142,30 @@ Probe bieżącej sesji na podstawie cookie **`cc_access`** (ta sama sesja co poz
 **200** — `{ "id", "email", "role" }` (wyłącznie te pola).  
 **401** `UNAUTHORIZED` — brak / nieważna sesja access.
 
-#### `PATCH /api/v1/auth/me`
+#### `PATCH /api/v1/auth/me/email`
 
-Zalogowany zmienia **własny** email. Body: `{ "email" }` (`.strict()`). Sesja cookie jak pozostałe chronione trasy. **Nie** mylić z `PATCH /users/:id` (reaktywacja admina).
+Zalogowany zmienia **własny** email po **re-auth** aktualnym hasłem. Body: `{ "email", "currentPassword" }` (`.strict()`). Sesja cookie jak pozostałe chronione trasy. **`GET /auth/me` pozostaje wyłącznie probe** — **bez** mutacji na `PATCH /auth/me`. **Nie** mylić z `PATCH /users/:id` (reaktywacja admina) ani z self-service zmianą hasła (poza MVP). Ten sam wzorzec (osobna mutacja wrażliwa + `currentPassword` + `INVALID_PASSWORD`) jest **fundamentem** pod przyszłe self-service zmiany hasła (np. `PATCH /auth/me/password`) po spięciu z SMTP — **nie** implementować w MVP.
 
-**200** — `{ "id", "email", "role" }` (nowy email).  
-**400** `VALIDATION_FAILED` — zły kształt / brak email.  
-**401** — brak sesji.  
-**409** `CONFLICT` — `User.email` zajęty (w tym soft-deleted); porównanie **case-sensitive**, jak zaproszenia.
+| Pole | Typ | Wymagane |
+|------|-----|----------|
+| `email` | string (email) | tak |
+| `currentPassword` | string | tak (niepuste) |
 
-Bez zmiany hasła, roli i `isActive`. Bez maila potwierdzającego w MVP.
+Kolejność w application: walidacja kształtu Zod → bcrypt compare z hashem użytkownika sesji (jak `login.use-case.ts` — **bez** polityki haseł, bo to weryfikacja istniejącego hasła, nie ustawianie nowego) → (opcjonalnie) zapis nowego emaila.
 
+**200** — `{ "id", "email", "role" }` (adres po operacji; gdy podany email = obecny, bez zapisu w DB, ale re-auth **obowiązkowy**).  
+**400** `VALIDATION_FAILED` — zły kształt / brak pól (pusty `currentPassword`).  
+**401** `UNAUTHORIZED` — brak / nieważna sesja access.  
+**401** `INVALID_PASSWORD` — hasło nie zgadza się z hashem (`message`: **`Invalid password`**). **Nie** uruchamia cyklu refresh / wylogowania FE (to nie jest wygaśnięcie sesji).  
+**409** `CONFLICT` — `User.email` zajęty (w tym soft-deleted); porównanie **case-sensitive**, jak zaproszenia. Re-auth musi przejść **zanim** zwrócony zostanie 409 zajętości.
+
+Bez zmiany hasła konta, roli i `isActive`. Bez maila potwierdzającego w MVP (confirm e-mail = V1). Cookie / sesja refresh w DB **bez** rotacji z powodu tej trasy.
+
+Zmiana względem: `PATCH /auth/me` z body `{ email, currentPassword }` i złe hasło jako `UNAUTHORIZED`.  
+Zmiana względem: body tylko `{ "email" }` bez re-auth.  
 Zmiana względem: self-service email poza MVP; brak tej trasy.
 
-**Flow FE (norma produktowa):** po starcie aplikacji → `GET /auth/me`; przy `401` → `POST /auth/refresh`; potem ponownie `GET /auth/me`; przy kolejnym `401` → **strona główna (karta logowania)**. Gdy `bootstrap-status.available === true`, submit tej karty woła bootstrap zamiast loginu. Dashboard tylko po sesji. Przycisk „Zarejestruj się!” na stronie głównej jest nieaktywny w MVP.
+**Flow FE (norma produktowa):** po starcie aplikacji → `GET /auth/me`; przy **401** `UNAUTHORIZED` → `POST /auth/refresh`; potem ponownie `GET /auth/me`; przy kolejnym **401** `UNAUTHORIZED` → **strona główna (karta logowania)**. Ten sam cykl na produktowych wywołaniach przy sesyjnym **401** `UNAUTHORIZED`. **401** `INVALID_PASSWORD` (re-auth przy `PATCH /auth/me/email`) **nie** wchodzi w ten cykl — `code` + `message` pod polem hasła, sesja zostaje. Gdy `bootstrap-status.available === true`, submit tej karty woła bootstrap zamiast loginu. Dashboard tylko po sesji. Przycisk „Zarejestruj się!” na stronie głównej jest nieaktywny w MVP.
 
 #### `POST /api/v1/auth/accept-invite` (publiczny)
 

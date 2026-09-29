@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 7
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-09-29
 ---
 
 # UX Dashboard — Content Chain
@@ -29,7 +29,7 @@ Zmiana względem: brak modala potwierdzenia przed Stop w roboczym `cancel-run-st
 | **Strona główna — logowanie** | Brak ważnej sesji i `bootstrap-status.available === false` | Ten sam widok; submit → `POST /auth/login` → dashboard |
 | **Strona główna — first-run (tryb)** | Brak ważnej sesji i `bootstrap-status.available === true` | **Ten sam widok** (nie osobna strona). Submit tego samego formularza → `POST /auth/bootstrap-admin` (pierwszy admin) → sesja cookie jak po loginie → dashboard. Przycisk „Zarejestruj się!” nadal nieaktywny |
 | **Akceptacja zaproszenia** | Publiczny **deep link** `{APP_PUBLIC_URL}/invite/accept?token=…` (mail / log dev); nie strona główna | Formularz **pierwszego** hasła → `POST /auth/accept-invite` → **powrót na stronę główną (logowanie)**. Brak Set-Cookie po accept; dashboard dopiero po `POST /auth/login` |
-| **Probe sesji** | Start aplikacji / reload | `GET /auth/me` → przy `401`: `POST /auth/refresh` → ponownie `GET /auth/me` → przy kolejnym `401`: strona główna (logowanie; tryb bootstrap gdy `available`) |
+| **Probe sesji** | Start aplikacji / reload | `GET /auth/me` → przy **401** `UNAUTHORIZED`: `POST /auth/refresh` → ponownie `GET /auth/me` → przy kolejnym **401** `UNAUTHORIZED`: strona główna (logowanie; tryb bootstrap gdy `available`). **401** `INVALID_PASSWORD` (re-auth email) **nie** dotyczy tego wiersza |
 
 Zmiana względem: osobne ekrany first-run vs logowanie; wejście na dashboard bez przejścia przez kartę logowania jako stronę główną. Od tej wersji jeden widok główny = logowanie (+ martwa rejestracja); first-run to tryb submitu na tej karcie.
 
@@ -128,7 +128,7 @@ Sukces toasta: **polski**, krótki tytuł. Błąd w toaście **tylko** gdy na ty
 | Login / bootstrap / accept-invite | **nie** | envelope na karcie (brak Toastera poza sesją) |
 | `awaiting_hitl` | **nie** (MVP) | box już zmienia copy; HITL później na tym samym prymitywie |
 
-Później (HITL, opinia, `PATCH /auth/me`, zaproszenia): **ten sam** kanał toasta, nadal **nie** toast na walidację przy polu.
+Później (HITL, opinia, zaproszenia): **ten sam** kanał toasta, nadal **nie** toast na walidację przy polu. **`PATCH /auth/me/email` (zmiana własnego emaila):** sukces **bez** toastu; błędy hasła (`INVALID_PASSWORD`) / `VALIDATION_FAILED` / **409** — wyłącznie pod polami w modalu re-auth (nie toast). **401** `INVALID_PASSWORD` **nie** uruchamia cyklu refresh / wylogowania.
 
 Toaster wyłącznie w gałęzi zalogowanej (warstwa toast w chrome; nie zasłania headera — np. `top-right`; floating box zostaje `bottom-right`).
 
@@ -179,7 +179,7 @@ Osobna pozycja sidebara (admin i `user`). **Nie** zastępuje widoku Runy.
 
 | Blok | Zachowanie |
 |------|------------|
-| **Email** | Prosty formularz zmiany **własnego** adresu (sesja). Zapis → `PATCH /api/v1/auth/me`. Unikalność jak w auth (zajęty → czytelny błąd). **Bez** zmiany hasła i **bez** usuwania konta na tym widoku |
+| **Email** | Formularz nowego adresu → **Zapisz email** → **zawsze** modal: pole email (prefill = draft, **disabled**) + pole aktualnego hasła + Anuluj / Potwierdź. Potwierdź **zawsze** → `PATCH /api/v1/auth/me/email` `{ email, currentPassword }` (brak stanu „już zweryfikowany”). Złe hasło (**401** `INVALID_PASSWORD`) / `VALIDATION_FAILED` hasła → `code` + `message` **pod polem hasła**; stan disabled emaila **bez zmian** (przed 409: zostaje **disabled**; **po 409**: zostaje **odblokowany**); **bez** toastu; **bez** refresh/wylogowania przy `INVALID_PASSWORD`. **409** `CONFLICT` → modal **otwarty**; **czyszczenie** pól email + hasło; **odblokowanie** inputu email; błąd **pod polem email**; ponowny Potwierdź znowu z hasłem. Sukces → zamknięcie modala, odświeżenie sesji (`GET /auth/me`), aktualizacja wyświetlanego emaila, **bez** toastu. Anuluj → zamknięcie modala, **zero** API; draft na formularzu Konta bez zmian względem otwarcia (edycja w modalu po 409 nie wraca na formularz). CTA „Zapisz email” **nie** jest disabled wyłącznie dlatego, że adres = obecny (re-auth i tak wymagany). **Bez** self-service zmiany hasła i **bez** usuwania konta na tym widoku |
 | **Moje runy** | Źródło: `GET /api/v1/runs/user/:userId` (`:userId` z `/auth/me`) — **wszystkie** statusy zalogowanego. Live: SSE per `runId` wyłącznie dla `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu). `queued` i terminalne: snapshot GET (wejście na Konto, po `POST /runs`, po evencie SSE innego własnego runu, focus okna). Przycisk **Stop** na wierszu **własnego** runu w statusie nieterminalnym (`queued` \| `running` \| `awaiting_hitl` \| `interrupted`) → modal **„Czy na pewno?”** → **Tak** = `POST .../cancel`; **Nie** = zamknięcie modala, **zero** API. Po sukcesie: odświeżenie wiersza (`cancelled`); `queued` bez SSE. Klik wiersza → **Run (szczegóły)**. Pełny wynik / HITL / przegląd na szczegółach, nie na liście |
 | **Start runu** | Formularz startu **inline** (ten sam brief co modal **„Uruchom agenta”** na Runach — nie drugi kontrakt). Select `taskType` obejmuje rolki i page_*; **`contentKind` gdy page_***; **platforma ukryta/disabled gdy page_***; język. Brief **zależny od `taskType`**: post_* / reel_* — temat + opcjonalnie grupa, cel, **liczba pomysłów** (bez kąta/długości); `page_*` — temat + opcjonalnie grupa, cel, **kąt**, **długość słów** (bez liczby pomysłów). CTA nie jest polem briefu. **Bez** `selectedIdeaIds`. Start disabled + wyjaśnienie, gdy agenci nieaktywni. Z wiersza **Moje runy**: **nowy** run z prefill `taskType` + brief + platforma/`contentKind` **ze snapshotu** `GET /runs/:runId` (lista user **nie** niesie `brief` / `contentKind`). Prefill **nie** dotyczy wiersza archiwum Runy. Po **202** **z tego widoku**: zostajemy na Koncie (nowy wiersz); nie wymuszamy od razu szczegółów |
 | **Opinia tekstowa** | Na Koncie dostępny zapis opinii (`POST /feedback`) — ten sam kanon co globalny CTA „Zostaw opinię” (aplikacja / agent / run; select runów: własne `completed` \| `failed` \| (`cancelled` **z** nie-`null` polem wyniku w snapshotcie)). Globalny CTA w layoutcie **zostaje** |
@@ -258,7 +258,7 @@ Zmiana względem: widok Users i accept-invite jako „przyszły FE / gdy ekran p
 
 ## Poza zakresem UX MVP
 
-- Zmiana hasła zalogowanego / usuwanie własnego konta przez użytkownika (pierwsze hasło na accept-invite = onboarding, nie ten punkt). **Zmiana własnego emaila jest w MVP** (widok Konto)  
+- Zmiana hasła zalogowanego / usuwanie własnego konta przez użytkownika (pierwsze hasło na accept-invite = onboarding, nie ten punkt). **Zmiana własnego emaila z re-auth hasłem jest w MVP** (widok Konto → `PATCH /auth/me/email`). Wzorzec pod przyszłą zmianę hasła (po SMTP) = poza MVP. **Confirm e-mail** przy zmianie adresu = **V1** (poza MVP)  
 - Soft-delete / edycja użytkowników w UI admina (endpoint api istnieje; UI później)  
 - `selectedIdeaIds` na formularzu **startu** runu (HITL dwuetapowy zostaje)  
 - `conversationId` w UI szczegółów runu (zostaje w API / logach)  

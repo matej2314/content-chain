@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 6
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-09-29
 ---
 
 # Słownik — Content Chain
@@ -62,7 +62,7 @@ Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez start
 | **Full-auto** | Wykonanie tasku jednoetapowego bez wymuszonej pauzy selekcji. |
 | **Self-host** | Uruchomienie we własnej infrastrukturze operatora; licencja MIT. |
 | **First-run** | Stan pustej instancji: `GET /api/v1/auth/bootstrap-status` → `available: true` → jednorazowy `POST .../bootstrap-admin`. W UI **nie** jest osobną stroną — to tryb strony głównej (karta logowania). Potem endpoint bootstrap trwale niedostępny. |
-| **Konto (widok)** | Osobna pozycja sidebara (admin i `user`): zmiana własnego emaila, lista **własnych** runów (**live** dla `running` / `awaiting_hitl` / `interrupted`), **start** runu (**inline**, ten sam brief co modal na Runach), **Stop** na własnym runie nieterminalnym (modal potwierdzenia → `POST .../cancel`), opinia tekstowa. Prefill startu wyłącznie z wiersza „Moje runy” (snapshot `GET /runs/:runId`). **Nie** mylić z widokiem **Runy** (archiwum `completed` \| `failed` \| `cancelled` instancji, paginacja 10 + CTA/modal startu). Wylogowanie jest w **headerze**. Po `POST /runs` **z Konta** użytkownik zostaje na Koncie. |
+| **Konto (widok)** | Osobna pozycja sidebara (admin i `user`): zmiana własnego emaila (**modal re-auth**: email disabled → hasło; przy **409** clear + odblokowanie emaila → `PATCH /auth/me/email` `{ email, currentPassword }`; złe hasło → **401** `INVALID_PASSWORD` pod polem, bez wylogowania), lista **własnych** runów (**live** dla `running` / `awaiting_hitl` / `interrupted`), **start** runu (**inline**, ten sam brief co modal na Runach), **Stop** na własnym runie nieterminalnym (modal potwierdzenia → `POST .../cancel`), opinia tekstowa. Prefill startu wyłącznie z wiersza „Moje runy” (snapshot `GET /runs/:runId`). **Nie** mylić z widokiem **Runy** (archiwum `completed` \| `failed` \| `cancelled` instancji, paginacja 10 + CTA/modal startu). Wylogowanie jest w **headerze**. Po `POST /runs` **z Konta** użytkownik zostaje na Koncie. |
 | **Runy (widok)** | Archiwum firmy: tylko `completed` \| `failed` \| `cancelled`, `GET /runs?status=completed,failed,cancelled`, odświeżanie przy wejściu i co **15 min**. CTA **„Uruchom agenta”** otwiera modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). **Bez** SSE i **bez** runów w toku na liście. Po `POST /runs` **z modalu** operator zostaje na Runach; live nowego runu = floating box. |
 | **Floating box** | Sygnał własnych runów w toku poza widokiem Konto; zwiniecie/rozwinięcie. N× EventSource per `runId` (bez nowego hubu). `queued` poza boxem. **Bez** przycisku Stop (Stop tylko na Moich runach / szczegółach). Po `cancelled` — krótko label „Anulowany”, potem ukrycie pozycji (delay **200 ms**). |
 | **Agenci aktywni** | Sygnał UX: bramka `complete === true` (można startować runy produktowe: Social i Content). **Nie** oznacza „run w toku”. Odwrotnie: agenci nieaktywni / zablokowani = kontekst niekompletny. |
@@ -78,7 +78,7 @@ Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez start
 | **Jedna firma / instancja** | Brak multi-tenant SaaS: wszyscy użytkownicy instancji dzielą jeden kontekst. |
 | **Bootstrap admin** | Utworzenie pierwszego konta administratora przy starcie self-host (first-run): email + hasło, **bez** maila i bez Invitation. Kontrast: pozostali `user` wyłącznie przez zaproszenie. |
 | **Zaproszenie (Invitation)** | Rekord zaproszenia e-mail na rolę `user` — **nie** jest kontem `User`. Status: `pending` \| `accepted` \| `revoked`. Admin podaje **tylko email**. W DB: hash tokenu (SHA-256), TTL, `purpose = invite` (MVP). Raw token jest w mailu (w `development` także w logu api); **nigdy** w JSON-ie odpowiedzi admina. Wiersz `User` (`role = user`) powstaje dopiero przy akceptacji. Wygaśnięcie: `expiresAt < now` przy walidacji (status **nie** przechodzi sam na „expired” — wygasły wiersz zostaje `pending`). |
-| **Akceptacja zaproszenia** | Publiczny `POST /api/v1/auth/accept-invite` `{ token, password }`: zaproszony ustawia **pierwsze** hasło (polityka z `security.md`). Tworzy `User` (`role = user`) i zużywa token. **Bez** Set-Cookie — potem zwykły `POST /auth/login`. Nie jest bootstrapem, otwartą rejestracją ani zmianą hasła zalogowanego (ta nadal poza MVP). Zmiana własnego emaila po sesji = widok **Konto**. |
+| **Akceptacja zaproszenia** | Publiczny `POST /api/v1/auth/accept-invite` `{ token, password }`: zaproszony ustawia **pierwsze** hasło (polityka z `security.md`). Tworzy `User` (`role = user`) i zużywa token. **Bez** Set-Cookie — potem zwykły `POST /auth/login`. Nie jest bootstrapem, otwartą rejestracją ani zmianą hasła zalogowanego (ta nadal poza MVP). Zmiana własnego emaila po sesji = widok **Konto** **z re-auth hasłem** (nie confirm mail w MVP). |
 
 ## Architektura i runtime
 
@@ -192,7 +192,8 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 
 | `code` | Znaczenie |
 |--------|-----------|
-| `UNAUTHORIZED` | Brak lub nieważna sesja. |
+| `UNAUTHORIZED` | Brak lub nieważna sesja. **Nie** obejmuje złego hasła przy re-auth (`INVALID_PASSWORD`). |
+| `INVALID_PASSWORD` | Złe `currentPassword` przy re-auth (np. `PATCH /auth/me/email`). HTTP **401**; `message`: `Invalid password`. FE **nie** traktuje jak wygaśnięcie sesji. |
 | `FORBIDDEN` | Brak uprawnień (np. `user` edytuje kontekst). |
 | `VALIDATION_FAILED` | Błąd walidacji wejścia. |
 | `CONTEXT_INCOMPLETE` | Bramka kontekstu niespełniona — start runu zablokowany. |
@@ -204,7 +205,7 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 | `REVIEW_LOCKED` | Przegląd runu już zatwierdzony — zmiana oceny / flagi edycji niedozwolona. |
 | `RUN_NOT_REVIEWABLE` | **Przegląd** (ocena / Edytuj / finalize): run nie jest `completed` ani `failed` (w tym `cancelled` → ten kod). **Opinia** `POST /feedback` `targetType=run`: dozwolone `completed` \| `failed` \| (`cancelled` **gdy** snapshot ma dowolne nie-`null` pole wyniku); `cancelled` bez wyniku → ten kod. Nie dotyczy opinii o aplikacji / agencie. Finalize **nie** zamienia kolejnego wpisu tekstowego na ten kod (`REVIEW_LOCKED` zostaje przy ocenie / fladze). |
 | `RUN_NOT_CANCELABLE` | Cancel (`POST .../cancel`) gdy status runu jest już `completed` \| `failed` (wyścig z executorem). HTTP **409**. |
-| `CONFLICT` | Niedozwolone przejście statusu / konflikt stanu (także: drugi `pending` na ten sam email; `User.email` już zajęty przy accept-invite **lub** `PATCH /auth/me`). |
+| `CONFLICT` | Niedozwolone przejście statusu / konflikt stanu (także: drugi `pending` na ten sam email; `User.email` już zajęty przy accept-invite **lub** `PATCH /auth/me/email`). |
 | `MAIL_DELIVERY_FAILED` | Pad SMTP **po** zapisie zaproszenia (create / resend). HTTP **503**; w `details` wyłącznie `id` zaproszenia (wiersz zostaje `pending`). Nie dotyczy adaptera logującego (`development` / `test`). |
 | `INTERNAL_ERROR` | Błąd nieobsłużony po stronie `apps/api`. |
 
