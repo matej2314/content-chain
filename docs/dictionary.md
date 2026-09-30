@@ -1,5 +1,5 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-09-18
 data_modyfikacji: 2026-09-30
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-09-30
 Kanoniczne definicje pojęć domenowych i technicznych. Identyfikatory typów, kodów i pól API w backtickach; opisy po polsku.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `observability.md`.
+
+Zmiana względem: przegląd runu otwarty do ręcznego finalize bez limitu czasu. Od tej wersji okno = `REVIEW_TTL` od `pipelineFinishedAt`; auto-finalize wyłącznie przez sweeper; `reviewExpiresAt` wyliczane (nie kolumna); TTL przeglądu **nie** zamyka opinii tekstowej (`POST /feedback`).
 
 Zmiana względem wcześniejszej wersji tego dokumentu: dopisano status **`cancelled`** — trzeci terminal (obok `completed` / `failed`); ręczna decyzja operatora (`startedBy`), nie błąd agenta i nie recovery. Rozróżnienie: `failed` = błąd domeny/gateway/wyczerpane recovery; `interrupted` = crash procesu (nieterminalny, claim pod capem); `cancelled` = świadome Stop, bez resume na tym samym `runId`.
 
@@ -105,7 +107,7 @@ Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez start
 | **Moduły ops / LLM (nie-BC)** | `apps/api/src/health/`, `metrics/`, `llm/` — powierzchnia ops i klient gateway. **Nie** bounded contexty: brak układu `application` / `domain` / `infrastructure` jak w BC. |
 | **Prisma / SQLite** | Adapter persistence **MVP**; ORM tylko w infrastructure. |
 | **PostgreSQL** | Silnik od fazy **V1 — rozbudowa** (ops / skala). **Nie** jest warunkiem dodania Content — Content działa na SQLite w MVP. |
-| **DB kanoniczna** | Baza jako źródło prawdy dla kontekstu firmy, userów, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów UI, **opinii tekstowych** oraz metadanych przeglądu (`userRating`, `outputEdited`, `reviewFinalizedAt`). Nie cichy fallback z plików. |
+| **DB kanoniczna** | Baza jako źródło prawdy dla kontekstu firmy, userów, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów UI, **opinii tekstowych** oraz metadanych przeglądu (`userRating`, `outputEdited`, `reviewFinalizedAt`, `pipelineFinishedAt`). Nie cichy fallback z plików. `reviewExpiresAt` **nie** jest kolumną — wyliczane w API. |
 
 ## Run, statusy, taski
 
@@ -126,12 +128,17 @@ Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez start
 | **Log runu** | Czytelny wpis w DB powiązany z `RunId`, zwykle też z `ConversationId` oraz `RequestId` **tego kroku**; źródło prawdy dla UI. |
 | **Logi procesu (Pino)** | Strukturalne logi stdout `apps/api` (request HTTP, crash, start) przez `nestjs-pino`. **Nie** zamiennik kanonicznych logów runu w DB. |
 | **Hop LLM** | Jedno wywołanie gateway w kroku agenta / refine. Własny `RequestId` z **odpowiedzi** gateway; wspólny `ConversationId` runu. |
-| **Ocena runu** | Pole `userRating` (typ `RunUserRating` \| `null`): zawsze obecne; `null` gdy autor nie zostawił gwiazdek; `1`…`5` gdy zostawił. Po **finalize** niemutowalne. |
+| **Ocena runu** | Pole `userRating` (typ `RunUserRating` \| `null`): zawsze obecne; `null` gdy autor nie zostawił gwiazdek; `1`…`5` gdy zostawił. Po zamknięciu przeglądu (ręczne finalize **albo** po `REVIEW_TTL`) niemutowalne. |
 | **Flaga edycji outputu** | `outputEdited`: czy autor zapisał edycję wyniku (bez stopnia / diff / historii wersji w MVP). |
-| **Edytuj** | Akcja UI po pipeline (`completed` / `failed`): autor może zmienić treść wyniku; zapis **zastępuje** kanoniczny `result` w DB i stawia `outputEdited: true`. **Nie** HITL i **nie** re-invoke grafu. Tylko `startedBy`, dopóki przegląd otwarty. Wielokrotny zapis do finalize. Zmiana względem: wyłącznie flaga, bez nadpisu wyniku w MVP. |
-| **Przegląd runu** | Do zatwierdzenia autor może zmieniać gwiazdki i zapisywać edycję wyniku; `POST .../finalize-review` zamyka i blokuje dalsze zmiany. |
-| **`reviewFinalizedAt`** | Timestamp zamknięcia przeglądu. `null` = otwarty; po ustawieniu ocena i flaga edycji niemutowalne (`REVIEW_LOCKED`). |
-| **Opinia (Feedback)** | Append-only wpis tekstowy BC Feedback: target `FeedbackTargetType`; metadane `authorId`, `createdAt`; panel odczytu = V1. **Nie** gwiazdki / `outputEdited` / finalize (to Runs). Zmiana względem: wcześniejsze hasło bez rozróżnienia rekordu vs BC vs przegląd. |
+| **Edytuj** | Akcja UI po pipeline (`completed` / `failed`): autor może zmienić treść wyniku; zapis **zastępuje** kanoniczny `result` w DB i stawia `outputEdited: true`. **Nie** HITL i **nie** re-invoke grafu. Tylko `startedBy`, dopóki przegląd otwarty (okno TTL). Wielokrotny zapis do finalize / przed TTL. Zmiana względem: wyłącznie flaga, bez nadpisu wyniku w MVP. |
+| **Przegląd runu** | Po `completed` \| `failed` autor może zmieniać gwiazdki i zapisywać edycję wyniku, dopóki przegląd jest **otwarty**: `reviewFinalizedAt === null` **oraz** `now < pipelineFinishedAt + REVIEW_TTL`. Zamknięcie: ręczne `POST .../finalize-review` **albo** auto-finalize (sweeper) **albo** produktowo po TTL (mutacje → `REVIEW_LOCKED` jeszcze przed zapisem sweepera). TTL przeglądu **nie** zamyka opinii tekstowej (`POST /feedback`). |
+| **`pipelineFinishedAt`** | Kotwica okna przeglądu: timestamp ustawiany **raz** przy legalnym transition → `completed` \| `failed`. `null` przy `cancelled` i statusach nieterminalnych. Po wdrożeniu: **nie** używać `updatedAt` jako bieżącej kotwicy (wyjątek: jednorazowy backfill migracji). |
+| **`REVIEW_TTL` / TTL przeglądu** | Env api (default **`2h`**, parser jak `INVITE_TTL`): długość okna od `pipelineFinishedAt`, w którym mutacje przeglądu (ocena / Edytuj / finalize) są dozwolone. Szczegóły env: `deployment.md`. |
+| **`REVIEW_SWEEP_INTERVAL`** | Env api (default **`5m`**, ten sam styl stringa TTL): częstotliwość **okresowego** sweepera domykającego wygasłe przeglądy w DB. **Nie** jest długością okna przeglądu. Boot api zawsze odpala sweeper raz. |
+| **Auto-finalize przeglądu** | Jedyny trwały zapis locka w DB poza ręcznym finalize: sweeper (boot + okresowy) ustawia `reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL` dla wygasłych otwartych przeglądów. **Bez** zmiany `userRating` / `outputEdited` / `result`. **Bez** `DELETE` wiersza. Mutacja po TTL **nie** ustawia `reviewFinalizedAt` — tylko **409** `REVIEW_LOCKED`. |
+| **`reviewExpiresAt`** | Pole **wyliczane** w odpowiedzi API (nie kolumna DB). Semantyka: `null` gdy brak `pipelineFinishedAt` **albo** `reviewFinalizedAt !== null`; inaczej ISO deadline (`pipelineFinishedAt + REVIEW_TTL`) — także **po** TTL, zanim sweeper zapisze lock. Kontrakt: `GET /runs/:id` + sukcesy mutacji przeglądu; **nie** na `GET /runs/user/:userId`. |
+| **`reviewFinalizedAt`** | Timestamp zamknięcia przeglądu w DB (ręczne finalize **albo** auto-finalize sweepera). Produktowo przegląd jest zamknięty także gdy `null`, ale minął deadline (`now ≥ pipelineFinishedAt + REVIEW_TTL`) — mutacje → `REVIEW_LOCKED`; sweeper domyka wiersz później. Po ustawieniu: ocena, flaga edycji i treść wyniku niemutowalne. |
+| **Opinia (Feedback)** | Append-only wpis tekstowy BC Feedback: target `FeedbackTargetType`; metadane `authorId`, `createdAt`; panel odczytu = V1. **Nie** gwiazdki / `outputEdited` / finalize (to Runs). Zamknięcie przeglądu (ręczne lub po TTL / auto-finalize) **nie** blokuje kolejnego wpisu. Zmiana względem: wcześniejsze hasło bez rozróżnienia rekordu vs BC vs przegląd. |
 | **`FeedbackTargetType`** | `application` \| `agent` \| `run`. Przy `agent` obowiązkowe `agentKey`; przy `run` obowiązkowe `runId` autora (`startedBy`). Kontrakt MVP w docs/spec; w shared przy implementacji BC Feedback. |
 | **`FeedbackAgentKey`** | Stały enum MVP: `IdeationAgent` \| `ContentWriterAgent` \| `ConsistencyVerifier` \| `PageWriterAgent`. Węzły `LoadContext`, `NormalizeBrief`, `Persist*`, `Refine*`, `OutlineAgent` **nie** są pozycjami tego katalogu. Kontrakt MVP w docs/spec; implementacja enumu w shared = Faza 6 (feedback). |
 | **SSE runu** | Strumień zdarzeń: `run.status`, `run.log`, `run.hitl`, `run.completed`, `run.failed`, **`run.cancelled`**. Po terminalu (`run.completed` \| `run.failed` \| `run.cancelled`) serwer **kończy** strumień. `awaiting_hitl` / `interrupted` nie kończą SSE. Reconnect tylko po nieoczekiwanym zerwaniu przy statusie nieterminalnym. Zmiana względem: wcześniejsze hasło wymieniało eventy bez cyklu życia połączenia i bez trzeciego terminalu `cancelled`. |
@@ -202,7 +209,7 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 | `HITL_INVALID_SELECTION` | Selekcja HITL niezgodna z kanonem (Content ≠ `[outline.id]`; Social dwuetapowy: długość `< 1`, duplikaty, albo id spoza draftu / `hitl.options`). |
 | `NOT_FOUND` | Nieznana ścieżka HTTP / zasób na poziomie routera (np. goły HTTP 404). **Nie** mylić z `RUN_NOT_FOUND`. |
 | `RUN_NOT_FOUND` | Nieznany `RunId` (wyłącznie z `DomainException` w BC Runs). |
-| `REVIEW_LOCKED` | Przegląd runu już zatwierdzony — zmiana oceny / flagi edycji niedozwolona. |
+| `REVIEW_LOCKED` | Przegląd zamknięty produktowo: `reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL` od `pipelineFinishedAt`. Mutacja oceny / Edytuj / finalize niedozwolona; przy samym TTL (przed sweeperem) **bez** side-effect UPDATE `reviewFinalizedAt`. |
 | `RUN_NOT_REVIEWABLE` | **Przegląd** (ocena / Edytuj / finalize): run nie jest `completed` ani `failed` (w tym `cancelled` → ten kod). **Opinia** `POST /feedback` `targetType=run`: dozwolone `completed` \| `failed` \| (`cancelled` **gdy** snapshot ma dowolne nie-`null` pole wyniku); `cancelled` bez wyniku → ten kod. Nie dotyczy opinii o aplikacji / agencie. Finalize **nie** zamienia kolejnego wpisu tekstowego na ten kod (`REVIEW_LOCKED` zostaje przy ocenie / fladze). |
 | `RUN_NOT_CANCELABLE` | Cancel (`POST .../cancel`) gdy status runu jest już `completed` \| `failed` (wyścig z executorem). HTTP **409**. |
 | `CONFLICT` | Niedozwolone przejście statusu / konflikt stanu (także: drugi `pending` na ten sam email; `User.email` już zajęty przy accept-invite **lub** `PATCH /auth/me/email`). |

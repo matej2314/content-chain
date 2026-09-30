@@ -1,5 +1,5 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-09-18
 data_modyfikacji: 2026-09-30
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-09-30
 Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego źle → zamiast tego. Ogólny podręcznik Nest/Next — poza zakresem.
 
 Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `security.md`.
+
+Zmiana względem: brak wierszy o TTL / sweeperze przeglądu. Od tej wersji zakazy: timer in-memory jako TTL, kotwica od `createdAt` / bieżącego `updatedAt`, FE-only disable, finalize na GET, UPDATE locka przy mutacji po TTL, lokalne wyliczanie expiry na FE.
 
 Zmiana względem: brak wierszy o `cancelled` / Stop. Od tej wersji zakazy utożsamiania terminali, resume po cancel, rollbacku, Stop w boxie, cancel bez modala, natychmiastowego ukrycia boxa bez labelu, podwójnego toasta, admin-cancel i await execute w HTTP cancel.
 
@@ -77,6 +79,13 @@ Zmiana względem: „Envelope (`code` + `message`) w miejscu błędu”. Od tej 
 | Natychmiastowe usunięcie pozycji floating boxa po `cancelled` bez krótkiego labelu „Anulowany” | Operator nie widzi skutku Stop | Krótko **„Anulowany”**, potem ukrycie po **200 ms** |
 | Toast SSE `run.cancelled` + toast mutacji cancel bez dedupu | Podwójny toast na ten sam `runId` | Dedup per `runId`; na szczegółach SSE nie dubluje mutacji |
 | Traktowanie cancel jako przeglądu (gwiazdki / Edytuj / finalize) | Anulowanie ≠ ocena pipeline | Przegląd tylko `completed`\|`failed`; `cancelled` → 409 `RUN_NOT_REVIEWABLE` |
+| Timer in-memory / `setTimeout` per run jako „TTL przeglądu” | Ginie po restarcie api; okno da się „odmrozić” | Kotwica `pipelineFinishedAt` w DB + `REVIEW_TTL`; sweeper boot + okresowy |
+| TTL od `createdAt` startu runu zamiast `pipelineFinishedAt` | Kara za długi pipeline / kolejkę; rozjazd z końcem pracy | Okno od momentu `completed` \| `failed` |
+| `updatedAt` jako bieżąca kotwica TTL po wdrożeniu | Każdy PATCH przesuwa okno | Kotwica = `pipelineFinishedAt` (raz); `updatedAt` tylko jednorazowy backfill migracji |
+| FE-only disable kontroli przeglądu bez bramki API | Da się obejść Postmanem / curl | Po TTL / finalize api → **409** `REVIEW_LOCKED`; UI tylko cienki klient |
+| Finalize / UPDATE `reviewFinalizedAt` przy `GET /runs/:id` | Side-effect na odczycie; łamie 4a | GET = czysty snapshot; lock w DB = ręczne finalize **albo** sweeper |
+| UPDATE `reviewFinalizedAt` przy mutacji po TTL | Dwa miejsca zapisu locka; wyścig ze sweeperem | Mutacja po TTL = sam **409**; trwały zapis = tylko sweeper |
+| Lokalne wyliczanie expiry na FE z `pipelineFinishedAt` + stałej | Drift TTL względem api / env | Deadline wyłącznie z serwerowego `reviewExpiresAt` |
 | Duplikacja brand types / DTO poza `packages/shared` | Rozjazd kontraktu FE/BE | Import z shared + walidacja na granicach (HTTP: class-validator; api application: Zod — nie w shared) |
 | Logika kompletności kontekstu tylko w UI | Da się obejść API | Egzekucja bramki w `apps/api` |
 | Feedback / gwiazdki / edycja wyniku w LangGraph | Miesza jakość UX z pipeline LLM | Komendy Runs + BC Feedback po `completed`/`failed` (przegląd **bez** `cancelled`). Edycja treści = `POST .../output-edited` (nadpis `result` + flaga), **nie** re-invoke grafu. Przy `POST /feedback` `targetType=run` bramka statusu/wyniku jest w **API** (409 `RUN_NOT_REVIEWABLE`); sam disable na UI nie wystarcza |

@@ -1,8 +1,16 @@
+---
+wersja: 1
+data_utworzenia: 2026-09-30
+data_modyfikacji: 2026-09-30
+---
+
 # Deployment — Content Chain
 
 Self-host MVP: jak uruchamiać, konfigurować i utrzymywać jedną instalację (jedna firma = jedna instancja).
 
 Powiązane: `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `testy.md`, `security.md`, `observability.md`.
+
+Zmiana względem: brak frontmatteru; env api bez zmiennych TTL przeglądu. Od tej wersji: `REVIEW_TTL` (okno przeglądu) i `REVIEW_SWEEP_INTERVAL` (częstotliwość sweepera; boot zawsze raz). MVP = **single-process** api (multi-instance poza zakresem).
 
 ## Środowiska
 
@@ -52,7 +60,7 @@ Jeden stack:
 
 | Obszar | Zmienne |
 |--------|---------|
-| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (SQLite), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS`, **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`** |
+| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (SQLite), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS`, **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`REVIEW_TTL`** (default `2h`, ten sam parser), **`REVIEW_SWEEP_INTERVAL`** (default `5m`, ten sam styl stringa TTL), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`** |
 | Gateway | klucze providerów, `gateway.config.yaml`, allowlista kluczy, port (szczegóły: `apps/ai-provider-gateway/.env.example`) |
 | Frontend | **`API_BASE_URL`** (tylko proces Next → api; **bez** `NEXT_PUBLIC_*` na ten URL). Przeglądarka nie zna origina api |
 
@@ -64,6 +72,10 @@ Nazwy SMTP / maila są **kanoniczne** (te same w `spec/SPEC-BEZPIECZENSTWO.md` i
 | `MAIL_FROM` | **obowiązkowe** (fail-fast) | nie wymagane przy adapterze logującym |
 | `APP_PUBLIC_URL` | **obowiązkowe** (publiczny URL aplikacji w linku zaproszenia) | nie wymagane; w logu dev wystarczy ścieżka / placeholder |
 | `INVITE_TTL` | opcjonalne, default **`7d`** | to samo |
+| `REVIEW_TTL` | opcjonalne, default **`2h`** (fail-fast przy złym stringu, jak inne TTL) | to samo — długość **okna przeglądu** od `pipelineFinishedAt` |
+| `REVIEW_SWEEP_INTERVAL` | opcjonalne, default **`5m`** (fail-fast przy złym stringu) | to samo — częstotliwość **okresowego** sweepera; boot api zawsze odpala sweeper **raz** |
+
+`REVIEW_TTL` = jak długo po `completed`/`failed` wolno mutować przegląd. `REVIEW_SWEEP_INTERVAL` = jak często job domyka wygasłe wiersze w DB (`reviewFinalizedAt`); **nie** przedłuża ani nie skraca okna przeglądu.
 
 Bootstrap admina **bez SMTP** nadal możliwy (email + hasło, bez maila).
 
@@ -125,4 +137,5 @@ Compose może od początku definiować wszystkie trzy usługi; „puste” UI do
 - Kubernetes / multi-region  
 - Managed Postgres **w MVP** (Postgres = faza **V1 — rozbudowa**, ops/skala — nie warunek Content)  
 - Automatyczny certyfikat / pełny ingress guide (można dodać później)  
-- Multi-tenant SaaS
+- Multi-tenant SaaS  
+- Multi-instance api / distributed lock sweepera (MVP = single-process)

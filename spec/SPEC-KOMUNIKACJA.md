@@ -1,7 +1,7 @@
 ---
-wersja: 26
+wersja: 27
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-29
+data_modyfikacji: 2026-09-30
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -18,6 +18,8 @@ Uszczegóławia `docs/dokumentacja_komunikacji.md` oraz korelację ID z `docs/br
 Zmiana względem wersji 23 / cel: dopisano konsumpcję `run.completed` / `run.failed` w dashboardzie (toast). **Bez** nowych kodów HTTP, eventów SSE i endpointów.
 
 Zmiana względem wersji 24 / cel: brak `POST .../cancel` i `run.cancelled`. Od tej wersji trzeci terminal SSE + kod `RUN_NOT_CANCELABLE` — skrót egzekwowalny; pełne payloady w docs.
+
+Zmiana względem wersji 26 / cel: snapshot / mutacje przeglądu bez pól TTL. Od tej wersji `pipelineFinishedAt` + wyliczone `reviewExpiresAt`; mutacja po TTL → `REVIEW_LOCKED` bez side-effect zapisu locka; **bez** nowego eventu SSE auto-finalize.
 
 ## Powiązanie ze stylem z docs
 
@@ -79,7 +81,7 @@ Zmiana względem wersji 21 / K-2a: `status` wyłącznie jako pojedynczy enum.
 
 Zmiana względem wersji 24 / K-2a: archiwum UI `completed,failed`. Od tej wersji `completed,failed,cancelled`.
 
-K-2c. Snapshot `GET /runs/:id` — `brief` w kształcie zapisanym (unia); `result` addytywny: `ideas`, `content`, `contents`, `reelIdeas`, `reelScript`, `reelScripts`, `pageOutline`, `pageDocument`; meta m.in. **`cancelledAt`** (`null` \| ISO8601). HITL `options` zależne od `taskType`. Dwuetapowy Social po fazie 2: kanon tablic `contents[]` / `reelScripts[]` + `sourceIdeaId`; skalar `content` / `reelScript` = `null` (`docs/dokumentacja_komunikacji.md`).
+K-2c. Snapshot `GET /runs/:id` — `brief` w kształcie zapisanym (unia); `result` addytywny: `ideas`, `content`, `contents`, `reelIdeas`, `reelScript`, `reelScripts`, `pageOutline`, `pageDocument`; meta m.in. **`cancelledAt`** (`null` \| ISO8601), **`pipelineFinishedAt`** (`null` \| ISO8601), **`reviewExpiresAt`** (wyliczane: `null` \| ISO8601 — semantyka `SPEC-RUNY.md` R-10 / `docs/dictionary.md`). HITL `options` zależne od `taskType`. Dwuetapowy Social po fazie 2: kanon tablic `contents[]` / `reelScripts[]` + `sourceIdeaId`; skalar `content` / `reelScript` = `null` (`docs/dokumentacja_komunikacji.md`). GET **bez** side-effectów (zakaz finalize / UPDATE przy odczycie). Sukcesy mutacji przeglądu (`PATCH .../rating`, `POST .../output-edited`, `POST .../finalize-review`) niosą te same pola meta TTL co snapshot. Lista `GET /runs/user/:userId` **bez** `pipelineFinishedAt` / `reviewExpiresAt`.
 
 Zmiana względem wersji 12 / K-2: unia startu dotyczyła `platform` XOR `contentKind` przy jednym obiekcie briefu SM. Od tej wersji Zod rozdziela `socialBriefSchema` / `contentBriefSchema` (`SPEC-RUNY.md` R-3d).
 
@@ -87,13 +89,9 @@ Zmiana względem wersji 10: unia startu (K-2), listing `platform=web` / nowe `ta
 
 Zmiana względem wersji 15 / K-2c: enumeracja `result` bez `contents` / `reelScripts`; skalar na then_* udawał 1:1.
 
-K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora: select opinii **oraz** „Moje runy” na Koncie (live) (`SPEC-RUNY.md` R-3c, `docs/ux_dashboard.md`). W formularzu opinii UI filtruje `completed` \| `failed` \| (`cancelled` **z** wynikiem — Fbk-3a); lista Konta pokazuje wszystkie statusy. `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`): przy `targetType=run` okno `completed` \| `failed` \| (`cancelled` **oraz** istnieje wynik); inaczej **409** `RUN_NOT_REVIEWABLE` (Fbk-3a). Ocena / **zapis edycji wyniku** (`POST .../output-edited` z `{ result }`) / finalize — wyłącznie `completed` \| `failed` (`SPEC-RUNY.md` R-10; `cancelled` → **409** `RUN_NOT_REVIEWABLE`). Payloady w `docs/dokumentacja_komunikacji.md`.
+Zmiana względem wersji 26 / K-2c: snapshot bez pól TTL / bez normy GET bez side-effect. Od tej wersji `pipelineFinishedAt` + `reviewExpiresAt` + 4a.
 
-K-2d. `PATCH /api/v1/auth/me/email` — body `{ email, currentPassword }`; re-auth + zmiana własnego emaila (sesja); **400** (zły kształt / pusty `currentPassword`); **401** `UNAUTHORIZED` (brak sesji); **401** `INVALID_PASSWORD` (`Invalid password`); **409** `CONFLICT` gdy zajęty (po re-auth). **Bez** mutacji na `PATCH /auth/me`. Nie `PATCH /users/:id`. `SPEC-AUTH.md` A-3b.
-
-Zmiana względem wcześniejszego K-2d: trasa `PATCH /auth/me` (z lub bez `currentPassword`) / złe hasło jako `UNAUTHORIZED`.
-
-K-2e. `POST /api/v1/runs/:runId/cancel` — body puste; sesja cookie. Authz `startedBy` (inaczej **403** `FORBIDDEN`). Odpowiedzi: **200** + snapshot (`status: cancelled`, `cancelledAt`) przy pierwszym legalnym cancelu **oraz** gdy run już `cancelled` (idempotencja); **404**; **409** `RUN_NOT_CANCELABLE` gdy status już `completed` \| `failed`. **200 nie czeka** na zwinięcie execute. Semantyka CAS / abort / recovery — `SPEC-RUNY.md` R-11. Pełny kontrakt: `docs/dokumentacja_komunikacji.md`.
+K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora: select opinii **oraz** „Moje runy” na Koncie (live) (`SPEC-RUNY.md` R-3c, `docs/ux_dashboard.md`). W formularzu opinii UI filtruje `completed` \| `failed` \| (`cancelled` **z** wynikiem — Fbk-3a); lista Konta pokazuje wszystkie statusy. `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`): przy `targetType=run` okno `completed` \| `failed` \| (`cancelled` **oraz** istnieje wynik); inaczej **409** `RUN_NOT_REVIEWABLE` (Fbk-3a). Ocena / **zapis edycji wyniku** (`POST .../output-edited` z `{ result }`) / finalize — wyłącznie `completed` \| `failed` **oraz** w oknie `REVIEW_TTL` (`SPEC-RUNY.md` R-10); `cancelled` → **409** `RUN_NOT_REVIEWABLE`; po finalize **albo** po TTL → **409** `REVIEW_LOCKED` (**bez** side-effect UPDATE `reviewFinalizedAt` przy samym TTL — lock w DB = sweeper). Payloady w `docs/dokumentacja_komunikacji.md`. Env okna / sweepera: `REVIEW_TTL`, `REVIEW_SWEEP_INTERVAL` — `docs/deployment.md` (ten SPEC nie redefiniuje tabeli env).
 
 Zmiana względem wersji 19 / K-2b: endpoint user-runs tylko pod select opinii. Od tej wersji także lista Konta; dopisano K-2d.
 
@@ -103,11 +101,19 @@ Zmiana względem wersji 17 / K-2b: `POST /feedback` `targetType=run` nie miał b
 
 Zmiana względem wersji 24 / K-2b: okno opinii = tylko `completed` \| `failed` (tożsamość z R-10). Od tej wersji opinia obejmuje też `cancelled`+wynik (Fbk-3a); przegląd pozostaje bez `cancelled`. Dopisano K-2e (HTTP cancel).
 
+Zmiana względem wersji 26 / K-2b: przegląd bez limitu czasu / `REVIEW_LOCKED` tylko po finalize. Od tej wersji okno TTL + mutacja po TTL bez CAS.
+
+K-2d. `PATCH /api/v1/auth/me/email` — body `{ email, currentPassword }`; re-auth + zmiana własnego emaila (sesja); **400** (zły kształt / pusty `currentPassword`); **401** `UNAUTHORIZED` (brak sesji); **401** `INVALID_PASSWORD` (`Invalid password`); **409** `CONFLICT` gdy zajęty (po re-auth). **Bez** mutacji na `PATCH /auth/me`. Nie `PATCH /users/:id`. `SPEC-AUTH.md` A-3b.
+
+Zmiana względem wcześniejszego K-2d: trasa `PATCH /auth/me` (z lub bez `currentPassword`) / złe hasło jako `UNAUTHORIZED`.
+
+K-2e. `POST /api/v1/runs/:runId/cancel` — body puste; sesja cookie. Authz `startedBy` (inaczej **403** `FORBIDDEN`). Odpowiedzi: **200** + snapshot (`status: cancelled`, `cancelledAt`) przy pierwszym legalnym cancelu **oraz** gdy run już `cancelled` (idempotencja); **404**; **409** `RUN_NOT_CANCELABLE` gdy status już `completed` \| `failed`. **200 nie czeka** na zwinięcie execute. Semantyka CAS / abort / recovery — `SPEC-RUNY.md` R-11. Pełny kontrakt: `docs/dokumentacja_komunikacji.md`.
+
 Zmiana względem wersji 4: dopisano fundament zapisu feedbacku (wcześniej tylko listing dashboardu).
 
 Zmiana względem wersji 2: dopisano obowiązek listingu kolekcji runów pod FE (wcześniej tylko POST + GET by id / SSE).
 
-K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed/**cancelled**) idzie wyłącznie przez **SSE** `GET /api/v1/runs/:runId/events`. Zdarzenia i statusy jak w docs komunikacji — `run.status` może nieść `interrupted` / `cancelled`; event terminalny cancelu: **`run.cancelled`** `{ runId }`. Dashboard **może** zareagować na `run.completed` / `run.failed` / **`run.cancelled`** toasteem wg `SPEC-FRONTEND.md` / `docs/ux_dashboard.md` (dedup względem toasta mutacji cancel); to **nie** jest polling. Cancel **nie** wprowadza pollingu jako live. Źródło prawdy statusu i powodu po reloadzie: GET run / GET logs — nie pamięć toasta. Payload `run.failed` `{ code?, message }` **nie** zastępuje `run.log` (`SPEC-RUNY.md` R-2).
+K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed/**cancelled**) idzie wyłącznie przez **SSE** `GET /api/v1/runs/:runId/events`. Zdarzenia i statusy jak w docs komunikacji — `run.status` może nieść `interrupted` / `cancelled`; event terminalny cancelu: **`run.cancelled`** `{ runId }`. Dashboard **może** zareagować na `run.completed` / `run.failed` / **`run.cancelled`** toasteem wg `SPEC-FRONTEND.md` / `docs/ux_dashboard.md` (dedup względem toasta mutacji cancel); to **nie** jest polling. Cancel **nie** wprowadza pollingu jako live. Źródło prawdy statusu i powodu po reloadzie: GET run / GET logs — nie pamięć toasta. Payload `run.failed` `{ code?, message }` **nie** zastępuje `run.log` (`SPEC-RUNY.md` R-2). **Brak** nowego eventu SSE dla auto-finalize przeglądu (UI odświeża stan z GET / mutacji — `SPEC-RUNY.md` R-10).
 
 Zmiana względem wersji 5: zbiór statusów SSE / filtra listy rozszerzony o `interrupted`; K-2 (POST `queued` \| `running`) **bez** zmiany statusów startowych.
 
@@ -143,9 +149,11 @@ K-7. Błędy gateway mapowane na logi runu i ewentualnie `run.failed` / retry wg
 
 Zmiana względem wersji 9 / K-7: wcześniejsza norma mówiła o logach produktowych i frontendzie — bez rozróżnienia dumpa diagnostycznego stdout w `development`.
 
-K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, `HITL_REQUIRED`, `HITL_INVALID_SELECTION`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, **`RUN_NOT_CANCELABLE`**, `CONFLICT`, `MAIL_DELIVERY_FAILED`, `INTERNAL_ERROR`, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach. Skrót: `RUN_NOT_CANCELABLE` (409) = cancel gdy już `completed` \| `failed`; `RUN_NOT_REVIEWABLE` (409) = przegląd poza `completed` \| `failed` **oraz** opinia `targetType=run` poza `completed` \| `failed` \| (`cancelled`+wynik) — szczegóły `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-10 / R-11, `SPEC-FEEDBACK.md` Fbk-3a. Gdy `VALIDATION_FAILED` pochodzi z application Zod przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, nie lokalna kopia w BC): `details[].path` = `issue.path.join('.')`. PUT/PATCH `/company-context` przy niespełnionej bramce kompletności też zwraca **400** `VALIDATION_FAILED` (`docs/dokumentacja_komunikacji.md`) — `details` mogą mieć `section` i/lub `path` pozycji; **nie** 409 `CONTEXT_INCOMPLETE` (ten kod zostaje na `POST /runs`).
+K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, `HITL_REQUIRED`, `HITL_INVALID_SELECTION`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, **`RUN_NOT_CANCELABLE`**, `CONFLICT`, `MAIL_DELIVERY_FAILED`, `INTERNAL_ERROR`, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach. Skrót: `RUN_NOT_CANCELABLE` (409) = cancel gdy już `completed` \| `failed`; `RUN_NOT_REVIEWABLE` (409) = przegląd poza `completed` \| `failed` **oraz** opinia `targetType=run` poza `completed` \| `failed` \| (`cancelled`+wynik); `REVIEW_LOCKED` (409) = przegląd zamknięty (`reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL`) — przy samym TTL **bez** side-effect UPDATE locka — szczegóły `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-10 / R-11, `SPEC-FEEDBACK.md` Fbk-3a. Gdy `VALIDATION_FAILED` pochodzi z application Zod przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, nie lokalna kopia w BC): `details[].path` = `issue.path.join('.')`. PUT/PATCH `/company-context` przy niespełnionej bramce kompletności też zwraca **400** `VALIDATION_FAILED` (`docs/dokumentacja_komunikacji.md`) — `details` mogą mieć `section` i/lub `path` pozycji; **nie** 409 `CONTEXT_INCOMPLETE` (ten kod zostaje na `POST /runs`).
 
 Zmiana względem wersji 24 / K-8: brak `RUN_NOT_CANCELABLE`; opis `RUN_NOT_REVIEWABLE` bez rozszczepienia przegląd vs opinia na `cancelled`.
+
+Zmiana względem wersji 26 / K-8: `REVIEW_LOCKED` tylko po finalize w DB. Od tej wersji także po TTL (bez CAS przy mutacji).
 
 Zmiana względem wersji 22 / K-8: dopisano, że twardy zapis kontekstu korzysta z istniejącego `VALIDATION_FAILED` (nie nowy kod envelope).
 
@@ -225,8 +233,12 @@ Zmiana względem wersji 8 / wiersz Application: odczyt snapshotu był milcząco 
 - Rozwijania publicznego API pod `/api/v2` w MVP.
 - Montowania Swagger UI pod ścieżką `/api` (kolizja z prefiksem produktowym `/api/v1` — norma: `/docs`).
 - Składania snapshotu `result`/`hitl` przez `RunsModule imports SocialModule` / `forwardRef` (`SPEC-RUNY.md`).
+- Finalize / UPDATE `reviewFinalizedAt` przy GET snapshot (K-2c / `SPEC-RUNY.md` R-10).
+- Nowego eventu SSE wyłącznie dla auto-finalize przeglądu (UI bierze stan z GET / sukcesu mutacji).
+- UPDATE `reviewFinalizedAt` przy odpowiedzi `REVIEW_LOCKED` po samym TTL (lock w DB = sweeper).
 
 Zmiana względem wersji 23 / „Nie wolno”: dopisano zakaz zastępowania `SPEC-RUNY.md` R-2 payloadem `run.failed`.
+Zmiana względem wersji 26 / „Nie wolno”: dopisano zakazy side-effect GET / SSE auto-finalize / CAS przy TTL.
 
 ### Zatwierdzony stack (obszar)
 
@@ -251,7 +263,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - [ ] Błędy HTTP mają envelope z `code`, `message`, `requestId` (format `req_<uuid>`).
 - [ ] `POST /api/v1/runs` kończy się 202 z `runId` + `conversationId` bez czekania na LLM; unia `platform` / `contentKind` egzekwowana (400 przy konflikcie).
 - [ ] `GET /api/v1/runs` listuje runy instancji zgodnie z docs (paginacja 10, filtry, `startedBy`).
-- [ ] `GET /api/v1/runs/user/:userId` i `POST /feedback` oraz rating/edit/finalize istnieją w kontrakcie docs; kody `REVIEW_LOCKED` / `RUN_NOT_REVIEWABLE` / `RUN_NOT_CANCELABLE` w envelope.
+- [ ] `GET /api/v1/runs/user/:userId` i `POST /feedback` oraz rating/edit/finalize istnieją w kontrakcie docs; kody `REVIEW_LOCKED` / `RUN_NOT_REVIEWABLE` / `RUN_NOT_CANCELABLE` w envelope; snapshot + sukcesy mutacji przeglądu niosą `pipelineFinishedAt` / `reviewExpiresAt`; lista usera **bez** tych pól; GET bez side-effect finalize.
 - [ ] `POST /api/v1/runs/:runId/cancel`: 200 (legalne + idempotencja), 403, 404, 409 `RUN_NOT_CANCELABLE`; body puste; bez await execute.
 - [ ] `PATCH /api/v1/auth/me/email` `{ email, currentPassword }` w kontrakcie docs (**400** / **401** `UNAUTHORIZED` \| `INVALID_PASSWORD` / **409** gdy zajęty); nie przez `PATCH /users/:id`; brak mutacji na `PATCH /auth/me`.
 - [ ] Klient otrzymuje live status wyłącznie przez SSE; GET run/logs = snapshot. Toast terminalu w dashboardzie (gdy mapa UX na to zezwala) **nie** dodaje pollingu.

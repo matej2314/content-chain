@@ -1,12 +1,14 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-09-30
 ---
 
 # Przepływy danych — Content Chain
 
 Opis orkiestracji i ruchu danych w MVP. Kontrakty HTTP/SSE: `dokumentacja_komunikacji.md`. Identyfikatory: `brand_types.md`, `dictionary.md`.
+
+Zmiana względem: przegląd bez limitu czasu; zamknięcie tylko ręczne. Od tej wersji: okno od `pipelineFinishedAt` + `REVIEW_TTL`; po TTL mutacje → 409 bez UPDATE; sweeper (boot / interval) → UPDATE `reviewFinalizedAt`; wyłączenie api nie przedłuża okna.
 
 Zmiana względem wcześniejszej wersji (bez frontmatteru): dopisano ścieżkę **anulowania runu** (`cancelled`), gałęzie recovery z `cancelRequested`, konflikty cancel vs completed/failed oraz notę o slocie `MAX_CONCURRENT_RUNS` / persist bez rollbacku.
 
@@ -320,7 +322,7 @@ sequenceDiagram
 | Cancel vs `completed`/`failed` (wyścig) | **409** `RUN_NOT_CANCELABLE` |
 | Ocena / Edytuj / finalize gdy nie `completed`/`failed` (w tym `cancelled`) | **409** `RUN_NOT_REVIEWABLE` |
 | Opinia `targetType=run` gdy nie `completed`/`failed` i nie (`cancelled` z wynikiem) | **409** `RUN_NOT_REVIEWABLE` |
-| Zmiana oceny lub flagi / treści wyniku po finalize | **409** `REVIEW_LOCKED` |
+| Zmiana oceny lub flagi / treści wyniku po finalize **albo** po `REVIEW_TTL` | **409** `REVIEW_LOCKED` (**bez** UPDATE `reviewFinalizedAt` przy samym TTL; lock w DB = sweeper) |
 | Ocena / edycja / opinia / cancel o runie obcej osoby | **403** `FORBIDDEN` |
 | `GET /runs/user/:userId` z cudzym id | **403** `FORBIDDEN` |
 
@@ -328,19 +330,25 @@ sequenceDiagram
 
 ## 8. Przegląd runu i opinie (po pipeline)
 
-Po `completed` albo `failed` (także gdy autor edytował output) — **poza grafem**:
+Po `completed` albo `failed` — **poza grafem**; kotwica okna = `pipelineFinishedAt` (ustawione raz przy transition terminalnym):
 
 ```text
-status completed | failed
+status completed | failed  →  pipelineFinishedAt = now (raz)
+  → okno otwarte iff reviewFinalizedAt === null AND now < pipelineFinishedAt + REVIEW_TTL
   → autor: gwiazdki 1–5 albo zostaw null; opcjonalnie Edytuj → zapis nowej treści result + outputEdited=true
-  → Zamknij/zapisz przegląd → reviewFinalizedAt; dalsze zmiany oceny / treści wyniku / flagi zablokowane
+  → Zamknij/zapisz przegląd (ręczne) → reviewFinalizedAt; dalsze zmiany zablokowane
+  → po TTL: mutacje → 409 REVIEW_LOCKED (bez UPDATE); sweeper (boot / REVIEW_SWEEP_INTERVAL)
+       → UPDATE reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL
+       → bez DELETE; bez zmiany result / userRating / outputEdited
 ```
 
-`cancelled` **nie** otwiera przeglądu (gwiazdki / Edytuj / finalize → **409** `RUN_NOT_REVIEWABLE`). Partial wynik na snapshotcie jest widoczny jak przy `failed`.
+Wyłączenie api **nie** przedłuża okna. Po starcie boot sweeper domyka zaległe (także legacy po backfillu kotwicy z migracji: `updatedAt` → fallback `createdAt`). Restart **nie** otwiera przeglądu na nowo.
 
-Zmiana względem wcześniejszego zapisu §8: Edytuj tylko stawiało flagę bez nadpisu `result`. Od tej wersji zapis edycji zastępuje kanoniczny wynik (`dokumentacja_komunikacji.md`). Niezależność opinii tekstowej od finalize zostaje; bramka statusu dla opinii o runie obejmuje także `cancelled` **z wynikiem**.
+`cancelled` **nie** otwiera przeglądu (gwiazdki / Edytuj / finalize → **409** `RUN_NOT_REVIEWABLE`; `pipelineFinishedAt` zawsze `null`). Partial wynik na snapshotcie jest widoczny jak przy `failed`.
 
-Opinia tekstowa (`POST /feedback`) jest niezależna od finalize runu (append; target aplikacja / agent / run — `REVIEW_LOCKED` **nie** dotyczy tekstu). Gdy `targetType = run`, zapis po `completed` \| `failed` \| (`cancelled` **z** dowolnym nie-`null` polem wyniku); `cancelled` bez wyniku → **409** `RUN_NOT_REVIEWABLE`. Target `application` / `agent` bez warunku statusu. Katalog agentów = stały enum, nie węzły `LoadContext` / `Persist*` / `Refine*`.
+Zmiana względem wcześniejszego zapisu §8: Edytuj tylko stawiało flagę bez nadpisu `result`; przegląd bez limitu czasu. Od tej wersji zapis edycji zastępuje kanoniczny wynik (`dokumentacja_komunikacji.md`) **oraz** obowiązuje TTL + sweeper. Niezależność opinii tekstowej od finalize / auto-close zostaje; bramka statusu dla opinii o runie obejmuje także `cancelled` **z wynikiem**.
+
+Opinia tekstowa (`POST /feedback`) jest niezależna od finalize runu i od TTL przeglądu (append; target aplikacja / agent / run — `REVIEW_LOCKED` **nie** dotyczy tekstu). Gdy `targetType = run`, zapis po `completed` \| `failed` \| (`cancelled` **z** dowolnym nie-`null` polem wyniku); `cancelled` bez wyniku → **409** `RUN_NOT_REVIEWABLE`. Target `application` / `agent` bez warunku statusu. Katalog agentów = stały enum, nie węzły `LoadContext` / `Persist*` / `Refine*`.
 
 Nie mylić z HITL (wybór pomysłów w trakcie pipeline).
 

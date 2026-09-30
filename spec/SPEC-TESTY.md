@@ -1,7 +1,7 @@
 ---
-wersja: 23
+wersja: 24
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-29
+data_modyfikacji: 2026-09-30
 ---
 
 # SPEC — Testy
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-09-29
 ## Cel / zakres względem dokumentacji
 
 Norma strategii testów MVP Content Chain: piramida, narzędzia, obowiązkowe przypadki DoD oraz CI — uszczegółowienie `docs/testy.md` pod egzekwowalne reguły przy implementacji `apps/api`.
+
+Zmiana względem wersji 23: DoD bez TTL / auto-finalize. Od tej wersji D-35…D-40 (lock po TTL bez CAS, sweeper, restart, GET 4a, backfill, regresje) — `docs/testy.md`, `SPEC-RUNY.md` R-10.
 
 ## Powiązanie ze stylem z docs
 
@@ -59,7 +61,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-9b | Drain: przy `MAX=1` dwa `interrupted` + jeden `queued` → kolejność execute: interrupted, interrupted, queued |
 | D-10 | Recovery: leftover `running` → `interrupted`; claim pod `MAX_CONCURRENT_RUNS`; leftover już `interrupted` bez inkrementu `recoveryAttempts`; 3× przerwany execute → `failed` + log |
 | D-11 | `POST /feedback`: zapis z `authorId`+`createdAt`; cudzy `runId` → `FORBIDDEN`; własny run w toku (`queued` / `running` / `awaiting_hitl` / `interrupted`) → **409** `RUN_NOT_REVIEWABLE` (bez zapisu); `completed` \| `failed` → 201; `cancelled` **bez** wyniku → 409; `cancelled` **z** wynikiem → 201; drugi wpis = nowy wiersz (także po finalize) |
-| D-12 | Ocena `null` \| 1–5 na `completed`/`failed` tylko autora; na `cancelled` → **409** `RUN_NOT_REVIEWABLE`; po finalize → `REVIEW_LOCKED`; `POST .../output-edited` z `{ result }` zastępuje kanoniczny wynik i stawia `outputEdited`; GET snapshot zwraca treść po edycji |
+| D-12 | Ocena `null` \| 1–5 na `completed`/`failed` tylko autora; na `cancelled` → **409** `RUN_NOT_REVIEWABLE`; po finalize → `REVIEW_LOCKED`; `POST .../output-edited` z `{ result }` zastępuje kanoniczny wynik i stawia `outputEdited`; GET snapshot zwraca treść po edycji; snapshot / sukces mutacji niosą `pipelineFinishedAt` + `reviewExpiresAt` (lista usera **bez** tych pól) |
 | D-13 | `GET /runs/user/:userId`: własne wszystkie; cudzy id → `403` |
 | D-14 | SSE: hub nie zatrzymuje subjectu po `completed`/`failed`/`cancelled`; po cancel kolejność `run.status` → `run.cancelled` → complete; `GET .../events` na skończonym runie emituje `run.status` i kończy stream |
 | D-15 | `reel_ideas` full-auto: `running` → `completed`; `result.reelIdeas[0].id` |
@@ -83,16 +85,24 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-32 | Cancel race: status już `completed` \| `failed` → **409** `RUN_NOT_CANCELABLE`; obcy `startedBy` → **403** |
 | D-33 | Recovery + flaga: leftover `running` lub `interrupted` z `cancelRequested` na bootcie → `cancelled` (bez `recoveryAttempts++`); flaga na już-terminalnym ignorowana |
 | D-34 | HITL po cancel: `POST .../hitl` na `cancelled` → odrzucenie (nielegalny status; bez wznowienia pipeline) |
+| D-35 | Po TTL (`now ≥ pipelineFinishedAt + REVIEW_TTL`), `reviewFinalizedAt` jeszcze `null`: mutacja rating / output-edited / finalize → **409** `REVIEW_LOCKED`; `userRating` / `result` / `outputEdited` / `reviewFinalizedAt` **bez zmian** przy tej mutacji (brak CAS / side-effect UPDATE locka) |
+| D-36 | Sweeper (boot **lub** tick okresowy): dla zaległych otwartych przeglądów ustawia `reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL`; **bez** zmiany `userRating` / `outputEdited` / `result`; **bez** DELETE |
+| D-37 | Restart api nie odmraża wygasłego przeglądu: po boot sweeperze (lub gdy okno już minęło) mutacja nadal `REVIEW_LOCKED`; okno **nie** otwiera się na nowo |
+| D-38 | GET snapshot **nie** ustawia `reviewFinalizedAt` (4a — czysty odczyt); po TTL przed sweeperem `reviewExpiresAt` nadal ISO, `reviewFinalizedAt` nadal `null` |
+| D-39 | Backfill B: kotwica z `updatedAt` (fallback `createdAt`); stary run `completed`/`failed` bez finalize, z kotwicą starszą niż TTL → po boot sweeperze locked (`reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL`) |
+| D-40 | Regresja: ręczne finalize **przed** TTL → `REVIEW_LOCKED` na kolejnych mutacjach; `cancelled` → przegląd `RUN_NOT_REVIEWABLE` (`pipelineFinishedAt` null); `POST /feedback` nadal **201** po auto-close / TTL przeglądu (append; nie `REVIEW_LOCKED`) |
 
 Zmiana względem: D-27 na `PATCH /auth/me` bez `currentPassword` / bez `INVALID_PASSWORD`. (Nota: recovery UI po 409 + brak wylogowania przy `INVALID_PASSWORD` = norma FE / `ux_dashboard.md`; D-27 pozostaje kontraktem HTTP api.)
 
 Zmiana względem wersji 20: dopisano D-30…D-34 (anulowanie); D-11 / D-12 / D-14 / D-28 rozszerzone o `cancelled` / wynik / SSE. D-1…D-29 bez kasowania treści.
 
+Zmiana względem wersji 23: dopisano D-35…D-40 (TTL / auto-finalize / 4a / backfill / regresje); D-12 uściślone o pola meta TTL. D-1…D-34 bez kasowania treści.
+
 Zmiana względem wersji 19: dopisano D-29 (twardy zapis kontekstu — C-4). D-1…D-28 bez kasowania treści. D-20 uściślone: extras round-trip na kompletnym body bramki.
 Zmiana względem wersji 18: T-5 i kryteria akceptacji obejmują też D-28 (wcześniej D-28 było w tabeli, bez jawnego pinu w T-5 / checklistcie D-1…D-28).
 Zmiana względem wersji 17: dopisano D-28 (filtr `status` wielowartościowy pod archiwum UI). D-1…D-27 bez kasowania treści.
 
-D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel). T-3 (cookie) **bez zmian**.
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel) **oraz** D-35…D-40 (TTL przeglądu / sweeper). T-3 (cookie) **bez zmian**.
 
 Zmiana względem wersji 16: dopisano D-27 (`PATCH /auth/me` email; 409 zajęty; `PATCH /users/:id` bez email). D-1…D-26 bez kasowania treści.
 Zmiana względem: D-27 rozszerzone o `currentPassword` / `INVALID_PASSWORD` / trasę `/auth/me/email`.
@@ -141,7 +151,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 - Live OpenAI/Anthropic (lub innego vendora) na każdy PR.
 - Wymuszania suite automatycznego FE w v1/MVP.
 - Over-mockowania (testy tylko powtarzające implementację).
-- Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34) ani cyklu życia SSE (D-14) „na potem” poza DoD.
+- Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34), TTL / auto-finalize przeglądu (D-35…D-40) ani cyklu życia SSE (D-14) „na potem” poza DoD.
 - `apps/api/postman/` / `src/postman/` jako pozorne BC.
 - Seed Prisma/SQL kontekstu jako substytut Setupu E2E.
 
@@ -159,7 +169,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-34 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23…D-29, D-30…D-34) pokryte testami (warstwa adekwatna do przypadku).
+- [ ] Przypadki D-1…D-40 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23…D-29, D-30…D-34, D-35…D-40) pokryte testami (warstwa adekwatna do przypadku).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

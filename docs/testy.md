@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-09-30
 ---
 
 # Testy — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-09-27
 Strategia testów **MVP**. Cel: szybka pewność na domenie i granicach `apps/api` + kontrakt z gateway (przez port), bez rozdmuchanego E2E UI.
 
 Powiązane: `architektura.md`, `data_flow.md`, `anty_patterny.md`, `spec/SPEC-TESTY.md`.
+
+Zmiana względem: Feedback / przegląd bez TTL. Od tej wersji skrót: TTL + auto-finalize (sweeper) + lock mutacji bez zapisu; szczegóły case’ów → `spec/SPEC-TESTY.md` (D-35+).
 
 Zmiana względem wcześniejszej wersji (bez frontmatteru): skrót oczekiwań D-* na **anulowanie runu** (`cancelled`) — pełna norma przypadków w `spec/SPEC-TESTY.md`.
 
@@ -78,7 +80,7 @@ Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATE
 - Błąd gateway (stub): run `failed` / retry wg polityki — czytelny log bez wycieku `X-Gateway-Key`.
 - Kolejka współbieżności i recovery runu — wg `spec/SPEC-RUNY.md` / `spec/SPEC-TESTY.md`: nowy run ponad cap → `queued`; leftover `running` → `interrupted` → claim pod `MAX_CONCURRENT_RUNS` (priorytet nad `queued`); 3× przerwany execute → `failed` + log; leftover z `cancelRequested` → `cancelled` (bez `recoveryAttempts++`).
 - Anulowanie (`cancelled`) — skrót oczekiwań (pełne D-* w `spec/SPEC-TESTY.md`): happy path cancel; idempotencja **200** gdy już `cancelled`; **409** `RUN_NOT_CANCELABLE` przy wyścigu z `completed`/`failed`; HITL po cancel nielegalny; feedback `cancelled` ± wynik; SSE `run.cancelled` + complete huba.
-- Feedback: zapis opinii z metadanymi; ocena `null`/`1–5`; `POST .../output-edited` z `{ result }` (nadpis kanonicznego wyniku + `outputEdited`); lock po finalize; `403` na cudzy run; `targetType=run` w toku → `409` `RUN_NOT_REVIEWABLE`; `GET /runs/user/:id` tylko własny id.
+- Feedback: zapis opinii z metadanymi; ocena `null`/`1–5`; `POST .../output-edited` z `{ result }` (nadpis kanonicznego wyniku + `outputEdited`); lock po finalize **oraz** po `REVIEW_TTL` (mutacja → `REVIEW_LOCKED` **bez** UPDATE `reviewFinalizedAt`); auto-finalize sweepera (boot + interval) ustawia `reviewFinalizedAt = pipelineFinishedAt + TTL`; GET bez side-effect finalize; `POST /feedback` nadal dozwolone po auto-close przeglądu; `403` na cudzy run; `targetType=run` w toku → `409` `RUN_NOT_REVIEWABLE`; `GET /runs/user/:id` tylko własny id. Pełne D-* (w tym D-35+) → `spec/SPEC-TESTY.md`.
 - SSE: hub nie zatrzymuje subjectu po `completed`/`failed`/`cancelled`; `GET .../events` na skończonym runie emituje snapshot statusu i **kończy** stream (nie wisi).
 
 ## CI (MVP)

@@ -1,5 +1,5 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-09-18
 data_modyfikacji: 2026-09-30
 ---
@@ -12,6 +12,8 @@ Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
 2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
 
 **Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+
+Zmiana względem: przegląd bez limitu czasu; `reviewFinalizedAt` tylko z ręcznego finalize. Od tej wersji: kotwica `pipelineFinishedAt`, okno `REVIEW_TTL`, wyliczane `reviewExpiresAt` na snapshotcie i sukcesach mutacji (nie na liście usera); mutacja po TTL → **409** `REVIEW_LOCKED` **bez** UPDATE locka; trwały auto-finalize = sweeper (boot + `REVIEW_SWEEP_INTERVAL`); GET **bez** side-effectów. Env: `docs/deployment.md`.
 
 Zmiana względem wcześniejszej wersji tego dokumentu: trzeci terminal **`cancelled`**; krawędzie z `queued` \| `running` \| `awaiting_hitl` \| `interrupted`; endpoint `POST .../cancel`; SSE `run.cancelled`; archiwum UI `completed,failed,cancelled`; rozszczep przegląd vs opinia na `cancelled`. `POST /runs` nadal nigdy nie tworzy `cancelled`.
 
@@ -72,7 +74,7 @@ Wybrane kody domenowe:
 | `HITL_REQUIRED` | 409 | Operacja wymaga stanu oczekiwania na wybór / odwrotnie |
 | `HITL_INVALID_SELECTION` | 400 | Selekcja HITL niezgodna z kanonem: Content — `selectedIdeaIds` ≠ `[outline.id]`; Social dwuetapowy — długość `< 1`, duplikaty, albo id spoza draftu / `hitl.options` (**2+ legalne**, gdy wszystkie ∈ options) |
 | `RUN_NOT_FOUND` | 404 | Nieznany `runId` |
-| `REVIEW_LOCKED` | 409 | Przegląd runu zatwierdzony — zmiana oceny / flagi edycji zabroniona |
+| `REVIEW_LOCKED` | 409 | Przegląd zamknięty (`reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL`) — zmiana oceny / Edytuj / finalize zabroniona; po samym TTL **bez** side-effect UPDATE `reviewFinalizedAt` |
 | `RUN_NOT_REVIEWABLE` | 409 | **Przegląd** (ocena / Edytuj / finalize): status inny niż `completed` \| `failed` (w tym `cancelled`). **Opinia** `POST /feedback` `targetType=run`: poza oknem `completed` \| `failed` \| (`cancelled` **z** wynikiem — dowolne nie-`null` pole wyniku w snapshotcie); `cancelled` bez wyniku → ten kod |
 | `RUN_NOT_CANCELABLE` | 409 | Cancel gdy status już `completed` \| `failed` (wyścig z executorem) |
 | `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; `User.email` zajęty przy accept-invite **lub** `PATCH /auth/me/email` |
@@ -450,6 +452,8 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
   "userRating": null,
   "outputEdited": false,
   "reviewFinalizedAt": null,
+  "pipelineFinishedAt": "2026-08-12T10:05:00.000Z",
+  "reviewExpiresAt": "2026-08-12T12:05:00.000Z",
   "result": {
     "ideas": [],
     "content": null,
@@ -471,8 +475,13 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
 - `cancelledAt` — `null` \| ISO8601; ustawiane przy pierwszym udanym przejściu do `cancelled`.
 - `userRating` — **zawsze** w JSON: `null` (brak gwiazdek) albo `1`…`5`. Pozytywna wartość tylko gdy autor faktycznie ocenił.
 - `outputEdited` — `true` po zapisie Edytuj (treść wyniku została zastąpiona przez autora; bez diff / historii wersji w MVP).
-- `reviewFinalizedAt` — `null` dopóki autor nie zatwierdzi przeglądu; po finalize ISO8601 i pola oceny/edycji niemutowalne.
+- `reviewFinalizedAt` — `null` dopóki przegląd nie jest zapięty w DB (ręczne finalize **albo** auto-finalize sweepera); po ustawieniu ISO8601 i pola oceny/edycji/wyniku niemutowalne.
+- `pipelineFinishedAt` — `null` póki status nieterminalny **albo** `cancelled`; ISO8601 po legalnym transition → `completed` \| `failed` (ustawiane **raz**). Kotwica okna `REVIEW_TTL`.
+- `reviewExpiresAt` — **wyliczane** (nie kolumna DB): `null` gdy brak `pipelineFinishedAt` **albo** `reviewFinalizedAt !== null`; inaczej ISO deadline (`pipelineFinishedAt + REVIEW_TTL`), także po TTL zanim sweeper zapisze lock. Semantyka: `dictionary.md`.
+- GET snapshot jest **czystym odczytem** — **nie** ustawia `reviewFinalizedAt` i nie ma innych side-effectów finalize.
 - `hitl` — metadane pauzy gdy `awaiting_hitl`; `options` zależne od `taskType` (post ideas / `reelIdeas` / outline); inaczej `null` (w tym przy `interrupted` i `cancelled`).
+
+Env okna i sweepera: `REVIEW_TTL` (default `2h`), `REVIEW_SWEEP_INTERVAL` (default `5m`) — kanon w `docs/deployment.md`.
 
 **Pola wyniku (addytywne względem Milestone 4):**
 
@@ -529,16 +538,18 @@ Lekka lista **wszystkich** runów, których inicjatorem jest `:userId` (filtr `s
 
 **200** — `{ "items": [ { "runId", "taskType", "platform", "language", "status", "createdAt" } ] }`.
 
+**Bez** pól `pipelineFinishedAt` / `reviewExpiresAt` / metadanych przeglądu — te są na `GET /runs/:runId` (i sukcesach mutacji przeglądu).
+
 Trasa statyczna `user/:userId` **przed** parametrem `:runId` w routerze Nest.
 
 #### `PATCH /api/v1/runs/:runId/rating`
 
 Ustawienie oceny przez **autora** runu (`startedBy`). Body: `{ "rating": 1 | 2 | 3 | 4 | 5 | null }`. `null` = brak oceny (dopóki przegląd otwarty).
 
-Dozwolone wielokrotnie **do** finalize. Status runu: tylko `completed` \| `failed` (**nie** `cancelled` → **409** `RUN_NOT_REVIEWABLE`).
+Dozwolone wielokrotnie, dopóki przegląd otwarty (`reviewFinalizedAt === null` **i** `now < pipelineFinishedAt + REVIEW_TTL`). Status runu: tylko `completed` \| `failed` (**nie** `cancelled` → **409** `RUN_NOT_REVIEWABLE`).
 
-**200** — `{ "runId", "userRating", "reviewFinalizedAt" }`.  
-**403** gdy sesja ≠ autor. **409** `REVIEW_LOCKED` po finalize. **409** `RUN_NOT_REVIEWABLE` przy innym statusie (w tym `cancelled`).
+**200** — `{ "runId", "userRating", "reviewFinalizedAt", "pipelineFinishedAt", "reviewExpiresAt" }` (meta TTL spójnie ze snapshotem).  
+**403** gdy sesja ≠ autor. **409** `REVIEW_LOCKED` po finalize **albo** po TTL (sam 409 — **bez** UPDATE `reviewFinalizedAt`; trwały lock w DB = sweeper). **409** `RUN_NOT_REVIEWABLE` przy innym statusie (w tym `cancelled`).
 
 #### `POST /api/v1/runs/:runId/output-edited`
 
@@ -547,27 +558,27 @@ Zapis edycji wyniku przez **autora** runu (`startedBy`). Body: `{ "result": { �
 Skutek:
 
 - Kanoniczny wynik w DB zostaje **zastąpiony** przekazanymi polami (pozostałe klucze `result` bez zmian).
-- `outputEdited: true` (jednokierunkowo). Do finalize autor może zapisać treść **wielokrotnie** (kolejny POST znowu nadpisuje wynik; flaga zostaje `true`).
+- `outputEdited: true` (jednokierunkowo). Dopóki przegląd otwarty (okno TTL) autor może zapisać treść **wielokrotnie** (kolejny POST znowu nadpisuje wynik; flaga zostaje `true`).
 - GET snapshot po zapisie zwraca treść użytkownika jako wynik runu.
 - `characterCount` (post content / pozycje `contents[]`): serwer ustawia z `body.length` — nie ufa wartości z klienta.
 - Tożsamość pozycji w tablicach: ta sama kardynalność i te same `sourceIdeaId` / `id` co w zapisanym wyniku; **zakaz** podmiany powiązania na obce id. Klient edytuje pola treści, nie strukturę „nowy zestaw id”.
 - Pipeline / verifier / graf Social i Content **nie** startują.
 - Brak historii wersji w MVP (poprzedni output agentów nie jest osobnym rekordem).
 
-Te same warunki authz / status / lock co ocena.
+Te same warunki authz / status / lock (finalize **lub** TTL) co ocena.
 
-**200** — `{ "runId", "outputEdited": true }` (odczyt treści = GET snapshot).  
+**200** — `{ "runId", "outputEdited": true, "pipelineFinishedAt", "reviewExpiresAt" }` (odczyt treści = GET snapshot; meta TTL jak snapshot).  
 **400** `VALIDATION_FAILED` — zły kształt, klucze obcego kanału, puste `result`, zmiana `sourceIdeaId` / liczby pozycji.  
-**403** gdy sesja ≠ autor. **409** `REVIEW_LOCKED` po finalize. **409** `RUN_NOT_REVIEWABLE` przy innym statusie niż `completed` \| `failed` (w tym `cancelled`).
+**403** gdy sesja ≠ autor. **409** `REVIEW_LOCKED` po finalize **albo** po TTL (**bez** side-effect UPDATE locka). **409** `RUN_NOT_REVIEWABLE` przy innym statusie niż `completed` \| `failed` (w tym `cancelled`).
 
 Zmiana względem: endpoint tylko stawiał flagę i **nie** nadpisywał payloadu wyniku w DB. Od tej wersji zapis edycji **jest** kanonicznym wynikiem (`docs/ux_dashboard.md`).
 
 #### `POST /api/v1/runs/:runId/finalize-review`
 
-Zatwierdzenie przeglądu: zapisuje aktualne `userRating` (`null` albo `1–5`) i `outputEdited`, ustawia `reviewFinalizedAt`. Dalszy `PATCH` oceny i `POST` edycji → **409** `REVIEW_LOCKED`. Status runu: tylko `completed` \| `failed` (`cancelled` → **409** `RUN_NOT_REVIEWABLE`).
+Zatwierdzenie przeglądu: zapisuje aktualne `userRating` (`null` albo `1–5`) i `outputEdited`, ustawia `reviewFinalizedAt`. Dalszy `PATCH` oceny i `POST` edycji → **409** `REVIEW_LOCKED`. Status runu: tylko `completed` \| `failed` (`cancelled` → **409** `RUN_NOT_REVIEWABLE`). Dozwolone tylko w oknie TTL; po TTL → **409** `REVIEW_LOCKED` **bez** UPDATE (sweeper domknie wiersz).
 
-**200** — `{ "runId", "userRating", "outputEdited", "reviewFinalizedAt" }`.  
-Idempotencja: ponowne finalize gdy już zamknięty → **409** `REVIEW_LOCKED`.
+**200** — `{ "runId", "userRating", "outputEdited", "reviewFinalizedAt", "pipelineFinishedAt", "reviewExpiresAt" }` (`reviewExpiresAt` po sukcesie = `null`, bo `reviewFinalizedAt` ustawione).  
+Idempotencja: ponowne finalize gdy już zamknięty (DB **lub** produktowo po TTL) → **409** `REVIEW_LOCKED`.
 
 #### `GET /api/v1/runs/:runId/logs`
 
@@ -620,7 +631,7 @@ Legalne wejścia do `cancelled`: `queued` \| `running` \| `awaiting_hitl` \| `in
 
 Trzy legalne krawędzie **do** `running`: `queued`, `interrupted`, `awaiting_hitl`. Reconnect SSE po restarcie api — jak w akapicie **Reconnect** powyżej (status może być `interrupted` zanim znowu `running`).
 
-**Przegląd** (ocena / Edytuj / finalize): wyłącznie `completed` \| `failed`; `cancelled` → **409** `RUN_NOT_REVIEWABLE`. **Opinia** `POST /feedback` `targetType=run`: skrót — `completed` \| `failed` \| (`cancelled` z wynikiem); szczegóły w sekcji Feedback oraz `spec/SPEC-FEEDBACK.md`. HITL na `interrupted` / po `cancelled` → istniejące **409** (`HITL_REQUIRED` / status nie `awaiting_hitl`).
+**Przegląd** (ocena / Edytuj / finalize): wyłącznie `completed` \| `failed`; okno `REVIEW_TTL` od `pipelineFinishedAt`; po TTL / finalize → **409** `REVIEW_LOCKED` (bez side-effect UPDATE przy samym TTL); `cancelled` → **409** `RUN_NOT_REVIEWABLE`. **Opinia** `POST /feedback` `targetType=run`: skrót — `completed` \| `failed` \| (`cancelled` z wynikiem); szczegóły w sekcji Feedback oraz `spec/SPEC-FEEDBACK.md`. HITL na `interrupted` / po `cancelled` → istniejące **409** (`HITL_REQUIRED` / status nie `awaiting_hitl`).
 
 #### `POST /api/v1/runs/:runId/hitl`
 
@@ -664,7 +675,7 @@ Gdy `targetType = run`: sesja ≠ `startedBy` (także run bez inicjatora) → **
 
 `targetType = application` \| `agent` — **bez** warunku statusu runu.
 
-Finalize przeglądu (`reviewFinalizedAt`) **nie** blokuje kolejnego wpisu tekstowego (append-only; to nie `REVIEW_LOCKED`).
+Finalize przeglądu (`reviewFinalizedAt`) **oraz** auto-close po `REVIEW_TTL` **nie** blokują kolejnego wpisu tekstowego (append-only; to nie `REVIEW_LOCKED`).
 
 Zmiana względem wcześniejszego zapisu tej sekcji: okno opinii o runie = tylko `completed` \| `failed`. Od tej wersji także `cancelled` **z wynikiem**; przegląd (gwiazdki/Edytuj/finalize) pozostaje wyłącznie `completed` \| `failed`.
 

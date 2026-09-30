@@ -1,5 +1,5 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-09-17
 data_modyfikacji: 2026-09-30
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-09-30
 Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / design systemu — widoki, stany i zachowanie względem API/SSE.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`.
+
+Zmiana względem: przegląd otwarty do ręcznego „Zamknij przegląd” bez limitu. Od tej wersji: disable gdy `reviewFinalizedAt !== null` **albo** minął serwerowy `reviewExpiresAt`; copy jak po ręcznym finalize („Przegląd zamknięty”); **bez** countdownu / wiersza „dostępne do…”; FE **nie** wylicza TTL lokalnie z `pipelineFinishedAt`.
 
 Zmiana względem: brak modala potwierdzenia przed Stop w roboczym `cancel-run-state.md` — **unieważnione**. Obowiązuje modal **„Czy na pewno?”** (Tak = API cancel; Nie = zamknięcie, zero API). Archiwum Runy bez `cancelled` → z `cancelled` (`completed` \| `failed` \| `cancelled`). Floating box: po `cancelled` krótko label **„Anulowany”**, potem ukrycie pozycji po **200 ms** (doprecyzowanie kanonu „krótko pokazuje, potem się ukrywa”).
 
@@ -204,11 +206,11 @@ Wejście: z listy **Moje runy** na Koncie, z archiwum **Runy**, z floating boxa,
 | **Logi** | Przyrostowo z SSE `run.log` + możliwość dociągnięcia historii GET logs |
 | **HITL** | Panel wyboru: pomysły postu, pomysły rolek albo outline strony — wg `taskType` i `hitl.options`. Social dwuetapowy: **multi-select** (min. 1 unikalne id ⊆ options; np. checkboxy / chipy); Content: akceptacja outline’u (**bez** zmian — nadal `[outline.id]`). Submit → `POST .../hitl`. Po `cancelled` panel **nie** jest pokazywany |
 | **Wynik** | Po `completed`: widok **listy postów** (`ideas` / `contents[]` z `sourceIdeaId`; na liście pomysłów `cta` gdy jest; przy każdym content pokaż `characterCount`) albo **jednego** posta (`content` — task jednoetapowy `post_content`), **listy scenariuszy** (`reelIdeas` / `reelScripts[]`) albo **jednej** rolki (`reelScript` — `reel_script`), albo **strony** (`pageOutline` / `pageDocument` — etykieta `role` przy sekcji, gdy ustawione); przy `failed` **albo** `cancelled` — to, co zdążyło się zapisać (partial jak przy `failed`). Dwuetapowy Social: **nie** jeden blok copy. Po zapisie Edytuj — **ta** treść (nie output agentów sprzed edycji). |
-| **Edytuj** | Po zakończeniu pracy agenta (`completed` albo `failed`, gdy jest wynik): przycisk **Edytuj** dla autora (`startedBy`), dopóki przegląd otwarty. **Niedostępne** przy `cancelled`. Użytkownik **może, ale nie musi** z niego skorzystać. Edytowalna jest **każda treść wyniku** tego runu (post / lista postów, pomysły, scenariusz / lista scenariuszy, outline, dokument strony — wg tego, co jest w snapshotcie). **Zapis** → api przyjmuje nową treść (kształt jak `result` w snapshotcie), **zastępuje** kanoniczny wynik w DB **oraz** ustawia `outputEdited: true`. Od tego momentu GET/UI pokazują treść użytkownika jako wynik runu. Pipeline / verifier **nie** startują ponownie. Bez diff / % i bez osobnej kopii „oryginału agenta” w MVP. Wielokrotny zapis do finalize. |
-| **Ocena gwiazdkowa (1–5)** | Po `completed` **albo** `failed`, tylko autor runu. **Niedostępna** przy `cancelled`. Dobrowolna: brak wyboru = w DB zostaje `userRating: null`. Do zatwierdzenia można zmieniać wybór (w tym wrócić do braku oceny). Czytelne gwiazdki, nie sam numeric input |
-| **Zamknij / zapisz przegląd** | Zatwierdza aktualną ocenę (`null` albo `1–5`) i flagę edycji. Po sukcesie kontrolki oceny i Edytuj są zablokowane. **Niedostępne** przy `cancelled` |
+| **Edytuj** | Po zakończeniu pracy agenta (`completed` albo `failed`, gdy jest wynik): przycisk **Edytuj** dla autora (`startedBy`), dopóki przegląd otwarty. **Niedostępne** przy `cancelled`, po `reviewFinalizedAt` **oraz** gdy minął serwerowy `reviewExpiresAt` (deadline z API — **bez** lokalnego wyliczania z `pipelineFinishedAt` + stałej). Użytkownik **może, ale nie musi** z niego skorzystać. Edytowalna jest **każda treść wyniku** tego runu (post / lista postów, pomysły, scenariusz / lista scenariuszy, outline, dokument strony — wg tego, co jest w snapshotcie). **Zapis** → api przyjmuje nową treść (kształt jak `result` w snapshotcie), **zastępuje** kanoniczny wynik w DB **oraz** ustawia `outputEdited: true`. Od tego momentu GET/UI pokazują treść użytkownika jako wynik runu. Pipeline / verifier **nie** startują ponownie. Bez diff / % i bez osobnej kopii „oryginału agenta” w MVP. Wielokrotny zapis do finalize / w oknie TTL. |
+| **Ocena gwiazdkowa (1–5)** | Po `completed` **albo** `failed`, tylko autor runu. **Niedostępna** przy `cancelled`, po finalize **oraz** po expiry (`reviewExpiresAt` z API). Dobrowolna: brak wyboru = w DB zostaje `userRating: null`. Do zatwierdzenia można zmieniać wybór (w tym wrócić do braku oceny). Czytelne gwiazdki, nie sam numeric input |
+| **Zamknij / zapisz przegląd** | Zatwierdza aktualną ocenę (`null` albo `1–5`) i flagę edycji. Po sukcesie kontrolki oceny i Edytuj są zablokowane. Po expiry (serwerowy `reviewExpiresAt`) albo gdy `reviewFinalizedAt` już ustawione — te same kontrolki niedostępne; copy **„Przegląd zamknięty”** (bez rozróżnienia auto vs ręczne). **Bez** widocznego deadline / countdown / wiersza „dostępne do…”. **Niedostępne** przy `cancelled` |
 
-Zmiana względem: „ewent. `conversationId` (ops light)” w nagłówku; Edytuj ustawiało wyłącznie flagę, oryginał agentów w DB bez nadpisu. Od tej wersji zapis edycji **jest** kanonicznym wynikiem; `conversationId` nie jest w UI MVP.
+Zmiana względem: „ewent. `conversationId` (ops light)” w nagłówku; Edytuj ustawiało wyłącznie flagę, oryginał agentów w DB bez nadpisu; przegląd bez limitu czasu. Od tej wersji zapis edycji **jest** kanonicznym wynikiem; `conversationId` nie jest w UI MVP; disable po serwerowym expiry / finalize.
 
 **SSE — start i koniec.** Gdy snapshot GET już ma status `completed` albo `failed` albo `cancelled` **albo** `queued`, UI **nie** otwiera SSE. W trakcie live (`running` / `awaiting_hitl` / `interrupted`): po evencie `run.completed` albo `run.failed` albo `run.cancelled` UI **zamyka** `EventSource` (`close()`). Tego zamknięcia ani `onerror` po tym `close()` **nie** wolno traktować jako restartu api. Przeglądarka woła SSE **same-origin** (BFF Next — `docs/deployment.md`); `withCredentials` przy cross-origin nie dotyczy produktu MVP.
 
@@ -269,7 +271,8 @@ Zmiana względem: widok Users i accept-invite jako „przyszły FE / gdy ekran p
 - i18n UI / next-intl (**V1 — rozbudowa**; MVP: PL w chrome, w UI błędów wyłącznie `message` z API bez mapy tłumaczeń)  
 - Panel administracyjny opinii / średnich ocen / analityki feedbacku (**V1 — rozbudowa**)  
 - Stopień edycji outputu (diff / procent / historia wersji) — w MVP zapis **zastępuje** wynik i stawia flagę; bez porównywania z outputem agentów  
-- Zmiana oceny po „Zamknij / zapisz przegląd”  
+- Zmiana oceny po „Zamknij / zapisz przegląd” **albo** po auto-close / expiry TTL  
+- Widoczny deadline / countdown / wiersz „review dostępne do…” na panelu przeglądu (świadomie odłożone; FE używa `reviewExpiresAt` tylko do disable)  
 - Motywy jasny / ciemny — **obowiązkowy** temat **V1 — rozbudowa**: oba tryby w produkcie oraz **dynamiczne** przełączanie przez użytkownika **dedykowanym przełącznikiem** w interfejsie (nie sam `prefers-color-scheme` bez kontrolki). W MVP motyw produktowy pozostaje jasny  
 - Pipeline builder, drag-and-drop agentów  
 - Otwarta rejestracja / aktywny przycisk „Zarejestruj się!” na stronie głównej (w MVP pozostaje nieaktywny)  

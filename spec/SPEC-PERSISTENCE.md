@@ -1,7 +1,7 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-09-30
 ---
 
 # SPEC — Persistence
@@ -11,6 +11,8 @@ data_modyfikacji: 2026-09-27
 Norma warstwy persistence w `apps/api`: port + adapter Prisma, lokalizacja schema/migracji, kanoniczność DB, zakazy ORM w domain oraz **harmonogram silników** SQLite → PostgreSQL.
 
 Uszczegóławia `docs/architektura.md`, `docs/architektura_katalogi_pliki.md` oraz brak cichego fallbacku z `docs/dokumentacja_koncepcyjna.md` / `docs/anty_patterny.md`.
+
+Zmiana względem wersji 9: kanon Run bez `pipelineFinishedAt` / indeksu pod sweeper. Od tej wersji kolumna kotwicy TTL przeglądu + migracja backfill B — `docs/dictionary.md`, `SPEC-RUNY.md` R-10.
 
 ## Powiązanie ze stylem z docs
 
@@ -43,7 +45,7 @@ P-3. Identyfikatory w kolumnach: **brandowane stringi** zgodnie z `docs/brand_ty
 
 P-4. ORM / SQL / Prisma **zakazane** w `domain/` oraz w `packages/shared`. Application zależy od **portów**.
 
-P-5. DB jest kanoniczna dla kontekstu firmy, userów, **zaproszeń (Invitation)**, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`) **oraz** anulowania (`cancelledAt`, `cancelRequested`). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
+P-5. DB jest kanoniczna dla kontekstu firmy, userów, **zaproszeń (Invitation)**, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`, **`pipelineFinishedAt`**) **oraz** anulowania (`cancelledAt`, `cancelRequested`). **`reviewExpiresAt` nie jest kolumną** — wyliczane w API (`SPEC-RUNY.md` R-10). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
 
 Kanon tabel (Auth): model **`Invitation`** (lub równoważna nazwa) — `id` (`inv_<uuid>`), `email`, `tokenHash`, `purpose` (`invite` w MVP; rezerwa pod `password_reset` bez zmiany modelu świata), `status` (`pending` \| `accepted` \| `revoked`), `expiresAt`, `invitedByUserId`, timestamps; **bez** kolumny raw tokenu. Invitation **nie** jest „User z pustym hasłem”. `User.passwordHash` nadal wymagany — wiersz `User` powstaje dopiero przy accept-invite.
 
@@ -74,10 +76,19 @@ Na modelu **`Run`** (kanon DB, migracja append):
 | `status` | obejmuje wartość **`cancelled`** (trzeci terminal — `docs/brand_types.md`, `SPEC-RUNY.md`) |
 | `cancelledAt` | `DateTime?` — `null` do pierwszego udanego przejścia do `cancelled`; potem ISO w snapshotcie |
 | `cancelRequested` | `Boolean` (default `false`) — durable guard recovery / wyścig cancel vs crash; zerowane przy wygranej `attemptCancel` |
+| `pipelineFinishedAt` | `DateTime?` — kotwica okna `REVIEW_TTL`; ustawiane **raz** przy legalnym transition → `completed` \| `failed`; `null` przy `cancelled` i statusach nieterminalnych |
 
-Bez osobnego `cancelledBy` (authz = `startedBy`). Semantyka CAS / recovery — `SPEC-RUNY.md` R-9 / R-11; bez rollbacku wyniku po cancel.
+Bez osobnego `cancelledBy` (authz = `startedBy`). Semantyka CAS / recovery — `SPEC-RUNY.md` R-9 / R-11; bez rollbacku wyniku po cancel. Semantyka TTL / sweeper — `SPEC-RUNY.md` R-10.
+
+**Indeks sweepera:** model `Run` **musi** mieć indeks wspierający zapytanie sweepera auto-finalize (wiersze z kotwicą, bez `reviewFinalizedAt`, z miniętym oknem). Norma **nie** pinuje nazwy ani dokładnego kształtu indeksu — byle zapytanie batch UPDATE było wspierane indeksem.
+
+**Migracja backfill B (jednorazowo):** dodanie kolumny `pipelineFinishedAt`; dla istniejących wierszy w statusie `completed` \| `failed` bez kotwicy: `pipelineFinishedAt = updatedAt`, fallback `createdAt`. Migracja **nie** ustawia `reviewFinalizedAt`. Domknięcie wygasłych otwartych przeglądów = **pierwszy boot sweepera** (jedna odpowiedzialność — `SPEC-RUNY.md` R-10). Po wdrożeniu **zakaz** używania `updatedAt` jako bieżącej kotwicy TTL.
+
+**Zakaz DELETE** wierszy `Run` (ani wyników Social/Content) w ramach TTL / auto-finalize — wyłącznie UPDATE `reviewFinalizedAt`.
 
 Zmiana względem wersji 8 / P-5: kanon Run bez pól anulowania. Od tej wersji `cancelledAt` + `cancelRequested` + status `cancelled` w DB.
+
+Zmiana względem wersji 9 / P-5: kanon Run bez `pipelineFinishedAt`. Od tej wersji kolumna kotwicy + norma indeksu sweepera + backfill B — `docs/dictionary.md`, `docs/data_flow.md`.
 
 Zmiana względem wersji 2: kanon obejmuje reel i Content; V1 = Postgres niezależnie od kanałów w MVP.
 
@@ -130,11 +141,15 @@ apps/api/
 - Osobnych tabel `case_studies` / równoważnych per sekcja extras w tym wycinku MVP (Json `extras` + Zod).
 - Modelowania zaproszenia jako `User` z pustym / sentinel `passwordHash`.
 - Drugiego `pending` na ten sam `email` bez indeksu SQL D17.
+- `DELETE` runów / wyników w ramach TTL przeglądu lub auto-finalize (obowiązuje UPDATE `reviewFinalizedAt`).
+- Traktowania `reviewExpiresAt` jako kolumny DB.
+- Używania `updatedAt` jako bieżącej kotwicy TTL po wdrożeniu (wyjątek: jednorazowy backfill B).
 
 Zmiana względem wersji 3 / „Nie wolno”: dopisano zakaz reuse kolumn refine Social na Content.
 Zmiana względem wersji 4 / „Nie wolno”: dopisano zakaz zbędnej migracji `brief`.
 Zmiana względem wersji 5 / „Nie wolno”: dopisano zakaz osobnych tabel case studies zamiast `extras` Json.
 Zmiana względem wersji 7 / „Nie wolno”: dopisano zakaz „User pending z pustym hasłem” oraz obejścia unique pending.
+Zmiana względem wersji 9 / „Nie wolno”: dopisano zakazy DELETE przy TTL oraz `reviewExpiresAt` jako kolumny / `updatedAt` jako bieżącej kotwicy.
 
 ### Zatwierdzony stack (obszar)
 
@@ -155,7 +170,8 @@ Zmiana względem wersji 7 / „Nie wolno”: dopisano zakaz „User pending z pu
 - [ ] Żaden plik w `domain/` nie importuje `@prisma/client`.
 - [ ] ID w DB mają prefiksy brandów z docs.
 - [ ] Brak ścieżki runtime fallbacku kontekstu z `.md`.
-- [ ] Model `Run` ma `cancelledAt`, `cancelRequested` oraz dopuszcza status `cancelled` (migracja w historii Prisma).
+- [ ] Model `Run` ma `cancelledAt`, `cancelRequested`, `pipelineFinishedAt` oraz dopuszcza status `cancelled` (migracja w historii Prisma); istnieje indeks wspierający zapytanie sweepera.
+- [ ] Migracja backfill B ustawia tylko kotwicę (`updatedAt` else `createdAt`); **bez** ustawiania `reviewFinalizedAt` w migracji.
 - [ ] W dokumentacji implementacyjnej / README ops jest jasne: cutover PostgreSQL = nowa historia migracji + pusta baza + opcjonalny import danych; SQLite tylko MVP; V1 — rozbudowa = PostgreSQL.
 
 ## Poza zakresem

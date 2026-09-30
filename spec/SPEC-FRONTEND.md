@@ -1,5 +1,5 @@
 ---
-wersja: 28
+wersja: 29
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-09-30
 ---
@@ -22,6 +22,8 @@ Zmiana względem wersji 23 / cel: kanon milczał o kanale „wydarzyło się”.
 Zmiana względem wersji 24 / cel: F-8 nadal wymaga widoku **Konto** (start inline). Od tej wersji **druga** powierzchnia startu = modal **„Uruchom agenta”** na Runach (`docs/ux_dashboard.md`).
 
 Zmiana względem wersji 25 / cel: brak Stop / `cancelled` w UX. Od tej wersji anulowanie: przycisk **Stop** + modal, toast **„Run anulowany”**, archiwum z `cancelled`, floating box bez Stop (`docs/ux_dashboard.md`).
+
+Zmiana względem wersji 28 / cel: przegląd otwarty do ręcznego finalize bez limitu; disable tylko po `reviewFinalizedAt`. Od tej wersji disable także po serwerowym `reviewExpiresAt`; bez lokalnego wyliczania TTL; bez nowego chrome deadline/countdown — `docs/ux_dashboard.md`.
 
 ## Powiązanie ze stylem z docs / wyjątek
 
@@ -108,7 +110,7 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 - Wynik dwuetapowy Social = listy `contents[]` / `reelScripts[]`; `characterCount` / `cta?` / `role?` jak UX;
 - Użytkownicy (admin): lista + zaproszenie email; pending w tym wygasłe; resend/revoke;
 - **Header**: zawartość do prawej; login → „Wyloguj się” → modal → `POST /auth/logout` → `/`;
-- Globalny CTA opinii; na szczegółach: Edytuj (`result` + flaga), gwiazdki, finalize — **tylko** gdy snapshot `completed` \| `failed` (nie na `cancelled`);
+- Globalny CTA opinii; na szczegółach: Edytuj (`result` + flaga), gwiazdki, finalize — **tylko** gdy snapshot `completed` \| `failed` (nie na `cancelled`) **oraz** przegląd otwarty (`reviewFinalizedAt === null` **i** nie minął serwerowy `reviewExpiresAt`); po zamknięciu copy **„Przegląd zamknięty”** (bez rozróżnienia auto vs ręczne); **bez** widocznego deadline / countdown / wiersza „dostępne do…”;
 - Chip kompletności agentów; **floating box** własnych runów w toku poza Kontem (zwijany; **bez** Stop). Po `cancelled`: krótko **„Anulowany”**, ukrycie pozycji po **200 ms**. **Nie** chip/stos w chrome.
 
 Zmiana względem wersji 19 / F-8: Runy = cała instancja + start; po starcie szczegóły; chip „w toku”. Od tej wersji: Runy = archiwum; start+live = Konto; box; trasa invite jak mailer.
@@ -130,11 +132,13 @@ Zmiana względem wersji 24 / F-8: Runy „**Bez** startu”; Konto = **jedyny** 
 
 Zmiana względem wersji 25 / F-8: archiwum `completed` \| `failed`; brak Stop; floating box znika na terminalu bez reguły „Anulowany” + 200 ms. Od tej wersji archiwum + Stop (F-5b) + box po cancel.
 
-F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. UI **filtruje** pozycje do `completed` \| `failed` \| (`cancelled` **oraz** istnieje nie-`null` pole wyniku w snapshotcie — per `SPEC-FEEDBACK.md` Fbk-3a; select może dociągnąć snapshot albo stosować regułę równoważną; **nie** pokazywać `cancelled` bez wyniku). Lista API zostaje pełna — `SPEC-RUNY.md` R-3c. Select agentów = enum z shared (labelki PL). Ocena i Edytuj tylko gdy snapshot mówi, że sesja jest `startedBy`, status `completed` \| `failed` i przegląd niezamknięty. Submit `targetType=run` poza oknem Fbk-3a i tak → **409** `RUN_NOT_REVIEWABLE`.
+F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. UI **filtruje** pozycje do `completed` \| `failed` \| (`cancelled` **oraz** istnieje nie-`null` pole wyniku w snapshotcie — per `SPEC-FEEDBACK.md` Fbk-3a; select może dociągnąć snapshot albo stosować regułę równoważną; **nie** pokazywać `cancelled` bez wyniku). Lista API zostaje pełna — `SPEC-RUNY.md` R-3c. Select agentów = enum z shared (labelki PL). Ocena, Edytuj i finalize tylko gdy snapshot mówi, że sesja jest `startedBy`, status `completed` \| `failed` i przegląd **otwarty**: `reviewFinalizedAt === null` **oraz** nie minął serwerowy **`reviewExpiresAt`** (deadline wyłącznie z API — **zakaz** lokalnego wyliczania z `pipelineFinishedAt` + stałej). FE-only disable **nie** jest jedyną bramką — api i tak zwraca `REVIEW_LOCKED` po TTL / finalize (`SPEC-RUNY.md` R-10). Po lokalnym expiry (lekki timer od pola `reviewExpiresAt` z API, bez SSE): UI jak zamknięty (copy „Przegląd zamknięty”); reload odświeża `reviewFinalizedAt` gdy sweeper zapisał — **nie** wymagane do disable. **Zakaz** nowego chrome deadline / countdown / wiersza „dostępne do…” w MVP tej zmiany. Submit `targetType=run` poza oknem Fbk-3a i tak → **409** `RUN_NOT_REVIEWABLE`.
 
 Zmiana względem wersji 12 / F-9: select pokazywał wszystkie runy autora (w tym w toku). Od tej wersji filtr kliencki `completed` \| `failed`; bramka HTTP jak w docs komunikacji.
 
 Zmiana względem wersji 25 / F-9: filtr bez `cancelled`. Od tej wersji `cancelled` z wynikiem wchodzi do selecta.
+
+Zmiana względem wersji 28 / F-9: „przegląd niezamknięty” = tylko `reviewFinalizedAt === null`. Od tej wersji także serwerowy `reviewExpiresAt`; zakaz lokalnego TTL math i chrome deadline — `docs/ux_dashboard.md`.
 
 Zmiana względem wersji 1: Konto nie obejmuje zmiany hasła; dodano first-run; lista runów = cała instancja z nawigacją lista → szczegóły; admin users bez edycji/dezaktywacji w UI (soft-delete UI nadal poza MVP).
 
@@ -186,6 +190,7 @@ apps/frontend/src/
 - Publiczny `/invite/accept?token=` → strona główna.
 - Formularz opinii, gwiazdki i edytor wyniku jako Client Components.
 - Zapis Edytuj przez `POST .../output-edited` z `result`.
+- Lekki timer lokalny od serwerowego `reviewExpiresAt` (disable kontrolek po expiry; bez SSE „dla TTL”; bez lokalnego math z `pipelineFinishedAt`).
 - BFF: rewrite albo streaming Route Handler — byle Cookie + SSE bez bufora.
 
 ### Nie wolno
@@ -229,6 +234,10 @@ apps/frontend/src/
 - Aktywnego „Zarejestruj się!” / otwartego signup.
 - Panelu admina opinii w MVP.
 - Wysyłania edycji inną drogą niż `POST .../output-edited`; re-invoke pipeline; `selectedIdeaIds` na starcie; `conversationId` w UI.
+- Lokalnego wyliczania expiry przeglądu z `pipelineFinishedAt` + stałej / lokalnego `REVIEW_TTL` (obowiązuje wyłącznie serwerowe `reviewExpiresAt`).
+- Polegania wyłącznie na FE-only disable bez bramki API (api i tak → `REVIEW_LOCKED`).
+- Nowego chrome deadline / countdown / wiersza „dostępne do…” na panelu przeglądu w MVP tej zmiany.
+- Rozróżnienia copy auto vs ręczne zamknięcie przeglądu (obowiązuje „Przegląd zamknięty”).
 - Wyniku dwuetapowego Social jako jednego bloku; single-select HITL Social.
 - Mapowania `message` błędów na PL w MVP (obowiązuje `message` z API). Pokazywania `code` jako treści UI błędu (`code` zostaje w envelope HTTP do logiki klienta).
 - Toasta na walidację pól / 400 / 409 formularza, przy którym operator stoi.
@@ -247,6 +256,7 @@ Zmiana względem wersji 23 / „Nie wolno”: dopisano zakaz toasta na walidacj�
 Zmiana względem wersji 24 / „Nie wolno”: zakaz „Formularza startu na widoku **Runy**” **unieważniony** — kanon to dwie powierzchnie tego samego briefu. Od tej wersji zakaz dotyczy live na archiwum, drugiego kontraktu startu, CTA w chrome/szczegółach, prefillu z archiwum i zrzutu na szczegóły po `202`.
 
 Zmiana względem wersji 25 / „Nie wolno”: dopisano zakazy Stop bez modala / w boxie, podwójnego toasta cancel, mylenia `cancelled` z `failed`, natychmiastowego ukrycia boxa.
+Zmiana względem wersji 28 / „Nie wolno”: dopisano zakazy lokalnego TTL math, FE-only jako jedynej bramki, chrome deadline oraz rozróżnienia copy auto/ręczne.
 
 Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flagą” unieważniony — kanon to zapis treści + flaga (`docs/ux_dashboard.md`). „Gdy powstanie” na Users / accept-invite unieważnione.
 
@@ -274,7 +284,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Konto: email — modal re-auth (`PATCH /auth/me/email` `{ email, currentPassword }`); `INVALID_PASSWORD` / `VALIDATION_FAILED` pod hasłem (bez F-4a); **409** → clear + odblokowanie emaila + błąd pod emailem; sukces bez toastu + `GET /auth/me`; Anuluj bez API; moje runy → szczegóły; start (prefill ze snapshotu); opinia.
 - [ ] Admin: Users + zaproszenie; accept-invite → `/`.
 - [ ] `app/` + `modules/`; typy z shared; brak sekretów LLM; brak `NEXT_PUBLIC_` URL-a api.
-- [ ] Opinia / gwiazdki / Edytuj / finalize wg kontraktu; HITL Social multi-select; wynik then_* = listy.
+- [ ] Opinia / gwiazdki / Edytuj / finalize wg kontraktu; disable po `reviewFinalizedAt` **lub** po serwerowym `reviewExpiresAt`; copy „Przegląd zamknięty”; **bez** countdown / „dostępne do…”; HITL Social multi-select; wynik then_* = listy.
 - [ ] Envelope błędu w UI: `message` z API (bez `code` w treści).
 - [ ] Kontekst firmy: sześć zakładek (default Tożsamość); kropki bramki z `missing` ostatniego GET/PUT; Dodatki bez kropki; jeden `PUT`; `user` read-only.
 - [ ] Admin nie utrwali pustej nazwy firmy ani kalekiej usługi (submit zablokowany; 400 z api gdy UI ominięte); `user` read-only.

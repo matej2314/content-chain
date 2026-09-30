@@ -1,20 +1,22 @@
 ---
-wersja: 18
+wersja: 19
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-09-30
 ---
 
 # SPEC — Runy / logi
 
 ## Cel / zakres względem dokumentacji
 
-Norma bounded contextu **Runs / Logs** w `apps/api`: cykl życia async runu, **lista runów instancji** (paginacja / filtry), polityka statusów, **anulowanie (`cancelled`)**, kanoniczne logi w DB, emisja SSE, kolejka współbieżności oraz recovery po przerwaniu procesu.
+Norma bounded contextu **Runs / Logs** w `apps/api`: cykl życia async runu, **lista runów instancji** (paginacja / filtry), polityka statusów, **anulowanie (`cancelled`)**, kanoniczne logi w DB, emisja SSE, kolejka współbieżności, recovery po przerwaniu procesu oraz **przegląd runu z TTL** (`pipelineFinishedAt` + `REVIEW_TTL`, sweeper auto-finalize).
 
-Uszczegóławia `docs/architektura.md` (async run, klej composite, cancel v1), `docs/dokumentacja_komunikacji.md` (lista / SSE / GET / cancel / ocena / lista user / unia startu), `docs/data_flow.md` (ścieżka cancel, recovery + `cancelRequested`), `docs/observability.md` (pola logów vs metrics) oraz współpracę z `SPEC-SOCIAL.md`, `SPEC-CONTENT.md` i `SPEC-FEEDBACK.md`.
+Uszczegóławia `docs/architektura.md` (async run, klej composite, cancel v1), `docs/dokumentacja_komunikacji.md` (lista / SSE / GET / cancel / ocena / lista user / unia startu), `docs/data_flow.md` (ścieżka cancel, recovery + `cancelRequested`, TTL przeglądu), `docs/observability.md` (pola logów vs metrics) oraz współpracę z `SPEC-SOCIAL.md`, `SPEC-CONTENT.md` i `SPEC-FEEDBACK.md`.
 
 Zmiana względem wersji 7: **jeden** executor Social w MVP unieważniony — klej composite (Social \| Content); `UNKNOWN_TASK_TYPE`; unia `platform` / `contentKind`; HITL `selectedIdeaIds` także dla reel/page.
 
 Zmiana względem wersji 17: dwa terminale (`completed` / `failed`); brak HTTP cancel. Od tej wersji trzeci terminal **`cancelled`**, `POST .../cancel`, durable `cancelRequested`, abort in-process — `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md`.
+
+Zmiana względem wersji 18: przegląd otwarty do ręcznego finalize **bez limitu czasu**. Od tej wersji okno = `REVIEW_TTL` od `pipelineFinishedAt`; lock w DB poza ręcznym finalize = wyłącznie sweeper — `docs/dictionary.md`, `docs/data_flow.md`.
 
 ## Powiązanie ze stylem z docs
 
@@ -26,7 +28,7 @@ Zmiana względem wersji 8: LangGraph pozostaje poza Runs — w Social **i** Cont
 
 | BC | Odpowiedzialność |
 |----|------------------|
-| **Runs** | Utworzenie runu, lista kolekcji, statusy, **anulowanie (`cancelled`)**, kolejka slotów, append logów, SSE, recovery, HITL HTTP jako zmiana stanu runu, zapis inicjatora, **ocena gwiazdkowa, zapis edycji wyniku (`result` + `outputEdited`), finalize przeglądu**, lista `GET /runs/user/:userId`. Porty: lifecycle, **composite** executor, odczyt wycinka wyniku do snapshotu, `attemptCancel` |
+| **Runs** | Utworzenie runu, lista kolekcji, statusy, **anulowanie (`cancelled`)**, kolejka slotów, append logów, SSE, recovery, HITL HTTP jako zmiana stanu runu, zapis inicjatora, **ocena gwiazdkowa, zapis edycji wyniku (`result` + `outputEdited`), finalize przeglądu, kotwica `pipelineFinishedAt`, sweeper auto-finalize**, lista `GET /runs/user/:userId`. Porty: lifecycle, **composite** executor, odczyt wycinka wyniku do snapshotu, `attemptCancel` |
 | **Social** | Węzły pipeline’u post/reel; woła **port** lifecycle Runs; wynik we własnym store |
 | **Content** | Węzły pipeline’u page; woła **port** lifecycle Runs; wynik we własnym store (`SPEC-CONTENT.md`) |
 | **Feedback** | Opinie tekstowe — nie statusy runu |
@@ -79,7 +81,9 @@ Zmiana względem wersji 16 / R-3a: `status` wyłącznie pojedynczy enum; UI Runy
 
 Zmiana względem wersji 17 / R-3a: archiwum UI `completed,failed`. Od tej wersji `completed,failed,cancelled` (`docs/ux_dashboard.md`).
 
-R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) **oraz** `conversationId`, `brief` (kształt zapisany: `SocialBrief` albo `ContentBrief` wg `taskType`), `userRating`, `outputEdited`, `reviewFinalizedAt`, **`cancelledAt`** (`null` \| ISO8601), wynik addytywny gdy jest (`ideas` / `content` / `contents` / `reelIdeas` / `reelScript` / `reelScripts` / `pageOutline` / `pageDocument`), metadane HITL (`options` wg `taskType`).
+R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) **oraz** `conversationId`, `brief` (kształt zapisany: `SocialBrief` albo `ContentBrief` wg `taskType`), `userRating`, `outputEdited`, `reviewFinalizedAt`, **`pipelineFinishedAt`**, **`reviewExpiresAt`** (wyliczane), **`cancelledAt`** (`null` \| ISO8601), wynik addytywny gdy jest (`ideas` / `content` / `contents` / `reelIdeas` / `reelScript` / `reelScripts` / `pageOutline` / `pageDocument`), metadane HITL (`options` wg `taskType`). Semantyka `pipelineFinishedAt` / `reviewExpiresAt` oraz zakaz side-effect na GET — R-10. Lista `GET /runs/user/:userId` **bez** tych dwóch pól TTL.
+
+Zmiana względem wersji 18 / R-3b: snapshot bez `pipelineFinishedAt` / `reviewExpiresAt`. Od tej wersji pola meta TTL na `GET /runs/:id` (i sukcesach mutacji przeglądu) — `docs/dokumentacja_komunikacji.md`.
 
 R-3d. `POST /runs` — unia dyskryminowana (`taskType`): Social wymaga `platform` i **zakazuje** `contentKind`; Content wymaga `contentKind` i **zakazuje** `platform` (zapis kolumny `platform='web'`). **Kształt `brief` XOR:** Social → `SocialBrief` (`ideaCount?`; zakaz `angle` / `targetLength`); Content → `ContentBrief` (`angle?` / `targetLength?`; zakaz `ideaCount`). Pola: `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`. Walidacja Zod `discriminatedUnion` w application + `.strict()` na gałęzi briefu — przez wspólny `parseWithZod` z `apps/api/src/shared/parse-with-zod.ts` (refaktor względem wcześniejszej lokalizacji `runs/application/parse-with-zod.ts`). DTO HTTP może mieć sumę kluczy briefu; prawda = Zod. `taskType` spoza enumu → HTTP **400** `VALIDATION_FAILED` (composite **nie** wołany). Page + `brief.ideaCount` albo Social + `brief.angle` → **400** `VALIDATION_FAILED`.
 
@@ -112,7 +116,7 @@ Zmiana względem wersji 11: pola wyniku SM/outline bez addytywnych kluczy kontra
 
 Zmiana względem wersji 2: snapshot ma obowiązkowe pola przeglądu (`userRating` zawsze `null` \| `1`…`5`; `outputEdited`; `reviewFinalizedAt`) zgodnie z `docs/dokumentacja_komunikacji.md`.
 
-R-3c. `GET /api/v1/runs/user/:userId` — **wszystkie** runy z `startedBy = :userId`, sort `createdAt` desc, **bez** stałego `pageSize=10`. Pozycja lekka: `runId`, `taskType`, `platform`, `language`, `status`, `createdAt`. `:userId` **musi** równać się id sesji; inaczej **403** `FORBIDDEN` (brak wyjątku admin w MVP). Konsumenci: select opinii **oraz** lista „Moje runy” na Koncie (live) (`docs/ux_dashboard.md`). Wynik runu — przez `GET /runs/:runId` (widok szczegółów), nie przez ten listing.
+R-3c. `GET /api/v1/runs/user/:userId` — **wszystkie** runy z `startedBy = :userId`, sort `createdAt` desc, **bez** stałego `pageSize=10`. Pozycja lekka: `runId`, `taskType`, `platform`, `language`, `status`, `createdAt`. **Bez** `pipelineFinishedAt` / `reviewExpiresAt` / pełnych metadanych przeglądu. `:userId` **musi** równać się id sesji; inaczej **403** `FORBIDDEN` (brak wyjątku admin w MVP). Konsumenci: select opinii **oraz** lista „Moje runy” na Koncie (live) (`docs/ux_dashboard.md`). Wynik runu — przez `GET /runs/:runId` (widok szczegółów), nie przez ten listing.
 
 Zmiana względem wersji 15 / R-3c: endpoint był opisany wyłącznie pod select opinii.
 
@@ -164,15 +168,23 @@ Zmiana względem wersji 17 / R-9: brak gałęzi `cancelRequested`. Od tej wersji
 R-10. Przegląd runu (po pipeline; **nie** HITL):
 
 1. `userRating` na runie **zawsze istnieje**: `null` (autor nie zostawił gwiazdek) albo `1`…`5`. Domyślnie `null`.
-2. Ocena, flaga edycji i finalize dozwolone wyłącznie gdy status `completed` **albo** `failed` (w tym przebieg z edycją outputu). **`cancelled` nie otwiera przeglądu** — **409** `RUN_NOT_REVIEWABLE`. Inny status nieterminalny → ten sam kod.
+2. Ocena, flaga edycji i finalize dozwolone wyłącznie gdy status `completed` **albo** `failed` (w tym przebieg z edycją outputu). **`cancelled` nie otwiera przeglądu** — **409** `RUN_NOT_REVIEWABLE`; `pipelineFinishedAt` przy `cancelled` i statusach nieterminalnych zawsze `null`. Inny status nieterminalny → ten sam kod.
 3. Wyłącznie `startedBy` (sesja). Inna sesja → **403** `FORBIDDEN`.
-4. Do `reviewFinalizedAt === null`: autor może wielokrotnie `PATCH .../rating` (w tym z powrotem na `null`) oraz wielokrotnie `POST .../output-edited` z body `{ result }` — zapis **zastępuje** kanoniczny wynik runu (klucze `result` właściwe dla `taskType`, kształt jak snapshot) **oraz** stawia `outputEdited: true` (flaga jednokierunkowa). Pipeline / graf **nie** startują. Kardynalność tablic i `sourceIdeaId` / `id` pozycji bez zmian (edycja treści, nie nowy zestaw id). `characterCount` = `body.length` po stronie api.
-5. `POST .../finalize-review` ustawia `reviewFinalizedAt`. Potem `PATCH` oceny i `POST` edycji → **409** `REVIEW_LOCKED`. Ponowne finalize → `REVIEW_LOCKED`.
-6. Finalize przy `userRating: null` jest legalne (świadomy brak gwiazdek).
+4. Legalny transition → `completed` \| `failed` ustawia **`pipelineFinishedAt` raz** (nie nadpisywać przy kolejnych zapisach wiersza). Kotwica okna przeglądu.
+5. Okno otwarte iff `reviewFinalizedAt === null` **oraz** `now < pipelineFinishedAt + REVIEW_TTL` (`REVIEW_TTL` — env, default `2h`, parser jak `INVITE_TTL`, fail-fast w `env.schema`; kanon env: `docs/deployment.md`).
+6. W oknie: autor może wielokrotnie `PATCH .../rating` (w tym z powrotem na `null`) oraz wielokrotnie `POST .../output-edited` z body `{ result }` — zapis **zastępuje** kanoniczny wynik runu (klucze `result` właściwe dla `taskType`, kształt jak snapshot) **oraz** stawia `outputEdited: true` (flaga jednokierunkowa). Pipeline / graf **nie** startują. Kardynalność tablic i `sourceIdeaId` / `id` pozycji bez zmian (edycja treści, nie nowy zestaw id). `characterCount` = `body.length` po stronie api.
+7. `POST .../finalize-review` (tylko w oknie) ustawia `reviewFinalizedAt`. Potem `PATCH` oceny i `POST` edycji → **409** `REVIEW_LOCKED`. Ponowne finalize → `REVIEW_LOCKED`.
+8. Po TTL (`now ≥ pipelineFinishedAt + REVIEW_TTL`), gdy `reviewFinalizedAt` jeszcze `null`: mutacje rating / output-edited / finalize → **409** `REVIEW_LOCKED` **bez** UPDATE `reviewFinalizedAt` i **bez** zmiany `userRating` / `outputEdited` / `result`. Trwały lock w DB poza ręcznym finalize = **tylko sweeper** (pkt 9).
+9. Sweeper auto-finalize (boot api **oraz** okresowo wg `REVIEW_SWEEP_INTERVAL`, default `5m`, ten sam styl stringa TTL): batch UPDATE `reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL` dla wierszy z `pipelineFinishedAt` ustawionym, `reviewFinalizedAt === null` i miniętym oknem. **Bez** zmiany `userRating` / `outputEdited` / `result`. **Bez** `DELETE` runu. Wyłączenie api **nie** przedłuża okna; boot domyka zaległe (także legacy po backfillu kotwicy — `SPEC-PERSISTENCE.md`).
+10. Snapshot `GET /runs/:id` oraz **sukcesy** mutacji przeglądu niosą `pipelineFinishedAt` i wyliczone **`reviewExpiresAt`**: `null` gdy brak `pipelineFinishedAt` **albo** `reviewFinalizedAt !== null`; inaczej ISO (`pipelineFinishedAt + REVIEW_TTL`) — także **po** TTL, zanim sweeper zapisze lock. GET **bez** side-effectów (zakaz finalize / UPDATE przy odczycie). Lista `GET /runs/user/:userId` **bez** tych pól.
+11. Finalize przy `userRating: null` jest legalne (świadomy brak gwiazdek), o ile okno otwarte.
+12. TTL / auto-finalize przeglądu **nie** blokuje `POST /feedback` (`SPEC-FEEDBACK.md`).
 
-Zmiana względem wersji 14 / R-10 pkt 4: `POST .../output-edited` tylko stawiało flagę i **nie** nadpisywało payloadu wyniku. Od tej wersji zapis edycji **jest** kanonicznym `result` (`docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`).
+Zmiana względem wersji 14 / R-10 (wcześniejszy pkt 4): `POST .../output-edited` tylko stawiało flagę i **nie** nadpisywało payloadu wyniku. Od tej wersji zapis edycji **jest** kanonicznym `result` (`docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`).
 
 Zmiana względem wersji 17 / R-10: okno `completed` \| `failed` bez jawnego rozróżnienia od opinii na `cancelled`. Od tej wersji przegląd **nadal** tylko `completed` \| `failed`; opinia tekstowa na `cancelled`+wynik → `SPEC-FEEDBACK.md` Fbk-3a (nie ten wymóg).
+
+Zmiana względem wersji 18 / R-10: przegląd otwarty do ręcznego finalize **bez limitu czasu**; `REVIEW_LOCKED` wyłącznie po `reviewFinalizedAt`. Od tej wersji okno = `pipelineFinishedAt` + `REVIEW_TTL`; mutacja po TTL = sam 409 bez CAS; sweeper (boot + interval) jedyny auto-zapis locka; `reviewExpiresAt` wyliczane; GET bez side-effect — `docs/dictionary.md`, `docs/data_flow.md`, `docs/dokumentacja_komunikacji.md`.
 
 R-11. Anulowanie runu (`cancelled`) — Stop / decyzja operatora (**nie** błąd agenta, **nie** recovery):
 
@@ -197,7 +209,7 @@ R-11. Anulowanie runu (`cancelled`) — Stop / decyzja operatora (**nie** błąd
 apps/api/src/runs/
 ├── runs.module.ts
 ├── runs.controller.ts           # list, snapshot, logs, events SSE, hitl, cancel, user/:userId, rating, output-edited, finalize
-├── application/                 # list, start, enqueue, resume hitl, cancel, recovery on boot; StartRunCommand unia
+├── application/                 # list, start, enqueue, resume hitl, cancel, recovery on boot; auto-finalize sweeper; StartRunCommand unia
 ├── domain/                      # status transitions, isRetryable, porty (w tym attemptCancel); SocialBrief / ContentBrief; RunRecord unia taskType
 └── infrastructure/              # Prisma run/log, SSE hub / subject
 ```
@@ -211,7 +223,7 @@ Wolno wydzielić kernel Nest (lifecycle + repo + hub) od HTTP/workera **w tym sa
 | Anulowanie | `attemptCancel` (CAS) + `cancelRequested` + abort in-process (R-11); HTTP **nie** awaituje execute |
 | Licznik recovery | Pole / metadane runu (np. `recoveryAttempts`), cap = 3; cancel **nie** zużywa |
 | Idempotencja HITL | Tylko ze statusu `awaiting_hitl` |
-| Przegląd | `userRating` + kanoniczny wynik po Edytuj + `outputEdited` + `reviewFinalizedAt`; lock po finalize; **bez** `cancelled` |
+| Przegląd | `userRating` + kanoniczny wynik po Edytuj + `outputEdited` + `reviewFinalizedAt` + `pipelineFinishedAt`; okno `REVIEW_TTL`; mutacja po TTL = 409 bez UPDATE locka; sweeper boot+interval; **bez** `cancelled` |
 | Port lifecycle | Token + interfejs `appendLog` + `transition` w `domain/`; graf zależy od portu, nie od klasy `RunLifecycleService` |
 | Port executor | Token `RunExecutorPort` w Runs; **composite** w kleju wpinający Social i Content; **binding w `AppModule` / `registerAsync`**; `execute` z `AbortSignal` |
 | Odczyt snapshotu `result`/`hitl` | Composite reader; **zakaz** wstrzykiwania store Social/Content do use-case’u Runs przez `imports: [SocialModule]` / `ContentModule` |
@@ -222,6 +234,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 
 - Po `POST /runs` od razu `running`, jeśli jest wolny slot; w przeciwnym razie `queued`.
 - Przy starcie api uruchomić use-case recovery (`running` → `interrupted` / `failed`) przed podejmowaniem nowych `queued`.
+- Przy starcie api (boot) oraz okresowo wg `REVIEW_SWEEP_INTERVAL` uruchomić sweeper auto-finalize wygasłych przeglądów (R-10 pkt 9); boot **zawsze** raz niezależnie od interwału.
 - Claim `interrupted → running` pod tym samym capem co `queued`; priorytet `interrupted` w drain.
 - Emitować SSE przy każdym udanym `appendLog` i każdej legalnej zmianie statusu (w tym do/z `interrupted`).
 - Domykać i usuwać subject huba wyłącznie po `completed` / `failed` / `cancelled` (R-4a).
@@ -230,6 +243,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Leftover z `cancelRequested` finalizować do `cancelled` na bootcie (R-9).
 - `startedBy` nullable wyłącznie dla historycznych / pre-auth przebiegów testowych; po domknięciu auth na api nowe runy zawsze z inicjatorem.
 - Trzymać `userRating: null` jako jawny brak oceny (nie pomijać pola w snapshotcie).
+- Ustawiać `pipelineFinishedAt` raz przy transition → `completed` \| `failed`; wyliczać `reviewExpiresAt` w snapshotcie i sukcesach mutacji przeglądu (R-10).
 - Zapis edycji wyniku przez `POST .../output-edited` (nadpis store wyniku Social/Content przez porty odczytu/zapisu wyniku — **nie** przez graf).
 - `RunsModule.registerAsync` (lub równoważny klej w `AppModule`) wpinające **composite** `RunExecutorPort` (Social + Content) — bez `forwardRef`.
 - Domyślną (pustą) implementację portu odczytu wyniku w Runs, podmienianą w kleju na composite reader.
@@ -260,7 +274,12 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Listy tylko „moje runy” jako **jedynego** trybu MVP (norma: archiwum instancji `GET /runs` **oraz** `GET /runs/user/:userId`). UI Runy filtruje terminalne; API bez `status` nadal zwraca całą instancję.
 - Zmiennego `pageSize` / dowolnego `limit` z query na `GET /runs` w MVP (stałe 10). `GET /runs/user/:userId` jest **osobnym** wyjątkiem bez tej paginacji — nie mylić z R-3a.
 - Oceny / edycji wyniku / finalize na runie obcego `startedBy`.
-- Zmiany `userRating` / treści wyniku / `outputEdited` po `reviewFinalizedAt`.
+- Zmiany `userRating` / treści wyniku / `outputEdited` po `reviewFinalizedAt` **albo** po minięciu `REVIEW_TTL` (produktowo locked — R-10).
+- UPDATE `reviewFinalizedAt` przy mutacji po TTL (lock w DB poza ręcznym finalize = wyłącznie sweeper).
+- Finalize / UPDATE `reviewFinalizedAt` przy GET snapshot (zakaz side-effect — R-10 pkt 10).
+- Timera in-memory / `setTimeout` per run jako „TTL przeglądu” (obowiązuje kotwica DB + sweeper).
+- TTL od `createdAt` startu runu albo bieżącego `updatedAt` jako kotwicy okna po wdrożeniu (kotwica = `pipelineFinishedAt`; `updatedAt` tylko jednorazowy backfill — `SPEC-PERSISTENCE.md`).
+- `DELETE` runu / wyniku w ramach auto-finalize.
 - Mylenia finalize / Edytuj z HITL.
 - Re-invoke grafu Social / Content przy zapisie edycji.
 - Zmiany `sourceIdeaId` albo liczby pozycji tablic wyniku przy Edytuj.
@@ -284,6 +303,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz jednego `RunBrief` i `as` na JSON briefu (`docs/dokumentacja_komunikacji.md`).
 Zmiana względem wersji 13 / „Nie wolno”: zakaz `length !== 1` na Social zastąpiony zakazem pustej / duplikat / obcy id; dopisano zakaz aliasu skalar = `contents[0]`.
 Zmiana względem wersji 14 / „Nie wolno”: Edytuj nie mogło nadpisywać `result`; od tej wersji zakaz dotyczy re-invoke grafu oraz zmiany `sourceIdeaId` / kardynalności — persist treści jest w R-10.
+Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET side-effect. Od tej wersji R-10 z limitem czasu i lockiem tylko przez sweeper.
 
 ### Zatwierdzony stack (obszar)
 
@@ -298,11 +318,12 @@ Zmiana względem wersji 14 / „Nie wolno”: Edytuj nie mogło nadpisywać `res
 | In-process worker + `MAX_CONCURRENT_RUNS` (default 3) + `AbortController` per run (R-11) | obowiązkowe |
 | Anulowanie: `POST .../cancel`, `attemptCancel`, `cancelRequested`, `cancelledAt` (R-11) | obowiązkowe w MVP |
 | Recovery: leftover `running` → `interrupted` → claim pod capem; leftover + `cancelRequested` → `cancelled`; max 3 × `isRetryable` → `failed` | obowiązkowe |
-| Pola przeglądu `userRating` / `outputEdited` / `reviewFinalizedAt` + zapis kanonicznego `result` przy Edytuj + `GET /runs/user/:userId` | obowiązkowe w **MVP** (fundament zapisu) |
+| Pola przeglądu `userRating` / `outputEdited` / `reviewFinalizedAt` / `pipelineFinishedAt` + wyliczone `reviewExpiresAt` + zapis kanonicznego `result` przy Edytuj + `GET /runs/user/:userId` | obowiązkowe w **MVP** (fundament zapisu) |
+| `REVIEW_TTL` (default `2h`) + `REVIEW_SWEEP_INTERVAL` (default `5m`) + sweeper boot+okresowy (R-10) | obowiązkowe w **MVP** |
 | Osobny worker process / per-user limit / TTL logów | poza MVP |
 | Abort na gateway / providerze LLM; admin cancel; resume po cancel; rollback wyniku | poza v1 / poza MVP |
 | Self-register grafów / `@Global()` na BC grafu jako klej | poza MVP (i zakazane jako obejście cyklu) |
-| Stopień edycji outputu / zmiana oceny po finalize | poza MVP |
+| Stopień edycji outputu / zmiana oceny po finalize; HITL TTL; multi-instance sweeper / distributed lock | poza MVP |
 
 ## Kryteria akceptacji
 
@@ -311,8 +332,9 @@ Zmiana względem wersji 14 / „Nie wolno”: Edytuj nie mogło nadpisywać `res
 - [ ] Po `completed`/`failed`/`cancelled` hub nie zatrzymuje subjectu danego `runId`; `awaiting_hitl` / `interrupted` nie evikują subjectu; przy cancelu kolejność `run.status` → `run.cancelled` → complete.
 - [ ] `GET /runs` zwraca listę instancji z paginacją 10, sortem `createdAt` desc, filtrami i `startedBy`; archiwum UI filtruje `completed,failed,cancelled`.
 - [ ] `GET /runs/user/:userId` zwraca wszystkie runy sesji; cudzy id → 403.
-- [ ] Snapshot zawiera `userRating` (`null` \| 1–5), `outputEdited`, `reviewFinalizedAt`, `cancelledAt` (`null` \| ISO8601).
-- [ ] Ocena i Edytuj (zapis treści + flaga) działają na `completed` i `failed` tylko dla autora; na `cancelled` → `RUN_NOT_REVIEWABLE`; po finalize → `REVIEW_LOCKED`; GET snapshot po Edytuj zwraca treść użytkownika.
+- [ ] Snapshot zawiera `userRating` (`null` \| 1–5), `outputEdited`, `reviewFinalizedAt`, `pipelineFinishedAt`, `reviewExpiresAt`, `cancelledAt` (`null` \| ISO8601).
+- [ ] Ocena i Edytuj (zapis treści + flaga) działają na `completed` i `failed` tylko dla autora w oknie TTL; na `cancelled` → `RUN_NOT_REVIEWABLE`; po finalize **albo** po TTL → `REVIEW_LOCKED` (po samym TTL **bez** UPDATE `reviewFinalizedAt`); GET snapshot po Edytuj zwraca treść użytkownika; GET **nie** ustawia finalize.
+- [ ] Transition → `completed`/`failed` ustawia `pipelineFinishedAt` raz; sweeper (boot / interval) ustawia `reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL` dla zaległych; restart api nie odmraża wygasłego przeglądu.
 - [ ] `POST .../cancel`: `startedBy` → 200 + `cancelled` (+ idempotencja); obcy → 403; `completed`/`failed` → 409 `RUN_NOT_CANCELABLE`; HTTP nie awaituje execute; abort in-process po CAS.
 - [ ] Przy zajętych slotach nowy run jest `queued` i startuje po zwolnieniu slotu (globalny limit, default 3); `interrupted` ma priorytet nad `queued`.
 - [ ] Po restarcie api: `awaiting_hitl` bez zmian; leftover `running` bez flagi → `interrupted` (claim pod `MAX_CONCURRENT_RUNS`); leftover `running`/`interrupted` **z** `cancelRequested` → `cancelled` (bez `recoveryAttempts++`); po 3 przerwanych execute → `failed` z logiem. N leftover przy `MAX=1` → jeden execute naraz, reszta zostaje `interrupted`.
@@ -335,4 +357,5 @@ Zmiana względem wersji 14 / „Nie wolno”: Edytuj nie mogło nadpisywać `res
 - Limit współbieżności per użytkownik.
 - Abort na `apps/ai-provider-gateway` / providerze; admin cancel; `reason` w body cancel; resume / rollback.
 - Panel odczytu ocen / analityka (V1 — rozbudowa).
+- TTL / auto-akcja dla `awaiting_hitl`; blokada `POST /feedback` po TTL przeglądu; `reviewFinalizedBy`; multi-instance api / distributed lock sweepera.
 - Opinie tekstowe → `SPEC-FEEDBACK.md`.
