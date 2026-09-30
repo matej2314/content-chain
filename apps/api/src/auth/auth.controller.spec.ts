@@ -126,7 +126,7 @@ describe('AuthController', () => {
     expect(isPublic(proto.postRefresh)).toBe(true);
     expect(isPublic(proto.postLogout)).toBe(false);
     expect(isPublic(proto.getMe)).toBe(false);
-    expect(isPublic(proto.patchMe)).toBe(false);
+    expect(isPublic(proto.patchMeEmail)).toBe(false);
 
     expect(Reflect.getMetadata('path', proto.getBootstrapStatus)).toBe(
       'bootstrap-status',
@@ -141,7 +141,7 @@ describe('AuthController', () => {
     expect(Reflect.getMetadata('path', proto.postRefresh)).toBe('refresh');
     expect(Reflect.getMetadata('path', proto.postLogout)).toBe('logout');
     expect(Reflect.getMetadata('path', proto.getMe)).toBe('me');
-    expect(Reflect.getMetadata('path', proto.patchMe)).toBe('me');
+    expect(Reflect.getMetadata('path', proto.patchMeEmail)).toBe('me/email');
 
     expect(Reflect.getMetadata('method', proto.getBootstrapStatus)).toBe(
       RequestMethod.GET,
@@ -152,7 +152,7 @@ describe('AuthController', () => {
     expect(Reflect.getMetadata('method', proto.postAcceptInvite)).toBe(
       RequestMethod.POST,
     );
-    expect(Reflect.getMetadata('method', proto.patchMe)).toBe(
+    expect(Reflect.getMetadata('method', proto.patchMeEmail)).toBe(
       RequestMethod.PATCH,
     );
   });
@@ -288,8 +288,11 @@ describe('AuthController', () => {
     expect(setAuthCookies).not.toHaveBeenCalled();
   });
 
-  it('delegates PATCH me to UpdateMeEmailUseCase', async () => {
-    const body = { email: 'new@example.com' };
+  it('delegates PATCH me/email to UpdateMeEmailUseCase', async () => {
+    const body = {
+      email: 'new@example.com',
+      currentPassword: 'Password12!!',
+    };
     const updated = {
       id: sessionUser.id,
       email: body.email,
@@ -297,7 +300,9 @@ describe('AuthController', () => {
     };
     updateMeEmail.execute.mockResolvedValue(updated);
 
-    await expect(controller.patchMe(sessionUser, body)).resolves.toBe(updated);
+    await expect(controller.patchMeEmail(sessionUser, body)).resolves.toBe(
+      updated,
+    );
     expect(updateMeEmail.execute).toHaveBeenCalledWith(sessionUser, body);
     expect(setAuthCookies).not.toHaveBeenCalled();
   });

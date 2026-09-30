@@ -1,18 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { z } from 'zod';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { parseWithZod } from '../../shared/parse-with-zod';
 import {
   USER_REPOSITORY,
   type UserRepository,
 } from '../domain/user-repository.port';
+import { comparePassword } from './auth.helpers';
+import { updateMeEmailSchema } from './auth.schemas';
 import type { AuthUserContext } from '../domain/auth-user.types';
-
-const updateEmailSchema = z
-  .object({
-    email: z.string().email(),
-  })
-  .strict();
 
 @Injectable()
 export class UpdateMeEmailUseCase {
@@ -24,15 +19,24 @@ export class UpdateMeEmailUseCase {
     context: AuthUserContext,
     input: unknown,
   ): Promise<Pick<AuthUserContext, 'id' | 'email' | 'role'>> {
-    const command = parseWithZod(updateEmailSchema, input);
+    const command = parseWithZod(updateMeEmailSchema, input);
 
-    const current = await this.users.findById(context.id);
-    if (!current || !current.isActive) {
+    const current = await this.users.findForAuth(context.email);
+    if (!current || !current.isActive || current.id !== context.id) {
       throw new DomainException(
         'UNAUTHORIZED',
         'User not found or inactive',
         401,
       );
+    }
+
+    const isPasswordValid = await comparePassword(
+      command.currentPassword,
+      current.passwordHash,
+    );
+
+    if (!isPasswordValid) {
+      throw new DomainException('INVALID_PASSWORD', 'Invalid password', 401);
     }
 
     if (current.email === command.email) {

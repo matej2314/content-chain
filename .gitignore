@@ -21,7 +21,9 @@ dist/
 
 graphify-out/cache/
 graphify-out/2026-*
-*-plan.md
+# *-plan.md
+guest-role-plan.md
+auto-close-review-plan.md
 
 
 

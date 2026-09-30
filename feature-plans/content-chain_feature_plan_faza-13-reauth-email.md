@@ -66,7 +66,7 @@ Odpowiada major **Faza 13** (implementacja HOW). Jedna faza w tym zestawie.
 
 ### KROK 1 — Schema Zod `{ email, currentPassword }`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Wspólny schemat application dla A-3b w `auth.schemas.ts` (`.strict()`, `currentPassword` niepusty, bez A-5). `SPEC-AUTH.md` A-3b, `docs/dokumentacja_komunikacji.md`.
 
@@ -132,7 +132,7 @@ export type PatchUserCommand = z.infer<typeof patchUserSchema>;
 
 ### KROK 2 — `UpdateMeEmailUseCase`: re-auth
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Po Zod: załadować użytkownika sesji z hashem (`findForAuth(context.email)`), zweryfikować `comparePassword` jak login — **bez** A-5. Złe hasło → `INVALID_PASSWORD`. Brak / nieaktywny / mismatch id → `UNAUTHORIZED`. Mutacja emaila **jeszcze nie** — po udanym re-auth zwracamy bieżącą tożsamość (intermediate pod KROK 3). `SPEC-AUTH.md` A-3b, `SPEC-BEZPIECZENSTWO.md` B-8a, `docs/security.md`.
 
@@ -269,7 +269,7 @@ export class UpdateMeEmailUseCase {
 
 ### KROK 3 — `UpdateMeEmailUseCase`: mutacja dopiero po re-auth
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Po udanym re-auth: ten sam email → **200** bez UPDATE; zajęty (w tym soft-deleted) → **409**; inaczej `updateEmail`. Złe hasło **nadal** wygrywa nad 409 (kolejność z KROK 2). `SPEC-AUTH.md` A-3b, `SPEC-TESTY.md` D-27.
 
@@ -403,7 +403,7 @@ export class UpdateMeEmailUseCase {
 
 ### KROK 4 — HTTP: `PATCH /auth/me/email`; usunięcie mutacji z `PATCH /auth/me`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Osobna trasa mutacji; `GET /auth/me` bez zmian; brak `patchMe` na `me`. `SPEC-AUTH.md` A-3b / A-3a, `SPEC-KOMUNIKACJA.md` K-2d.
 
@@ -537,7 +537,7 @@ Upewnij się, że operacja `PATCH /api/v1/auth/me` **nie** istnieje w dokumencie
 
 ### KROK 5 — Testy: unit use-case + Postman Own email (D-27)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Pokrycie D-27 na unit (application) + artefakt E2E Postman (T-5, jak D-23). `SPEC-TESTY.md` D-27.
 

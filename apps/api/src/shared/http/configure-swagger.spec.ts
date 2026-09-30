@@ -167,9 +167,9 @@ describe('SwaggerModule.createDocument (auth + users + health)', () => {
     expect(getOperation(document, '/api/v1/auth/me', 'get').security).toEqual([
       { [COOKIE_AUTH_NAME]: [] },
     ]);
-    expect(getOperation(document, '/api/v1/auth/me', 'patch').security).toEqual(
-      [{ [COOKIE_AUTH_NAME]: [] }],
-    );
+    expect(
+      getOperation(document, '/api/v1/auth/me/email', 'patch').security,
+    ).toEqual([{ [COOKIE_AUTH_NAME]: [] }]);
     expect(getOperation(document, '/api/v1/users', 'get').security).toEqual([
       { [COOKIE_AUTH_NAME]: [] },
     ]);

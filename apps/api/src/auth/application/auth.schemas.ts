@@ -1,14 +1,21 @@
 import { z } from 'zod';
 
 export const bootstrapAdminSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(1),
 });
 
 export const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(1),
 });
+
+export const updateMeEmailSchema = z
+  .object({
+    email: z.email(),
+    currentPassword: z.string().min(1),
+  })
+  .strict();
 
 export const patchUserSchema = z
   .object({
@@ -18,4 +25,5 @@ export const patchUserSchema = z
 
 export type BootstrapAdminInput = z.infer<typeof bootstrapAdminSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type UpdateMeEmailInput = z.infer<typeof updateMeEmailSchema>;
 export type PatchUserCommand = z.infer<typeof patchUserSchema>;

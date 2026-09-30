@@ -126,9 +126,12 @@ export class AuthController {
   }
 
   @ApiCookieAuth(COOKIE_AUTH_NAME)
-  @Patch('me')
+  @Patch('me/email')
   @HttpCode(200)
-  async patchMe(@CurrentUser() user: AuthUserContext, @Body() body: unknown) {
+  async patchMeEmail(
+    @CurrentUser() user: AuthUserContext,
+    @Body() body: unknown,
+  ) {
     return this.updateMeEmail.execute(user, body);
   }
 }
