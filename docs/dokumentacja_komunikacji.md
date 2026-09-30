@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-29
+data_modyfikacji: 2026-09-30
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -164,8 +164,9 @@ Bez zmiany hasła konta, roli i `isActive`. Bez maila potwierdzającego w MVP (c
 Zmiana względem: `PATCH /auth/me` z body `{ email, currentPassword }` i złe hasło jako `UNAUTHORIZED`.  
 Zmiana względem: body tylko `{ "email" }` bez re-auth.  
 Zmiana względem: self-service email poza MVP; brak tej trasy.
+Zmiana względem: flow FE wymagał `code` + `message` pod polem hasła. Od tej wersji pod polem obowiązuje wyłącznie **`message`** (kształt envelope HTTP z `code` bez zmian).
 
-**Flow FE (norma produktowa):** po starcie aplikacji → `GET /auth/me`; przy **401** `UNAUTHORIZED` → `POST /auth/refresh`; potem ponownie `GET /auth/me`; przy kolejnym **401** `UNAUTHORIZED` → **strona główna (karta logowania)**. Ten sam cykl na produktowych wywołaniach przy sesyjnym **401** `UNAUTHORIZED`. **401** `INVALID_PASSWORD` (re-auth przy `PATCH /auth/me/email`) **nie** wchodzi w ten cykl — `code` + `message` pod polem hasła, sesja zostaje. Gdy `bootstrap-status.available === true`, submit tej karty woła bootstrap zamiast loginu. Dashboard tylko po sesji. Przycisk „Zarejestruj się!” na stronie głównej jest nieaktywny w MVP.
+**Flow FE (norma produktowa):** po starcie aplikacji → `GET /auth/me`; przy **401** `UNAUTHORIZED` → `POST /auth/refresh`; potem ponownie `GET /auth/me`; przy kolejnym **401** `UNAUTHORIZED` → **strona główna (karta logowania)**. Ten sam cykl na produktowych wywołaniach przy sesyjnym **401** `UNAUTHORIZED`. **401** `INVALID_PASSWORD` (re-auth przy `PATCH /auth/me/email`) **nie** wchodzi w ten cykl — `message` pod polem hasła, sesja zostaje. Gdy `bootstrap-status.available === true`, submit tej karty woła bootstrap zamiast loginu. Dashboard tylko po sesji. Przycisk „Zarejestruj się!” na stronie głównej jest nieaktywny w MVP.
 
 #### `POST /api/v1/auth/accept-invite` (publiczny)
 

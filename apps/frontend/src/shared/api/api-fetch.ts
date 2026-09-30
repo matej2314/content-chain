@@ -63,17 +63,35 @@ export async function apiFetch(path: string, options: ApiFetchOptions = {}): Pro
 
   let response = await execute();
 
-  if (response.status === 401 && !skipAuthRefresh) {
-    const refreshed = await refreshSession();
-    if (refreshed) {
-      response = await execute();
-    }
-  }
-
   if (response.status === 401) {
-    if (!skipAuthRefresh) unauthorizedHandler?.();
-    const body = await parseBody(response);
-    throw toApiError(response.status, body);
+    const firstBody = await parseBody(response);
+    const firstEnvelope = parseApiErrorEnvelope(firstBody);
+
+    // Re-auth (A-3b): nie jest wygaśnięciem sesji — F-4a nie dotyczy.
+    if (firstEnvelope?.code === 'INVALID_PASSWORD') {
+      throw toApiError(401, firstBody);
+    }
+
+    if (!skipAuthRefresh) {
+      const refreshed = await refreshSession();
+      if (refreshed) {
+        response = await execute();
+        if (response.status === 401) {
+          unauthorizedHandler?.();
+          const retryBody = await parseBody(response);
+          throw toApiError(401, retryBody);
+        }
+        const retryBody = await parseBody(response);
+        if (!response.ok) {
+          throw toApiError(response.status, retryBody);
+        }
+        return retryBody;
+      }
+      unauthorizedHandler?.();
+      throw toApiError(401, firstBody);
+    }
+
+    throw toApiError(401, firstBody);
   }
 
   const body = await parseBody(response);

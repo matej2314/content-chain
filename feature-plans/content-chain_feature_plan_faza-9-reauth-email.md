@@ -55,7 +55,7 @@ Odpowiada major **Faza 9**.
 
 ### KROK 1 — Kontrakt klienta: `apiFetch` + `patchOwnEmail`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Klient rozróżnia **401** `INVALID_PASSWORD` od wygaśnięcia sesji (`UNAUTHORIZED` / F-4a) oraz woła nową trasę A-3b. Major Faza 9; `SPEC-FRONTEND.md` F-4a; `SPEC-AUTH.md` A-3b; `docs/dokumentacja_komunikacji.md`.
 
@@ -219,7 +219,7 @@ export async function patchOwnEmail(input: {
 
 ### KROK 2 — `AccountEmailForm`: Dialog re-auth + recovery 409
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Widok Konto spełnia kanon Email z `docs/ux_dashboard.md` i checklistę F-8 w `SPEC-FRONTEND.md`. Refaktor względem historii 5.3.1 — modal zawsze, nie bezpośredni PATCH z formularza.
 

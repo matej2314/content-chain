@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-09-29
+data_modyfikacji: 2026-09-30
 ---
 
 # UX Dashboard — Content Chain
@@ -11,6 +11,8 @@ Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / desi
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`.
 
 Zmiana względem: brak modala potwierdzenia przed Stop w roboczym `cancel-run-state.md` — **unieważnione**. Obowiązuje modal **„Czy na pewno?”** (Tak = API cancel; Nie = zamknięcie, zero API). Archiwum Runy bez `cancelled` → z `cancelled` (`completed` \| `failed` \| `cancelled`). Floating box: po `cancelled` krótko label **„Anulowany”**, potem ukrycie pozycji po **200 ms** (doprecyzowanie kanonu „krótko pokazuje, potem się ukrywa”).
+
+Zmiana względem: błędy API w UI jako **`code` + `message`**. Od tej wersji w UI obowiązuje wyłącznie **`message`** z envelope (`code` zostaje w HTTP do logiki klienta).
 
 ## Założenia UX
 
@@ -104,7 +106,7 @@ Trzy kanały — **nie wolno** ich zlewać:
 |-------|--------------|------------|
 | **Dzieje się** | Moje runy, floating box, status na szczegółach + SSE | dopóki status live |
 | **Wydarzyło się** | Toast (Sonner) w layoutcie **po sesji** | sekundy; **nie** store, **nie** GET |
-| **Request padł przy formularzu / bloku** | envelope (`code` + `message`) w miejscu błędu | dopóki operator nie poprawi / nie zejdzie |
+| **Request padł przy formularzu / bloku** | envelope: `message` w miejscu błędu | dopóki operator nie poprawi / nie zejdzie |
 
 **Zmiana względem:** wcześniej brak warstwy „wydarzyło się”; jedyny sygnał poza envelope to live (box / Moje runy) i zmiana wiersza po 202. Od tej wersji toast **zastępuje ciszę** po udanej mutacji oraz po terminalu runu poza szczegółami — **nie** zastępuje boxa, chipa, kropek ani envelope.
 
@@ -112,7 +114,7 @@ Po `completed` / `failed` floating box **nadal znika**; po `cancelled` — krót
 
 ### Mapa MVP minimum
 
-Sukces toasta: **polski**, krótki tytuł. Błąd w toaście **tylko** gdy na tym evencie nie ma powierzchni envelope (w MVP minimum: **brak** takiego przypadku przy mutacjach formularza — 400/409 zostają przy polu). Gdy toast błędu kiedyś wejdzie (poza formularzem): **`code` + `message`** z envelope, **bez** mapy PL.
+Sukces toasta: **polski**, krótki tytuł. Błąd w toaście **tylko** gdy na tym evencie nie ma powierzchni envelope (w MVP minimum: **brak** takiego przypadku przy mutacjach formularza — 400/409 zostają przy polu). Gdy toast błędu kiedyś wejdzie (poza formularzem): **`message`** z envelope, **bez** mapy PL i **bez** pokazywania `code`.
 
 | Zdarzenie | Toast? | Copy (sukces) / zachowanie |
 |-----------|--------|----------------------------|
@@ -179,7 +181,7 @@ Osobna pozycja sidebara (admin i `user`). **Nie** zastępuje widoku Runy.
 
 | Blok | Zachowanie |
 |------|------------|
-| **Email** | Formularz nowego adresu → **Zapisz email** → **zawsze** modal: pole email (prefill = draft, **disabled**) + pole aktualnego hasła + Anuluj / Potwierdź. Potwierdź **zawsze** → `PATCH /api/v1/auth/me/email` `{ email, currentPassword }` (brak stanu „już zweryfikowany”). Złe hasło (**401** `INVALID_PASSWORD`) / `VALIDATION_FAILED` hasła → `code` + `message` **pod polem hasła**; stan disabled emaila **bez zmian** (przed 409: zostaje **disabled**; **po 409**: zostaje **odblokowany**); **bez** toastu; **bez** refresh/wylogowania przy `INVALID_PASSWORD`. **409** `CONFLICT` → modal **otwarty**; **czyszczenie** pól email + hasło; **odblokowanie** inputu email; błąd **pod polem email**; ponowny Potwierdź znowu z hasłem. Sukces → zamknięcie modala, odświeżenie sesji (`GET /auth/me`), aktualizacja wyświetlanego emaila, **bez** toastu. Anuluj → zamknięcie modala, **zero** API; draft na formularzu Konta bez zmian względem otwarcia (edycja w modalu po 409 nie wraca na formularz). CTA „Zapisz email” **nie** jest disabled wyłącznie dlatego, że adres = obecny (re-auth i tak wymagany). **Bez** self-service zmiany hasła i **bez** usuwania konta na tym widoku |
+| **Email** | Formularz nowego adresu → **Zapisz email** → **zawsze** modal: pole email (prefill = draft, **disabled**) + pole aktualnego hasła + Anuluj / Potwierdź. Potwierdź **zawsze** → `PATCH /api/v1/auth/me/email` `{ email, currentPassword }` (brak stanu „już zweryfikowany”). Złe hasło (**401** `INVALID_PASSWORD`) / `VALIDATION_FAILED` hasła → `message` **pod polem hasła**; stan disabled emaila **bez zmian** (przed 409: zostaje **disabled**; **po 409**: zostaje **odblokowany**); **bez** toastu; **bez** refresh/wylogowania przy `INVALID_PASSWORD`. **409** `CONFLICT` → modal **otwarty**; **czyszczenie** pól email + hasło; **odblokowanie** inputu email; błąd **pod polem email**; ponowny Potwierdź znowu z hasłem. Sukces → zamknięcie modala, odświeżenie sesji (`GET /auth/me`), aktualizacja wyświetlanego emaila, **bez** toastu. Anuluj → zamknięcie modala, **zero** API; draft na formularzu Konta bez zmian względem otwarcia (edycja w modalu po 409 nie wraca na formularz). CTA „Zapisz email” **nie** jest disabled wyłącznie dlatego, że adres = obecny (re-auth i tak wymagany). **Bez** self-service zmiany hasła i **bez** usuwania konta na tym widoku |
 | **Moje runy** | Źródło: `GET /api/v1/runs/user/:userId` (`:userId` z `/auth/me`) — **wszystkie** statusy zalogowanego. Live: SSE per `runId` wyłącznie dla `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu). `queued` i terminalne: snapshot GET (wejście na Konto, po `POST /runs`, po evencie SSE innego własnego runu, focus okna). Przycisk **Stop** na wierszu **własnego** runu w statusie nieterminalnym (`queued` \| `running` \| `awaiting_hitl` \| `interrupted`) → modal **„Czy na pewno?”** → **Tak** = `POST .../cancel`; **Nie** = zamknięcie modala, **zero** API. Po sukcesie: odświeżenie wiersza (`cancelled`); `queued` bez SSE. Klik wiersza → **Run (szczegóły)**. Pełny wynik / HITL / przegląd na szczegółach, nie na liście |
 | **Start runu** | Formularz startu **inline** (ten sam brief co modal **„Uruchom agenta”** na Runach — nie drugi kontrakt). Select `taskType` obejmuje rolki i page_*; **`contentKind` gdy page_***; **platforma ukryta/disabled gdy page_***; język. Brief **zależny od `taskType`**: post_* / reel_* — temat + opcjonalnie grupa, cel, **liczba pomysłów** (bez kąta/długości); `page_*` — temat + opcjonalnie grupa, cel, **kąt**, **długość słów** (bez liczby pomysłów). CTA nie jest polem briefu. **Bez** `selectedIdeaIds`. Start disabled + wyjaśnienie, gdy agenci nieaktywni. Z wiersza **Moje runy**: **nowy** run z prefill `taskType` + brief + platforma/`contentKind` **ze snapshotu** `GET /runs/:runId` (lista user **nie** niesie `brief` / `contentKind`). Prefill **nie** dotyczy wiersza archiwum Runy. Po **202** **z tego widoku**: zostajemy na Koncie (nowy wiersz); nie wymuszamy od razu szczegółów |
 | **Opinia tekstowa** | Na Koncie dostępny zapis opinii (`POST /feedback`) — ten sam kanon co globalny CTA „Zostaw opinię” (aplikacja / agent / run; select runów: własne `completed` \| `failed` \| (`cancelled` **z** nie-`null` polem wyniku w snapshotcie)). Globalny CTA w layoutcie **zostaje** |
@@ -251,7 +253,8 @@ Zmiana względem: widok Users i accept-invite jako „przyszły FE / gdy ekran p
 
 - Brak admina: strona główna (ten sam formularz) → bootstrap → dashboard.
 - Pusty kontekst / po pierwszym wejściu admina: onboarding → uzupełnij kontekst → „Agenci aktywni”.
-- Błędy API (MVP): pokazać **`code` i `message` tak, jak zwraca envelope** (komunikaty API są po angielsku). **Bez** stack trace. Chrome i etykiety poza envelope — po polsku. Tłumaczenie UI (np. next-intl) = **V1 — rozbudowa**, nie MVP. Przy formularzu / błędzie GET bloku: envelope **w miejscu błędu** — **nie** toast (sekcja „Feedback zdarzeń”).
+- Błędy API (MVP): pokazać **wyłącznie `message` z envelope** (jak zwraca API; komunikaty są po angielsku). **`code` nie jest treścią UI** — służy logice klienta (gałęzie HTTP), nie etykiecie przy polu. **Bez** stack trace. Chrome i etykiety poza envelope — po polsku. Tłumaczenie UI (np. next-intl) = **V1 — rozbudowa**, nie MVP. Przy formularzu / błędzie GET bloku: `message` **w miejscu błędu** — **nie** toast (sekcja „Feedback zdarzeń”).
+  Zmiana względem: wcześniejsza norma wymagała pokazywania **`code` i `message`**. Od tej wersji w UI obowiązuje tylko **`message`**.
 - `failed` run: status + ostatnie logi z powodem (verifier / gateway) **zostają** na szczegółach. Toast terminalu poza szczegółami („Run nieudany”) **nie** jest magazynem powodu.
 - `cancelled` run: status **anulowany przez operatora** — **nie** błąd pipeline. Partial wynik widoczny jak przy `failed`; panel HITL i przegląd (gwiazdki / Edytuj / finalize) niedostępne. Toast mutacji / terminalu: „Run anulowany”.
 - `interrupted` run: status + informacja, że wznowienie czeka na wolny slot (bez panelu HITL i bez oceny).
@@ -263,7 +266,7 @@ Zmiana względem: widok Users i accept-invite jako „przyszły FE / gdy ekran p
 - `selectedIdeaIds` na formularzu **startu** runu (HITL dwuetapowy zostaje)  
 - `conversationId` w UI szczegółów runu (zostaje w API / logach)  
 - Limit **per-user** liczby runów w toku (MVP: tylko globalny `MAX_CONCURRENT_RUNS` na execute) — **obowiązkowy** temat **V1 — rozbudowa**  
-- i18n UI / next-intl (**V1 — rozbudowa**; MVP: PL w chrome, envelope błędów bez mapy tłumaczeń)  
+- i18n UI / next-intl (**V1 — rozbudowa**; MVP: PL w chrome, w UI błędów wyłącznie `message` z API bez mapy tłumaczeń)  
 - Panel administracyjny opinii / średnich ocen / analityki feedbacku (**V1 — rozbudowa**)  
 - Stopień edycji outputu (diff / procent / historia wersji) — w MVP zapis **zastępuje** wynik i stawia flagę; bez porównywania z outputem agentów  
 - Zmiana oceny po „Zamknij / zapisz przegląd”  

@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-29
+data_modyfikacji: 2026-09-30
 ---
 
 # Anty-patterny — Content Chain
@@ -11,6 +11,8 @@ Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego ź
 Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `security.md`.
 
 Zmiana względem: brak wierszy o `cancelled` / Stop. Od tej wersji zakazy utożsamiania terminali, resume po cancel, rollbacku, Stop w boxie, cancel bez modala, natychmiastowego ukrycia boxa bez labelu, podwójnego toasta, admin-cancel i await execute w HTTP cancel.
+
+Zmiana względem: „Envelope (`code` + `message`) w miejscu błędu”. Od tej wersji przy polu / bloku obowiązuje wyłącznie **`message`** (bez `code` w UI) — `docs/ux_dashboard.md`.
 
 ---
 
@@ -81,7 +83,7 @@ Zmiana względem: brak wierszy o `cancelled` / Stop. Od tej wersji zakazy utożs
 | Edytuj tylko jako flaga, przy kanonie „zapis treści” | UI i snapshot rozjeżdżają się z DB | Zapis edycji zastępuje kanoniczny wynik (`dokumentacja_komunikacji.md`, `ux_dashboard.md`) |
 | Select „wszystkie moje runy” przez łamanie `pageSize=10` na `GET /runs` | Psuje listę dashboardu | Osobny `GET /runs/user/:userId` (bez paginacji 10) |
 | Toast / Sonner jako kanał live statusu runu | Zlewa „dzieje się” z „wydarzyło się”; gubi SSE i box | SSE + box / Moje runy / szczegóły (`ux_dashboard.md`, `SPEC-FRONTEND.md` F-5) |
-| Toast na błąd walidacji / 400 przy polu | Operator traci envelope przy formularzu; druga mapa błędów | Envelope (`code` + `message`) w miejscu błędu |
+| Toast na błąd walidacji / 400 przy polu | Operator traci `message` przy formularzu; druga mapa błędów | Envelope: `message` w miejscu błędu (bez pokazywania `code`) |
 | Toast z payloadu `run.failed` jako jedyny powód porażki | Po reloadzie cisza; kanon powodu to logi | `run.log` + GET snapshot; toast tylko „nieudany” + link |
 | Store toasta w Context jako kopia GET | Fałszywy server state; drift z listą po odświeżeniu | Sonner efemeryczny; GET zostaje źródłem list |
 

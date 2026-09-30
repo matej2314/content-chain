@@ -24,11 +24,17 @@ export async function fetchUserSession(): Promise<SessionUser> {
   return parseSessionUser(body);
 }
 
-export async function patchOwnEmail(email: string): Promise<SessionUser> {
-  const body = await apiFetch('/auth/me', {
+export async function patchOwnEmail(input: {
+  readonly email: string;
+  readonly currentPassword: string;
+}): Promise<SessionUser> {
+  const body = await apiFetch('/auth/me/email', {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({
+      email: input.email,
+      currentPassword: input.currentPassword,
+    }),
   });
   return parseSessionUser(body);
 }

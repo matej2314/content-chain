@@ -2172,9 +2172,9 @@
     "semantic_hash": "7a69357bb31830d407c539fe9b9eab6d"
   },
   "docs/anty_patterny.md": {
-    "mtime": 1790704145.7256114,
-    "seen": 1790769705.9005811,
-    "ast_hash": "f6b6ae6c45cc7a14b40a39e5cfaac08f",
+    "mtime": 1790774177.7888398,
+    "seen": 1790774337.1456368,
+    "ast_hash": "fd0dc0eefc0034a8339154e2ff7ca1da",
     "semantic_hash": ""
   },
   "docs/architektura.md": {
@@ -2208,15 +2208,15 @@
     "semantic_hash": ""
   },
   "docs/dictionary.md": {
-    "mtime": 1790704139.7196617,
-    "seen": 1790769705.9005866,
-    "ast_hash": "57717aba54ea6fe0f3faca1961c0db6b",
+    "mtime": 1790774177.9734144,
+    "seen": 1790774337.1456432,
+    "ast_hash": "81e99f41f4da06cd7efa407c785d0d4b",
     "semantic_hash": ""
   },
   "docs/dokumentacja_komunikacji.md": {
-    "mtime": 1790704103.8849611,
-    "seen": 1790769705.9005876,
-    "ast_hash": "b2e86462b5adb4e4e03887b418159c3f",
+    "mtime": 1790774179.552504,
+    "seen": 1790774337.1456442,
+    "ast_hash": "fc6fd2e354b67064fc5ca2ebacea4dc3",
     "semantic_hash": ""
   },
   "docs/dokumentacja_koncepcyjna.md": {
@@ -2244,9 +2244,9 @@
     "semantic_hash": ""
   },
   "docs/ux_dashboard.md": {
-    "mtime": 1790704151.1097696,
-    "seen": 1790769705.9005919,
-    "ast_hash": "502b7b0d36de1a4af49762b71542147b",
+    "mtime": 1790774188.5978131,
+    "seen": 1790774337.1456537,
+    "ast_hash": "38a2340e321653bbbab11064c7e193ae",
     "semantic_hash": ""
   },
   "spec/SPEC-AUTH.md": {
@@ -2268,9 +2268,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-FRONTEND.md": {
-    "mtime": 1790704406.5223286,
-    "seen": 1790769705.900597,
-    "ast_hash": "a6d9373d1bc8cbbe889002c2029331c8",
+    "mtime": 1790774188.1504297,
+    "seen": 1790774337.145658,
+    "ast_hash": "07b961af504604a362013e0ffbe0be26",
     "semantic_hash": ""
   },
   "spec/SPEC-KOMUNIKACJA.md": {
@@ -3234,9 +3234,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/api/auth.api.ts": {
-    "mtime": 1789821094.0451674,
-    "seen": 1789821123.1342154,
-    "ast_hash": "61256c5a462042384c883289760bd86a",
+    "mtime": 1790771051.1786747,
+    "seen": 1790771069.4981353,
+    "ast_hash": "35136465da722d98bcc95a91ba4e74bb",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/event-source-registry.ts": {
@@ -3246,9 +3246,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/api/api-fetch.ts": {
-    "mtime": 1789476359.605029,
-    "seen": 1789476909.8610408,
-    "ast_hash": "2ce246367dd0dda7221f8b31f46ec5dd",
+    "mtime": 1790771049.012691,
+    "seen": 1790771069.4981844,
+    "ast_hash": "7383c225b74ff52d0d9bb3a2672df60b",
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/api/bff-proxy.ts": {
@@ -3720,9 +3720,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/account-email-form.tsx": {
-    "mtime": 1789821096.2208533,
-    "seen": 1789821123.1342187,
-    "ast_hash": "7ca01518bd91d521f8bb9b5435d173fa",
+    "mtime": 1790774320.1260433,
+    "seen": 1790774337.1455452,
+    "ast_hash": "62ee28cb24bf51a850a680576f57270c",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/users/api/invitations.api.ts": {

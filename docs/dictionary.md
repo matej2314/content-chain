@@ -1,7 +1,7 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-29
+data_modyfikacji: 2026-09-30
 ---
 
 # Słownik — Content Chain
@@ -181,7 +181,7 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 | **Swagger `/docs`** | DX OpenAPI UI `apps/api`, **poza** `/api/v1`. Zakaz montowania pod `/api` (kolizja z prefiksem produktowym). |
 | **JWT + httpOnly cookies** | Access w `cc_access` + refresh w `cc_refresh` (oba httpOnly) dla `apps/frontend` i Postmana; to samo auth dla SSE. Bez Bearer w MVP. |
 | **Envelope błędu CC** | JSON: `{ code, message, requestId, details? }`. |
-| **Toast (dashboard MVP)** | Efemeryczny sygnał UI po udanej mutacji / terminalu runu poza szczegółami. **Nie** jest elementem envelope HTTP i **nie** jest kanałem live. Copy sukcesu: PL (m.in. `POST .../cancel` **200** → **„Run anulowany”**; SSE terminal `cancelled` jak `completed`/`failed`, z dedupem względem toasta mutacji). Błąd: jak envelope (`code` + `message`), gdy w ogóle toastowany. Norma: `ux_dashboard.md`. |
+| **Toast (dashboard MVP)** | Efemeryczny sygnał UI po udanej mutacji / terminalu runu poza szczegółami. **Nie** jest elementem envelope HTTP i **nie** jest kanałem live. Copy sukcesu: PL (m.in. `POST .../cancel` **200** → **„Run anulowany”**; SSE terminal `cancelled` jak `completed`/`failed`, z dedupem względem toasta mutacji). Błąd: `message` z envelope (bez `code` w UI), gdy w ogóle toastowany. Norma: `ux_dashboard.md`. Zmiana względem: błąd toastowany jako `code` + `message`. |
 | **`x-request-id`** | Nagłówek korelacji HTTP **odpowiedzi** `apps/api` (to samo `RequestId` co w envelope). Klient **nie musi** go wysyłać. Przy chat/stream do gateway Content Chain **nie** ustawia tego nagłówka. |
 | **Health** | CC: `GET /api/v1/health` — liveness procesu `apps/api`. Gateway (upstream): `GET /api/v1/health` oraz `GET /api/v1/health/ready`. Zmiana względem: wcześniejsze hasło tylko liveness api, bez rozróżnienia gateway. |
 | **Metrics / Prometheus** | `GET /metrics` na `apps/api` — metryki operacyjne procesu; **nie** zamiennik logów runu. |

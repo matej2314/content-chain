@@ -1,7 +1,7 @@
 ---
-wersja: 27
+wersja: 28
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-29
+data_modyfikacji: 2026-09-30
 ---
 
 # SPEC — Frontend
@@ -81,7 +81,9 @@ F-6. Bramka „Agenci aktywni” i disable CTA startu runu — UX na bazie `GET 
 
 Zmiana względem wersji 24 / F-6: disable było opisane bez drugiej powierzchni; sens bramki **bez unieważnienia**.
 
-F-7. Język chrome / etykiet: **polski**. Envelope błędów MVP: pokazać **`code` i `message` jak z API** (angielskie `message` — bez mapy tłumaczeń). next-intl / i18n envelope = **V1 — rozbudowa**. Treści SM: PL/EN wg briefu runu. Formularz startu runu (**Konto inline oraz modal na Runach** — ten sam brief): pola briefu **wg `taskType`** — post/reel: liczba pomysłów, bez kąta/długości; `page_*`: kąt i długość opcjonalnie, **bez** liczby pomysłów (`docs/ux_dashboard.md`). Błędy przy formularzu / błędzie GET bloku = `code` + `message` **w miejscu błędu** (także w modalu). Toast **nie** zastępuje envelope przy polu. Toast sukcesu mutacji = **polski** tytuł (`docs/ux_dashboard.md`), **z wyjątkiem** `PATCH /auth/me/email` (sukces i błędy — **bez** toastu; envelope pod polami modala). Jeśli toast błędu (poza formularzem, gdy mapa UX na to zezwala): te same `code` + `message`, bez tłumaczenia.
+F-7. Język chrome / etykiet: **polski**. Envelope błędów MVP: w UI pokazać **wyłącznie `message` jak z API** (angielskie `message` — bez mapy tłumaczeń). **`code` nie jest treścią UI** — pozostaje w envelope HTTP do gałęzi klienta (np. `INVALID_PASSWORD` vs `UNAUTHORIZED`). next-intl / i18n envelope = **V1 — rozbudowa**. Treści SM: PL/EN wg briefu runu. Formularz startu runu (**Konto inline oraz modal na Runach** — ten sam brief): pola briefu **wg `taskType`** — post/reel: liczba pomysłów, bez kąta/długości; `page_*`: kąt i długość opcjonalnie, **bez** liczby pomysłów (`docs/ux_dashboard.md`). Błędy przy formularzu / błędzie GET bloku = `message` **w miejscu błędu** (także w modalu). Toast **nie** zastępuje envelope przy polu. Toast sukcesu mutacji = **polski** tytuł (`docs/ux_dashboard.md`), **z wyjątkiem** `PATCH /auth/me/email` (sukces i błędy — **bez** toastu; `message` pod polami modala). Jeśli toast błędu (poza formularzem, gdy mapa UX na to zezwala): to samo `message`, bez tłumaczenia i bez `code` w UI.
+
+Zmiana względem: F-7 wymagało pokazywania **`code` i `message`**. Od tej wersji obowiązuje tylko **`message`** (`docs/ux_dashboard.md`).
 
 Zmiana względem wersji 19 / F-7: błędy miały być „zrozumiałe po polsku” bez rozstrzygnięcia envelope. Od tej wersji envelope as-is; i18n = V1.
 
@@ -228,7 +230,7 @@ apps/frontend/src/
 - Panelu admina opinii w MVP.
 - Wysyłania edycji inną drogą niż `POST .../output-edited`; re-invoke pipeline; `selectedIdeaIds` na starcie; `conversationId` w UI.
 - Wyniku dwuetapowego Social jako jednego bloku; single-select HITL Social.
-- Mapowania envelope błędów na PL w MVP (obowiązuje `code` + `message` z API).
+- Mapowania `message` błędów na PL w MVP (obowiązuje `message` z API). Pokazywania `code` jako treści UI błędu (`code` zostaje w envelope HTTP do logiki klienta).
 - Toasta na walidację pól / 400 / 409 formularza, przy którym operator stoi.
 - Toasta na `run.log`, `running`, heartbeat.
 - Context / store toasta jako kopia GET / server state.
@@ -273,7 +275,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Admin: Users + zaproszenie; accept-invite → `/`.
 - [ ] `app/` + `modules/`; typy z shared; brak sekretów LLM; brak `NEXT_PUBLIC_` URL-a api.
 - [ ] Opinia / gwiazdki / Edytuj / finalize wg kontraktu; HITL Social multi-select; wynik then_* = listy.
-- [ ] Envelope błędu: `code` + `message` z API.
+- [ ] Envelope błędu w UI: `message` z API (bez `code` w treści).
 - [ ] Kontekst firmy: sześć zakładek (default Tożsamość); kropki bramki z `missing` ostatniego GET/PUT; Dodatki bez kropki; jeden `PUT`; `user` read-only.
 - [ ] Admin nie utrwali pustej nazwy firmy ani kalekiej usługi (submit zablokowany; 400 z api gdy UI ominięte); `user` read-only.
 - [ ] Po 202 na Koncie: wiersz **oraz** toast „Run wystartował”.
