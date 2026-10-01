@@ -1,4 +1,5 @@
 import { createUserId, type RunId } from '@content-chain/shared';
+import type { Env } from '../../shared/config/env';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { RunRepository } from '../domain/run.port';
 import {
@@ -14,6 +15,10 @@ const ACTOR: AuthUserContext = {
 };
 
 const FROZEN_AT = new Date('2026-09-10T12:00:00.000Z');
+const ANCHOR_OPEN = new Date('2026-09-10T11:00:00.000Z');
+const ANCHOR_EXPIRED = new Date('2026-09-10T09:00:00.000Z');
+
+const TEST_ENV = { REVIEW_TTL: '2h' } as Env;
 
 function unusedRepo(overrides: Partial<RunRepository> = {}): RunRepository {
   const unexpected = async () => {
@@ -50,6 +55,7 @@ function snapshot(
     status: 'completed',
     startedByUserId: ACTOR.id,
     startedBy: { id: ACTOR.id, email: ACTOR.email },
+    pipelineFinishedAt: ANCHOR_OPEN,
     ...overrides,
   });
 }
@@ -74,6 +80,7 @@ describe('FinalizeReviewUseCase', () => {
         getById: async () => run,
         saveFinalizedAt,
       }),
+      TEST_ENV,
     );
 
     await expect(useCase.execute(run.id, ACTOR)).resolves.toEqual({
@@ -81,6 +88,8 @@ describe('FinalizeReviewUseCase', () => {
       userRating: null,
       outputEdited: true,
       reviewFinalizedAt: FROZEN_AT.toISOString(),
+      pipelineFinishedAt: ANCHOR_OPEN.toISOString(),
+      reviewExpiresAt: null,
     });
     expect(saveFinalizedAt).toHaveBeenCalledTimes(1);
     expect(saveFinalizedAt).toHaveBeenCalledWith(run.id, FROZEN_AT);
@@ -96,6 +105,7 @@ describe('FinalizeReviewUseCase', () => {
         getById: async () => run,
         saveFinalizedAt,
       }),
+      TEST_ENV,
     );
 
     await expect(useCase.execute(run.id, ACTOR)).resolves.toEqual({
@@ -103,6 +113,8 @@ describe('FinalizeReviewUseCase', () => {
       userRating: 5,
       outputEdited: false,
       reviewFinalizedAt: FROZEN_AT.toISOString(),
+      pipelineFinishedAt: ANCHOR_OPEN.toISOString(),
+      reviewExpiresAt: null,
     });
   });
 
@@ -116,6 +128,7 @@ describe('FinalizeReviewUseCase', () => {
         getById: async () => run,
         saveFinalizedAt,
       }),
+      TEST_ENV,
     );
 
     await expect(useCase.execute(run.id, ACTOR)).rejects.toMatchObject({
@@ -136,6 +149,7 @@ describe('FinalizeReviewUseCase', () => {
         getById: async () => run,
         saveFinalizedAt,
       }),
+      TEST_ENV,
     );
 
     await expect(useCase.execute(run.id, ACTOR)).rejects.toMatchObject({
@@ -156,11 +170,36 @@ describe('FinalizeReviewUseCase', () => {
         getById: async () => run,
         saveFinalizedAt,
       }),
+      TEST_ENV,
     );
 
     await expect(useCase.execute(run.id, ACTOR)).rejects.toMatchObject({
       name: 'DomainException',
       code: 'RUN_NOT_REVIEWABLE',
+      httpStatus: 409,
+    });
+    expect(saveFinalizedAt).not.toHaveBeenCalled();
+  });
+
+  it('rejects after TTL with REVIEW_LOCKED and skips saveFinalizedAt', async () => {
+    const run = snapshot({
+      pipelineFinishedAt: ANCHOR_EXPIRED,
+      reviewFinalizedAt: null,
+    });
+    const saveFinalizedAt = jest.fn(
+      async (_id: RunId, _at: Date): Promise<boolean> => true,
+    );
+    const useCase = new FinalizeReviewUseCase(
+      unusedRepo({
+        getById: async () => run,
+        saveFinalizedAt,
+      }),
+      TEST_ENV,
+    );
+
+    await expect(useCase.execute(run.id, ACTOR)).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'REVIEW_LOCKED',
       httpStatus: 409,
     });
     expect(saveFinalizedAt).not.toHaveBeenCalled();

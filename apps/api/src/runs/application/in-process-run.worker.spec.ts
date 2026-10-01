@@ -5,10 +5,19 @@ import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import type { RunSseHub } from '../domain/run-sse.port';
 import type { RunRecord } from '../domain/run.types';
 import { makeSocialRun } from '../run-record.test-helpers';
+import type { AutoFinalizeExpiredReviewsUseCase } from './auto-finalize-expired-reviews.use-case';
 import { InProcessRunWorker } from './in-process-run.worker';
 import { RunAbortRegistry } from './run-abort.registry';
 import type { RecoverInterruptedRunsUseCase } from './recover-interrupted-runs.use-case';
 import type { RunLifecycleService } from './run-lifecycle.service';
+
+const TEST_ENV_BASE = {
+  MAX_CONCURRENT_RUNS: 1,
+  REVIEW_TTL: '2h',
+  REVIEW_SWEEP_INTERVAL: '5m',
+} as Env;
+
+const SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 
 function deferred(): {
   promise: Promise<void>;
@@ -68,8 +77,21 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     saveOutputEdited: unexpected,
     saveFinalizedAt: unexpected,
     setPipelineFinishedAt: unexpected,
+    finalizeExpiredReviews: unexpected,
     ...overrides,
   };
+}
+
+function stubAutoFinalize(
+  execute: AutoFinalizeExpiredReviewsUseCase['execute'] = async () => 0,
+): AutoFinalizeExpiredReviewsUseCase {
+  return { execute } as unknown as AutoFinalizeExpiredReviewsUseCase;
+}
+
+function stubRecover(
+  execute: RecoverInterruptedRunsUseCase['execute'] = async () => undefined,
+): RecoverInterruptedRunsUseCase {
+  return { execute } as unknown as RecoverInterruptedRunsUseCase;
 }
 
 function makeWorker(args: {
@@ -78,21 +100,27 @@ function makeWorker(args: {
   executor: RunExecutorPort;
   lifecycle?: Pick<RunLifecycleService, 'appendLog' | 'transition'>;
   abortRegistry?: RunAbortRegistry;
+  recover?: RecoverInterruptedRunsUseCase;
+  autoFinalize?: AutoFinalizeExpiredReviewsUseCase;
+  env?: Env;
 }): InProcessRunWorker {
   return new InProcessRunWorker(
-    { MAX_CONCURRENT_RUNS: args.maxConcurrent ?? 1 } as Env,
+    {
+      ...TEST_ENV_BASE,
+      MAX_CONCURRENT_RUNS: args.maxConcurrent ?? 1,
+      ...args.env,
+    } as Env,
     args.runs,
     args.executor,
     { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
-    {
-      execute: async () => undefined,
-    } as unknown as RecoverInterruptedRunsUseCase,
+    args.recover ?? stubRecover(),
     {
       appendLog: jest.fn(),
       transition: jest.fn(),
       ...args.lifecycle,
     } as unknown as RunLifecycleService,
     args.abortRegistry ?? new RunAbortRegistry(),
+    args.autoFinalize ?? stubAutoFinalize(),
   );
 }
 
@@ -135,20 +163,11 @@ describe('InProcessRunWorker', () => {
       },
     };
 
-    const worker = new InProcessRunWorker(
-      { MAX_CONCURRENT_RUNS: 1 } as Env,
+    const worker = makeWorker({
+      maxConcurrent: 1,
       runs,
       executor,
-      { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
-      {
-        execute: async () => undefined,
-      } as unknown as RecoverInterruptedRunsUseCase,
-      {
-        appendLog: jest.fn(),
-        transition: jest.fn(),
-      } as unknown as RunLifecycleService,
-      new RunAbortRegistry(),
-    );
+    });
 
     worker.notifyQueued();
     worker.notifyQueued();
@@ -195,20 +214,7 @@ describe('InProcessRunWorker', () => {
       },
     };
 
-    const worker = new InProcessRunWorker(
-      { MAX_CONCURRENT_RUNS: 1 } as Env,
-      runs,
-      executor,
-      { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
-      {
-        execute: async () => undefined,
-      } as unknown as RecoverInterruptedRunsUseCase,
-      {
-        appendLog: jest.fn(),
-        transition: jest.fn(),
-      } as unknown as RunLifecycleService,
-      new RunAbortRegistry(),
-    );
+    const worker = makeWorker({ maxConcurrent: 1, runs, executor });
 
     worker.notifyQueued();
     await waitUntil(() => started.length === 1, 'queued run occupying the cap');
@@ -454,10 +460,10 @@ describe('InProcessRunWorker', () => {
       },
     });
 
-    const worker = new InProcessRunWorker(
-      { MAX_CONCURRENT_RUNS: 1 } as Env,
+    const worker = makeWorker({
+      maxConcurrent: 1,
       runs,
-      {
+      executor: {
         async execute(run) {
           started.push(run.id);
           if (started.length === 1) {
@@ -465,16 +471,7 @@ describe('InProcessRunWorker', () => {
           }
         },
       },
-      { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
-      {
-        execute: async () => undefined,
-      } as unknown as RecoverInterruptedRunsUseCase,
-      {
-        appendLog: jest.fn(),
-        transition: jest.fn(),
-      } as unknown as RunLifecycleService,
-      new RunAbortRegistry(),
-    );
+    });
 
     worker.notifyQueued();
 
@@ -495,6 +492,7 @@ describe('InProcessRunWorker', () => {
 
   it('D-10: onModuleInit recovers before drain and does not burst interrupted execute beyond MAX', async () => {
     const recoverExecute = jest.fn(async () => undefined);
+    const autoFinalizeExecute = jest.fn(async () => 0);
     const first = makeSocialRun({ status: 'interrupted' });
     const second = makeSocialRun({ status: 'interrupted' });
     const pending = [first, second];
@@ -504,16 +502,17 @@ describe('InProcessRunWorker', () => {
     const runs = unusedRepo({
       claimNextInterrupted: async () => {
         expect(recoverExecute).toHaveBeenCalled();
+        expect(autoFinalizeExecute).toHaveBeenCalled();
         const next = pending.shift();
         return next ? { ...next, status: 'running' } : null;
       },
       claimNextQueued: async () => null,
     });
 
-    const worker = new InProcessRunWorker(
-      { MAX_CONCURRENT_RUNS: 1 } as Env,
+    const worker = makeWorker({
+      maxConcurrent: 1,
       runs,
-      {
+      executor: {
         async execute(run) {
           started.push(run.id);
           if (started.length === 1) {
@@ -521,23 +520,104 @@ describe('InProcessRunWorker', () => {
           }
         },
       },
-      { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
-      { execute: recoverExecute } as unknown as RecoverInterruptedRunsUseCase,
-      {
-        appendLog: jest.fn(),
-        transition: jest.fn(),
-      } as unknown as RunLifecycleService,
-      new RunAbortRegistry(),
-    );
+      recover: stubRecover(recoverExecute),
+      autoFinalize: stubAutoFinalize(autoFinalizeExecute),
+    });
 
     await worker.onModuleInit();
-    await waitUntil(() => started.length === 1, 'first recovered execute');
-    expect(started).toEqual([first.id]);
+    try {
+      await waitUntil(() => started.length === 1, 'first recovered execute');
+      expect(started).toEqual([first.id]);
 
-    holdFirst.resolve();
-    await waitUntil(() => started.length === 2, 'second after slot frees');
-    expect(started).toEqual([first.id, second.id]);
-    expect(recoverExecute).toHaveBeenCalledTimes(1);
+      holdFirst.resolve();
+      await waitUntil(() => started.length === 2, 'second after slot frees');
+      expect(started).toEqual([first.id, second.id]);
+      expect(recoverExecute).toHaveBeenCalledTimes(1);
+      expect(autoFinalizeExecute).toHaveBeenCalledTimes(1);
+    } finally {
+      worker.onModuleDestroy();
+    }
+  });
+
+  it('onModuleInit order: recover → autoFinalize → setInterval → pump', async () => {
+    const order: string[] = [];
+    const recoverExecute = jest.fn(async () => {
+      order.push('recover');
+    });
+    const autoFinalizeExecute = jest.fn(async () => {
+      order.push('autoFinalize');
+      return 0;
+    });
+    const setIntervalSpy = jest
+      .spyOn(global, 'setInterval')
+      .mockImplementation((() => {
+        order.push('setInterval');
+        return 0 as unknown as ReturnType<typeof setInterval>;
+      }) as typeof setInterval);
+
+    const runs = unusedRepo({
+      claimNextInterrupted: async () => {
+        order.push('pump');
+        return null;
+      },
+      claimNextQueued: async () => null,
+    });
+
+    const worker = makeWorker({
+      runs,
+      executor: { async execute() {} },
+      recover: stubRecover(recoverExecute),
+      autoFinalize: stubAutoFinalize(autoFinalizeExecute),
+    });
+
+    try {
+      await worker.onModuleInit();
+      await waitUntil(() => order.includes('pump'), 'pump after boot');
+
+      expect(order).toEqual([
+        'recover',
+        'autoFinalize',
+        'setInterval',
+        'pump',
+      ]);
+      expect(setIntervalSpy).toHaveBeenCalledWith(
+        expect.any(Function),
+        SWEEP_INTERVAL_MS,
+      );
+      expect(autoFinalizeExecute).toHaveBeenCalledTimes(1);
+    } finally {
+      setIntervalSpy.mockRestore();
+      worker.onModuleDestroy();
+    }
+  });
+
+  it('onModuleDestroy clears the review sweep interval', () => {
+    const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+    const timer = 42 as unknown as ReturnType<typeof setInterval>;
+    const setIntervalSpy = jest
+      .spyOn(global, 'setInterval')
+      .mockReturnValue(timer);
+
+    const worker = makeWorker({
+      runs: unusedRepo({
+        claimNextInterrupted: async () => null,
+        claimNextQueued: async () => null,
+      }),
+      executor: { async execute() {} },
+    });
+
+    return worker.onModuleInit().then(() => {
+      try {
+        expect(setIntervalSpy).toHaveBeenCalled();
+        worker.onModuleDestroy();
+        expect(clearIntervalSpy).toHaveBeenCalledWith(timer);
+        worker.onModuleDestroy();
+        expect(clearIntervalSpy).toHaveBeenCalledTimes(1);
+      } finally {
+        setIntervalSpy.mockRestore();
+        clearIntervalSpy.mockRestore();
+      }
+    });
   });
 
   it('passes AbortSignal to execute and does not mark failed when abort leaves status cancelled', async () => {

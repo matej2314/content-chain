@@ -1,4 +1,5 @@
 import { createUserId, type RunId } from '@content-chain/shared';
+import type { Env } from '../../shared/config/env';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { ContentResultStore } from '../../content/domain/content-result.port';
 import type { SocialResultStore } from '../../social/domain/social-result.port';
@@ -18,6 +19,12 @@ const ACTOR: AuthUserContext = {
   email: 'user@example.com',
   role: 'user',
 };
+
+const NOW = new Date('2026-09-30T11:00:00.000Z');
+const ANCHOR_OPEN = new Date('2026-09-30T10:00:00.000Z');
+const ANCHOR_EXPIRED = new Date('2026-09-30T08:00:00.000Z');
+
+const TEST_ENV = { REVIEW_TTL: '2h' } as Env;
 
 function unusedRuns(overrides: Partial<RunRepository> = {}): RunRepository {
   const unexpected = async () => {
@@ -110,11 +117,21 @@ function snapshot(
     startedByUserId: ACTOR.id,
     taskType: 'post_content',
     startedBy: { id: ACTOR.id, email: ACTOR.email },
+    pipelineFinishedAt: ANCHOR_OPEN,
     ...overrides,
   });
 }
 
 describe('SaveOutputEditedUseCase', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('plans content then commits flag+store together with characterCount from body.length', async () => {
     const run = snapshot();
     const commit = jest.fn(
@@ -136,6 +153,7 @@ describe('SaveOutputEditedUseCase', () => {
       }),
       unusedContent(),
       unusedWriter({ commit }),
+      TEST_ENV,
     );
 
     await expect(
@@ -144,7 +162,12 @@ describe('SaveOutputEditedUseCase', () => {
         { result: { content: { body: 'nowy tekst', hashtags: ['#a'] } } },
         ACTOR,
       ),
-    ).resolves.toEqual({ runId: run.id, outputEdited: true });
+    ).resolves.toEqual({
+      runId: run.id,
+      outputEdited: true,
+      pipelineFinishedAt: ANCHOR_OPEN.toISOString(),
+      reviewExpiresAt: '2026-09-30T12:00:00.000Z',
+    });
 
     expect(commit).toHaveBeenCalledTimes(1);
     expect(commit).toHaveBeenCalledWith(run.id, [
@@ -185,6 +208,7 @@ describe('SaveOutputEditedUseCase', () => {
       }),
       unusedContent(),
       unusedWriter({ commit }),
+      TEST_ENV,
     );
 
     await expect(
@@ -200,7 +224,12 @@ describe('SaveOutputEditedUseCase', () => {
         },
         ACTOR,
       ),
-    ).resolves.toEqual({ runId: run.id, outputEdited: true });
+    ).resolves.toEqual({
+      runId: run.id,
+      outputEdited: true,
+      pipelineFinishedAt: ANCHOR_OPEN.toISOString(),
+      reviewExpiresAt: '2026-09-30T12:00:00.000Z',
+    });
 
     expect(commit).toHaveBeenCalledTimes(1);
     expect(commit).toHaveBeenCalledWith(run.id, [
@@ -244,6 +273,7 @@ describe('SaveOutputEditedUseCase', () => {
       }),
       unusedContent(),
       unusedWriter({ commit }),
+      TEST_ENV,
     );
 
     await expect(
@@ -292,6 +322,7 @@ describe('SaveOutputEditedUseCase', () => {
       }),
       unusedContent(),
       unusedWriter({ commit }),
+      TEST_ENV,
     );
     await expect(
       lockedUc.execute(
@@ -311,6 +342,7 @@ describe('SaveOutputEditedUseCase', () => {
       unusedSocial(),
       unusedContent(),
       unusedWriter({ commit: queuedCommit }),
+      TEST_ENV,
     );
     await expect(
       queuedUc.execute(
@@ -328,6 +360,7 @@ describe('SaveOutputEditedUseCase', () => {
       unusedSocial(),
       unusedContent(),
       unusedWriter({ commit: cancelledCommit }),
+      TEST_ENV,
     );
     await expect(
       cancelledUc.execute(
@@ -337,5 +370,33 @@ describe('SaveOutputEditedUseCase', () => {
       ),
     ).rejects.toMatchObject({ code: 'RUN_NOT_REVIEWABLE' });
     expect(cancelledCommit).not.toHaveBeenCalled();
+  });
+
+  it('rejects after TTL with REVIEW_LOCKED and skips commit', async () => {
+    const run = snapshot({
+      pipelineFinishedAt: ANCHOR_EXPIRED,
+      reviewFinalizedAt: null,
+    });
+    const commit = jest.fn(async () => true);
+    const useCase = new SaveOutputEditedUseCase(
+      unusedRuns({ getById: async () => run }),
+      unusedSocial(),
+      unusedContent(),
+      unusedWriter({ commit }),
+      TEST_ENV,
+    );
+
+    await expect(
+      useCase.execute(
+        run.id,
+        { result: { content: { body: 'y', hashtags: [] } } },
+        ACTOR,
+      ),
+    ).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'REVIEW_LOCKED',
+      httpStatus: 409,
+    });
+    expect(commit).not.toHaveBeenCalled();
   });
 });

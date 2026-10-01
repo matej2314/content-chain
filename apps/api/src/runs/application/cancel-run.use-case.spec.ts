@@ -69,6 +69,8 @@ function makeGetRunOutput(
     userRating: null,
     outputEdited: false,
     reviewFinalizedAt: null,
+    pipelineFinishedAt: null,
+    reviewExpiresAt: null,
     cancelledAt: null,
     result: {
       ideas: [],

@@ -1,4 +1,5 @@
 import { DomainException } from '../../shared/exceptions/domain.exception';
+import type { Env } from '../../shared/config/env';
 import { newRunId } from '../../shared/http/new-ids';
 import type { RunResultReader } from '../domain/run-result-reader.port';
 import type { RunRepository, RunSnapshot } from '../domain/run.port';
@@ -43,6 +44,10 @@ const reelScript: ReelScript = {
   cta: 'Napisz do nas',
 };
 
+const TEST_ENV = { REVIEW_TTL: '2h' } as Env;
+const ANCHOR = new Date('2026-09-30T10:00:00.000Z');
+const EXPIRES_ISO = '2026-09-30T12:00:00.000Z';
+
 function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
   const unexpected = async () => {
     throw new Error('unexpected repository call');
@@ -84,7 +89,20 @@ function makeRun(
   });
 }
 
-function asSnapshot(run: RunRecord): RunSnapshot {
+function asSnapshot(
+  run: RunRecord,
+  review: Partial<
+    Pick<
+      RunSnapshot,
+      | 'userRating'
+      | 'outputEdited'
+      | 'reviewFinalizedAt'
+      | 'pipelineFinishedAt'
+      | 'cancelledAt'
+      | 'startedBy'
+    >
+  > = {},
+): RunSnapshot {
   return {
     ...run,
     startedBy: null,
@@ -93,6 +111,7 @@ function asSnapshot(run: RunRecord): RunSnapshot {
     reviewFinalizedAt: null,
     pipelineFinishedAt: null,
     cancelledAt: null,
+    ...review,
   };
 }
 
@@ -110,12 +129,28 @@ function fakeReader(overrides: Partial<RunResultReader> = {}): RunResultReader {
   };
 }
 
+function makeUseCase(
+  repo: RunRepository,
+  reader: RunResultReader = fakeReader(),
+): GetRunUseCase {
+  return new GetRunUseCase(repo, reader, TEST_ENV);
+}
+
+const openReviewMeta = {
+  pipelineFinishedAt: ANCHOR.toISOString(),
+  reviewExpiresAt: EXPIRES_ISO,
+} as const;
+
+const nullReviewMeta = {
+  pipelineFinishedAt: null,
+  reviewExpiresAt: null,
+} as const;
+
 describe('GetRunUseCase', () => {
   it('returns hitl.options and result.ideas when awaiting_hitl', async () => {
     const run = makeRun('awaiting_hitl');
-    const useCase = new GetRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({ getById: async () => asSnapshot(run) }),
-      fakeReader(),
     );
 
     await expect(useCase.execute(run.id)).resolves.toEqual({
@@ -132,6 +167,7 @@ describe('GetRunUseCase', () => {
       userRating: null,
       outputEdited: false,
       reviewFinalizedAt: null,
+      ...nullReviewMeta,
       cancelledAt: null,
       result: {
         ideas,
@@ -151,7 +187,7 @@ describe('GetRunUseCase', () => {
     const run = makeRun('awaiting_hitl', {
       taskType: 'reel_ideas_then_scripts',
     });
-    const useCase = new GetRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({ getById: async () => asSnapshot(run) }),
       fakeReader({
         listIdeas: async () => [],
@@ -173,6 +209,7 @@ describe('GetRunUseCase', () => {
       userRating: null,
       outputEdited: false,
       reviewFinalizedAt: null,
+      ...nullReviewMeta,
       cancelledAt: null,
       result: {
         ideas: [],
@@ -190,9 +227,8 @@ describe('GetRunUseCase', () => {
 
   it('returns hitl null when interrupted even if ideas exist', async () => {
     const run = makeRun('interrupted');
-    const useCase = new GetRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({ getById: async () => asSnapshot(run) }),
-      fakeReader(),
     );
 
     const snapshot = await useCase.execute(run.id);
@@ -220,7 +256,7 @@ describe('GetRunUseCase', () => {
         sourceIdeaId: 'idea_1',
       },
     ];
-    const useCase = new GetRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({ getById: async () => asSnapshot(run) }),
       fakeReader({
         listContents: async () => contents,
@@ -257,7 +293,7 @@ describe('GetRunUseCase', () => {
       characterCount: 1,
       sourceIdeaId: 'idea_2',
     };
-    const useCase = new GetRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({ getById: async () => asSnapshot(run) }),
       fakeReader({
         listContents: async () => [first, second],
@@ -274,7 +310,7 @@ describe('GetRunUseCase', () => {
 
   it('maps stored reel script into result for one-stage reel_script', async () => {
     const run = makeRun('completed', { taskType: 'reel_script' });
-    const useCase = new GetRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({ getById: async () => asSnapshot(run) }),
       fakeReader({
         listIdeas: async () => [],
@@ -313,7 +349,7 @@ describe('GetRunUseCase', () => {
       cta: 'Drugi',
       sourceIdeaId: 'idea_2',
     };
-    const useCase = new GetRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({ getById: async () => asSnapshot(run) }),
       fakeReader({
         listIdeas: async () => [],
@@ -337,7 +373,7 @@ describe('GetRunUseCase', () => {
       cta: 'CTA',
       characterCount: 4,
     };
-    const useCase = new GetRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({ getById: async () => asSnapshot(run) }),
       fakeReader({
         getContent: async () => ({
@@ -372,7 +408,7 @@ describe('GetRunUseCase', () => {
       title: 'Audyt w 10 dni',
       sections: [{ id: 'osec_1', heading: 'Problem', summary: 'Chaos ops.' }],
     };
-    const useCase = new GetRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({ getById: async () => asSnapshot(run) }),
       fakeReader({
         listIdeas: async () => [],
@@ -394,6 +430,7 @@ describe('GetRunUseCase', () => {
       userRating: null,
       outputEdited: false,
       reviewFinalizedAt: null,
+      ...nullReviewMeta,
       cancelledAt: null,
       result: {
         ideas: [],
@@ -420,7 +457,7 @@ describe('GetRunUseCase', () => {
       lead: 'Founderzy odzyskują czas.',
       body: 'Pełny tekst strony.',
     };
-    const useCase = new GetRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({ getById: async () => asSnapshot(run) }),
       fakeReader({
         listIdeas: async () => [],
@@ -447,11 +484,83 @@ describe('GetRunUseCase', () => {
     expect(snapshot.contentKind).toBe('blog');
   });
 
-  it('throws RUN_NOT_FOUND when the run is missing', async () => {
-    const useCase = new GetRunUseCase(
-      unusedRepo({ getById: async () => null }),
-      fakeReader(),
+  it('exposes pipelineFinishedAt and reviewExpiresAt for open completed review', async () => {
+    const run = makeRun('completed');
+    const useCase = makeUseCase(
+      unusedRepo({
+        getById: async () => asSnapshot(run, { pipelineFinishedAt: ANCHOR }),
+      }),
     );
+
+    const snapshot = await useCase.execute(run.id);
+    expect(snapshot.reviewFinalizedAt).toBeNull();
+    expect(snapshot.pipelineFinishedAt).toBe(openReviewMeta.pipelineFinishedAt);
+    expect(snapshot.reviewExpiresAt).toBe(openReviewMeta.reviewExpiresAt);
+  });
+
+  it('keeps reviewExpiresAt ISO after TTL when finalize is still null', async () => {
+    const run = makeRun('completed');
+    const expiredAnchor = new Date('2026-09-30T08:00:00.000Z');
+    const useCase = makeUseCase(
+      unusedRepo({
+        getById: async () =>
+          asSnapshot(run, {
+            pipelineFinishedAt: expiredAnchor,
+            reviewFinalizedAt: null,
+          }),
+      }),
+    );
+
+    const snapshot = await useCase.execute(run.id);
+    expect(snapshot.reviewFinalizedAt).toBeNull();
+    expect(snapshot.pipelineFinishedAt).toBe(expiredAnchor.toISOString());
+    expect(snapshot.reviewExpiresAt).toBe('2026-09-30T10:00:00.000Z');
+  });
+
+  it('returns reviewExpiresAt null when review is finalized', async () => {
+    const run = makeRun('completed');
+    const finalizedAt = new Date('2026-09-30T10:30:00.000Z');
+    const useCase = makeUseCase(
+      unusedRepo({
+        getById: async () =>
+          asSnapshot(run, {
+            pipelineFinishedAt: ANCHOR,
+            reviewFinalizedAt: finalizedAt,
+          }),
+      }),
+    );
+
+    const snapshot = await useCase.execute(run.id);
+    expect(snapshot.reviewFinalizedAt).toBe(finalizedAt.toISOString());
+    expect(snapshot.pipelineFinishedAt).toBe(ANCHOR.toISOString());
+    expect(snapshot.reviewExpiresAt).toBeNull();
+  });
+
+  it('does not call review mutation ports on GET', async () => {
+    const run = makeRun('completed');
+    const saveRating = jest.fn(async () => true);
+    const saveOutputEdited = jest.fn(async () => true);
+    const saveFinalizedAt = jest.fn(async () => true);
+    const setPipelineFinishedAt = jest.fn(async () => undefined);
+    const useCase = makeUseCase(
+      unusedRepo({
+        getById: async () => asSnapshot(run, { pipelineFinishedAt: ANCHOR }),
+        saveRating,
+        saveOutputEdited,
+        saveFinalizedAt,
+        setPipelineFinishedAt,
+      }),
+    );
+
+    await useCase.execute(run.id);
+    expect(saveRating).not.toHaveBeenCalled();
+    expect(saveOutputEdited).not.toHaveBeenCalled();
+    expect(saveFinalizedAt).not.toHaveBeenCalled();
+    expect(setPipelineFinishedAt).not.toHaveBeenCalled();
+  });
+
+  it('throws RUN_NOT_FOUND when the run is missing', async () => {
+    const useCase = makeUseCase(unusedRepo({ getById: async () => null }));
 
     await expect(useCase.execute(newRunId())).rejects.toBeInstanceOf(
       DomainException,

@@ -3,16 +3,10 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   createConversationId,
   createRunId,
-  createUserId,
   isContentKind,
-  isContentLanguage,
   isContentTaskType,
-  isRunPlatform,
-  isRunStatus,
-  isRunTaskType,
   isSocialPlatform,
   isSocialTaskType,
-  isUserId,
   UserId,
   type RunId,
   type RunStatus,
@@ -33,82 +27,19 @@ import {
   socialBriefSchema,
 } from '../application/run.schemas';
 import { CANCELABLE_RUN_STATUSES } from '../domain/status-transitions';
+import { toRunSnapshotBase } from './to-run-snapshot-base';
 import type {
   ContentRunRecord,
   RunLogEntry,
   RunRecord,
   SocialRunRecord,
 } from '../domain/run.types';
-
-type RunRow = {
-  id: string;
-  conversationId: string;
-  taskType: string;
-  platform: string;
-  language: string;
-  status: string;
-  brief: unknown;
-  selectedIdeaIds: unknown;
-  startedByUserId: string | null;
-  contentKind: string | null;
-  pipelinePhase: string | null;
-  ideasRefineCount: number;
-  contentRefineCount: number;
-  outlineRefineCount: number;
-  copyRefineCount: number;
-  recoveryAttempts: number;
-  userRating: number | null;
-  cancelRequested: boolean;
-  cancelledAt: Date | null;
-  outputEdited: boolean;
-  reviewFinalizedAt: Date | null;
-  pipelineFinishedAt: Date | null;
-  createdAt: Date;
-  startedBy: { id: string; email: string } | null;
-};
-
-type RunLogRow = {
-  runId: string;
-  conversationId: string | null;
-  at: Date;
-  level: string;
-  message: string;
-  step: string | null;
-  requestId: string | null;
-};
-
-type RunReviewFields = Pick<
-  RunSnapshot,
-  | 'startedBy'
-  | 'userRating'
-  | 'outputEdited'
-  | 'reviewFinalizedAt'
-  | 'pipelineFinishedAt'
-  | 'cancelledAt'
->;
-
-function toPipelinePhase(value: string | null): RunRecord['pipelinePhase'] {
-  if (
-    value === 'ideas' ||
-    value === 'content' ||
-    value === 'outline' ||
-    value === 'copy'
-  ) {
-    return value;
-  }
-  return null;
-}
-
-function toSelectedIdeaIds(value: unknown): string[] | null {
-  if (value == null) return null;
-  if (
-    !Array.isArray(value) ||
-    !value.every((item): item is string => typeof item === 'string')
-  ) {
-    throw new Error('Run.selectedIdeaIds is not a string array');
-  }
-  return value;
-}
+import type {
+  RunLogRow,
+  RunRow,
+  RunReviewFields,
+} from './prisma-run-row.types';
+import { toLightRunItem } from './to-light-run-item';
 
 @Injectable()
 export class PrismaRunAdapter implements RunRepository {
@@ -286,30 +217,7 @@ export class PrismaRunAdapter implements RunRepository {
         createdAt: true,
       },
     });
-    return rows.map((row) => {
-      if (!isRunTaskType(row.taskType)) {
-        throw new Error(`Run taskType is not a RunTaskType: ${row.taskType}`);
-      }
-      if (!isRunPlatform(row.platform)) {
-        throw new Error(`Run platform is not a RunPlatform: ${row.platform}`);
-      }
-      if (!isContentLanguage(row.language)) {
-        throw new Error(
-          `Run language is not a ContentLanguage: ${row.language}`,
-        );
-      }
-      if (!isRunStatus(row.status)) {
-        throw new Error(`Run status is not a RunStatus: ${row.status}`);
-      }
-      return {
-        runId: createRunId(row.id),
-        taskType: row.taskType,
-        platform: row.platform,
-        language: row.language,
-        status: row.status,
-        createdAt: row.createdAt,
-      };
-    });
+    return rows.map((row) => toLightRunItem(row));
   }
 
   async saveRating(id: RunId, rating: number | null): Promise<boolean> {
@@ -353,6 +261,33 @@ export class PrismaRunAdapter implements RunRepository {
     });
   }
 
+  async finalizeExpiredReviews(
+    now: Date,
+    reviewTtlMs: number,
+  ): Promise<number> {
+    const cutoff = new Date(now.getTime() - reviewTtlMs);
+    const rows = await this.prisma.run.findMany({
+      where: {
+        reviewFinalizedAt: null,
+        pipelineFinishedAt: { not: null, lte: cutoff },
+      },
+      select: { id: true, pipelineFinishedAt: true },
+    });
+    let locked = 0;
+    for (const row of rows) {
+      if (row.pipelineFinishedAt === null) continue;
+      const finalizedAt = new Date(
+        row.pipelineFinishedAt.getTime() + reviewTtlMs,
+      );
+      const result = await this.prisma.run.updateMany({
+        where: { id: row.id, reviewFinalizedAt: null },
+        data: { reviewFinalizedAt: finalizedAt },
+      });
+      locked += result.count;
+    }
+    return locked;
+  }
+
   async setPipelineFinishedAt(id: RunId, at: Date): Promise<void> {
     await this.prisma.run.updateMany({
       where: { id, pipelineFinishedAt: null },
@@ -390,40 +325,7 @@ export class PrismaRunAdapter implements RunRepository {
   }
 
   private toSnapshot(row: RunRow): RunSnapshot {
-    if (!isRunTaskType(row.taskType)) {
-      throw new Error(`Run.taskType is not a RunTaskType: ${row.taskType}`);
-    }
-    if (!isContentLanguage(row.language)) {
-      throw new Error(`Run.language is not a ContentLanguage: ${row.language}`);
-    }
-    if (!isRunStatus(row.status)) {
-      throw new Error(`Run.status is not a RunStatus: ${row.status}`);
-    }
-
-    const base = {
-      id: createRunId(row.id),
-      conversationId: createConversationId(row.conversationId),
-      language: row.language,
-      status: row.status,
-      selectedIdeaIds: toSelectedIdeaIds(row.selectedIdeaIds),
-      startedByUserId:
-        row.startedByUserId && isUserId(row.startedByUserId)
-          ? createUserId(row.startedByUserId)
-          : null,
-      pipelinePhase: toPipelinePhase(row.pipelinePhase),
-      ideasRefineCount: row.ideasRefineCount,
-      contentRefineCount: row.contentRefineCount,
-      outlineRefineCount: row.outlineRefineCount,
-      copyRefineCount: row.copyRefineCount,
-      recoveryAttempts: row.recoveryAttempts,
-      cancelRequested: row.cancelRequested,
-      userRating: row.userRating,
-      outputEdited: row.outputEdited,
-      reviewFinalizedAt: row.reviewFinalizedAt,
-      pipelineFinishedAt: row.pipelineFinishedAt,
-      createdAt: row.createdAt,
-      startedBy: row.startedBy,
-    };
+    const base = toRunSnapshotBase(row);
 
     if (isSocialTaskType(row.taskType)) {
       if (!isSocialPlatform(row.platform)) {

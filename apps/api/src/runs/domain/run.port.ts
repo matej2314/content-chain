@@ -67,4 +67,5 @@ export interface RunRepository {
   saveFinalizedAt(id: RunId, at: Date): Promise<boolean>;
   /** Sets once (WHERE pipelineFinishedAt IS NULL). No-op if already set. */
   setPipelineFinishedAt(id: RunId, at: Date): Promise<void>;
+  finalizeExpiredReviews(now: Date, reviewTtlMs: number): Promise<number>;
 }

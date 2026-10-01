@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ENV, type Env } from '../../shared/config/env';
 import {
   RUN_EXECUTOR,
@@ -10,14 +16,17 @@ import { RecoverInterruptedRunsUseCase } from './recover-interrupted-runs.use-ca
 import { RunLifecycleService } from './run-lifecycle.service';
 import { RunAbortRegistry } from './run-abort.registry';
 import type { RunRecord } from '../domain/run.types';
+import { AutoFinalizeExpiredReviewsUseCase } from './auto-finalize-expired-reviews.use-case';
+import { parseTtlMs } from '../../auth/application/auth.helpers';
 
 const EXECUTOR_FAILED_MESSAGE = 'Run executor failed';
 
 @Injectable()
-export class InProcessRunWorker implements OnModuleInit {
+export class InProcessRunWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(InProcessRunWorker.name);
   private inFlight = 0;
   private pumpTail: Promise<void> = Promise.resolve();
+  private reviewSweepTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     @Inject(ENV) private readonly env: Env,
@@ -27,11 +36,25 @@ export class InProcessRunWorker implements OnModuleInit {
     private readonly recover: RecoverInterruptedRunsUseCase,
     private readonly lifecycle: RunLifecycleService,
     private readonly abortRegistry: RunAbortRegistry,
+    private readonly autoFinalize: AutoFinalizeExpiredReviewsUseCase,
   ) {}
 
   async onModuleInit() {
     await this.recover.execute();
+    await this.autoFinalize.execute();
+    this.reviewSweepTimer = setInterval(() => {
+      void this.autoFinalize.execute().catch((err: unknown) => {
+        this.logger.error({ err }, 'review auto-finalize sweep failed');
+      });
+    }, parseTtlMs(this.env.REVIEW_SWEEP_INTERVAL));
     this.enqueuePump();
+  }
+
+  onModuleDestroy(): void {
+    if (this.reviewSweepTimer !== null) {
+      clearInterval(this.reviewSweepTimer);
+      this.reviewSweepTimer = null;
+    }
   }
 
   notifyQueued(): void {

@@ -347,7 +347,7 @@ Odpowiada HOW majoru pkt 3–4 + 6.
 
 ### KROK 1 — Expiry w `assertRunReviewable` → `REVIEW_LOCKED` bez UPDATE
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Mutacje rating / output-edited / finalize po TTL rzucają `REVIEW_LOCKED` **zanim** dojdzie do CAS / `writer.commit` / `saveFinalizedAt`. `SPEC-RUNY.md` R-10 pkt 5–8, D-35.
 
@@ -547,7 +547,7 @@ Sukcesy mutacji **jeszcze bez** pól TTL w tym kroku — dopisze KROK 2.
 
 ### KROK 2 — `reviewExpiresAt` na snapshotcie i sukcesach mutacji
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** `GET /runs/:id` + 200 z rating / output-edited / finalize niosą `pipelineFinishedAt` + wyliczone `reviewExpiresAt`. Lista usera bez tych pól. GET bez side-effect. `SPEC-RUNY.md` R-3b / R-10 pkt 10, `docs/dokumentacja_komunikacji.md`.
 
@@ -639,7 +639,7 @@ W `GetRunUseCase` wstrzyknij `ENV`. W `return`:
 
 ### KROK 3 — `AutoFinalizeExpiredReviewsUseCase` + boot + interval
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jedyny auto-zapis locka; boot po recovery; okresowy tick. `SPEC-RUNY.md` R-10 pkt 9, major HOW #4.
 

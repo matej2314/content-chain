@@ -1,8 +1,32 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { RunId } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { parseWithZod } from '../../shared/parse-with-zod';
-import type { AuthUserContext } from '../../shared/types/auth-user-context';
+import {
+  CONTENT_RESULT_STORE,
+  type ContentResultStore,
+} from '../../content/domain/content-result.port';
+import { parseTtlMs } from '../../auth/application/auth.helpers';
+import { assertRunReviewable } from '../domain/assert-run-reviewable';
+import { computeReviewExpiresAt } from '../domain/review-window';
+import {
+  OUTPUT_EDITED_WRITER,
+  type OutputEditedWrite,
+  type OutputEditedWriter,
+} from '../domain/output-edited-writer.port';
+import {
+  RESULT_KEYS_BY_TASK_TYPE,
+  contentsArraySchema,
+  editedContentSchema,
+  editedPageDocumentSchema,
+  editedPageOutlineSchema,
+  ideasArraySchema,
+  outputEditedBodySchema,
+  reelIdeasArraySchema,
+  reelScriptsArraySchema,
+} from './output-edited-result.schemas';
+import { reelScriptOutputSchema as reelScriptShape } from '../../social/application/social.schemas';
+import { ENV, type Env } from '../../shared/config/env';
+import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import {
   SOCIAL_RESULT_STORE,
   type SocialResultStore,
@@ -16,30 +40,9 @@ import type {
   ReelScriptItem,
   VerifierVerdict,
 } from '../../social/domain/social.types';
-import {
-  CONTENT_RESULT_STORE,
-  type ContentResultStore,
-} from '../../content/domain/content-result.port';
+import type { AuthUserContext } from '../../shared/types/auth-user-context';
+import type { RunId } from '@content-chain/shared';
 import type { PageOutline } from '../../content/domain/content.types';
-import { assertRunReviewable } from '../domain/assert-run-reviewable';
-import {
-  OUTPUT_EDITED_WRITER,
-  type OutputEditedWrite,
-  type OutputEditedWriter,
-} from '../domain/output-edited-writer.port';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import {
-  RESULT_KEYS_BY_TASK_TYPE,
-  contentsArraySchema,
-  editedContentSchema,
-  editedPageDocumentSchema,
-  editedPageOutlineSchema,
-  ideasArraySchema,
-  outputEditedBodySchema,
-  reelIdeasArraySchema,
-  reelScriptsArraySchema,
-} from './output-edited-result.schemas';
-import { reelScriptOutputSchema as reelScriptShape } from '../../social/application/social.schemas';
 
 const EMPTY_VERDICT: VerifierVerdict = {
   ok: true,
@@ -99,21 +102,31 @@ export class SaveOutputEditedUseCase {
     @Inject(SOCIAL_RESULT_STORE) private readonly social: SocialResultStore,
     @Inject(CONTENT_RESULT_STORE) private readonly content: ContentResultStore,
     @Inject(OUTPUT_EDITED_WRITER) private readonly writer: OutputEditedWriter,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   async execute(
     runId: RunId,
     input: unknown,
     actor: AuthUserContext,
-  ): Promise<{ runId: RunId; outputEdited: true }> {
+  ): Promise<{
+    runId: RunId;
+    outputEdited: true;
+    pipelineFinishedAt: string | null;
+    reviewExpiresAt: string | null;
+  }> {
     const body = parseWithZod(outputEditedBodySchema, input);
     const keys = Object.keys(body.result);
+    const reviewTtlMs = parseTtlMs(this.env.REVIEW_TTL);
     if (keys.length === 0) {
       validationFailed('result must not be empty');
     }
 
     const run = await this.runs.getById(runId);
-    assertRunReviewable(run, actor.id);
+    assertRunReviewable(run, actor.id, {
+      now: new Date(),
+      reviewTtlMs,
+    });
 
     const allowed = RESULT_KEYS_BY_TASK_TYPE[run.taskType];
     for (const key of keys) {
@@ -138,7 +151,16 @@ export class SaveOutputEditedUseCase {
       );
     }
 
-    return { runId: run.id, outputEdited: true };
+    return {
+      runId: run.id,
+      outputEdited: true as const,
+      pipelineFinishedAt: run.pipelineFinishedAt?.toISOString() ?? null,
+      reviewExpiresAt: computeReviewExpiresAt(
+        run.pipelineFinishedAt,
+        null,
+        reviewTtlMs,
+      ),
+    };
   }
 
   private async planKey(

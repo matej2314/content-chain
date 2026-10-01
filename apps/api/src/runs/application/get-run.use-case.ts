@@ -1,10 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { parseTtlMs } from '../../auth/application/auth.helpers';
 import { DomainException } from '../../shared/exceptions/domain.exception';
+import { ENV, type Env } from '../../shared/config/env';
 import {
   RUN_REPOSITORY,
   RunStartedBy,
   type RunRepository,
 } from '../domain/run.port';
+import { computeReviewExpiresAt } from '../domain/review-window';
 import {
   RUN_RESULT_READER,
   type RunResultReader,
@@ -48,6 +51,8 @@ export interface GetRunOutput {
   userRating: number | null;
   outputEdited: boolean;
   reviewFinalizedAt: string | null;
+  pipelineFinishedAt: string | null;
+  reviewExpiresAt: string | null;
   cancelledAt: string | null;
   result: {
     ideas: SocialIdea[];
@@ -90,6 +95,7 @@ export class GetRunUseCase {
   constructor(
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
     @Inject(RUN_RESULT_READER) private readonly results: RunResultReader,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   async execute(runId: RunId): Promise<GetRunOutput> {
@@ -146,6 +152,12 @@ export class GetRunUseCase {
       userRating: run.userRating,
       outputEdited: run.outputEdited,
       reviewFinalizedAt: run.reviewFinalizedAt?.toISOString() ?? null,
+      pipelineFinishedAt: run.pipelineFinishedAt?.toISOString() ?? null,
+      reviewExpiresAt: computeReviewExpiresAt(
+        run.pipelineFinishedAt,
+        run.reviewFinalizedAt,
+        parseTtlMs(this.env.REVIEW_TTL),
+      ),
       cancelledAt: run.cancelledAt?.toISOString() ?? null,
       result: {
         ideas,

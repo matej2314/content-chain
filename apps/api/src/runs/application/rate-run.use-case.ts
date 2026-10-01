@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { parseWithZod } from '../../shared/parse-with-zod';
 import { assertRunReviewable } from '../domain/assert-run-reviewable';
+import { computeReviewExpiresAt } from '../domain/review-window';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
+import { ENV, type Env } from '../../shared/config/env';
+import { parseTtlMs } from '../../auth/application/auth.helpers';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { RunId } from '@content-chain/shared';
 
@@ -13,12 +16,19 @@ const ratingSchema = z.object({
 
 @Injectable()
 export class RateRunUseCase {
-  constructor(@Inject(RUN_REPOSITORY) private readonly runs: RunRepository) {}
+  constructor(
+    @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
+    @Inject(ENV) private readonly env: Env,
+  ) {}
 
   async execute(runId: RunId, input: unknown, actor: AuthUserContext) {
     const { rating } = parseWithZod(ratingSchema, input);
     const run = await this.runs.getById(runId);
-    assertRunReviewable(run, actor.id);
+    const reviewTtlMs = parseTtlMs(this.env.REVIEW_TTL);
+    assertRunReviewable(run, actor.id, {
+      now: new Date(),
+      reviewTtlMs,
+    });
     const updated = await this.runs.saveRating(runId, rating);
     if (!updated) {
       throw new DomainException(
@@ -31,6 +41,12 @@ export class RateRunUseCase {
       runId: run.id,
       userRating: rating,
       reviewFinalizedAt: null,
+      pipelineFinishedAt: run.pipelineFinishedAt?.toISOString() ?? null,
+      reviewExpiresAt: computeReviewExpiresAt(
+        run.pipelineFinishedAt,
+        null,
+        reviewTtlMs,
+      ),
     };
   }
 }

@@ -25,6 +25,7 @@ import { RunsController } from './runs.controller';
 import { RateRunUseCase } from './application/rate-run.use-case';
 import { SaveOutputEditedUseCase } from './application/save-output-edited.use-case';
 import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
+import { AutoFinalizeExpiredReviewsUseCase } from './application/auto-finalize-expired-reviews.use-case';
 import { CancelRunUseCase } from './application/cancel-run.use-case';
 
 export type RunsModuleAsyncOptions = {
@@ -45,6 +46,7 @@ export type RunsModuleAsyncOptions = {
   providers: [
     RunAbortRegistry,
     RecoverInterruptedRunsUseCase,
+    AutoFinalizeExpiredReviewsUseCase,
     InProcessRunWorker,
     StartRunUseCase,
     ResumeHitlUseCase,

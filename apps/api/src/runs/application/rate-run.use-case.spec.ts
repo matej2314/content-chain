@@ -1,4 +1,5 @@
 import { createUserId, type RunId } from '@content-chain/shared';
+import type { Env } from '../../shared/config/env';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { RunRepository } from '../domain/run.port';
 import {
@@ -12,6 +13,12 @@ const ACTOR: AuthUserContext = {
   email: 'user@example.com',
   role: 'user',
 };
+
+const NOW = new Date('2026-09-30T11:00:00.000Z');
+const ANCHOR_OPEN = new Date('2026-09-30T10:00:00.000Z');
+const ANCHOR_EXPIRED = new Date('2026-09-30T08:00:00.000Z');
+
+const TEST_ENV = { REVIEW_TTL: '2h' } as Env;
 
 function unusedRepo(overrides: Partial<RunRepository> = {}): RunRepository {
   const unexpected = async () => {
@@ -48,11 +55,21 @@ function snapshot(
     status: 'completed',
     startedByUserId: ACTOR.id,
     startedBy: { id: ACTOR.id, email: ACTOR.email },
+    pipelineFinishedAt: ANCHOR_OPEN,
     ...overrides,
   });
 }
 
 describe('RateRunUseCase', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('writes rating 1–5 and returns an open review', async () => {
     const run = snapshot();
     const saveRating = jest.fn(
@@ -63,6 +80,7 @@ describe('RateRunUseCase', () => {
         getById: async () => run,
         saveRating,
       }),
+      TEST_ENV,
     );
 
     await expect(
@@ -71,6 +89,8 @@ describe('RateRunUseCase', () => {
       runId: run.id,
       userRating: 4,
       reviewFinalizedAt: null,
+      pipelineFinishedAt: ANCHOR_OPEN.toISOString(),
+      reviewExpiresAt: '2026-09-30T12:00:00.000Z',
     });
     expect(saveRating).toHaveBeenCalledTimes(1);
     expect(saveRating).toHaveBeenCalledWith(run.id, 4);
@@ -86,6 +106,7 @@ describe('RateRunUseCase', () => {
         getById: async () => run,
         saveRating,
       }),
+      TEST_ENV,
     );
 
     await expect(
@@ -94,6 +115,8 @@ describe('RateRunUseCase', () => {
       runId: run.id,
       userRating: null,
       reviewFinalizedAt: null,
+      pipelineFinishedAt: ANCHOR_OPEN.toISOString(),
+      reviewExpiresAt: '2026-09-30T12:00:00.000Z',
     });
     expect(saveRating).toHaveBeenCalledWith(run.id, null);
   });
@@ -108,6 +131,7 @@ describe('RateRunUseCase', () => {
         getById: async () => run,
         saveRating,
       }),
+      TEST_ENV,
     );
 
     await expect(
@@ -129,7 +153,10 @@ describe('RateRunUseCase', () => {
       const saveRating = jest.fn(
         async (_id: RunId, _rating: number | null): Promise<boolean> => true,
       );
-      const useCase = new RateRunUseCase(unusedRepo({ getById, saveRating }));
+      const useCase = new RateRunUseCase(
+        unusedRepo({ getById, saveRating }),
+        TEST_ENV,
+      );
 
       await expect(useCase.execute(run.id, input, ACTOR)).rejects.toMatchObject({
         name: 'DomainException',
@@ -151,6 +178,7 @@ describe('RateRunUseCase', () => {
         getById: async () => run,
         saveRating,
       }),
+      TEST_ENV,
     );
 
     await expect(
@@ -173,6 +201,7 @@ describe('RateRunUseCase', () => {
         getById: async () => run,
         saveRating,
       }),
+      TEST_ENV,
     );
 
     await expect(
@@ -195,6 +224,7 @@ describe('RateRunUseCase', () => {
         getById: async () => run,
         saveRating,
       }),
+      TEST_ENV,
     );
 
     await expect(
@@ -202,6 +232,32 @@ describe('RateRunUseCase', () => {
     ).rejects.toMatchObject({
       name: 'DomainException',
       code: 'RUN_NOT_REVIEWABLE',
+      httpStatus: 409,
+    });
+    expect(saveRating).not.toHaveBeenCalled();
+  });
+
+  it('rejects after TTL with REVIEW_LOCKED and skips saveRating', async () => {
+    const run = snapshot({
+      pipelineFinishedAt: ANCHOR_EXPIRED,
+      reviewFinalizedAt: null,
+    });
+    const saveRating = jest.fn(
+      async (_id: RunId, _rating: number | null): Promise<boolean> => true,
+    );
+    const useCase = new RateRunUseCase(
+      unusedRepo({
+        getById: async () => run,
+        saveRating,
+      }),
+      TEST_ENV,
+    );
+
+    await expect(
+      useCase.execute(run.id, { rating: 4 }, ACTOR),
+    ).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'REVIEW_LOCKED',
       httpStatus: 409,
     });
     expect(saveRating).not.toHaveBeenCalled();
