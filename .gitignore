@@ -21,8 +21,7 @@ dist/
 
 graphify-out/cache/
 graphify-out/2026-*
-# *-plan.md
-guest-role-plan.md
+demo-mode-*
 
 
 

@@ -1,0 +1,7 @@
+docs/
+spec/
+content-chain_brief.md
+content-chain-backend_major_plan.md
+content-chain-frontend_major_plan.md
+.graphifyignore
+README.md
