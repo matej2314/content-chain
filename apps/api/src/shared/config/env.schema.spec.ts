@@ -46,14 +46,18 @@ describe('validateEnv', () => {
     expect(() => validateEnv(valid)).not.toThrow();
   });
 
+  it('defaults REVIEW_TTL to 2h and REVIEW_SWEEP_INTERVAL to 5m', () => {
+    const env = validateEnv(valid);
+    expect(env.REVIEW_TTL).toBe('2h');
+    expect(env.REVIEW_SWEEP_INTERVAL).toBe('5m');
+  });
+
   it('does not require SMTP in test', () => {
     expect(() => validateEnv({ ...valid, NODE_ENV: 'test' })).not.toThrow();
   });
 
   it('requires SMTP, MAIL_FROM and APP_PUBLIC_URL in production', () => {
-    expect(() =>
-      validateEnv({ ...valid, NODE_ENV: 'production' }),
-    ).toThrow();
+    expect(() => validateEnv({ ...valid, NODE_ENV: 'production' })).toThrow();
   });
 
   it('parses production when invite SMTP fields are set', () => {

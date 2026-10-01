@@ -25,6 +25,7 @@ export type RunSnapshot = RunRecord & {
   userRating: number | null;
   outputEdited: boolean;
   reviewFinalizedAt: Date | null;
+  pipelineFinishedAt: Date | null;
   cancelledAt: Date | null;
 };
 
@@ -64,4 +65,6 @@ export interface RunRepository {
   saveRating(id: RunId, rating: number | null): Promise<boolean>;
   saveOutputEdited(id: RunId): Promise<boolean>;
   saveFinalizedAt(id: RunId, at: Date): Promise<boolean>;
+  /** Sets once (WHERE pipelineFinishedAt IS NULL). No-op if already set. */
+  setPipelineFinishedAt(id: RunId, at: Date): Promise<void>;
 }

@@ -12,7 +12,11 @@ describe('RunLifecycleService', () => {
   function setup() {
     const runs = {
       saveStatus: jest.fn().mockResolvedValue(undefined),
-    } as unknown as RunRepository;
+      setPipelineFinishedAt: jest.fn().mockResolvedValue(undefined),
+    } as unknown as RunRepository & {
+      saveStatus: jest.Mock;
+      setPipelineFinishedAt: jest.Mock;
+    };
     const sseHub = {
       publish: jest.fn(),
       subscribe: jest.fn(),
@@ -57,6 +61,45 @@ describe('RunLifecycleService', () => {
     expect(sseHub.complete).toHaveBeenCalledWith(run.id);
   });
 
+  it('sets pipelineFinishedAt once on transition to completed', async () => {
+    const { runs, service } = setup();
+    const run = makeRun('running');
+
+    await service.transition(run, 'completed', { resultSummary: 'ok' });
+
+    expect(runs.setPipelineFinishedAt).toHaveBeenCalledTimes(1);
+    expect(runs.setPipelineFinishedAt).toHaveBeenCalledWith(
+      run.id,
+      expect.any(Date),
+    );
+    const saveOrder = runs.saveStatus.mock.invocationCallOrder[0];
+    const anchorOrder = runs.setPipelineFinishedAt.mock.invocationCallOrder[0];
+    expect(anchorOrder).toBeGreaterThan(saveOrder);
+  });
+
+  it('sets pipelineFinishedAt once on transition to failed', async () => {
+    const { runs, service } = setup();
+    const run = makeRun('running');
+
+    await service.transition(run, 'failed', { failedMessage: 'boom' });
+
+    expect(runs.setPipelineFinishedAt).toHaveBeenCalledTimes(1);
+    expect(runs.setPipelineFinishedAt).toHaveBeenCalledWith(
+      run.id,
+      expect.any(Date),
+    );
+  });
+
+  it('does not set pipelineFinishedAt on awaiting_hitl or interrupted', async () => {
+    const hitl = setup();
+    await hitl.service.transition(makeRun('running'), 'awaiting_hitl');
+    expect(hitl.runs.setPipelineFinishedAt).not.toHaveBeenCalled();
+
+    const interrupted = setup();
+    await interrupted.service.transition(makeRun('running'), 'interrupted');
+    expect(interrupted.runs.setPipelineFinishedAt).not.toHaveBeenCalled();
+  });
+
   it('publishes run.hitl on awaiting_hitl and does not complete', async () => {
     const { sseHub, service } = setup();
     const run = makeRun('running');
@@ -86,11 +129,12 @@ describe('RunLifecycleService', () => {
   });
 
   it('publishCancelled emits run.status(cancelled) then run.cancelled, then completes', async () => {
-    const { sseHub, service } = setup();
+    const { runs, sseHub, service } = setup();
     const runId = makeRun('running').id;
 
     service.publishCancelled(runId);
 
+    expect(runs.setPipelineFinishedAt).not.toHaveBeenCalled();
     expect(sseHub.publish).toHaveBeenNthCalledWith(1, {
       event: 'run.status',
       data: { runId, status: 'cancelled' },

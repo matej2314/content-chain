@@ -73,7 +73,7 @@ Odpowiada HOW majoru pkt 1–2 + 5 (env przesunięty wcześniej).
 
 ### KROK 1 — Prisma: `pipelineFinishedAt` + migracja backfill B + indeks
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Kolumna kotwicy TTL, jednorazowy backfill B (`updatedAt` else `createdAt` dla `completed`/`failed`), indeks pod sweeper. `SPEC-PERSISTENCE.md` P-5, major Faza 14 HOW #1. Migracja **nie** ustawia `reviewFinalizedAt`.
 
@@ -153,7 +153,7 @@ Jeśli `prisma migrate dev` wygeneruje pełny RedefineTables: wklej `pipelineFin
 
 ### KROK 2 — Env: `REVIEW_TTL` + `REVIEW_SWEEP_INTERVAL`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Fail-fast walidacja env jak pozostałe TTL-stringi; defaulty `2h` / `5m`. `docs/deployment.md`, `SPEC-RUNY.md` R-10.
 
@@ -211,7 +211,7 @@ REVIEW_SWEEP_INTERVAL="5m"
 
 ### KROK 3 — Snapshot / port / lifecycle: kotwica raz przy `completed` \| `failed`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Odczyt `pipelineFinishedAt` w snapshotcie; transition ustawia kotwicę **raz**; `cancelled` bez kotwicy. `SPEC-RUNY.md` R-10 pkt 4.
 

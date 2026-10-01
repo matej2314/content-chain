@@ -62,6 +62,7 @@ type RunRow = {
   cancelledAt: Date | null;
   outputEdited: boolean;
   reviewFinalizedAt: Date | null;
+  pipelineFinishedAt: Date | null;
   createdAt: Date;
   startedBy: { id: string; email: string } | null;
 };
@@ -82,6 +83,7 @@ type RunReviewFields = Pick<
   | 'userRating'
   | 'outputEdited'
   | 'reviewFinalizedAt'
+  | 'pipelineFinishedAt'
   | 'cancelledAt'
 >;
 
@@ -351,6 +353,13 @@ export class PrismaRunAdapter implements RunRepository {
     });
   }
 
+  async setPipelineFinishedAt(id: RunId, at: Date): Promise<void> {
+    await this.prisma.run.updateMany({
+      where: { id, pipelineFinishedAt: null },
+      data: { pipelineFinishedAt: at },
+    });
+  }
+
   async attemptCancel(id: RunId, cancelledAt: Date): Promise<boolean> {
     const result = await this.prisma.run.updateMany({
       where: {
@@ -411,6 +420,7 @@ export class PrismaRunAdapter implements RunRepository {
       userRating: row.userRating,
       outputEdited: row.outputEdited,
       reviewFinalizedAt: row.reviewFinalizedAt,
+      pipelineFinishedAt: row.pipelineFinishedAt,
       createdAt: row.createdAt,
       startedBy: row.startedBy,
     };

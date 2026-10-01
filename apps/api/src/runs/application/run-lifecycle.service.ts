@@ -27,6 +27,9 @@ export class RunLifecycleService implements RunLifecyclePort {
   ): Promise<RunRecord> {
     assertTransition(run.status, to);
     await this.runs.saveStatus(run.id, to);
+    if (to === 'completed' || to === 'failed') {
+      await this.runs.setPipelineFinishedAt(run.id, new Date());
+    }
     this.sseHub.publish({
       event: 'run.status',
       data: { runId: run.id, status: to },

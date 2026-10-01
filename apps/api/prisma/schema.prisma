@@ -65,6 +65,7 @@ model Run {
   userRating         Int?
   outputEdited       Boolean            @default(false)
   reviewFinalizedAt  DateTime?
+  pipelineFinishedAt DateTime?
   cancelRequested    Boolean            @default(false)
   cancelledAt        DateTime?
   createdAt          DateTime           @default(now())
@@ -83,6 +84,7 @@ model Run {
   @@index([taskType])
   @@index([platform])
   @@index([startedByUserId])
+  @@index([reviewFinalizedAt, pipelineFinishedAt])
 }
 
 model RunLog {

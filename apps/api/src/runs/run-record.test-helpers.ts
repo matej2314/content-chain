@@ -7,6 +7,7 @@ export type SocialRunSnapshot = SocialRunRecord & {
   userRating: number | null;
   outputEdited: boolean;
   reviewFinalizedAt: Date | null;
+  pipelineFinishedAt: Date | null;
   cancelledAt: Date | null;
 };
 
@@ -71,6 +72,7 @@ export function makeSocialSnapshot(
     userRating: null,
     outputEdited: false,
     reviewFinalizedAt: null,
+    pipelineFinishedAt: null,
     cancelledAt: null,
     ...overrides,
   };

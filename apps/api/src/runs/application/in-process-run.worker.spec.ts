@@ -39,6 +39,7 @@ function asSnapshot(run: RunRecord): RunSnapshot {
     userRating: null,
     outputEdited: false,
     reviewFinalizedAt: null,
+    pipelineFinishedAt: null,
     cancelledAt: null,
   };
 }
@@ -66,6 +67,7 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     saveRating: unexpected,
     saveOutputEdited: unexpected,
     saveFinalizedAt: unexpected,
+    setPipelineFinishedAt: unexpected,
     ...overrides,
   };
 }
