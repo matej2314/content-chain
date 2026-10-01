@@ -1,337 +1,327 @@
-# Graph Report - api  (2026-09-28)
+# Graph Report - api  (2026-10-01)
 
 ## Corpus Check
-- 194 files · ~29,533 words
+- 202 files · ~30,610 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1271 nodes · 3580 edges · 56 communities (53 shown, 3 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 67 edges (avg confidence: 0.81)
+- 1304 nodes · 3731 edges · 54 communities (51 shown, 3 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 73 edges (avg confidence: 0.81)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6a8837cb`
+- Built from commit: `554d9752`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - content.graph.ts
 - app.module.ts
-- content-writer.node.ts
-- auth.module.ts
-- HealthController
+- social.graph.ts
+- invite-user.use-case.ts
+- AuthController
 - RefreshSessionRepository
-- auth.controller.ts
+- domain.exception.ts
 - runs.controller.ts
-- bootstrap-admin.use-case.ts
-- prisma-run.adapter.ts
+- DomainException
+- PrismaRunAdapter
 - llm-gateway.http.adapter.ts
-- in-process-run.worker.ts
-- prisma-user.adapter.ts
+- InMemoryRunSseHub
+- run.types.ts
 - RunsController
 - prisma-invitation.adapter.ts
-- company-context.types.ts
+- CompanyContextRepository
 - save-output-edited.use-case.ts
-- run-record.test-helpers.ts
-- company-context.controller.ts
-- ReelIdea
+- HttpExceptionFilter
+- content.types.ts
+- get-run.use-case.ts
 - RunRepository
-- AuthController
+- content-run.executor.ts
 - company-context.dto.ts
-- social.types.ts
+- social-pipeline.facade.ts
 - InvitationsController
-- DomainException
+- runs.module.ts
 - InProcessRunWorker
-- users.controller.ts
+- UsersController
 - create-feedback.use-case.ts
-- AuthUserContext
-- company-context.port.ts
-- SocialResultStore
+- start-run.use-case.ts
+- VerifierVerdict
+- prisma-social-result.adapter.ts
 - .create
 - Env
-- CompanyContextRepository
+- SocialResultStore
 - feedback.types.ts
-- social.graph.ts
-- start-run.use-case.ts
+- LlmHopService
+- resume-hitl.use-case.ts
 - PrismaService
 - RunLifecycleService
-- ListRunsQueryDto
-- StartRunDto
+- content.schemas.ts
+- PageOutline
 - PrismaRefreshSessionAdapter
-- CompanyContextController
-- http-metrics.interceptor.ts
-- metrics.module.ts
+- output-edited-writer.port.ts
+- run-lifecycle.service.ts
+- configure-swagger.ts
 - llm-hop.ts
-- LlmGatewayHttpAdapter
-- .constructor
+- llm.module.ts
+- auth.module.ts
 - feedback.controller.ts
-- llm-gateway-chat.log.ts
-- llm-gateway.port.ts
-- FeedbackRepository
-- PatchRunRatingDto
-- ParseRunIdPipe
-- RolesGuard
+- auth.schemas.ts
+- newRequestId
+- RunsModule
+- roles.decorator.ts
 
 ## God Nodes (most connected - your core abstractions)
-1. `DomainException` - 68 edges
-2. `RunRepository` - 45 edges
-3. `RunRecord` - 36 edges
-4. `AuthUserContext` - 35 edges
-5. `parseWithZod()` - 32 edges
-6. `SocialResultStore` - 32 edges
-7. `UserRepository` - 31 edges
-8. `Env` - 31 edges
+1. `DomainException` - 70 edges
+2. `RunRepository` - 51 edges
+3. `Env` - 41 edges
+4. `RunRecord` - 37 edges
+5. `AuthUserContext` - 36 edges
+6. `parseWithZod()` - 32 edges
+7. `SocialResultStore` - 32 edges
+8. `UserRepository` - 31 edges
 9. `VerifierVerdict` - 31 edges
-10. `PrismaService` - 27 edges
+10. `PrismaRunAdapter` - 27 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `Request` --references--> `AuthUserContext`  [EXTRACTED]
+  src/shared/http/express.d.ts → src/shared/types/auth-user-context.ts
 - `setAuthCookies()` --calls--> `parseTtlMs()`  [EXTRACTED]
   src/auth/infrastructure/cookie.helper.ts → src/auth/application/auth.helpers.ts
 - `PrismaInvitationAdapter` --implements--> `InvitationRepository`  [EXTRACTED]
   src/auth/infrastructure/prisma-invitation.adapter.ts → src/auth/domain/invitation-repository.port.ts
-- `validatePasswordPolicy()` --calls--> `DomainException`  [EXTRACTED]
-  src/auth/domain/password.policy.ts → src/shared/exceptions/domain.exception.ts
 - `PrismaRefreshSessionAdapter` --implements--> `RefreshSessionRepository`  [EXTRACTED]
   src/auth/infrastructure/prisma-refresh-session.adapter.ts → src/auth/domain/refresh-session.repository.port.ts
-- `PrismaUserAdapter` --implements--> `UserRepository`  [EXTRACTED]
-  src/auth/infrastructure/prisma-user.adapter.ts → src/auth/domain/user-repository.port.ts
+- `NodemailerSmtpMailerAdapter` --implements--> `TransactionalMailer`  [EXTRACTED]
+  src/auth/infrastructure/nodemailer-smtp-mailer.adapter.ts → src/auth/domain/transactional-mailer.port.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (56 total, 3 thin omitted)
+## Communities (54 total, 3 thin omitted)
 
 ### Community 0 - "content.graph.ts"
-Cohesion: 0.06
-Nodes (64): ContentPipelineFacade, toOutcome(), Inject, Injectable, ContentRunExecutor, isCanonicalOutlineSelection(), isMissingContentKind(), Inject (+56 more)
+Cohesion: 0.19
+Nodes (18): canRefine(), MAX_REFINE, nextRefineCount(), compileContentGraph(), ContentState, routeAfterConsistencyVerifier(), routeAfterNormalizeBrief(), createFailRunNode() (+10 more)
 
 ### Community 1 - "app.module.ts"
 Cohesion: 0.14
-Nodes (14): AuthModule, Module, ContentModule, Module, RunDispatchExecutor, RunExecuteOptions, RunExecutorPort, RUN_LIFECYCLE (+6 more)
+Nodes (15): AuthModule, Module, CompanyContextModule, Module, ContentModule, Module, RunLifecycleModule, Module (+7 more)
 
-### Community 2 - "content-writer.node.ts"
-Cohesion: 0.18
-Nodes (21): loadPromptFromDir(), renderPrompt(), coercePassNoteVerdict(), isPassOnlyIssue(), ideasOutputSchema, reelIdeasOutputSchema, isReelTaskType(), ReelTaskType (+13 more)
+### Community 2 - "social.graph.ts"
+Cohesion: 0.09
+Nodes (48): loadPromptFromDir(), renderPrompt(), coercePassNoteVerdict(), isPassOnlyIssue(), coerceVerifierIssue(), ContentOutput, IdeasOutput, ideasOutputSchema (+40 more)
 
-### Community 3 - "auth.module.ts"
-Cohesion: 0.10
-Nodes (25): InviteUserResult, inviteUserSchema, InviteUserUseCase, Inject, Injectable, InvitationListItem, ListInvitationsUseCase, Inject (+17 more)
+### Community 3 - "invite-user.use-case.ts"
+Cohesion: 0.08
+Nodes (25): Inject, InviteUserResult, inviteUserSchema, InviteUserUseCase, Inject, Injectable, InvitationListItem, ListInvitationsUseCase (+17 more)
 
-### Community 4 - "HealthController"
-Cohesion: 0.12
-Nodes (14): ApiOperation, HealthController, ApiOkResponse, ApiTags, Controller, Get, HealthModule, Module (+6 more)
+### Community 4 - "AuthController"
+Cohesion: 0.05
+Nodes (41): ApiOperation, Req, AuthController, ApiCookieAuth, ApiTags, Body, Controller, Get (+33 more)
 
 ### Community 5 - "RefreshSessionRepository"
-Cohesion: 0.11
-Nodes (8): Inject, Inject, LogoutUseCase, Inject, Injectable, Inject, REFRESH_SESSION_REPOSITORY, RefreshSessionRepository
+Cohesion: 0.13
+Nodes (5): Inject, Inject, Inject, Inject, RefreshSessionRepository
 
-### Community 6 - "auth.controller.ts"
-Cohesion: 0.07
-Nodes (25): BootstrapStatusUseCase, Inject, Injectable, ListUsersUseCase, Inject, Injectable, MeUseCase, Inject (+17 more)
+### Community 6 - "domain.exception.ts"
+Cohesion: 0.09
+Nodes (16): Inject, ListUsersUseCase, Inject, Injectable, Inject, ReactivateUserUseCase, Inject, Injectable (+8 more)
 
 ### Community 7 - "runs.controller.ts"
-Cohesion: 0.13
-Nodes (25): GetRunLogsOutput, GetRunLogsUseCase, Injectable, GetRunUseCase, Injectable, ListRunsOutput, ListRunsUseCase, Injectable (+17 more)
+Cohesion: 0.10
+Nodes (25): CancelRunUseCase, Inject, Injectable, GetRunLogsOutput, GetRunLogsUseCase, Injectable, GetRunUseCase, Injectable (+17 more)
 
-### Community 8 - "bootstrap-admin.use-case.ts"
-Cohesion: 0.13
-Nodes (21): AcceptInviteResult, acceptInviteSchema, comparePassword(), generateRefreshToken(), hashPassword(), hashRefreshToken(), parseTtlMs(), parseTtlSeconds() (+13 more)
+### Community 8 - "DomainException"
+Cohesion: 0.12
+Nodes (19): AcceptInviteResult, acceptInviteSchema, comparePassword(), hashPassword(), parseTtlMs(), validatePasswordPolicy(), FinalizeReviewUseCase, Injectable (+11 more)
 
-### Community 9 - "prisma-run.adapter.ts"
-Cohesion: 0.09
-Nodes (14): LightRunItem, ListRunsResult, RunSnapshot, RunLogEntry, ALLOWED_RUN_STATES, assertTransition(), CANCELABLE_RUN_STATUSES, PrismaRunAdapter (+6 more)
+### Community 9 - "PrismaRunAdapter"
+Cohesion: 0.13
+Nodes (3): RunLogEntry, PrismaRunAdapter, Injectable
 
 ### Community 10 - "llm-gateway.http.adapter.ts"
-Cohesion: 0.19
-Nodes (10): buildGatewayChatErrorLog(), buildGatewayChatRequestLog(), buildGatewayChatResponseLog(), redactGatewaySecret(), LlmGatewayError, GatewayChatResponse, GatewayErrorBody, RETRYABLE_CODES (+2 more)
+Cohesion: 0.06
+Nodes (39): buildGatewayChatErrorLog(), buildGatewayChatRequestLog(), buildGatewayChatResponseLog(), GatewayChatErrorLog, GatewayChatRequestLog, GatewayChatResponseLog, redactGatewaySecret(), GatewayChatResponse (+31 more)
 
-### Community 11 - "in-process-run.worker.ts"
-Cohesion: 0.16
-Nodes (8): TransitionExtras, RUN_EXECUTOR, RUN_SSE_HUB, RunSseEvent, RunSseHub, InMemoryRunSseHub, Inject, Injectable
+### Community 11 - "InMemoryRunSseHub"
+Cohesion: 0.29
+Nodes (4): RunSseEvent, InMemoryRunSseHub, Inject, Injectable
 
-### Community 12 - "prisma-user.adapter.ts"
-Cohesion: 0.15
-Nodes (9): AuthUser, CreateAdminIfNoneData, CreateAdminIfNoneResult, UserForAuth, CreateUserData, isUniqueConstraintViolation(), PrismaUserAdapter, Injectable (+1 more)
+### Community 12 - "run.types.ts"
+Cohesion: 0.12
+Nodes (16): LightRunItem, ListRunsResult, RunSnapshot, RunRecordBase, ALLOWED_RUN_STATES, assertTransition(), CANCELABLE_RUN_STATUSES, RunLogRow (+8 more)
 
 ### Community 13 - "RunsController"
-Cohesion: 0.10
-Nodes (19): Query, FinalizeReviewUseCase, Injectable, orderItemsBySelectedIds(), HitlDto, IsArray, IsString, isTerminalStatus() (+11 more)
+Cohesion: 0.05
+Nodes (41): ArrayUnique, Query, HitlDto, IsArray, IsString, ListRunsQueryDto, IsArray, IsIn (+33 more)
 
 ### Community 14 - "prisma-invitation.adapter.ts"
-Cohesion: 0.17
-Nodes (15): AcceptInviteAndCreateUserInput, AcceptInviteAndCreateUserResult, CreateInvitationInput, CreatePendingResult, InvitationListRecord, InvitationPurpose, InvitationRecord, InvitationStatus (+7 more)
+Cohesion: 0.08
+Nodes (24): AuthUser, AcceptInviteAndCreateUserInput, AcceptInviteAndCreateUserResult, CreateInvitationInput, CreatePendingResult, InvitationListRecord, InvitationPurpose, InvitationRecord (+16 more)
 
-### Community 15 - "company-context.types.ts"
-Cohesion: 0.17
-Nodes (19): COMPANY_CONTEXT_SINGLETON_ID, GATE_SECTIONS, GateSection, AudienceProfile, CompanyContextCaseStudy, CompanyContextExtras, CompanyContextObjection, CompanyContextWriteDetail (+11 more)
+### Community 15 - "CompanyContextRepository"
+Cohesion: 0.05
+Nodes (60): Put, toCompanyContext(), toPartialCompanyContext(), toPublicCompanyContext(), companyContextCaseStudySchema, companyContextExtrasInputSchema, CompanyContextExtrasParsed, companyContextExtrasSchema (+52 more)
 
 ### Community 16 - "save-output-edited.use-case.ts"
-Cohesion: 0.07
-Nodes (41): pageDocumentOutputSchema, contentsArraySchema, editedContentItemSchema, editedContentSchema, editedPageDocumentSchema, editedPageOutlineSchema, editedReelScriptItemSchema, ideaPersistedSchema (+33 more)
+Cohesion: 0.14
+Nodes (21): pageDocumentOutputSchema, contentsArraySchema, editedContentItemSchema, editedContentSchema, editedPageDocumentSchema, editedPageOutlineSchema, editedReelScriptItemSchema, ideaPersistedSchema (+13 more)
 
-### Community 17 - "run-record.test-helpers.ts"
+### Community 17 - "HttpExceptionFilter"
+Cohesion: 0.31
+Nodes (3): Catch, ErrorEnvelope, HttpExceptionFilter
+
+### Community 18 - "content.types.ts"
 Cohesion: 0.15
-Nodes (12): Catch, makeContentRun(), makeSocialRun(), makeSocialSnapshot(), SocialRunSnapshot, ErrorEnvelope, HttpExceptionFilter, newConversationId() (+4 more)
+Nodes (11): ContentResultStore, ContentPipelineInput, ContentPipelineState, ContentRefineSnapshot, PageDocument, PageOutlineSection, PageOutlineSectionRole, VerifierVerdict (+3 more)
 
-### Community 18 - "company-context.controller.ts"
-Cohesion: 0.23
-Nodes (11): GetCompanyContextUseCase, Injectable, GetCompletenessUseCase, Injectable, PatchCompanyContextUseCase, Injectable, PutCompanyContextUseCase, Injectable (+3 more)
-
-### Community 19 - "ReelIdea"
-Cohesion: 0.07
-Nodes (7): CompositeRunResultReader, RunResultReader, EmptyRunResultReader, Injectable, ReelIdea, ReelScriptItem, SocialContentItem
+### Community 19 - "get-run.use-case.ts"
+Cohesion: 0.19
+Nodes (13): GetRunOutput, orderItemsBySelectedIds(), RUN_RESULT_READER, RunResultReader, ContentBrief, SocialBrief, ReelDurationSeconds, ReelIdea (+5 more)
 
 ### Community 20 - "RunRepository"
-Cohesion: 0.07
-Nodes (9): Inject, Inject, Inject, Inject, Inject, Inject, Inject, RunRepository (+1 more)
+Cohesion: 0.08
+Nodes (6): Inject, Inject, Inject, Inject, RunRepository, RunRecord
 
-### Community 21 - "AuthController"
-Cohesion: 0.17
-Nodes (16): Req, AuthController, ApiTags, Body, Controller, Get, HttpCode, Post (+8 more)
+### Community 21 - "content-run.executor.ts"
+Cohesion: 0.18
+Nodes (15): ContentPipelineFacade, toOutcome(), Injectable, ContentRunExecutor, isCanonicalOutlineSelection(), isMissingContentKind(), Inject, Injectable (+7 more)
 
 ### Community 22 - "company-context.dto.ts"
 Cohesion: 0.26
 Nodes (20): ApiPropertyOptional, IsObject, AudienceDto, AudienceProfileDto, CtaDto, CtaItemDto, IdentityDto, OfferDto (+12 more)
 
-### Community 23 - "social.types.ts"
-Cohesion: 0.17
-Nodes (17): isSocialRunRecord(), RunRecordBase, SocialBrief, SocialRunRecord, SocialPipelineFacade, toOutcome(), Injectable, SocialRunExecutor (+9 more)
+### Community 23 - "social-pipeline.facade.ts"
+Cohesion: 0.22
+Nodes (12): isSocialRunRecord(), SocialRunRecord, SocialPipelineFacade, toOutcome(), Injectable, SocialRunExecutor, Inject, Injectable (+4 more)
 
 ### Community 24 - "InvitationsController"
-Cohesion: 0.12
+Cohesion: 0.13
 Nodes (13): InviteUserDto, ApiProperty, IsEmail, InvitationsController, ApiCookieAuth, ApiTags, Body, Controller (+5 more)
 
-### Community 25 - "DomainException"
-Cohesion: 0.17
-Nodes (10): ReactivateUserUseCase, Inject, Injectable, UserListItem, ratingSchema, assertRunReviewable(), DomainException, extractJsonText() (+2 more)
+### Community 25 - "runs.module.ts"
+Cohesion: 0.18
+Nodes (12): AutoFinalizeExpiredReviewsUseCase, Injectable, Inject, RecoverInterruptedRunsUseCase, Injectable, RunAbortRegistry, Injectable, RunDispatchExecutor (+4 more)
 
 ### Community 26 - "InProcessRunWorker"
-Cohesion: 0.15
-Nodes (6): InProcessRunWorker, Inject, Injectable, RunAbortRegistry, Injectable, Inject
+Cohesion: 0.19
+Nodes (3): InProcessRunWorker, Injectable, Inject
 
-### Community 27 - "users.controller.ts"
-Cohesion: 0.08
-Nodes (24): Equals, IsBoolean, AppModule, Module, SoftDeleteUserUseCase, Injectable, PatchUserDto, ApiProperty (+16 more)
+### Community 27 - "UsersController"
+Cohesion: 0.12
+Nodes (14): Equals, IsBoolean, PatchUserDto, ApiProperty, ApiCookieAuth, ApiTags, Body, Controller (+6 more)
 
 ### Community 28 - "create-feedback.use-case.ts"
-Cohesion: 0.24
+Cohesion: 0.23
 Nodes (8): FEEDBACK_RUN_READER, FeedbackRunLookup, FeedbackRunReader, FEEDBACK_REPOSITORY, FeedbackModule, Module, PrismaFeedbackRunReaderAdapter, Injectable
 
-### Community 29 - "AuthUserContext"
-Cohesion: 0.13
-Nodes (12): ApiCookieAuth, Patch, isRecord(), ListRunsUserItem, ListRunsUserOutput, ListRunsUserUseCase, Injectable, CurrentUser (+4 more)
-
-### Community 30 - "company-context.port.ts"
+### Community 29 - "start-run.use-case.ts"
 Cohesion: 0.23
-Nodes (10): toPublicCompanyContext(), companyContextCaseStudySchema, companyContextExtrasInputSchema, CompanyContextExtrasParsed, companyContextExtrasSchema, companyContextObjectionSchema, assertCompanyContextWritable(), PartialCompanyContext (+2 more)
+Nodes (13): isContentStartCommand(), isPlainRecord(), omitUndefinedDeep(), StartRunBriefInput, StartRunCommand, StartRunUseCase, Injectable, makeContentRun() (+5 more)
 
-### Community 31 - "SocialResultStore"
-Cohesion: 0.08
-Nodes (15): toInputJson(), SocialResultStore, PipelineState, ReelScript, ReelScriptSegment, SocialContent, SocialIdea, VerifierVerdict (+7 more)
+### Community 30 - "VerifierVerdict"
+Cohesion: 0.19
+Nodes (4): EmptyRunResultReader, Injectable, ReelScript, VerifierVerdict
+
+### Community 31 - "prisma-social-result.adapter.ts"
+Cohesion: 0.12
+Nodes (9): toInputJson(), ReelScriptSegment, mapStoredReelScript(), mapStoredReelScriptSegment(), mapStoredSocialContent(), asContentItem(), asReelScriptItem(), PrismaSocialResultAdapter (+1 more)
 
 ### Community 32 - ".create"
 Cohesion: 0.20
 Nodes (9): MaxLength, Body, HttpCode, Post, CreateFeedbackDto, IsIn, IsOptional, IsString (+1 more)
 
 ### Community 33 - "Env"
-Cohesion: 0.15
-Nodes (15): clearAuthCookies(), readCookie(), JwtCookieStrategy, Inject, Injectable, readSmtpConfig(), SmtpConfig, Inject (+7 more)
-
-### Community 34 - "CompanyContextRepository"
-Cohesion: 0.13
-Nodes (10): Inject, Inject, Inject, Inject, CompanyContextRepository, CompanyContext, jsonArray(), jsonRecord() (+2 more)
+Cohesion: 0.11
+Nodes (14): clearAuthCookies(), readCookie(), isRecord(), JwtCookieStrategy, Inject, Injectable, NodemailerSmtpMailerAdapter, readSmtpConfig() (+6 more)
 
 ### Community 35 - "feedback.types.ts"
-Cohesion: 0.38
-Nodes (4): agentKeySchema, CreateFeedbackCommand, createFeedbackSchema, FEEDBACK_BODY_MAX
+Cohesion: 0.19
+Nodes (8): agentKeySchema, CreateFeedbackCommand, createFeedbackSchema, FEEDBACK_BODY_MAX, FeedbackEntry, FeedbackRepository, PrismaFeedbackAdapter, Injectable
 
-### Community 36 - "social.graph.ts"
-Cohesion: 0.21
-Nodes (13): Inject, canRefine(), createFailRunNode(), createLoadContextNode(), createNormalizeBriefNode(), createPersistContentNode(), sourceIdeaIdFromState(), createPersistIdeasNode() (+5 more)
+### Community 36 - "LlmHopService"
+Cohesion: 0.25
+Nodes (8): Inject, CompileContentGraphOptions, RunLifecyclePort, LlmHopService, Inject, Injectable, Inject, CompileSocialGraphOptions
 
-### Community 37 - "start-run.use-case.ts"
-Cohesion: 0.14
-Nodes (15): contentBriefSchema, hitlSelectedIdeaIdsSchema, pageStartRunSchema, ParsedHitlSelectedIdeaIds, ParsedRunId, ParsedSocialBrief, ParsedStartRunCommand, socialBriefSchema (+7 more)
+### Community 37 - "resume-hitl.use-case.ts"
+Cohesion: 0.18
+Nodes (11): contentBriefSchema, hitlSelectedIdeaIdsSchema, pageStartRunSchema, ParsedHitlSelectedIdeaIds, ParsedRunId, ParsedSocialBrief, ParsedStartRunCommand, runIdSchema (+3 more)
 
 ### Community 38 - "PrismaService"
-Cohesion: 0.15
-Nodes (8): FeedbackEntry, PrismaFeedbackAdapter, Injectable, PrismaModule, Global, Module, PrismaService, Injectable
+Cohesion: 0.17
+Nodes (5): PrismaModule, Global, Module, PrismaService, Injectable
 
 ### Community 39 - "RunLifecycleService"
 Cohesion: 0.14
-Nodes (9): RecoverInterruptedRunsUseCase, Inject, Injectable, Inject, RunLifecycleService, Inject, Injectable, StubRunExecutor (+1 more)
+Nodes (8): Inject, ResumeHitlUseCase, Inject, Injectable, RunLifecycleService, Injectable, StubRunExecutor, Injectable
 
-### Community 40 - "ListRunsQueryDto"
-Cohesion: 0.17
-Nodes (10): ArrayUnique, ListRunsQueryDto, IsArray, IsIn, IsInt, IsOptional, IsString, Min (+2 more)
-
-### Community 41 - "StartRunDto"
-Cohesion: 0.21
-Nodes (11): RunBriefDto, StartRunDto, ApiProperty, IsArray, IsIn, IsInt, IsOptional, IsString (+3 more)
+### Community 40 - "content.schemas.ts"
+Cohesion: 0.19
+Nodes (12): coerceVerifierIssue(), isPlainRecord(), PageDocumentOutput, PageOutlineOutput, pageOutlineOutputSchema, pageOutlineSectionRoleSchema, pageOutlineSectionSchema, readNonEmptyString() (+4 more)
 
 ### Community 42 - "PrismaRefreshSessionAdapter"
-Cohesion: 0.27
+Cohesion: 0.31
 Nodes (4): RefreshSessionRecord, RotateRefreshSessionResult, PrismaRefreshSessionAdapter, Injectable
 
-### Community 43 - "CompanyContextController"
-Cohesion: 0.13
-Nodes (12): Put, toCompanyContext(), toPartialCompanyContext(), CompanyContextController, ApiCookieAuth, ApiOkResponse, ApiTags, Body (+4 more)
+### Community 43 - "output-edited-writer.port.ts"
+Cohesion: 0.22
+Nodes (7): Inject, OUTPUT_EDITED_WRITER, OutputEditedWrite, OutputEditedWriter, applyWrite(), PrismaOutputEditedAdapter, Injectable
 
-### Community 44 - "http-metrics.interceptor.ts"
-Cohesion: 0.21
-Nodes (10): HttpMetricsInterceptor, httpRouteLabel(), statusLabel(), Injectable, UNMAPPED_HTTP_ROUTE, gatewayErrorsTotal, httpRequestDurationSeconds, httpRequestsTotal (+2 more)
+### Community 44 - "run-lifecycle.service.ts"
+Cohesion: 0.26
+Nodes (4): TransitionExtras, Inject, RUN_SSE_HUB, RunSseHub
 
-### Community 45 - "metrics.module.ts"
-Cohesion: 0.19
-Nodes (8): MetricsController, Controller, Get, Res, MetricsModule, Module, MetricsService, Injectable
+### Community 45 - "configure-swagger.ts"
+Cohesion: 0.27
+Nodes (7): AppModule, Module, bootstrap(), parseCorsOrigins(), configureHttpApp(), ACCESS_COOKIE_NAME, buildSwaggerConfig()
 
 ### Community 46 - "llm-hop.ts"
-Cohesion: 0.26
-Nodes (10): isRetryable(), RetryReason, isAbortError(), ChatJsonInput, hopErrorLogMessage(), hopUserContent(), isHopRetryable(), isStructuredOutputInvalid() (+2 more)
+Cohesion: 0.18
+Nodes (13): LlmGatewayError, isRetryable(), RetryReason, isAbortError(), ChatJsonInput, hopErrorLogMessage(), hopUserContent(), isHopRetryable() (+5 more)
 
-### Community 47 - "LlmGatewayHttpAdapter"
-Cohesion: 0.20
-Nodes (6): LlmGatewayHttpAdapter, Inject, Injectable, LlmModule, Module, LLM_GATEWAY_PORT
+### Community 47 - "llm.module.ts"
+Cohesion: 0.50
+Nodes (3): LlmModule, Module, LLM_GATEWAY_PORT
 
-### Community 48 - ".constructor"
-Cohesion: 0.20
-Nodes (7): AcceptInviteUseCase, Inject, Injectable, RefreshUseCase, Inject, Injectable, Inject
+### Community 48 - "auth.module.ts"
+Cohesion: 0.15
+Nodes (24): AcceptInviteUseCase, Injectable, generateRefreshToken(), hashRefreshToken(), parseTtlSeconds(), AuthTokenResult, BootstrapAdminUseCase, Injectable (+16 more)
 
 ### Community 49 - "feedback.controller.ts"
-Cohesion: 0.29
-Nodes (6): CreateFeedbackUseCase, Injectable, FeedbackController, ApiCookieAuth, ApiTags, Controller
+Cohesion: 0.15
+Nodes (9): CreateFeedbackUseCase, Inject, Injectable, FeedbackController, ApiCookieAuth, ApiTags, Controller, Express (+1 more)
 
-### Community 50 - "llm-gateway-chat.log.ts"
-Cohesion: 0.36
-Nodes (6): GatewayChatErrorLog, GatewayChatRequestLog, GatewayChatResponseLog, LlmChatMessage, LlmChatParams, LlmUsage
+### Community 50 - "auth.schemas.ts"
+Cohesion: 0.22
+Nodes (8): BootstrapAdminInput, bootstrapAdminSchema, LoginInput, loginSchema, PatchUserCommand, patchUserSchema, UpdateMeEmailInput, updateMeEmailSchema
 
-### Community 51 - "llm-gateway.port.ts"
-Cohesion: 0.38
-Nodes (4): LlmGatewayPort, LlmChatCommand, LlmChatResult, Inject
-
-### Community 53 - "PatchRunRatingDto"
+### Community 51 - "newRequestId"
 Cohesion: 0.50
-Nodes (3): PatchRunRatingDto, IsIn, ValidateIf
+Nodes (3): newRequestId(), RequestIdMiddleware, Injectable
+
+### Community 55 - "roles.decorator.ts"
+Cohesion: 0.33
+Nodes (3): ROLES_KEY, RolesGuard, Injectable
 
 ## Knowledge Gaps
-- **84 isolated node(s):** `acceptInviteSchema`, `AcceptInviteResult`, `BootstrapAdminInput`, `LoginInput`, `PatchUserCommand` (+79 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 345 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **83 isolated node(s):** `acceptInviteSchema`, `AcceptInviteResult`, `BootstrapAdminInput`, `LoginInput`, `UpdateMeEmailInput` (+78 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 352 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `DomainException` connect `DomainException` to `content.graph.ts`, `auth.module.ts`, `RefreshSessionRepository`, `auth.controller.ts`, `runs.controller.ts`, `bootstrap-admin.use-case.ts`, `prisma-run.adapter.ts`, `prisma-user.adapter.ts`, `RunsController`, `prisma-invitation.adapter.ts`, `save-output-edited.use-case.ts`, `run-record.test-helpers.ts`, `social.types.ts`, `InvitationsController`, `users.controller.ts`, `create-feedback.use-case.ts`, `AuthUserContext`, `company-context.port.ts`, `Env`, `start-run.use-case.ts`, `http-metrics.interceptor.ts`, `llm-hop.ts`?**
-  _High betweenness centrality (0.120) - this node is a cross-community bridge._
-- **Why does `RunRepository` connect `RunRepository` to `start-run.use-case.ts`, `runs.controller.ts`, `RunLifecycleService`, `prisma-run.adapter.ts`, `in-process-run.worker.ts`, `save-output-edited.use-case.ts`, `DomainException`, `InProcessRunWorker`, `AuthUserContext`?**
-  _High betweenness centrality (0.065) - this node is a cross-community bridge._
-- **Why does `Env` connect `Env` to `auth.module.ts`, `RefreshSessionRepository`, `auth.controller.ts`, `runs.controller.ts`, `bootstrap-admin.use-case.ts`, `llm-gateway.http.adapter.ts`, `in-process-run.worker.ts`, `llm-hop.ts`, `LlmGatewayHttpAdapter`, `.constructor`, `llm-gateway.port.ts`, `InProcessRunWorker`, `users.controller.ts`?**
-  _High betweenness centrality (0.061) - this node is a cross-community bridge._
+- **Why does `DomainException` connect `DomainException` to `invite-user.use-case.ts`, `domain.exception.ts`, `runs.controller.ts`, `llm-gateway.http.adapter.ts`, `run.types.ts`, `prisma-invitation.adapter.ts`, `CompanyContextRepository`, `save-output-edited.use-case.ts`, `HttpExceptionFilter`, `get-run.use-case.ts`, `content-run.executor.ts`, `social-pipeline.facade.ts`, `create-feedback.use-case.ts`, `start-run.use-case.ts`, `Env`, `resume-hitl.use-case.ts`, `RunLifecycleService`, `llm-hop.ts`, `auth.module.ts`?**
+  _High betweenness centrality (0.109) - this node is a cross-community bridge._
+- **Why does `Env` connect `Env` to `app.module.ts`, `invite-user.use-case.ts`, `LlmHopService`, `RefreshSessionRepository`, `runs.controller.ts`, `DomainException`, `llm-gateway.http.adapter.ts`, `output-edited-writer.port.ts`, `run-lifecycle.service.ts`, `InMemoryRunSseHub`, `configure-swagger.ts`, `llm-hop.ts`, `auth.module.ts`, `save-output-edited.use-case.ts`, `get-run.use-case.ts`, `RunRepository`, `runs.module.ts`?**
+  _High betweenness centrality (0.066) - this node is a cross-community bridge._
+- **Why does `AuthUserContext` connect `DomainException` to `.create`, `Env`, `invite-user.use-case.ts`, `AuthController`, `domain.exception.ts`, `runs.controller.ts`, `RunsController`, `auth.module.ts`, `feedback.controller.ts`, `save-output-edited.use-case.ts`, `roles.decorator.ts`, `InvitationsController`, `create-feedback.use-case.ts`?**
+  _High betweenness centrality (0.048) - this node is a cross-community bridge._
 - **What connects `acceptInviteSchema`, `AcceptInviteResult`, `BootstrapAdminInput` to the rest of the system?**
-  _84 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `content.graph.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.055525606469002696 - nodes in this community are weakly interconnected._
+  _83 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `app.module.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.13768115942028986 - nodes in this community are weakly interconnected._
-- **Should `auth.module.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.1048780487804878 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.13725490196078433 - nodes in this community are weakly interconnected._
+- **Should `social.graph.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.08764568764568764 - nodes in this community are weakly interconnected._
+- **Should `invite-user.use-case.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.08084163898117387 - nodes in this community are weakly interconnected._

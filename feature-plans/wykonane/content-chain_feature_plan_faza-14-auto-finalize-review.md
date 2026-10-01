@@ -791,7 +791,7 @@ Odpowiada HOW majoru pkt 7.
 
 ### KROK 1 — Unit / e2e: D-35…D-40 + regresja D-12
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Pokrycie `SPEC-TESTY.md` D-35…D-40; regresja D-12 (meta TTL na sukcesach); feedback po TTL nadal 201. `docs/testy.md`.
 
@@ -823,7 +823,7 @@ Odpowiada HOW majoru pkt 7.
 
 ### KROK 2 — Postman: regresja przeglądu + TTL
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Kolekcja review: asercje meta TTL na GET/sukcesach; negatyw po wygaśnięciu (jeśli da się ustawić krótkie `REVIEW_TTL` w środowisku runnera) **albo** dokumentacja w `test/postman/README.md`, że D-35+ = e2e, a Postman = happy path + pola meta. Preferuj **dopisek requestów** gdy runner może użyć `REVIEW_TTL=2s` lokalnie.
 

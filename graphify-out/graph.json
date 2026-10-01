@@ -43,95 +43,43 @@
       "source_location": "L8"
     },
     {
-      "id": "apps_api_src_auth_domain_invitation_repository_port_acceptinviteandcreateuserinput",
-      "label": "AcceptInviteAndCreateUserInput",
+      "id": "apps_api_src_auth_application_list_invitations_use_case_listinvitationsusecase",
+      "label": "ListInvitationsUseCase",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 0,
       "community_name": "invite-user.use-case.ts",
       "file_type": "code",
-      "norm_label": "acceptinviteandcreateuserinput",
-      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
-      "source_location": "L35"
+      "norm_label": "listinvitationsusecase",
+      "source_file": "apps/api/src/auth/application/list-invitations.use-case.ts",
+      "source_location": "L17"
     },
     {
-      "id": "apps_api_src_auth_domain_invitation_repository_port_acceptinviteandcreateuserresult",
-      "label": "AcceptInviteAndCreateUserResult",
+      "id": "apps_api_src_auth_application_resend_invitation_use_case_resendinvitationusecase",
+      "label": "ResendInvitationUseCase",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 0,
       "community_name": "invite-user.use-case.ts",
       "file_type": "code",
-      "norm_label": "acceptinviteandcreateuserresult",
-      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
-      "source_location": "L51"
+      "norm_label": "resendinvitationusecase",
+      "source_file": "apps/api/src/auth/application/resend-invitation.use-case.ts",
+      "source_location": "L17"
     },
     {
-      "id": "apps_api_src_auth_domain_invitation_repository_port_createinvitationinput",
-      "label": "CreateInvitationInput",
+      "id": "apps_api_src_auth_application_revoke_invitation_use_case_revokeinvitationusecase",
+      "label": "RevokeInvitationUseCase",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 0,
       "community_name": "invite-user.use-case.ts",
       "file_type": "code",
-      "norm_label": "createinvitationinput",
-      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
-      "source_location": "L20"
-    },
-    {
-      "id": "apps_api_src_auth_domain_invitation_repository_port_creatependingresult",
-      "label": "CreatePendingResult",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": "creatependingresult",
-      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
-      "source_location": "L54"
-    },
-    {
-      "id": "apps_api_src_auth_domain_invitation_repository_port_invitationlistrecord",
-      "label": "InvitationListRecord",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": "invitationlistrecord",
-      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
-      "source_location": "L42"
-    },
-    {
-      "id": "apps_api_src_auth_domain_invitation_repository_port_invitationpurpose",
-      "label": "InvitationPurpose",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": "invitationpurpose",
-      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
-      "source_location": "L6"
-    },
-    {
-      "id": "apps_api_src_auth_domain_invitation_repository_port_invitationrecord",
-      "label": "InvitationRecord",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": "invitationrecord",
-      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
-      "source_location": "L9"
+      "norm_label": "revokeinvitationusecase",
+      "source_file": "apps/api/src/auth/application/revoke-invitation.use-case.ts",
+      "source_location": "L10"
     },
     {
       "id": "apps_api_src_auth_domain_invitation_repository_port_invitationrepository",
@@ -145,32 +93,6 @@
       "norm_label": "invitationrepository",
       "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
       "source_location": "L58"
-    },
-    {
-      "id": "apps_api_src_auth_domain_invitation_repository_port_invitationstatus",
-      "label": "InvitationStatus",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": "invitationstatus",
-      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
-      "source_location": "L7"
-    },
-    {
-      "id": "apps_api_src_auth_domain_invitation_repository_port_rotateinvitationtokeninput",
-      "label": "RotateInvitationTokenInput",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": "rotateinvitationtokeninput",
-      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
-      "source_location": "L29"
     },
     {
       "id": "apps_api_src_auth_domain_transactional_mailer_port_transactionalmailer",
@@ -210,32 +132,6 @@
       "norm_label": "loggingmaileradapter",
       "source_file": "apps/api/src/auth/infrastructure/logging-mailer.adapter.ts",
       "source_location": "L8"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_invitationrow",
-      "label": "InvitationRow",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": "invitationrow",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L42"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter",
-      "label": "PrismaInvitationAdapter",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": "prismainvitationadapter",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L54"
     },
     {
       "id": "apps_api_src_content_domain_content_types_pageoutline",
@@ -1639,7 +1535,7 @@
       "file_type": "code",
       "norm_label": "runsmodule",
       "source_file": "apps/api/src/runs/runs.module.ts",
-      "source_location": "L62"
+      "source_location": "L64"
     },
     {
       "id": "apps_api_src_company_context_domain_company_context_constants_gatesection",
@@ -1759,43 +1655,147 @@
       "source_location": "L18"
     },
     {
-      "id": "apps_api_src_auth_domain_refresh_session_repository_port_refreshsessionrecord",
-      "label": "RefreshSessionRecord",
+      "id": "apps_api_src_auth_domain_invitation_repository_port_acceptinviteandcreateuserinput",
+      "label": "AcceptInviteAndCreateUserInput",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 118,
-      "community_name": "PrismaRefreshSessionAdapter",
+      "community_name": "prisma-invitation.adapter.ts",
       "file_type": "code",
-      "norm_label": "refreshsessionrecord",
-      "source_file": "apps/api/src/auth/domain/refresh-session.repository.port.ts",
-      "source_location": "L5"
+      "norm_label": "acceptinviteandcreateuserinput",
+      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
+      "source_location": "L35"
     },
     {
-      "id": "apps_api_src_auth_domain_refresh_session_repository_port_rotaterefreshsessionresult",
-      "label": "RotateRefreshSessionResult",
+      "id": "apps_api_src_auth_domain_invitation_repository_port_acceptinviteandcreateuserresult",
+      "label": "AcceptInviteAndCreateUserResult",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 118,
-      "community_name": "PrismaRefreshSessionAdapter",
+      "community_name": "prisma-invitation.adapter.ts",
       "file_type": "code",
-      "norm_label": "rotaterefreshsessionresult",
-      "source_file": "apps/api/src/auth/domain/refresh-session.repository.port.ts",
-      "source_location": "L12"
+      "norm_label": "acceptinviteandcreateuserresult",
+      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
+      "source_location": "L51"
     },
     {
-      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter",
-      "label": "PrismaRefreshSessionAdapter",
+      "id": "apps_api_src_auth_domain_invitation_repository_port_createinvitationinput",
+      "label": "CreateInvitationInput",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 118,
-      "community_name": "PrismaRefreshSessionAdapter",
+      "community_name": "prisma-invitation.adapter.ts",
       "file_type": "code",
-      "norm_label": "prismarefreshsessionadapter",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
-      "source_location": "L11"
+      "norm_label": "createinvitationinput",
+      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
+      "source_location": "L20"
+    },
+    {
+      "id": "apps_api_src_auth_domain_invitation_repository_port_creatependingresult",
+      "label": "CreatePendingResult",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": "creatependingresult",
+      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
+      "source_location": "L54"
+    },
+    {
+      "id": "apps_api_src_auth_domain_invitation_repository_port_invitationlistrecord",
+      "label": "InvitationListRecord",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": "invitationlistrecord",
+      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
+      "source_location": "L42"
+    },
+    {
+      "id": "apps_api_src_auth_domain_invitation_repository_port_invitationpurpose",
+      "label": "InvitationPurpose",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": "invitationpurpose",
+      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
+      "source_location": "L6"
+    },
+    {
+      "id": "apps_api_src_auth_domain_invitation_repository_port_invitationrecord",
+      "label": "InvitationRecord",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": "invitationrecord",
+      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
+      "source_location": "L9"
+    },
+    {
+      "id": "apps_api_src_auth_domain_invitation_repository_port_invitationstatus",
+      "label": "InvitationStatus",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": "invitationstatus",
+      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
+      "source_location": "L7"
+    },
+    {
+      "id": "apps_api_src_auth_domain_invitation_repository_port_rotateinvitationtokeninput",
+      "label": "RotateInvitationTokenInput",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": "rotateinvitationtokeninput",
+      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
+      "source_location": "L29"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_invitationrow",
+      "label": "InvitationRow",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": "invitationrow",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L42"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter",
+      "label": "PrismaInvitationAdapter",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": "prismainvitationadapter",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L54"
     },
     {
       "id": "apps_api_src_company_context_company_context_controller_companycontextcontroller",
@@ -1900,6 +1900,58 @@
       "norm_label": "socialgraphstate",
       "source_file": "apps/api/src/social/infrastructure/graph/state.ts",
       "source_location": "L19"
+    },
+    {
+      "id": "apps_api_src_auth_application_auth_schemas_bootstrapadmininput",
+      "label": "BootstrapAdminInput",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "auth.schemas.ts",
+      "file_type": "code",
+      "norm_label": "bootstrapadmininput",
+      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
+      "source_location": "L26"
+    },
+    {
+      "id": "apps_api_src_auth_application_auth_schemas_logininput",
+      "label": "LoginInput",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "auth.schemas.ts",
+      "file_type": "code",
+      "norm_label": "logininput",
+      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
+      "source_location": "L27"
+    },
+    {
+      "id": "apps_api_src_auth_application_auth_schemas_patchusercommand",
+      "label": "PatchUserCommand",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "auth.schemas.ts",
+      "file_type": "code",
+      "norm_label": "patchusercommand",
+      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
+      "source_location": "L29"
+    },
+    {
+      "id": "apps_api_src_auth_application_auth_schemas_updatemeemailinput",
+      "label": "UpdateMeEmailInput",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "auth.schemas.ts",
+      "file_type": "code",
+      "norm_label": "updatemeemailinput",
+      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
+      "source_location": "L28"
     },
     {
       "id": "apps_ai_provider_gateway_src_observability_app_metrics_app_metrics_module_appmetricsmodule",
@@ -3005,6 +3057,19 @@
       "norm_label": "inviteuserdto",
       "source_file": "apps/api/src/auth/http/invite-user.dto.ts",
       "source_location": "L4"
+    },
+    {
+      "id": "apps_api_src_auth_invitations_controller_invitationscontroller",
+      "label": "InvitationsController",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "AuthUserContext",
+      "file_type": "code",
+      "norm_label": "invitationscontroller",
+      "source_file": "apps/api/src/auth/invitations.controller.ts",
+      "source_location": "L25"
     },
     {
       "id": "apps_api_src_runs_runs_controller_runscontroller",
@@ -5542,6 +5607,19 @@
       "source_location": "L97"
     },
     {
+      "id": "apps_api_src_auth_application_accept_invite_use_case_acceptinviteusecase",
+      "label": "AcceptInviteUseCase",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 39,
+      "community_name": "auth.module.ts",
+      "file_type": "code",
+      "norm_label": "acceptinviteusecase",
+      "source_file": "apps/api/src/auth/application/accept-invite.use-case.ts",
+      "source_location": "L24"
+    },
+    {
       "id": "apps_api_src_auth_application_bootstrap_admin_use_case_authtokenresult",
       "label": "AuthTokenResult",
       "_callable": true,
@@ -5607,6 +5685,19 @@
       "source_location": "L10"
     },
     {
+      "id": "apps_api_src_auth_application_me_use_case_meusecase",
+      "label": "MeUseCase",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 39,
+      "community_name": "auth.module.ts",
+      "file_type": "code",
+      "norm_label": "meusecase",
+      "source_file": "apps/api/src/auth/application/me.use-case.ts",
+      "source_location": "L10"
+    },
+    {
       "id": "apps_api_src_auth_application_refresh_use_case_refreshusecase",
       "label": "RefreshUseCase",
       "_callable": true,
@@ -5620,17 +5711,17 @@
       "source_location": "L22"
     },
     {
-      "id": "apps_api_src_auth_auth_controller_authcontroller",
-      "label": "AuthController",
+      "id": "apps_api_src_auth_domain_refresh_session_repository_port_refreshsessionrecord",
+      "label": "RefreshSessionRecord",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 39,
       "community_name": "auth.module.ts",
       "file_type": "code",
-      "norm_label": "authcontroller",
-      "source_file": "apps/api/src/auth/auth.controller.ts",
-      "source_location": "L39"
+      "norm_label": "refreshsessionrecord",
+      "source_file": "apps/api/src/auth/domain/refresh-session.repository.port.ts",
+      "source_location": "L5"
     },
     {
       "id": "apps_api_src_auth_domain_refresh_session_repository_port_refreshsessionrepository",
@@ -5646,43 +5737,17 @@
       "source_location": "L16"
     },
     {
-      "id": "apps_api_src_auth_http_accept_invite_dto_acceptinvitedto",
-      "label": "AcceptInviteDto",
+      "id": "apps_api_src_auth_domain_refresh_session_repository_port_rotaterefreshsessionresult",
+      "label": "RotateRefreshSessionResult",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 39,
       "community_name": "auth.module.ts",
       "file_type": "code",
-      "norm_label": "acceptinvitedto",
-      "source_file": "apps/api/src/auth/http/accept-invite.dto.ts",
-      "source_location": "L4"
-    },
-    {
-      "id": "apps_api_src_auth_http_bootstrap_admin_dto_bootstrapadmindto",
-      "label": "BootstrapAdminDto",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "bootstrapadmindto",
-      "source_file": "apps/api/src/auth/http/bootstrap-admin.dto.ts",
-      "source_location": "L4"
-    },
-    {
-      "id": "apps_api_src_auth_http_login_dto_logindto",
-      "label": "LoginDto",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "logindto",
-      "source_file": "apps/api/src/auth/http/login.dto.ts",
-      "source_location": "L4"
+      "norm_label": "rotaterefreshsessionresult",
+      "source_file": "apps/api/src/auth/domain/refresh-session.repository.port.ts",
+      "source_location": "L12"
     },
     {
       "id": "apps_api_src_auth_infrastructure_jwt_cookie_strategy_jwtcookiestrategy",
@@ -5722,6 +5787,19 @@
       "norm_label": "smtpconfig",
       "source_file": "apps/api/src/auth/infrastructure/nodemailer-smtp-mailer.adapter.ts",
       "source_location": "L10"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter",
+      "label": "PrismaRefreshSessionAdapter",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 39,
+      "community_name": "auth.module.ts",
+      "file_type": "code",
+      "norm_label": "prismarefreshsessionadapter",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
+      "source_location": "L11"
     },
     {
       "id": "apps_api_src_shared_config_env_module_envmodule",
@@ -8077,56 +8155,56 @@
       "source_location": "L9"
     },
     {
-      "id": "apps_api_src_auth_application_list_invitations_use_case_listinvitationsusecase",
-      "label": "ListInvitationsUseCase",
+      "id": "apps_api_src_auth_auth_controller_authcontroller",
+      "label": "AuthController",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
-      "norm_label": "listinvitationsusecase",
-      "source_file": "apps/api/src/auth/application/list-invitations.use-case.ts",
-      "source_location": "L17"
+      "norm_label": "authcontroller",
+      "source_file": "apps/api/src/auth/auth.controller.ts",
+      "source_location": "L39"
     },
     {
-      "id": "apps_api_src_auth_application_resend_invitation_use_case_resendinvitationusecase",
-      "label": "ResendInvitationUseCase",
+      "id": "apps_api_src_auth_http_accept_invite_dto_acceptinvitedto",
+      "label": "AcceptInviteDto",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
-      "norm_label": "resendinvitationusecase",
-      "source_file": "apps/api/src/auth/application/resend-invitation.use-case.ts",
-      "source_location": "L17"
+      "norm_label": "acceptinvitedto",
+      "source_file": "apps/api/src/auth/http/accept-invite.dto.ts",
+      "source_location": "L4"
     },
     {
-      "id": "apps_api_src_auth_application_revoke_invitation_use_case_revokeinvitationusecase",
-      "label": "RevokeInvitationUseCase",
+      "id": "apps_api_src_auth_http_bootstrap_admin_dto_bootstrapadmindto",
+      "label": "BootstrapAdminDto",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
-      "norm_label": "revokeinvitationusecase",
-      "source_file": "apps/api/src/auth/application/revoke-invitation.use-case.ts",
-      "source_location": "L10"
+      "norm_label": "bootstrapadmindto",
+      "source_file": "apps/api/src/auth/http/bootstrap-admin.dto.ts",
+      "source_location": "L4"
     },
     {
-      "id": "apps_api_src_auth_invitations_controller_invitationscontroller",
-      "label": "InvitationsController",
+      "id": "apps_api_src_auth_http_login_dto_logindto",
+      "label": "LoginDto",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
-      "norm_label": "invitationscontroller",
-      "source_file": "apps/api/src/auth/invitations.controller.ts",
-      "source_location": "L25"
+      "norm_label": "logindto",
+      "source_file": "apps/api/src/auth/http/login.dto.ts",
+      "source_location": "L4"
     },
     {
       "id": "apps_ai_provider_gateway_src_chat_dto_chat_message_dto_chatmessagedto",
@@ -8454,71 +8532,6 @@
       "source_location": "L19"
     },
     {
-      "id": "apps_api_src_auth_application_accept_invite_use_case_acceptinviteusecase",
-      "label": "AcceptInviteUseCase",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 69,
-      "community_name": "DomainException",
-      "file_type": "code",
-      "norm_label": "acceptinviteusecase",
-      "source_file": "apps/api/src/auth/application/accept-invite.use-case.ts",
-      "source_location": "L24"
-    },
-    {
-      "id": "apps_api_src_auth_application_auth_schemas_bootstrapadmininput",
-      "label": "BootstrapAdminInput",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 69,
-      "community_name": "DomainException",
-      "file_type": "code",
-      "norm_label": "bootstrapadmininput",
-      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
-      "source_location": "L26"
-    },
-    {
-      "id": "apps_api_src_auth_application_auth_schemas_logininput",
-      "label": "LoginInput",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 69,
-      "community_name": "DomainException",
-      "file_type": "code",
-      "norm_label": "logininput",
-      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
-      "source_location": "L27"
-    },
-    {
-      "id": "apps_api_src_auth_application_auth_schemas_patchusercommand",
-      "label": "PatchUserCommand",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 69,
-      "community_name": "DomainException",
-      "file_type": "code",
-      "norm_label": "patchusercommand",
-      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
-      "source_location": "L29"
-    },
-    {
-      "id": "apps_api_src_auth_application_auth_schemas_updatemeemailinput",
-      "label": "UpdateMeEmailInput",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 69,
-      "community_name": "DomainException",
-      "file_type": "code",
-      "norm_label": "updatemeemailinput",
-      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
-      "source_location": "L28"
-    },
-    {
       "id": "apps_api_src_auth_application_reactivate_user_use_case_reactivateuserusecase",
       "label": "ReactivateUserUseCase",
       "_callable": true,
@@ -8725,6 +8738,19 @@
       "norm_label": "completeness",
       "source_file": "apps/api/src/company-context/domain/company-context.types.ts",
       "source_location": "L40"
+    },
+    {
+      "id": "apps_api_src_runs_application_auto_finalize_expired_reviews_use_case_autofinalizeexpiredreviewsusecase",
+      "label": "AutoFinalizeExpiredReviewsUseCase",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 71,
+      "community_name": "RunRepository",
+      "file_type": "code",
+      "norm_label": "autofinalizeexpiredreviewsusecase",
+      "source_file": "apps/api/src/runs/application/auto-finalize-expired-reviews.use-case.ts",
+      "source_location": "L7"
     },
     {
       "id": "apps_api_src_runs_application_cancel_run_use_case_cancelrunusecase",
@@ -9062,7 +9088,7 @@
       "file_type": "code",
       "norm_label": "runsmoduleasyncoptions",
       "source_file": "apps/api/src/runs/runs.module.ts",
-      "source_location": "L30"
+      "source_location": "L31"
     },
     {
       "id": "apps_ai_provider_gateway_src_observability_app_metrics_adapters_noop_app_metrics_adapter_noopappmetricsadapter",
@@ -9089,19 +9115,6 @@
       "norm_label": "httpmetricsinterceptor",
       "source_file": "apps/api/src/metrics/http-metrics.interceptor.ts",
       "source_location": "L42"
-    },
-    {
-      "id": "apps_api_src_runs_application_auto_finalize_expired_reviews_use_case_autofinalizeexpiredreviewsusecase",
-      "label": "AutoFinalizeExpiredReviewsUseCase",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 74,
-      "community_name": "InProcessRunWorker",
-      "file_type": "code",
-      "norm_label": "autofinalizeexpiredreviewsusecase",
-      "source_file": "apps/api/src/runs/application/auto-finalize-expired-reviews.use-case.ts",
-      "source_location": "L7"
     },
     {
       "id": "apps_api_src_runs_application_in_process_run_worker_inprocessrunworker",
@@ -9180,19 +9193,6 @@
       "norm_label": "runlogmessageprops",
       "source_file": "apps/frontend/src/modules/runs/components/run-log-message.tsx",
       "source_location": "L3"
-    },
-    {
-      "id": "apps_api_src_auth_application_me_use_case_meusecase",
-      "label": "MeUseCase",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 76,
-      "community_name": "UserRepository",
-      "file_type": "code",
-      "norm_label": "meusecase",
-      "source_file": "apps/api/src/auth/application/me.use-case.ts",
-      "source_location": "L10"
     },
     {
       "id": "apps_api_src_auth_domain_auth_user_types_authuser",
@@ -10922,6 +10922,30 @@
       "source_location": "L34"
     },
     {
+      "id": "apps_api_src_auth_application_list_invitations_use_case_listinvitationsusecase_constructor",
+      "label": ".constructor()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "invite-user.use-case.ts",
+      "file_type": "code",
+      "norm_label": ".constructor()",
+      "source_file": "apps/api/src/auth/application/list-invitations.use-case.ts",
+      "source_location": "L18"
+    },
+    {
+      "id": "apps_api_src_auth_application_list_invitations_use_case_listinvitationsusecase_execute",
+      "label": ".execute()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "invite-user.use-case.ts",
+      "file_type": "code",
+      "norm_label": ".execute()",
+      "source_file": "apps/api/src/auth/application/list-invitations.use-case.ts",
+      "source_location": "L23"
+    },
+    {
       "id": "apps_api_src_auth_application_resend_invitation_use_case_resendinvitationusecase_constructor",
       "label": ".constructor()",
       "_callable": true,
@@ -10932,6 +10956,30 @@
       "norm_label": ".constructor()",
       "source_file": "apps/api/src/auth/application/resend-invitation.use-case.ts",
       "source_location": "L18"
+    },
+    {
+      "id": "apps_api_src_auth_application_revoke_invitation_use_case_revokeinvitationusecase_constructor",
+      "label": ".constructor()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "invite-user.use-case.ts",
+      "file_type": "code",
+      "norm_label": ".constructor()",
+      "source_file": "apps/api/src/auth/application/revoke-invitation.use-case.ts",
+      "source_location": "L11"
+    },
+    {
+      "id": "apps_api_src_auth_application_revoke_invitation_use_case_revokeinvitationusecase_execute",
+      "label": ".execute()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "invite-user.use-case.ts",
+      "file_type": "code",
+      "norm_label": ".execute()",
+      "source_file": "apps/api/src/auth/application/revoke-invitation.use-case.ts",
+      "source_location": "L16"
     },
     {
       "id": "apps_api_src_auth_domain_transactional_mailer_port_transactionalmailer_send",
@@ -10970,160 +11018,28 @@
       "source_location": "L47"
     },
     {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_isinvitationpurpose",
-      "label": "isInvitationPurpose()",
+      "id": "apps_api_src_auth_invitations_controller_invitationscontroller_constructor",
+      "label": ".constructor()",
       "_callable": true,
       "_origin": "ast",
       "community": 0,
       "community_name": "invite-user.use-case.ts",
       "file_type": "code",
-      "norm_label": "isinvitationpurpose()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "norm_label": ".constructor()",
+      "source_file": "apps/api/src/auth/invitations.controller.ts",
+      "source_location": "L26"
+    },
+    {
+      "id": "apps_api_src_auth_invitations_controller_invitationscontroller_list",
+      "label": ".list()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "invite-user.use-case.ts",
+      "file_type": "code",
+      "norm_label": ".list()",
+      "source_file": "apps/api/src/auth/invitations.controller.ts",
       "source_location": "L34"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_isinvitationstatus",
-      "label": "isInvitationStatus()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": "isinvitationstatus()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L38"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_isuniqueconstraintviolation",
-      "label": "isUniqueConstraintViolation()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": "isuniqueconstraintviolation()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L25"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_acceptandcreateuser",
-      "label": ".acceptAndCreateUser()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": ".acceptandcreateuser()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L174"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_createpending",
-      "label": ".createPending()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": ".createpending()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L78"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_findbyid",
-      "label": ".findById()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": ".findbyid()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L131"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_findpendingbyemail",
-      "label": ".findPendingByEmail()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": ".findpendingbyemail()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L102"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_findpendingbyhash",
-      "label": ".findPendingByHash()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": ".findpendingbyhash()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L136"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_listpending",
-      "label": ".listPending()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": ".listpending()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L109"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_markaccepted",
-      "label": ".markAccepted()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": ".markaccepted()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L167"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_revoke",
-      "label": ".revoke()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": ".revoke()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L160"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_rotatetoken",
-      "label": ".rotateToken()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": ".rotatetoken()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L150"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_torecord",
-      "label": ".toRecord()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": ".torecord()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L57"
     },
     {
       "id": "apps_api_src_content_domain_content_result_port_contentresultstore_getoutline",
@@ -14171,7 +14087,7 @@
       "file_type": "code",
       "norm_label": ".registerasync()",
       "source_file": "apps/api/src/runs/runs.module.ts",
-      "source_location": "L63"
+      "source_location": "L65"
     },
     {
       "id": "apps_api_src_company_context_domain_is_complete_collectgateitempaths",
@@ -14234,88 +14150,160 @@
       "source_location": "L10"
     },
     {
-      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_constructor",
-      "label": ".constructor()",
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_isinvitationpurpose",
+      "label": "isInvitationPurpose()",
       "_callable": true,
       "_origin": "ast",
       "community": 118,
-      "community_name": "PrismaRefreshSessionAdapter",
+      "community_name": "prisma-invitation.adapter.ts",
       "file_type": "code",
-      "norm_label": ".constructor()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
-      "source_location": "L12"
+      "norm_label": "isinvitationpurpose()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L34"
     },
     {
-      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_create",
-      "label": ".create()",
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_isinvitationstatus",
+      "label": "isInvitationStatus()",
       "_callable": true,
       "_origin": "ast",
       "community": 118,
-      "community_name": "PrismaRefreshSessionAdapter",
+      "community_name": "prisma-invitation.adapter.ts",
       "file_type": "code",
-      "norm_label": ".create()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
-      "source_location": "L14"
+      "norm_label": "isinvitationstatus()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L38"
     },
     {
-      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_deletebyid",
-      "label": ".deleteById()",
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_isuniqueconstraintviolation",
+      "label": "isUniqueConstraintViolation()",
       "_callable": true,
       "_origin": "ast",
       "community": 118,
-      "community_name": "PrismaRefreshSessionAdapter",
+      "community_name": "prisma-invitation.adapter.ts",
       "file_type": "code",
-      "norm_label": ".deletebyid()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
-      "source_location": "L90"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_deletebyuser",
-      "label": ".deleteByUser()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 118,
-      "community_name": "PrismaRefreshSessionAdapter",
-      "file_type": "code",
-      "norm_label": ".deletebyuser()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
-      "source_location": "L96"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_findvalid",
-      "label": ".findValid()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 118,
-      "community_name": "PrismaRefreshSessionAdapter",
-      "file_type": "code",
-      "norm_label": ".findvalid()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
+      "norm_label": "isuniqueconstraintviolation()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
       "source_location": "L25"
     },
     {
-      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_findvalidbyhash",
-      "label": ".findValidByHash()",
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_acceptandcreateuser",
+      "label": ".acceptAndCreateUser()",
       "_callable": true,
       "_origin": "ast",
       "community": 118,
-      "community_name": "PrismaRefreshSessionAdapter",
+      "community_name": "prisma-invitation.adapter.ts",
       "file_type": "code",
-      "norm_label": ".findvalidbyhash()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
-      "source_location": "L45"
+      "norm_label": ".acceptandcreateuser()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L174"
     },
     {
-      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_rotate",
-      "label": ".rotate()",
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_createpending",
+      "label": ".createPending()",
       "_callable": true,
       "_origin": "ast",
       "community": 118,
-      "community_name": "PrismaRefreshSessionAdapter",
+      "community_name": "prisma-invitation.adapter.ts",
       "file_type": "code",
-      "norm_label": ".rotate()",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
-      "source_location": "L60"
+      "norm_label": ".createpending()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L78"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_findbyid",
+      "label": ".findById()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": ".findbyid()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L131"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_findpendingbyemail",
+      "label": ".findPendingByEmail()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": ".findpendingbyemail()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L102"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_findpendingbyhash",
+      "label": ".findPendingByHash()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": ".findpendingbyhash()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L136"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_listpending",
+      "label": ".listPending()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": ".listpending()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L109"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_markaccepted",
+      "label": ".markAccepted()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": ".markaccepted()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L167"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_revoke",
+      "label": ".revoke()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": ".revoke()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L160"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_rotatetoken",
+      "label": ".rotateToken()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": ".rotatetoken()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L150"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_prismainvitationadapter_torecord",
+      "label": ".toRecord()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": ".torecord()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L57"
     },
     {
       "id": "apps_api_src_company_context_application_get_company_context_use_case_getcompanycontextusecase_execute",
@@ -15974,6 +15962,18 @@
       "source_location": "L53"
     },
     {
+      "id": "apps_api_src_auth_application_me_use_case_meusecase_execute",
+      "label": ".execute()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "AuthUserContext",
+      "file_type": "code",
+      "norm_label": ".execute()",
+      "source_file": "apps/api/src/auth/application/me.use-case.ts",
+      "source_location": "L15"
+    },
+    {
       "id": "apps_api_src_auth_auth_controller_authcontroller_getme",
       "label": ".getMe()",
       "_callable": true,
@@ -15998,16 +15998,40 @@
       "source_location": "L131"
     },
     {
-      "id": "apps_api_src_runs_application_finalize_review_use_case_finalizereviewusecase_execute",
-      "label": ".execute()",
+      "id": "apps_api_src_auth_invitations_controller_invitationscontroller_create",
+      "label": ".create()",
       "_callable": true,
       "_origin": "ast",
       "community": 18,
       "community_name": "AuthUserContext",
       "file_type": "code",
-      "norm_label": ".execute()",
-      "source_file": "apps/api/src/runs/application/finalize-review.use-case.ts",
-      "source_location": "L17"
+      "norm_label": ".create()",
+      "source_file": "apps/api/src/auth/invitations.controller.ts",
+      "source_location": "L40"
+    },
+    {
+      "id": "apps_api_src_auth_invitations_controller_invitationscontroller_resend",
+      "label": ".resend()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "AuthUserContext",
+      "file_type": "code",
+      "norm_label": ".resend()",
+      "source_file": "apps/api/src/auth/invitations.controller.ts",
+      "source_location": "L46"
+    },
+    {
+      "id": "apps_api_src_auth_invitations_controller_invitationscontroller_revoke",
+      "label": ".revoke()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "AuthUserContext",
+      "file_type": "code",
+      "norm_label": ".revoke()",
+      "source_file": "apps/api/src/auth/invitations.controller.ts",
+      "source_location": "L52"
     },
     {
       "id": "apps_api_src_runs_application_list_runs_user_use_case_listrunsuserusecase_execute",
@@ -20546,66 +20570,6 @@
       "source_location": "L403"
     },
     {
-      "id": "apps_api_src_auth_application_auth_helpers_comparepassword",
-      "label": "comparePassword()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "comparepassword()",
-      "source_file": "apps/api/src/auth/application/auth.helpers.ts",
-      "source_location": "L10"
-    },
-    {
-      "id": "apps_api_src_auth_application_auth_helpers_generaterefreshtoken",
-      "label": "generateRefreshToken()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "generaterefreshtoken()",
-      "source_file": "apps/api/src/auth/application/auth.helpers.ts",
-      "source_location": "L17"
-    },
-    {
-      "id": "apps_api_src_auth_application_auth_helpers_hashrefreshtoken",
-      "label": "hashRefreshToken()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "hashrefreshtoken()",
-      "source_file": "apps/api/src/auth/application/auth.helpers.ts",
-      "source_location": "L23"
-    },
-    {
-      "id": "apps_api_src_auth_application_auth_helpers_parsettlms",
-      "label": "parseTtlMs()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "parsettlms()",
-      "source_file": "apps/api/src/auth/application/auth.helpers.ts",
-      "source_location": "L27"
-    },
-    {
-      "id": "apps_api_src_auth_application_auth_helpers_parsettlseconds",
-      "label": "parseTtlSeconds()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "parsettlseconds()",
-      "source_file": "apps/api/src/auth/application/auth.helpers.ts",
-      "source_location": "L43"
-    },
-    {
       "id": "apps_api_src_auth_application_bootstrap_admin_use_case_bootstrapadminusecase_constructor",
       "label": ".constructor()",
       "_callable": true,
@@ -20616,18 +20580,6 @@
       "norm_label": ".constructor()",
       "source_file": "apps/api/src/auth/application/bootstrap-admin.use-case.ts",
       "source_location": "L29"
-    },
-    {
-      "id": "apps_api_src_auth_application_bootstrap_status_use_case_bootstrapstatususecase_execute",
-      "label": ".execute()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": ".execute()",
-      "source_file": "apps/api/src/auth/application/bootstrap-status.use-case.ts",
-      "source_location": "L13"
     },
     {
       "id": "apps_api_src_auth_application_login_use_case_loginusecase_constructor",
@@ -20642,18 +20594,6 @@
       "source_location": "L25"
     },
     {
-      "id": "apps_api_src_auth_application_login_use_case_loginusecase_execute",
-      "label": ".execute()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": ".execute()",
-      "source_file": "apps/api/src/auth/application/login.use-case.ts",
-      "source_location": "L33"
-    },
-    {
       "id": "apps_api_src_auth_application_logout_use_case_logoutusecase_constructor",
       "label": ".constructor()",
       "_callable": true,
@@ -20664,18 +20604,6 @@
       "norm_label": ".constructor()",
       "source_file": "apps/api/src/auth/application/logout.use-case.ts",
       "source_location": "L11"
-    },
-    {
-      "id": "apps_api_src_auth_application_logout_use_case_logoutusecase_execute",
-      "label": ".execute()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": ".execute()",
-      "source_file": "apps/api/src/auth/application/logout.use-case.ts",
-      "source_location": "L16"
     },
     {
       "id": "apps_api_src_auth_application_refresh_use_case_refreshusecase_constructor",
@@ -20690,18 +20618,6 @@
       "source_location": "L23"
     },
     {
-      "id": "apps_api_src_auth_application_refresh_use_case_refreshusecase_execute",
-      "label": ".execute()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": ".execute()",
-      "source_file": "apps/api/src/auth/application/refresh.use-case.ts",
-      "source_location": "L31"
-    },
-    {
       "id": "apps_api_src_auth_auth_controller_authcontroller_constructor",
       "label": ".constructor()",
       "_callable": true,
@@ -20712,78 +20628,6 @@
       "norm_label": ".constructor()",
       "source_file": "apps/api/src/auth/auth.controller.ts",
       "source_location": "L40"
-    },
-    {
-      "id": "apps_api_src_auth_auth_controller_authcontroller_getbootstrapstatus",
-      "label": ".getBootstrapStatus()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": ".getbootstrapstatus()",
-      "source_file": "apps/api/src/auth/auth.controller.ts",
-      "source_location": "L54"
-    },
-    {
-      "id": "apps_api_src_auth_auth_controller_authcontroller_postacceptinvite",
-      "label": ".postAcceptInvite()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": ".postacceptinvite()",
-      "source_file": "apps/api/src/auth/auth.controller.ts",
-      "source_location": "L88"
-    },
-    {
-      "id": "apps_api_src_auth_auth_controller_authcontroller_postbootstrapadmin",
-      "label": ".postBootstrapAdmin()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": ".postbootstrapadmin()",
-      "source_file": "apps/api/src/auth/auth.controller.ts",
-      "source_location": "L61"
-    },
-    {
-      "id": "apps_api_src_auth_auth_controller_authcontroller_postlogin",
-      "label": ".postLogin()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": ".postlogin()",
-      "source_file": "apps/api/src/auth/auth.controller.ts",
-      "source_location": "L73"
-    },
-    {
-      "id": "apps_api_src_auth_auth_controller_authcontroller_postlogout",
-      "label": ".postLogout()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": ".postlogout()",
-      "source_file": "apps/api/src/auth/auth.controller.ts",
-      "source_location": "L108"
-    },
-    {
-      "id": "apps_api_src_auth_auth_controller_authcontroller_postrefresh",
-      "label": ".postRefresh()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": ".postrefresh()",
-      "source_file": "apps/api/src/auth/auth.controller.ts",
-      "source_location": "L95"
     },
     {
       "id": "apps_api_src_auth_domain_refresh_session_repository_port_refreshsessionrepository_create",
@@ -20882,18 +20726,6 @@
       "source_location": "L43"
     },
     {
-      "id": "apps_api_src_auth_infrastructure_cookie_helper_setauthcookies",
-      "label": "setAuthCookies()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "setauthcookies()",
-      "source_file": "apps/api/src/auth/infrastructure/cookie.helper.ts",
-      "source_location": "L8"
-    },
-    {
       "id": "apps_api_src_auth_infrastructure_jwt_cookie_strategy_isrecord",
       "label": "isRecord()",
       "_callable": true,
@@ -20954,6 +20786,90 @@
       "source_location": "L18"
     },
     {
+      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_constructor",
+      "label": ".constructor()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 39,
+      "community_name": "auth.module.ts",
+      "file_type": "code",
+      "norm_label": ".constructor()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
+      "source_location": "L12"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_create",
+      "label": ".create()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 39,
+      "community_name": "auth.module.ts",
+      "file_type": "code",
+      "norm_label": ".create()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
+      "source_location": "L14"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_deletebyid",
+      "label": ".deleteById()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 39,
+      "community_name": "auth.module.ts",
+      "file_type": "code",
+      "norm_label": ".deletebyid()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
+      "source_location": "L90"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_deletebyuser",
+      "label": ".deleteByUser()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 39,
+      "community_name": "auth.module.ts",
+      "file_type": "code",
+      "norm_label": ".deletebyuser()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
+      "source_location": "L96"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_findvalid",
+      "label": ".findValid()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 39,
+      "community_name": "auth.module.ts",
+      "file_type": "code",
+      "norm_label": ".findvalid()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
+      "source_location": "L25"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_findvalidbyhash",
+      "label": ".findValidByHash()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 39,
+      "community_name": "auth.module.ts",
+      "file_type": "code",
+      "norm_label": ".findvalidbyhash()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
+      "source_location": "L45"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_prismarefreshsessionadapter_rotate",
+      "label": ".rotate()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 39,
+      "community_name": "auth.module.ts",
+      "file_type": "code",
+      "norm_label": ".rotate()",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
+      "source_location": "L60"
+    },
+    {
       "id": "apps_api_src_shared_config_env_schema_validateenv",
       "label": "validateEnv()",
       "_callable": true,
@@ -20964,18 +20880,6 @@
       "norm_label": "validateenv()",
       "source_file": "apps/api/src/shared/config/env.schema.ts",
       "source_location": "L62"
-    },
-    {
-      "id": "apps_api_src_shared_decorators_public_decorator_public",
-      "label": "Public()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "public()",
-      "source_file": "apps/api/src/shared/decorators/public.decorator.ts",
-      "source_location": "L5"
     },
     {
       "id": "apps_frontend_src_app_app_layout_appgrouplayout",
@@ -27110,124 +27014,124 @@
       "source_location": "L74"
     },
     {
-      "id": "apps_api_src_auth_application_list_invitations_use_case_listinvitationsusecase_constructor",
-      "label": ".constructor()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "InvitationsController",
-      "file_type": "code",
-      "norm_label": ".constructor()",
-      "source_file": "apps/api/src/auth/application/list-invitations.use-case.ts",
-      "source_location": "L18"
-    },
-    {
-      "id": "apps_api_src_auth_application_list_invitations_use_case_listinvitationsusecase_execute",
+      "id": "apps_api_src_auth_application_bootstrap_status_use_case_bootstrapstatususecase_execute",
       "label": ".execute()",
       "_callable": true,
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
       "norm_label": ".execute()",
-      "source_file": "apps/api/src/auth/application/list-invitations.use-case.ts",
-      "source_location": "L23"
+      "source_file": "apps/api/src/auth/application/bootstrap-status.use-case.ts",
+      "source_location": "L13"
     },
     {
-      "id": "apps_api_src_auth_application_resend_invitation_use_case_resendinvitationusecase_execute",
+      "id": "apps_api_src_auth_application_logout_use_case_logoutusecase_execute",
       "label": ".execute()",
       "_callable": true,
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
       "norm_label": ".execute()",
-      "source_file": "apps/api/src/auth/application/resend-invitation.use-case.ts",
-      "source_location": "L25"
-    },
-    {
-      "id": "apps_api_src_auth_application_revoke_invitation_use_case_revokeinvitationusecase_constructor",
-      "label": ".constructor()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "InvitationsController",
-      "file_type": "code",
-      "norm_label": ".constructor()",
-      "source_file": "apps/api/src/auth/application/revoke-invitation.use-case.ts",
-      "source_location": "L11"
-    },
-    {
-      "id": "apps_api_src_auth_application_revoke_invitation_use_case_revokeinvitationusecase_execute",
-      "label": ".execute()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "InvitationsController",
-      "file_type": "code",
-      "norm_label": ".execute()",
-      "source_file": "apps/api/src/auth/application/revoke-invitation.use-case.ts",
+      "source_file": "apps/api/src/auth/application/logout.use-case.ts",
       "source_location": "L16"
     },
     {
-      "id": "apps_api_src_auth_invitations_controller_invitationscontroller_constructor",
-      "label": ".constructor()",
+      "id": "apps_api_src_auth_auth_controller_authcontroller_getbootstrapstatus",
+      "label": ".getBootstrapStatus()",
       "_callable": true,
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
-      "norm_label": ".constructor()",
-      "source_file": "apps/api/src/auth/invitations.controller.ts",
-      "source_location": "L26"
+      "norm_label": ".getbootstrapstatus()",
+      "source_file": "apps/api/src/auth/auth.controller.ts",
+      "source_location": "L54"
     },
     {
-      "id": "apps_api_src_auth_invitations_controller_invitationscontroller_create",
-      "label": ".create()",
+      "id": "apps_api_src_auth_auth_controller_authcontroller_postacceptinvite",
+      "label": ".postAcceptInvite()",
       "_callable": true,
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
-      "norm_label": ".create()",
-      "source_file": "apps/api/src/auth/invitations.controller.ts",
-      "source_location": "L40"
+      "norm_label": ".postacceptinvite()",
+      "source_file": "apps/api/src/auth/auth.controller.ts",
+      "source_location": "L88"
     },
     {
-      "id": "apps_api_src_auth_invitations_controller_invitationscontroller_list",
-      "label": ".list()",
+      "id": "apps_api_src_auth_auth_controller_authcontroller_postbootstrapadmin",
+      "label": ".postBootstrapAdmin()",
       "_callable": true,
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
-      "norm_label": ".list()",
-      "source_file": "apps/api/src/auth/invitations.controller.ts",
-      "source_location": "L34"
+      "norm_label": ".postbootstrapadmin()",
+      "source_file": "apps/api/src/auth/auth.controller.ts",
+      "source_location": "L61"
     },
     {
-      "id": "apps_api_src_auth_invitations_controller_invitationscontroller_resend",
-      "label": ".resend()",
+      "id": "apps_api_src_auth_auth_controller_authcontroller_postlogin",
+      "label": ".postLogin()",
       "_callable": true,
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
-      "norm_label": ".resend()",
-      "source_file": "apps/api/src/auth/invitations.controller.ts",
-      "source_location": "L46"
+      "norm_label": ".postlogin()",
+      "source_file": "apps/api/src/auth/auth.controller.ts",
+      "source_location": "L73"
     },
     {
-      "id": "apps_api_src_auth_invitations_controller_invitationscontroller_revoke",
-      "label": ".revoke()",
+      "id": "apps_api_src_auth_auth_controller_authcontroller_postlogout",
+      "label": ".postLogout()",
       "_callable": true,
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
-      "norm_label": ".revoke()",
-      "source_file": "apps/api/src/auth/invitations.controller.ts",
-      "source_location": "L52"
+      "norm_label": ".postlogout()",
+      "source_file": "apps/api/src/auth/auth.controller.ts",
+      "source_location": "L108"
+    },
+    {
+      "id": "apps_api_src_auth_auth_controller_authcontroller_postrefresh",
+      "label": ".postRefresh()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": ".postrefresh()",
+      "source_file": "apps/api/src/auth/auth.controller.ts",
+      "source_location": "L95"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_cookie_helper_setauthcookies",
+      "label": "setAuthCookies()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "setauthcookies()",
+      "source_file": "apps/api/src/auth/infrastructure/cookie.helper.ts",
+      "source_location": "L8"
+    },
+    {
+      "id": "apps_api_src_shared_decorators_public_decorator_public",
+      "label": "Public()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "public()",
+      "source_file": "apps/api/src/shared/decorators/public.decorator.ts",
+      "source_location": "L5"
     },
     {
       "id": "apps_ai_provider_gateway_src_chat_services_chat_provider_call_service_chatprovidercallservice_constructor",
@@ -27350,6 +27254,30 @@
       "source_location": "L30"
     },
     {
+      "id": "apps_api_src_auth_application_auth_helpers_comparepassword",
+      "label": "comparePassword()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "DomainException",
+      "file_type": "code",
+      "norm_label": "comparepassword()",
+      "source_file": "apps/api/src/auth/application/auth.helpers.ts",
+      "source_location": "L10"
+    },
+    {
+      "id": "apps_api_src_auth_application_auth_helpers_generaterefreshtoken",
+      "label": "generateRefreshToken()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "DomainException",
+      "file_type": "code",
+      "norm_label": "generaterefreshtoken()",
+      "source_file": "apps/api/src/auth/application/auth.helpers.ts",
+      "source_location": "L17"
+    },
+    {
       "id": "apps_api_src_auth_application_auth_helpers_hashpassword",
       "label": "hashPassword()",
       "_callable": true,
@@ -27360,6 +27288,42 @@
       "norm_label": "hashpassword()",
       "source_file": "apps/api/src/auth/application/auth.helpers.ts",
       "source_location": "L6"
+    },
+    {
+      "id": "apps_api_src_auth_application_auth_helpers_hashrefreshtoken",
+      "label": "hashRefreshToken()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "DomainException",
+      "file_type": "code",
+      "norm_label": "hashrefreshtoken()",
+      "source_file": "apps/api/src/auth/application/auth.helpers.ts",
+      "source_location": "L23"
+    },
+    {
+      "id": "apps_api_src_auth_application_auth_helpers_parsettlms",
+      "label": "parseTtlMs()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "DomainException",
+      "file_type": "code",
+      "norm_label": "parsettlms()",
+      "source_file": "apps/api/src/auth/application/auth.helpers.ts",
+      "source_location": "L27"
+    },
+    {
+      "id": "apps_api_src_auth_application_auth_helpers_parsettlseconds",
+      "label": "parseTtlSeconds()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "DomainException",
+      "file_type": "code",
+      "norm_label": "parsettlseconds()",
+      "source_file": "apps/api/src/auth/application/auth.helpers.ts",
+      "source_location": "L43"
     },
     {
       "id": "apps_api_src_auth_application_bootstrap_admin_use_case_bootstrapadminusecase_execute",
@@ -27386,6 +27350,18 @@
       "source_location": "L42"
     },
     {
+      "id": "apps_api_src_auth_application_login_use_case_loginusecase_execute",
+      "label": ".execute()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "DomainException",
+      "file_type": "code",
+      "norm_label": ".execute()",
+      "source_file": "apps/api/src/auth/application/login.use-case.ts",
+      "source_location": "L33"
+    },
+    {
       "id": "apps_api_src_auth_application_reactivate_user_use_case_reactivateuserusecase_execute",
       "label": ".execute()",
       "_callable": true,
@@ -27396,6 +27372,30 @@
       "norm_label": ".execute()",
       "source_file": "apps/api/src/auth/application/reactivate-user.use-case.ts",
       "source_location": "L18"
+    },
+    {
+      "id": "apps_api_src_auth_application_refresh_use_case_refreshusecase_execute",
+      "label": ".execute()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "DomainException",
+      "file_type": "code",
+      "norm_label": ".execute()",
+      "source_file": "apps/api/src/auth/application/refresh.use-case.ts",
+      "source_location": "L31"
+    },
+    {
+      "id": "apps_api_src_auth_application_resend_invitation_use_case_resendinvitationusecase_execute",
+      "label": ".execute()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "DomainException",
+      "file_type": "code",
+      "norm_label": ".execute()",
+      "source_file": "apps/api/src/auth/application/resend-invitation.use-case.ts",
+      "source_location": "L25"
     },
     {
       "id": "apps_api_src_auth_application_update_me_email_use_case_updatemeemailusecase_execute",
@@ -27434,6 +27434,18 @@
       "source_location": "L31"
     },
     {
+      "id": "apps_api_src_runs_application_finalize_review_use_case_finalizereviewusecase_execute",
+      "label": ".execute()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "DomainException",
+      "file_type": "code",
+      "norm_label": ".execute()",
+      "source_file": "apps/api/src/runs/application/finalize-review.use-case.ts",
+      "source_location": "L17"
+    },
+    {
       "id": "apps_api_src_runs_application_get_run_logs_use_case_getrunlogsusecase_execute",
       "label": ".execute()",
       "_callable": true,
@@ -27456,18 +27468,6 @@
       "norm_label": ".execute()",
       "source_file": "apps/api/src/runs/application/get-run.use-case.ts",
       "source_location": "L101"
-    },
-    {
-      "id": "apps_api_src_runs_application_get_run_use_case_orderitemsbyselectedids",
-      "label": "orderItemsBySelectedIds()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 69,
-      "community_name": "DomainException",
-      "file_type": "code",
-      "norm_label": "orderitemsbyselectedids()",
-      "source_file": "apps/api/src/runs/application/get-run.use-case.ts",
-      "source_location": "L72"
     },
     {
       "id": "apps_api_src_runs_application_rate_run_use_case_raterunusecase_execute",
@@ -28178,6 +28178,18 @@
       "source_location": "L42"
     },
     {
+      "id": "apps_api_src_runs_application_auto_finalize_expired_reviews_use_case_autofinalizeexpiredreviewsusecase_constructor",
+      "label": ".constructor()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 71,
+      "community_name": "RunRepository",
+      "file_type": "code",
+      "norm_label": ".constructor()",
+      "source_file": "apps/api/src/runs/application/auto-finalize-expired-reviews.use-case.ts",
+      "source_location": "L8"
+    },
+    {
       "id": "apps_api_src_runs_application_cancel_run_use_case_cancelrunusecase_constructor",
       "label": ".constructor()",
       "_callable": true,
@@ -28224,6 +28236,18 @@
       "norm_label": ".constructor()",
       "source_file": "apps/api/src/runs/application/get-run.use-case.ts",
       "source_location": "L95"
+    },
+    {
+      "id": "apps_api_src_runs_application_get_run_use_case_orderitemsbyselectedids",
+      "label": "orderItemsBySelectedIds()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 71,
+      "community_name": "RunRepository",
+      "file_type": "code",
+      "norm_label": "orderitemsbyselectedids()",
+      "source_file": "apps/api/src/runs/application/get-run.use-case.ts",
+      "source_location": "L72"
     },
     {
       "id": "apps_api_src_runs_application_in_process_run_worker_inprocessrunworker_constructor",
@@ -28838,18 +28862,6 @@
       "source_location": "L30"
     },
     {
-      "id": "apps_api_src_runs_application_auto_finalize_expired_reviews_use_case_autofinalizeexpiredreviewsusecase_constructor",
-      "label": ".constructor()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 74,
-      "community_name": "InProcessRunWorker",
-      "file_type": "code",
-      "norm_label": ".constructor()",
-      "source_file": "apps/api/src/runs/application/auto-finalize-expired-reviews.use-case.ts",
-      "source_location": "L8"
-    },
-    {
       "id": "apps_api_src_runs_application_auto_finalize_expired_reviews_use_case_autofinalizeexpiredreviewsusecase_execute",
       "label": ".execute()",
       "_callable": true,
@@ -29184,18 +29196,6 @@
       "norm_label": ".constructor()",
       "source_file": "apps/api/src/auth/application/me.use-case.ts",
       "source_location": "L11"
-    },
-    {
-      "id": "apps_api_src_auth_application_me_use_case_meusecase_execute",
-      "label": ".execute()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 76,
-      "community_name": "UserRepository",
-      "file_type": "code",
-      "norm_label": ".execute()",
-      "source_file": "apps/api/src/auth/application/me.use-case.ts",
-      "source_location": "L15"
     },
     {
       "id": "apps_api_src_auth_application_reactivate_user_use_case_reactivateuserusecase_constructor",
@@ -32852,6 +32852,28 @@
       "source_location": "L1"
     },
     {
+      "id": "apps_api_src_auth_application_list_invitations_use_case_ts_inject",
+      "label": "Inject",
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "invite-user.use-case.ts",
+      "file_type": "code",
+      "norm_label": "inject",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_application_list_invitations_use_case_ts_injectable",
+      "label": "Injectable",
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "invite-user.use-case.ts",
+      "file_type": "code",
+      "norm_label": "injectable",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
       "id": "apps_api_src_auth_application_resend_invitation_use_case",
       "label": "resend-invitation.use-case.ts",
       "_origin": "ast",
@@ -32874,6 +32896,17 @@
       "source_location": ""
     },
     {
+      "id": "apps_api_src_auth_application_resend_invitation_use_case_ts_injectable",
+      "label": "Injectable",
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "invite-user.use-case.ts",
+      "file_type": "code",
+      "norm_label": "injectable",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
       "id": "apps_api_src_auth_application_revoke_invitation_use_case",
       "label": "revoke-invitation.use-case.ts",
       "_origin": "ast",
@@ -32885,15 +32918,26 @@
       "source_location": "L1"
     },
     {
-      "id": "apps_api_src_auth_domain_invitation_repository_port",
-      "label": "invitation-repository.port.ts",
+      "id": "apps_api_src_auth_application_revoke_invitation_use_case_ts_inject",
+      "label": "Inject",
       "_origin": "ast",
       "community": 0,
       "community_name": "invite-user.use-case.ts",
       "file_type": "code",
-      "norm_label": "invitation-repository.port.ts",
-      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
-      "source_location": "L1"
+      "norm_label": "inject",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_application_revoke_invitation_use_case_ts_injectable",
+      "label": "Injectable",
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "invite-user.use-case.ts",
+      "file_type": "code",
+      "norm_label": "injectable",
+      "source_file": "",
+      "source_location": ""
     },
     {
       "id": "apps_api_src_auth_domain_invitation_repository_port_invitation_repository",
@@ -32951,24 +32995,13 @@
       "source_location": ""
     },
     {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter",
-      "label": "prisma-invitation.adapter.ts",
+      "id": "apps_api_src_auth_invitations_controller_ts_get",
+      "label": "Get",
       "_origin": "ast",
       "community": 0,
       "community_name": "invite-user.use-case.ts",
       "file_type": "code",
-      "norm_label": "prisma-invitation.adapter.ts",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_ts_injectable",
-      "label": "Injectable",
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "invite-user.use-case.ts",
-      "file_type": "code",
-      "norm_label": "injectable",
+      "norm_label": "get",
       "source_file": "",
       "source_location": ""
     },
@@ -35063,22 +35096,33 @@
       "source_location": "L1"
     },
     {
-      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter",
-      "label": "prisma-refresh-session.adapter.ts",
+      "id": "apps_api_src_auth_domain_invitation_repository_port",
+      "label": "invitation-repository.port.ts",
       "_origin": "ast",
       "community": 118,
-      "community_name": "PrismaRefreshSessionAdapter",
+      "community_name": "prisma-invitation.adapter.ts",
       "file_type": "code",
-      "norm_label": "prisma-refresh-session.adapter.ts",
-      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
+      "norm_label": "invitation-repository.port.ts",
+      "source_file": "apps/api/src/auth/domain/invitation-repository.port.ts",
       "source_location": "L1"
     },
     {
-      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_ts_injectable",
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter",
+      "label": "prisma-invitation.adapter.ts",
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "prisma-invitation.adapter.ts",
+      "file_type": "code",
+      "norm_label": "prisma-invitation.adapter.ts",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_invitation_adapter_ts_injectable",
       "label": "Injectable",
       "_origin": "ast",
       "community": 118,
-      "community_name": "PrismaRefreshSessionAdapter",
+      "community_name": "prisma-invitation.adapter.ts",
       "file_type": "code",
       "norm_label": "injectable",
       "source_file": "",
@@ -35457,6 +35501,61 @@
       "norm_label": "social/infrastructure/prompts/load-prompt.ts",
       "source_file": "apps/api/src/social/infrastructure/prompts/load-prompt.ts",
       "source_location": "L1"
+    },
+    {
+      "id": "apps_api_src_auth_application_auth_schemas",
+      "label": "auth.schemas.ts",
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "auth.schemas.ts",
+      "file_type": "code",
+      "norm_label": "auth.schemas.ts",
+      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "apps_api_src_auth_application_auth_schemas_bootstrapadminschema",
+      "label": "bootstrapAdminSchema",
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "auth.schemas.ts",
+      "file_type": "code",
+      "norm_label": "bootstrapadminschema",
+      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
+      "source_location": "L3"
+    },
+    {
+      "id": "apps_api_src_auth_application_auth_schemas_loginschema",
+      "label": "loginSchema",
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "auth.schemas.ts",
+      "file_type": "code",
+      "norm_label": "loginschema",
+      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
+      "source_location": "L8"
+    },
+    {
+      "id": "apps_api_src_auth_application_auth_schemas_patchuserschema",
+      "label": "patchUserSchema",
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "auth.schemas.ts",
+      "file_type": "code",
+      "norm_label": "patchuserschema",
+      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
+      "source_location": "L20"
+    },
+    {
+      "id": "apps_api_src_auth_application_auth_schemas_updatemeemailschema",
+      "label": "updateMeEmailSchema",
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "auth.schemas.ts",
+      "file_type": "code",
+      "norm_label": "updatemeemailschema",
+      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
+      "source_location": "L13"
     },
     {
       "id": "apps_ai_provider_gateway_src_observability_app_metrics_app_metrics_module",
@@ -36273,17 +36372,6 @@
       "source_location": ""
     },
     {
-      "id": "apps_api_src_auth_auth_controller_ts_get",
-      "label": "Get",
-      "_origin": "ast",
-      "community": 18,
-      "community_name": "AuthUserContext",
-      "file_type": "code",
-      "norm_label": "get",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
       "id": "apps_api_src_auth_auth_controller_ts_patch",
       "label": "Patch",
       "_origin": "ast",
@@ -36337,6 +36425,94 @@
       "norm_label": "invitations.controller.ts",
       "source_file": "apps/api/src/auth/invitations.controller.ts",
       "source_location": "L1"
+    },
+    {
+      "id": "apps_api_src_auth_invitations_controller_ts_apicookieauth",
+      "label": "ApiCookieAuth",
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "AuthUserContext",
+      "file_type": "code",
+      "norm_label": "apicookieauth",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_invitations_controller_ts_apitags",
+      "label": "ApiTags",
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "AuthUserContext",
+      "file_type": "code",
+      "norm_label": "apitags",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_invitations_controller_ts_body",
+      "label": "Body",
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "AuthUserContext",
+      "file_type": "code",
+      "norm_label": "body",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_invitations_controller_ts_controller",
+      "label": "Controller",
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "AuthUserContext",
+      "file_type": "code",
+      "norm_label": "controller",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_invitations_controller_ts_delete",
+      "label": "Delete",
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "AuthUserContext",
+      "file_type": "code",
+      "norm_label": "delete",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_invitations_controller_ts_httpcode",
+      "label": "HttpCode",
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "AuthUserContext",
+      "file_type": "code",
+      "norm_label": "httpcode",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_invitations_controller_ts_param",
+      "label": "Param",
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "AuthUserContext",
+      "file_type": "code",
+      "norm_label": "param",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_invitations_controller_ts_post",
+      "label": "Post",
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "AuthUserContext",
+      "file_type": "code",
+      "norm_label": "post",
+      "source_file": "",
+      "source_location": ""
     },
     {
       "id": "apps_api_src_feedback_feedback_controller",
@@ -39716,15 +39892,15 @@
       "source_location": "L35"
     },
     {
-      "id": "apps_api_src_auth_application_auth_helpers",
-      "label": "auth.helpers.ts",
+      "id": "apps_api_src_auth_application_accept_invite_use_case_ts_injectable",
+      "label": "Injectable",
       "_origin": "ast",
       "community": 39,
       "community_name": "auth.module.ts",
       "file_type": "code",
-      "norm_label": "auth.helpers.ts",
-      "source_file": "apps/api/src/auth/application/auth.helpers.ts",
-      "source_location": "L1"
+      "norm_label": "injectable",
+      "source_file": "",
+      "source_location": ""
     },
     {
       "id": "apps_api_src_auth_application_bootstrap_admin_use_case",
@@ -39848,6 +40024,28 @@
       "source_location": ""
     },
     {
+      "id": "apps_api_src_auth_application_me_use_case",
+      "label": "me.use-case.ts",
+      "_origin": "ast",
+      "community": 39,
+      "community_name": "auth.module.ts",
+      "file_type": "code",
+      "norm_label": "me.use-case.ts",
+      "source_file": "apps/api/src/auth/application/me.use-case.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "apps_api_src_auth_application_me_use_case_ts_injectable",
+      "label": "Injectable",
+      "_origin": "ast",
+      "community": 39,
+      "community_name": "auth.module.ts",
+      "file_type": "code",
+      "norm_label": "injectable",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
       "id": "apps_api_src_auth_application_refresh_use_case",
       "label": "refresh.use-case.ts",
       "_origin": "ast",
@@ -39903,50 +40101,6 @@
       "source_location": "L1"
     },
     {
-      "id": "apps_api_src_auth_auth_controller_ts_apitags",
-      "label": "ApiTags",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "apitags",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_auth_controller_ts_body",
-      "label": "Body",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "body",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_auth_controller_ts_controller",
-      "label": "Controller",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "controller",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_auth_controller_ts_httpcode",
-      "label": "HttpCode",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "httpcode",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
       "id": "apps_api_src_auth_auth_controller_ts_inject",
       "label": "Inject",
       "_origin": "ast",
@@ -39954,39 +40108,6 @@
       "community_name": "auth.module.ts",
       "file_type": "code",
       "norm_label": "inject",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_auth_controller_ts_post",
-      "label": "Post",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "post",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_auth_controller_ts_req",
-      "label": "Req",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "req",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_auth_controller_ts_res",
-      "label": "Res",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "res",
       "source_file": "",
       "source_location": ""
     },
@@ -40033,160 +40154,6 @@
       "norm_label": "user_repository",
       "source_file": "apps/api/src/auth/domain/user-repository.port.ts",
       "source_location": "L4"
-    },
-    {
-      "id": "apps_api_src_auth_http_accept_invite_dto",
-      "label": "accept-invite.dto.ts",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "accept-invite.dto.ts",
-      "source_file": "apps/api/src/auth/http/accept-invite.dto.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "apps_api_src_auth_http_accept_invite_dto_ts_apiproperty",
-      "label": "ApiProperty",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "apiproperty",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_http_accept_invite_dto_ts_isstring",
-      "label": "IsString",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "isstring",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_http_accept_invite_dto_ts_minlength",
-      "label": "MinLength",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "minlength",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_http_bootstrap_admin_dto",
-      "label": "bootstrap-admin.dto.ts",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "bootstrap-admin.dto.ts",
-      "source_file": "apps/api/src/auth/http/bootstrap-admin.dto.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "apps_api_src_auth_http_bootstrap_admin_dto_ts_apiproperty",
-      "label": "ApiProperty",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "apiproperty",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_http_bootstrap_admin_dto_ts_isemail",
-      "label": "IsEmail",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "isemail",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_http_bootstrap_admin_dto_ts_isstring",
-      "label": "IsString",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "isstring",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_http_bootstrap_admin_dto_ts_minlength",
-      "label": "MinLength",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "minlength",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_http_login_dto",
-      "label": "login.dto.ts",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "login.dto.ts",
-      "source_file": "apps/api/src/auth/http/login.dto.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "apps_api_src_auth_http_login_dto_ts_apiproperty",
-      "label": "ApiProperty",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "apiproperty",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_http_login_dto_ts_isemail",
-      "label": "IsEmail",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "isemail",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_http_login_dto_ts_isstring",
-      "label": "IsString",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "isstring",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_http_login_dto_ts_minlength",
-      "label": "MinLength",
-      "_origin": "ast",
-      "community": 39,
-      "community_name": "auth.module.ts",
-      "file_type": "code",
-      "norm_label": "minlength",
-      "source_file": "",
-      "source_location": ""
     },
     {
       "id": "apps_api_src_auth_infrastructure_cookie_helper",
@@ -40266,15 +40233,26 @@
       "source_location": ""
     },
     {
-      "id": "apps_api_src_runs_application_auto_finalize_expired_reviews_use_case",
-      "label": "auto-finalize-expired-reviews.use-case.ts",
+      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter",
+      "label": "prisma-refresh-session.adapter.ts",
       "_origin": "ast",
       "community": 39,
       "community_name": "auth.module.ts",
       "file_type": "code",
-      "norm_label": "auto-finalize-expired-reviews.use-case.ts",
-      "source_file": "apps/api/src/runs/application/auto-finalize-expired-reviews.use-case.ts",
+      "norm_label": "prisma-refresh-session.adapter.ts",
+      "source_file": "apps/api/src/auth/infrastructure/prisma-refresh-session.adapter.ts",
       "source_location": "L1"
+    },
+    {
+      "id": "apps_api_src_auth_infrastructure_prisma_refresh_session_adapter_ts_injectable",
+      "label": "Injectable",
+      "_origin": "ast",
+      "community": 39,
+      "community_name": "auth.module.ts",
+      "file_type": "code",
+      "norm_label": "injectable",
+      "source_file": "",
+      "source_location": ""
     },
     {
       "id": "apps_api_src_runs_infrastructure_run_sse_hub",
@@ -43918,156 +43896,244 @@
       "source_location": "L1"
     },
     {
-      "id": "apps_api_src_auth_application_list_invitations_use_case_ts_inject",
-      "label": "Inject",
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "InvitationsController",
-      "file_type": "code",
-      "norm_label": "inject",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_application_list_invitations_use_case_ts_injectable",
-      "label": "Injectable",
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "InvitationsController",
-      "file_type": "code",
-      "norm_label": "injectable",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_application_resend_invitation_use_case_ts_injectable",
-      "label": "Injectable",
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "InvitationsController",
-      "file_type": "code",
-      "norm_label": "injectable",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_application_revoke_invitation_use_case_ts_inject",
-      "label": "Inject",
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "InvitationsController",
-      "file_type": "code",
-      "norm_label": "inject",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_application_revoke_invitation_use_case_ts_injectable",
-      "label": "Injectable",
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "InvitationsController",
-      "file_type": "code",
-      "norm_label": "injectable",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_invitations_controller_ts_apicookieauth",
-      "label": "ApiCookieAuth",
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "InvitationsController",
-      "file_type": "code",
-      "norm_label": "apicookieauth",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_invitations_controller_ts_apitags",
+      "id": "apps_api_src_auth_auth_controller_ts_apitags",
       "label": "ApiTags",
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
       "norm_label": "apitags",
       "source_file": "",
       "source_location": ""
     },
     {
-      "id": "apps_api_src_auth_invitations_controller_ts_body",
+      "id": "apps_api_src_auth_auth_controller_ts_body",
       "label": "Body",
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
       "norm_label": "body",
       "source_file": "",
       "source_location": ""
     },
     {
-      "id": "apps_api_src_auth_invitations_controller_ts_controller",
+      "id": "apps_api_src_auth_auth_controller_ts_controller",
       "label": "Controller",
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
       "norm_label": "controller",
       "source_file": "",
       "source_location": ""
     },
     {
-      "id": "apps_api_src_auth_invitations_controller_ts_delete",
-      "label": "Delete",
-      "_origin": "ast",
-      "community": 65,
-      "community_name": "InvitationsController",
-      "file_type": "code",
-      "norm_label": "delete",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_invitations_controller_ts_get",
+      "id": "apps_api_src_auth_auth_controller_ts_get",
       "label": "Get",
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
       "norm_label": "get",
       "source_file": "",
       "source_location": ""
     },
     {
-      "id": "apps_api_src_auth_invitations_controller_ts_httpcode",
+      "id": "apps_api_src_auth_auth_controller_ts_httpcode",
       "label": "HttpCode",
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
       "norm_label": "httpcode",
       "source_file": "",
       "source_location": ""
     },
     {
-      "id": "apps_api_src_auth_invitations_controller_ts_param",
-      "label": "Param",
+      "id": "apps_api_src_auth_auth_controller_ts_post",
+      "label": "Post",
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
-      "norm_label": "param",
+      "norm_label": "post",
       "source_file": "",
       "source_location": ""
     },
     {
-      "id": "apps_api_src_auth_invitations_controller_ts_post",
-      "label": "Post",
+      "id": "apps_api_src_auth_auth_controller_ts_req",
+      "label": "Req",
       "_origin": "ast",
       "community": 65,
-      "community_name": "InvitationsController",
+      "community_name": "AuthController",
       "file_type": "code",
-      "norm_label": "post",
+      "norm_label": "req",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_auth_controller_ts_res",
+      "label": "Res",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "res",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_http_accept_invite_dto",
+      "label": "accept-invite.dto.ts",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "accept-invite.dto.ts",
+      "source_file": "apps/api/src/auth/http/accept-invite.dto.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "apps_api_src_auth_http_accept_invite_dto_ts_apiproperty",
+      "label": "ApiProperty",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "apiproperty",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_http_accept_invite_dto_ts_isstring",
+      "label": "IsString",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "isstring",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_http_accept_invite_dto_ts_minlength",
+      "label": "MinLength",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "minlength",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_http_bootstrap_admin_dto",
+      "label": "bootstrap-admin.dto.ts",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "bootstrap-admin.dto.ts",
+      "source_file": "apps/api/src/auth/http/bootstrap-admin.dto.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "apps_api_src_auth_http_bootstrap_admin_dto_ts_apiproperty",
+      "label": "ApiProperty",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "apiproperty",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_http_bootstrap_admin_dto_ts_isemail",
+      "label": "IsEmail",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "isemail",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_http_bootstrap_admin_dto_ts_isstring",
+      "label": "IsString",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "isstring",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_http_bootstrap_admin_dto_ts_minlength",
+      "label": "MinLength",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "minlength",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_http_login_dto",
+      "label": "login.dto.ts",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "login.dto.ts",
+      "source_file": "apps/api/src/auth/http/login.dto.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "apps_api_src_auth_http_login_dto_ts_apiproperty",
+      "label": "ApiProperty",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "apiproperty",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_http_login_dto_ts_isemail",
+      "label": "IsEmail",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "isemail",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_http_login_dto_ts_isstring",
+      "label": "IsString",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "isstring",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_auth_http_login_dto_ts_minlength",
+      "label": "MinLength",
+      "_origin": "ast",
+      "community": 65,
+      "community_name": "AuthController",
+      "file_type": "code",
+      "norm_label": "minlength",
       "source_file": "",
       "source_location": ""
     },
@@ -44930,70 +44996,15 @@
       "source_location": "L14"
     },
     {
-      "id": "apps_api_src_auth_application_accept_invite_use_case_ts_injectable",
-      "label": "Injectable",
+      "id": "apps_api_src_auth_application_auth_helpers",
+      "label": "auth.helpers.ts",
       "_origin": "ast",
       "community": 69,
       "community_name": "DomainException",
       "file_type": "code",
-      "norm_label": "injectable",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_application_auth_schemas",
-      "label": "auth.schemas.ts",
-      "_origin": "ast",
-      "community": 69,
-      "community_name": "DomainException",
-      "file_type": "code",
-      "norm_label": "auth.schemas.ts",
-      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
+      "norm_label": "auth.helpers.ts",
+      "source_file": "apps/api/src/auth/application/auth.helpers.ts",
       "source_location": "L1"
-    },
-    {
-      "id": "apps_api_src_auth_application_auth_schemas_bootstrapadminschema",
-      "label": "bootstrapAdminSchema",
-      "_origin": "ast",
-      "community": 69,
-      "community_name": "DomainException",
-      "file_type": "code",
-      "norm_label": "bootstrapadminschema",
-      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
-      "source_location": "L3"
-    },
-    {
-      "id": "apps_api_src_auth_application_auth_schemas_loginschema",
-      "label": "loginSchema",
-      "_origin": "ast",
-      "community": 69,
-      "community_name": "DomainException",
-      "file_type": "code",
-      "norm_label": "loginschema",
-      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
-      "source_location": "L8"
-    },
-    {
-      "id": "apps_api_src_auth_application_auth_schemas_patchuserschema",
-      "label": "patchUserSchema",
-      "_origin": "ast",
-      "community": 69,
-      "community_name": "DomainException",
-      "file_type": "code",
-      "norm_label": "patchuserschema",
-      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
-      "source_location": "L20"
-    },
-    {
-      "id": "apps_api_src_auth_application_auth_schemas_updatemeemailschema",
-      "label": "updateMeEmailSchema",
-      "_origin": "ast",
-      "community": 69,
-      "community_name": "DomainException",
-      "file_type": "code",
-      "norm_label": "updatemeemailschema",
-      "source_file": "apps/api/src/auth/application/auth.schemas.ts",
-      "source_location": "L13"
     },
     {
       "id": "apps_api_src_auth_application_reactivate_user_use_case",
@@ -45048,6 +45059,17 @@
       "file_type": "code",
       "norm_label": "password.policy.ts",
       "source_file": "apps/api/src/auth/domain/password.policy.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "apps_api_src_runs_application_finalize_review_use_case",
+      "label": "finalize-review.use-case.ts",
+      "_origin": "ast",
+      "community": 69,
+      "community_name": "DomainException",
+      "file_type": "code",
+      "norm_label": "finalize-review.use-case.ts",
+      "source_file": "apps/api/src/runs/application/finalize-review.use-case.ts",
       "source_location": "L1"
     },
     {
@@ -45623,6 +45645,39 @@
       "source_location": ""
     },
     {
+      "id": "apps_api_src_runs_application_auto_finalize_expired_reviews_use_case",
+      "label": "auto-finalize-expired-reviews.use-case.ts",
+      "_origin": "ast",
+      "community": 71,
+      "community_name": "RunRepository",
+      "file_type": "code",
+      "norm_label": "auto-finalize-expired-reviews.use-case.ts",
+      "source_file": "apps/api/src/runs/application/auto-finalize-expired-reviews.use-case.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "apps_api_src_runs_application_auto_finalize_expired_reviews_use_case_ts_inject",
+      "label": "Inject",
+      "_origin": "ast",
+      "community": 71,
+      "community_name": "RunRepository",
+      "file_type": "code",
+      "norm_label": "inject",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "apps_api_src_runs_application_auto_finalize_expired_reviews_use_case_ts_injectable",
+      "label": "Injectable",
+      "_origin": "ast",
+      "community": 71,
+      "community_name": "RunRepository",
+      "file_type": "code",
+      "norm_label": "injectable",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
       "id": "apps_api_src_runs_application_cancel_run_use_case",
       "label": "cancel-run.use-case.ts",
       "_origin": "ast",
@@ -45654,17 +45709,6 @@
       "norm_label": "injectable",
       "source_file": "",
       "source_location": ""
-    },
-    {
-      "id": "apps_api_src_runs_application_finalize_review_use_case",
-      "label": "finalize-review.use-case.ts",
-      "_origin": "ast",
-      "community": 71,
-      "community_name": "RunRepository",
-      "file_type": "code",
-      "norm_label": "finalize-review.use-case.ts",
-      "source_file": "apps/api/src/runs/application/finalize-review.use-case.ts",
-      "source_location": "L1"
     },
     {
       "id": "apps_api_src_runs_application_finalize_review_use_case_ts_inject",
@@ -46316,28 +46360,6 @@
       "source_location": "L1"
     },
     {
-      "id": "apps_api_src_runs_application_auto_finalize_expired_reviews_use_case_ts_inject",
-      "label": "Inject",
-      "_origin": "ast",
-      "community": 74,
-      "community_name": "InProcessRunWorker",
-      "file_type": "code",
-      "norm_label": "inject",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_runs_application_auto_finalize_expired_reviews_use_case_ts_injectable",
-      "label": "Injectable",
-      "_origin": "ast",
-      "community": 74,
-      "community_name": "InProcessRunWorker",
-      "file_type": "code",
-      "norm_label": "injectable",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
       "id": "apps_api_src_runs_application_in_process_run_worker_ts_injectable",
       "label": "Injectable",
       "_origin": "ast",
@@ -46404,17 +46426,6 @@
       "source_location": "L1"
     },
     {
-      "id": "apps_api_src_auth_application_me_use_case",
-      "label": "me.use-case.ts",
-      "_origin": "ast",
-      "community": 76,
-      "community_name": "UserRepository",
-      "file_type": "code",
-      "norm_label": "me.use-case.ts",
-      "source_file": "apps/api/src/auth/application/me.use-case.ts",
-      "source_location": "L1"
-    },
-    {
       "id": "apps_api_src_auth_application_me_use_case_ts_inject",
       "label": "Inject",
       "_origin": "ast",
@@ -46422,17 +46433,6 @@
       "community_name": "UserRepository",
       "file_type": "code",
       "norm_label": "inject",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "apps_api_src_auth_application_me_use_case_ts_injectable",
-      "label": "Injectable",
-      "_origin": "ast",
-      "community": 76,
-      "community_name": "UserRepository",
-      "file_type": "code",
-      "norm_label": "injectable",
       "source_file": "",
       "source_location": ""
     },
@@ -83189,7 +83189,7 @@
       "confidence_score": 1.0,
       "context": "decorator",
       "source_file": "apps/api/src/runs/runs.module.ts",
-      "source_location": "L42",
+      "source_location": "L43",
       "weight": 1.0
     },
     {
@@ -119837,7 +119837,7 @@
     },
     {
       "source": "apps_api_src_runs_runs_module",
-      "target": "apps_api_src_runs_application_cancel_run_use_case_cancelrunusecase",
+      "target": "apps_api_src_runs_application_auto_finalize_expired_reviews_use_case_autofinalizeexpiredreviewsusecase",
       "relation": "imports",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -119845,6 +119845,18 @@
       "context": "import",
       "source_file": "apps/api/src/runs/runs.module.ts",
       "source_location": "L28",
+      "weight": 1.0
+    },
+    {
+      "source": "apps_api_src_runs_runs_module",
+      "target": "apps_api_src_runs_application_cancel_run_use_case_cancelrunusecase",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "apps/api/src/runs/runs.module.ts",
+      "source_location": "L29",
       "weight": 1.0
     },
     {
@@ -148750,7 +148762,7 @@
     },
     {
       "source": "apps_api_src_runs_runs_module",
-      "target": "apps_api_src_runs_application_cancel_run_use_case",
+      "target": "apps_api_src_runs_application_auto_finalize_expired_reviews_use_case",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -148758,6 +148770,18 @@
       "context": "import",
       "source_file": "apps/api/src/runs/runs.module.ts",
       "source_location": "L28",
+      "weight": 1.0
+    },
+    {
+      "source": "apps_api_src_runs_runs_module",
+      "target": "apps_api_src_runs_application_cancel_run_use_case",
+      "relation": "imports_from",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "apps/api/src/runs/runs.module.ts",
+      "source_location": "L29",
       "weight": 1.0
     },
     {
@@ -179538,7 +179562,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/api/src/runs/runs.module.ts",
-      "source_location": "L30",
+      "source_location": "L31",
       "weight": 1.0
     },
     {
@@ -179549,7 +179573,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/api/src/runs/runs.module.ts",
-      "source_location": "L62",
+      "source_location": "L64",
       "weight": 1.0
     },
     {
@@ -196544,7 +196568,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/api/src/runs/runs.module.ts",
-      "source_location": "L63",
+      "source_location": "L65",
       "weight": 1.0
     },
     {
@@ -202080,5 +202104,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "1b2efe8d585bf8384b182156f3d705c3c67f46b9"
+  "built_at_commit": "554d975268e06eb26f39ef523f3a051e756bd5a0"
 }

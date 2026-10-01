@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "b7e4c1a9-2f6d-4c8b-9a31-5e0d8f4b2c17",
     "name": "Content Chain — Review + feedback (Faza 6)",
-    "description": "Happy path przeglądu runu (R-10, w tym POST output-edited z `{ result }`) i feedbacku tekstowego (Fbk-1 / Fbk-2 / Fbk-3 / Fbk-3a / Fbk-4): Setup (login admina → cookie `cc_access` / `cc_refresh` → `GET /auth/me` → PUT kontekstu), fixture dwóch `completed` (finalize z `null` oraz z oceną 1–5) + `awaiting_hitl`, potem R1–R9 (+ R4b/R4c, R5b/R5c, R6b/R6c, R7a, R7d–R7g), **Authz druga sesja** (E0 logout admina → E0b 401 → E1–E13), na końcu **Dokończ HITL** (`POST .../hitl` 1 id → `completed`).\n\n`awaiting_hitl` jest stabilnym statusem nieterminalnym pod R6/R6b/R6c/R7c/E7/E8 (ten sam 409 `RUN_NOT_REVIEWABLE` co `running` / `queued` / `interrupted` — bez wyścigu z LLM). HITL wznawiane dopiero po tych negatywach.\n\nWymaga żywego `apps/api` (`:3001`), lokalnego gateway, **istniejącego admina** (`adminEmail` / `adminPassword` — jak `auth.postman-collection.json`) oraz **istniejącego konta `user`** (`userEmail` / `userPassword` — to z `invitations-pipeline.postman-collection.json`). Folder Authz nie startuje runu usera: drugi użytkownik może mieć puste `GET /runs/user/:id`. W Postmanie włącz cookie jar. Kolekcja nie woła gateway — klient uderza wyłącznie w api. Nie dubluje negatywów HITL z Social B.\n\nNie jest to suite `pnpm test:e2e`. Import → Collection Runner: **Setup → Fixtures → Cancel → Review → Feedback → Lista autora → Authz druga sesja → Dokończ HITL**.",
+    "description": "Happy path przeglądu runu (R-10, w tym POST output-edited z `{ result }` oraz meta TTL `pipelineFinishedAt` / `reviewExpiresAt`) i feedbacku tekstowego (Fbk-1 / Fbk-2 / Fbk-3 / Fbk-3a / Fbk-4): Setup (login admina → cookie `cc_access` / `cc_refresh` → `GET /auth/me` → PUT kontekstu), fixture dwóch `completed` (finalize z `null` oraz z oceną 1–5) + `awaiting_hitl`, potem R1–R9 (+ R4b/R4c, R5b/R5c, R6b/R6c, R7a, R7d–R7g), **Authz druga sesja** (E0 logout admina → E0b 401 → E1–E13), na końcu **Dokończ HITL** (`POST .../hitl` 1 id → `completed`).\n\n`awaiting_hitl` jest stabilnym statusem nieterminalnym pod R6/R6b/R6c/R7c/E7/E8 (ten sam 409 `RUN_NOT_REVIEWABLE` co `running` / `queued` / `interrupted` — bez wyścigu z LLM). HITL wznawiane dopiero po tych negatywach.\n\nD-35…D-40 (lock po TTL / sweeper / GET bez side-effect) = Jest e2e `runs-review-ttl.e2e-spec.ts`, nie ten Collection Runner. Env api: `REVIEW_TTL` (default `2h`), `REVIEW_SWEEP_INTERVAL` (default `5m`).\n\nWymaga żywego `apps/api` (`:3001`), lokalnego gateway, **istniejącego admina** (`adminEmail` / `adminPassword` — jak `auth.postman-collection.json`) oraz **istniejącego konta `user`** (`userEmail` / `userPassword` — to z `invitations-pipeline.postman-collection.json`). Folder Authz nie startuje runu usera: drugi użytkownik może mieć puste `GET /runs/user/:id`. W Postmanie włącz cookie jar. Kolekcja nie woła gateway — klient uderza wyłącznie w api. Nie dubluje negatywów HITL z Social B.\n\nNie jest to suite `pnpm test:e2e`. Import → Collection Runner: **Setup → Fixtures → Cancel → Review → Feedback → Lista autora → Authz druga sesja → Dokończ HITL**.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -964,6 +964,11 @@
                   "  pm.expect(body.runId).to.eql(pm.collectionVariables.get('completedRunId'));",
                   "  pm.expect(body.userRating).to.eql(4);",
                   "  pm.expect(body.reviewFinalizedAt).to.eql(null);",
+                  "});",
+                  "pm.test('TTL meta on rating success (D-12)', function () {",
+                  "  pm.expect(body.pipelineFinishedAt).to.be.a('string').that.match(/^\\d{4}-\\d{2}-\\d{2}T/);",
+                  "  pm.expect(body.reviewExpiresAt).to.be.a('string').that.match(/^\\d{4}-\\d{2}-\\d{2}T/);",
+                  "  pm.expect(Date.parse(body.reviewExpiresAt)).to.be.above(Date.now());",
                   "});"
                 ]
               }
@@ -978,7 +983,7 @@
               }
             ],
             "url": "{{baseUrl}}/runs/{{completedRunId}}/rating",
-            "description": "200 `{ runId, userRating: 4, reviewFinalizedAt: null }`.",
+            "description": "200 `{ runId, userRating: 4, reviewFinalizedAt: null, pipelineFinishedAt, reviewExpiresAt }` (D-12 meta TTL).",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"rating\": 4\n}\n"
@@ -1083,6 +1088,11 @@
                   "pm.test('outputEdited true', function () {",
                   "  pm.expect(body.runId).to.eql(pm.collectionVariables.get('completedRunId'));",
                   "  pm.expect(body.outputEdited).to.eql(true);",
+                  "});",
+                  "pm.test('TTL meta on output-edited success (D-12)', function () {",
+                  "  pm.expect(body.pipelineFinishedAt).to.be.a('string').that.match(/^\\d{4}-\\d{2}-\\d{2}T/);",
+                  "  pm.expect(body.reviewExpiresAt).to.be.a('string').that.match(/^\\d{4}-\\d{2}-\\d{2}T/);",
+                  "  pm.expect(Date.parse(body.reviewExpiresAt)).to.be.above(Date.now());",
                   "});"
                 ]
               }
@@ -1097,7 +1107,7 @@
               }
             ],
             "url": "{{baseUrl}}/runs/{{completedRunId}}/output-edited",
-            "description": "200 `{ runId, outputEdited: true }`. Body `{ result: { ideas: […] } }` — te same `id` co fixture `post_ideas` (`completedIdeasJson`). Prerequest ustawia tytuły `CC-edited-N` i `editedResultBody`. Odczyt treści = kolejny GET snapshot.",
+            "description": "200 `{ runId, outputEdited: true, pipelineFinishedAt, reviewExpiresAt }`. Body `{ result: { ideas: […] } }` — te same `id` co fixture `post_ideas` (`completedIdeasJson`). Prerequest ustawia tytuły `CC-edited-N` i `editedResultBody`. Odczyt treści = kolejny GET snapshot.",
             "body": {
               "mode": "raw",
               "raw": "{{editedResultBody}}"
@@ -1126,10 +1136,15 @@
                   "  expected = [];",
                   "}",
                   "pm.test('review fields always present', function () {",
-                  "  pm.expect(body).to.include.keys('userRating', 'outputEdited', 'reviewFinalizedAt');",
+                  "  pm.expect(body).to.include.keys('userRating', 'outputEdited', 'reviewFinalizedAt', 'pipelineFinishedAt', 'reviewExpiresAt');",
                   "  pm.expect(body.userRating).to.eql(null);",
                   "  pm.expect(body.outputEdited).to.eql(true);",
                   "  pm.expect(body.reviewFinalizedAt).to.eql(null);",
+                  "});",
+                  "pm.test('TTL meta on GET snapshot (D-12 / R-10)', function () {",
+                  "  pm.expect(body.pipelineFinishedAt).to.be.a('string').that.match(/^\\d{4}-\\d{2}-\\d{2}T/);",
+                  "  pm.expect(body.reviewExpiresAt).to.be.a('string').that.match(/^\\d{4}-\\d{2}-\\d{2}T/);",
+                  "  pm.expect(Date.parse(body.reviewExpiresAt)).to.be.above(Date.now());",
                   "});",
                   "pm.test('snapshot result.ideas matches edited body', function () {",
                   "  pm.expect(expected, 'editedIdeasJson from R3').to.be.an('array').that.is.not.empty;",
@@ -1153,7 +1168,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/runs/{{completedRunId}}",
-            "description": "DoD D-12: `userRating` / `outputEdited` / `reviewFinalizedAt` zawsze w JSON. Po R2/R3: null / true / null. `result.ideas` = body klienta z R3 (te same id, tytuły `CC-edited-N`)."
+            "description": "DoD D-12: `userRating` / `outputEdited` / `reviewFinalizedAt` / `pipelineFinishedAt` / `reviewExpiresAt` zawsze w JSON. Po R2/R3: null / true / null + ISO meta TTL. `result.ideas` = body klienta z R3 (te same id, tytuły `CC-edited-N`)."
           }
         },
         {
@@ -1177,6 +1192,8 @@
                   "  pm.expect(body.outputEdited).to.eql(true);",
                   "  pm.expect(body.reviewFinalizedAt).to.be.a('string').that.is.not.empty;",
                   "  pm.expect(body.reviewFinalizedAt).to.match(/^\\d{4}-\\d{2}-\\d{2}T/);",
+                  "  pm.expect(body.pipelineFinishedAt).to.be.a('string').that.match(/^\\d{4}-\\d{2}-\\d{2}T/);",
+                  "  pm.expect(body.reviewExpiresAt).to.eql(null);",
                   "});"
                 ]
               }
@@ -1186,7 +1203,7 @@
             "method": "POST",
             "header": [],
             "url": "{{baseUrl}}/runs/{{completedRunId}}/finalize-review",
-            "description": "200 `{ runId, userRating: null, outputEdited, reviewFinalizedAt: \"<ISO>\" }` — finalize ze świadomym brakiem gwiazdek (major 6.3)."
+            "description": "200 `{ runId, userRating: null, outputEdited, reviewFinalizedAt: \"<ISO>\", pipelineFinishedAt, reviewExpiresAt: null }` — finalize ze świadomym brakiem gwiazdek (major 6.3 / R-10)."
           }
         },
         {
@@ -1250,6 +1267,8 @@
                   "  pm.expect(body.outputEdited).to.eql(false);",
                   "  pm.expect(body.reviewFinalizedAt).to.be.a('string').that.is.not.empty;",
                   "  pm.expect(body.reviewFinalizedAt).to.match(/^\\d{4}-\\d{2}-\\d{2}T/);",
+                  "  pm.expect(body.pipelineFinishedAt).to.be.a('string').that.match(/^\\d{4}-\\d{2}-\\d{2}T/);",
+                  "  pm.expect(body.reviewExpiresAt).to.eql(null);",
                   "});"
                 ]
               }
@@ -1259,7 +1278,7 @@
             "method": "POST",
             "header": [],
             "url": "{{baseUrl}}/runs/{{ratedCompletedRunId}}/finalize-review",
-            "description": "200 `{ runId, userRating: 5, outputEdited: false, reviewFinalizedAt: \"<ISO>\" }` — finalize z oceną 1–5 (major 6.3)."
+            "description": "200 `{ runId, userRating: 5, outputEdited: false, reviewFinalizedAt: \"<ISO>\", pipelineFinishedAt, reviewExpiresAt: null }` — finalize z oceną 1–5 (major 6.3)."
           }
         },
         {

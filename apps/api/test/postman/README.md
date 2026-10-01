@@ -15,8 +15,8 @@ Kontrakt sesji, bootstrap i 401/403 auth są w **`auth.postman-collection.json`*
 
 ## Wymagania
 
-1. Skopiować `apps/api/.env.example` → `apps/api/.env` oraz analogicznie env gateway (`apps/ai-provider-gateway/.env.example`). Uzupełnić sekrety lokalnie — **nie** wklejać ich do kolekcji.
-2. Migracje Prisma api (SQLite), w tym tabela `Feedback` i kolumny przeglądu na `Run` (`userRating`, `outputEdited`, `reviewFinalizedAt`).
+1. Skopiować `apps/api/.env.example` → `apps/api/.env` oraz analogicznie env gateway (`apps/ai-provider-gateway/.env.example`). Uzupełnić sekrety lokalnie — **nie** wklejać ich do kolekcji. Dla przeglądu: `REVIEW_TTL` (default `2h`) i `REVIEW_SWEEP_INTERVAL` (default `5m`) — patrz `apps/api/.env.example`.
+2. Migracje Prisma api (SQLite), w tym tabela `Feedback` i kolumny przeglądu na `Run` (`userRating`, `outputEdited`, `reviewFinalizedAt`, `pipelineFinishedAt`).
 3. **Istniejący admin w bazie.** Zmienne `adminEmail` / `adminPassword` w kolekcjach Social, Content i Review są te same co w `auth.postman-collection.json`. Pipeline nie woła `bootstrap-admin`. Pusta baza → login **401**; jednorazowo odpal Bootstrap w kolekcji auth (albo ręczny `POST /auth/bootstrap-admin`).
 4. Uruchomić procesy (kolejność: najpierw gateway, potem api):
 
@@ -64,13 +64,15 @@ Cel: żywy HTTP Fazy 6 — przegląd runu (`SPEC-RUNY.md` R-10) i zapis opinii (
 1. **Setup** — login admina, `GET /auth/me` (zapis `userId` / syntetyczny `otherUserId` pod R8/R9), PUT kontekstu Acme, completeness `true`. Bez PATCH nieznanego `extras` (to D-20 w Social/Content).
 2. **Fixtures** — dwa `post_ideas` aż `completed` (`completedRunId`, `ratedCompletedRunId`) oraz `post_ideas_then_content` aż `awaiting_hitl` (`inProgressRunId`, zapis `hitlIdeaId`). Status nieterminalny zostaje stabilny pod R6/R7c/E7/E8; wznowienie HITL jest w ostatnim folderze.
 3. **Cancel** — osobny `post_ideas_then_content` → `awaiting_hitl` → `POST .../cancel` **200** (`cancelled` + `cancelledAt`) → drugi cancel **200** (D-31) → cancel `completedRunId` **409** `RUN_NOT_CANCELABLE` → login `user` → cancel cudzego **403** → login admina. Mapowanie R-11 / D-30…D-32.
-4. **Review** — ocena 4 → `null` → `POST .../output-edited` z `{ result: { ideas } }` (te same id co fixture) → snapshot: treść = body klienta **oraz** `outputEdited: true` → finalize bez gwiazdek oraz z oceną 5 → `409 REVIEW_LOCKED` na rating / `output-edited` / ponownym finalize → `409 RUN_NOT_REVIEWABLE` na rating / edycji / finalize przy `awaiting_hitl`.
+4. **Review** — ocena 4 → `null` → `POST .../output-edited` z `{ result: { ideas } }` (te same id co fixture) → snapshot: treść = body klienta **oraz** `outputEdited: true` + `pipelineFinishedAt` / `reviewExpiresAt` ISO → finalize bez gwiazdek oraz z oceną 5 (`reviewExpiresAt: null`) → `409 REVIEW_LOCKED` na rating / `output-edited` / ponownym finalize → `409 RUN_NOT_REVIEWABLE` na rating / edycji / finalize przy `awaiting_hitl`.
 5. **Feedback** — `201` na zfinalizowanym runie, drugi wpis = nowy `fbk_…` (Fbk-2), `404 RUN_NOT_FOUND`, `409` na runie w toku, `application` / `agent`, `400` na nieznany `agentKey` i zły format `runId`.
 6. **Lista autora** — `GET /runs/user/:userId` (200) i cudze id (403).
 7. **Authz druga sesja** — `POST /auth/logout` admina → rating bez sesji **401**; login `user`; cudzy `completed` → 403 na rating / edycji / finalize / feedback (nie `REVIEW_LOCKED`, nie 404); cudzy `awaiting_hitl` → feedback 403 (Fbk-3a), ocena 409 (R-10); brak runu → 404; lista admina 403; własna lista pusta; `rating: 6` → 400.
 8. **Dokończ HITL** — ponowny login admina → `POST .../hitl` 1 id z `hitlIdeaId` → poll `completed` (`result.content === null`, `contents.length === 1`, przegląd otwarty).
 
 Cudzy `startedBy` jest w folderze Authz (wymaga `userEmail` / `userPassword`). Status `failed` nadal poza runnerem (fixture’y Review failują test przy `failed`). Unit: `assertRunReviewable` / `CreateFeedbackUseCase`.
+
+**TTL / auto-finalize (D-35…D-40):** negatywy po wygaśnięciu okna, sweeper i GET bez side-effect są w Jest e2e (`apps/api/test/runs-review-ttl.e2e-spec.ts`), nie w Collection Runnerze — Postman pokrywa happy path + pola meta `pipelineFinishedAt` / `reviewExpiresAt` przy otwartym oknie (domyślne `REVIEW_TTL=2h`). Folder „TTL locked” nie jest w kolekcji (wymagałby krótkiego TTL albo ręcznego seedu kotwicy w DB).
 
 ## Zaproszenia (`invitations-pipeline.postman-collection.json`)
 
@@ -136,11 +138,12 @@ Skalar `result.content` / `result.reelScript` na dwuetapowych (`post_ideas_then_
 
 ## Kontrakt MVP (Faza 6 / R-10 / Fbk)
 
-Żywy HTTP: **`review.postman-collection.json`**. Unit: `assert-run-reviewable.spec.ts`, use-case’y rating / output-edited / finalize, `create-feedback.use-case.spec.ts`. **Brak** `*.e2e-spec.ts` na te ścieżki.
+Żywy HTTP: **`review.postman-collection.json`**. Unit: `assert-run-reviewable.spec.ts`, use-case’y rating / output-edited / finalize, `create-feedback.use-case.spec.ts`. E2e TTL: `runs-review-ttl.e2e-spec.ts` (D-35…D-40).
 
 | ID | Co sprawdza | Gdzie |
 |----|-------------|--------|
-| **R-10** / **D-12** | Ocena 1–5 i `null`; `POST .../output-edited` z `{ result }` zastępuje kanoniczny wynik i stawia `outputEdited`; GET snapshot zwraca treść po edycji; finalize (także przy `userRating: null`); lock po `reviewFinalizedAt`; `409 RUN_NOT_REVIEWABLE` poza `completed` \| `failed`; cudzy `completed` → 403 | Postman Review R1–R6c + Authz E3–E5 / E8 / E13; snapshot po R3: treść = body klienta + `outputEdited: true` |
+| **R-10** / **D-12** | Ocena 1–5 i `null`; `POST .../output-edited` z `{ result }` zastępuje kanoniczny wynik i stawia `outputEdited`; GET snapshot zwraca treść po edycji; finalize (także przy `userRating: null`); lock po `reviewFinalizedAt`; `409 RUN_NOT_REVIEWABLE` poza `completed` \| `failed`; cudzy `completed` → 403; snapshot / sukces mutacji niosą `pipelineFinishedAt` + `reviewExpiresAt` (finalize → `reviewExpiresAt: null`) | Postman Review R1–R6c + Authz E3–E5 / E8 / E13; snapshot po R3: treść = body klienta + `outputEdited: true` + meta TTL |
+| **D-35…D-40** | Lock po TTL bez CAS; sweeper; restart; GET 4a; legacy kotwica; feedback po auto-close; `cancelled` → `RUN_NOT_REVIEWABLE` | Jest `runs-review-ttl.e2e-spec.ts` (nie Postman Collection Runner) |
 | **Fbk-1 / Fbk-4** | `POST /feedback` `application` i `agent` (whitelist `agentKey`); nieznany klucz → 400 | Postman R7d–R7f |
 | **Fbk-2** | Drugi wpis tego samego autora na ten sam target → nowy wiersz | Postman R7a |
 | **Fbk-3 / Fbk-3a** | Własny `completed` (także po finalize) → 201; brak runu → 404; zły format `runId` → 400; run w toku → 409 `RUN_NOT_REVIEWABLE`; cudzy `completed` → 403 (nie 404); cudzy w toku → 403 (nie 409) | Postman R7 / R7b / R7c / R7g + E6 / E7 / E10 |

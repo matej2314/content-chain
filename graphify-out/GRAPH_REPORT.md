@@ -1,17 +1,17 @@
 # Graph Report - content-chain  (2026-10-01)
 
 ## Corpus Check
-- 648 files · ~196,567 words
+- 648 files · ~196,574 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 1 file(s) not represented in the graph (top: .css 1)
 
 ## Summary
-- 4179 nodes · 12920 edges · 137 communities (119 shown, 17 thin omitted)
+- 4179 nodes · 12922 edges · 138 communities (119 shown, 18 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 400 edges (avg confidence: 0.81)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1b2efe8d`
+- Built from commit: `554d9752`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -81,7 +81,7 @@
 - should-include-redis-stack.ts
 - response-cache.service.ts
 - asProviderInstanceId
-- InvitationsController
+- AuthController
 - swagger.setup.ts
 - provider-instances.bootstrap.ts
 - OpenAiChatCompletionRequestDto
@@ -134,8 +134,9 @@
 - configuration-validation.service.ts
 - RunsModule
 - domain/company-context.types.ts
-- PrismaRefreshSessionAdapter
+- prisma-invitation.adapter.ts
 - CompanyContextController
+- auth.schemas.ts
 - app-metrics.module.ts
 - RolesGuard
 - ai-provider-gateway/src/app.module.ts
@@ -180,11 +181,11 @@
 ## Import Cycles
 - None detected.
 
-## Communities (137 total, 17 thin omitted)
+## Communities (138 total, 18 thin omitted)
 
 ### Community 0 - "invite-user.use-case.ts"
-Cohesion: 0.08
-Nodes (30): Inject, InviteUserResult, inviteUserSchema, InviteUserUseCase, Inject, Injectable, InvitationListItem, Inject (+22 more)
+Cohesion: 0.07
+Nodes (24): Inject, InviteUserResult, inviteUserSchema, InviteUserUseCase, Inject, Injectable, InvitationListItem, ListInvitationsUseCase (+16 more)
 
 ### Community 1 - "social.types.ts"
 Cohesion: 0.05
@@ -251,8 +252,8 @@ Cohesion: 0.11
 Nodes (21): isUnservableCachedReply(), parseCachedChatResponse(), RedisVectorStoreAdapter, Injectable, escapeRedisSearchTag(), asString(), ParsedKnnHits, parseKnnHits() (+13 more)
 
 ### Community 18 - "AuthUserContext"
-Cohesion: 0.08
-Nodes (27): ApiCookieAuth, Get, Patch, InviteUserDto, ApiProperty, IsEmail, isTerminalStatus(), RunsController (+19 more)
+Cohesion: 0.07
+Nodes (35): ApiCookieAuth, Patch, InviteUserDto, ApiProperty, IsEmail, InvitationsController, ApiCookieAuth, ApiTags (+27 more)
 
 ### Community 19 - "llm-hop.ts"
 Cohesion: 0.19
@@ -335,8 +336,8 @@ Cohesion: 0.19
 Nodes (16): createFeedback(), FEEDBACK_AGENT_LABELS, FEEDBACK_TARGET_LABELS, filterFeedbackRunOptions(), CreateFeedbackInput, FEEDBACK_BODY_MAX, FeedbackCreated, feedbackRequestBody() (+8 more)
 
 ### Community 39 - "auth.module.ts"
-Cohesion: 0.04
-Nodes (66): comparePassword(), generateRefreshToken(), hashRefreshToken(), parseTtlMs(), parseTtlSeconds(), AuthTokenResult, BootstrapAdminUseCase, Inject (+58 more)
+Cohesion: 0.06
+Nodes (45): AcceptInviteUseCase, Injectable, AuthTokenResult, BootstrapAdminUseCase, Inject, Injectable, BootstrapStatusUseCase, Injectable (+37 more)
 
 ### Community 41 - "run.types.ts"
 Cohesion: 0.07
@@ -434,9 +435,9 @@ Nodes (16): NoOpCacheBackend, Injectable, NoopCacheModule, Module, RedisCacheMod
 Cohesion: 0.09
 Nodes (37): assertInteractiveAllowed(), collectPendingSecrets(), convertProvider(), CliAiProvider, ProviderPromptResult, ProviderPromptService, Injectable, ProviderManagerService (+29 more)
 
-### Community 65 - "InvitationsController"
+### Community 65 - "AuthController"
 Cohesion: 0.09
-Nodes (18): ListInvitationsUseCase, Inject, Injectable, ResendInvitationUseCase, Injectable, RevokeInvitationUseCase, Inject, Injectable (+10 more)
+Nodes (25): AuthController, ApiTags, Body, Controller, Get, HttpCode, Post, Req (+17 more)
 
 ### Community 66 - "swagger.setup.ts"
 Cohesion: 0.05
@@ -451,8 +452,8 @@ Cohesion: 0.12
 Nodes (18): OpenAiChatCompletionRequestDto, OpenAiStreamOptionsDto, ApiProperty, ApiPropertyOptional, ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean (+10 more)
 
 ### Community 69 - "DomainException"
-Cohesion: 0.06
-Nodes (45): AcceptInviteResult, acceptInviteSchema, AcceptInviteUseCase, Injectable, hashPassword(), BootstrapAdminInput, bootstrapAdminSchema, LoginInput (+37 more)
+Cohesion: 0.07
+Nodes (39): AcceptInviteResult, acceptInviteSchema, comparePassword(), generateRefreshToken(), hashPassword(), hashRefreshToken(), parseTtlMs(), parseTtlSeconds() (+31 more)
 
 ### Community 70 - "company-context.mapper.ts"
 Cohesion: 0.15
@@ -460,23 +461,19 @@ Nodes (11): toCompanyContext(), toPartialCompanyContext(), companyContextCaseStu
 
 ### Community 71 - "RunRepository"
 Cohesion: 0.03
-Nodes (62): CancelRunUseCase, Inject, Injectable, FinalizeReviewUseCase, Inject, Injectable, GetRunLogsOutput, GetRunLogsUseCase (+54 more)
+Nodes (66): AutoFinalizeExpiredReviewsUseCase, Inject, Injectable, CancelRunUseCase, Inject, Injectable, FinalizeReviewUseCase, Inject (+58 more)
 
 ### Community 73 - "http-metrics.interceptor.ts"
 Cohesion: 0.21
 Nodes (10): HttpMetricsInterceptor, httpRouteLabel(), statusLabel(), Injectable, UNMAPPED_HTTP_ROUTE, gatewayErrorsTotal, httpRequestDurationSeconds, httpRequestsTotal (+2 more)
-
-### Community 74 - "InProcessRunWorker"
-Cohesion: 0.12
-Nodes (5): AutoFinalizeExpiredReviewsUseCase, Inject, Injectable, InProcessRunWorker, Injectable
 
 ### Community 75 - "parse-verifier-log-message.ts"
 Cohesion: 0.19
 Nodes (12): isStringArray(), parseStringArrayAt(), parseVerifierIssuesSuffix(), parseVerifierLogMessage(), PlainLog, RunLogMessageView, scanJsonArrayEnd(), TEMPLATES (+4 more)
 
 ### Community 76 - "UserRepository"
-Cohesion: 0.08
-Nodes (18): Inject, MeUseCase, Inject, Injectable, Inject, Inject, AuthUser, JwtPayload (+10 more)
+Cohesion: 0.09
+Nodes (16): Inject, Inject, Inject, Inject, AuthUser, JwtPayload, UserListItem, CreateAdminIfNoneData (+8 more)
 
 ### Community 77 - "metrics.module.ts"
 Cohesion: 0.19
@@ -634,13 +631,17 @@ Nodes (7): CACHE_BACKEND_TYPE, configurationValidation, ConfigurationValidationS
 Cohesion: 0.19
 Nodes (17): COMPANY_CONTEXT_SINGLETON_ID, GATE_SECTIONS, GateSection, AudienceProfile, CompanyContextCaseStudy, CompanyContextExtras, CompanyContextObjection, CompanyContextWriteDetail (+9 more)
 
-### Community 118 - "PrismaRefreshSessionAdapter"
-Cohesion: 0.27
-Nodes (4): RefreshSessionRecord, RotateRefreshSessionResult, PrismaRefreshSessionAdapter, Injectable
+### Community 118 - "prisma-invitation.adapter.ts"
+Cohesion: 0.17
+Nodes (15): AcceptInviteAndCreateUserInput, AcceptInviteAndCreateUserResult, CreateInvitationInput, CreatePendingResult, InvitationListRecord, InvitationPurpose, InvitationRecord, InvitationStatus (+7 more)
 
 ### Community 119 - "CompanyContextController"
 Cohesion: 0.22
 Nodes (6): CompanyContextController, ApiCookieAuth, ApiOkResponse, ApiTags, Controller, Get
+
+### Community 120 - "auth.schemas.ts"
+Cohesion: 0.22
+Nodes (8): BootstrapAdminInput, bootstrapAdminSchema, LoginInput, loginSchema, PatchUserCommand, patchUserSchema, UpdateMeEmailInput, updateMeEmailSchema
 
 ### Community 121 - "app-metrics.module.ts"
 Cohesion: 0.10
@@ -661,7 +662,7 @@ Nodes (8): AppConfiguration, CacheRuntimeConfig, RateLimitRuntimeConfig, RedisRu
 ## Knowledge Gaps
 - **380 isolated node(s):** `CacheModuleOptions`, `ChatWarningSchema`, `FinishReasonSchema`, `CachedChatResponseSchema`, `REDIS_SEARCH_TAG_SPECIAL_CHARS` (+375 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1107 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **17 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **18 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -677,6 +678,6 @@ _Questions this graph is uniquely positioned to answer:_
 - **What connects `CacheModuleOptions`, `ChatWarningSchema`, `FinishReasonSchema` to the rest of the system?**
   _380 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `invite-user.use-case.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.07617051013277429 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0743321718931475 - nodes in this community are weakly interconnected._
 - **Should `social.types.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.05280875236692615 - nodes in this community are weakly interconnected._
