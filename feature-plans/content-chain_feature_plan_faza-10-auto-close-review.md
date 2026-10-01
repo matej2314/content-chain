@@ -14,7 +14,7 @@
 | Poza zakresem | Kod BE; widoczny deadline / countdown / wiersz „dostępne do…”; copy auto vs ręczne; HITL TTL; polling / SSE „dla TTL”; lokalny math `pipelineFinishedAt + REVIEW_TTL`; Playwright; nowa paleta; `tsconfig`; edycja major/docs/SPEC |
 | Po implementacji (informacyjnie) | Major FE: Faza 10 → `WYKONANY` (DoD gate + ten HOW). Brak `MILESTONE` 10. **Edycja major poza tym skillem.** |
 
-**Pass rozwojowy:** brak przesunięć — KROK 2/3 używają pól i helperów z KROK 1; timer (KROK 3) nie wylicza TTL lokalnie.
+**Pass rozwojowy:** brak przesunięć — KROK 2/3 używają pól i helperów z KROK 1; timer (KROK 3) nie wylicza TTL lokalnie; `useRunResultEdit` **nie** przyjmuje `nowMs` (zegar lokalny w ciele hooka — patrz KROK 2).
 
 **HOW:** parser snapshotu + predykat okna + disable jak po ręcznym finalize; sukces mutacji nadal kończy się `onReload` → świeży GET (nie trzeba osobno mapować nowych pól w body rating/edit/finalize, o ile GET je niesie).
 
@@ -41,6 +41,7 @@
 | Temat | Źródło | Decyzja |
 |-------|--------|---------|
 | `useEffect` + `setTimeout` / cleanup | Context7 `/react/react` v19.2.8 — effect synchronizuje z timerem przeglądarki; `setState` w callbacku timeoutu; cleanup `clearTimeout` | Hook `useReviewExpiryTick`: jeden timeout do ISO z API; re-render po expiry |
+| React 19 + `react-hooks/purity` | ESLint / reguły czystości React 19 — `Date.now` w renderze hooka (w tym default arg) = błąd | `useRunResultEdit`: **zakaz** `nowMs: number = Date.now()`; zegar lokalny przez `new Date().getTime()` w ciele; `nowMs` z ticka idzie tylko do `canReview*` / `canEdit*` / `locked` |
 | React 19 w projekcie | `apps/frontend/package.json` → `react@19.2.8` | Bez nowych zależności |
 | Sonner / toast | — | **Nie** dodawać toastu przy auto-close / expiry |
 | Visual | `content-chain-product-ui` | Dziedziczenie locku; copy w `text-muted-foreground` jak dziś |
@@ -57,7 +58,7 @@ Odpowiada major **Faza 10**.
 
 ### KROK 1 — Typy + parser: `pipelineFinishedAt`, `reviewExpiresAt`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Snapshot szczegółów niesie kotwicę i wyliczony deadline z API; FE umie je sparsować i ocenić expiry **bez** lokalnego TTL. Major Faza 10 HOW #1; `SPEC-FRONTEND.md` F-9; `SPEC-RUNY.md` R-10; `docs/dictionary.md`.
 
@@ -311,6 +312,8 @@ export function canEditSnapshot(
 
 #### Refaktor — `useRunResultEdit` (wyjście z edycji po expiry)
 
+Zmiana względem wcześniejszego HOW tego kroku (parametr `nowMs: number = Date.now()`): default `Date.now()` w argumencie hooka łamie `react-hooks/purity` (IDE / ESLint). Signature zostaje **2-argumentowa**; zegar liczymy w ciele. Po expiry w KROK 3 wystarczy re-render rodzica z `useReviewExpiryTick` — hook odczyta świeży czas lokalnie.
+
 **teraz:**
 
 ```typescript
@@ -328,13 +331,18 @@ export function useRunResultEdit(
 **zamień na:**
 
 ```typescript
-import { isReviewWindowOpen } from '@/modules/runs/components/run-review-window';
+import { isReviewWindowOpen } from './run-review-window';
 
 export function useRunResultEdit(
   snapshot: RunSnapshot,
   onReload: () => Promise<void>,
-  nowMs: number = Date.now(),
 ): RunResultEditSession {
+  const [state, setState] = useState<RunResultEditState>({ status: 'idle' });
+  const [envelope, setEnvelope] = useState<Envelope | null>(null);
+  const [seenRunId, setSeenRunId] = useState(snapshot.runId);
+  const date = new Date();
+  const nowMs = date.getTime();
+
   // ... seenRunId bez zmian ...
   if (state.status === 'editing' && !isReviewWindowOpen(snapshot, nowMs)) {
     setState({ status: 'idle' });
@@ -345,14 +353,15 @@ export function useRunResultEdit(
 **DoD kroku:**
 
 - Po TTL (`reviewExpiresAt` w przeszłości, `reviewFinalizedAt === null`): `canReviewSnapshot` / `canEditSnapshot` → `false`.
-- Otwarta edycja zamyka się (idle) gdy okno się zamyka (finalize **lub** expiry) przy re-renderze z aktualnym `nowMs`.
+- Otwarta edycja zamyka się (idle) gdy okno się zamyka (finalize **lub** expiry) przy re-renderze (zegar lokalny w hooku; **bez** parametru `nowMs`).
+- Signature `useRunResultEdit(snapshot, onReload)` — **bez** trzeciego argumentu; **bez** `Date.now()` w default arg / ciele jako bezpośrednie wywołanie (użyj `new Date().getTime()`).
 - Status `cancelled` nadal poza przeglądem (istniejące `isReviewableRunStatus`).
 
 ---
 
 ### KROK 3 — Panel + timer od `reviewExpiresAt` (bez countdown UI)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Po expiry UI wygląda jak po ręcznym finalize; lekki timer wymusza disable bez SSE/pollingu; zero nowego chrome deadline. Major Faza 10 HOW #3–5; `SPEC-FRONTEND.md` F-9; skill `content-chain-product-ui`.
 
@@ -456,17 +465,21 @@ zostaje — po expiry `locked === true` → ta sama copy (także gdy `reviewFina
 import { useReviewExpiryTick } from '@/modules/runs/components/use-review-expiry-tick';
 
   const nowMs = useReviewExpiryTick(snapshot.reviewExpiresAt);
-  const edit = useRunResultEdit(snapshot, onReload, nowMs);
+  const edit = useRunResultEdit(snapshot, onReload);
   const editing = edit.state.status === 'editing';
   const canEdit = userId !== null && canEditSnapshot(snapshot, userId, nowMs);
 ```
 
+`nowMs` z ticka idzie **tylko** do `canEditSnapshot` (disable „Edytuj”). Hook edycji **bez** trzeciego argumentu — po ticku rodzic się re-renderuje, `useRunResultEdit` liczy lokalny zegar i wychodzi z `editing` (KROK 2).
+
 **DoD kroku:**
 
 - Po minięciu `reviewExpiresAt` (bez reloadu): gwiazdki / „Zamknij przegląd” / „Edytuj” disabled; widoczny tekst „Przegląd zamknięty.”; **brak** countdownu / „dostępne do…”.
+- Otwarta sesja Edytuj wraca do idle po ticku (re-render → lokalny zegar w `useRunResultEdit`) **albo** po reloadzie z `reviewFinalizedAt`.
 - Po ręcznym finalize: zachowanie jak dziś (reload → `reviewFinalizedAt` + copy).
 - Mutacja po TTL: envelope `REVIEW_LOCKED` widoczny; brak side-effect UI poza disable / błędem.
 - Brak nowych tokenów / toastów / SSE pod TTL.
+- Call site: `useRunResultEdit(snapshot, onReload)` — **bez** przekazywania `nowMs`.
 
 ---
 

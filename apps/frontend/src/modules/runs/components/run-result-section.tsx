@@ -9,6 +9,7 @@ import { RunResultEditActions } from '@/modules/runs/components/run-result-edit-
 import { RunResultEditor } from '@/modules/runs/components/run-result-editor';
 import { RunResultView } from '@/modules/runs/components/run-result-view';
 import { useRunResultEdit } from '@/modules/runs/components/use-run-result-edit';
+import { useReviewExpiryTick } from './use-review-expiry-tick';
 
 type RunResultSectionProps = {
   readonly snapshot: RunSnapshot;
@@ -23,9 +24,10 @@ export function RunResultSection({
   onReload,
   onEditingChange,
 }: RunResultSectionProps) {
+  const nowMs = useReviewExpiryTick(snapshot.reviewExpiresAt);
   const edit = useRunResultEdit(snapshot, onReload);
   const editing = edit.state.status === 'editing';
-  const canEdit = userId !== null && canEditSnapshot(snapshot, userId);
+  const canEdit = userId !== null && canEditSnapshot(snapshot, userId, nowMs);
 
   useEffect(() => {
     onEditingChange(editing);

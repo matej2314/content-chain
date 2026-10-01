@@ -104,6 +104,8 @@ export type RunReviewFields = {
   readonly userRating: UserRating | null;
   readonly outputEdited: boolean;
   readonly reviewFinalizedAt: string | null;
+  readonly pipelineFinishedAt: string | null;
+  readonly reviewExpiresAt: string | null;
 };
 
 export type HitlAccepted = {
@@ -371,11 +373,17 @@ export function parseReviewFields(value: unknown): RunReviewFields {
   } else {
     throw new Error('Invalid userRating');
   }
+
+  const pipelineFinishedAt = parseNullableIso(value.pipelineFinishedAt, 'pipelineFinishedAt');
+  const reviewExpiresAt = parseNullableIso(value.reviewExpiresAt, 'reviewExpiresAt');
+
   if (value.reviewFinalizedAt === null) {
     return {
       userRating,
       outputEdited: value.outputEdited,
       reviewFinalizedAt: null,
+      pipelineFinishedAt,
+      reviewExpiresAt,
     };
   }
   if (typeof value.reviewFinalizedAt !== 'string') {
@@ -385,7 +393,17 @@ export function parseReviewFields(value: unknown): RunReviewFields {
     userRating,
     outputEdited: value.outputEdited,
     reviewFinalizedAt: value.reviewFinalizedAt,
+    pipelineFinishedAt,
+    reviewExpiresAt,
   };
+}
+
+function parseNullableIso(value: unknown, label: string): string | null {
+  if (value === null) return null;
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`Invalid ${label}`);
+  }
+  return value;
 }
 
 export function parseHitlAccepted(value: unknown): HitlAccepted {

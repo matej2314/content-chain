@@ -7,9 +7,11 @@ import { Button } from '@/shared/ui/button';
 import { EnvelopeError } from '@/shared/ui/form-field';
 import { ApiError } from '@/shared/api/envelope';
 import { finalizeRunReview, patchRunRating } from '@/modules/runs/api/runs.api';
+import { canReviewSnapshot } from '@/modules/runs/components/run-review-access';
+import { useReviewExpiryTick } from './use-review-expiry-tick';
+import { isReviewWindowOpen } from './run-review-window';
 import type { RunSnapshot } from '@/modules/runs/api/runs.types';
 import type { UserRating } from '@/modules/runs/api/runs-result.types';
-import { canReviewSnapshot } from '@/modules/runs/components/run-review-access';
 
 type RunReviewPanelProps = {
   readonly snapshot: RunSnapshot;
@@ -27,9 +29,10 @@ export function RunReviewPanel({
   finalizeDisabled,
   onReload,
 }: RunReviewPanelProps) {
-  const locked = snapshot.reviewFinalizedAt !== null;
+  const nowMs = useReviewExpiryTick(snapshot.reviewExpiresAt);
+  const locked = !isReviewWindowOpen(snapshot, nowMs);
   const author = snapshot.startedBy !== null && snapshot.startedBy.id === userId;
-  const reviewable = canReviewSnapshot(snapshot, userId);
+  const reviewable = canReviewSnapshot(snapshot, userId, nowMs);
   const [pending, setPending] = useState(false);
   const [envelope, setEnvelope] = useState<{ code: string; message: string } | null>(null);
 

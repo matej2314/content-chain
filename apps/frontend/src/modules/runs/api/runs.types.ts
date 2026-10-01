@@ -40,12 +40,7 @@ export type SseTerminalRunStatus = (typeof SSE_TERMINAL_STATUSES)[number];
 export const REVIEWABLE_STATUSES = ['completed', 'failed'] as const;
 export type ReviewableRunStatus = (typeof REVIEWABLE_STATUSES)[number];
 
-export const CANCELABLE_STATUSES = [
-  'queued',
-  'running',
-  'awaiting_hitl',
-  'interrupted',
-] as const;
+export const CANCELABLE_STATUSES = ['queued', 'running', 'awaiting_hitl', 'interrupted'] as const;
 export type CancelableRunStatus = (typeof CANCELABLE_STATUSES)[number];
 
 export function isLiveRunStatus(status: RunStatus): status is LiveRunStatus {
@@ -53,22 +48,16 @@ export function isLiveRunStatus(status: RunStatus): status is LiveRunStatus {
 }
 
 /** Terminal SSE / archiwum / close EventSource — obejmuje `cancelled`. */
-export function isTerminalRunStatus(
-  status: RunStatus,
-): status is SseTerminalRunStatus {
+export function isTerminalRunStatus(status: RunStatus): status is SseTerminalRunStatus {
   return (SSE_TERMINAL_STATUSES as readonly RunStatus[]).includes(status);
 }
 
 /** Przegląd (gwiazdki / Edytuj / finalize) — bez `cancelled`. */
-export function isReviewableRunStatus(
-  status: RunStatus,
-): status is ReviewableRunStatus {
+export function isReviewableRunStatus(status: RunStatus): status is ReviewableRunStatus {
   return (REVIEWABLE_STATUSES as readonly RunStatus[]).includes(status);
 }
 
-export function isCancelableRunStatus(
-  status: RunStatus,
-): status is CancelableRunStatus {
+export function isCancelableRunStatus(status: RunStatus): status is CancelableRunStatus {
   return (CANCELABLE_STATUSES as readonly RunStatus[]).includes(status);
 }
 
@@ -327,6 +316,8 @@ export function parseRunSnapshot(value: unknown): RunSnapshot {
     userRating: review.userRating,
     outputEdited: review.outputEdited,
     reviewFinalizedAt: review.reviewFinalizedAt,
+    pipelineFinishedAt: review.pipelineFinishedAt,
+    reviewExpiresAt: review.reviewExpiresAt,
   };
 }
 

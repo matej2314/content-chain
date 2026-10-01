@@ -3510,9 +3510,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/api/runs.types.ts": {
-    "mtime": 1790683649.4005358,
-    "seen": 1790683715.3422406,
-    "ast_hash": "84b20e3de15e83041de72104363d328b",
+    "mtime": 1790859999.691365,
+    "seen": 1790863146.0377107,
+    "ast_hash": "089948af94ef8b0b996d50d304b39e22",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/own-runs-provider.tsx": {
@@ -3648,9 +3648,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/api/runs-result.types.ts": {
-    "mtime": 1789812348.3369315,
-    "seen": 1789813150.934186,
-    "ast_hash": "b234dc5e5c58b676fd35f21560d3df4e",
+    "mtime": 1790859930.452783,
+    "seen": 1790863146.0377061,
+    "ast_hash": "17d30dbf00aa81cc6c7f53c68a72b2da",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/hitl-panel.tsx": {
@@ -3678,9 +3678,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/run-review-access.ts": {
-    "mtime": 1790683678.2753134,
-    "seen": 1790683715.342258,
-    "ast_hash": "8ad10b3ef45268b6d60bda280f3611e9",
+    "mtime": 1790860684.0360076,
+    "seen": 1790863146.0377355,
+    "ast_hash": "bfbd1d388c1cb0583bbf20d103dd4848",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/run-review-panel.tsx": {
@@ -3762,9 +3762,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/run-edit-access.ts": {
-    "mtime": 1790683676.4283276,
-    "seen": 1790683715.342251,
-    "ast_hash": "7e2f68d8ee9ed2b726fad785e0413933",
+    "mtime": 1790860937.8121822,
+    "seen": 1790863146.037726,
+    "ast_hash": "248ed6b45944e88a47d039394c84866d",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/run-result-edit-actions.tsx": {
@@ -3780,9 +3780,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/use-run-result-edit.ts": {
-    "mtime": 1789901706.9565551,
-    "seen": 1789901733.473041,
-    "ast_hash": "36f1af3e0aecbf363b0d7bbebe4886a4",
+    "mtime": 1790862382.7280648,
+    "seen": 1790863146.0377522,
+    "ast_hash": "9477157c85ce983f1f409898ed641caf",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/parse-verifier-log-message.ts": {
@@ -3885,6 +3885,18 @@
     "mtime": 1790855348.5922327,
     "seen": 1790857528.58192,
     "ast_hash": "feb9d0652aab4c5708dfc80ef1964fac",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/components/run-review-window.ts": {
+    "mtime": 1790860269.8944001,
+    "seen": 1790863146.0377388,
+    "ast_hash": "08d2bafab0592b602b6c749be9776749",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/components/use-review-expiry-tick.ts": {
+    "mtime": 1790863136.388069,
+    "seen": 1790863146.0377493,
+    "ast_hash": "ef9ee06e2b48a920318b6bf3ab7d2dcc",
     "semantic_hash": ""
   }
 }

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ApiError } from '@/shared/api/envelope';
 import { saveOutputEdited } from '@/modules/runs/api/runs.api';
 import { buildOutputEditedBody } from '@/modules/runs/api/result-edit-payload';
+import { isReviewWindowOpen } from './run-review-window';
 import type { RunSnapshot } from '@/modules/runs/api/runs.types';
 import type { RunResult } from '@/modules/runs/api/runs-result.types';
 
@@ -31,6 +32,8 @@ export function useRunResultEdit(
   const [state, setState] = useState<RunResultEditState>({ status: 'idle' });
   const [envelope, setEnvelope] = useState<Envelope | null>(null);
   const [seenRunId, setSeenRunId] = useState(snapshot.runId);
+  const date = new Date();
+  const nowMs = date.getTime();
 
   if (seenRunId !== snapshot.runId) {
     setSeenRunId(snapshot.runId);
@@ -38,7 +41,7 @@ export function useRunResultEdit(
     setEnvelope(null);
   }
 
-  if (state.status === 'editing' && snapshot.reviewFinalizedAt !== null) {
+  if (state.status === 'editing' && !isReviewWindowOpen(snapshot, nowMs)) {
     setState({ status: 'idle' });
     setEnvelope(null);
   }
