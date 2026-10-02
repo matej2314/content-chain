@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-18
+data_modyfikacji: 2026-10-02
 ---
 
 # Dokumentacja koncepcyjna — Content Chain
@@ -25,14 +25,14 @@ Zmiana względem wcześniejszego zapisu „świadomie ograniczony pierwszym slic
 | Segment | Potrzeba |
 |---------|----------|
 | **Administrator** | Bootstrap własnego konta (email + hasło, bez maila), **zapraszanie** użytkowników e-mailem (podaje tylko adres — nie hasło), **wyłączna** edycja kontekstu firmy; może też generować treści jak zwykły użytkownik. |
-| **Użytkownik** | Uruchamianie runów produktowych (Social i Content) na wspólnym kontekście firmy, przegląd wyników i logów; bez edycji kontekstu. |
+| **Użytkownik** | Self-register albo akceptacja zaproszenia; uruchamianie runów produktowych (Social i Content) na wspólnym kontekście firmy, przegląd wyników i logów; bez edycji kontekstu. |
 | **Zespół wewnętrzny (self-host)** | Jedna firma / niewielki zespół: wspólny kontekst, generowanie treści bez multi-tenant SaaS. |
 | **Operator self-host** | Wdrożenie we własnej infrastrukturze, konfiguracja gateway LLM, utrzymanie jednej instancji dla organizacji. |
 
 ## Zakres produktu (MVP)
 
 - Monorepo trzech aplikacji: **web** (Next.js), **api** (NestJS + LangChain/LangGraph), **gateway** LLM (jedyna droga do vendorów modeli).
-- **Auth** w formie docelowej: konto admina (bootstrap: email + hasło, bez maila) + konta `user` wyłącznie przez **zaproszenie e-mail** (admin podaje email; konto i pierwsze hasło powstają przy akceptacji zaproszenia). Otwarta rejestracja **zakazana**. Zmiana względem: admin „zakłada konto `user` z hasłem” (`POST /users`).
+- **Auth** w formie docelowej: konto admina (bootstrap: email + hasło, bez maila) + konta nie-admin przez **zaproszenie e-mail** (admin podaje email; konto i pierwsze hasło przy akceptacji) **oraz** przez **otwartą rejestrację** (`POST /auth/register`) z **aktywacją linkiem e-mail** w `NODE_ENV=production`. Zmiana względem: „konta `user` wyłącznie przez zaproszenie” / zakaz otwartej rejestracji; oraz względem admin „zakłada konto `user` z hasłem” (`POST /users`).
 - **Dashboard**: uzupełnianie / podgląd kontekstu firmy (edycja tylko admin), widoki charakterystyczne per flow SM.
 - **Social — posty** (`post_ideas`, `post_content`, `post_ideas_then_content`) oraz **rolki** (`reel_ideas`, `reel_script`, `reel_ideas_then_scripts`) na platformach: LinkedIn, Facebook, Instagram.
 - **Content (BC) — podstawowa forma:** `page_copy` (full-auto) oraz `page_outline_then_copy` (outline → HITL → dokument) dla `contentKind`: `blog` \| `service_page` \| `landing`. Brief wejściowy stron (`ContentBrief`: temat, opcjonalnie kąt / Challenger, długość, odbiorca, cel) **nie** jest briefem SM (`SocialBrief` z liczbą pomysłów). Nadal bez łańcucha 6 specjalistów, WordPress i folderu materiałów jako produktu.
@@ -108,7 +108,6 @@ Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza M
 - WordPress.
 - Osobny `LanguageQualityVerifier`.
 - Self-register grafów; mikroserwisy domenowe.
-- Otwarta rejestracja / self-signup (konto `user` tylko z ważnym zaproszeniem).
 - Pipeline builder / konfiguracyjne YAML-pipeline’y.
 - Eksport kontekstu do `.md` + zgodność checksum jako wymóg pierwszego dowodu agentów (planowane **tuż po** MVP).
 - **PostgreSQL w MVP** — świadomie nie; silnik MVP = SQLite (także z modelami reel/page). PostgreSQL = **V1 — rozbudowa** (ops / skala), nie warunek dodania Content.
@@ -136,7 +135,7 @@ Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza M
 - Happy path Content: `page_copy` full-auto **oraz** `page_outline_then_copy` (HITL outline → dokument) dla wybranego `contentKind`.
 - Wygenerowana treść jest **spójna z kontekstem firmy** (weryfikacja w pipeline).
 - Logi runu są **w pełni czytelne** i pozwalają odtworzyć przebieg.
-- Auth działa w formie docelowej (bootstrap admina + zaproszenia `user`); dashboard umożliwia pracę self-host bez obchodzenia API „na piechotę” jako jedynego UX.
+- Auth działa w formie docelowej (bootstrap admina + zaproszenia + otwarta rejestracja / aktywacja w prod); dashboard umożliwia pracę self-host bez obchodzenia API „na piechotę” jako jedynego UX.
 - Integracja z gateway LLM działa end-to-end dla pipeline’u Social i Content.
 - Fundament feedbacku: opinia tekstowa, ocena runu (`null` albo `1–5`) i **zapis edycji wyniku** (treść + `outputEdited`) **zapisują się w DB** przez API (bez panelu analitycznego i bez diff w MVP).
 
@@ -145,7 +144,8 @@ Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza M
 | Pojęcie | Znaczenie |
 |---------|-----------|
 | Kontekst firmy | Kanoniczny zestaw informacji o organizacji w DB; wejście do weryfikacji i generowania |
-| Zaproszenie / akceptacja | Invitation ≠ konto: admin wysyła email z tokenem; `User` (`role = user`) powstaje dopiero przy `accept-invite` (pierwsze hasło). Bootstrap admina = osobna ścieżka, bez maila |
+| Zaproszenie / akceptacja | Invitation ≠ konto: admin wysyła email z tokenem; `User` (`role = user`) powstaje przy `accept-invite` (pierwsze hasło). Bootstrap admina = osobna ścieżka, bez maila |
+| Otwarta rejestracja / aktywacja | Self-register → w `production` pending (`verifiedAt` + `AccountActivation` + mail) → activate → login; poza prod konto gotowe od razu. Invite zostaje jako równoległa droga |
 | Post ideas / Post content | Pomysły i copy postów SM |
 | Reel ideas / Reel script | Pomysły i scenariusz rolek |
 | Page outline / Page document | Szkic i pełny dokument copy strony (`ContentKind`) |

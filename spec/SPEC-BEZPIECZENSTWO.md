@@ -1,7 +1,7 @@
 ---
-wersja: 10
+wersja: 12
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-01
+data_modyfikacji: 2026-10-02
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -11,6 +11,8 @@ data_modyfikacji: 2026-10-01
 Norma **przekrojowa**: bezpieczeństwo implementacji i ekspozycji self-host (env, powierzchnie sieciowe, cookie, brak wycieku sekretów w logach/metrics) — uszczegółowienie `docs/security.md`, `docs/deployment.md`, `docs/observability.md` oraz spójność z `SPEC-AUTH.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-FRONTEND.md`, `SPEC-PERSISTENCE.md`.
 
 Nie zastępuje BC Auth ani pełnego runbooka operatorskiego — spina reguły egzekwowalne w kodzie i przy deployu MVP.
+
+Zmiana względem wersji 10 / cel: surface publiczne auth = accept-invite (+ sesyjne 409). Od tej wersji także register / activate / resend — anti-enum częściowa (`docs/security.md`).
 
 ## Powiązanie ze stylem z docs
 
@@ -39,17 +41,29 @@ B-6. W `production`: `apps/ai-provider-gateway` **nie** jest publikowany do inte
 
 B-7. `GET /api/v1/health` może być bez auth do probe — **bez** wrażliwych danych w odpowiedzi.
 
-B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, **`SMTP_PASS`**, klucze vendorów, **raw token zaproszenia**) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, treści opinii (`Feedback.body`), labelach Prometheus, stdout procesu w `production`. Dump treści hopu chat na stdout adaptera LLM **wyłącznie** przy `NODE_ENV=development`; w polach tekstowych wartość `GATEWAY_KEY` zastępowana `[REDACTED]`. **Wyjątek `development`:** wolno zalogować URL akceptacji zaproszenia (odpowiednik treści maila). Nie rozluźniać B-8 dla `production`.
+B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, **`SMTP_PASS`**, klucze vendorów, **raw token zaproszenia**, **raw token aktywacji konta**) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, treści opinii (`Feedback.body`), labelach Prometheus, stdout procesu w `production`. Dump treści hopu chat na stdout adaptera LLM **wyłącznie** przy `NODE_ENV=development`; w polach tekstowych wartość `GATEWAY_KEY` zastępowana `[REDACTED]`. **Wyjątek `development`:** wolno zalogować URL akceptacji zaproszenia **oraz** URL aktywacji konta (odpowiednik treści maila). Nie rozluźniać B-8 dla `production`.
 
-**503** `MAIL_DELIVERY_FAILED` **nie** jest wyciekiem sekretu — w `details` wyłącznie `id` zaproszenia (`docs/dokumentacja_komunikacji.md`).
+**503** `MAIL_DELIVERY_FAILED` **nie** jest wyciekiem sekretu — w `details` wyłącznie `id` (Invitation albo User) (`docs/dokumentacja_komunikacji.md`).
 
-Na **publicznym** `POST /auth/accept-invite` kolizja `User.email` (aktywny albo soft-deleted) → **401** `UNAUTHORIZED` z **identycznym** `code` + `message` co przy złym / zużytym / `revoked` / wygasłym tokenie; Invitation → `revoked` (bez `User`). **Zakaz** **409** / osobnego kodu zdradzającego istnienie konta na tej trasie. **409** `CONFLICT` przy zajętym emailu na `PATCH /auth/me/email` **oraz** na admin `POST /invitations` **zostaje** (inny threat model — sesja). Szczegóły: `SPEC-AUTH.md` A-7b, `docs/security.md`.
+Anti-enumeracja vs UX na publicznych surface auth (`docs/security.md`, `SPEC-AUTH.md`):
+
+| Surface | Norma | Enumeracja? |
+|---------|-------|-------------|
+| `POST /auth/register` — email już w `User` | **409** `CONFLICT` + jawny komunikat; bez drugiego User | **Tak — świadoma** (UX signup) |
+| `POST /auth/resend-activation` | Zawsze **200** + `Wiadomość wysłana ponownie`; mail tylko przy pending; **bez** **503** | **Nie** |
+| `POST /auth/login` | Wspólny **401** (złe hasło / soft-delete / brak `verifiedAt` w prod) | **Nie** |
+| `POST /auth/activate` (zły token) | Wspólny **401** | Bez enumeracji email |
+| `POST /auth/accept-invite` — kolizja `User.email` | **401** jak nieważny token + revoke Invitation; **zakaz** **409** | **Nie** (maskowanie) |
+
+**409** `CONFLICT` przy zajętym emailu na `PATCH /auth/me/email` **oraz** na admin `POST /invitations` **zostaje** (inny threat model — sesja). **Zakaz** maskowanego **201** przy kolizji na register.
 
 Zmiana względem wersji 9 / B-8: **409** na publicznym accept-invite **oraz** na `PATCH /auth/me/email` było kanonem (świadoma enumeracja; „nie luką do naprawy na 401”). Od tej wersji accept-invite = maskowanie **401**; **409** tylko na sesyjnych trasach.
 
 Zmiana względem wersji 5: enumeracja `409` na zajęty email obejmowała tylko accept-invite.
 
 Zmiana względem wersji 4 / B-8: lista sekretów bez hasła SMTP i raw tokenu zaproszenia; brak normy 503/`details.id` i 409 na accept.
+
+Zmiana względem wersji 10 / B-8: brak register / activate / resend; raw tylko invite. Od tej wersji raw activation token + tabela anti-enum (409 na register świadomie).
 
 B-8a. `currentPassword` w `PATCH /auth/me/email` jest sekretem jak hasło logowania: nigdy w logach, metrics, SSE, envelope sukcesu. Złe hasło → **401** `INVALID_PASSWORD`, `message`: `Invalid password` (nie mylić z sesyjnym `UNAUTHORIZED` ani z loginem `Invalid credentials`). Re-auth przy zmianie emaila jest **obowiązkowy** w MVP; confirm e-mail = V1 (`docs/security.md`). Wzorzec = fundament pod przyszłą zmianę hasła (poza MVP).
 
@@ -86,12 +100,19 @@ B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/s
 - Sekretów LLM / gateway w FE.
 - Dumpa pełnych promptów hopu gateway na stdout w `production` (w tym przy `NODE_ENV=production`).
 - Tokenu sesji w query string (SSE/API).
-- Raw tokenu zaproszenia w JSON-ie admina ani w logach `production`.
+- Raw tokenu zaproszenia **ani** raw tokenu aktywacji w JSON-ie admina / odpowiedziach ani w logach `production`.
 - Publicznego `accept-invite` zwracającego **409** / „email zajęty” przy kolizji `User.email` (B-8 / A-7b).
-- Drugiego `admin` w MVP.
+- Maskowanego sukcesu (**201**) przy kolizji email na `POST /auth/register` (obowiązuje **409** — B-8 / A-11).
+- Enumeracji stanu konta przez `POST /auth/resend-activation` (różne HTTP / message wg pending vs brak vs aktywny).
+- **503** `MAIL_DELIVERY_FAILED` na `POST /auth/resend-activation` (obowiązuje stały **200**).
+- Osobnego kodu `ACCOUNT_NOT_ACTIVATED` na loginie (wspólny **401** z złym hasłem / soft-delete).
+- Set-Cookie na register / activate / resend-activation.
+- Drugiego `admin` w MVP; register / activate / resend → `admin`.
 - `Authorization: Bearer` jako modelu auth MVP.
 - Cichego fallbacku kontekstu z `.md` (`SPEC-PERSISTENCE.md`).
 - URL-a api w `NEXT_PUBLIC_*` (B-5a).
+
+Zmiana względem wersji 10 / „Nie wolno”: dopisano zakazy maskowanego 201 na register, enumeracji przez resend, `ACCOUNT_NOT_ACTIVATED`, Set-Cookie na register/activate/resend, raw activation token.
 
 ### Zatwierdzony stack (obszar)
 
@@ -118,7 +139,8 @@ Zmiana względem wersji 4: B-1 fail-fast SMTP/`MAIL_FROM`/`APP_PUBLIC_URL` w `pr
 - [ ] Api/gateway padają przy starcie bez wymaganych env; `.env.example` istnieje i nie zawiera sekretów.
 - [ ] Helmet (lub równoważne) aktywne na api; CORS czyta allowlistę z env.
 - [ ] W production: gateway i metrics nie są publiczne; cookie Secure.
-- [ ] Brak sekretów w logach runu, SSE, envelope, treści opinii, labelach metrics i stdout (w `development` dump hopu z `[REDACTED]` zamiast `GATEWAY_KEY`; w `production` bez dumpa treści chat).
+- [ ] Brak sekretów w logach runu, SSE, envelope, treści opinii, labelach metrics i stdout (w `development` dump hopu z `[REDACTED]` zamiast `GATEWAY_KEY`; w `production` bez dumpa treści chat; raw invite / activation token nie w logach `production`).
+- [ ] Publiczne auth: register kolizja → **409**; resend = stały sukces; login pending / soft-delete / złe hasło = wspólny **401**; activate-fail = wspólny **401**; accept-invite kolizja = **401** (nie 409).
 - [ ] `/metrics` zwraca co najmniej sygnały z B-9.
 - [ ] Checklist operatora z `docs/security.md` da się odhaczyć na instalacji compose.
 

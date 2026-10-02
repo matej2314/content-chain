@@ -1,7 +1,7 @@
 ---
-wersja: 11
+wersja: 13
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-01
+data_modyfikacji: 2026-10-02
 ---
 
 # SPEC — Persistence
@@ -13,6 +13,7 @@ Norma warstwy persistence w `apps/api`: port + adapter Prisma, lokalizacja schem
 Uszczegóławia `docs/architektura.md`, `docs/architektura_katalogi_pliki.md` oraz brak cichego fallbacku z `docs/dokumentacja_koncepcyjna.md` / `docs/anty_patterny.md`.
 
 Zmiana względem wersji 9: kanon Run bez `pipelineFinishedAt` / indeksu pod sweeper. Od tej wersji kolumna kotwicy TTL przeglądu + migracja backfill B — `docs/dictionary.md`, `SPEC-RUNY.md` R-10.
+Zmiana względem wersji 11: kanon Auth bez `verifiedAt` / `AccountActivation`. Od tej wersji marker weryfikacji + tabela tokenu aktywacji — `docs/dictionary.md`, `SPEC-AUTH.md` A-11…A-13.
 
 ## Powiązanie ze stylem z docs
 
@@ -45,9 +46,15 @@ P-3. Identyfikatory w kolumnach: **brandowane stringi** zgodnie z `docs/brand_ty
 
 P-4. ORM / SQL / Prisma **zakazane** w `domain/` oraz w `packages/shared`. Application zależy od **portów**.
 
-P-5. DB jest kanoniczna dla kontekstu firmy, userów, **zaproszeń (Invitation)**, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`, **`pipelineFinishedAt`**) **oraz** anulowania (`cancelledAt`, `cancelRequested`). **`reviewExpiresAt` nie jest kolumną** — wyliczane w API (`SPEC-RUNY.md` R-10). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
+P-5. DB jest kanoniczna dla kontekstu firmy, userów, **zaproszeń (Invitation)**, **aktywacji konta (`AccountActivation`)**, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`, **`pipelineFinishedAt`**) **oraz** anulowania (`cancelledAt`, `cancelRequested`). **`reviewExpiresAt` nie jest kolumną** — wyliczane w API (`SPEC-RUNY.md` R-10). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
 
-Kanon tabel (Auth): model **`Invitation`** (lub równoważna nazwa) — `id` (`inv_<uuid>`), `email`, `tokenHash`, `purpose` (`invite` w MVP; rezerwa pod `password_reset` bez zmiany modelu świata), `status` (`pending` \| `accepted` \| `revoked`), `expiresAt`, `invitedByUserId`, timestamps; **bez** kolumny raw tokenu. Invitation **nie** jest „User z pustym hasłem”. `User.passwordHash` nadal wymagany — wiersz `User` powstaje dopiero przy accept-invite.
+Kanon tabel (Auth):
+
+- Model **`User`**: m.in. `passwordHash` (wymagany), `isActive`, **`verifiedAt`** (`DateTime?` — `null` = nieaktywowane linkiem / pending w prod; po sukcesie activate = timestamp; poza `production` ustawiane przy register). Soft-delete (`isActive = false`) **nie** czyści `verifiedAt` (historia). Pending ≠ soft-delete: pending ma `isActive = true` + `verifiedAt = null`.
+- Model **`Invitation`** (lub równoważna nazwa) — `id` (`inv_<uuid>`), `email`, `tokenHash`, `purpose` (`invite` w MVP; rezerwa pod `password_reset` bez zmiany modelu świata), `status` (`pending` \| `accepted` \| `revoked`), `expiresAt`, `invitedByUserId`, timestamps; **bez** kolumny raw tokenu. Invitation **nie** jest „User z pustym hasłem”.
+- Model **`AccountActivation`** (lub równoważna nazwa) — `id` = **`act_<uuid>`**; hash tokenu (`tokenHash`, **unikalny**), `userId` (**unikalny**), `expiresAt` (TTL `ACTIVATION_TTL`, default `7d`); ew. `createdAt`; **bez** kolumny raw tokenu. Po udanym activate: update `User.verifiedAt` + **delete** wierszy activation dla tego usera. **Soft-delete** usera (`DELETE /users/:id`) **usuwa** wiersze activation. Raw wyłącznie w mailu / logu DX. Migracja wprowadzająca `verifiedAt`: **backfill** istniejących `User` → `verifiedAt = createdAt`; bootstrap / accept-invite ustawiają `verifiedAt = now()` przy create.
+
+`User.passwordHash` nadal wymagany — wiersz `User` powstaje przy accept-invite **albo** przy register (A-11); **nie** przy samym Invitation pending.
 
 **D17:** migracja SQL `UNIQUE (email) WHERE status = 'pending'` (komentarz w `schema.prisma` jak `User_one_admin`; Prisma 6 nie wyrazi partial unique; indeks **bez** `purpose`). Wygasły wiersz zostaje `status = pending` — indeks nadal blokuje drugi `POST`.
 
@@ -55,7 +62,11 @@ Kanon tabel (Auth): model **`Invitation`** (lub równoważna nazwa) — `id` (`i
 
 Ścieżka kolizji (P2002 / `User.email` zajęty, aktywny albo soft-deleted): **brak** `User` z tej próby; Invitation → `revoked` (nie `accepted`); brak „sukcesu” create. Atomowość jak happy path — revoke (lub równoważne zużycie) w tej samej transakcji / atomowym kroku co próba create. Semantyka HTTP: `SPEC-AUTH.md` A-7b (**401**, nie 409).
 
+**D19 (register):** kolizja email na `POST /auth/register` (aktywny **lub** soft-deleted) → **brak** drugiego `User`; HTTP **409** `CONFLICT`, `message`: **`Email already in use`** — `SPEC-AUTH.md` A-11. Happy path: **revoke** pending `Invitation` na email, potem create User (**zawsze** `role = user`). W `production`: `verifiedAt = null` + wiersz `AccountActivation` (+ mail poza transakcją). Po activate: `verifiedAt` + delete activation.
+
 Zmiana względem wersji 10 / D16: wyłącznie happy path create+`accepted`. Od tej wersji jawna ścieżka P2002 → revoke bez User.
+
+Zmiana względem wersji 11 / P-5: kanon Auth bez `verifiedAt` / `AccountActivation` / D19. Od tej wersji marker + tabela aktywacji; `User` także z register.
 
 **D18:** `email` na `User` i `Invitation` **bez** normalizacji (`trim` / `toLowerCase`); unique i porównanie case-sensitive.
 
@@ -119,7 +130,7 @@ apps/api/
 
 | Element | Norma |
 |---------|--------|
-| Port persistence | interfejsy per potrzeba BC (users, **invitations**, sessions, context, runs, logs, wyniki SM, feedback) |
+| Port persistence | interfejsy per potrzeba BC (users, **invitations**, **account-activation**, sessions, context, runs, logs, wyniki SM, feedback) |
 | Adapter | Prisma implementuje porty |
 | SQLite ops (WAL, busy_timeout) | **poza** sztywną normą SPEC — decyzja implementacyjna pod współbieżność runów |
 | Kolumny kontekstu firmy | per sekcja — `SPEC-KONTEKST-FIRMY.md` |
@@ -145,6 +156,11 @@ apps/api/
 - Osobnych tabel `case_studies` / równoważnych per sekcja extras w tym wycinku MVP (Json `extras` + Zod).
 - Modelowania zaproszenia jako `User` z pustym / sentinel `passwordHash`.
 - Drugiego `pending` na ten sam `email` bez indeksu SQL D17.
+- Reuse `isActive = false` jako „pending aktywacji” (obowiązuje `verifiedAt = null` + `AccountActivation`).
+- Pozostawiania wierszy `AccountActivation` po udanym activate (obowiązuje delete).
+- Czyszczenia `verifiedAt` przy soft-delete.
+- Drugiego aktywnego wiersza `AccountActivation` per user (jeden pending).
+- Przechowywania raw tokenu aktywacji w DB.
 - `DELETE` runów / wyników w ramach TTL przeglądu lub auto-finalize (obowiązuje UPDATE `reviewFinalizedAt`).
 - Traktowania `reviewExpiresAt` jako kolumny DB.
 - Używania `updatedAt` jako bieżącej kotwicy TTL po wdrożeniu (wyjątek: jednorazowy backfill B).
@@ -156,6 +172,7 @@ Zmiana względem wersji 5 / „Nie wolno”: dopisano zakaz osobnych tabel case 
 Zmiana względem wersji 7 / „Nie wolno”: dopisano zakaz „User pending z pustym hasłem” oraz obejścia unique pending.
 Zmiana względem wersji 9 / „Nie wolno”: dopisano zakazy DELETE przy TTL oraz `reviewExpiresAt` jako kolumny / `updatedAt` jako bieżącej kotwicy.
 Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz żywego `pending` po P2002 na accept-invite.
+Zmiana względem wersji 11 / „Nie wolno”: dopisano zakazy pending przez `isActive=false`, orphan `AccountActivation`, czyszczenia `verifiedAt` przy soft-delete.
 
 ### Zatwierdzony stack (obszar)
 
@@ -180,6 +197,8 @@ Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz żywego `pending` p
 - [ ] Migracja backfill B ustawia tylko kotwicę (`updatedAt` else `createdAt`); **bez** ustawiania `reviewFinalizedAt` w migracji.
 - [ ] W dokumentacji implementacyjnej / README ops jest jasne: cutover PostgreSQL = nowa historia migracji + pusta baza + opcjonalny import danych; SQLite tylko MVP; V1 — rozbudowa = PostgreSQL.
 - [ ] Accept-invite D16: happy path = jedna transakcja create User + `accepted`; kolizja P2002 → brak User, Invitation `revoked` (nie żywego `pending`).
+- [ ] `User.verifiedAt` (`DateTime?`) w schemie; soft-delete **nie** czyści pola.
+- [ ] Model `AccountActivation` (hash + `userId` + `expiresAt`); po activate — `verifiedAt` ustawione + delete wierszy dla usera; jeden aktywny wiersz per user.
 
 ## Poza zakresem
 

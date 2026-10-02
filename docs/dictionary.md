@@ -1,7 +1,7 @@
 ---
-wersja: 9
+wersja: 11
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-01
+data_modyfikacji: 2026-10-02
 ---
 
 # Słownik — Content Chain
@@ -28,7 +28,7 @@ Zmiana względem: bramka i `isComplete` wyłącznie przy `POST /runs`; oferta = 
 
 Zmiana względem kanonu Fazy 4.3 (HITL Social dwuetapowy = dokładnie 1 `selectedIdeaId`; HITL SM = 1 id w kontrakcie MVP): Social = podzbiór draftu, min. 1 unikalne id, N→N (`contents[]` / `reelScripts[]` + `sourceIdeaId`). Content bez zmiany: `[outline.id]`.
 
-Zmiana względem kanonu „admin zakłada konto `user` emailem i hasłem” (`POST /users`): jedyna droga na `role = user` to **zaproszenie e-mail** (Invitation) → publiczna akceptacja z pierwszym hasłem. Bootstrap admina (email + hasło, bez maila) **bez zmian**.
+Zmiana względem kanonu „admin zakłada konto `user` emailem i hasłem” (`POST /users`): drogi na `role = user` = **zaproszenie e-mail** (Invitation) → accept-invite **oraz** **otwarta rejestracja** (`POST /auth/register`) z aktywacją w `production`. Bootstrap admina (email + hasło, bez maila) **bez zmian**. Zmiana względem: „jedyna droga = invite” / zakaz signup.
 
 Zmiana względem: kanon milczał o toaście dashboardu. Od tej wersji **Toast (dashboard MVP)** jest osobnym hasłem — **nie** envelope HTTP i **nie** kanał live (`ux_dashboard.md`).
 
@@ -76,11 +76,19 @@ Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez start
 | Pojęcie | Definicja |
 |---------|-----------|
 | **`admin`** | Jedyny administrator (bootstrap); wyłączne prawo edycji kontekstu firmy i zapraszania `user`; może generować treści jak `user`. Norma: `security.md`. |
-| **`user`** | Rola uruchamiająca runy produktowe (Social i Content) i przeglądająca wyniki/logi; bez edycji kontekstu i bez zapraszania. Konto powstaje wyłącznie po akceptacji zaproszenia — nie przez `POST /users` z hasłem. Widok **Konto** (email, własne runy, start) jest dostępny tak samo jak dla `admin`. |
+| **`user`** | Rola uruchamiająca runy produktowe (Social i Content) i przeglądająca wyniki/logi; bez edycji kontekstu i bez zapraszania. Konto powstaje po akceptacji zaproszenia **albo** po self-register (w `production` — po aktywacji e-mail). Widok **Konto** (email, własne runy, start) jest dostępny tak samo jak dla `admin`. |
+| **`guest`** | Rola planu demo (`demo-mode-guest-role-plan.md`) — **poza** kanonem `POST /auth/register` (register **zawsze** tworzy `user`). **Nie** powstaje z invite ani z bootstrapu. |
 | **Jedna firma / instancja** | Brak multi-tenant SaaS: wszyscy użytkownicy instancji dzielą jeden kontekst. |
-| **Bootstrap admin** | Utworzenie pierwszego konta administratora przy starcie self-host (first-run): email + hasło, **bez** maila i bez Invitation. Kontrast: pozostali `user` wyłącznie przez zaproszenie. |
+| **Bootstrap admin** | Utworzenie pierwszego konta administratora przy starcie self-host (first-run): email + hasło, **bez** maila i bez Invitation. Jedyny sposób powstania `admin`. Dump / restore SQLite przenosi admina; DEMO nie resetuje ról. |
 | **Zaproszenie (Invitation)** | Rekord zaproszenia e-mail na rolę `user` — **nie** jest kontem `User`. Status: `pending` \| `accepted` \| `revoked`. Admin podaje **tylko email**. W DB: hash tokenu (SHA-256), TTL, `purpose = invite` (MVP). Raw token jest w mailu (w `development` także w logu api); **nigdy** w JSON-ie odpowiedzi admina. Wiersz `User` (`role = user`) powstaje dopiero przy akceptacji. Wygaśnięcie: `expiresAt < now` przy walidacji (status **nie** przechodzi sam na „expired” — wygasły wiersz zostaje `pending`). |
-| **Akceptacja zaproszenia** | Publiczny `POST /api/v1/auth/accept-invite` `{ token, password }`: zaproszony ustawia **pierwsze** hasło (polityka z `security.md`). Tworzy `User` (`role = user`) i zużywa token. **Bez** Set-Cookie — potem zwykły `POST /auth/login`. Kolizja `User.email` (także soft-deleted) → **401** jak nieważny token (bez enumeracji „email zajęty”) + unieważnienie Invitation. Nie jest bootstrapem, otwartą rejestracją ani zmianą hasła zalogowanego (ta nadal poza MVP). Zmiana własnego emaila po sesji = widok **Konto** **z re-auth hasłem** (nie confirm mail w MVP). |
+| **Akceptacja zaproszenia** | Publiczny `POST /api/v1/auth/accept-invite` `{ token, password }`: zaproszony ustawia **pierwsze** hasło (polityka z `security.md`). Tworzy aktywnego `User` (`role = user`, **`verifiedAt = now()`**) i zużywa token. **Bez** Set-Cookie — potem zwykły `POST /auth/login`. Kolizja `User.email` (także soft-deleted) → **401** jak nieważny token (bez enumeracji „email zajęty”) + unieważnienie Invitation. Nie jest bootstrapem ani otwartą rejestracją. Zmiana własnego emaila po sesji = widok **Konto** **z re-auth hasłem** (nie confirm mail w MVP). |
+| **Otwarta rejestracja** | Publiczny `POST /api/v1/auth/register` `{ email, password }`. Zawsze dostępny (**nie** zależy od `DEMO_MODE`). Serwer **zawsze** `role = user`; przed create **revoke** `Invitation` `pending` na email. **201** `{ user: { id, email, role, verifiedAt } }`. W `production`: pending (`verifiedAt = null` + `AccountActivation` + mail); poza prod: `verifiedAt` od razu. Kolizja email (aktywny **lub** soft-deleted) → **409**, `message`: **`Email already in use`**. **Bez** Set-Cookie. |
+| **Aktywacja konta** | Weryfikacja e-mail po register w `production`: `POST /auth/activate` `{ token }` ustawia `User.verifiedAt` i usuwa `AccountActivation`. Deep link FE → widok logowania + toast. **Nie** mylić z **reaktywacją** soft-delete (`PATCH /users/:id`) ani z **confirm e-mail** przy zmianie adresu (**V1**). |
+| **`verifiedAt`** | Pole `User` (`DateTime?`): `null` = nieaktywowane linkiem (pending w prod); po sukcesie activate = timestamp. Poza `production` ustawiane przy register. Soft-delete **nie** czyści `verifiedAt`. |
+| **`AccountActivation`** | Tabela tokenu aktywacji: `id` = **`act_<uuid>`**; **`tokenHash`** (unikalny) + **`userId`** (unikalny) + `expiresAt` (TTL `ACTIVATION_TTL`, default `7d`). Raw tylko w mailu / logu DX. Po activate — delete wierszy dla usera; przy soft-delete usera — delete wierszy activation. Kind mailera: `user_activation` (obok `user_invited`). |
+| **Resend aktywacji** | Publiczny `POST /auth/resend-activation` (np. `{ email }`): zawsze **200**, `message`: **`Wiadomość wysłana ponownie`**; mail + rotacja tokenu tylko przy pending; rate limit **5** / **15 min** / email; **bez** **503** na SMTP. **Bez** enumeracji stanu konta. |
+| **Strona podziękowań (thank-you)** | Widok FE po udanym register w `production`: copy sukcesu + „Nie otrzymałeś wiadomości e-mail?” + „Wyślij ponownie” (email z **stanu klienta**, nie z odpowiedzi **201**). Po **503** register (pad maila) — **zostajemy** na thank-you + resend. **Nie** po 409 ani poza production. |
+| **Reaktywacja** | Admin `PATCH /users/:id` `{ isActive: true }` po soft-delete. **Nie** ustawia `verifiedAt`. |
 
 ## Architektura i runtime
 
@@ -164,7 +172,7 @@ Zmiana względem wcześniejszego, zbyt uproszczonego opisu: **`RequestId` nie je
 | **`FeedbackId`** | Brand; format `fbk_<uuid>`. Jeden wpis opinii tekstowej. Kontrakt MVP w docs/spec; w `packages/shared` przy implementacji BC Feedback. |
 | **`RunUserRating`** | Brand `1` \| `2` \| `3` \| `4` \| `5`. W JSON runu pole `userRating` jest `number \| null` (`null` = brak gwiazdek). Kontrakt MVP w docs/spec; w shared przy implementacji przeglądu runu. |
 | **`GatewayModelAlias`** | Brand aliasu modelu z konfiguracji gateway (≠ vendor `modelId`). |
-| **`UserRole`** | `admin` \| `user`. |
+| **`UserRole`** | `admin` \| `user` (+ kotwica `guest` przy DEMO — szczegóły enumu = plan demo). |
 | **Brand type** | Nominalny typ TypeScript (`Brand<K, Name>`) + walidacja na granicach; patrz `brand_types.md`. |
 
 ### Model korelacji logów (norma)
@@ -212,8 +220,8 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 | `REVIEW_LOCKED` | Przegląd zamknięty produktowo: `reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL` od `pipelineFinishedAt`. Mutacja oceny / Edytuj / finalize niedozwolona; przy samym TTL (przed sweeperem) **bez** side-effect UPDATE `reviewFinalizedAt`. |
 | `RUN_NOT_REVIEWABLE` | **Przegląd** (ocena / Edytuj / finalize): run nie jest `completed` ani `failed` (w tym `cancelled` → ten kod). **Opinia** `POST /feedback` `targetType=run`: dozwolone `completed` \| `failed` \| (`cancelled` **gdy** snapshot ma dowolne nie-`null` pole wyniku); `cancelled` bez wyniku → ten kod. Nie dotyczy opinii o aplikacji / agencie. Finalize **nie** zamienia kolejnego wpisu tekstowego na ten kod (`REVIEW_LOCKED` zostaje przy ocenie / fladze). |
 | `RUN_NOT_CANCELABLE` | Cancel (`POST .../cancel`) gdy status runu jest już `completed` \| `failed` (wyścig z executorem). HTTP **409**. |
-| `CONFLICT` | Niedozwolone przejście statusu / konflikt stanu (także: drugi `pending` na ten sam email; istniejący `User` przy `POST /invitations`; `User.email` już zajęty przy `PATCH /auth/me/email`). **Nie** oznacza kolizji email na `POST /auth/accept-invite` (tam maskowanie → **401** `UNAUTHORIZED`). |
-| `MAIL_DELIVERY_FAILED` | Pad SMTP **po** zapisie zaproszenia (create / resend). HTTP **503**; w `details` wyłącznie `id` zaproszenia (wiersz zostaje `pending`). Nie dotyczy adaptera logującego (`development` / `test`). |
+| `CONFLICT` | Niedozwolone przejście statusu / konflikt stanu (także: drugi `pending` na ten sam email; istniejący `User` przy `POST /invitations`; `User.email` już zajęty przy `PATCH /auth/me/email` **oraz** przy `POST /auth/register`). **Nie** oznacza kolizji email na `POST /auth/accept-invite` (tam maskowanie → **401** `UNAUTHORIZED`). |
+| `MAIL_DELIVERY_FAILED` | Pad SMTP **po** zapisie zaproszenia (create / resend invite) **albo** po utworzeniu pending User (**register**). HTTP **503**; w `details` wyłącznie `id` (Invitation albo User). **Nie** dotyczy `POST /auth/resend-activation`. Nie dotyczy adaptera logującego (`development` / `test`). |
 | `INTERNAL_ERROR` | Błąd nieobsłużony po stronie `apps/api`. |
 
 ## Kody błędów — gateway (istotne dla integracji)

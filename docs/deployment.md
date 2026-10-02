@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 3
 data_utworzenia: 2026-09-30
-data_modyfikacji: 2026-09-30
+data_modyfikacji: 2026-10-02
 ---
 
 # Deployment — Content Chain
@@ -11,6 +11,8 @@ Self-host MVP: jak uruchamiać, konfigurować i utrzymywać jedną instalację (
 Powiązane: `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `testy.md`, `security.md`, `observability.md`.
 
 Zmiana względem: brak frontmatteru; env api bez zmiennych TTL przeglądu. Od tej wersji: `REVIEW_TTL` (okno przeglądu) i `REVIEW_SWEEP_INTERVAL` (częstotliwość sweepera; boot zawsze raz). MVP = **single-process** api (multi-instance poza zakresem).
+
+Zmiana względem: mailer tylko `user_invited`. Od tej wersji: także `user_activation`; opcjonalne `ACTIVATION_TTL` (default `7d`); backup SQLite przenosi konta (w tym admina); DEMO nie wymaga migracji roli admina.
 
 ## Środowiska
 
@@ -60,7 +62,7 @@ Jeden stack:
 
 | Obszar | Zmienne |
 |--------|---------|
-| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (SQLite), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS`, **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`REVIEW_TTL`** (default `2h`, ten sam parser), **`REVIEW_SWEEP_INTERVAL`** (default `5m`, ten sam styl stringa TTL), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`** |
+| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (SQLite), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS`, **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`ACTIVATION_TTL`** (default `7d`, ten sam parser — TTL tokenu aktywacji konta), **`REVIEW_TTL`** (default `2h`, ten sam parser), **`REVIEW_SWEEP_INTERVAL`** (default `5m`, ten sam styl stringa TTL), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`** |
 | Gateway | klucze providerów, `gateway.config.yaml`, allowlista kluczy, port (szczegóły: `apps/ai-provider-gateway/.env.example`) |
 | Frontend | **`API_BASE_URL`** (tylko proces Next → api; **bez** `NEXT_PUBLIC_*` na ten URL). Przeglądarka nie zna origina api |
 
@@ -70,8 +72,9 @@ Nazwy SMTP / maila są **kanoniczne** (te same w `spec/SPEC-BEZPIECZENSTWO.md` i
 |---------|--------------|------------------------|
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | **obowiązkowe** (fail-fast) | nie wymagane — adapter **logujący** (konsola / Pino), bez prawdziwego SMTP |
 | `MAIL_FROM` | **obowiązkowe** (fail-fast) | nie wymagane przy adapterze logującym |
-| `APP_PUBLIC_URL` | **obowiązkowe** (publiczny URL aplikacji w linku zaproszenia) | nie wymagane; w logu dev wystarczy ścieżka / placeholder |
+| `APP_PUBLIC_URL` | **obowiązkowe** (publiczny URL aplikacji w linku zaproszenia **i** aktywacji) | nie wymagane; w logu dev wystarczy ścieżka / placeholder |
 | `INVITE_TTL` | opcjonalne, default **`7d`** | to samo |
+| `ACTIVATION_TTL` | opcjonalne, default **`7d`** (jak invite) | to samo — TTL tokenu `AccountActivation` |
 | `REVIEW_TTL` | opcjonalne, default **`2h`** (fail-fast przy złym stringu, jak inne TTL) | to samo — długość **okna przeglądu** od `pipelineFinishedAt` |
 | `REVIEW_SWEEP_INTERVAL` | opcjonalne, default **`5m`** (fail-fast przy złym stringu) | to samo — częstotliwość **okresowego** sweepera; boot api zawsze odpala sweeper **raz** |
 
@@ -79,7 +82,16 @@ Nazwy SMTP / maila są **kanoniczne** (te same w `spec/SPEC-BEZPIECZENSTWO.md` i
 
 Bootstrap admina **bez SMTP** nadal możliwy (email + hasło, bez maila).
 
-Create / resend zaproszenia: lokalnie (`development` / `test`) send adaptera logującego **zawsze się udaje** → zawsze **201**. **503** `MAIL_DELIVERY_FAILED` + `details.id` tylko przy padzie **prawdziwego** SMTP (`production`).
+Create / resend zaproszenia **oraz** mail aktywacji przy **register**: lokalnie (`development` / `test`) send adaptera logującego **zawsze się udaje**. **503** `MAIL_DELIVERY_FAILED` + `details.id` tylko przy padzie **prawdziwego** SMTP (`production`) na invite create/resend **oraz** register. **`POST /auth/resend-activation`:** pad SMTP → **bez** **503** (zawsze **200** + `Wiadomość wysłana ponownie`).
+
+**Kanon URL w mailach:**
+
+| Kind | URL |
+|------|-----|
+| `user_invited` | `{APP_PUBLIC_URL}/invite/accept?token={raw}` |
+| `user_activation` | `{APP_PUBLIC_URL}/?activationToken={raw}` → FE natychmiast widok logowania + activate w tle |
+
+Aktywacja linkiem wymagana **tylko** gdy `NODE_ENV=production`. Poza prod: `verifiedAt` przy register od razu; opcjonalny log URL. Migracja wprowadzająca `verifiedAt`: **backfill** istniejących `User` → `verifiedAt = createdAt`; bootstrap / accept-invite ustawiają `verifiedAt = now()` przy create.
 
 `MAX_CONCURRENT_RUNS` ogranicza liczbę równoległych execute: claim `queued → running` **oraz** `interrupted → running` (wznowienia po restarcie). Nie dotyczy wyłącznie nowych `POST /runs`.
 
@@ -100,6 +112,7 @@ W `production`: zalecany Prometheus (lub agent) scrapujący api; alerty poza MVP
 
 - Plik DB na **nazwanym volume** (compose) lub wskazanej ścieżce (`local`).
 - Backup MVP: spójna kopia pliku SQLite przy zatrzymanym zapisie lub z użyciem bezpiecznej procedury kopiowania (np. `sqlite3 .backup`) — szczegóły w runbooku implementacji.
+- **Backup / restore przenosi konta** (w tym `admin` i pozostałych `User`). Nowa pusta DB + bootstrap = **nowy** admin (nie „odzyskanie” starego bez restore volume). Flaga `DEMO_MODE` — wyłącznie plan demo; **nie** w tabeli env tego dokumentu.
 - W **MVP**: wyłącznie SQLite (volume), w tym modele reel i Content. **PostgreSQL** — obowiązkowo od fazy **V1 — rozbudowa** (ops / skala, **nie** warunek dodania Content): nowa historia migracji, pusta baza, ew. osobny import danych — `spec/SPEC-PERSISTENCE.md`.
 - Eksport kontekstu do `.md` / checksum — **nie** w pierwszym dowodzie agentów (tuż po MVP).
 
@@ -119,7 +132,7 @@ Compose może od początku definiować wszystkie trzy usługi; „puste” UI do
 2. `docker compose up` (build).  
 3. Sprawdź `GET /api/v1/health` (api) oraz readiness gateway (wewnętrznie).  
 4. Bootstrap admin.  
-5. (Opcjonalnie) smoke zaproszenia: `POST /invitations` → token z maila SMTP; lokalnie adapter logujący → token z logu api.  
+5. (Opcjonalnie) smoke zaproszenia: `POST /invitations` → token z maila SMTP; lokalnie adapter logujący → token z logu api. Smoke register + activate (w `production`): `POST /auth/register` → mail `user_activation` / log → `POST /auth/activate` → `POST /auth/login`.  
 6. Uzupełnij kontekst → completeness.  
 7. Smoke: start runu Social i Content (`apps/api/test/postman/` albo UI).  
 8. Podłącz scrape `/metrics` (opcjonalnie od razu).  

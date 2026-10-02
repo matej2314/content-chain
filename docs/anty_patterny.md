@@ -1,7 +1,7 @@
 ---
-wersja: 8
+wersja: 10
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-01
+data_modyfikacji: 2026-10-02
 ---
 
 # Anty-patterny — Content Chain
@@ -17,6 +17,8 @@ Zmiana względem: brak wierszy o `cancelled` / Stop. Od tej wersji zakazy utożs
 Zmiana względem: „Envelope (`code` + `message`) w miejscu błędu”. Od tej wersji przy polu / bloku obowiązuje wyłącznie **`message`** (bez `code` w UI) — `docs/ux_dashboard.md`.
 
 Zmiana względem: brak wiersza o enumeracji email na publicznym accept-invite. Od tej wersji zakaz **409** / „email zajęty” na tej trasie — `security.md`.
+
+Zmiana względem: zakaz otwartego signup. Od tej wersji: zakaz maskowanego sukcesu przy kolizji na register; pending ≠ `isActive=false`; Set-Cookie na register/activate/resend; register bramkowany DEMO; mylenie aktywacji z confirm e-mail V1.
 
 ---
 
@@ -130,9 +132,17 @@ Zmiana względem: brak wiersza o enumeracji email na publicznym accept-invite. O
 | `user` edytuje kontekst firmy | Łamie model ról | Tylko `admin`; user uruchamia runy produktowe |
 | Admin cancel cudzego runu | Łamie authz Stop = wyłącznie `startedBy` | **403** `FORBIDDEN`; brak wyjątku admina (`dokumentacja_komunikacji.md`) |
 | Multi-tenant „przy okazji” (kontekst per user) | Inny produkt niż self-host jednej firmy | Jeden kontekst na instancję |
-| Drugi `admin` / awans user→admin w MVP | Łamie `security.md` | Tylko bootstrap jednego admina; potem wyłącznie `user` (przez zaproszenie) |
-| Admin ustawia hasło `user` / hasło w mailu / `POST /users` z `password` | Łamie kanon zaproszeń; admin zna sekret konta | Admin podaje **tylko email**; pierwsze hasło ustawia zaproszony na `accept-invite` |
-| Publiczny `accept-invite` zwraca **409** / „email zajęty” przy kolizji `User.email` | Enumeracja kont bez sesji; probe istnienia `User` | **401** `UNAUTHORIZED`, ten sam `message` co zły token; revoke Invitation; **409** zostaje na admin `POST /invitations` i `PATCH /auth/me/email` (`security.md`) |
+| Drugi `admin` / awans user→admin w MVP | Łamie `security.md` | Tylko bootstrap jednego admina; potem `user` (invite / register — register **zawsze** `user`) |
+| Admin ustawia hasło `user` / hasło w mailu / `POST /users` z `password` | Łamie kanon zaproszeń / register; admin zna sekret konta | Admin podaje **tylko email** przy invite; pierwsze hasło = accept-invite **albo** self-register |
+| Publiczny `accept-invite` zwraca **409** / „email zajęty” przy kolizji `User.email` | Enumeracja kont bez sesji; probe istnienia `User` | **401** `UNAUTHORIZED`, ten sam `message` co zły token; revoke Invitation; **409** zostaje na admin `POST /invitations`, `PATCH /auth/me/email` **oraz** świadomie na `POST /auth/register` (`security.md`) |
+| Maskowany **201** przy kolizji email na `POST /auth/register` | Użytkownik czeka na maila, którego nie będzie; nie wie, że ma zmienić adres | **409** `CONFLICT` + jawny komunikat; FE zostaje na formularzu (`ux_dashboard.md`) |
+| Pending aktywacji przez samo `isActive = false` | Mylenie z soft-delete; reaktywacja „naprawia” weryfikację | Pending = `isActive=true` + `verifiedAt=null` + `AccountActivation` |
+| Set-Cookie na register / activate / resend | Sesja bez weryfikacji / bez świadomego loginu | Sesja tylko po login / bootstrap |
+| Register bramkowany `DEMO_MODE` / aktywacja wymagana poza `production` | Łamie kanon: register zawsze; activate tylko w prod | Register zawsze; `verifiedAt` od razu poza prod |
+| `ACCOUNT_NOT_ACTIVATED` / różny message na loginie dla pending | Enumeracja „pending” vs złe hasło | Wspólny **401** jak soft-delete / złe hasło |
+| Mylenie aktywacji konta z confirm e-mail przy `PATCH /auth/me/email` | Dwa różne flows; confirm = V1 | Aktywacja = register + mail; confirm przy zmianie adresu = **V1** |
+| **503** na `POST /auth/resend-activation` przy padzie SMTP | Enumeracja / zły UX thank-you | Zawsze **200** + `Wiadomość wysłana ponownie`; mail best-effort w tle |
+| Self-register na email soft-deleted | Obejście reaktywacji admina | **409** `Email already in use`; reclaim = `PATCH /users/:id` |
 | Nodemailer (lub inny SMTP client) w use-case / domain | Warstwa aplikacji zależy od vendora maila | Port mailera w Auth; adapter SMTP = nodemailer **tylko** w infrastructure |
 | Dwa `pending` na ten sam email (obejście bez indeksu SQL) | Wyścig `POST /invitations`; dwa ważne tokeny | Partial unique SQL `UNIQUE (email) WHERE status = 'pending'` (jak `User_one_admin`) |
 | OAuth w MVP „bo tak się robi” | Opóźnia dowód pipeline’u | JWT w httpOnly `cc_access` + `cc_refresh`, 2 role |

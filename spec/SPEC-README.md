@@ -1,7 +1,7 @@
 ---
-wersja: 9
+wersja: 11
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-30
+data_modyfikacji: 2026-10-02
 ---
 
 # SPEC — README
@@ -27,23 +27,23 @@ SPEC **uszczegóławia** docs; nie zastępuje ich i nie tworzy równoległej dok
 | Plik | Obszar |
 |------|--------|
 | `SPEC-MONOREPO.md` | Granice apps/*, `packages/shared`, pnpm, importy |
-| `SPEC-KOMUNIKACJA.md` | HTTP/SSE api + klient → gateway; snapshot TTL (`pipelineFinishedAt` / `reviewExpiresAt`) |
-| `SPEC-AUTH.md` | Auth, cookie `cc_access`/`cc_refresh`, role, hasła |
+| `SPEC-KOMUNIKACJA.md` | HTTP/SSE api + klient → gateway; snapshot TTL (`pipelineFinishedAt` / `reviewExpiresAt`); publiczne auth: register / activate / resend |
+| `SPEC-AUTH.md` | Auth, cookie `cc_access`/`cc_refresh`, role, hasła; **otwarta rejestracja** + aktywacja e-mail (`verifiedAt` / `AccountActivation`) |
 | `SPEC-KONTEKST-FIRMY.md` | Company context, bramka kompletności |
 | `SPEC-SOCIAL.md` | Pipeline Social (posty **i** rolki), LangGraph, HITL model B |
 | `SPEC-CONTENT.md` | Pipeline Content (page copy / outline), LangGraph, HITL model B |
 | `SPEC-RUNY.md` | Cykl życia runu (`completed` / `failed` / **`cancelled`**), logi, SSE, kolejka, recovery, anulowanie (R-11), **przegląd z `REVIEW_TTL` / sweeper auto-finalize (R-10)**, ocena / edycja outputu, composite executor, unia `SocialBrief` / `ContentBrief` na `RunRecord` |
 | `SPEC-FEEDBACK.md` | Opinie tekstowe (zapis MVP; panel odczytu = V1; okno `cancelled`+wynik; **nie** blokowane TTL przeglądu) |
-| `SPEC-PERSISTENCE.md` | Prisma; SQLite w MVP; PostgreSQL od V1 — rozbudowa; pola Run `cancelledAt` / `cancelRequested` / **`pipelineFinishedAt`** (+ indeks sweepera, backfill B) |
-| `SPEC-FRONTEND.md` | Next.js, modules/, shadcn, SSE UI, Stop + modal, archiwum z `cancelled`, disable przeglądu po `reviewExpiresAt` |
-| `SPEC-TESTY.md` | Jest, supertest, piramida, DoD (w tym D-30…D-34 cancel, **D-35…D-40 TTL / sweeper**) |
-| `SPEC-BEZPIECZENSTWO.md` | Env, ekspozycja, Helmet, CORS, metrics/logi bez sekretów |
+| `SPEC-PERSISTENCE.md` | Prisma; SQLite w MVP; PostgreSQL od V1 — rozbudowa; pola Run `cancelledAt` / `cancelRequested` / **`pipelineFinishedAt`** (+ indeks sweepera, backfill B); **`User.verifiedAt`** + **`AccountActivation`** |
+| `SPEC-FRONTEND.md` | Next.js, modules/, shadcn, SSE UI, Stop + modal, archiwum z `cancelled`, disable przeglądu po `reviewExpiresAt`; **signup / thank-you / deep link aktywacji** |
+| `SPEC-TESTY.md` | Jest, supertest, piramida, DoD (w tym D-30…D-34 cancel, **D-35…D-40 TTL / sweeper**, **D-41…D-46 register / activate / resend**) |
+| `SPEC-BEZPIECZENSTWO.md` | Env, ekspozycja, Helmet, CORS, metrics/logi bez sekretów; anti-enum (409 register / stały resend / wspólny 401 login) |
 
 ## Terminologia faz (skrót)
 
 | Faza | Znaczenie |
 |------|-----------|
-| **MVP** | Pierwszy slice: Social (posty i rolki) + Content (BC, podstawowa forma) + auth + dashboard + gateway + **fundament zapisu feedbacku**; silnik DB = **SQLite**; w kontrakcie slice’u także typowane `extras` + HITL Social dwuetapowy (min. 1 unikalne id ⊆ draftu, N→N) + pola wyniku SM (`contents[]` / `reelScripts[]`, `sourceIdeaId`) + `role` outline (nie V1) |
+| **MVP** | Pierwszy slice: Social (posty i rolki) + Content (BC, podstawowa forma) + auth (invite **oraz** self-register + aktywacja w prod) + dashboard + gateway + **fundament zapisu feedbacku**; silnik DB = **SQLite**; w kontrakcie slice’u także typowane `extras` + HITL Social dwuetapowy (min. 1 unikalne id ⊆ draftu, N→N) + pola wyniku SM (`contents[]` / `reelScripts[]`, `sourceIdeaId`) + `role` outline (nie V1) |
 | **V1 — rozbudowa** | Po MVP: PostgreSQL (ops/skala) + panel odczytu opinii + publikacja portali SM + audytorzy Content + YouTube. **Nie** „kolejne workflowy / rolki / blog” |
 | **`/api/v1`** | Prefiks HTTP API — **nie** to samo co „V1 — rozbudowa” |
 
@@ -51,6 +51,7 @@ Zmiana względem wersji 5: dopisano kontrakt extras / HITL SM 1 id / pola SM / r
 Zmiana względem wersji 6: „HITL SM 1 id” unieważnione — kanon slice’u = K z N Social (`contents[]` / `reelScripts[]`); Content nadal `[outline.id]`.
 Zmiana względem wersji 7: mapa obszarów bez `cancelled` / Stop. Od tej wersji indeks wskazuje anulowanie w RUNY / FEEDBACK / FRONTEND / PERSISTENCE / TESTY.
 Zmiana względem wersji 8: mapa bez TTL przeglądu. Od tej wersji indeks wskazuje `REVIEW_TTL` / sweeper / D-35+ w RUNY / KOMUNIKACJA / PERSISTENCE / FRONTEND / TESTY.
+Zmiana względem wersji 9: mapa bez otwartej rejestracji. Od tej wersji AUTH / KOMUNIKACJA / FRONTEND / PERSISTENCE / TESTY / BEZPIECZENSTWO wskazują register + aktywację e-mail.
 
 Szczegóły: `docs/dictionary.md`, `SPEC-PERSISTENCE.md`.
 

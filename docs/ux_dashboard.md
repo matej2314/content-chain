@@ -1,7 +1,7 @@
 ---
-wersja: 10
+wersja: 13
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-10-01
+data_modyfikacji: 2026-10-02
 ---
 
 # UX Dashboard — Content Chain
@@ -16,6 +16,8 @@ Zmiana względem: brak modala potwierdzenia przed Stop w roboczym `cancel-run-st
 
 Zmiana względem: błędy API w UI jako **`code` + `message`**. Od tej wersji w UI obowiązuje wyłącznie **`message`** z envelope (`code` zostaje w HTTP do logiki klienta).
 
+Zmiana względem: nieaktywne „Zarejestruj się!” / zakaz otwartego signup. Od tej wersji: aktywna rejestracja (prod i DEMO), strona podziękowań + resend w `production`, deep link aktywacji → logowanie + toast; invite zostaje.
+
 ## Założenia UX
 
 - Cienki klient: reguły i pipeline w `apps/api`.
@@ -24,18 +26,25 @@ Zmiana względem: błędy API w UI jako **`code` + `message`**. Od tej wersji w 
 - Live run: status **na żywo (SSE)**, wizualnie **animowany / czytelnie atrakcyjny** (nie suchy sam tekst „running”).
 - Sesja: wyłącznie cookie httpOnly (`cc_access` / `cc_refresh`); probe tożsamości: `GET /api/v1/auth/me`.
 
-## Wejście: strona główna (logowanie), sesja
+## Wejście: strona główna (logowanie), rejestracja, sesja
 
-**Strona główna** (brak ważnej sesji): tło + karta z formularzem logowania (email, hasło, CTA logowania) oraz **nieaktywny** przycisk **„Nie masz konta? Zarejestruj się!”** w standardowym miejscu pod formularzem. Przycisk rejestracji **nie** prowadzi do signup i **nie** aktywuje się w MVP (otwarta rejestracja zakazana). Dashboard (sidebar) **tylko** po udanej sesji — nigdy jako pierwsza treść niezalogowanego.
+**Strona główna** (brak ważnej sesji): tło + karta z formularzem logowania (email, hasło, CTA logowania) oraz przycisk **„Nie masz konta? Zarejestruj się!”** pod formularzem. Przycisk jest **aktywny**, gdy `bootstrap-status.available === false` (produkcja pełna i DEMO — **nie** zależy od `demoMode` / `DEMO_MODE`). Przy first-run (`available === true`) rejestracja jest **ukryta / disabled** — pierwsza ścieżka to bootstrap admina. Dashboard (sidebar) **tylko** po udanej sesji — nigdy jako pierwsza treść niezalogowanego.
 
 | Ekran / krok | Kiedy | Zachowanie |
 |--------------|-------|------------|
 | **Strona główna — logowanie** | Brak ważnej sesji i `bootstrap-status.available === false` | Ten sam widok; submit → `POST /auth/login` → dashboard |
-| **Strona główna — first-run (tryb)** | Brak ważnej sesji i `bootstrap-status.available === true` | **Ten sam widok** (nie osobna strona). Submit tego samego formularza → `POST /auth/bootstrap-admin` (pierwszy admin) → sesja cookie jak po loginie → dashboard. Przycisk „Zarejestruj się!” nadal nieaktywny |
+| **Strona główna — first-run (tryb)** | Brak ważnej sesji i `bootstrap-status.available === true` | **Ten sam widok** (nie osobna strona). Submit tego samego formularza → `POST /auth/bootstrap-admin` (pierwszy admin) → sesja cookie jak po loginie → dashboard. Przycisk „Zarejestruj się!” **ukryty / disabled** |
+| **Rejestracja** | Klik „Zarejestruj się!” (tylko gdy bootstrap niedostępny) | Formularz: email, hasło, **powtórz hasło** (confirm tylko UI — API dostaje `{ email, password }`). Submit → `POST /auth/register` |
+| **Po register — `production`** | Udany **201** z `verifiedAt: null` **lub** **503** `MAIL_DELIVERY_FAILED` po utworzeniu pending User (`NODE_ENV=production`) | **Bez** sesji / Set-Cookie. Przejście / **pozostanie** na **stronie podziękowań**: copy sukcesu + „Nie otrzymałeś wiadomości e-mail?” + button **„Wyślij ponownie”** → `POST /auth/resend-activation` z `{ email }` ze **stanu formularza / klienta** (nie z body **201**). Sygnał thank-you po **201**: `user.verifiedAt === null` |
+| **Po register — poza `production`** | Udany **201** z `verifiedAt` ustawionym (ISO) | Konto gotowe od razu; krótki sukces → widok logowania (**bez** obligatoryjnego thank-you + resend pod mail) |
+| **Kolizja email (409)** | `POST /auth/register` → **409** `CONFLICT`, `message`: **`Email already in use`** | **Zostajemy na formularzu rejestracji**; jawny błąd przy polu email (zmiana adresu + ponowny submit). **Bez** thank-you, **bez** udawania sukcesu |
+| **Aktywacja z maila** | Deep link **wyłącznie** `{APP_PUBLIC_URL}/?activationToken=…` (mail / opcjonalny log DX) | **Natychmiast** widok logowania (strona główna `/`); w tle `POST /auth/activate` z tokenem z query; po sukcesie **toast** na `/`: „Konto aktywowane! Możesz się zalogować.” (**wyjątek** od „Toaster tylko po sesji”). Błąd activate (**401**) → **ogólny** komunikat na karcie logowania (bez rozróżniania przyczyn). **Bez** dashboardu; **bez** Set-Cookie po activate |
 | **Akceptacja zaproszenia** | Publiczny **deep link** `{APP_PUBLIC_URL}/invite/accept?token=…` (mail / log dev); nie strona główna | Formularz **pierwszego** hasła → `POST /auth/accept-invite` → **powrót na stronę główną (logowanie)**. Brak Set-Cookie po accept; dashboard dopiero po `POST /auth/login` |
 | **Probe sesji** | Start aplikacji / reload | `GET /auth/me` → przy **401** `UNAUTHORIZED`: `POST /auth/refresh` → ponownie `GET /auth/me` → przy kolejnym **401** `UNAUTHORIZED`: strona główna (logowanie; tryb bootstrap gdy `available`). **401** `INVALID_PASSWORD` (re-auth email) **nie** dotyczy tego wiersza |
 
-Zmiana względem: osobne ekrany first-run vs logowanie; wejście na dashboard bez przejścia przez kartę logowania jako stronę główną. Od tej wersji jeden widok główny = logowanie (+ martwa rejestracja); first-run to tryb submitu na tej karcie.
+Zmiana względem: osobne ekrany first-run vs logowanie; wejście na dashboard bez przejścia przez kartę logowania jako stronę główną. Od tej wersji jeden widok główny = logowanie (+ **aktywna** rejestracja gdy bootstrap niedostępny); first-run to tryb submitu na tej karcie.
+
+Zmiana względem: nieaktywne „Zarejestruj się!” / zakaz signup. Invite `/invite/accept?token=` **bez zmian sensu**. Confirm e-mail przy zmianie adresu (`PATCH /auth/me/email`) pozostaje **V1** — **nie** mylić z aktywacją przy rejestracji.
 
 **Header dashboardu (od pierwszego layoutu po sesji):** pasek nad obszarem roboczym na **wszystkich** widokach zalogowanych. Elementy **wewnątrz headera wyrównane do prawej**.
 
@@ -129,12 +138,16 @@ Sukces toasta: **polski**, krótki tytuł. Błąd w toaście **tylko** gdy na ty
 | SSE terminal **na** `/runs/:runId` tego runu | **nie** | status + logi na szczegółach (bez dublowania toasta mutacji) |
 | GET listy / snapshot / completeness (błąd strony) | **nie** | envelope w bloku |
 | Pulse `running`, `run.log`, heartbeat | **nie** | box / szczegóły |
-| Login / bootstrap / accept-invite | **nie** | envelope na karcie (brak Toastera poza sesją) |
+| Login / bootstrap / accept-invite / register | **nie** | envelope na karcie (brak Toastera poza sesją) |
+| Sukces `POST /auth/activate` (deep link na `/`) | **tak** | „Konto aktywowane! Możesz się zalogować.” — **jedyny** wyjątek Toastera poza sesją |
+| Błąd `POST /auth/activate` | **nie** | ogólny komunikat na karcie logowania |
 | `awaiting_hitl` | **nie** (MVP) | box już zmienia copy; HITL później na tym samym prymitywie |
 
 Później (HITL, opinia, zaproszenia): **ten sam** kanał toasta, nadal **nie** toast na walidację przy polu. **`PATCH /auth/me/email` (zmiana własnego emaila):** sukces **bez** toastu; błędy hasła (`INVALID_PASSWORD`) / `VALIDATION_FAILED` / **409** — wyłącznie pod polami w modalu re-auth (nie toast). **401** `INVALID_PASSWORD` **nie** uruchamia cyklu refresh / wylogowania.
 
-Toaster wyłącznie w gałęzi zalogowanej (warstwa toast w chrome; nie zasłania headera — np. `top-right`; floating box zostaje `bottom-right`).
+Toaster wyłącznie w gałęzi zalogowanej (warstwa toast w chrome; nie zasłania headera — np. `top-right`; floating box zostaje `bottom-right`) — **wyjątek:** toast po udanym activate na niezalogowanym `/` (aktywacja e-mail).
+
+Zmiana względem wersji 12: wyjątek Toastera na `/` po sukcesie activate; sygnał thank-you = `verifiedAt === null`; activate-fail bez **409**.
 
 ## Widok: Kontekst firmy
 
@@ -279,7 +292,8 @@ Zmiana względem: założenie, że FE może rozróżnić kolizję email (**409**
 - Widoczny deadline / countdown / wiersz „review dostępne do…” na panelu przeglądu (świadomie odłożone; FE używa `reviewExpiresAt` tylko do disable)  
 - Motywy jasny / ciemny — **obowiązkowy** temat **V1 — rozbudowa**: oba tryby w produkcie oraz **dynamiczne** przełączanie przez użytkownika **dedykowanym przełącznikiem** w interfejsie (nie sam `prefers-color-scheme` bez kontrolki). W MVP motyw produktowy pozostaje jasny  
 - Pipeline builder, drag-and-drop agentów  
-- Otwarta rejestracja / aktywny przycisk „Zarejestruj się!” na stronie głównej (w MVP pozostaje nieaktywny)  
+- Osobny trwały ekran „Aktywacja…” (świadomie pominięty — deep link od razu pokazuje logowanie + toast)  
+- Confirm e-mail przy `PATCH /auth/me/email` (**V1**; nie mylić z aktywacją przy register)  
 - Automatyczne testy FE (`testy.md` — poza MVP)  
 - Chip / stos chipów „run w toku” w chrome (zastąpiony floating boxem)  
 - SSE na `queued` oraz nowy endpoint „SSE moich runów” (obowiązuje N× istniejące `.../runs/:runId/events`)  
