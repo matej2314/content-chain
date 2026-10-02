@@ -41,7 +41,7 @@
 - Resend: zawsze **200** + `Wiadomość wysłana ponownie`; rate limit soft **5 / 15 min** / email; **bez** **503** na SMTP.
 - Register SMTP fail → **503** `MAIL_DELIVERY_FAILED` + `details: [{ id: userId }]` — User pending **zostaje**.
 - `GET /auth/me` **bez** `verifiedAt` (probe). `GET /users` + reactivate **z** `verifiedAt`.
-- Typy: `input: unknown` + Zod; zakaz `any` / `@ts-ignore`; `import type` dla typów.
+- Typy HTTP: klasy DTO w `auth/http/*.dto.ts` (`class-validator` + `@ApiProperty`) jak `LoginDto` / `AcceptInviteDto` — **nie** `@Body() body: unknown` na register / activate / resend. Application: `execute(input: unknown)` + Zod (`parseWithZod`); zakaz `any` / `@ts-ignore`; `import type` dla typów. Use-case **nie** importuje Nest DTO.
 - Przy konflikcie Context7 ↔ SPEC → **wygrywa SPEC**.
 
 ---
@@ -53,7 +53,7 @@
 | -------------------- | ------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
 | Zod body             | Context7 `/colinhacks/zod` (projekt `zod@^4.4.3`) | `z.email()`, `.strict()` / `strictObject`                  | Schematy jak `updateMeEmailSchema`: `.strict()` + `z.email()` |
 | Prisma migracja      | Context7 `/prisma/web` + lokalne migracje         | ADD COLUMN + backfill SQL; nowa tabela + UNIQUE            | Jak `Invitation` / backfill `pipelineFinishedAt`              |
-| Nest HTTP            | istniejący AuthController                         | `@Public()`, `@HttpCode`, bez Set-Cookie na tych trasach   | Wzorzec `postAcceptInvite`                                    |
+| Nest HTTP            | istniejący AuthController + `SPEC-KOMUNIKACJA.md`  | DTO + `ValidationPipe`; `@Public()`, `@HttpCode`; bez Set-Cookie na tych trasach | Wzorzec `postAcceptInvite` / `LoginDto` (nie `body: unknown`) |
 | bcrypt / TTL / token | `auth.helpers.ts`                                 | `generateRefreshToken` + `hashRefreshToken` + `parseTtlMs` | Reuse; bez nowego crypto wrappera                             |
 
 
@@ -901,7 +901,7 @@ Existing account paths set or expose verification state; production login reject
 
 ### KROK 1 — Zod schemas register / activate / resend
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Application schemas `.strict()` — K-2g…K-2i / A-11…A-13. Polityka A-5 **poza** Zod (jak accept-invite).
 
@@ -942,7 +942,7 @@ export type ResendActivationInput = z.infer<typeof resendActivationSchema>;
 
 ### KROK 2 — `RegisterUserUseCase`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** A-11 — revoke pending Invitation; zawsze `role=user`; 201 z `verifiedAt`; prod pending+mail; kolizja 409; SMTP fail 503.
 
@@ -1114,7 +1114,7 @@ export class RegisterUserUseCase {
 
 ### KROK 3 — `ActivateAccountUseCase`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** A-12 — sukces 200 `{ user }` + `verifiedAt` + delete activation; zły token → wspólny 401; **bez** 409; **bez** Set-Cookie.
 
@@ -1184,7 +1184,7 @@ export class ActivateAccountUseCase {
 
 ### KROK 4 — `ResendActivationUseCase` + soft rate limit 5/15 min
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** A-13 — zawsze 200 + stały message; mail+rotacja tylko przy pending; pad SMTP → nadal 200; rate limit soft.
 
@@ -1332,23 +1332,79 @@ export class ResendActivationUseCase {
 
 ---
 
-### KROK 5 — `AuthController` + `AuthModule` (3 trasy `@Public`)
+### KROK 5 — DTO HTTP + `AuthController` + `AuthModule` (3 trasy `@Public`)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
-**Cel:** K-2g…K-2i — HTTP bez Set-Cookie; DI portów i rate limitera.
+**Cel:** K-2g…K-2i — HTTP bez Set-Cookie; pełnoprawne DTO jak pozostałe endpointy Auth (`LoginDto` / `AcceptInviteDto`); DI portów i rate limitera.  
+**Zmiana koncepcji względem wcześniejszego szkicu tego kroku:** `@Body() body: unknown` → klasy DTO + `class-validator` / Swagger. Use-case’y (KROK 2–4, `WYKONANY`) **bez** zmiany sygnatur — nadal `execute(input: unknown)` + Zod; DTO **nie** wycieka do application.
 
 **Artefakty:**
 
+- Nowy: `apps/api/src/auth/http/register-user.dto.ts`
+- Nowy: `apps/api/src/auth/http/activate-account.dto.ts`
+- Nowy: `apps/api/src/auth/http/resend-activation.dto.ts`
 - Zmiana: `apps/api/src/auth/auth.controller.ts`
 - Zmiana: `apps/api/src/auth/auth.module.ts`
 
-#### Refaktor — `auth.controller.ts` (dopisz DI + metody)
+**Kolejność implementacji w tym kroku:** najpierw trzy pliki DTO (poniżej), potem refaktor `auth.controller.ts`, na końcu `auth.module.ts`.
+
+#### Nowy plik — `register-user.dto.ts`
+
+```typescript
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsString, MinLength } from 'class-validator';
+
+export class RegisterUserDto {
+  @ApiProperty()
+  @IsEmail()
+  email!: string;
+
+  @ApiProperty({ minLength: 1 })
+  @IsString()
+  @MinLength(1)
+  password!: string;
+}
+```
+
+(Polityka A-5 **poza** DTO — w `RegisterUserUseCase`, jak `AcceptInviteDto` / accept-invite.)
+
+#### Nowy plik — `activate-account.dto.ts`
+
+```typescript
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, MinLength } from 'class-validator';
+
+export class ActivateAccountDto {
+  @ApiProperty({ minLength: 1 })
+  @IsString()
+  @MinLength(1)
+  token!: string;
+}
+```
+
+#### Nowy plik — `resend-activation.dto.ts`
+
+```typescript
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail } from 'class-validator';
+
+export class ResendActivationDto {
+  @ApiProperty()
+  @IsEmail()
+  email!: string;
+}
+```
+
+#### Refaktor — `auth.controller.ts` (dopisz DI + metody; **po** DTO)
 
 ```typescript
 import { RegisterUserUseCase } from './application/register-user.use-case';
 import { ActivateAccountUseCase } from './application/activate-account.use-case';
 import { ResendActivationUseCase } from './application/resend-activation.use-case';
+import { RegisterUserDto } from './http/register-user.dto';
+import { ActivateAccountDto } from './http/activate-account.dto';
+import { ResendActivationDto } from './http/resend-activation.dto';
 
 // constructor — dopisz:
 private readonly registerUser: RegisterUserUseCase,
@@ -1358,26 +1414,27 @@ private readonly resendActivation: ResendActivationUseCase,
 @Public()
 @Post('register')
 @HttpCode(201)
-async postRegister(@Body() body: unknown) {
+async postRegister(@Body() body: RegisterUserDto) {
   return this.registerUser.execute(body);
 }
 
 @Public()
 @Post('activate')
 @HttpCode(200)
-async postActivate(@Body() body: unknown) {
+async postActivate(@Body() body: ActivateAccountDto) {
   return this.activateAccount.execute(body);
 }
 
 @Public()
 @Post('resend-activation')
 @HttpCode(200)
-async postResendActivation(@Body() body: unknown) {
+async postResendActivation(@Body() body: ResendActivationDto) {
   return this.resendActivation.execute(body);
 }
 ```
 
-**Zakaz:** `setAuthCookies` na tych trzech metodach.
+**Zakaz:** `setAuthCookies` na tych trzech metodach.  
+**Zakaz:** `@Body() body: unknown` na register / activate / resend (odstępstwo od `SPEC-KOMUNIKACJA.md` / wzorca AuthController).
 
 #### Refaktor — `auth.module.ts`
 
@@ -1393,9 +1450,12 @@ async postResendActivation(@Body() body: unknown) {
 },
 ```
 
+(DTO nie wymagają rejestracji w module — metatype ValidationPipe z parametru metody.)
+
 **DoD kroku:**
 
-- Trzy trasy publiczne odpowiadają kontraktowi docs/SPEC.
+- Trzy pliki DTO lustrzane względem `registerUserSchema` / `activateAccountSchema` / `resendActivationSchema` (pola; `.strict()` Zod + `forbidNonWhitelisted` pipe).
+- Trzy trasy publiczne: `@Body()` typowane DTO; kontrakt docs/SPEC; **bez** Set-Cookie.
 - Soft-delete DI ma `ACCOUNT_ACTIVATION_REPOSITORY` (FAZA 2) — dopnij provider jeśli jeszcze nie.
 
 #### Propozycja commit message
@@ -1403,7 +1463,7 @@ async postResendActivation(@Body() body: unknown) {
 ```text
 feat(auth): add public register, activate, and resend-activation flows
 
-Open self-registration creates pending users in production with email activation; resend stays non-enumerating with a soft rate limit.
+Open self-registration creates pending users in production with email activation; HTTP uses Auth DTOs like login/accept-invite; resend stays non-enumerating with a soft rate limit.
 ```
 
 ---
@@ -1416,7 +1476,8 @@ Open self-registration creates pending users in production with email activation
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Cel:** `SPEC-TESTY.md` D-41…D-46 na warstwie use-case (adekwatnie); regresje invite/bootstrap/login.
+**Cel:** `SPEC-TESTY.md` D-41…D-46 na warstwie use-case (adekwatnie); regresje invite/bootstrap/login.  
+**DTO:** unit **nie** importuje Nest DTO — woła `execute` plain objectami (`{ email, password }` / `{ token }` / `{ email }`), jak istniejące specy login / accept-invite. Walidacja class-validator / ValidationPipe = poza tym krokiem (HTTP / Postman).
 
 **Artefakty:**
 
@@ -1446,7 +1507,7 @@ Wzorce mocków: jak `invite-user.use-case.spec.ts` / `resend-invitation.use-case
 
 **Status:** `NIE_ROZPOCZĘTY`
 
-**Cel:** Pokrycie kontraktu HTTP w `auth.postman-collection.json` (+ e2e jeśli projekt ma warstwę e2e auth; inaczej Postman = primary jak D-23a / D-27).
+**Cel:** Pokrycie kontraktu HTTP w `auth.postman-collection.json` (+ e2e jeśli projekt ma warstwę e2e auth; inaczej Postman = primary jak D-23a / D-27). Body requestów = te same kształty co DTO (`RegisterUserDto` / `ActivateAccountDto` / `ResendActivationDto`); ValidationPipe + DTO egzekwują whitelist / `forbidNonWhitelisted` na krawędzi (nieznany klucz → **400** `VALIDATION_FAILED` przed Zod w use-case).
 
 **Artefakty:**
 
@@ -1462,6 +1523,7 @@ Wzorce mocków: jak `invite-user.use-case.spec.ts` / `resend-invitation.use-case
 4. `POST /auth/activate` zły token → **401**.
 5. `POST /auth/resend-activation` dowolny email → **200** + `Wiadomość wysłana ponownie`.
 6. Regresja: accept-invite → login; GET `/users` pozycja ma `verifiedAt`.
+7. (Opcjonalnie, DTO/pipe) `POST /auth/register` z nieznanym kluczem w body → **400** `VALIDATION_FAILED` (jak inne Auth DTO).
 
 **Nota prod (D-41):** pełny pending+activate na żywym SMTP zwykle poza Newmanem lokalnym — pokryj unit + opcjonalny e2e z `NODE_ENV=production` i mailerem-mockiem w DI testowym. W README: D-41 prod path = unit/e2e; Postman default = non-prod register.
 
@@ -1469,6 +1531,7 @@ Wzorce mocków: jak `invite-user.use-case.spec.ts` / `resend-invitation.use-case
 
 - Folder Postman przechodzi na świeżym api (non-prod).
 - Checklist D-41…D-46 w SPEC-TESTY uznana za pokrytą warstwą adekwatną.
+- Happy-path requesty zgodne z polami DTO z FAZY 3 KROK 5.
 
 #### Propozycja commit message
 
@@ -1492,6 +1555,7 @@ Lock the verification contract with unit cases and Postman flows so pending logi
 | A-1 / A-7b    | bootstrap + accept ustawiają `verifiedAt`                                                    |
 | A-10          | soft-delete usuwa `AccountActivation`; nie czyści `verifiedAt`                               |
 | P-5 / D19     | migracja + backfill; unikalne `userId`/`tokenHash`                                           |
+| HTTP DTO      | register / activate / resend: klasy DTO + ValidationPipe (jak login); use-case = Zod         |
 | D-41…D-46     | unit + Postman/e2e                                                                           |
 | Poza zakresem | brak zmian FE UI; brak Set-Cookie na 3 trasach; major/docs/SPEC nietknięte w tej sesji planu |
 

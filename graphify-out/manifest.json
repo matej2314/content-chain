@@ -1752,15 +1752,15 @@
     "semantic_hash": "fccd11bbd5eef2b3c73caa4330a82042"
   },
   "apps/api/src/auth/auth.controller.ts": {
-    "mtime": 1790769403.481135,
-    "seen": 1790769705.9002974,
-    "ast_hash": "6046e2062eb8be051aad61b2e632b3cf",
+    "mtime": 1790965269.777493,
+    "seen": 1790965391.9131863,
+    "ast_hash": "e77be540a0f89852cac6e563149238b3",
     "semantic_hash": ""
   },
   "apps/api/src/auth/auth.module.ts": {
-    "mtime": 1789560691.6053693,
-    "seen": 1789561286.5144444,
-    "ast_hash": "9774009f2e686c79501ff4bd8e52a736",
+    "mtime": 1790964711.0731392,
+    "seen": 1790965391.913187,
+    "ast_hash": "623c6adf624a8e2071f2897749b53750",
     "semantic_hash": ""
   },
   "apps/api/src/company-context/company-context.controller.ts": {
@@ -2832,9 +2832,9 @@
     "semantic_hash": "7c64b3ce92cb7c2b23c6768ccd718039"
   },
   "apps/api/src/auth/application/auth.schemas.ts": {
-    "mtime": 1790768880.6489549,
-    "seen": 1790769705.9002805,
-    "ast_hash": "cf22e32ef73877eb884593985b170b38",
+    "mtime": 1790948715.5812254,
+    "seen": 1790949297.712321,
+    "ast_hash": "1284dfa43ffb05eafdb4425fef8c353d",
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/bootstrap-admin.use-case.ts": {
@@ -3915,6 +3915,48 @@
     "mtime": 1790941164.1771514,
     "seen": 1790944313.3221412,
     "ast_hash": "30ddf7deafc6bbdf1fc4a7984ffe9ea6",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/application/register-user.use-case.ts": {
+    "mtime": 1790948523.565725,
+    "seen": 1790949297.7123368,
+    "ast_hash": "fc41a7f7a94a97877e5a18efa914230a",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/application/activate-account.use-case.ts": {
+    "mtime": 1790949002.957028,
+    "seen": 1790949297.7123141,
+    "ast_hash": "f6bcbda139b5acb7a7200a4ae4a9a52a",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/application/resend-activation.use-case.ts": {
+    "mtime": 1790962287.972114,
+    "seen": 1790965391.9131799,
+    "ast_hash": "8b06296a4da217c34c97c1b77b4665a3",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/application/soft-email-rate-limiter.ts": {
+    "mtime": 1790961209.0303566,
+    "seen": 1790965391.9131842,
+    "ast_hash": "5295f898b5537f0acac313831db8ed27",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/http/activate-account.dto.ts": {
+    "mtime": 1790964181.0330532,
+    "seen": 1790965391.9131944,
+    "ast_hash": "911576735c2af9dab2f6eb0251efbc3d",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/http/register-user.dto.ts": {
+    "mtime": 1790964001.9368746,
+    "seen": 1790965391.913199,
+    "ast_hash": "9cd180b62243f67d6d7001e080a92140",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/http/resend-activation.dto.ts": {
+    "mtime": 1790964230.5075018,
+    "seen": 1790965391.9131997,
+    "ast_hash": "cc58d3db4d7ef81736b1da2d7d17d9e9",
     "semantic_hash": ""
   }
 }

@@ -20,6 +20,12 @@ import { ListInvitationsUseCase } from './application/list-invitations.use-case'
 import { ResendInvitationUseCase } from './application/resend-invitation.use-case';
 import { RevokeInvitationUseCase } from './application/revoke-invitation.use-case';
 import { AcceptInviteUseCase } from './application/accept-invite.use-case';
+import { RegisterUserUseCase } from './application/register-user.use-case';
+import { ActivateAccountUseCase } from './application/activate-account.use-case';
+import {
+  RESEND_ACTIVATION_RATE_LIMITER,
+  ResendActivationUseCase,
+} from './application/resend-activation.use-case';
 import { SoftDeleteUserUseCase } from './application/soft-delete-user.use-case';
 import { ReactivateUserUseCase } from './application/reactivate-user.use-case';
 import { LoginUseCase } from './application/login.use-case';
@@ -31,6 +37,7 @@ import { parseTtlSeconds } from './application/auth.helpers';
 import { UsersController } from './users.controller';
 import { InvitationsController } from './invitations.controller';
 import { PrismaInvitationAdapter } from './infrastructure/prisma-invitation.adapter';
+
 import { INVITATION_REPOSITORY } from './domain/invitation-repository.port';
 import {
   TRANSACTIONAL_MAILER,
@@ -38,6 +45,7 @@ import {
 } from './domain/transactional-mailer.port';
 import { NodemailerSmtpMailerAdapter } from './infrastructure/nodemailer-smtp-mailer.adapter';
 import { LoggingMailerAdapter } from './infrastructure/logging-mailer.adapter';
+import { SoftEmailRateLimiter } from './application/soft-email-rate-limiter';
 
 @Module({
   imports: [
@@ -69,6 +77,11 @@ import { LoggingMailerAdapter } from './infrastructure/logging-mailer.adapter';
       provide: REFRESH_SESSION_REPOSITORY,
       useExisting: PrismaRefreshSessionAdapter,
     },
+    {
+      provide: RESEND_ACTIVATION_RATE_LIMITER,
+      useFactory: (): SoftEmailRateLimiter =>
+        new SoftEmailRateLimiter(5, 15 * 60 * 1000),
+    },
     { provide: INVITATION_REPOSITORY, useExisting: PrismaInvitationAdapter },
     {
       provide: TRANSACTIONAL_MAILER,
@@ -95,6 +108,9 @@ import { LoggingMailerAdapter } from './infrastructure/logging-mailer.adapter';
     SoftDeleteUserUseCase,
     ReactivateUserUseCase,
     UpdateMeEmailUseCase,
+    RegisterUserUseCase,
+    ActivateAccountUseCase,
+    ResendActivationUseCase,
   ],
   exports: [USER_REPOSITORY, JwtModule],
 })

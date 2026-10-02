@@ -26,9 +26,15 @@ import { RefreshUseCase } from './application/refresh.use-case';
 import { MeUseCase } from './application/me.use-case';
 import { UpdateMeEmailUseCase } from './application/update-me-email.use-case';
 import { AcceptInviteUseCase } from './application/accept-invite.use-case';
+import { RegisterUserUseCase } from './application/register-user.use-case';
+import { ActivateAccountUseCase } from './application/activate-account.use-case';
+import { ResendActivationUseCase } from './application/resend-activation.use-case';
 import { BootstrapAdminDto } from './http/bootstrap-admin.dto';
 import { LoginDto } from './http/login.dto';
 import { AcceptInviteDto } from './http/accept-invite.dto';
+import { RegisterUserDto } from './http/register-user.dto';
+import { ActivateAccountDto } from './http/activate-account.dto';
+import { ResendActivationDto } from './http/resend-activation.dto';
 import { ENV, type Env } from '../shared/config/env';
 import { readCookie } from './infrastructure/cookie.helper';
 import type { AuthUserContext } from './domain/auth-user.types';
@@ -46,6 +52,9 @@ export class AuthController {
     private readonly me: MeUseCase,
     private readonly acceptInvite: AcceptInviteUseCase,
     private readonly updateMeEmail: UpdateMeEmailUseCase,
+    private readonly registerUser: RegisterUserUseCase,
+    private readonly activateAccount: ActivateAccountUseCase,
+    private readonly resendActivation: ResendActivationUseCase,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -80,6 +89,27 @@ export class AuthController {
       expiresIn: this.env.JWT_ACCESS_TTL,
       user: result.user,
     };
+  }
+
+  @Public()
+  @Post('register')
+  @HttpCode(201)
+  async postRegister(@Body() body: RegisterUserDto) {
+    return this.registerUser.execute(body);
+  }
+
+  @Public()
+  @Post('activate')
+  @HttpCode(200)
+  async postActivate(@Body() body: ActivateAccountDto) {
+    return this.activateAccount.execute(body);
+  }
+
+  @Public()
+  @Post('resend-activation')
+  @HttpCode(200)
+  async postResendActivation(@Body() body: ResendActivationDto) {
+    return this.resendActivation.execute(body);
   }
 
   @Public()
