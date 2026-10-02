@@ -59,7 +59,7 @@ Odpowiada major **Faza 11**.
 
 ### KROK 1 — Helper mapowania błędu + `AcceptInviteForm` bez gałęzi enumeracji
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jedna ścieżka błędów API na karcie accept-invite: envelope as-is; **brak** UI rozróżniającego kolizję email od nieważnego tokenu. Major Faza 11 HOW #1–2; `SPEC-FRONTEND.md` F-8; `docs/ux_dashboard.md`; `SPEC-AUTH.md` A-7b.
 
@@ -151,7 +151,7 @@ Reszta formularza **bez zmian:** lokalny hint polityki hasła, `EnvelopeError`, 
 
 ### KROK 2 — Stała PL dla każdego 401 / `UNAUTHORIZED`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jednolity komunikat PL przy nieważnym zaproszeniu **i** kolizji email (oba **401**), bez leak z API i bez rozróżniania przyczyn po `code`. Major Faza 11 (opcjonalna stała); `docs/ux_dashboard.md`; `SPEC-FRONTEND.md` F-8.
 

@@ -6,8 +6,11 @@ import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
 import { EnvelopeError, FormField } from '@/shared/ui/form-field';
-import { ApiError } from '@/shared/api/envelope';
 import { acceptInvite } from '@/modules/auth/api/auth.api';
+import {
+  toAcceptInviteFormError,
+  type AcceptInviteFormError,
+} from '@/modules/auth/accept-invite-form-error';
 import { passwordMeetsPolicy } from '@/modules/auth/password-policy';
 
 type AcceptInviteFormProps = {
@@ -18,7 +21,7 @@ export function AcceptInviteForm({ token }: AcceptInviteFormProps) {
   const router = useRouter();
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<{ code: string; message: string } | null>(null);
+  const [error, setError] = useState<AcceptInviteFormError | null>(null);
   const [localHint, setLocalHint] = useState<string | undefined>(undefined);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -34,11 +37,7 @@ export function AcceptInviteForm({ token }: AcceptInviteFormProps) {
       await acceptInvite({ token, password });
       router.replace('/');
     } catch (reason: unknown) {
-      if (reason instanceof ApiError) {
-        setError({ code: reason.envelope.code, message: reason.envelope.message });
-      } else {
-        setError({ code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' });
-      }
+      setError(toAcceptInviteFormError(reason));
     } finally {
       setPending(false);
     }
