@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "c3a1b8e4-7d2f-4a91-9c6e-2f8b4d1e5a70",
     "name": "Content Chain — Auth",
-    "description": "Suite testująca endpointy `apps/api/src/auth` (sesja, bootstrap, zaproszenia, accept-invite, users, własny email) na żywym api (`:3001`, prefix `/api/v1`).\n\nSesja idzie przez httpOnly cookies `cc_access` i `cc_refresh` (path `/`). W Postmanie włącz cookie jar (Cookies → pozwól na localhost). Newman trzyma jar w ramach jednego `run`.\n\nKolejność folderów w Collection Runnerze: **Unauthenticated → Bootstrap → Session → Invitations → Accept-invite → Own email (D-27)**. Folder Session kończy się `logout` (czyści cookie) — Invitations zaczyna od `POST /auth/login` adminem. Accept-invite czyści cookie jar originu api (request bez sesji admina). D-27 startuje od sesji reaktywowanego `user` (ostatni login w Accept-invite). Mutacja własnego emaila: `PATCH /auth/me/email` z body `{ email, currentPassword }` (hasło = `invitePassword`); złe hasło → 401 `INVALID_PASSWORD`. Potem przywraca `inviteEmail` i sprawdza regresję `PATCH /users/:id` z polem `email`.\n\nBootstrap admina jest jednorazowy: pierwsze udane `POST /auth/bootstrap-admin` → 201; kolejne → 409 `CONFLICT`. Login po bootstrapie (albo gdy admin już istnieje) używa `adminEmail` / `adminPassword`.\n\nRaw token zaproszenia **nie** wraca w JSON. Po `POST /invitations` i szczególnie po **resend** (rotacja tokenu) wklej `inviteToken` z logu api (`LoggingMailerAdapter`: `Token: …`). Happy path Newman: `NODE_ENV=development` → adapter logujący → 201 na create/resend. `inviteEmail` nie może już istnieć jako `User` (także soft-deleted → 409).\n\nTo nie jest `pnpm test:e2e`. Odpalić: Import tej kolekcji, potem Collection Runner albo `npx --yes newman run apps/api/test/postman/auth.postman-collection.json`.",
+    "description": "Suite testująca endpointy `apps/api/src/auth` (sesja, bootstrap, zaproszenia, accept-invite, users, własny email) na żywym api (`:3001`, prefix `/api/v1`).\n\nSesja idzie przez httpOnly cookies `cc_access` i `cc_refresh` (path `/`). W Postmanie włącz cookie jar (Cookies → pozwól na localhost). Newman trzyma jar w ramach jednego `run`.\n\nKolejność folderów w Collection Runnerze: **Unauthenticated → Bootstrap → Session → Invitations → Accept-invite / D-23a collision → Accept-invite → Own email (D-27)**. Folder Session kończy się `logout` (czyści cookie) — Invitations zaczyna od `POST /auth/login` adminem. Accept-invite czyści cookie jar originu api (request bez sesji admina). Folder **Accept-invite / D-23a collision** (przed happy-path Accept-invite): osobny `collisionEmail` → create invite → zajęcie emaila przez admina (`PATCH /auth/me/email`) → accept bez cookie → **401** (nie 409) + revoke; potem restore `adminEmail`. Wymaga `collisionInviteToken` wklejonego z logu api po create (jak `inviteToken`). D-27 startuje od sesji reaktywowanego `user` (ostatni login w Accept-invite). Mutacja własnego emaila: `PATCH /auth/me/email` z body `{ email, currentPassword }` (hasło = `invitePassword`); złe hasło → 401 `INVALID_PASSWORD`. Potem przywraca `inviteEmail` i sprawdza regresję `PATCH /users/:id` z polem `email`.\n\nBootstrap admina jest jednorazowy: pierwsze udane `POST /auth/bootstrap-admin` → 201; kolejne → 409 `CONFLICT`. Login po bootstrapie (albo gdy admin już istnieje) używa `adminEmail` / `adminPassword`.\n\nRaw token zaproszenia **nie** wraca w JSON. Po `POST /invitations` i szczególnie po **resend** (rotacja tokenu) wklej `inviteToken` z logu api (`LoggingMailerAdapter`: `Token: …`). Happy path Newman: `NODE_ENV=development` → adapter logujący → 201 na create/resend. `inviteEmail` nie może już istnieć jako `User` (także soft-deleted → 409).\n\nTo nie jest `pnpm test:e2e`. Odpalić: Import tej kolekcji, potem Collection Runner albo `npx --yes newman run apps/api/test/postman/auth.postman-collection.json`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -48,6 +48,18 @@
     },
     {
       "key": "bootstrapAvailable",
+      "value": ""
+    },
+    {
+      "key": "collisionEmail",
+      "value": "collision-invite@example.com"
+    },
+    {
+      "key": "collisionInviteToken",
+      "value": ""
+    },
+    {
+      "key": "collisionInvitationId",
       "value": ""
     }
   ],
@@ -1155,6 +1167,288 @@
             "header": [],
             "url": "{{baseUrl}}/users",
             "description": "Lista kont (w tym isActive). Pending invites nie są w tej liście. Bez passwordHash."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Accept-invite / D-23a collision",
+      "description": "D-23a (`SPEC-TESTY.md`): kolizja `User.email` z ważnym pending — **401** `UNAUTHORIZED` / `Invalid invitation token` (nie **409**); Invitation → `revoked` (znika z GET pending). Sekwencja: login admina → `POST /invitations` na `collisionEmail` → wklej `collisionInviteToken` z logu → `PATCH /auth/me/email` (admin zajmuje adres) → clear jar + accept → login jako `collisionEmail` → GET invitations (brak `collisionInvitationId`) → restore `adminEmail`. Przed happy-path Accept-invite (osobny email/token; nie rusza `inviteToken`).",
+      "item": [
+        {
+          "name": "POST login as admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('admin session', function () {",
+                  "  pm.expect(body.user.role).to.eql('admin');",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get('adminEmail'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "D-23a: sesja admina pod create invite + zajęcie emaila (jeśli jar pusty po Invitations — zwykle już zalogowany)."
+          }
+        },
+        {
+          "name": "POST invitations collisionEmail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('collision invite without secrets', function () {",
+                  "  pm.expect(body).to.include.keys('id', 'email', 'expiresAt');",
+                  "  pm.expect(body.id).to.match(/^inv_/i);",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get('collisionEmail'));",
+                  "  pm.expect(body).to.not.have.property('token');",
+                  "  pm.expect(body).to.not.have.property('rawToken');",
+                  "  pm.expect(body).to.not.have.property('tokenHash');",
+                  "});",
+                  "pm.collectionVariables.set('collisionInvitationId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{collisionEmail}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/invitations",
+            "description": "D-23a: 201 pending na `collisionEmail`. Raw token tylko w logu — wklej do `collisionInviteToken` przed dalszymi requestami."
+          }
+        },
+        {
+          "name": "PATCH me/email occupy collisionEmail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('collisionInviteToken is set (paste from api log after collision create)', function () {",
+                  "  pm.expect(pm.collectionVariables.get('collisionInviteToken'), 'collisionInviteToken').to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('admin email now collisionEmail', function () {",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get('collisionEmail'));",
+                  "  pm.expect(body.role).to.eql('admin');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{collisionEmail}}\",\n  \"currentPassword\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/me/email",
+            "description": "D-23a: admin zajmuje `collisionEmail` (User.email) przy żywym pending — edge race z docs. JWT nadal ważny do kolejnych requestów z sesją."
+          }
+        },
+        {
+          "name": "POST accept-invite collision (401 not 409)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const origin = pm.collectionVariables.get('originUrl') || 'http://localhost:3001';",
+                  "try {",
+                  "  pm.cookies.jar().clear(origin, function () {});",
+                  "} catch (e) {",
+                  "  console.warn('cookie jar clear skipped', e);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('collisionInviteToken is set', function () {",
+                  "  pm.expect(pm.collectionVariables.get('collisionInviteToken'), 'collisionInviteToken').to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test('not 409 enumeration', function () {",
+                  "  pm.expect(pm.response.code).to.not.eql(409);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('UNAUTHORIZED same message as bad token', function () {",
+                  "  pm.expect(body.code).to.eql('UNAUTHORIZED');",
+                  "  pm.expect(body.message).to.eql('Invalid invitation token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{collisionInviteToken}}\",\n  \"password\": \"{{invitePassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/accept-invite",
+            "description": "D-23a: publiczny accept przy zajętym emailu → 401 + ten sam message co zły token; zakaz 409."
+          }
+        },
+        {
+          "name": "POST login as admin (collisionEmail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('admin session under collisionEmail', function () {",
+                  "  pm.expect(body.user.role).to.eql('admin');",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get('collisionEmail'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{collisionEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "D-23a: po clear jar login admina pod aktualnym emailem (`collisionEmail`) → GET invitations + restore."
+          }
+        },
+        {
+          "name": "GET invitations after collision revoke",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "const collisionId = pm.collectionVariables.get('collisionInvitationId');",
+                  "const collisionEmail = pm.collectionVariables.get('collisionEmail');",
+                  "pm.test('collision invite not pending', function () {",
+                  "  pm.expect(body.items).to.be.an('array');",
+                  "  const byId = body.items.find(function (row) { return row.id === collisionId; });",
+                  "  pm.expect(byId, 'collisionInvitationId must not be pending').to.be.undefined;",
+                  "  const byEmail = body.items.find(function (row) { return row.email === collisionEmail; });",
+                  "  pm.expect(byEmail, 'collisionEmail must not have pending invite').to.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/invitations",
+            "description": "D-23a: po 401 Invitation revoked — brak `collisionInvitationId` / `collisionEmail` na liście pending."
+          }
+        },
+        {
+          "name": "PATCH me/email restore adminEmail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('admin email restored', function () {",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get('adminEmail'));",
+                  "  pm.expect(body.role).to.eql('admin');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"currentPassword\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/me/email",
+            "description": "D-23a cleanup: przywróć `adminEmail`, żeby nie psuć Accept-invite / reszty kolekcji."
           }
         }
       ]

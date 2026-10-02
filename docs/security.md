@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-09-29
-data_modyfikacji: 2026-09-29
+data_modyfikacji: 2026-10-01
 ---
 
 # Bezpieczeństwo — Content Chain
@@ -69,7 +69,9 @@ Przy `PATCH /api/v1/auth/me/email` pole `currentPassword` jest weryfikowane **ta
 
 Porównanie i unique `email` (**User** i **Invitation**) są **case-sensitive**, jak `findForAuth` / `User.email` dziś. Świadomie **bez** `trim` / `toLowerCase`. `Ada@x` i `ada@x` to dwa różne adresy.
 
-Na publicznym `accept-invite` kolizja `User.email` (P2002) → **409** `CONFLICT` jest **świadoma** (enumeracja „email zajęty”) — **nie** maskować jako `401`.
+Na **publicznym** `POST /auth/accept-invite` kolizja `User.email` (P2002; aktywny albo soft-deleted) → **401** `UNAUTHORIZED` z **identycznym** `code` + `message` co przy złym / zużytym / `revoked` / wygasłym tokenie (np. `Invalid invitation token`). **Zakaz** odrębnego statusu lub kodu zdradzającego istnienie `User` (w tym „email zajęty”). Przy kolizji zaproszenie należy **unieważnić** (`revoked` lub równoważne zużycie tokenu **bez** utworzenia `User`), żeby ten sam raw token nie został „żywy” `pending`. Kolizja to edge (race, soft-deleted zajmujący email) — naprawa po stronie operatora (Users / nowe zaproszenie), nie przez **409** dla gościa z linkiem. Admin nadal widzi użytkowników i soft-delete; **409** przy `POST /invitations` (istniejący User / drugi pending) oraz przy `PATCH /auth/me/email` **zostaje** — inny threat model (sesja admina / zalogowany).
+
+Zmiana względem: kolizja na accept-invite → **409** `CONFLICT` jako świadoma enumeracja „email zajęty” / „nie maskować jako 401”. Powód: publiczny endpoint nie może być probe istnienia konta.
 
 ## Sesje (JWT + cookie)
 

@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-09-30
+data_modyfikacji: 2026-10-01
 ---
 
 # Testy — Content Chain
@@ -69,7 +69,7 @@ Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATE
 
 - Bramka: niekompletny kontekst → brak startu runu (`CONTEXT_INCOMPLETE`).
 - Authz: `user` nie zapisze kontekstu; `admin` tak; obaj mogą startować run (przy kompletności).
-- Zaproszenia (E2E API / Postman, adapter logujący): happy path `POST /invitations` (admin) → token z logu api → `POST /auth/accept-invite` (bez cookie admina) → `POST /auth/login` nowym kontem. `user` nie zaprasza (**403**). Drugi `POST` przy `pending` (także wygasłym) → **409**. Wygasły token → **401** na accept; wiersz nadal na `GET /invitations` (pending). Soft-delete jak dotychczas (`DELETE /users/:id` → `isActive = false`; nieaktywny nie loguje się).
+- Zaproszenia (E2E API / Postman, adapter logujący): happy path `POST /invitations` (admin) → token z logu api → `POST /auth/accept-invite` (bez cookie admina) → `POST /auth/login` nowym kontem. `user` nie zaprasza (**403**). Drugi `POST /invitations` przy `pending` (także wygasłym) → **409**. Wygasły token → **401** na accept; wiersz nadal na `GET /invitations` (pending). Negatyw: ważny token + istniejący `User` (ten sam email, także soft-deleted) → **401** `UNAUTHORIZED` z tym samym `message` co zły token; Invitation po próbie `revoked` (lub równoważnik); **nie** **409**. Soft-delete jak dotychczas (`DELETE /users/:id` → `isActive = false`; nieaktywny nie loguje się).
 - Cookie auth: chronione trasy bez sesji → `UNAUTHORIZED`.
 - `post_ideas` full-auto: queued→running→completed; logi + wynik w DB.
 - `post_ideas_then_content`: `awaiting_hitl` → resume → `contents[]` → completed. Dwuetapowy Social: case **2 z N** (pozytyw) oraz **0 / obcy / duplikat** (negatyw 400 `HITL_INVALID_SELECTION`) — D-21 w `spec/SPEC-TESTY.md`.

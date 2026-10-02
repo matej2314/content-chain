@@ -1,7 +1,7 @@
 ---
-wersja: 10
+wersja: 11
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-30
+data_modyfikacji: 2026-10-01
 ---
 
 # SPEC — Persistence
@@ -51,7 +51,11 @@ Kanon tabel (Auth): model **`Invitation`** (lub równoważna nazwa) — `id` (`i
 
 **D17:** migracja SQL `UNIQUE (email) WHERE status = 'pending'` (komentarz w `schema.prisma` jak `User_one_admin`; Prisma 6 nie wyrazi partial unique; indeks **bez** `purpose`). Wygasły wiersz zostaje `status = pending` — indeks nadal blokuje drugi `POST`.
 
-**D16:** accept-invite = **jedna** transakcja Prisma: `users.create(role=user)` **oraz** Invitation → `accepted`.
+**D16:** accept-invite happy path = **jedna** transakcja Prisma: `users.create(role=user)` **oraz** Invitation → `accepted`.
+
+Ścieżka kolizji (P2002 / `User.email` zajęty, aktywny albo soft-deleted): **brak** `User` z tej próby; Invitation → `revoked` (nie `accepted`); brak „sukcesu” create. Atomowość jak happy path — revoke (lub równoważne zużycie) w tej samej transakcji / atomowym kroku co próba create. Semantyka HTTP: `SPEC-AUTH.md` A-7b (**401**, nie 409).
+
+Zmiana względem wersji 10 / D16: wyłącznie happy path create+`accepted`. Od tej wersji jawna ścieżka P2002 → revoke bez User.
 
 **D18:** `email` na `User` i `Invitation` **bez** normalizacji (`trim` / `toLowerCase`); unique i porównanie case-sensitive.
 
@@ -144,12 +148,14 @@ apps/api/
 - `DELETE` runów / wyników w ramach TTL przeglądu lub auto-finalize (obowiązuje UPDATE `reviewFinalizedAt`).
 - Traktowania `reviewExpiresAt` jako kolumny DB.
 - Używania `updatedAt` jako bieżącej kotwicy TTL po wdrożeniu (wyjątek: jednorazowy backfill B).
+- Pozostawiania Invitation w `pending` po nieudanej próbie create przy kolizji `User.email` na accept-invite (D16: revoke / równoważnik; nie `accepted` bez User).
 
 Zmiana względem wersji 3 / „Nie wolno”: dopisano zakaz reuse kolumn refine Social na Content.
 Zmiana względem wersji 4 / „Nie wolno”: dopisano zakaz zbędnej migracji `brief`.
 Zmiana względem wersji 5 / „Nie wolno”: dopisano zakaz osobnych tabel case studies zamiast `extras` Json.
 Zmiana względem wersji 7 / „Nie wolno”: dopisano zakaz „User pending z pustym hasłem” oraz obejścia unique pending.
 Zmiana względem wersji 9 / „Nie wolno”: dopisano zakazy DELETE przy TTL oraz `reviewExpiresAt` jako kolumny / `updatedAt` jako bieżącej kotwicy.
+Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz żywego `pending` po P2002 na accept-invite.
 
 ### Zatwierdzony stack (obszar)
 
@@ -173,6 +179,7 @@ Zmiana względem wersji 9 / „Nie wolno”: dopisano zakazy DELETE przy TTL ora
 - [ ] Model `Run` ma `cancelledAt`, `cancelRequested`, `pipelineFinishedAt` oraz dopuszcza status `cancelled` (migracja w historii Prisma); istnieje indeks wspierający zapytanie sweepera.
 - [ ] Migracja backfill B ustawia tylko kotwicę (`updatedAt` else `createdAt`); **bez** ustawiania `reviewFinalizedAt` w migracji.
 - [ ] W dokumentacji implementacyjnej / README ops jest jasne: cutover PostgreSQL = nowa historia migracji + pusta baza + opcjonalny import danych; SQLite tylko MVP; V1 — rozbudowa = PostgreSQL.
+- [ ] Accept-invite D16: happy path = jedna transakcja create User + `accepted`; kolizja P2002 → brak User, Invitation `revoked` (nie żywego `pending`).
 
 ## Poza zakresem
 

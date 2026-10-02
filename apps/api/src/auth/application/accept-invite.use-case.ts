@@ -53,7 +53,12 @@ export class AcceptInviteUseCase {
       passwordHash,
     });
     if (!created.ok) {
-      throw new DomainException('CONFLICT', 'Email already in use', 409);
+      // A-7b: maskowanie kolizji email jak nieważny token (zakaz 409 na tej trasie).
+      throw new DomainException(
+        'UNAUTHORIZED',
+        'Invalid invitation token',
+        401,
+      );
     }
 
     return {

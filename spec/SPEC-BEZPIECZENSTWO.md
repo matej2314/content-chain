@@ -1,7 +1,7 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-29
+data_modyfikacji: 2026-10-01
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -41,7 +41,11 @@ B-7. `GET /api/v1/health` może być bez auth do probe — **bez** wrażliwych d
 
 B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, **`SMTP_PASS`**, klucze vendorów, **raw token zaproszenia**) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, treści opinii (`Feedback.body`), labelach Prometheus, stdout procesu w `production`. Dump treści hopu chat na stdout adaptera LLM **wyłącznie** przy `NODE_ENV=development`; w polach tekstowych wartość `GATEWAY_KEY` zastępowana `[REDACTED]`. **Wyjątek `development`:** wolno zalogować URL akceptacji zaproszenia (odpowiednik treści maila). Nie rozluźniać B-8 dla `production`.
 
-**503** `MAIL_DELIVERY_FAILED` **nie** jest wyciekiem sekretu — w `details` wyłącznie `id` zaproszenia (`docs/dokumentacja_komunikacji.md`). **409** `CONFLICT` przy zajętym `User.email` na publicznym accept-invite **oraz** na `PATCH /auth/me/email` jest **kanonem** (świadoma enumeracja) — nie luką do „naprawienia” na `401`.
+**503** `MAIL_DELIVERY_FAILED` **nie** jest wyciekiem sekretu — w `details` wyłącznie `id` zaproszenia (`docs/dokumentacja_komunikacji.md`).
+
+Na **publicznym** `POST /auth/accept-invite` kolizja `User.email` (aktywny albo soft-deleted) → **401** `UNAUTHORIZED` z **identycznym** `code` + `message` co przy złym / zużytym / `revoked` / wygasłym tokenie; Invitation → `revoked` (bez `User`). **Zakaz** **409** / osobnego kodu zdradzającego istnienie konta na tej trasie. **409** `CONFLICT` przy zajętym emailu na `PATCH /auth/me/email` **oraz** na admin `POST /invitations` **zostaje** (inny threat model — sesja). Szczegóły: `SPEC-AUTH.md` A-7b, `docs/security.md`.
+
+Zmiana względem wersji 9 / B-8: **409** na publicznym accept-invite **oraz** na `PATCH /auth/me/email` było kanonem (świadoma enumeracja; „nie luką do naprawy na 401”). Od tej wersji accept-invite = maskowanie **401**; **409** tylko na sesyjnych trasach.
 
 Zmiana względem wersji 5: enumeracja `409` na zajęty email obejmowała tylko accept-invite.
 
@@ -83,6 +87,7 @@ B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/s
 - Dumpa pełnych promptów hopu gateway na stdout w `production` (w tym przy `NODE_ENV=production`).
 - Tokenu sesji w query string (SSE/API).
 - Raw tokenu zaproszenia w JSON-ie admina ani w logach `production`.
+- Publicznego `accept-invite` zwracającego **409** / „email zajęty” przy kolizji `User.email` (B-8 / A-7b).
 - Drugiego `admin` w MVP.
 - `Authorization: Bearer` jako modelu auth MVP.
 - Cichego fallbacku kontekstu z `.md` (`SPEC-PERSISTENCE.md`).

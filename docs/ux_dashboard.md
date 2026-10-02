@@ -1,7 +1,7 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-09-30
+data_modyfikacji: 2026-10-01
 ---
 
 # UX Dashboard — Content Chain
@@ -249,7 +249,11 @@ Authz selecta runów: wyłącznie runy autora; obcy `userId` → api `403`.
 
 **Akceptacja zaproszenia (publiczna, MVP):** trasa **`/invite/accept?token=`** (ten sam kształt, który api wkłada do maila jako `{APP_PUBLIC_URL}/invite/accept?token=…`) — **nie** strona główna. Formularz pierwszego hasła (polityka z `security.md`) → `POST /auth/accept-invite` → **strona główna (logowanie)**. Dashboard dopiero po udanym `POST /auth/login`. Trasa poza layoutem zalogowanego.
 
-Zmiana względem: widok Users i accept-invite jako „przyszły FE / gdy ekran powstanie”; implementacja UI była odkładana względem DoD API. Od tej wersji oba ekrany są kanonem UX MVP.
+Błędy na tej powierzchni: **wyłącznie** `message` z envelope na karcie (bez Toastera — jak login / bootstrap). Kolizja email i nieważny token przychodzą jako ten sam **401** — UI **nie** ma osobnego copy „email zajęty” ani gałęzi na **409** `CONFLICT` z tej trasy. Opcjonalnie stała pomocnicza (bez leak z API): ogólne „Nie można dokończyć zaproszenia. Skontaktuj się z administratorem.” — **tylko** jeśli nadal mapowane z tego samego 401 (bez rozróżniania przyczyn po `code`).
+
+Zmiana względem: widok Users i accept-invite jako „przyszły FE / gdy ekran powstanie”; implementacja UI była odkładana względem DoD API. Od wcześniejszej wersji oba ekrany są kanonem UX MVP.
+
+Zmiana względem: założenie, że FE może rozróżnić kolizję email (**409**) od złego tokenu na accept-invite. Od tej wersji obie sytuacje = ten sam **401** / ten sam kanał envelope.
 
 ## Stany puste i błędy
 

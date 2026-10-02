@@ -1,7 +1,7 @@
 ---
-wersja: 13
+wersja: 14
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-29
+data_modyfikacji: 2026-10-01
 ---
 
 # SPEC — Auth
@@ -99,7 +99,9 @@ A-7a. `POST /api/v1/invitations` — tylko `admin`; body `{ email }` (bez hasła
 
 Zmiana względem wersji 11 / A-7a: kształt deep linku nie był w SPEC (żył tylko w kodzie mailera).
 
-A-7b. `POST /api/v1/auth/accept-invite` — publiczny (`@Public()`); body `{ token, password }`. Walidacja tokenu i polityki A-5 **przed** transakcją (zły token / hasło → wiersz zaproszenia **bez zmian**). Potem **jedna** transakcja Prisma: `users.create(role=user)` **oraz** Invitation → `accepted` (wzorzec jak `createAdminIfNone`). **Nie** woła `setAuthCookies`. Token zły / zużyty / `revoked` / wygasły → **401** `UNAUTHORIZED` (ten sam komunikat — brak enumeracji tokenu). Hasło poza A-5 → **400** `VALIDATION_FAILED`. Kolizja `User.email` w transakcji (P2002) → **409** `CONFLICT` (świadoma enumeracja; nie maskować jako `401`). **201** `{ "user": { "id", "email", "role" } }`.
+A-7b. `POST /api/v1/auth/accept-invite` — publiczny (`@Public()`); body `{ token, password }`. Walidacja tokenu i polityki A-5 **przed** transakcją (zły token / hasło → wiersz zaproszenia **bez zmian**). Happy path: **jedna** transakcja Prisma: `users.create(role=user)` **oraz** Invitation → `accepted` (wzorzec jak `createAdminIfNone`). **Nie** woła `setAuthCookies`. Token zły / zużyty / `revoked` / wygasły → **401** `UNAUTHORIZED` (ten sam komunikat — brak enumeracji tokenu). Hasło poza A-5 → **400** `VALIDATION_FAILED`. Kolizja `User.email` (P2002; aktywny albo soft-deleted) przy ważnym tokenie `pending` → **401** `UNAUTHORIZED` z **identycznym** `code` + `message` co przy złym tokenie (np. `Invalid invitation token`); **brak** `User`; Invitation → `revoked` (lub równoważne zużycie tokenu **bez** utworzenia `User`) w tej samej transakcji / atomowym kroku co próba create. **Zakaz** **409** / osobnego komunikatu „email zajęty” na tej publicznej trasie. **201** `{ "user": { "id", "email", "role" } }`.
+
+Zmiana względem wersji 13 / A-7b: kolizja email → **409** `CONFLICT` (świadoma enumeracja; „nie maskować jako 401”). Od tej wersji: maskowanie **401** + revoke Invitation — `docs/security.md`, `docs/dokumentacja_komunikacji.md`.
 
 A-7c. Resend (`POST /api/v1/invitations/:id/resend`): rotacja tokenu (nowy raw, nowy hash, nowy `expiresAt`; stary nieważny) + ponowny mail; ten sam `id`. Brak / nie-pending → **404**. Pad SMTP → **503** + to samo `id` jak A-7a. Revoke (`DELETE /api/v1/invitations/:id`): `pending` → `revoked` (nie twardy DELETE wiersza); po revoke nowy `POST` na ten email dozwolony, o ile nie ma `User`.
 
@@ -179,6 +181,9 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - `PATCH /users/:id` z `role` / `email` / `password` albo `isActive: false` (dezaktywacja wyłącznie DELETE). Własny email = wyłącznie `PATCH /auth/me/email` (A-3b).
 - Refresh wyłącznie jako JWT w cookie **bez** wpisu w DB.
 - Wycieku hashów haseł, sekretów JWT, plaintext refresh ani raw tokenu zaproszenia (w `production`) do logów / envelope.
+- **409** `CONFLICT` / odrębnego kodu „email zajęty” na publicznym `POST /auth/accept-invite` przy kolizji `User.email` — obowiązuje **401** jak nieważny token + revoke (A-7b). **409** na `POST /invitations` i `PATCH /auth/me/email` **zostaje**.
+
+Zmiana względem wersji 13 / „Nie wolno”: brak zakazu 409-enumeracji na accept-invite (wcześniej A-7b nakazywało 409).
 
 ### Zatwierdzony stack (obszar)
 
@@ -205,6 +210,7 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - [ ] Admin zaprasza (`POST /invitations`, tylko email) → pending + mail; konto `user` powstaje przez accept-invite → login; raw token nie wraca w JSON admina.
 - [ ] Drugi `POST /invitations` przy `pending` (także wygasłym) → **409**; `GET` pending obejmuje wygasłe.
 - [ ] Zużyty / wygasły / revoked token → **401** na accept-invite; hasło poza A-5 → **400** (pending bez zmian).
+- [ ] Kolizja `User.email` (także soft-deleted) przy ważnym tokenie → **401** `UNAUTHORIZED`, ten sam `message` co zły token; Invitation → `revoked`; **nie** **409**; brak `User` z tej próby.
 - [ ] Pad SMTP po zapisie (gdy testowany adapter SMTP) → **503** `MAIL_DELIVERY_FAILED` + `details.id`.
 - [ ] DELETE użytkownika = soft-delete; nieaktywny nie loguje się.
 - [ ] PATCH `{ isActive: true }` na soft-deleted `user` → 200 `isActive: true`; potem login tym kontem → 200. `isActive: false` / `role` w body → 400. `user` woła PATCH → 403. PATCH admina → 403.

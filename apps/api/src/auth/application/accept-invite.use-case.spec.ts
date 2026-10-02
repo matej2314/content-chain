@@ -158,7 +158,7 @@ describe('AcceptInviteUseCase', () => {
     expect(acceptAndCreateUser).not.toHaveBeenCalled();
   });
 
-  it('rejects when acceptAndCreateUser reports email-taken', async () => {
+  it('rejects email-taken with the same UNAUTHORIZED envelope as a bad token', async () => {
     const useCase = new AcceptInviteUseCase(
       unusedInvitations({
         findPendingByHash: async () => makeInvitation(),
@@ -173,9 +173,9 @@ describe('AcceptInviteUseCase', () => {
       useCase.execute({ token: RAW_TOKEN, password: PASSWORD }),
     ).rejects.toMatchObject({
       name: 'DomainException',
-      code: 'CONFLICT',
-      httpStatus: 409,
-      message: 'Email already in use',
+      code: 'UNAUTHORIZED',
+      httpStatus: 401,
+      message: 'Invalid invitation token',
     });
   });
 

@@ -4,7 +4,7 @@
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 
 **Źródła:** `docs/`, `spec/SPEC-*.md` (w tym `SPEC-CONTENT.md`), `content-chain_brief.md` (kontekst kolejności budowy; kanały MVP nadpisane przez docs 2026-08-31), `update-mvp-contract-plan.md` (Faza 4.3), `multi-hitl-plan.md` (HITL Social min. 1 / N→N — legalizacja kanonu Fazy 4.3), `auto-close-review-plan.md` (Faza 14 — TTL / auto-finalize przeglądu).  
-**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (`WYKONANY`) — Zod 4 w `apps/api`; bez własnego milestone’u. **Faza 10** (`WYKONANY`) — kontrakt api wymagany przez `content-chain-frontend_major_plan.md` (edycja wyniku, własny email, filtr wielowartościowy `GET /runs`); **bez** zmiany MILESTONE 6 (`OSIĄGNIĘTY`) i **bez** MILESTONE 10. **Faza 11** (`WYKONANY`) — twardy zapis kontekstu firmy (PUT/PATCH wyłącznie przy kompletnej bramce); **bez** zmiany MILESTONE 3 (`OSIĄGNIĘTY`) i **bez** MILESTONE 11. Faza 3 / Krok 3.1 i MILESTONE 3 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`). **Faza 12** (`WYKONANY`) — anulowanie runu (`cancelled`): gate normy + HOW w feature-planie; **bez** MILESTONE 12 i **bez** kroków implementacji kodu w tym majorze; MILESTONE 6 / 3 / … bez zmian (`OSIĄGNIĘTY`). **Faza 13** (`WYKONANY`) — re-auth hasłem przy `PATCH /auth/me/email` (rozszerzenie kontraktu względem Fazy 10 / Kroku 10.2): gate normy + HOW w feature-planie; **bez** MILESTONE 13 i **bez** kroków implementacji kodu w tym majorze; Faza 10 / Krok 10.2 / MILESTONE 5 / 6 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`). **Faza 14** (`WYKONANY`) — auto-finalize przeglądu runu (`REVIEW_TTL`): gate normy + HOW w feature-planie; **bez** MILESTONE 14 i **bez** kroków implementacji kodu w tym majorze; Faza 6 / Krok 6.3 / Faza 10 / Krok 10.1 / MILESTONE 6 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`).
+**Kolejność priorytetów:** Faza 7 (`WYKONANY`) i Faza 8 (`WYKONANY`) — **Faza 4** (`WYKONANY`) / Milestone 4 (`OSIĄGNIĘTY`), **Faza 4.1** (`WYKONANY`), **Faza 4.2** (`WYKONANY`) / Milestone 4.2 (`OSIĄGNIĘTY`), **Faza 4.3** (`WYKONANY`) / Milestone 4.3 (`OSIĄGNIĘTY`), **Faza 5** (`WYKONANY`) / Milestone 5 (`OSIĄGNIĘTY`), **Faza 6** (`WYKONANY`) / Milestone 6 (`OSIĄGNIĘTY`). Faza 7 i Faza 8 nie mają własnego milestone’u. **Faza 9** (`WYKONANY`) — Zod 4 w `apps/api`; bez własnego milestone’u. **Faza 10** (`WYKONANY`) — kontrakt api wymagany przez `content-chain-frontend_major_plan.md` (edycja wyniku, własny email, filtr wielowartościowy `GET /runs`); **bez** zmiany MILESTONE 6 (`OSIĄGNIĘTY`) i **bez** MILESTONE 10. **Faza 11** (`WYKONANY`) — twardy zapis kontekstu firmy (PUT/PATCH wyłącznie przy kompletnej bramce); **bez** zmiany MILESTONE 3 (`OSIĄGNIĘTY`) i **bez** MILESTONE 11. Faza 3 / Krok 3.1 i MILESTONE 3 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`). **Faza 12** (`WYKONANY`) — anulowanie runu (`cancelled`): gate normy + HOW w feature-planie; **bez** MILESTONE 12 i **bez** kroków implementacji kodu w tym majorze; MILESTONE 6 / 3 / … bez zmian (`OSIĄGNIĘTY`). **Faza 13** (`WYKONANY`) — re-auth hasłem przy `PATCH /auth/me/email` (rozszerzenie kontraktu względem Fazy 10 / Kroku 10.2): gate normy + HOW w feature-planie; **bez** MILESTONE 13 i **bez** kroków implementacji kodu w tym majorze; Faza 10 / Krok 10.2 / MILESTONE 5 / 6 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`). **Faza 14** (`WYKONANY`) — auto-finalize przeglądu runu (`REVIEW_TTL`): gate normy + HOW w feature-planie; **bez** MILESTONE 14 i **bez** kroków implementacji kodu w tym majorze; Faza 6 / Krok 6.3 / Faza 10 / Krok 10.1 / MILESTONE 6 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`). **Faza 15** (`NIE_ROZPOCZĘTY`) — anti-enumeration na `POST /auth/accept-invite` (kolizja email → **401** + revoke, bez **409**): gate normy + HOW w feature-planie; **bez** MILESTONE 15 i **bez** kroków implementacji kodu w tym majorze; Faza 5 / Krok 5.2 / MILESTONE 5 pozostają historią (`WYKONANY` / `OSIĄGNIĘTY`).
 
 **Statusy (fazy / kroki):** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`  
 **Milestone:** domyślnie **bez statusu**; po spełnieniu DoD → wyłącznie `OSIĄGNIĘTY`
@@ -1260,6 +1260,37 @@ Zmiana względem: status Fazy 14 (`NIE_ROZPOCZĘTY`). Powód: ślad do major po 
 
 ---
 
+## Faza 15 — Anti-enumeration na `accept-invite` — norma gotowa pod feature-plan
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Bez MILESTONE 15** — gate normy i gotowości pod osobny feature-plan; nie skok implementacyjny w tym majorze.
+
+**Refaktor względem:** Faza 5 Auth / Krok 5.2 (`WYKONANY`) — kontrakt `POST /auth/accept-invite` z **409** `CONFLICT` przy zajętym `User.email` (świadoma enumeracja). MILESTONE 5 / Faza 5 / 5.2 pozostają historią (`OSIĄGNIĘTY` / `WYKONANY`).
+
+**Zależność:** docs + SPEC z kanonem anti-enumeration na `accept-invite` (kolizja email → **401** + revoke) **wykonane** zanim powstanie feature-plan implementacyjny.
+
+**Zależność FE:** `content-chain-frontend_major_plan.md` Faza 11 (gate UX błędów accept-invite bez enumeracji) — implementacja UI po kontrakcie api w osobnych feature-planach.
+
+**Opis:** Ta faza majoru **nie** zawiera kroków implementacji kodu. Oznacza, że norma produktowa i egzekwowalna jest w `docs/` + `spec/` (publiczny `POST /auth/accept-invite`: kolizja `User.email` — aktywny lub soft-deleted — → **401** `UNAUTHORIZED` z **identycznym** `code` + `message` co przy złym / zużytym / revoked / wygasłym tokenie; **zakaz** **409** na tej trasie z powodu email; po kolizji Invitation → `revoked` lub równoważne zużycie tokenu **bez** utworzenia `User`; hasło poza polityką nadal **400** `VALIDATION_FAILED`; happy path nadal **201** + user, **bez** Set-Cookie) i wolno otworzyć feature-plan BE bez dalszej zmiany kanonu w `docs/` + `spec/`. **HOW i kod** w feature-planie biorą kanon z aktualnych `docs/` + `spec/` — **nie** z treści Fazy 5 / Kroku 5.2 (`WYKONANY`; **409** „Email already in use” na accept-invite jest historyczne).
+
+**Poza zakresem tej fazy majoru:** implementacja w `apps/api`; kroki kodu w tym pliku; UI accept-invite (major FE); **409** na admin `POST /invitations` / drugi pending; **409** na `PATCH /auth/me/email`; open registration / resend activation.
+
+**Zakres HOW (wskazówka pod przyszły feature-plan — nie kroki tego majoru):**
+
+1. `AcceptInviteUseCase` / adapter Prisma: mapowanie `!created.ok` / P2002 → `UNAUTHORIZED` + ten sam message co zły token (np. `Invalid invitation token`).
+2. Transakcja / atomowy krok: przy kolizji email — Invitation → `revoked` (nie `accepted`); brak utworzenia `User`.
+3. Happy path bez regresji: **201** + user; nadal **brak** Set-Cookie na accept.
+4. Testy jednostkowe + e2e / Postman: negatyw „User już istnieje + ważny token” → **401** (nie **409**); Invitation po próbie `revoked`; regresja happy path accept → login.
+
+**DoD (faza-gate):**
+
+- docs + SPEC: accept-invite bez 409-enumeracji email; kolizja → **401** + revoke invite.
+- Istnieje ścieżka do feature-planu BE bez luk decyzyjnych w docs/spec.
+- Ten major nie oznacza implementacji jako `WYKONANY` z tej fazy-gate.
+
+---
+
 ## Mapa odwołań (lekka)
 
 | Obszar | Docs / SPEC |
@@ -1284,4 +1315,5 @@ Zmiana względem: status Fazy 14 (`NIE_ROZPOCZĘTY`). Powód: ślad do major po 
 | Faza 12 — anulowanie runu (`cancelled`, gate) | `SPEC-RUNY.md` R-4a / R-9 / R-10 / R-11, `SPEC-KOMUNIKACJA.md`, `SPEC-FEEDBACK.md` Fbk-3a, `SPEC-TESTY.md` D-30…D-34, `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md` §6a, `docs/observability.md`, `docs/ux_dashboard.md`, `feature-plans/wykonane/content-chain_feature_plan_faza-12-cancel.md` |
 | Faza 13 — re-auth przy zmianie własnego emaila (gate) | `docs/security.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-AUTH.md` A-3b, `SPEC-KOMUNIKACJA.md` K-2d, `SPEC-BEZPIECZENSTWO.md` B-8a, `SPEC-TESTY.md` D-27, `content-chain-frontend_major_plan.md` Faza 9, `feature-plans/wykonane/content-chain_feature_plan_faza-13-reauth-email.md` |
 | Faza 14 — auto-finalize przeglądu (`REVIEW_TTL`, gate) | `auto-close-review-plan.md`, `docs/dictionary.md`, `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md`, `docs/deployment.md`, `docs/anty_patterny.md`, `docs/testy.md`, `SPEC-RUNY.md` R-10, `SPEC-PERSISTENCE.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-TESTY.md` D-35…D-40, `content-chain-frontend_major_plan.md` Faza 10 (planowany gate UX), `feature-plans/wykonane/content-chain_feature_plan_faza-14-auto-finalize-review.md` |
+| Faza 15 — anti-enumeration na `accept-invite` (gate) | `docs/security.md`, `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`, `docs/anty_patterny.md`, `docs/ux_dashboard.md`, `docs/testy.md`, `SPEC-AUTH.md`, `SPEC-BEZPIECZENSTWO.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-PERSISTENCE.md`, `SPEC-TESTY.md`, `content-chain-frontend_major_plan.md` Faza 11 (planowany gate UX) |
 | Kolejność budowy | `docs/dokumentacja_koncepcyjna.md`, `content-chain_brief.md` |

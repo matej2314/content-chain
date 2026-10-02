@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-30
+data_modyfikacji: 2026-10-01
 ---
 
 # Anty-patterny — Content Chain
@@ -15,6 +15,8 @@ Zmiana względem: brak wierszy o TTL / sweeperze przeglądu. Od tej wersji zakaz
 Zmiana względem: brak wierszy o `cancelled` / Stop. Od tej wersji zakazy utożsamiania terminali, resume po cancel, rollbacku, Stop w boxie, cancel bez modala, natychmiastowego ukrycia boxa bez labelu, podwójnego toasta, admin-cancel i await execute w HTTP cancel.
 
 Zmiana względem: „Envelope (`code` + `message`) w miejscu błędu”. Od tej wersji przy polu / bloku obowiązuje wyłącznie **`message`** (bez `code` w UI) — `docs/ux_dashboard.md`.
+
+Zmiana względem: brak wiersza o enumeracji email na publicznym accept-invite. Od tej wersji zakaz **409** / „email zajęty” na tej trasie — `security.md`.
 
 ---
 
@@ -130,6 +132,7 @@ Zmiana względem: „Envelope (`code` + `message`) w miejscu błędu”. Od tej 
 | Multi-tenant „przy okazji” (kontekst per user) | Inny produkt niż self-host jednej firmy | Jeden kontekst na instancję |
 | Drugi `admin` / awans user→admin w MVP | Łamie `security.md` | Tylko bootstrap jednego admina; potem wyłącznie `user` (przez zaproszenie) |
 | Admin ustawia hasło `user` / hasło w mailu / `POST /users` z `password` | Łamie kanon zaproszeń; admin zna sekret konta | Admin podaje **tylko email**; pierwsze hasło ustawia zaproszony na `accept-invite` |
+| Publiczny `accept-invite` zwraca **409** / „email zajęty” przy kolizji `User.email` | Enumeracja kont bez sesji; probe istnienia `User` | **401** `UNAUTHORIZED`, ten sam `message` co zły token; revoke Invitation; **409** zostaje na admin `POST /invitations` i `PATCH /auth/me/email` (`security.md`) |
 | Nodemailer (lub inny SMTP client) w use-case / domain | Warstwa aplikacji zależy od vendora maila | Port mailera w Auth; adapter SMTP = nodemailer **tylko** w infrastructure |
 | Dwa `pending` na ten sam email (obejście bez indeksu SQL) | Wyścig `POST /invitations`; dwa ważne tokeny | Partial unique SQL `UNIQUE (email) WHERE status = 'pending'` (jak `User_one_admin`) |
 | OAuth w MVP „bo tak się robi” | Opóźnia dowód pipeline’u | JWT w httpOnly `cc_access` + `cc_refresh`, 2 role |

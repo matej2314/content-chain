@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-30
+data_modyfikacji: 2026-10-01
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -77,7 +77,7 @@ Wybrane kody domenowe:
 | `REVIEW_LOCKED` | 409 | Przegląd zamknięty (`reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL`) — zmiana oceny / Edytuj / finalize zabroniona; po samym TTL **bez** side-effect UPDATE `reviewFinalizedAt` |
 | `RUN_NOT_REVIEWABLE` | 409 | **Przegląd** (ocena / Edytuj / finalize): status inny niż `completed` \| `failed` (w tym `cancelled`). **Opinia** `POST /feedback` `targetType=run`: poza oknem `completed` \| `failed` \| (`cancelled` **z** wynikiem — dowolne nie-`null` pole wyniku w snapshotcie); `cancelled` bez wyniku → ten kod |
 | `RUN_NOT_CANCELABLE` | 409 | Cancel gdy status już `completed` \| `failed` (wyścig z executorem) |
-| `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; `User.email` zajęty przy accept-invite **lub** `PATCH /auth/me/email` |
+| `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; istniejący `User` przy `POST /invitations`; `User.email` zajęty przy `PATCH /auth/me/email`. **Nie** dotyczy `POST /auth/accept-invite` (kolizja email → **401** `UNAUTHORIZED`) |
 | `MAIL_DELIVERY_FAILED` | 503 | Pad SMTP po zapisie zaproszenia (create / resend); w `details` wyłącznie `id` zaproszenia |
 | `INTERNAL_ERROR` | 500 | Błąd nieobsłużony |
 
@@ -185,9 +185,11 @@ Akceptacja zaproszenia — **`@Public()`**. Nie wymaga sesji i **nie** mylić z 
 |---------|------|--------|------------------------|
 | Token zły / zużyty / `revoked` / wygasły (`expiresAt < now`) | **401** | `UNAUTHORIZED` | ten sam komunikat (brak enumeracji tokenu); wiersz bez zmian przy złym tokenie |
 | Hasło poza polityką | **400** | `VALIDATION_FAILED` | wiersz zaproszenia **bez zmian** (walidacja **przed** transakcją) |
-| Email już zajęty (`User.email`, w tym soft-deleted) | **409** | `CONFLICT` | świadoma enumeracja „email zajęty” — **nie** maskować jako `401` |
+| Email już zajęty (`User.email`, w tym soft-deleted); token był ważny (`pending`) | **401** | `UNAUTHORIZED` | **identyczny** `code` + `message` co przy złym tokenie (np. `Invalid invitation token`); Invitation → `revoked` (lub równoważne zużycie **bez** `User`); **zakaz** **409** / osobnego komunikatu „email zajęty” |
 
-Atomowość: po walidacji tokenu i hasła **jedna** transakcja tworzy `User` (`role = user`) **oraz** ustawia Invitation na `accepted`. Szczegół transakcji = `spec/SPEC-AUTH.md` / `spec/SPEC-PERSISTENCE.md`.
+Zmiana względem: wiersz „Email już zajęty” → **409** `CONFLICT` / świadoma enumeracja / „nie maskować jako 401”. Od tej wersji: maskowanie jako **401** + unieważnienie zaproszenia. Historycznie **409** na tej trasie przy zajętym emailu **nie** obowiązuje.
+
+Atomowość happy path: po walidacji tokenu i hasła **jedna** transakcja tworzy `User` (`role = user`) **oraz** ustawia Invitation na `accepted`. Przy kolizji email: **brak** `User`; Invitation → `revoked` w atomowym kroku z próbą create. Szczegół transakcji = `spec/SPEC-AUTH.md` / `spec/SPEC-PERSISTENCE.md`.
 
 #### Users (admin)
 
@@ -244,7 +246,7 @@ Porównanie `email` (**Invitation** i **User**) jest **case-sensitive** — bez 
 
 Mail zawiera jednorazowy token (link + ten sam token jako tekst pod Postman). **Kanon URL w mailu:** `{APP_PUBLIC_URL}/invite/accept?token={raw}` — ta sama ścieżka co publiczny ekran FE (`docs/ux_dashboard.md`). **Nigdy** hasła. TTL zaproszenia: env `INVITE_TTL`, default **7 dni** (ten sam parser co JWT TTL, np. `7d`).
 
-**Weryfikacja MVP bez FE:** Postman (cookie jar admina z kolekcji auth) + token z ciała maila albo z logu api (`development`). Kolejność: login admina → `POST /invitations` → token z logu/maila → request **bez** cookie admina: `POST /auth/accept-invite` → `POST /auth/login` nowym kontem. Negatywy: drugi accept tego tokenu; `user` woła `POST /invitations` → 403; revoke / wygasły token; drugi `POST` przy istniejącym pending (w tym wygasłym) → 409.
+**Weryfikacja MVP bez FE:** Postman (cookie jar admina z kolekcji auth) + token z ciała maila albo z logu api (`development`). Kolejność: login admina → `POST /invitations` → token z logu/maila → request **bez** cookie admina: `POST /auth/accept-invite` → `POST /auth/login` nowym kontem. Negatywy: drugi accept tego tokenu → **401**; `user` woła `POST /invitations` → 403; revoke / wygasły token → **401**; ważny token + istniejący `User.email` (także soft-deleted) → **401** (ten sam `message` co zły token; invite `revoked`; **nie** 409); drugi `POST /invitations` przy istniejącym pending (w tym wygasłym) → 409.
 
 **UI dashboard (MVP):** admin podaje **email** (nie hasło) przy zaproszeniu; ekran akceptacji = publiczny formularz pierwszego hasła, potem osobne logowanie. Weryfikacja samego API = Postman (poniżej) — **nie** zastępuje ekranów w `ux_dashboard.md`.
 

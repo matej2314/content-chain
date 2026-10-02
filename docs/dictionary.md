@@ -1,7 +1,7 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-09-30
+data_modyfikacji: 2026-10-01
 ---
 
 # Słownik — Content Chain
@@ -80,7 +80,7 @@ Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez start
 | **Jedna firma / instancja** | Brak multi-tenant SaaS: wszyscy użytkownicy instancji dzielą jeden kontekst. |
 | **Bootstrap admin** | Utworzenie pierwszego konta administratora przy starcie self-host (first-run): email + hasło, **bez** maila i bez Invitation. Kontrast: pozostali `user` wyłącznie przez zaproszenie. |
 | **Zaproszenie (Invitation)** | Rekord zaproszenia e-mail na rolę `user` — **nie** jest kontem `User`. Status: `pending` \| `accepted` \| `revoked`. Admin podaje **tylko email**. W DB: hash tokenu (SHA-256), TTL, `purpose = invite` (MVP). Raw token jest w mailu (w `development` także w logu api); **nigdy** w JSON-ie odpowiedzi admina. Wiersz `User` (`role = user`) powstaje dopiero przy akceptacji. Wygaśnięcie: `expiresAt < now` przy walidacji (status **nie** przechodzi sam na „expired” — wygasły wiersz zostaje `pending`). |
-| **Akceptacja zaproszenia** | Publiczny `POST /api/v1/auth/accept-invite` `{ token, password }`: zaproszony ustawia **pierwsze** hasło (polityka z `security.md`). Tworzy `User` (`role = user`) i zużywa token. **Bez** Set-Cookie — potem zwykły `POST /auth/login`. Nie jest bootstrapem, otwartą rejestracją ani zmianą hasła zalogowanego (ta nadal poza MVP). Zmiana własnego emaila po sesji = widok **Konto** **z re-auth hasłem** (nie confirm mail w MVP). |
+| **Akceptacja zaproszenia** | Publiczny `POST /api/v1/auth/accept-invite` `{ token, password }`: zaproszony ustawia **pierwsze** hasło (polityka z `security.md`). Tworzy `User` (`role = user`) i zużywa token. **Bez** Set-Cookie — potem zwykły `POST /auth/login`. Kolizja `User.email` (także soft-deleted) → **401** jak nieważny token (bez enumeracji „email zajęty”) + unieważnienie Invitation. Nie jest bootstrapem, otwartą rejestracją ani zmianą hasła zalogowanego (ta nadal poza MVP). Zmiana własnego emaila po sesji = widok **Konto** **z re-auth hasłem** (nie confirm mail w MVP). |
 
 ## Architektura i runtime
 
@@ -212,7 +212,7 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 | `REVIEW_LOCKED` | Przegląd zamknięty produktowo: `reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL` od `pipelineFinishedAt`. Mutacja oceny / Edytuj / finalize niedozwolona; przy samym TTL (przed sweeperem) **bez** side-effect UPDATE `reviewFinalizedAt`. |
 | `RUN_NOT_REVIEWABLE` | **Przegląd** (ocena / Edytuj / finalize): run nie jest `completed` ani `failed` (w tym `cancelled` → ten kod). **Opinia** `POST /feedback` `targetType=run`: dozwolone `completed` \| `failed` \| (`cancelled` **gdy** snapshot ma dowolne nie-`null` pole wyniku); `cancelled` bez wyniku → ten kod. Nie dotyczy opinii o aplikacji / agencie. Finalize **nie** zamienia kolejnego wpisu tekstowego na ten kod (`REVIEW_LOCKED` zostaje przy ocenie / fladze). |
 | `RUN_NOT_CANCELABLE` | Cancel (`POST .../cancel`) gdy status runu jest już `completed` \| `failed` (wyścig z executorem). HTTP **409**. |
-| `CONFLICT` | Niedozwolone przejście statusu / konflikt stanu (także: drugi `pending` na ten sam email; `User.email` już zajęty przy accept-invite **lub** `PATCH /auth/me/email`). |
+| `CONFLICT` | Niedozwolone przejście statusu / konflikt stanu (także: drugi `pending` na ten sam email; istniejący `User` przy `POST /invitations`; `User.email` już zajęty przy `PATCH /auth/me/email`). **Nie** oznacza kolizji email na `POST /auth/accept-invite` (tam maskowanie → **401** `UNAUTHORIZED`). |
 | `MAIL_DELIVERY_FAILED` | Pad SMTP **po** zapisie zaproszenia (create / resend). HTTP **503**; w `details` wyłącznie `id` zaproszenia (wiersz zostaje `pending`). Nie dotyczy adaptera logującego (`development` / `test`). |
 | `INTERNAL_ERROR` | Błąd nieobsłużony po stronie `apps/api`. |
 

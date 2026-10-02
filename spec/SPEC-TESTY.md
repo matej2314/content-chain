@@ -1,7 +1,7 @@
 ---
-wersja: 24
+wersja: 25
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-30
+data_modyfikacji: 2026-10-01
 ---
 
 # SPEC — Testy
@@ -74,6 +74,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-21 | HITL Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): 0 id, duplikat albo obcy id → **400** `HITL_INVALID_SELECTION` (bez zapisu, status `awaiting_hitl`); **2 poprawne** id → `completed` z 2 artefaktami (`contents[]` / `reelScripts[]`, `sourceIdeaId`); 1 poprawny → tablica długości 1 |
 | D-22 | GET result: `characterCount === body.length` (skalar lub każda pozycja `contents[]`); outline z `role` enum przechodzi parse; nieznany `role` → fail |
 | D-23 | Zaproszenie (admin, cookie): `POST /invitations` `{ email }` → pending; publiczny `POST /auth/accept-invite` `{ token, password }` → `User` `role=user`; potem `POST /auth/login` nowym kontem. Artefakt E2E: istniejąca kolekcja Postman (`T-5` — bez pinu runnera) |
+| D-23a | Negatyw accept-invite: ważny token `pending` + istniejący `User` (ten sam email, także soft-deleted) → **401** `UNAUTHORIZED` z **tym samym** `message` co zły token; Invitation po próbie `revoked` (lub zdefiniowany równoważnik); **asercja: nie 409**; brak nowego `User` z tej próby. Regresja: scenariusze / Postman expecting **409** na accept przy zajętym emailu — **unieważnione** |
 | D-24 | `user` woła `POST /invitations` → **403**. Drugi `POST` przy `pending` (także wygasłym) → **409**. `GET /invitations` zwraca też wygasłe pending |
 | D-25 | Soft-delete: `DELETE /users/:id` → `isActive = false`; nieaktywny nie loguje się (ten sam komunikat 401 co złe hasło — bez enumeracji) |
 | D-26 | Reaktywacja: `PATCH /users/:id` `{ isActive: true }` na soft-deleted `user` → **200** `isActive: true`; następnie `POST /auth/login` tym kontem → **200**. `isActive: false` → **400**. `user` woła PATCH → **403**. |
@@ -102,7 +103,7 @@ Zmiana względem wersji 19: dopisano D-29 (twardy zapis kontekstu — C-4). D-1�
 Zmiana względem wersji 18: T-5 i kryteria akceptacji obejmują też D-28 (wcześniej D-28 było w tabeli, bez jawnego pinu w T-5 / checklistcie D-1…D-28).
 Zmiana względem wersji 17: dopisano D-28 (filtr `status` wielowartościowy pod archiwum UI). D-1…D-27 bez kasowania treści.
 
-D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel) **oraz** D-35…D-40 (TTL przeglądu / sweeper). T-3 (cookie) **bez zmian**.
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-23a (kolizja email na accept → 401 + revoke) **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel) **oraz** D-35…D-40 (TTL przeglądu / sweeper). T-3 (cookie) **bez zmian**.
 
 Zmiana względem wersji 16: dopisano D-27 (`PATCH /auth/me` email; 409 zajęty; `PATCH /users/:id` bez email). D-1…D-26 bez kasowania treści.
 Zmiana względem: D-27 rozszerzone o `currentPassword` / `INVALID_PASSWORD` / trasę `/auth/me/email`.
@@ -112,6 +113,9 @@ Zmiana względem wersji 14: dopisano D-26 (reaktywacja po soft-delete + login; `
 Zmiana względem wersji 13 / D-11: `POST /feedback` na własny run w toku nie był case’em DoD. Od tej wersji **409** `RUN_NOT_REVIEWABLE` (Fbk-3a); 201 tylko `completed` \| `failed`; drugi wpis nadal nowy wiersz (także po finalize).
 
 Zmiana względem wersji 12: dopisano D-23…D-25 (zaproszenie → accept → login; 403/409 pending; GET wygasłych; soft-delete). D-1…D-22 bez kasowania.
+
+Zmiana względem wersji 24: dopisano D-23a (kolizja email na accept → **401** + revoke; zakaz 409 / unieważnienie starych asercji 409). D-23 happy path **bez zmian**.
+
 Zmiana względem wersji 11 / D-16: asercja wyłącznie skalaru `reelScript.segments` na then_scripts — od tej wersji `reelScripts[]` + `sourceIdeaId`.
 Zmiana względem wersji 11 / D-21 (i v9: D-21 = 2+ → 400): 2 legalne id to pozytyw N→N; 400 tylko przy 0 / duplikacie / obcym id.
 
@@ -169,7 +173,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-40 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23…D-29, D-30…D-34, D-35…D-40) pokryte testami (warstwa adekwatna do przypadku).
+- [ ] Przypadki D-1…D-40 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23, D-23a, D-24…D-29, D-30…D-34, D-35…D-40) pokryte testami (warstwa adekwatna do przypadku).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

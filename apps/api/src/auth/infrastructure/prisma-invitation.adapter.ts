@@ -208,6 +208,12 @@ export class PrismaInvitationAdapter implements InvitationRepository {
       });
     } catch (error) {
       if (isUniqueConstraintViolation(error)) {
+        // Happy-path TX już zrollbackowana (P2002). Osobny atomowy krok:
+        // zużyj token bez User (A-7b / D16) — wzorzec jak createAdminIfNone po P2002.
+        await this.prisma.invitation.updateMany({
+          where: { id: input.invitationId, status: 'pending' },
+          data: { status: 'revoked' },
+        });
         return { ok: false, reason: 'email-taken' };
       }
       throw error;

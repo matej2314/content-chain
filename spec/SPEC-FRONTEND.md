@@ -1,7 +1,7 @@
 ---
-wersja: 29
+wersja: 30
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-30
+data_modyfikacji: 2026-10-01
 ---
 
 # SPEC — Frontend
@@ -99,7 +99,7 @@ Zmiana względem: toast sukcesu mutacji bez wyjątku dla zmiany emaila — od te
 
 F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 
-- Strona główna: tło + karta logowania + nieaktywny **„Nie masz konta? Zarejestruj się!”**; first-run = tryb submitu tej karty; **akceptacja zaproszenia** na **`/invite/accept?token=`** (tożsame z URL w mailu `{APP_PUBLIC_URL}/invite/accept?token=…`) → `POST /auth/accept-invite` → strona główna — dashboard dopiero po loginie;
+- Strona główna: tło + karta logowania + nieaktywny **„Nie masz konta? Zarejestruj się!”**; first-run = tryb submitu tej karty; **akceptacja zaproszenia** na **`/invite/accept?token=`** (tożsame z URL w mailu `{APP_PUBLIC_URL}/invite/accept?token=…`) → `POST /auth/accept-invite` → strona główna — dashboard dopiero po loginie. Błędy wyłącznie `message` z envelope na karcie (bez Toastera). Kolizja email i nieważny token = ten sam **401** — UI **bez** osobnego copy „email zajęty” i **bez** gałęzi na **409** `CONFLICT` z tej trasy. Opcjonalnie stała pomocnicza (bez leak z API): ogólne „Nie można dokończyć zaproszenia. Skontaktuj się z administratorem.” — **tylko** jeśli mapowana z tego samego 401 (bez rozróżniania przyczyn po `code`);
 - Kontekst firmy: **sześć zakładek** — Tożsamość (domyślnie otwarta), Oferta, Głos SM, CTA / kanały, Odbiorca, Dodatki (`extras` w jednym panelu, bez podzakładek). Na triggerach zakładek bramki indykator z `completeness.missing` ostatniego **udanego** GET/PUT (zielona = kompletna, czerwona = brak); zakładka Dodatki **bez** kropki bramki. Zapis = jeden `PUT` całości. Submit **nie** wysyła, gdy draft nie spełnia bramki (puste wymagane pole albo kaleka oferta); lokalny predykat identyczny z C-1 **wyłącznie** do disable CTA zapisu i błędów pól — kropki i chip nadal z `missing` odpowiedzi. Placeholdery pustej oferty stripowane; kalekiej usługi nie stripujemy. Nie da się usunąć ostatniej kompletnej usługi tak, by PUT poszedł z `items: []`. Szczegóły: `docs/ux_dashboard.md` (Widok: Kontekst firmy);
 - **Runy** = archiwum instancji `completed` \| `failed` \| `cancelled` (`GET /runs?status=completed,failed,cancelled`, strona 10, odświeżanie przy wejściu i co **15 min**). **Bez** SSE, **bez** runów w toku na liście (także cudzych). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). Po **202** z modalu — zostajemy na Runach, modal zamknięty, toast „Run wystartował”; live = floating box;
 - **Konto**: email — formularz → modal re-auth (email **disabled** + `currentPassword`) → `PATCH /auth/me/email` `{ email, currentPassword }` (każdy Potwierdź z obu pól); złe hasło (`INVALID_PASSWORD`) / `VALIDATION_FAILED` pod polem hasła (email zostaje disabled; **bez** cyklu F-4a); **409** → modal otwarty, clear pól, odblokowanie emaila, błąd pod polem email; sukces bez toastu + `GET /auth/me`; Anuluj bez API (draft formularza bez zmian względem otwarcia); **Moje runy** (`GET /runs/user/:userId`, wszystkie statusy; **Stop** + modal na własnym nieterminalnym — F-5b); formularz **startu inline** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId` z wiersza „Moje runy”); opinia. Po **202** startu **z Konta** — zostajemy na Koncie **oraz** toast „Run wystartował”;
@@ -131,6 +131,8 @@ Zmiana względem wersji 23 / F-8: layout po sesji nie miał Toastera; 200 / 202 
 Zmiana względem wersji 24 / F-8: Runy „**Bez** startu”; Konto = **jedyny** formularz startu; po `202` wyłącznie Konto. Od tej wersji: dwie powierzchnie tego samego briefu (Konto inline + modal na Runach); po `202` widok źródłowy; archiwum nadal bez SSE / bez w toku na liście (`docs/ux_dashboard.md`). Powód: pierwsze testy UI w przeglądarce.
 
 Zmiana względem wersji 25 / F-8: archiwum `completed` \| `failed`; brak Stop; floating box znika na terminalu bez reguły „Anulowany” + 200 ms. Od tej wersji archiwum + Stop (F-5b) + box po cancel.
+
+Zmiana względem wersji 29 / F-8: założenie, że FE może rozróżnić kolizję email (**409**) od złego tokenu na accept-invite. Od tej wersji obie sytuacje = ten sam **401** / envelope na karcie (`docs/ux_dashboard.md`).
 
 F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. UI **filtruje** pozycje do `completed` \| `failed` \| (`cancelled` **oraz** istnieje nie-`null` pole wyniku w snapshotcie — per `SPEC-FEEDBACK.md` Fbk-3a; select może dociągnąć snapshot albo stosować regułę równoważną; **nie** pokazywać `cancelled` bez wyniku). Lista API zostaje pełna — `SPEC-RUNY.md` R-3c. Select agentów = enum z shared (labelki PL). Ocena, Edytuj i finalize tylko gdy snapshot mówi, że sesja jest `startedBy`, status `completed` \| `failed` i przegląd **otwarty**: `reviewFinalizedAt === null` **oraz** nie minął serwerowy **`reviewExpiresAt`** (deadline wyłącznie z API — **zakaz** lokalnego wyliczania z `pipelineFinishedAt` + stałej). FE-only disable **nie** jest jedyną bramką — api i tak zwraca `REVIEW_LOCKED` po TTL / finalize (`SPEC-RUNY.md` R-10). Po lokalnym expiry (lekki timer od pola `reviewExpiresAt` z API, bez SSE): UI jak zamknięty (copy „Przegląd zamknięty”); reload odświeża `reviewFinalizedAt` gdy sweeper zapisał — **nie** wymagane do disable. **Zakaz** nowego chrome deadline / countdown / wiersza „dostępne do…” w MVP tej zmiany. Submit `targetType=run` poza oknem Fbk-3a i tak → **409** `RUN_NOT_REVIEWABLE`.
 
@@ -244,6 +246,7 @@ apps/frontend/src/
 - Toasta na `run.log`, `running`, heartbeat.
 - Context / store toasta jako kopia GET / server state.
 - Toastera na karcie logowania / bootstrap / accept-invite.
+- Gałęzi UI na accept-invite zależnej od **409** `CONFLICT` / „Email already in use” / osobnego copy „email zajęty” (obowiązuje ten sam kanał **401** co nieważny token — F-8).
 - Browser Notification API; maila przy `failed` runu.
 - Drugiego Toastera; `window.alert` / `confirm` zamiast envelope.
 - `toast.promise` na formularzach, które już mają `pending`.
@@ -282,7 +285,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Stop + modal „Czy na pewno?” → cancel API; toast „Run anulowany”; dedup SSE; na `cancelled` brak przeglądu / HITL.
 - [ ] Start zablokowany w UI przy niekompletności **i** api 409.
 - [ ] Konto: email — modal re-auth (`PATCH /auth/me/email` `{ email, currentPassword }`); `INVALID_PASSWORD` / `VALIDATION_FAILED` pod hasłem (bez F-4a); **409** → clear + odblokowanie emaila + błąd pod emailem; sukces bez toastu + `GET /auth/me`; Anuluj bez API; moje runy → szczegóły; start (prefill ze snapshotu); opinia.
-- [ ] Admin: Users + zaproszenie; accept-invite → `/`.
+- [ ] Admin: Users + zaproszenie; accept-invite → `/`; błąd kolizji / złego tokenu = ten sam envelope **401** na karcie (bez UI „email zajęty” / bez gałęzi **409**).
 - [ ] `app/` + `modules/`; typy z shared; brak sekretów LLM; brak `NEXT_PUBLIC_` URL-a api.
 - [ ] Opinia / gwiazdki / Edytuj / finalize wg kontraktu; disable po `reviewFinalizedAt` **lub** po serwerowym `reviewExpiresAt`; copy „Przegląd zamknięty”; **bez** countdown / „dostępne do…”; HITL Social multi-select; wynik then_* = listy.
 - [ ] Envelope błędu w UI: `message` z API (bez `code` w treści).
