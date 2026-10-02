@@ -13,6 +13,8 @@ To **nie** jest suite `pnpm test:e2e` (Jest + fake LLM). Social/Content/Review w
 
 Kontrakt sesji, bootstrap i 401/403 auth są w **`auth.postman-collection.json`**. Kolekcje pipeline Social/Content/Review **nie** tworzą konta — tylko `POST /auth/login`. Pipeline zaproszeń tworzy **jedno** konto `user` przez accept-invite (Twój `inviteEmail`). Folder Authz w Review **loguje** to konto (`userEmail` / `userPassword`), ale nie startuje jego runu.
 
+**Auth (`auth.postman-collection.json`) — kolejność folderów:** Unauthenticated → Bootstrap → Session → Invitations → Accept-invite / D-23a collision → Accept-invite → Own email (D-27) → **Register / activation**. Folder Register / activation = D-42…D-46 na żywym HTTP (non-prod: `verifiedAt` od razu, login bez activate). **D-41 prod** (pending + `AccountActivation` + activate) = unit / e2e z `NODE_ENV=production` i mockiem mailera — nie Collection Runner lokalny.
+
 ## Wymagania
 
 1. Skopiować `apps/api/.env.example` → `apps/api/.env` oraz analogicznie env gateway (`apps/ai-provider-gateway/.env.example`). Uzupełnić sekrety lokalnie — **nie** wklejać ich do kolekcji. Dla przeglądu: `REVIEW_TTL` (default `2h`) i `REVIEW_SWEEP_INTERVAL` (default `5m`) — patrz `apps/api/.env.example`.
@@ -154,7 +156,7 @@ Skalar `result.content` / `result.reelScript` na dwuetapowych (`post_ideas_then_
 - `post_content` solo
 - `reel_script` solo (Jest e2e, nie Postman)
 - SSE (`GET .../events`)
-- Pełna suite auth (bootstrap, refresh, logout, invite+accept, soft-delete/reaktywacja D-26, własny email D-27) — `auth.postman-collection.json`
+- Pełna suite auth (bootstrap, refresh, logout, invite+accept, soft-delete/reaktywacja D-26, własny email D-27, register/activate/resend D-41…D-46) — `auth.postman-collection.json`
 - Resend / revoke zaproszenia (osobne foldery, nie v1 tego pipeline)
 - Suite CI PR
 - Pełny happy path **2 id → 2 hopów LLM** na żywym gateway (Jest + fake LLM)

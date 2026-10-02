@@ -1474,7 +1474,7 @@ Open self-registration creates pending users in production with email activation
 
 ### KROK 1 — Unit use-case specs
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** `SPEC-TESTY.md` D-41…D-46 na warstwie use-case (adekwatnie); regresje invite/bootstrap/login.  
 **DTO:** unit **nie** importuje Nest DTO — woła `execute` plain objectami (`{ email, password }` / `{ token }` / `{ email }`), jak istniejące specy login / accept-invite. Walidacja class-validator / ValidationPipe = poza tym krokiem (HTTP / Postman).
@@ -1505,7 +1505,7 @@ Wzorce mocków: jak `invite-user.use-case.spec.ts` / `resend-invitation.use-case
 
 ### KROK 2 — e2e / Postman D-41…D-46
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Pokrycie kontraktu HTTP w `auth.postman-collection.json` (+ e2e jeśli projekt ma warstwę e2e auth; inaczej Postman = primary jak D-23a / D-27). Body requestów = te same kształty co DTO (`RegisterUserDto` / `ActivateAccountDto` / `ResendActivationDto`); ValidationPipe + DTO egzekwują whitelist / `forbidNonWhitelisted` na krawędzi (nieznany klucz → **400** `VALIDATION_FAILED` przed Zod w use-case).
 

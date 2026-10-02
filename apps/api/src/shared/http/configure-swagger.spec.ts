@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import { SwaggerModule, type OpenAPIObject } from '@nestjs/swagger';
 import { AuthController } from '../../auth/auth.controller';
 import { AcceptInviteUseCase } from '../../auth/application/accept-invite.use-case';
+import { ActivateAccountUseCase } from '../../auth/application/activate-account.use-case';
 import { BootstrapAdminUseCase } from '../../auth/application/bootstrap-admin.use-case';
 import { BootstrapStatusUseCase } from '../../auth/application/bootstrap-status.use-case';
 import { ListUsersUseCase } from '../../auth/application/list-users.use-case';
@@ -12,6 +13,8 @@ import { LogoutUseCase } from '../../auth/application/logout.use-case';
 import { MeUseCase } from '../../auth/application/me.use-case';
 import { RefreshUseCase } from '../../auth/application/refresh.use-case';
 import { ReactivateUserUseCase } from '../../auth/application/reactivate-user.use-case';
+import { RegisterUserUseCase } from '../../auth/application/register-user.use-case';
+import { ResendActivationUseCase } from '../../auth/application/resend-activation.use-case';
 import { SoftDeleteUserUseCase } from '../../auth/application/soft-delete-user.use-case';
 import { UpdateMeEmailUseCase } from '../../auth/application/update-me-email.use-case';
 import { UsersController } from '../../auth/users.controller';
@@ -143,6 +146,9 @@ describe('SwaggerModule.createDocument (auth + users + health)', () => {
         { provide: MeUseCase, useValue: stubExecute },
         { provide: AcceptInviteUseCase, useValue: stubExecute },
         { provide: UpdateMeEmailUseCase, useValue: stubExecute },
+        { provide: RegisterUserUseCase, useValue: stubExecute },
+        { provide: ActivateAccountUseCase, useValue: stubExecute },
+        { provide: ResendActivationUseCase, useValue: stubExecute },
         { provide: ListUsersUseCase, useValue: stubExecute },
         { provide: SoftDeleteUserUseCase, useValue: stubExecute },
         { provide: ReactivateUserUseCase, useValue: stubExecute },
@@ -175,10 +181,26 @@ describe('SwaggerModule.createDocument (auth + users + health)', () => {
     ]);
   });
 
-  it('does not require cookieAuth on POST /auth/login or GET /health', () => {
+  it('does not require cookieAuth on public auth routes or GET /health', () => {
     expect(
       requiresCookieAuth(
         getOperation(document, '/api/v1/auth/login', 'post').security,
+      ),
+    ).toBe(false);
+    expect(
+      requiresCookieAuth(
+        getOperation(document, '/api/v1/auth/register', 'post').security,
+      ),
+    ).toBe(false);
+    expect(
+      requiresCookieAuth(
+        getOperation(document, '/api/v1/auth/activate', 'post').security,
+      ),
+    ).toBe(false);
+    expect(
+      requiresCookieAuth(
+        getOperation(document, '/api/v1/auth/resend-activation', 'post')
+          .security,
       ),
     ).toBe(false);
     expect(

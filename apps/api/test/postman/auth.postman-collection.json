@@ -61,6 +61,18 @@
     {
       "key": "collisionInvitationId",
       "value": ""
+    },
+    {
+      "key": "registerEmail",
+      "value": "register@example.com"
+    },
+    {
+      "key": "registerPassword",
+      "value": "Password12!!"
+    },
+    {
+      "key": "registeredUserId",
+      "value": ""
     }
   ],
   "item": [
@@ -1153,7 +1165,8 @@
                   "pm.test('items have isActive and no passwordHash', function () {",
                   "  pm.expect(body.items).to.be.an('array').that.is.not.empty;",
                   "  body.items.forEach(function (row) {",
-                  "    pm.expect(row).to.include.keys('id', 'email', 'role', 'isActive');",
+                  "    pm.expect(row).to.include.keys('id', 'email', 'role', 'isActive', 'verifiedAt');",
+                  "    pm.expect(row.verifiedAt === null || typeof row.verifiedAt === 'string').to.eql(true);",
                   "    pm.expect(row.isActive).to.be.a('boolean');",
                   "    pm.expect(row).to.not.have.property('passwordHash');",
                   "  });",
@@ -1166,7 +1179,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/users",
-            "description": "Lista kont (w tym isActive). Pending invites nie są w tej liście. Bez passwordHash."
+            "description": "Lista kont (w tym isActive). Pending invites nie są w tej liście. Bez passwordHash. Każdy item ma verifiedAt (ISO string lub null)."
           }
         }
       ]
@@ -1807,6 +1820,41 @@
             },
             "url": "{{baseUrl}}/auth/login",
             "description": "Sesja admina pod DELETE /users/:id (id z accept-invite)."
+          }
+        },
+        {
+          "name": "GET users invited has verifiedAt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('invited user row has verifiedAt ISO', function () {",
+                  "  pm.expect(body.items).to.be.an('array').that.is.not.empty;",
+                  "  const email = pm.collectionVariables.get('inviteEmail');",
+                  "  const row = body.items.find(function (u) { return u.email === email; });",
+                  "  pm.expect(row, 'invited user in list').to.be.an('object');",
+                  "  pm.expect(row).to.include.keys('id', 'email', 'role', 'isActive', 'verifiedAt');",
+                  "  pm.expect(row.id).to.eql(pm.collectionVariables.get('invitedUserId'));",
+                  "  pm.expect(row.role).to.eql('user');",
+                  "  pm.expect(row.verifiedAt).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(Number.isNaN(Date.parse(row.verifiedAt))).to.eql(false);",
+                  "  pm.expect(row).to.not.have.property('passwordHash');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users",
+            "description": "D-46: po accept-invite → login admina → GET /users ma verifiedAt na zaproszonym userze."
           }
         },
         {
@@ -2483,6 +2531,349 @@
             },
             "url": "{{baseUrl}}/auth/me/email",
             "description": "D-27: brak sesji → 401 (global JwtAuthGuard). URL `/auth/me/email`, body z obu polami."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register / activation",
+      "description": "D-41…D-46 (warstwa HTTP non-prod). Register poza production ustawia verifiedAt od razu — Postman default = non-prod. Pełna ścieżka pending+activate (D-41 prod) = unit / e2e z NODE_ENV=production + mock mailera, nie ten runner.",
+      "item": [
+        {
+          "name": "POST register (201 non-prod)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(",
+                  "  'registerEmail',",
+                  "  'register-' + Date.now() + '@example.com'",
+                  ");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('user projection with verifiedAt ISO, role user', function () {",
+                  "  pm.expect(body).to.have.property('user');",
+                  "  pm.expect(body.user).to.include.keys('id', 'email', 'role', 'verifiedAt');",
+                  "  pm.expect(body.user.id).to.match(/^usr_/i);",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get('registerEmail'));",
+                  "  pm.expect(body.user.role).to.eql('user');",
+                  "  pm.expect(body.user.verifiedAt).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(Number.isNaN(Date.parse(body.user.verifiedAt))).to.eql(false);",
+                  "  pm.expect(body).to.not.have.property('accessToken');",
+                  "  pm.expect(body).to.not.have.property('refreshToken');",
+                  "  pm.expect(body.user).to.not.have.property('passwordHash');",
+                  "});",
+                  "pm.test('does not set cc_access or cc_refresh', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.not.include('cc_access=');",
+                  "  pm.expect(cookies).to.not.include('cc_refresh=');",
+                  "});",
+                  "pm.collectionVariables.set('registeredUserId', body.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{registerEmail}}\",\n  \"password\": \"{{registerPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/register",
+            "description": "D-42: non-prod register → 201 `{ user }` z verifiedAt ISO, role=user. Bez Set-Cookie."
+          }
+        },
+        {
+          "name": "POST login registered user (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('expiresIn + user without tokens', function () {",
+                  "  pm.expect(body.expiresIn).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(body.user).to.include.keys('id', 'email', 'role');",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get('registerEmail'));",
+                  "  pm.expect(body.user.role).to.eql('user');",
+                  "  pm.expect(body).to.not.have.property('accessToken');",
+                  "});",
+                  "pm.test('sets cc_access and cc_refresh cookies', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.include('cc_access=');",
+                  "  pm.expect(cookies).to.include('cc_refresh=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{registerEmail}}\",\n  \"password\": \"{{registerPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "D-42: non-prod — login zaraz po register bez activate → 200."
+          }
+        },
+        {
+          "name": "POST register same email (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('CONFLICT Email already in use', function () {",
+                  "  pm.expect(body.code).to.eql('CONFLICT');",
+                  "  pm.expect(body.message).to.eql('Email already in use');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{registerEmail}}\",\n  \"password\": \"{{registerPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/register",
+            "description": "D-43: kolizja → 409 CONFLICT, message Email already in use (nie maskowany 201)."
+          }
+        },
+        {
+          "name": "POST activate bad token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('UNAUTHORIZED Invalid activation token', function () {",
+                  "  pm.expect(body.code).to.eql('UNAUTHORIZED');",
+                  "  pm.expect(body.message).to.eql('Invalid activation token');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"nope\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/activate",
+            "description": "D-45: zły token → wspólny 401 UNAUTHORIZED (bez enumeracji)."
+          }
+        },
+        {
+          "name": "POST resend-activation (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('fixed success message', function () {",
+                  "  pm.expect(body.message).to.eql('Wiadomość wysłana ponownie');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{registerEmail}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/resend-activation",
+            "description": "D-44: zawsze 200 + stały message (tu konto już verified — bez maila, bez enumeracji)."
+          }
+        },
+        {
+          "name": "POST login as admin for users list",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('sets admin session cookies', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.include('cc_access=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Sesja admina pod GET /users (D-46 verifiedAt na liście)."
+          }
+        },
+        {
+          "name": "GET users registered has verifiedAt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('registered user row has verifiedAt ISO', function () {",
+                  "  pm.expect(body.items).to.be.an('array').that.is.not.empty;",
+                  "  const email = pm.collectionVariables.get('registerEmail');",
+                  "  const row = body.items.find(function (u) { return u.email === email; });",
+                  "  pm.expect(row, 'registered user in list').to.be.an('object');",
+                  "  pm.expect(row).to.include.keys('id', 'email', 'role', 'isActive', 'verifiedAt');",
+                  "  pm.expect(row.id).to.eql(pm.collectionVariables.get('registeredUserId'));",
+                  "  pm.expect(row.role).to.eql('user');",
+                  "  pm.expect(row.verifiedAt).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(Number.isNaN(Date.parse(row.verifiedAt))).to.eql(false);",
+                  "  pm.expect(row).to.not.have.property('passwordHash');",
+                  "});",
+                  "pm.test('all items expose verifiedAt key', function () {",
+                  "  body.items.forEach(function (row) {",
+                  "    pm.expect(row).to.include.keys('verifiedAt');",
+                  "    pm.expect(row).to.not.have.property('passwordHash');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users",
+            "description": "D-46: GET /users zawiera verifiedAt (ISO lub null) na pozycji zarejestrowanego usera."
+          }
+        },
+        {
+          "name": "POST register unknown key (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('VALIDATION_FAILED unknown property', function () {",
+                  "  pm.expect(body.code).to.eql('VALIDATION_FAILED');",
+                  "  pm.expect(body.requestId).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(body.details).to.be.an('array').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"pipe-unknown-key@example.com\",\n  \"password\": \"{{registerPassword}}\",\n  \"role\": \"admin\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/register",
+            "description": "RegisterUserDto whitelist: nieznany klucz (role) → 400 VALIDATION_FAILED przed Zod."
           }
         }
       ]

@@ -15,11 +15,26 @@ import {
   AcceptInviteUseCase,
   type AcceptInviteResult,
 } from './application/accept-invite.use-case';
+import {
+  ActivateAccountUseCase,
+  type ActivateAccountOutput,
+} from './application/activate-account.use-case';
+import {
+  RegisterUserUseCase,
+  type RegisterUserOutput,
+} from './application/register-user.use-case';
+import {
+  ResendActivationUseCase,
+  type ResendActivationOutput,
+} from './application/resend-activation.use-case';
 import type { AuthTokenResult } from './application/bootstrap-admin.use-case';
 import type { AuthUserContext } from './domain/auth-user.types';
 import { type BootstrapAdminDto } from './http/bootstrap-admin.dto';
 import { type LoginDto } from './http/login.dto';
 import { type AcceptInviteDto } from './http/accept-invite.dto';
+import { type ActivateAccountDto } from './http/activate-account.dto';
+import { type RegisterUserDto } from './http/register-user.dto';
+import { type ResendActivationDto } from './http/resend-activation.dto';
 import { AuthController } from './auth.controller';
 import {
   clearAuthCookies,
@@ -81,6 +96,9 @@ describe('AuthController', () => {
   let me: { execute: jest.Mock };
   let acceptInvite: { execute: jest.Mock };
   let updateMeEmail: { execute: jest.Mock };
+  let registerUser: { execute: jest.Mock };
+  let activateAccount: { execute: jest.Mock };
+  let resendActivation: { execute: jest.Mock };
   const env = { JWT_ACCESS_TTL: ACCESS_TTL } as Env;
   const res = {} as Response;
 
@@ -93,6 +111,9 @@ describe('AuthController', () => {
     me = { execute: jest.fn() };
     acceptInvite = { execute: jest.fn() };
     updateMeEmail = { execute: jest.fn() };
+    registerUser = { execute: jest.fn() };
+    activateAccount = { execute: jest.fn() };
+    resendActivation = { execute: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
@@ -105,6 +126,9 @@ describe('AuthController', () => {
         { provide: MeUseCase, useValue: me },
         { provide: AcceptInviteUseCase, useValue: acceptInvite },
         { provide: UpdateMeEmailUseCase, useValue: updateMeEmail },
+        { provide: RegisterUserUseCase, useValue: registerUser },
+        { provide: ActivateAccountUseCase, useValue: activateAccount },
+        { provide: ResendActivationUseCase, useValue: resendActivation },
         { provide: ENV, useValue: env },
       ],
     }).compile();
@@ -122,6 +146,9 @@ describe('AuthController', () => {
     expect(isPublic(proto.getBootstrapStatus)).toBe(true);
     expect(isPublic(proto.postBootstrapAdmin)).toBe(true);
     expect(isPublic(proto.postLogin)).toBe(true);
+    expect(isPublic(proto.postRegister)).toBe(true);
+    expect(isPublic(proto.postActivate)).toBe(true);
+    expect(isPublic(proto.postResendActivation)).toBe(true);
     expect(isPublic(proto.postAcceptInvite)).toBe(true);
     expect(isPublic(proto.postRefresh)).toBe(true);
     expect(isPublic(proto.postLogout)).toBe(false);
@@ -135,6 +162,11 @@ describe('AuthController', () => {
       'bootstrap-admin',
     );
     expect(Reflect.getMetadata('path', proto.postLogin)).toBe('login');
+    expect(Reflect.getMetadata('path', proto.postRegister)).toBe('register');
+    expect(Reflect.getMetadata('path', proto.postActivate)).toBe('activate');
+    expect(Reflect.getMetadata('path', proto.postResendActivation)).toBe(
+      'resend-activation',
+    );
     expect(Reflect.getMetadata('path', proto.postAcceptInvite)).toBe(
       'accept-invite',
     );
@@ -147,6 +179,15 @@ describe('AuthController', () => {
       RequestMethod.GET,
     );
     expect(Reflect.getMetadata('method', proto.postLogin)).toBe(
+      RequestMethod.POST,
+    );
+    expect(Reflect.getMetadata('method', proto.postRegister)).toBe(
+      RequestMethod.POST,
+    );
+    expect(Reflect.getMetadata('method', proto.postActivate)).toBe(
+      RequestMethod.POST,
+    );
+    expect(Reflect.getMetadata('method', proto.postResendActivation)).toBe(
       RequestMethod.POST,
     );
     expect(Reflect.getMetadata('method', proto.postAcceptInvite)).toBe(
@@ -201,6 +242,56 @@ describe('AuthController', () => {
 
     await expect(controller.postAcceptInvite(body)).resolves.toEqual(invited);
     expect(acceptInvite.execute).toHaveBeenCalledWith(body);
+    expect(setAuthCookies).not.toHaveBeenCalled();
+  });
+
+  it('registers without setting session cookies', async () => {
+    const registered: RegisterUserOutput = {
+      user: {
+        id: createUserId('usr_33333333-3333-4333-8333-333333333333'),
+        email: 'register@example.com',
+        role: 'user',
+        verifiedAt: new Date('2026-10-02T12:00:00.000Z'),
+      },
+    };
+    registerUser.execute.mockResolvedValue(registered);
+    const body: RegisterUserDto = {
+      email: 'register@example.com',
+      password: 'Password12!!',
+    };
+
+    await expect(controller.postRegister(body)).resolves.toEqual(registered);
+    expect(registerUser.execute).toHaveBeenCalledWith(body);
+    expect(setAuthCookies).not.toHaveBeenCalled();
+  });
+
+  it('activates account without setting session cookies', async () => {
+    const activated: ActivateAccountOutput = {
+      user: {
+        id: createUserId('usr_44444444-4444-4444-8444-444444444444'),
+        email: 'pending@example.com',
+        role: 'user',
+      },
+    };
+    activateAccount.execute.mockResolvedValue(activated);
+    const body: ActivateAccountDto = { token: 'activation.raw' };
+
+    await expect(controller.postActivate(body)).resolves.toEqual(activated);
+    expect(activateAccount.execute).toHaveBeenCalledWith(body);
+    expect(setAuthCookies).not.toHaveBeenCalled();
+  });
+
+  it('resends activation without setting session cookies', async () => {
+    const resent: ResendActivationOutput = {
+      message: 'Wiadomość wysłana ponownie',
+    };
+    resendActivation.execute.mockResolvedValue(resent);
+    const body: ResendActivationDto = { email: 'pending@example.com' };
+
+    await expect(controller.postResendActivation(body)).resolves.toEqual(
+      resent,
+    );
+    expect(resendActivation.execute).toHaveBeenCalledWith(body);
     expect(setAuthCookies).not.toHaveBeenCalled();
   });
 
