@@ -9,6 +9,10 @@ import {
   REFRESH_SESSION_REPOSITORY,
   type RefreshSessionRepository,
 } from '../domain/refresh-session.repository.port';
+import {
+  ACCOUNT_ACTIVATION_REPOSITORY,
+  type AccountActivationRepository,
+} from '../domain/account-activation-repository.port';
 
 @Injectable()
 export class SoftDeleteUserUseCase {
@@ -16,6 +20,8 @@ export class SoftDeleteUserUseCase {
     @Inject(USER_REPOSITORY) private readonly users: UserRepository,
     @Inject(REFRESH_SESSION_REPOSITORY)
     private readonly sessions: RefreshSessionRepository,
+    @Inject(ACCOUNT_ACTIVATION_REPOSITORY)
+    private readonly activations: AccountActivationRepository,
   ) {}
 
   async execute(idParam: string): Promise<{ ok: true }> {
@@ -37,6 +43,7 @@ export class SoftDeleteUserUseCase {
     }
     await this.users.setActive(userId, false);
     await this.sessions.deleteByUser(userId);
+    await this.activations.deleteByUserId(userId);
     return { ok: true };
   }
 }

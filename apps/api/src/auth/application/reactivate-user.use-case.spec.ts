@@ -20,6 +20,7 @@ function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
     create: unexpected,
     createAdminIfNone: unexpected,
     setActive: unexpected,
+    setVerifiedAt: unexpected,
     list: unexpected,
     updateEmail: unexpected,
     ...overrides,
@@ -32,6 +33,7 @@ function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {
     email: 'user@example.com',
     role: 'user',
     isActive: false,
+    verifiedAt: CREATED_AT,
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,
     ...overrides,
@@ -60,6 +62,7 @@ describe('ReactivateUserUseCase', () => {
       email: user.email,
       role: user.role,
       isActive: true,
+      verifiedAt: user.verifiedAt,
       createdAt: user.createdAt,
     });
     expect(setActive).toHaveBeenCalledTimes(1);
@@ -83,9 +86,39 @@ describe('ReactivateUserUseCase', () => {
       email: user.email,
       role: user.role,
       isActive: true,
+      verifiedAt: user.verifiedAt,
       createdAt: user.createdAt,
     });
     expect(setActive).not.toHaveBeenCalled();
+  });
+
+  it('returns verifiedAt unchanged and does not call setVerifiedAt on reactivate', async () => {
+    const verifiedAt = new Date('2026-03-15T12:00:00.000Z');
+    const user = makeUser({ isActive: false, verifiedAt });
+    const setActive = jest.fn(
+      async (_id: UserId, _isActive: boolean): Promise<void> => undefined,
+    );
+    const setVerifiedAt = jest.fn(
+      async (_id: UserId, _at: Date): Promise<AuthUser> => user,
+    );
+    const useCase = makeUseCase(
+      unusedUsers({
+        findById: async () => user,
+        setActive,
+        setVerifiedAt,
+      }),
+    );
+
+    await expect(useCase.execute(USER_ID, PATCH_BODY)).resolves.toEqual({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isActive: true,
+      verifiedAt,
+      createdAt: user.createdAt,
+    });
+    expect(setActive).toHaveBeenCalledWith(USER_ID, true);
+    expect(setVerifiedAt).not.toHaveBeenCalled();
   });
 
   it('rejects an admin target with FORBIDDEN and skips setActive', async () => {

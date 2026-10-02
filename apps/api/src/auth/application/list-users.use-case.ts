@@ -14,13 +14,16 @@ export class ListUsersUseCase {
   async execute(): Promise<{ items: UserListItem[] }> {
     const all = await this.users.list();
     return {
-      items: all.map(({ id, email, role, isActive, createdAt }) => ({
-        id,
-        email,
-        role,
-        isActive,
-        createdAt,
-      })),
+      items: all.map(
+        ({ id, email, role, isActive, verifiedAt, createdAt }) => ({
+          id,
+          email,
+          role,
+          isActive,
+          verifiedAt,
+          createdAt,
+        }),
+      ),
     };
   }
 }

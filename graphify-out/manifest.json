@@ -1836,10 +1836,10 @@
     "semantic_hash": ""
   },
   "packages/shared/src/branded/ids.ts": {
-    "mtime": 1789052074.0,
-    "seen": 1789403048.3048735,
-    "ast_hash": "9cd88cd1d7d27730fa2e0f9fc4c992fc",
-    "semantic_hash": "9cd88cd1d7d27730fa2e0f9fc4c992fc"
+    "mtime": 1790938477.5550404,
+    "seen": 1790944313.32242,
+    "ast_hash": "2433be406576c006ffd1bbf4293e7012",
+    "semantic_hash": ""
   },
   "packages/shared/src/index.ts": {
     "mtime": 1786564018.0,
@@ -2094,9 +2094,9 @@
     "semantic_hash": "7f0031e0b5ae5de04a01db257ef6e882"
   },
   "apps/api/src/shared/config/env.schema.ts": {
-    "mtime": 1790846188.6518872,
-    "seen": 1790849723.6048303,
-    "ast_hash": "2ea4eb69154ba8bd67cc1c8fc8a8ecde",
+    "mtime": 1790942772.4159012,
+    "seen": 1790944313.3222756,
+    "ast_hash": "11bd775f9877313a767e929c045ba111",
     "semantic_hash": ""
   },
   "apps/api/src/shared/config/env.ts": {
@@ -2136,10 +2136,10 @@
     "semantic_hash": "392f770c29d9a7e954f7f58143cdb37f"
   },
   "apps/api/src/shared/http/new-ids.ts": {
-    "mtime": 1788880918.0,
-    "seen": 1789403048.3047853,
-    "ast_hash": "140b17519d944ff28badcc0947594278",
-    "semantic_hash": "140b17519d944ff28badcc0947594278"
+    "mtime": 1790938732.384813,
+    "seen": 1790944313.322288,
+    "ast_hash": "ffa71ba14e781da100349ce8d98cad06",
+    "semantic_hash": ""
   },
   "apps/api/src/shared/http/request-id.middleware.ts": {
     "mtime": 1786646270.0,
@@ -2850,10 +2850,10 @@
     "semantic_hash": "e17bd8075e576e33030b0b2c1f137daa"
   },
   "apps/api/src/auth/application/login.use-case.ts": {
-    "mtime": 1788880918.0,
-    "seen": 1789403048.3044808,
-    "ast_hash": "01a8ca3b0065db08dfa02afd4ccde98a",
-    "semantic_hash": "01a8ca3b0065db08dfa02afd4ccde98a"
+    "mtime": 1790945128.265796,
+    "seen": 1790945239.1975589,
+    "ast_hash": "f8cd7d4f19386e4e5fe7abffafa933cc",
+    "semantic_hash": ""
   },
   "apps/api/src/auth/application/logout.use-case.ts": {
     "mtime": 1788880918.0,
@@ -2874,10 +2874,10 @@
     "semantic_hash": "bf77cdc08b84009abe889addef4cf6bb"
   },
   "apps/api/src/auth/domain/auth-user.types.ts": {
-    "mtime": 1789143916.0,
-    "seen": 1789403048.3045025,
-    "ast_hash": "eb64da97e964113053db3fd40d51e093",
-    "semantic_hash": "eb64da97e964113053db3fd40d51e093"
+    "mtime": 1790938790.5697286,
+    "seen": 1790944313.3221262,
+    "ast_hash": "a3cdccfa6b1b00524415955e36f836f2",
+    "semantic_hash": ""
   },
   "apps/api/src/auth/domain/password.policy.ts": {
     "mtime": 1788777810.0,
@@ -2892,9 +2892,9 @@
     "semantic_hash": "fcbc3d4475cc9d99ec804392a6614a8c"
   },
   "apps/api/src/auth/domain/user-repository.port.ts": {
-    "mtime": 1789559963.7479482,
-    "seen": 1789560506.0397947,
-    "ast_hash": "c4013dace48f86d033133a9ef343fe56",
+    "mtime": 1790942576.4450305,
+    "seen": 1790944313.3221302,
+    "ast_hash": "6968c95393b278083345de3220d3d672",
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/cookie.helper.ts": {
@@ -2916,9 +2916,9 @@
     "semantic_hash": "486aff7dfae1be40e2bd878ab60b3254"
   },
   "apps/api/src/auth/infrastructure/prisma-user.adapter.ts": {
-    "mtime": 1789560064.6750994,
-    "seen": 1789560506.0398061,
-    "ast_hash": "e0cf36c26ae9a6a676b52250052eda01",
+    "mtime": 1790942679.8735602,
+    "seen": 1790944313.3221447,
+    "ast_hash": "c115248b90b16e113193e4d876c38200",
     "semantic_hash": ""
   },
   "apps/api/src/company-context/application/company-context.schemas.ts": {
@@ -3036,10 +3036,10 @@
     "semantic_hash": "5d81342c2889ae2f06c7560975143c80"
   },
   "apps/api/src/auth/application/list-users.use-case.ts": {
-    "mtime": 1789143916.0,
-    "seen": 1789403048.3044784,
-    "ast_hash": "1036c0a34f4cc9450995583c41ac0eb6",
-    "semantic_hash": "1036c0a34f4cc9450995583c41ac0eb6"
+    "mtime": 1790944549.7228286,
+    "seen": 1790944865.939172,
+    "ast_hash": "209acb862267d8bc57f85477e836d6ea",
+    "semantic_hash": ""
   },
   "apps/api/src/auth/application/resend-invitation.use-case.ts": {
     "mtime": 1788880918.0,
@@ -3054,10 +3054,10 @@
     "semantic_hash": "5104b0fc9fff964db34432727421450b"
   },
   "apps/api/src/auth/application/soft-delete-user.use-case.ts": {
-    "mtime": 1788880918.0,
-    "seen": 1789403048.304496,
-    "ast_hash": "bdbfdf9124446f9ae1d6027209b5e3cb",
-    "semantic_hash": "bdbfdf9124446f9ae1d6027209b5e3cb"
+    "mtime": 1790944451.3418334,
+    "seen": 1790944865.9391787,
+    "ast_hash": "51da86d340b24e2e05b63e17b5eb8260",
+    "semantic_hash": ""
   },
   "apps/api/src/auth/domain/invitation-repository.port.ts": {
     "mtime": 1788880918.0,
@@ -3066,27 +3066,27 @@
     "semantic_hash": "8d7c5e0bd5b4c1adb8a8c852c36b0c34"
   },
   "apps/api/src/auth/domain/transactional-mailer.port.ts": {
-    "mtime": 1788880918.0,
-    "seen": 1789403048.3045113,
-    "ast_hash": "c000edaef6ea0f6d3064b25bad803bd0",
-    "semantic_hash": "c000edaef6ea0f6d3064b25bad803bd0"
+    "mtime": 1790942896.929521,
+    "seen": 1790944313.3221295,
+    "ast_hash": "5c37648290ac5c0765317deff00beb92",
+    "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/logging-mailer.adapter.ts": {
-    "mtime": 1789896636.5836258,
-    "seen": 1789899759.2271307,
-    "ast_hash": "a2236365d856ba5c24c49685d6ae2285",
+    "mtime": 1790943496.6101663,
+    "seen": 1790944313.3221385,
+    "ast_hash": "37edcbfa57a86b566befc101df53d141",
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/nodemailer-smtp-mailer.adapter.ts": {
-    "mtime": 1788880918.0,
-    "seen": 1789403048.3045325,
-    "ast_hash": "b140cf54c4cdc1a597313df1c392e3a6",
-    "semantic_hash": "b140cf54c4cdc1a597313df1c392e3a6"
+    "mtime": 1790943939.8208404,
+    "seen": 1790944313.32214,
+    "ast_hash": "621781f2dc3fef395adbafd0ad5e67a5",
+    "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/prisma-invitation.adapter.ts": {
-    "mtime": 1790928927.4926744,
-    "seen": 1790928985.5631306,
-    "ast_hash": "0597471c7c46f43df8c71a1184fca8bd",
+    "mtime": 1790941779.3875723,
+    "seen": 1790944313.3221424,
+    "ast_hash": "f1a6e87e47dad85e6854d3ac70ea477d",
     "semantic_hash": ""
   },
   "apps/api/src/auth/http/accept-invite.dto.ts": {
@@ -3210,10 +3210,10 @@
     "semantic_hash": "e708d012286e6f8bfac9d26a2569c027"
   },
   "apps/api/src/auth/application/reactivate-user.use-case.ts": {
-    "mtime": 1789144142.0,
-    "seen": 1789403048.3044875,
-    "ast_hash": "52a6f436c5d6efc941be363de8452b15",
-    "semantic_hash": "52a6f436c5d6efc941be363de8452b15"
+    "mtime": 1790944591.9119983,
+    "seen": 1790944865.9391756,
+    "ast_hash": "b5f752193cda5394cace2dc90d5a7316",
+    "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/api/session.types.ts": {
     "mtime": 1789468076.2968016,
@@ -3903,6 +3903,18 @@
     "mtime": 1790930067.1214194,
     "seen": 1790930075.8823378,
     "ast_hash": "e2ee265b57826a666f4bd9426ec403a9",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/domain/account-activation-repository.port.ts": {
+    "mtime": 1790941120.6689408,
+    "seen": 1790944313.3221242,
+    "ast_hash": "aaf73724f6d8c1bdc6023360ef122682",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/infrastructure/prisma-account-activation.adapter.ts": {
+    "mtime": 1790941164.1771514,
+    "seen": 1790944313.3221412,
+    "ast_hash": "30ddf7deafc6bbdf1fc4a7984ffe9ea6",
     "semantic_hash": ""
   }
 }

@@ -40,6 +40,7 @@ export class ReactivateUserUseCase {
       email: user.email,
       role: user.role,
       isActive: true,
+      verifiedAt: user.verifiedAt,
       createdAt: user.createdAt,
     };
   }

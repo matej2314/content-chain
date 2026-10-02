@@ -1,4 +1,5 @@
 import { createUserId, type UserId } from '@content-chain/shared';
+import type { AccountActivationRepository } from '../domain/account-activation-repository.port';
 import type { AuthUser } from '../domain/auth-user.types';
 import type { RefreshSessionRepository } from '../domain/refresh-session.repository.port';
 import type { UserRepository } from '../domain/user-repository.port';
@@ -19,6 +20,7 @@ function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
     create: unexpected,
     createAdminIfNone: unexpected,
     setActive: unexpected,
+    setVerifiedAt: unexpected,
     list: unexpected,
     updateEmail: unexpected,
     ...overrides,
@@ -42,12 +44,30 @@ function unusedSessions(
   };
 }
 
+function unusedActivations(
+  overrides: Partial<AccountActivationRepository> = {},
+): AccountActivationRepository {
+  const unexpected = async () => {
+    throw new Error('unexpected activation repository call');
+  };
+  return {
+    createPendingUser: unexpected,
+    findValidByTokenHash: unexpected,
+    findValidByUserId: unexpected,
+    consumeAndVerify: unexpected,
+    rotateToken: unexpected,
+    deleteByUserId: unexpected,
+    ...overrides,
+  };
+}
+
 function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {
   return {
     id: USER_ID,
     email: 'user@example.com',
     role: 'user',
     isActive: true,
+    verifiedAt: CREATED_AT,
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,
     ...overrides,
@@ -55,11 +75,14 @@ function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {
 }
 
 describe('SoftDeleteUserUseCase', () => {
-  it('deactivates a user and deletes refresh sessions', async () => {
+  it('deactivates a user, deletes refresh sessions and account activations', async () => {
     const setActive = jest.fn(
       async (_id: UserId, _isActive: boolean): Promise<void> => undefined,
     );
     const deleteByUser = jest.fn(
+      async (_id: UserId): Promise<void> => undefined,
+    );
+    const deleteByUserId = jest.fn(
       async (_id: UserId): Promise<void> => undefined,
     );
     const useCase = new SoftDeleteUserUseCase(
@@ -68,11 +91,13 @@ describe('SoftDeleteUserUseCase', () => {
         setActive,
       }),
       unusedSessions({ deleteByUser }),
+      unusedActivations({ deleteByUserId }),
     );
 
     await expect(useCase.execute(USER_ID)).resolves.toEqual({ ok: true });
     expect(setActive).toHaveBeenCalledWith(USER_ID, false);
     expect(deleteByUser).toHaveBeenCalledWith(USER_ID);
+    expect(deleteByUserId).toHaveBeenCalledWith(USER_ID);
   });
 
   it('rejects an invalid user id format with VALIDATION_FAILED and skips lookup', async () => {
@@ -83,9 +108,13 @@ describe('SoftDeleteUserUseCase', () => {
     const deleteByUser = jest.fn(
       async (_id: UserId): Promise<void> => undefined,
     );
+    const deleteByUserId = jest.fn(
+      async (_id: UserId): Promise<void> => undefined,
+    );
     const useCase = new SoftDeleteUserUseCase(
       unusedUsers({ findById, setActive }),
       unusedSessions({ deleteByUser }),
+      unusedActivations({ deleteByUserId }),
     );
 
     await expect(useCase.execute('not-a-user-id')).rejects.toMatchObject({
@@ -97,6 +126,7 @@ describe('SoftDeleteUserUseCase', () => {
     expect(findById).not.toHaveBeenCalled();
     expect(setActive).not.toHaveBeenCalled();
     expect(deleteByUser).not.toHaveBeenCalled();
+    expect(deleteByUserId).not.toHaveBeenCalled();
   });
 
   it('rejects a missing user with USER_NOT_FOUND', async () => {
@@ -106,12 +136,16 @@ describe('SoftDeleteUserUseCase', () => {
     const deleteByUser = jest.fn(
       async (_id: UserId): Promise<void> => undefined,
     );
+    const deleteByUserId = jest.fn(
+      async (_id: UserId): Promise<void> => undefined,
+    );
     const useCase = new SoftDeleteUserUseCase(
       unusedUsers({
         findById: async () => null,
         setActive,
       }),
       unusedSessions({ deleteByUser }),
+      unusedActivations({ deleteByUserId }),
     );
 
     await expect(useCase.execute(USER_ID)).rejects.toMatchObject({
@@ -122,6 +156,7 @@ describe('SoftDeleteUserUseCase', () => {
     });
     expect(setActive).not.toHaveBeenCalled();
     expect(deleteByUser).not.toHaveBeenCalled();
+    expect(deleteByUserId).not.toHaveBeenCalled();
   });
 
   it('rejects an admin target with FORBIDDEN and skips deactivate', async () => {
@@ -129,6 +164,9 @@ describe('SoftDeleteUserUseCase', () => {
       async (_id: UserId, _isActive: boolean): Promise<void> => undefined,
     );
     const deleteByUser = jest.fn(
+      async (_id: UserId): Promise<void> => undefined,
+    );
+    const deleteByUserId = jest.fn(
       async (_id: UserId): Promise<void> => undefined,
     );
     const useCase = new SoftDeleteUserUseCase(
@@ -142,6 +180,7 @@ describe('SoftDeleteUserUseCase', () => {
         setActive,
       }),
       unusedSessions({ deleteByUser }),
+      unusedActivations({ deleteByUserId }),
     );
 
     await expect(useCase.execute(ADMIN_ID)).rejects.toMatchObject({
@@ -152,5 +191,6 @@ describe('SoftDeleteUserUseCase', () => {
     });
     expect(setActive).not.toHaveBeenCalled();
     expect(deleteByUser).not.toHaveBeenCalled();
+    expect(deleteByUserId).not.toHaveBeenCalled();
   });
 });

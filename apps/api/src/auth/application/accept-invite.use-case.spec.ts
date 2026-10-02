@@ -61,6 +61,7 @@ function makeCreatedUser(overrides: Partial<AuthUser> = {}): AuthUser {
     email: INVITE_EMAIL,
     role: 'user',
     isActive: true,
+    verifiedAt: CREATED_AT,
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,
     ...overrides,
@@ -94,6 +95,7 @@ describe('AcceptInviteUseCase', () => {
         role: 'user',
       },
     });
+    expect(created.verifiedAt).not.toBeNull();
     expect(acceptAndCreateUser).toHaveBeenCalledTimes(1);
     expect(acceptAndCreateUser.mock.calls[0]?.[0]).toMatchObject({
       invitationId: INVITATION_ID,

@@ -10,6 +10,8 @@ import { PrismaUserAdapter } from './infrastructure/prisma-user.adapter';
 import { PrismaRefreshSessionAdapter } from './infrastructure/prisma-refresh-session.adapter';
 import { USER_REPOSITORY } from './domain/user-repository.port';
 import { REFRESH_SESSION_REPOSITORY } from './domain/refresh-session.repository.port';
+import { ACCOUNT_ACTIVATION_REPOSITORY } from './domain/account-activation-repository.port';
+import { PrismaAccountActivationAdapter } from './infrastructure/prisma-account-activation.adapter';
 import { BootstrapAdminUseCase } from './application/bootstrap-admin.use-case';
 import { BootstrapStatusUseCase } from './application/bootstrap-status.use-case';
 import { ListUsersUseCase } from './application/list-users.use-case';
@@ -57,7 +59,12 @@ import { LoggingMailerAdapter } from './infrastructure/logging-mailer.adapter';
     PrismaUserAdapter,
     PrismaRefreshSessionAdapter,
     PrismaInvitationAdapter,
+    PrismaAccountActivationAdapter,
     { provide: USER_REPOSITORY, useExisting: PrismaUserAdapter },
+    {
+      provide: ACCOUNT_ACTIVATION_REPOSITORY,
+      useExisting: PrismaAccountActivationAdapter,
+    },
     {
       provide: REFRESH_SESSION_REPOSITORY,
       useExisting: PrismaRefreshSessionAdapter,

@@ -722,7 +722,7 @@ Foundation for open registration: marker + token table, ACTIVATION_TTL, and user
 
 ### KROK 1 — Bootstrap + accept-invite: `verifiedAt = now()`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** `SPEC-AUTH.md` A-1 / A-7b — create admin / accept-invite ustawiają `verifiedAt`. Adaptery z FAZY 1 już to robią; upewnij unit mocki / typy CreateUserData jeśli ktoś woła `users.create` bez `verifiedAt`.
 
@@ -739,7 +739,7 @@ Foundation for open registration: marker + token table, ACTIVATION_TTL, and user
 
 ### KROK 2 — Soft-delete usuwa `AccountActivation`; list + reactivate z `verifiedAt`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** A-10 / A-10a / `docs/dokumentacja_komunikacji.md` — DELETE kasuje activation; GET/PATCH users zwracają `verifiedAt` (ISO lub `null` w JSON — serializacja Date → ISO w Nest).
 
@@ -826,7 +826,7 @@ return {
 
 ### KROK 3 — Login: pending w production → wspólny 401
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** A-2 — w `NODE_ENV=production` odrzuć `verifiedAt == null` tym samym `UNAUTHORIZED` / `Invalid credentials` co złe hasło / soft-delete. **Bez** `ACCOUNT_NOT_ACTIVATED`.
 

@@ -47,6 +47,7 @@ function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
     create: unexpected,
     createAdminIfNone: unexpected,
     setActive: unexpected,
+    setVerifiedAt: unexpected,
     list: unexpected,
     updateEmail: unexpected,
     ...overrides,
@@ -82,6 +83,7 @@ function makeAdmin(overrides: Partial<AuthUser> = {}): AuthUser {
     email: BOOTSTRAP_BODY.email,
     role: 'admin',
     isActive: true,
+    verifiedAt: CREATED_AT,
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,
     ...overrides,
@@ -120,6 +122,7 @@ describe('BootstrapAdminUseCase', () => {
       email: createdAdmin.email,
       role: 'admin',
     });
+    expect(createdAdmin.verifiedAt).not.toBeNull();
     expect(result.accessToken).toBe(ACCESS_TOKEN);
     expect(result.refreshToken.length).toBeGreaterThan(0);
     expect(createAdminIfNone).toHaveBeenCalledTimes(1);

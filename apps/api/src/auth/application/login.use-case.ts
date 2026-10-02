@@ -38,6 +38,10 @@ export class LoginUseCase {
       throw new DomainException('UNAUTHORIZED', 'Invalid credentials', 401);
     }
 
+    if (this.env.NODE_ENV === 'production' && userForAuth.verifiedAt === null) {
+      throw new DomainException('UNAUTHORIZED', 'Invalid credentials', 401);
+    }
+
     const validPass = await comparePassword(
       command.password,
       userForAuth.passwordHash,

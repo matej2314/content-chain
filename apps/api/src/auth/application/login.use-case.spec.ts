@@ -38,6 +38,21 @@ const TEST_ENV = validateEnv({
   CORS_ORIGIN: 'http://localhost:3000',
 });
 
+const PRODUCTION_ENV = validateEnv({
+  NODE_ENV: 'production',
+  DATABASE_URL: 'file:./test.db',
+  GATEWAY_BASE_URL: 'http://localhost:3100',
+  GATEWAY_KEY: 'test-gateway-key',
+  JWT_SECRET: 'test-jwt-secret',
+  CORS_ORIGIN: 'http://localhost:3000',
+  APP_PUBLIC_URL: 'https://app.example.com',
+  MAIL_FROM: 'noreply@example.com',
+  SMTP_HOST: 'smtp.example.com',
+  SMTP_PORT: 587,
+  SMTP_USER: 'smtp-user',
+  SMTP_PASS: 'smtp-pass',
+});
+
 function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
   const unexpected = async () => {
     throw new Error('unexpected repository call');
@@ -49,6 +64,7 @@ function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
     create: unexpected,
     createAdminIfNone: unexpected,
     setActive: unexpected,
+    setVerifiedAt: unexpected,
     list: unexpected,
     updateEmail: unexpected,
     ...overrides,
@@ -84,6 +100,7 @@ function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {
     email: 'user@example.com',
     role: 'user',
     isActive: true,
+    verifiedAt: CREATED_AT,
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,
     ...overrides,
@@ -202,6 +219,54 @@ describe('LoginUseCase', () => {
       }),
     ).rejects.toMatchObject(INVALID_CREDENTIALS);
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a pending user in production with the same UNAUTHORIZED as a bad password', async () => {
+    const create = jest.fn(
+      async (_session: RefreshSessionRecord): Promise<void> => undefined,
+    );
+    const useCase = new LoginUseCase(
+      unusedUsers({
+        findForAuth: async () => makeAuthUser({ verifiedAt: null }),
+      }),
+      unusedSessions({ create }),
+      makeJwt(),
+      PRODUCTION_ENV,
+    );
+
+    await expect(
+      useCase.execute({ email: 'user@example.com', password: PASSWORD }),
+    ).rejects.toMatchObject(INVALID_CREDENTIALS);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('allows a pending user outside production when credentials are valid', async () => {
+    const authUser = makeAuthUser({ verifiedAt: null });
+    const create = jest.fn(
+      async (_session: RefreshSessionRecord): Promise<void> => undefined,
+    );
+    const jwt = makeJwt();
+    const useCase = new LoginUseCase(
+      unusedUsers({
+        findForAuth: async () => authUser,
+      }),
+      unusedSessions({ create }),
+      jwt,
+      TEST_ENV,
+    );
+
+    const result = await useCase.execute({
+      email: authUser.email,
+      password: PASSWORD,
+    });
+
+    expect(result.user).toEqual({
+      id: authUser.id,
+      email: authUser.email,
+      role: authUser.role,
+    });
+    expect(result.accessToken).toBe(ACCESS_TOKEN);
+    expect(create).toHaveBeenCalledTimes(1);
   });
 
   it('rejects an invalid email with VALIDATION_FAILED and skips lookup', async () => {
