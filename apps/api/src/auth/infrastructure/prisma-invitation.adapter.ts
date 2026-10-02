@@ -21,7 +21,6 @@ import type {
   RotateInvitationTokenInput,
 } from '../domain/invitation-repository.port';
 
-// Namespace Prisma tylko tutaj (P2002). Zapytania: this.prisma (PrismaService).
 function isUniqueConstraintViolation(
   error: unknown,
 ): error is Prisma.PrismaClientKnownRequestError {
@@ -183,6 +182,7 @@ export class PrismaInvitationAdapter implements InvitationRepository {
             passwordHash: input.passwordHash,
             role: 'user',
             isActive: true,
+            verifiedAt: new Date(),
           },
         });
         await tx.invitation.update({
@@ -201,6 +201,7 @@ export class PrismaInvitationAdapter implements InvitationRepository {
           email: userRow.email,
           role: userRow.role,
           isActive: userRow.isActive,
+          verifiedAt: userRow.verifiedAt,
           createdAt: userRow.createdAt,
           updatedAt: userRow.updatedAt,
         };
@@ -208,8 +209,6 @@ export class PrismaInvitationAdapter implements InvitationRepository {
       });
     } catch (error) {
       if (isUniqueConstraintViolation(error)) {
-        // Happy-path TX już zrollbackowana (P2002). Osobny atomowy krok:
-        // zużyj token bez User (A-7b / D16) — wzorzec jak createAdminIfNone po P2002.
         await this.prisma.invitation.updateMany({
           where: { id: input.invitationId, status: 'pending' },
           data: { status: 'revoked' },

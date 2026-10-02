@@ -11,6 +11,14 @@ export type CreateAdminIfNoneData = {
   passwordHash: string;
 };
 
+export type CreateUserData = {
+  id: UserId;
+  email: string;
+  passwordHash: string;
+  role: UserRole;
+  verifiedAt: Date | null;
+};
+
 export type CreateAdminIfNoneResult =
   { ok: true; user: AuthUser } | { ok: false; reason: 'admin-exists' };
 
@@ -18,16 +26,12 @@ export interface UserRepository {
   findForAuth(email: string): Promise<UserForAuth | null>;
   findById(id: UserId): Promise<AuthUser | null>;
   findAdminCount(): Promise<number>;
-  create(data: {
-    id: UserId;
-    email: string;
-    passwordHash: string;
-    role: UserRole;
-  }): Promise<AuthUser>;
+  create(data: CreateUserData): Promise<AuthUser>;
   createAdminIfNone(
     data: CreateAdminIfNoneData,
   ): Promise<CreateAdminIfNoneResult>;
   setActive(id: UserId, isActive: boolean): Promise<void>;
+  setVerifiedAt(id: UserId, verifiedAt: Date): Promise<AuthUser>;
   list(): Promise<AuthUser[]>;
   updateEmail(id: UserId, email: string): Promise<AuthUser>;
 }

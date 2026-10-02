@@ -9,6 +9,7 @@ export type ConversationId = Brand<string, 'ConversationId'>;
 export type UserId = Brand<string, 'UserId'>;
 export type RunId = Brand<string, 'RunId'>;
 export type InvitationId = Brand<string, 'InvitationId'>;
+export type AccountActivationId = Brand<string, 'AccountActivationId'>;
 export type GatewayModelAlias = Brand<string, 'GatewayModelAlias'>;
 export type FeedbackId = Brand<string, 'FeedbackId'>;
 
@@ -23,6 +24,7 @@ const USER_ID_RE = new RegExp(`^usr_${UUID_PART}$`, 'i');
 const RUN_ID_RE = new RegExp(`^run_${UUID_PART}$`, 'i');
 const INVITATION_ID_RE = new RegExp(`^inv_${UUID_PART}$`, 'i');
 const FEEDBACK_ID_RE = new RegExp(`^fbk_${UUID_PART}$`, 'i');
+const ACCOUNT_ACTIVATION_ID_RE = new RegExp(`^act_${UUID_PART}$`, 'i');
 // ---------------------------------------------------------------------------
 // RequestId — nadaje middleware apps/api; klient NIE generuje
 // ---------------------------------------------------------------------------
@@ -93,4 +95,15 @@ export const isFeedbackId = (value: string): value is FeedbackId => FEEDBACK_ID_
 export const createFeedbackId = (value: string): FeedbackId => {
   if (!isFeedbackId(value)) throw new Error('Invalid FeedbackId');
   return brand<FeedbackId>(value);
+};
+
+// ---------------------------------------------------------------------------
+// AccountActivationId
+// ---------------------------------------------------------------------------
+
+export const isAccountActivationId = (value: string): value is AccountActivationId =>
+  ACCOUNT_ACTIVATION_ID_RE.test(value);
+export const createAccountActivationId = (value: string): AccountActivationId => {
+  if (!isAccountActivationId(value)) throw new Error('Invalid AccountActivationId');
+  return brand<AccountActivationId>(value);
 };

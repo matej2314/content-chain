@@ -19,6 +19,7 @@ export const envSchema = z
     CORS_ORIGIN: z.string().min(1),
     MAX_CONCURRENT_RUNS: z.coerce.number().int().positive().default(3),
     INVITE_TTL: z.string().min(1).default('7d'),
+    ACTIVATION_TTL: z.string().min(1).default('7d'),
     REVIEW_TTL: z.string().min(1).default('2h'),
     REVIEW_SWEEP_INTERVAL: z.string().min(1).default('5m'),
     MAIL_FROM: z.string().min(1).optional(),

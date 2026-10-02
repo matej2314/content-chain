@@ -6,13 +6,14 @@ export type AuthUser = {
   email: string;
   role: UserRole;
   isActive: boolean;
+  verifiedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
 
 export type UserListItem = Pick<
   AuthUser,
-  'id' | 'email' | 'role' | 'isActive' | 'createdAt'
+  'id' | 'email' | 'role' | 'isActive' | 'verifiedAt' | 'createdAt'
 >;
 
 export type JwtPayload = {

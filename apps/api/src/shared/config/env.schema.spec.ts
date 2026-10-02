@@ -60,6 +60,10 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...valid, NODE_ENV: 'production' })).toThrow();
   });
 
+  it('defaults ACTIVATION_TTL to 7d', () => {
+    expect(validateEnv(valid).ACTIVATION_TTL).toBe('7d');
+  });
+
   it('parses production when invite SMTP fields are set', () => {
     const env = validateEnv({
       ...valid,

@@ -1,16 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../shared/persistence/prisma.service';
-import {
-  createUserId,
-  isUserRole,
-  type UserId,
-  type UserRole,
-} from '@content-chain/shared';
+import { createUserId, isUserRole, type UserId } from '@content-chain/shared';
 import type { AuthUser } from '../domain/auth-user.types';
 import type {
   CreateAdminIfNoneData,
   CreateAdminIfNoneResult,
+  CreateUserData,
   UserForAuth,
   UserRepository,
 } from '../domain/user-repository.port';
@@ -31,15 +27,9 @@ type UserRow = {
   passwordHash: string;
   role: string;
   isActive: boolean;
+  verifiedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
-};
-
-type CreateUserData = {
-  id: UserId;
-  email: string;
-  passwordHash: string;
-  role: UserRole;
 };
 
 @Injectable()
@@ -60,6 +50,7 @@ export class PrismaUserAdapter implements UserRepository {
       email: row.email,
       role: row.role,
       isActive: row.isActive,
+      verifiedAt: row.verifiedAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
@@ -87,6 +78,7 @@ export class PrismaUserAdapter implements UserRepository {
         passwordHash: data.passwordHash,
         role: data.role,
         isActive: true,
+        verifiedAt: data.verifiedAt,
       },
     });
     return this.toUser(row);
@@ -106,6 +98,7 @@ export class PrismaUserAdapter implements UserRepository {
             id: data.id,
             email: data.email,
             passwordHash: data.passwordHash,
+            verifiedAt: new Date(),
             role: 'admin',
             isActive: true,
           },
@@ -127,6 +120,14 @@ export class PrismaUserAdapter implements UserRepository {
 
   async setActive(id: UserId, isActive: boolean): Promise<void> {
     await this.prisma.user.update({ where: { id }, data: { isActive } });
+  }
+
+  async setVerifiedAt(id: UserId, verifiedAt: Date): Promise<AuthUser> {
+    const row = await this.prisma.user.update({
+      where: { id },
+      data: { verifiedAt },
+    });
+    return this.toUser(row);
   }
 
   async list(): Promise<AuthUser[]> {

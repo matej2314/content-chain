@@ -2172,9 +2172,9 @@
     "semantic_hash": "7a69357bb31830d407c539fe9b9eab6d"
   },
   "docs/anty_patterny.md": {
-    "mtime": 1790887023.6569862,
-    "seen": 1790928985.563516,
-    "ast_hash": "202eeff36b6227d23d3317a55162ab97",
+    "mtime": 1790934624.348149,
+    "seen": 1790938167.9866128,
+    "ast_hash": "439ac56eac3389c96d701a5016100fca",
     "semantic_hash": ""
   },
   "docs/architektura.md": {
@@ -2202,27 +2202,27 @@
     "semantic_hash": ""
   },
   "docs/deployment.md": {
-    "mtime": 1790786161.8393338,
-    "seen": 1790849723.6049466,
-    "ast_hash": "550250ba02e694eb24cdd7f7886ecce6",
+    "mtime": 1790934617.175917,
+    "seen": 1790938167.9866214,
+    "ast_hash": "0c3a6479517f1889147158064c4d23bf",
     "semantic_hash": ""
   },
   "docs/dictionary.md": {
-    "mtime": 1790887018.3880277,
-    "seen": 1790928985.5635278,
-    "ast_hash": "06fc33f09272ab9eea81ad7756f215a2",
+    "mtime": 1790934621.3151753,
+    "seen": 1790938167.9866233,
+    "ast_hash": "88474d1810e509db32c9a56d792ac61e",
     "semantic_hash": ""
   },
   "docs/dokumentacja_komunikacji.md": {
-    "mtime": 1790887014.2904701,
-    "seen": 1790928985.5635293,
-    "ast_hash": "0ef61d0ec6f11e3966bd23070a305f0e",
+    "mtime": 1790934746.5050974,
+    "seen": 1790938167.9866245,
+    "ast_hash": "d331cf97e186c6acf391685581e86d53",
     "semantic_hash": ""
   },
   "docs/dokumentacja_koncepcyjna.md": {
-    "mtime": 1789735159.774497,
-    "seen": 1789739217.5564723,
-    "ast_hash": "1696da98f8ead41c5916b1999043305e",
+    "mtime": 1790931153.0836315,
+    "seen": 1790938167.9866261,
+    "ast_hash": "89c5bdacb61be3fbe9725beb2e380a62",
     "semantic_hash": ""
   },
   "docs/observability.md": {
@@ -2232,9 +2232,9 @@
     "semantic_hash": ""
   },
   "docs/security.md": {
-    "mtime": 1790887005.9376566,
-    "seen": 1790928985.5635333,
-    "ast_hash": "e3b03dd5ffa1323a0fcf1de3eee951ca",
+    "mtime": 1790934742.2891338,
+    "seen": 1790938167.986629,
+    "ast_hash": "d312aacfc64c0122d5b6eeb35fff31fb",
     "semantic_hash": ""
   },
   "docs/testy.md": {
@@ -2244,21 +2244,21 @@
     "semantic_hash": ""
   },
   "docs/ux_dashboard.md": {
-    "mtime": 1790887028.502948,
-    "seen": 1790928985.563536,
-    "ast_hash": "494d37b84db872636de373818fb1a5f9",
+    "mtime": 1790934761.9269645,
+    "seen": 1790938167.9866319,
+    "ast_hash": "79b1777a488d2399b563a6cbadd07128",
     "semantic_hash": ""
   },
   "spec/SPEC-AUTH.md": {
-    "mtime": 1790887167.2056594,
-    "seen": 1790928985.5635371,
-    "ast_hash": "7c606613588e368ca8d8fb48f1fbd943",
+    "mtime": 1790934728.9629838,
+    "seen": 1790938167.9866333,
+    "ast_hash": "fc397f1f2d8db85781796955c8a306d5",
     "semantic_hash": ""
   },
   "spec/SPEC-BEZPIECZENSTWO.md": {
-    "mtime": 1790887172.0396333,
-    "seen": 1790928985.563538,
-    "ast_hash": "1dd2f23d455ada85c525178b9f982cd8",
+    "mtime": 1790934648.064945,
+    "seen": 1790938167.9866345,
+    "ast_hash": "d4adf8a1e5d446c5c7f281dfc42a7836",
     "semantic_hash": ""
   },
   "spec/SPEC-FEEDBACK.md": {
@@ -2268,15 +2268,15 @@
     "semantic_hash": ""
   },
   "spec/SPEC-FRONTEND.md": {
-    "mtime": 1790887196.0556278,
-    "seen": 1790928985.563548,
-    "ast_hash": "2ab05d9025540a85be3d594d98ea9139",
+    "mtime": 1790934786.3597646,
+    "seen": 1790938167.9866388,
+    "ast_hash": "682ef2c7fe9d7b60a80ca5196f50ba9b",
     "semantic_hash": ""
   },
   "spec/SPEC-KOMUNIKACJA.md": {
-    "mtime": 1790887189.0033827,
-    "seen": 1790928985.563549,
-    "ast_hash": "c3fa533a9d69143c95221ef333a0e54f",
+    "mtime": 1790934733.0872128,
+    "seen": 1790938167.98664,
+    "ast_hash": "db3bcbf79b9c9ab5e5d4bbc9e3e51966",
     "semantic_hash": ""
   },
   "spec/SPEC-KONTEKST-FIRMY.md": {
@@ -2292,15 +2292,15 @@
     "semantic_hash": "38449efd9506bb83e8295c3a8b760746"
   },
   "spec/SPEC-PERSISTENCE.md": {
-    "mtime": 1790887236.8263068,
-    "seen": 1790928985.5635521,
-    "ast_hash": "6b5410d8b3444ff2e3999fe6cfcfdc83",
+    "mtime": 1790934650.0589278,
+    "seen": 1790938167.986644,
+    "ast_hash": "7faf43f3607262da3c9356a54b8715b8",
     "semantic_hash": ""
   },
   "spec/SPEC-README.md": {
-    "mtime": 1790786692.490098,
-    "seen": 1790849723.6049583,
-    "ast_hash": "f1c2351d8985bb9a834749b6a0ddecbd",
+    "mtime": 1790934657.1488667,
+    "seen": 1790938167.9866452,
+    "ast_hash": "be79a057a30a0da20b1352f03a3b2ff8",
     "semantic_hash": ""
   },
   "spec/SPEC-RUNY.md": {
@@ -2316,9 +2316,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-TESTY.md": {
-    "mtime": 1790887227.7083786,
-    "seen": 1790928985.563557,
-    "ast_hash": "0979f72286d4872bf75dcc12dcad2ce1",
+    "mtime": 1790934664.2889895,
+    "seen": 1790938167.9866493,
+    "ast_hash": "0ed84bc5c865bcc10adffe358d85f76f",
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/resume-hitl.use-case.ts": {

@@ -12,18 +12,22 @@
 
 ## Meta
 
-| Pole | Wartość |
-|------|---------|
-| Wycinek | Publiczny register + aktywacja e-mail (`verifiedAt`, `AccountActivation`, activate, resend) + login 401 pending + verifiedAt na list/reactivate/soft-delete |
-| Major | Faza 16 (`NIE_ROZPOCZĘTY` → po implementacji `WYKONANY` jako gate+HOW); start po Fazach 1–15 (`WYKONANY`); **bez** MILESTONE 16 |
-| Poza zakresem | UI FE (major FE Faza 12); `DEMO_MODE` / `guest`; confirm e-mail przy `PATCH /auth/me/email` (V1); Set-Cookie na register/activate/resend; drugi admin; edycja major/docs/SPEC; aktualizacja `docs/brand_types.md` (ID `act_` w shared — tak) |
-| Po implementacji (informacyjnie) | Major: Faza 16 → `WYKONANY`. Brak `MILESTONE` 16. Faza 5 / MILESTONE 5 bez zmian historii. Edycja major **poza** tym skillem |
+
+| Pole                             | Wartość                                                                                                                                                                                                                                      |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Wycinek                          | Publiczny register + aktywacja e-mail (`verifiedAt`, `AccountActivation`, activate, resend) + login 401 pending + verifiedAt na list/reactivate/soft-delete                                                                                  |
+| Major                            | Faza 16 (`NIE_ROZPOCZĘTY` → po implementacji `WYKONANY` jako gate+HOW); start po Fazach 1–15 (`WYKONANY`); **bez** MILESTONE 16                                                                                                              |
+| Poza zakresem                    | UI FE (major FE Faza 12); `DEMO_MODE` / `guest`; confirm e-mail przy `PATCH /auth/me/email` (V1); Set-Cookie na register/activate/resend; drugi admin; edycja major/docs/SPEC; aktualizacja `docs/brand_types.md` (ID `act_` w shared — tak) |
+| Po implementacji (informacyjnie) | Major: Faza 16 → `WYKONANY`. Brak `MILESTONE` 16. Faza 5 / MILESTONE 5 bez zmian historii. Edycja major **poza** tym skillem                                                                                                                 |
+
 
 **Mapa major → ten plik**
 
-| Major | Feature | Zakres |
-|-------|---------|--------|
+
+| Major          | Feature  | Zakres                                                                       |
+| -------------- | -------- | ---------------------------------------------------------------------------- |
 | Faza 16 (gate) | FAZA 1–4 | Persistence → ścieżki istniejące → register/activate/resend/HTTP → D-41…D-46 |
+
 
 ---
 
@@ -44,12 +48,14 @@
 
 ## Biblioteki (research)
 
-| Temat | Źródło | Ustalenie | Decyzja w wycinku |
-|-------|--------|-----------|------------------|
-| Zod body | Context7 `/colinhacks/zod` (projekt `zod@^4.4.3`) | `z.email()`, `.strict()` / `strictObject` | Schematy jak `updateMeEmailSchema`: `.strict()` + `z.email()` |
-| Prisma migracja | Context7 `/prisma/web` + lokalne migracje | ADD COLUMN + backfill SQL; nowa tabela + UNIQUE | Jak `Invitation` / backfill `pipelineFinishedAt` |
-| Nest HTTP | istniejący AuthController | `@Public()`, `@HttpCode`, bez Set-Cookie na tych trasach | Wzorzec `postAcceptInvite` |
-| bcrypt / TTL / token | `auth.helpers.ts` | `generateRefreshToken` + `hashRefreshToken` + `parseTtlMs` | Reuse; bez nowego crypto wrappera |
+
+| Temat                | Źródło                                            | Ustalenie                                                  | Decyzja w wycinku                                             |
+| -------------------- | ------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
+| Zod body             | Context7 `/colinhacks/zod` (projekt `zod@^4.4.3`) | `z.email()`, `.strict()` / `strictObject`                  | Schematy jak `updateMeEmailSchema`: `.strict()` + `z.email()` |
+| Prisma migracja      | Context7 `/prisma/web` + lokalne migracje         | ADD COLUMN + backfill SQL; nowa tabela + UNIQUE            | Jak `Invitation` / backfill `pipelineFinishedAt`              |
+| Nest HTTP            | istniejący AuthController                         | `@Public()`, `@HttpCode`, bez Set-Cookie na tych trasach   | Wzorzec `postAcceptInvite`                                    |
+| bcrypt / TTL / token | `auth.helpers.ts`                                 | `generateRefreshToken` + `hashRefreshToken` + `parseTtlMs` | Reuse; bez nowego crypto wrappera                             |
+
 
 ---
 
@@ -61,7 +67,7 @@ Odpowiada major **Faza 16** (fundament HOW).
 
 ### KROK 1 — Prisma: `verifiedAt` + `AccountActivation` + backfill
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Schema i migracja zgodne z `SPEC-PERSISTENCE.md` P-5 / D19 oraz `SPEC-AUTH.md` A-11…A-13. Backfill istniejących userów: `verifiedAt = createdAt`.
 
@@ -327,7 +333,7 @@ export type AccountActivationRecord = {
   createdAt: Date;
 };
 
-export type CreatePendingUserWithActivationInput = {
+export type CreatePendingUser = {
   user: CreateUserData & { verifiedAt: null };
   activation: {
     id: AccountActivationId;
@@ -344,8 +350,8 @@ export type RotateActivationTokenInput = {
 
 export interface AccountActivationRepository {
   /** TX: User (pending) + AccountActivation. */
-  createPendingUserWithActivation(
-    input: CreatePendingUserWithActivationInput,
+  createPendingUser(
+    input: CreatePendingUser,
   ): Promise<AuthUser>;
 
   findValidByTokenHash(
@@ -353,7 +359,7 @@ export interface AccountActivationRepository {
     now: Date,
   ): Promise<AccountActivationRecord | null>;
 
-  findByUserId(userId: UserId): Promise<AccountActivationRecord | null>;
+  findValidByUserId(userId: UserId): Promise<AccountActivationRecord | null>;
 
   /** TX: set User.verifiedAt + delete all AccountActivation for user. */
   consumeAndVerify(
@@ -382,7 +388,7 @@ import type { AuthUser } from '../domain/auth-user.types';
 import type {
   AccountActivationRecord,
   AccountActivationRepository,
-  CreatePendingUserWithActivationInput,
+  CreatePendingUser,
   RotateActivationTokenInput,
 } from '../domain/account-activation-repository.port';
 import type { UserId } from '@content-chain/shared';
@@ -441,8 +447,8 @@ export class PrismaAccountActivationAdapter
     };
   }
 
-  async createPendingUserWithActivation(
-    input: CreatePendingUserWithActivationInput,
+  async createPendingUser(
+    input: CreatePendingUser,
   ): Promise<AuthUser> {
     return this.prisma.$transaction(async (tx) => {
       const userRow = await tx.user.create({
@@ -477,7 +483,7 @@ export class PrismaAccountActivationAdapter
     return row ? this.toActivation(row) : null;
   }
 
-  async findByUserId(userId: UserId): Promise<AccountActivationRecord | null> {
+  async findValidByUserId(userId: UserId): Promise<AccountActivationRecord | null> {
     const row = await this.prisma.accountActivation.findUnique({
       where: { userId },
     });
@@ -516,9 +522,9 @@ export class PrismaAccountActivationAdapter
 
 #### Refaktor — `prisma-user.adapter.ts` (kluczowe fragmenty)
 
-**`UserRow` + `toUser`:** dodaj `verifiedAt: Date | null` i mapuj do `AuthUser`.
+`**UserRow` + `toUser`:** dodaj `verifiedAt: Date | null` i mapuj do `AuthUser`.
 
-**`create`:**
+`**create`:**
 
 ```typescript
 async create(data: CreateUserData): Promise<AuthUser> {
@@ -536,7 +542,7 @@ async create(data: CreateUserData): Promise<AuthUser> {
 }
 ```
 
-**`createAdminIfNone` — w `tx.user.create` dodaj `verifiedAt: new Date()`.**
+`**createAdminIfNone` — w `tx.user.create` dodaj `verifiedAt: new Date()`.**
 
 **Dopisz:**
 
@@ -563,7 +569,7 @@ W `tx.user.create` dodaj `verifiedAt: new Date()`. W obiekcie `AuthUser` mapuj `
 
 ### KROK 3 — Env `ACTIVATION_TTL` + mailer `user_activation`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** `docs/deployment.md` — `ACTIVATION_TTL` default `7d`; kind maila `user_activation` z deep-linkiem `/?activationToken=`.
 
@@ -1035,7 +1041,7 @@ export class RegisterUserUseCase {
         const { raw, hash } = generateRefreshToken();
         rawToken = raw;
         activationId = newAccountActivationId();
-        user = await this.activations.createPendingUserWithActivation({
+        user = await this.activations.createPendingUser({
           user: {
             id: userId,
             email: command.email,
@@ -1278,7 +1284,7 @@ export class ResendActivationUseCase {
       return SUCCESS;
     }
 
-    const existing = await this.activations.findByUserId(user.id);
+    const existing = await this.activations.findValidByUserId(user.id);
     if (!existing) {
       return SUCCESS;
     }
@@ -1419,14 +1425,16 @@ Open self-registration creates pending users in production with email activation
 
 #### Minimalny zakres asercji
 
-| Case | Asercja |
-|------|---------|
-| D-41 (unit) | Register z `env.NODE_ENV=production` → user `verifiedAt=null`, `createPendingUserWithActivation` + mail `user_activation`; login mock → 401; activate → `consumeAndVerify` |
-| D-42 | Register non-prod → `users.create` z `verifiedAt` Date; **bez** activation/mail |
-| D-43 | `findForAuth` zwraca user (active lub `isActive:false`) → 409 `Email already in use`; brak create |
-| D-44 | Resend: zawsze `{ message: 'Wiadomość wysłana ponownie' }`; mail tylko gdy pending+activation; SMTP throw → nadal SUCCESS; rate limit 6. wywołanie bez maila |
-| D-45 | Activate zły hash → 401; login pending/prod → 401; złe hasło → ten sam message |
-| D-46 | Accept-invite / bootstrap ścieżki z `verifiedAt`; register role zawsze `user`; soft-delete woła `deleteByUserId`; revoke pending invite przed register |
+
+| Case        | Asercja                                                                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D-41 (unit) | Register z `env.NODE_ENV=production` → user `verifiedAt=null`, `createPendingUser` + mail `user_activation`; login mock → 401; activate → `consumeAndVerify` |
+| D-42        | Register non-prod → `users.create` z `verifiedAt` Date; **bez** activation/mail                                                                              |
+| D-43        | `findForAuth` zwraca user (active lub `isActive:false`) → 409 `Email already in use`; brak create                                                            |
+| D-44        | Resend: zawsze `{ message: 'Wiadomość wysłana ponownie' }`; mail tylko gdy pending+activation; SMTP throw → nadal SUCCESS; rate limit 6. wywołanie bez maila |
+| D-45        | Activate zły hash → 401; login pending/prod → 401; złe hasło → ten sam message                                                                               |
+| D-46        | Accept-invite / bootstrap ścieżki z `verifiedAt`; register role zawsze `user`; soft-delete woła `deleteByUserId`; revoke pending invite przed register       |
+
 
 Wzorce mocków: jak `invite-user.use-case.spec.ts` / `resend-invitation.use-case.spec.ts` (`unusedMailer`, stałe env).
 
@@ -1474,17 +1482,19 @@ Lock the verification contract with unit cases and Postman flows so pending logi
 
 ## Weryfikacja wycinka
 
-| Kryterium | Jak sprawdzić |
-|-----------|----------------|
-| A-11 register | 201 + `verifiedAt`; zawsze `user`; revoke invite; 409 kolizja; 503 SMTP prod; bez cookie |
-| A-12 activate | 200 `{ user }`; delete activation; 401 wspólny; bez 409; bez cookie |
-| A-13 resend | zawsze 200 + stały message; soft 5/15; bez 503 |
-| A-2 login | prod pending = 401 `Invalid credentials` |
-| A-1 / A-7b | bootstrap + accept ustawiają `verifiedAt` |
-| A-10 | soft-delete usuwa `AccountActivation`; nie czyści `verifiedAt` |
-| P-5 / D19 | migracja + backfill; unikalne `userId`/`tokenHash` |
-| D-41…D-46 | unit + Postman/e2e |
+
+| Kryterium     | Jak sprawdzić                                                                                |
+| ------------- | -------------------------------------------------------------------------------------------- |
+| A-11 register | 201 + `verifiedAt`; zawsze `user`; revoke invite; 409 kolizja; 503 SMTP prod; bez cookie     |
+| A-12 activate | 200 `{ user }`; delete activation; 401 wspólny; bez 409; bez cookie                          |
+| A-13 resend   | zawsze 200 + stały message; soft 5/15; bez 503                                               |
+| A-2 login     | prod pending = 401 `Invalid credentials`                                                     |
+| A-1 / A-7b    | bootstrap + accept ustawiają `verifiedAt`                                                    |
+| A-10          | soft-delete usuwa `AccountActivation`; nie czyści `verifiedAt`                               |
+| P-5 / D19     | migracja + backfill; unikalne `userId`/`tokenHash`                                           |
+| D-41…D-46     | unit + Postman/e2e                                                                           |
 | Poza zakresem | brak zmian FE UI; brak Set-Cookie na 3 trasach; major/docs/SPEC nietknięte w tej sesji planu |
+
 
 Zgodność: docs + SPEC wygrywają nad Faza 5 historyczną („jedyna droga = invite”).
 
@@ -1492,11 +1502,13 @@ Zgodność: docs + SPEC wygrywają nad Faza 5 historyczną („jedyna droga = in
 
 ## Ślad do major (informacyjnie — po implementacji)
 
-| Pozycja | Po implementacji HOW |
-|---------|----------------------|
-| Faza 16 | `WYKONANY` (gate + ścieżka HOW w feature-planie) |
-| MILESTONE 16 | **brak** — nic nie oznaczać `OSIĄGNIĘTY` |
-| Faza 5 / 5.1 / 5.2 / MILESTONE 5 | bez zmian historii (`WYKONANY` / `OSIĄGNIĘTY`) |
+
+| Pozycja                          | Po implementacji HOW                             |
+| -------------------------------- | ------------------------------------------------ |
+| Faza 16                          | `WYKONANY` (gate + ścieżka HOW w feature-planie) |
+| MILESTONE 16                     | **brak** — nic nie oznaczać `OSIĄGNIĘTY`         |
+| Faza 5 / 5.1 / 5.2 / MILESTONE 5 | bez zmian historii (`WYKONANY` / `OSIĄGNIĘTY`)   |
+
 
 Aktualizacja statusów major: **poza** tym skillem (ręcznie / sesja `/feature-implementation` na życzenie).
 
@@ -1507,3 +1519,4 @@ Aktualizacja statusów major: **poza** tym skillem (ręcznie / sesja `/feature-i
 - **Grandfathering docs:** `docs/README.md` bez frontmatteru — potwierdzone jako stara dokumentacja w tej sesji; frontmatteru nie dopisywano.
 - Ten skill **nie** implementuje kodu i **nie** startuje `/feature-implementation`.
 )
+

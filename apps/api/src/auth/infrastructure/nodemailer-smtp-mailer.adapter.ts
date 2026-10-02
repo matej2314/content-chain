@@ -4,7 +4,7 @@ import { ENV, type Env } from '../../shared/config/env';
 import type { Transporter } from 'nodemailer';
 import type {
   TransactionalMailer,
-  UserInvitedMail,
+  TransactionalMail,
 } from '../domain/transactional-mailer.port';
 
 type SmtpConfig = {
@@ -44,12 +44,21 @@ export class NodemailerSmtpMailerAdapter implements TransactionalMailer {
     });
   }
 
-  async send(message: UserInvitedMail): Promise<void> {
+  async send(message: TransactionalMail): Promise<void> {
+    if (message.kind === 'user_invited') {
+      await this.transporter.sendMail({
+        from: this.from,
+        to: message.to,
+        subject: 'You are invited to join Content Chain App',
+        text: `You are invited to join Content Chain App. Please click the link below to accept the invitation: ${message.acceptUrl}\nToken: ${message.rawToken} `,
+      });
+      return;
+    }
     await this.transporter.sendMail({
       from: this.from,
       to: message.to,
-      subject: 'You are invited to join Content Chain App',
-      text: `You are invited to join Content Chain App. Please click the link below to accept the invitation: ${message.acceptUrl}\nToken: ${message.rawToken}`,
+      subject: 'Activate your Content Chain account',
+      text: `Please activate your account: ${message.activateUrl}\nToken: ${message.rawToken}`,
     });
   }
 }
