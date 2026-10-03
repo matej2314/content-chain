@@ -1,41 +1,35 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
 import { EnvelopeError, FormField } from '@/shared/ui/form-field';
 import { ApiError } from '@/shared/api/envelope';
-import {
-  bootstrapAdmin,
-  fetchBootstrapStatus,
-  loginWithPassword,
-} from '@/modules/auth/api/auth.api';
+import { bootstrapAdmin, loginWithPassword } from '@/modules/auth/api/auth.api';
 import { useSession } from '@/modules/auth/components/session-provider';
 
-export function LoginCard() {
+type LoginCardProps = {
+  readonly bootstrapAvailable: boolean;
+  readonly onBootstrapAvailableChange?: (available: boolean) => void;
+  readonly onGoRegister?: () => void;
+  readonly successHint?: string | null;
+  readonly activationError?: string | null;
+};
+
+export function LoginCard({
+  bootstrapAvailable,
+  onGoRegister,
+  successHint = null,
+  activationError = null,
+}: LoginCardProps) {
   const router = useRouter();
   const { setAuthenticated } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState(false);
-  const [bootstrapAvailable, setBootstrapAvailable] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetchBootstrapStatus()
-      .then((available) => {
-        if (!cancelled) setBootstrapAvailable(available);
-      })
-      .catch(() => {
-        if (!cancelled) setBootstrapAvailable(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -104,15 +98,27 @@ export function LoginCard() {
           <Button type="submit" disabled={pending} className="w-full">
             {pending ? 'Zapisywanie…' : 'Zaloguj się'}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled
-            className="w-full"
-            title="Rejestracja jest niedostępna"
-          >
-            Nie masz konta? Zarejestruj się!
-          </Button>
+          {successHint ? (
+            <p className="text-sm text-muted-foreground" role="status">
+              {successHint}
+            </p>
+          ) : null}
+          {activationError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {activationError}
+            </p>
+          ) : null}
+          {!bootstrapAvailable ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={onGoRegister === undefined}
+              onClick={onGoRegister}
+            >
+              Nie masz konta? Zarejestruj się!
+            </Button>
+          ) : null}
         </form>
       </CardContent>
     </Card>

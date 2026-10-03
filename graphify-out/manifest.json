@@ -3216,9 +3216,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/api/session.types.ts": {
-    "mtime": 1789468076.2968016,
-    "seen": 1789468091.511165,
-    "ast_hash": "0fc1e9c0faca22f6699a6a8cb980c078",
+    "mtime": 1790967444.1507285,
+    "seen": 1790967457.5470533,
+    "ast_hash": "de9b30c2fb7ddeb1f8e0fa548eb3d3eb",
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/api/envelope.ts": {
@@ -3234,9 +3234,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/api/auth.api.ts": {
-    "mtime": 1790771051.1786747,
-    "seen": 1790771069.4981353,
-    "ast_hash": "35136465da722d98bcc95a91ba4e74bb",
+    "mtime": 1790967448.8836904,
+    "seen": 1790967457.5470517,
+    "ast_hash": "93b836fa4bce5b7a4fd789fa84a4f23a",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/event-source-registry.ts": {
@@ -3318,15 +3318,15 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/home-entry.tsx": {
-    "mtime": 1789581624.8348954,
-    "seen": 1789638428.3510218,
-    "ast_hash": "f4b1cce4f993e888b28ede1fb97bb612",
+    "mtime": 1791018740.905415,
+    "seen": 1791018747.7064865,
+    "ast_hash": "c61c03deafbc758446c64c694e125a96",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/login-card.tsx": {
-    "mtime": 1789480692.0239375,
-    "seen": 1789548756.0561514,
-    "ast_hash": "899d4ba714e9e5cd2655c767871d171b",
+    "mtime": 1791017431.3891964,
+    "seen": 1791017460.667964,
+    "ast_hash": "e261738f3a6794ba04a3649b5ea88883",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/session-provider.tsx": {
@@ -3957,6 +3957,30 @@
     "mtime": 1790964230.5075018,
     "seen": 1790965391.9131997,
     "ast_hash": "cc58d3db4d7ef81736b1da2d7d17d9e9",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/auth/components/register-form.tsx": {
+    "mtime": 1791017426.5523062,
+    "seen": 1791017460.667966,
+    "ast_hash": "7752dd6617846e15ce3ed8653e787c0e",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/auth/register-form-error.ts": {
+    "mtime": 1791017423.6402311,
+    "seen": 1791017460.6679695,
+    "ast_hash": "195dd6cefc435400a2275245847f1c8e",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/auth/components/registration-thank-you.tsx": {
+    "mtime": 1791018401.2176762,
+    "seen": 1791018415.4424531,
+    "ast_hash": "99919182f673138cec46f6a6992cdbbf",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/auth/activation-error.ts": {
+    "mtime": 1791018734.894813,
+    "seen": 1791018747.706482,
+    "ast_hash": "29ba7e96c665cac85c1879e6d5501268",
     "semantic_hash": ""
   }
 }

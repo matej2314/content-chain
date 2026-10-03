@@ -65,7 +65,7 @@ Odpowiada major **Faza 12**.
 
 ### KROK 1 — Klienty API: register / activate / resend + parser `verifiedAt`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Cienki klient HTTP pod F-4b / A-11…A-13 — parsowanie odpowiedzi register (z `verifiedAt`) oraz publiczne `activate` / `resend-activation` **bez** sesji. Major Faza 12 HOW #5; `SPEC-FRONTEND.md` F-4b; `SPEC-AUTH.md` A-11…A-13.
 
@@ -242,7 +242,7 @@ export async function resendActivation(email: string): Promise<void> {
 
 ### KROK 2 — Formularz register + aktywny CTA na `LoginCard`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Aktywny „Nie masz konta? Zarejestruj się!” gdy bootstrap niedostępny; formularz email / hasło / confirm; lokalna polityka + mapowanie **409** na pole email. Major Faza 12 HOW #1 / #4; `SPEC-FRONTEND.md` F-4a / F-4b; `docs/ux_dashboard.md`.
 
@@ -554,7 +554,7 @@ W `HomeEntry` (gość): `useState<GuestView>({ mode: 'login' })` + `bootstrapAva
 
 ### KROK 3 — Thank-you + resend (prod / 503; poza prod → login)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Po **201** `verifiedAt === null` lub **503** `MAIL_DELIVERY_FAILED` — strona podziękowań z resend ze stanu klienta; zawsze traktuj odpowiedź resend jako sukces copy (API zawsze **200**). Poza prod (`ready`) — powrót na login z krótkim hintem. Major Faza 12 HOW #2; F-4b; `docs/ux_dashboard.md`.
 
@@ -690,7 +690,7 @@ Render:
 
 ### KROK 4 — Deep link `/?activationToken=` + Toaster na `/` + toast sukcesu
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Natychmiast widok logowania; w tle `POST /auth/activate`; sukces → toast „Konto aktywowane! Możesz się zalogować.”; błąd → ogólny komunikat na karcie; strip query; Suspense pod `useSearchParams`. Major Faza 12 HOW #3 / #4; F-4b (wyjątek Toastera); Context7 Next 16.
 

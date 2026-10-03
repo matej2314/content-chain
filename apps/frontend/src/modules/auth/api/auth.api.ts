@@ -2,7 +2,9 @@ import { apiFetch } from '@/shared/api/api-fetch';
 import { isRecord } from '@/shared/api/envelope';
 import {
   parseAuthUserWrapper,
+  parseRegisteredUserWrapper,
   parseSessionUser,
+  type RegisteredUser,
   type SessionUser,
 } from '@/modules/auth/api/session.types';
 
@@ -74,4 +76,33 @@ export async function acceptInvite(input: {
     skipAuthRefresh: true,
   });
   return parseAuthUserWrapper(body);
+}
+
+export async function registerAccount(credentials: Credentials): Promise<RegisteredUser> {
+  const body = await apiFetch('/auth/register', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(credentials),
+    skipAuthRefresh: true,
+  });
+  return parseRegisteredUserWrapper(body);
+}
+
+export async function activateAccount(token: string): Promise<SessionUser> {
+  const body = await apiFetch('/auth/activate', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token }),
+    skipAuthRefresh: true,
+  });
+  return parseAuthUserWrapper(body);
+}
+
+export async function resendActivation(email: string): Promise<void> {
+  await apiFetch('/auth/resend-activation', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email }),
+    skipAuthRefresh: true,
+  });
 }
