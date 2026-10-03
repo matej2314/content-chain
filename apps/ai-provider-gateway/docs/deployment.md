@@ -490,8 +490,8 @@ Important variables: `DEPLOY_DIR`, `LAST_GOOD_SHA_FILE`, `SKIP_VAULT_FETCH`, `HE
 - **Grafana:** http://localhost:3001 — `make dashboard`
 - **Application metrics:** `GET /metrics` (public, **without** `/api/v1` prefix) — Prometheus text format; before export, readiness gauges are refreshed (`gateway_readiness`, `gateway_health_status{component="config|redis|cache|embeddings"}`) and `gateway_process_uptime_seconds`. Semantic cache also exposes exact hit/miss and semantic hit / hash-hit / below-threshold / error / skip counters (fail-open).
 - **HTTP health:**
-  - Liveness: `GET /api/v1/health`
-  - Readiness: `GET /api/v1/health/ready` (Docker HEALTHCHECK parses `body.status`)
+  - Liveness: `GET /api/v1/health` — Docker / ops **and** first-class consumer: Content Chain `apps/api` (probe for the product “Agenci aktywni” gate; **no** `X-Gateway-Key`). Full gateway readiness is **not** the source of that CC gate.
+  - Readiness: `GET /api/v1/health/ready` (Docker HEALTHCHECK parses `body.status`; ops/orchestration — outside the CC chip predicate in MVP)
 
 ### Metrics verification (locally / after deploy)
 

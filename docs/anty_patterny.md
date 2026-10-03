@@ -1,7 +1,7 @@
 ---
-wersja: 10
+wersja: 11
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-02
+data_modyfikacji: 2026-10-03
 ---
 
 # Anty-patterny — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-02
 Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego źle → zamiast tego. Ogólny podręcznik Nest/Next — poza zakresem.
 
 Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `security.md`.
+
+Zmiana względem: brak wierszy o bramce „Agenci aktywni” vs gateway. Od tej wersji zakazy: FE→gateway health; doklejanie sieci do `isComplete`; mylenie liveness z pełnym readiness gateway w chipie.
 
 Zmiana względem: brak wierszy o TTL / sweeperze przeglądu. Od tej wersji zakazy: timer in-memory jako TTL, kotwica od `createdAt` / bieżącego `updatedAt`, FE-only disable, finalize na GET, UPDATE locka przy mutacji po TTL, lokalne wyliczanie expiry na FE.
 
@@ -72,6 +74,8 @@ Zmiana względem: zakaz otwartego signup. Od tej wersji: zakaz maskowanego sukce
 | Anty-pattern | Dlaczego źle | Zamiast tego |
 |--------------|--------------|--------------|
 | Sekrety LLM / `X-Gateway-Key` w `NEXT_PUBLIC_*` | Wyciek kluczy | Tylko `apps/api` ↔ gateway |
+| FE → gateway (`/health`, `/health/ready`, chat) | Łamie BFF; wyciek topologii / kluczy; rozjazd z SPEC | Wyłącznie `apps/api` (chip: `GET /api/v1/health/ready`) |
+| Interval polling completeness / `/health/ready` | Zbędne obciążenie; kanon = mount + refetch przy okazji | Refetch przy mount i po zapisie kontekstu (`ux_dashboard.md`) |
 | Polling statusu **konkretnego** runu zamiast SSE | Obciążenie, gorszy UX, rozjazd z kontraktem | SSE `.../events` dla `running` / `awaiting_hitl` / `interrupted`; GET logów = historia. GET archiwum co 15 min **nie** zastępuje SSE |
 | `EventSource` na `queued` albo drugi socket na ten sam `runId` (szczegóły + box) | Nadmiar połączeń; auto-reconnect na kolejce | Rejestr layoutu: max jedno połączenie na `runId`; `queued` tylko GET |
 | Zostawianie `EventSource` po `completed`/`failed`/`cancelled` (auto-reconnect) | Pętla GET `.../events` na skończonym runie | `close()` po evencie terminalnym; nie otwierać SSE, gdy snapshot już terminalny (`ux_dashboard.md`) |
@@ -92,6 +96,7 @@ Zmiana względem: zakaz otwartego signup. Od tej wersji: zakaz maskowanego sukce
 | Lokalne wyliczanie expiry na FE z `pipelineFinishedAt` + stałej | Drift TTL względem api / env | Deadline wyłącznie z serwerowego `reviewExpiresAt` |
 | Duplikacja brand types / DTO poza `packages/shared` | Rozjazd kontraktu FE/BE | Import z shared + walidacja na granicach (HTTP: class-validator; api application: Zod — nie w shared) |
 | Logika kompletności kontekstu tylko w UI | Da się obejść API | Egzekucja bramki w `apps/api` |
+| Doklejanie sieci / `gatewayAlive` do `isComplete` / BC company-context | Miesza domenę kontekstu z ops; psuje unit testy i `409` `CONTEXT_INCOMPLETE` | `isComplete` bez sieci; `agentsActive` = completeness ∧ `gatewayAlive` w warstwie UX / health |
 | Feedback / gwiazdki / edycja wyniku w LangGraph | Miesza jakość UX z pipeline LLM | Komendy Runs + BC Feedback po `completed`/`failed` (przegląd **bez** `cancelled`). Edycja treści = `POST .../output-edited` (nadpis `result` + flaga), **nie** re-invoke grafu. Przy `POST /feedback` `targetType=run` bramka statusu/wyniku jest w **API** (409 `RUN_NOT_REVIEWABLE`); sam disable na UI nie wystarcza |
 | Edytuj tylko jako flaga, przy kanonie „zapis treści” | UI i snapshot rozjeżdżają się z DB | Zapis edycji zastępuje kanoniczny wynik (`dokumentacja_komunikacji.md`, `ux_dashboard.md`) |
 | Select „wszystkie moje runy” przez łamanie `pageSize=10` na `GET /runs` | Psuje listę dashboardu | Osobny `GET /runs/user/:userId` (bez paginacji 10) |
@@ -107,6 +112,8 @@ Zmiana względem: zakaz otwartego signup. Od tej wersji: zakaz maskowanego sukce
 | Anty-pattern | Dlaczego źle | Zamiast tego |
 |--------------|--------------|--------------|
 | `apps/api` → SDK vendora z pominięciem gateway | Druga ścieżka LLM; brak wspólnych logów/limitów | Wyłącznie natywny chat gateway |
+| Chip „Agenci aktywni” oparty o upstream gateway `/health/ready` (config/redis/cache) | Miesza liveness procesu z pełnym readiness ops | Api probe **liveness** `/health`; pełny readiness gateway = ops, poza predykatem chipa |
+| Probe gateway przez port `chat` / adapter LLM | Miesza ścieżkę LLM z ops health | Osobny klient/serwis w `health/` |
 | Własny `x-request-id` generowany „na zapas” pod hop LLM | Fałszywa pewność; dublowanie generatora gateway | Brać `requestId` z **odpowiedzi** gateway do `run.log` |
 | Klient FE generuje `RequestId` przed `POST /runs` | Zbędne; oś runu to `ConversationId` | ID HTTP z odpowiedzi api; run = `RunId` + `ConversationId` |
 | Nowy `ConversationId` na każdy agent w runie | Rozjeżdża korelację logów LLM | Jeden `ConversationId` na cały run agentowy |

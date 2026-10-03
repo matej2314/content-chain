@@ -261,7 +261,7 @@
     },
     {
       "name": "HEALTH",
-      "description": "Liveness procesu api. Publiczny.",
+      "description": "Liveness i readiness procesu api. Publiczne. Ready: zawsze HTTP 200 przy żywym api; werdykt w `body.status` (`ready` | `not_ready`); `checks.gateway` z probe liveness gateway (nie upstream `/health/ready`).",
       "item": [
         {
           "name": "GET health",
@@ -270,6 +270,15 @@
             "header": [],
             "url": "{{baseUrl}}/health",
             "description": "200 `{ status: \"healthy\", timestamp }`."
+          }
+        },
+        {
+          "name": "GET health/ready",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health/ready",
+            "description": "D-47/D-48: 200 `{ status: ready|not_ready, timestamp, checks: { api, gateway } }`. Werdykt wyłącznie w body. Bez sekretów / GATEWAY_KEY / X-Gateway-Key. CI: unit + e2e z mockiem probe."
           }
         }
       ]

@@ -1,6 +1,6 @@
 # Endpoint list — AI Provider Gateway
 
-Document version: **1.9**.  
+Document version: **1.10**.  
 **OpenAPI:** [`openapi.json`](../openapi.json) (v0.14.0) — synchronized with `src/` (health, native chat, **models**, OpenAI/Anthropic facades, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` via `ResilientExecutor` (`src/chat/resilience/`), `@nestjs/swagger` decorators). **Errors:** native chat and models — `ErrorEnvelope` (`GlobalExceptionFilter`); facades — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (local filters). **`RequestIdMiddleware`** — body + response header **`x-request-id`**. **Auth in spec:** `GatewayKeyAuth` (chat, models), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Chat / models:** `@GatewayKeyAndSmartRateLimit()` on `ChatController`, `ChatStreamController`, `ModelsController`; allowlist from `gateway.config.yaml` + env (`configuration.md`). **Offline validation:** `npm run config:validate`. **Cache:** `src/cache/` — `POST /chat`, `POST /chat/stream`, and facade streams (shared store).
 
 ## Global conventions
@@ -27,6 +27,11 @@ Additionally at startup the `gateway.config.yaml` file is loaded (Zod validation
 | | |
 |--|--|
 | **200** | Liveness: `status: "healthy"`, `timestamp` (**ISO 8601**, `toISOString()` in `HealthService.getLiveness`) — `openapi.json` |
+| **Auth** | **No** `X-Gateway-Key` (public) |
+| **Secrets** | Body **without** keys / allowlist / internal topology |
+| **First-class consumers** | (1) Docker HEALTHCHECK / ops orchestration; (2) **Content Chain `apps/api`** — server-side “gateway process alive” probe for product `GET /api/v1/health/ready` (“Agenci aktywni” chip). Timeout and cache are on the CC client side (typically 1–2 s / 5–15 s). CC does **not** require a key on this route. |
+
+**Consumer contract (liveness):** success = HTTP **2xx** + body with process status (`healthy`). A breaking change to liveness semantics requires a conscious version bump / notice in gateway docs **and** Content Chain docs.
 
 ### `GET /api/v1/health/ready`
 

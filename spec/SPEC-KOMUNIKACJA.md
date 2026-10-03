@@ -1,7 +1,7 @@
 ---
-wersja: 31
+wersja: 32
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-02
+data_modyfikacji: 2026-10-03
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -11,7 +11,7 @@ data_modyfikacji: 2026-10-02
 Norma **implementacji obu powierzchni I/O** Content Chain:
 
 1. HTTP API + SSE `apps/api` (konsumenci: `apps/frontend`, Postman),
-2. klient `apps/api` → `apps/ai-provider-gateway` (natywny chat).
+2. klient `apps/api` → `apps/ai-provider-gateway` (natywny chat **oraz** probe liveness health).
 
 Uszczegóławia `docs/dokumentacja_komunikacji.md` oraz korelację ID z `docs/brand_types.md` / `docs/dictionary.md`. **Nie** redefiniuje listy endpointów ani payloadów — odwołuje się do docs; tu obowiązują wzorce warstw, walidacja, envelope, SSE i adapter LLM.
 
@@ -22,6 +22,8 @@ Zmiana względem wersji 24 / cel: brak `POST .../cancel` i `run.cancelled`. Od t
 Zmiana względem wersji 26 / cel: snapshot / mutacje przeglądu bez pól TTL. Od tej wersji `pipelineFinishedAt` + wyliczone `reviewExpiresAt`; mutacja po TTL → `REVIEW_LOCKED` bez side-effect zapisu locka; **bez** nowego eventu SSE auto-finalize.
 
 Zmiana względem wersji 28 / cel: publiczne surface auth = bootstrap / accept-invite. Od tej wersji także register / activate / resend-activation (K-2g…K-2i) — `docs/dokumentacja_komunikacji.md`.
+
+Zmiana względem wersji 31 / cel: powierzchnia health = wyłącznie liveness api. Od tej wersji także publiczny `GET /api/v1/health/ready` (agregat api + gateway **liveness**); probe upstream **bez** konsumpcji gateway `/health/ready` — `docs/dokumentacja_komunikacji.md`.
 
 ## Powiązanie ze stylem z docs
 
@@ -46,12 +48,13 @@ Wiążące (`docs/architektura.md`):
 | Opinia tekstowa | `POST /api/v1/feedback` | JSON (zapis MVP) |
 | Ops metrics | `GET /metrics` (poza `/api/v1`) | Prometheus text |
 | DX OpenAPI (Swagger UI) | `GET /docs` (poza `/api/v1`) | HTML / OpenAPI JSON |
-| Health | `GET /api/v1/health` | JSON |
+| Health (liveness) | `GET /api/v1/health` | JSON — żywy proces api |
+| Health (readiness produktowa) | `GET /api/v1/health/ready` | JSON — agregat api + gateway liveness |
 | Auth probe / bootstrap status / własny email | `GET /api/v1/auth/me`, `PATCH /api/v1/auth/me/email`, `GET /api/v1/auth/bootstrap-status` | JSON |
 | Zaproszenia (admin) | `GET`/`POST /api/v1/invitations`, `POST .../:id/resend`, `DELETE .../:id` | JSON |
 | Akceptacja zaproszenia (publiczny) | `POST /api/v1/auth/accept-invite` | JSON |
 | Rejestracja / aktywacja / resend (publiczne) | `POST /api/v1/auth/register`, `POST /api/v1/auth/activate`, `POST /api/v1/auth/resend-activation` | JSON |
-| Gateway (z api) | upstream `/api/v1/chat` (+ opcjonalnie stream) | JSON / SSE gateway |
+| Gateway (z api) | upstream `/api/v1/chat` (+ opcjonalnie stream); probe **liveness** `GET /api/v1/health` | JSON / SSE gateway |
 
 MVP: **wyłącznie** `/api/v1` jako prefiks produktowy — bez `/api/v2`. Swagger **nie** pod `/api` (kolizja z `/api/v1`) — norma: `/docs` (`docs/dokumentacja_komunikacji.md`).
 
@@ -59,6 +62,7 @@ Szczegóły metod, pól i kodów: `docs/dokumentacja_komunikacji.md`.
 
 Zmiana względem wersji 16 / powierzchnie: dopisano zaproszenia (admin) i publiczny `POST /auth/accept-invite`; envelope **503** `MAIL_DELIVERY_FAILED` + `details.id` (K-1) — bez dublowania pełnych payloadów.
 Zmiana względem wersji 28 / powierzchnie: dopisano register / activate / resend-activation.
+Zmiana względem wersji 31 / powierzchnie: Health = tylko liveness. Od tej wersji wiersz readiness api + probe liveness w powierzchni gateway.
 
 ## Wymagania (egzekwowalne)
 
@@ -159,9 +163,12 @@ K-4. Auth SSE = ta sama sesja co API: cookie httpOnly **`cc_access`** / **`cc_re
 
 Zmiana względem wersji 1 tego SPEC: usunięto Bearer jako równorzędny transport; access nie wraca w body JSON.
 
-K-5. Wywołania LLM z Content Chain idą wyłącznie przez adapter portu LLM → natywne `POST {GATEWAY}/api/v1/chat` (opcjonalnie `.../chat/stream` gdy krok tego wymaga). Nagłówek `X-Gateway-Key` tylko po stronie `apps/api` / env. **Zakaz** ustawiania `x-request-id` przez CC przy chat/stream. Hop Social musi mieścić się w limicie native gateway: **10 000** znaków `content` na wiadomość `user` / `assistant` (`INGRESS_LIMITS.native` w instancji `apps/ai-provider-gateway`).
+K-5. Wywołania LLM z Content Chain idą wyłącznie przez adapter portu LLM → natywne `POST {GATEWAY}/api/v1/chat` (opcjonalnie `.../chat/stream` gdy krok tego wymaga). Nagłówek `X-Gateway-Key` tylko po stronie `apps/api` / env (chat/stream). **Zakaz** ustawiania `x-request-id` przez CC przy chat/stream. Hop Social musi mieścić się w limicie native gateway: **10 000** znaków `content` na wiadomość `user` / `assistant` (`INGRESS_LIMITS.native` w instancji `apps/ai-provider-gateway`).
+
+**Adapter `chat` nie pełni roli probe health** — osobny klient / serwis w module ops `health/` (K-10).
 
 Zmiana względem wersji 9 / K-5: dopisano limit ingressu native (wcześniej milczący; żywy hop z JSON kontekstu firmy przekraczał historyczne 3000 znaków — `docs/dokumentacja_komunikacji.md`).
+Zmiana względem wersji 31 / K-5: milczenie o rozdzieleniu chat vs probe. Od tej wersji jawnie: probe ≠ port `chat`.
 
 K-6. Na wszystkich hopach LLM w jednym runie body niesie **ten sam** `conversationId` utworzony przy starcie runu. Po każdej odpowiedzi gateway `requestId` hopu trafia do `run.log` (gdy odpowiedź nadeszła).
 
@@ -169,7 +176,7 @@ K-7. Błędy gateway mapowane na logi runu i ewentualnie `run.failed` / retry wg
 
 Zmiana względem wersji 9 / K-7: wcześniejsza norma mówiła o logach produktowych i frontendzie — bez rozróżnienia dumpa diagnostycznego stdout w `development`.
 
-K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, `HITL_REQUIRED`, `HITL_INVALID_SELECTION`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, **`RUN_NOT_CANCELABLE`**, `CONFLICT`, `MAIL_DELIVERY_FAILED`, `INTERNAL_ERROR`, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach. Skrót: `RUN_NOT_CANCELABLE` (409) = cancel gdy już `completed` \| `failed`; `RUN_NOT_REVIEWABLE` (409) = przegląd poza `completed` \| `failed` **oraz** opinia `targetType=run` poza `completed` \| `failed` \| (`cancelled`+wynik); `REVIEW_LOCKED` (409) = przegląd zamknięty (`reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL`) — przy samym TTL **bez** side-effect UPDATE locka — szczegóły `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-10 / R-11, `SPEC-FEEDBACK.md` Fbk-3a. `CONFLICT` (409) = m.in. drugi `pending` invite, istniejący `User` przy `POST /invitations`, zajęty email przy `PATCH /auth/me/email`, **zajęty email przy `POST /auth/register`**, niedozwolone przejścia runu / HITL — **nie** kolizja email na `POST /auth/accept-invite` (tam **401** `UNAUTHORIZED`, K-2f). Login przed aktywacją (prod) / soft-delete / złe hasło oraz activate-fail = wspólny **401** — **bez** `ACCOUNT_NOT_ACTIVATED`. Gdy `VALIDATION_FAILED` pochodzi z application Zod przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, nie lokalna kopia w BC): `details[].path` = `issue.path.join('.')`. PUT/PATCH `/company-context` przy niespełnionej bramce kompletności też zwraca **400** `VALIDATION_FAILED` (`docs/dokumentacja_komunikacji.md`) — `details` mogą mieć `section` i/lub `path` pozycji; **nie** 409 `CONTEXT_INCOMPLETE` (ten kod zostaje na `POST /runs`).
+K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, `HITL_REQUIRED`, `HITL_INVALID_SELECTION`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, **`RUN_NOT_CANCELABLE`**, `CONFLICT`, `MAIL_DELIVERY_FAILED`, `INTERNAL_ERROR`, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach. Skrót: `RUN_NOT_CANCELABLE` (409) = cancel gdy już `completed` \| `failed`; `RUN_NOT_REVIEWABLE` (409) = przegląd poza `completed` \| `failed` **oraz** opinia `targetType=run` poza `completed` \| `failed` \| (`cancelled`+wynik); `REVIEW_LOCKED` (409) = przegląd zamknięty (`reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL`) — przy samym TTL **bez** side-effect UPDATE locka — szczegóły `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-10 / R-11, `SPEC-FEEDBACK.md` Fbk-3a. `CONFLICT` (409) = m.in. drugi `pending` invite, istniejący `User` przy `POST /invitations`, zajęty email przy `PATCH /auth/me/email`, **zajęty email przy `POST /auth/register`**, niedozwolone przejścia runu / HITL — **nie** kolizja email na `POST /auth/accept-invite` (tam **401** `UNAUTHORIZED`, K-2f). Login przed aktywacją (prod) / soft-delete / złe hasło oraz activate-fail = wspólny **401** — **bez** `ACCOUNT_NOT_ACTIVATED`. Gdy `VALIDATION_FAILED` pochodzi z application Zod przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, nie lokalna kopia w BC): `details[].path` = `issue.path.join('.')`. PUT/PATCH `/company-context` przy niespełnionej bramce kompletności też zwraca **400** `VALIDATION_FAILED` (`docs/dokumentacja_komunikacji.md`) — `details` mogą mieć `section` i/lub `path` pozycji; **nie** 409 `CONTEXT_INCOMPLETE` (ten kod zostaje na `POST /runs`). **Brak** nowego kodu envelope „GATEWAY_NOT_READY” / twardego rejectu `POST /runs` za martwy gateway — bramka UX = `SPEC-FRONTEND.md` F-6; hop LLM = istniejąca ścieżka błędu.
 
 Zmiana względem wersji 24 / K-8: brak `RUN_NOT_CANCELABLE`; opis `RUN_NOT_REVIEWABLE` bez rozszczepienia przegląd vs opinia na `cancelled`.
 
@@ -189,7 +196,13 @@ Zmiana względem wersji 27 / K-8: `CONFLICT` nie wykluczał wprost accept-invite
 
 Zmiana względem wersji 28 / K-8: `CONFLICT` bez register; brak normy wspólnego 401 login/activate. Od tej wersji register = **409**; login pending / activate-fail = wspólny 401.
 
+Zmiana względem wersji 31 / K-8: milczenie o reject gateway na `POST /runs`. Od tej wersji jawny zakaz nowego kodu „gateway down” na starcie.
+
 K-9. Kontrakt GET result pól addytywnych (`cta?`, `characterCount`, `role?`, `contents[]` / `reelScripts[]`, `sourceIdeaId`) oraz body `extras` kontekstu — egzekwowalne jak docs; ten SPEC nie redefiniuje tabel payloadów.
+
+K-10. `GET /api/v1/health/ready` (api) — publiczny jak liveness (bez sesji). Agregat MVP: proces api **+** zależność „gateway process up”. Upstream probe = **`GET {GATEWAY_BASE_URL}/api/v1/health`** (liveness procesu gateway) — timeout **1–2 s**, cache in-memory **5–15 s**. Mapowanie: sukces HTTP 2xx + sensowny body liveness → `checks.gateway` healthy; timeout / unreachable / nie-2xx / błąd parse → unhealthy. HTTP odpowiedzi api: **200** zawsze przy żywym procesie api (niespójność zależności **nie** wymusza 503 — werdykt w `status`: `ready` \| `not_ready`). Body **bez** sekretów / `X-Gateway-Key` / topologii poza skrótem checków. **Zakaz** w tym epiku: wołanie upstream gateway `/health/ready`, mapowanie drzewa config/redis/cache do body, użycie portu `chat` jako probe. Pełny kształt: `docs/dokumentacja_komunikacji.md`. Liveness `GET /api/v1/health` (api) **bez zmian** (lekki probe procesu api).
+
+Zmiana względem wersji 31: brak normy readiness api / probe. Od tej wersji K-10 + wiersze powierzchni.
 
 ## Norma implementacji
 
@@ -202,6 +215,7 @@ K-9. Kontrakt GET result pól addytywnych (`cta?`, `characterCount`, `role?`, `c
 | Błędy HTTP | jeden wspólny **exception filter** (ew. interceptor korelacji) → envelope K-1 |
 | SSE | oficjalny mechanizm Nest: dekorator `@Sse()`, handler zwraca `Observable<MessageEvent>` ([NestJS SSE](https://docs.nestjs.com/techniques/server-sent-events)); Observable **kończy się** po terminalu runu; teardown (`complete` / `finalize`) przy disconnect i po `completed`/`failed`/`cancelled` |
 | LLM | port (np. `LlmGatewayPort`) w domain/application + **osobny adapter HTTP** w `infrastructure` |
+| Health / readiness | moduł ops `health/`: liveness procesu + readiness z **cienkiego klienta HTTP** probe upstream liveness gateway — **nie** port `chat` |
 | Typy kontraktu | brand / enumy z `@content-chain/shared` (`docs/brand_types.md`); bez magicznych stringów ID w feature kodzie |
 
 Walidacja na granicy HTTP: **class-validator** + `ValidationPipe` ([NestJS Validation](https://docs.nestjs.com/techniques/validation)).  
@@ -227,6 +241,7 @@ Zakaz: FE generuje `RequestId` „na zapas”; zakaz nowego `ConversationId` per
 - Kończyć `Observable` po `run.completed` / `run.failed` / `run.cancelled` oraz na late-join, gdy snapshot jest już terminalny (K-3a).
 - Konsumpcję `run.completed` / `run.failed` / `run.cancelled` w dashboardzie jako toast wg `SPEC-FRONTEND.md` — bez pollingu; dedup względem toasta mutacji cancel.
 - Adapter gateway używający natywnego chat; zapis `requestId` z odpowiedzi do logu kroku.
+- Cienki klient HTTP w `health/` do upstream `GET .../health` (liveness) — timeout 1–2 s, cache 5–15 s (K-10).
 - Dump kształtu hopu na stdout wyłącznie gdy `NODE_ENV=development`, z `[REDACTED]` zamiast `GATEWAY_KEY` (helper `llm-gateway-chat.log.ts`).
 - Opcjonalnie `POST .../chat/stream` gateway, gdy konkretny węzeł pipeline’u tego wymaga (finalizacja węzła po domknięciu streamu).
 - Polityka retry/timeout po stronie api przy `RATE_LIMITED` / `PROVIDER_TIMEOUT` / `PROVIDER_UNAVAILABLE` — byle zakończenie było obserwowalne w logu/SSE.
@@ -252,7 +267,11 @@ Zmiana względem wersji 8 / wiersz Application: odczyt snapshotu był milcząco 
 - Generowania `RequestId` po stronie frontendu przed `POST /runs`.
 - Synchronicznego blokowania HTTP na cały długi run LLM.
 - Wołania SDK vendorów LLM z `apps/api` z pominięciem gateway.
-- Wyciekania `X-Gateway-Key`, haseł, JWT do envelope, SSE, `run.log` albo stdout.
+- Wyciekania `X-Gateway-Key`, haseł, JWT do envelope, SSE, `run.log`, body `/health` / `/health/ready` albo stdout.
+- Użycia adaptera / portu `chat` jako probe „gateway żyje” (obowiązuje K-10 w `health/`).
+- Opierania bramki chipa / `checks.gateway` o upstream gateway `/health/ready` (pełny readiness config/redis/cache) w tym epiku.
+- Wymagania `X-Gateway-Key` na upstream liveness `/health` „pod FE”.
+- Nowego kodu envelope / twardego rejectu `POST /runs` za martwy gateway (`GATEWAY_NOT_READY` itd.) — K-8.
 - Dumpa pełnych promptów / `output.text` hopu gateway na stdout poza `NODE_ENV=development`.
 - Rozwijania publicznego API pod `/api/v2` w MVP.
 - Montowania Swagger UI pod ścieżką `/api` (kolizja z prefiksem produktowym `/api/v1` — norma: `/docs`).
@@ -263,6 +282,7 @@ Zmiana względem wersji 8 / wiersz Application: odczyt snapshotu był milcząco 
 
 Zmiana względem wersji 23 / „Nie wolno”: dopisano zakaz zastępowania `SPEC-RUNY.md` R-2 payloadem `run.failed`.
 Zmiana względem wersji 26 / „Nie wolno”: dopisano zakazy side-effect GET / SSE auto-finalize / CAS przy TTL.
+Zmiana względem wersji 32 / „Nie wolno”: dopisano zakazy probe przez `chat`, konsumpcji upstream `/health/ready` pod chip, key na liveness, sekretów w body ready, rejectu gateway na `POST /runs`.
 
 ### Zatwierdzony stack (obszar)
 
@@ -298,6 +318,8 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - [ ] SSE na skończonym runie (`completed` \| `failed` \| `cancelled`) emituje snapshot statusu i **kończy** strumień; po `run.completed` / `run.failed` / `run.cancelled` serwer zamyka połączenie. `awaiting_hitl` / `interrupted` nie kończą SSE.
 - [ ] SSE wymaga sesji cookie jak API; brak tokenu w query i brak wymogu Bearer.
 - [ ] Adapter gateway woła natywny chat z `X-Gateway-Key`, bez `x-request-id` z CC; `conversationId` stały w runie; `requestId` z odpowiedzi w logu kroku. Hop mieści się w limicie native **10 000** znaków. Dump pełnej treści hopu na stdout tylko w `development`, z redakcją sekretu.
+- [ ] `GET /api/v1/health/ready`: publiczny; body z agregatem `ready` \| `not_ready` + `checks.api` / `checks.gateway`; probe = upstream **liveness** `/health` (timeout 1–2 s, cache 5–15 s); **bez** sekretów; **bez** konsumpcji upstream `/health/ready`; probe **nie** przez port `chat`.
+- [ ] `POST /runs` przy martwym gateway **nie** dostaje nowego kodu rejectu „gateway down” (nadal tylko `CONTEXT_INCOMPLETE` przy niekompletnym kontekście).
 - [ ] DTO HTTP walidowane class-validator; use-case’y używają Zod tam, gdzie parsują / walidują dane aplikacji.
 - [ ] Brak ścieżki FE/api → vendor LLM z pominięciem gateway.
 - [ ] Publiczne API MVP wyłącznie pod `/api/v1`.

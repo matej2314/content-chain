@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-18
+data_modyfikacji: 2026-10-03
 ---
 
 # SPEC — Kontekst firmy
@@ -11,6 +11,8 @@ data_modyfikacji: 2026-09-18
 Norma bounded contextu **Company Context** w `apps/api`: kanoniczny zapis kontekstu firmy w DB, bramka kompletności sekcji, authz edycji wyłącznie dla `admin`, typowane opcjonalne `extras`.
 
 Uszczegóławia bramkę i sekcje z `docs/dokumentacja_koncepcyjna.md`, endpointy z `docs/dokumentacja_komunikacji.md` oraz reguły ról z `docs/security.md` / `SPEC-AUTH.md`.
+
+Zmiana względem wersji 5 / cel: milczenie o granicach względem sieci. Od tej wersji jawnie: `isComplete` / C-1…C-5 **bez** gateway; wskaźnik UX „Agenci aktywni” → `SPEC-FRONTEND.md` F-6.
 
 ## Powiązanie ze stylem z docs
 
@@ -52,9 +54,11 @@ C-1. W domain istnieje czysta funkcja (lub równoważny serwis domenowy bez I/O)
 
 `isComplete(context) → { complete: boolean, missing: string[] }`
 
-`missing` zawiera klucze niespełnionych sekcji bramki. Funkcja jest unit-testowalna bez DB/HTTP. **`extras` nie wpływają** na `complete` / `missing`.
+`missing` zawiera klucze niespełnionych sekcji bramki. Funkcja jest unit-testowalna bez DB/HTTP. **`extras` nie wpływają** na `complete` / `missing`. **`isComplete` nie obejmuje** sieci, procesu gateway ani konfiguracji LLM — probe / `gatewayAlive` = `SPEC-KOMUNIKACJA.md` K-10 + wskaźnik UX `SPEC-FRONTEND.md` F-6.
 
 Predykat oferty: `items.length ≥ 1` ∧ `items.every(isCompleteOfferItem)`; kompletna usługa = niepuste `name`, `description`, `benefit` (bez pustych stringów i z ≥ 1 wpisem).
+
+Zmiana względem wersji 5 / C-1: milczenie o sieci. Od tej wersji jawny zakaz doklejania gateway do werdyktu domenowego.
 
 C-2. `GET /api/v1/company-context` zwraca aktualny kontekst (w tym `extras`: obiekt albo `null`) + informację o kompletności (flaga / obiekt spójny z docs). Pusta instancja (same `""` / `[]`) jest legalnym odczytem.
 
@@ -117,6 +121,7 @@ apps/api/src/company-context/
 - Umieszczać regułę bramki w controllerze lub w grafie Social / Content (graf **odczytuje** kompletny kontekst; decyzja „czy wolno zapisać” = use-case PUT/PATCH; „czy wolno startować” = use-case startu runu — przed grafem).
 - Traktować jakość copy kontekstu jako warunek programowy MVP (tylko niepustość wymaganych pól).
 - Traktować `extras` jako warunek startu runu / wpis do `missing`.
+- Doklejać stan sieci / `gatewayAlive` / wynik `/health/ready` do `isComplete`, `missing`, C-3 albo C-5 (probe = ops health; chip UX = `SPEC-FRONTEND.md` F-6).
 - Równoległego „unknown bag” obok znanego kształtu `extras`.
 
 ### Zatwierdzony stack (obszar)
@@ -146,7 +151,8 @@ apps/api/src/company-context/
 
 ## Poza zakresem
 
-- Formularze UI / wskaźnik „Agenci aktywni” → `SPEC-FRONTEND.md`.
+- Formularze UI / wskaźnik produktowy **„Agenci aktywni”** (`agentsActive` = completeness ∧ `gatewayAlive`) → `SPEC-FRONTEND.md` F-6.
+- Probe liveness gateway / `GET /api/v1/health/ready` → `SPEC-KOMUNIKACJA.md` K-10.
 - Eksport kontekstu do `.md` + checksum.
 - Treść promptów i ConsistencyVerifier (użycie kontekstu / extras jako wejścia) → `SPEC-SOCIAL.md` / `SPEC-CONTENT.md`.
 - Szczegóły migracji Prisma → `SPEC-PERSISTENCE.md`.

@@ -6,6 +6,7 @@ import { EnvelopeError } from '@/shared/ui/form-field';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { useSession } from '@/modules/auth/components/session-provider';
 import { useCompleteness } from '@/modules/company-context/components/completeness-provider';
+import { useGatewayAlive } from '@/modules/health/components/gateway-alive-provider';
 import {
   fetchCompanyContext,
   putCompanyContext,
@@ -36,7 +37,8 @@ const FALLBACK = { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać o
 
 export function CompanyContextView() {
   const { state: session } = useSession();
-  const { refetch } = useCompleteness();
+  const { refetch: refetchCompleteness } = useCompleteness();
+  const { refetch: refetchGatewayAlive } = useGatewayAlive();
   const [view, setView] = useState<ViewState>({ status: 'loading' });
   const [pending, setPending] = useState(false);
   const [submitError, setSubmitError] = useState<{ code: string; message: string } | null>(null);
@@ -80,7 +82,7 @@ export function CompanyContextView() {
         context: withDraftRows(payload),
         completeness: payload.completeness,
       });
-      await refetch();
+      await Promise.all([refetchCompleteness(), refetchGatewayAlive()]);
       notifyProduct({ kind: 'success', title: 'Kontekst zapisany' });
     } catch (reason: unknown) {
       if (reason instanceof ApiError) {

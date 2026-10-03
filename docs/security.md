@@ -1,7 +1,7 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-09-29
-data_modyfikacji: 2026-10-02
+data_modyfikacji: 2026-10-03
 ---
 
 # Bezpieczeństwo — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-02
 Norma self-host dla `local` i `production`: auth, sekrety, ekspozycja powierzchni, bootstrap. Bez pełnego modelu STRIDE.
 
 Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, `architektura.md`.
+
+Zmiana względem: publiczny health = tylko liveness. Od tej wersji także publiczny `GET /api/v1/health/ready` — jak liveness: **bez** wrażliwych danych, bez wycieku `GATEWAY_KEY` / topologii wewnętrznej.
 
 Zmiana względem: zakaz otwartego signup; jedyna droga na `user` = invite. Od tej wersji: self-registration legalna obok invite; aktywacja e-mail w `production` (`verifiedAt` + `AccountActivation`); **409** na register przy kolizji email (świadoma enumeracja UX); resend/login bez enumeracji stanu konta.
 
@@ -129,6 +131,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 | `apps/ai-provider-gateway` w `production` | **nie** publikować na internet; tylko sieć wewnętrzna (compose) |
 | `GET /metrics` (`apps/api`) | scrape z sieci ops / localhost; **nie** jako publiczny endpoint internetowy w `production` |
 | `GET /api/v1/health` | może być dostępny do probe; bez wrażliwych danych |
+| `GET /api/v1/health/ready` | publiczny jak liveness (probe FE / ops); body = skrót statusów checków (`api`, `gateway`); **bez** sekretów, `X-Gateway-Key`, wartości env, hostname’ów z kluczami |
 
 ## Checklist operatora (`production`)
 

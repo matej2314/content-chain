@@ -1,7 +1,7 @@
 ---
-wersja: 33
+wersja: 34
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-02
+data_modyfikacji: 2026-10-03
 ---
 
 # SPEC — Frontend
@@ -26,6 +26,8 @@ Zmiana względem wersji 25 / cel: brak Stop / `cancelled` w UX. Od tej wersji an
 Zmiana względem wersji 28 / cel: przegląd otwarty do ręcznego finalize bez limitu; disable tylko po `reviewFinalizedAt`. Od tej wersji disable także po serwerowym `reviewExpiresAt`; bez lokalnego wyliczania TTL; bez nowego chrome deadline/countdown — `docs/ux_dashboard.md`.
 
 Zmiana względem wersji 30 / cel: nieaktywne „Zarejestruj się!” / zakaz otwartego signup. Od tej wersji aktywny signup, thank-you+resend (prod), deep link aktywacji → login + toast — `docs/ux_dashboard.md`.
+
+Zmiana względem wersji 33 / cel: chip „Agenci aktywni” = wyłącznie completeness. Od tej wersji `agentsActive` = completeness ∧ `gatewayAlive` (api `/health/ready`) — `docs/ux_dashboard.md`, `docs/dictionary.md`.
 
 ## Powiązanie ze stylem z docs / wyjątek
 
@@ -92,9 +94,18 @@ F-5b. Anulowanie w UI (Stop):
 
 Zmiana względem: wcześniejszy kanon roboczy bez modala przed Stop — **unieważnione**; obowiązuje modal (`docs/ux_dashboard.md`).
 
-F-6. Bramka „Agenci aktywni” i disable CTA startu runu — UX na bazie `GET .../completeness`; **egzekucja** nadal w api (`409` `CONTEXT_INCOMPLETE`). Chip i disable startu **bez zmiany sensu** względem v22. Disable dotyczy **obu** powierzchni: submit na Koncie **oraz** przycisk/modal **„Uruchom agenta”** na Runach.
+F-6. Bramka „Agenci aktywni” i disable CTA startu runu — predykat UX:
 
-Zmiana względem wersji 24 / F-6: disable było opisane bez drugiej powierzchni; sens bramki **bez unieważnienia**.
+`agentsActive` ⇔ `contextComplete` ∧ `gatewayAlive`
+
+| Sygnał | Źródło |
+|--------|--------|
+| `contextComplete` | `GET .../company-context/completeness` → `complete === true` |
+| `gatewayAlive` | `GET /api/v1/health/ready` → `checks.gateway.status === "healthy"` |
+
+Chip zielony / aktywny **oraz** enable CTA startu = ten sam `agentsActive`. Disable dotyczy **obu** powierzchni: submit na Koncie **oraz** przycisk/modal **„Uruchom agenta”** na Runach. Copy nieaktywnego: **„Agenci nieaktywni. Sprawdź kontekst i stan gatewaya.”** Gdy `complete === false`: wolno **dodatkowo** lista `missing` + link „Uzupełnij kontekst”. Gdy `complete === true` a gateway nie żyje: **bez** fałszywego „Uzupełnij kontekst” jako jedynej remedacji. Odświeżanie: mount + refetch przy okazji (np. po udanym zapisie kontekstu) — **bez** interval pollingu. **Egzekucja** twardej bramki kontekstu nadal w api (`409` `CONTEXT_INCOMPLETE` na `POST /runs`) — **bez** nowego rejectu „gateway down” na starcie runu. **Zakaz** wołania gateway z FE — wyłącznie BFF → `apps/api` (F-2).
+
+Zmiana względem wersji 33 / F-6 (oraz v22 / v24): chip i disable = wyłącznie `GET .../completeness`. Od tej wersji AND z `gatewayAlive` z api `/health/ready`; copy i reguły remedacji wg `docs/ux_dashboard.md`. Druga powierzchnia startu (Konto + Runy) **bez unieważnienia**.
 
 F-7. Język chrome / etykiet: **polski**. Envelope błędów MVP: w UI pokazać **wyłącznie `message` jak z API** (angielskie `message` — bez mapy tłumaczeń). **`code` nie jest treścią UI** — pozostaje w envelope HTTP do gałęzi klienta (np. `INVALID_PASSWORD` vs `UNAUTHORIZED`). next-intl / i18n envelope = **V1 — rozbudowa**. Treści SM: PL/EN wg briefu runu. Formularz startu runu (**Konto inline oraz modal na Runach** — ten sam brief): pola briefu **wg `taskType`** — post/reel: liczba pomysłów, bez kąta/długości; `page_*`: kąt i długość opcjonalnie, **bez** liczby pomysłów (`docs/ux_dashboard.md`). Błędy przy formularzu / błędzie GET bloku = `message` **w miejscu błędu** (także w modalu). Toast **nie** zastępuje envelope przy polu. Toast sukcesu mutacji = **polski** tytuł (`docs/ux_dashboard.md`), **z wyjątkiem** `PATCH /auth/me/email` (sukces i błędy — **bez** toastu; `message` pod polami modala). Jeśli toast błędu (poza formularzem, gdy mapa UX na to zezwala): to samo `message`, bez tłumaczenia i bez `code` w UI.
 
@@ -113,7 +124,7 @@ Zmiana względem: toast sukcesu mutacji bez wyjątku dla zmiany emaila — od te
 F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 
 - Strona główna: tło + karta logowania + **aktywny** **„Nie masz konta? Zarejestruj się!”** (gdy bootstrap niedostępny; przy first-run ukryty/disabled); first-run = tryb submitu tej karty; formularz rejestracji (F-4b); thank-you + resend po **201** w prod; **akceptacja zaproszenia** na **`/invite/accept?token=`** (tożsame z URL w mailu `{APP_PUBLIC_URL}/invite/accept?token=…`) → `POST /auth/accept-invite` → strona główna — dashboard dopiero po loginie; deep link aktywacji → widok logowania + activate w tle + toast (F-4b). Błędy wyłącznie `message` z envelope na karcie (bez Toastera na login/register/accept-invite — toast aktywacji **dozwolony** po sukcesie activate). Kolizja email na accept-invite i nieważny token = ten sam **401** — UI **bez** osobnego copy „email zajęty” i **bez** gałęzi na **409** `CONFLICT` z tej trasy. Kolizja na **register** = **409** → błąd przy polu email (F-4b). Opcjonalnie stała pomocnicza na accept-invite (bez leak z API): ogólne „Nie można dokończyć zaproszenia. Skontaktuj się z administratorem.” — **tylko** jeśli mapowana z tego samego 401 (bez rozróżniania przyczyn po `code`);
-- Kontekst firmy: **sześć zakładek** — Tożsamość (domyślnie otwarta), Oferta, Głos SM, CTA / kanały, Odbiorca, Dodatki (`extras` w jednym panelu, bez podzakładek). Na triggerach zakładek bramki indykator z `completeness.missing` ostatniego **udanego** GET/PUT (zielona = kompletna, czerwona = brak); zakładka Dodatki **bez** kropki bramki. Zapis = jeden `PUT` całości. Submit **nie** wysyła, gdy draft nie spełnia bramki (puste wymagane pole albo kaleka oferta); lokalny predykat identyczny z C-1 **wyłącznie** do disable CTA zapisu i błędów pól — kropki i chip nadal z `missing` odpowiedzi. Placeholdery pustej oferty stripowane; kalekiej usługi nie stripujemy. Nie da się usunąć ostatniej kompletnej usługi tak, by PUT poszedł z `items: []`. Szczegóły: `docs/ux_dashboard.md` (Widok: Kontekst firmy);
+- Kontekst firmy: **sześć zakładek** — Tożsamość (domyślnie otwarta), Oferta, Głos SM, CTA / kanały, Odbiorca, Dodatki (`extras` w jednym panelu, bez podzakładek). Na triggerach zakładek bramki indykator z `completeness.missing` ostatniego **udanego** GET/PUT (zielona = kompletna, czerwona = brak); zakładka Dodatki **bez** kropki bramki. Zapis = jeden `PUT` całości. Submit **nie** wysyła, gdy draft nie spełnia bramki (puste wymagane pole albo kaleka oferta); lokalny predykat identyczny z C-1 **wyłącznie** do disable CTA zapisu i błędów pól — **kropki** nadal wyłącznie z `missing` odpowiedzi (**nie** gateway); **chip** „Agenci aktywni” = F-6 (`agentsActive`, nie sam `missing`). Placeholdery pustej oferty stripowane; kalekiej usługi nie stripujemy. Nie da się usunąć ostatniej kompletnej usługi tak, by PUT poszedł z `items: []`. Szczegóły: `docs/ux_dashboard.md` (Widok: Kontekst firmy);
 - **Runy** = archiwum instancji `completed` \| `failed` \| `cancelled` (`GET /runs?status=completed,failed,cancelled`, strona 10, odświeżanie przy wejściu i co **15 min**). **Bez** SSE, **bez** runów w toku na liście (także cudzych). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). Po **202** z modalu — zostajemy na Runach, modal zamknięty, toast „Run wystartował”; live = floating box;
 - **Konto**: email — formularz → modal re-auth (email **disabled** + `currentPassword`) → `PATCH /auth/me/email` `{ email, currentPassword }` (każdy Potwierdź z obu pól); złe hasło (`INVALID_PASSWORD`) / `VALIDATION_FAILED` pod polem hasła (email zostaje disabled; **bez** cyklu F-4a); **409** → modal otwarty, clear pól, odblokowanie emaila, błąd pod polem email; sukces bez toastu + `GET /auth/me`; Anuluj bez API (draft formularza bez zmian względem otwarcia); **Moje runy** (`GET /runs/user/:userId`, wszystkie statusy; **Stop** + modal na własnym nieterminalnym — F-5b); formularz **startu inline** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId` z wiersza „Moje runy”); opinia. Po **202** startu **z Konta** — zostajemy na Koncie **oraz** toast „Run wystartował”;
 - `PUT` kontekstu **200** → toast „Kontekst zapisany”; **400** → envelope przy formularzu, **zero** toasta (lokalny predykat / envelope); `POST .../cancel` **200** → toast **„Run anulowany”** (F-5b);
@@ -124,7 +135,7 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 - Użytkownicy (admin): lista + zaproszenie email; pending w tym wygasłe; resend/revoke;
 - **Header**: zawartość do prawej; login → „Wyloguj się” → modal → `POST /auth/logout` → `/`;
 - Globalny CTA opinii; na szczegółach: Edytuj (`result` + flaga), gwiazdki, finalize — **tylko** gdy snapshot `completed` \| `failed` (nie na `cancelled`) **oraz** przegląd otwarty (`reviewFinalizedAt === null` **i** nie minął serwerowy `reviewExpiresAt`); po zamknięciu copy **„Przegląd zamknięty”** (bez rozróżnienia auto vs ręczne); **bez** widocznego deadline / countdown / wiersza „dostępne do…”;
-- Chip kompletności agentów; **floating box** własnych runów w toku poza Kontem (zwijany; **bez** Stop). Po `cancelled`: krótko **„Anulowany”**, ukrycie pozycji po **200 ms**. **Nie** chip/stos w chrome.
+- Chip „Agenci aktywni” wg F-6 (`agentsActive`); **floating box** własnych runów w toku poza Kontem (zwijany; **bez** Stop). Po `cancelled`: krótko **„Anulowany”**, ukrycie pozycji po **200 ms**. **Nie** chip/stos „w toku” w chrome.
 
 Zmiana względem wersji 19 / F-8: Runy = cała instancja + start; po starcie szczegóły; chip „w toku”. Od tej wersji: Runy = archiwum; start+live = Konto; box; trasa invite jak mailer.
 
@@ -139,7 +150,7 @@ Zmiana względem wersji 15 / F-8: „Konto (tylko logout)” jako widok. Od v16 
 Zmiana względem wersji 16 / F-8: z powrotem **widok Konto** (email, moje runy, szybki start, opinia); Runy bez zmian (instancja); wylogowanie w chrome zostaje.
 Zmiana względem wersji 18 / F-8: „Wyloguj się” w chrome (sidebar lub header). Od tej wersji hierarchia **header → przycisk loginu → Wyloguj się**; zawartość headera do prawej.
 Zmiana względem wersji 21 / F-8: Kontekst firmy = sekcje bramki + extras w jednym ciągu, status per sekcja przy nagłówku bloku. Od tej wersji: sześć zakładek (default Tożsamość); kropki bramki na triggerach z `missing` ostatniego GET/PUT; Dodatki bez kropki i bez podzakładek; zapis nadal jeden `PUT`.
-Zmiana względem wersji 22 / F-8: submit mógł wysłać niekompletną bramkę (api zapisywało). Od tej wersji UI nie wysyła pustych wymaganych / kalekiej oferty; lokalny predykat C-1 tylko do disable i błędów pól. Źródło kropek i chipa **bez zmiany**. Egzekucja persist: `SPEC-KONTEKST-FIRMY.md` C-4.
+Zmiana względem wersji 22 / F-8: submit mógł wysłać niekompletną bramkę (api zapisywało). Od tej wersji UI nie wysyła pustych wymaganych / kalekiej oferty; lokalny predykat C-1 tylko do disable i błędów pól. Źródło kropek **bez zmiany** (`missing`). Chip = F-6 (od v34: nie sam `missing`). Egzekucja persist: `SPEC-KONTEKST-FIRMY.md` C-4.
 Zmiana względem wersji 23 / F-8: layout po sesji nie miał Toastera; 200 / 202 / terminal poza szczegółami = cisza. Floating box **bez zmiany** (w toku, znika na terminalu).
 Zmiana względem wersji 24 / F-8: Runy „**Bez** startu”; Konto = **jedyny** formularz startu; po `202` wyłącznie Konto. Od tej wersji: dwie powierzchnie tego samego briefu (Konto inline + modal na Runach); po `202` widok źródłowy; archiwum nadal bez SSE / bez w toku na liście (`docs/ux_dashboard.md`). Powód: pierwsze testy UI w przeglądarce.
 
@@ -148,6 +159,8 @@ Zmiana względem wersji 25 / F-8: archiwum `completed` \| `failed`; brak Stop; f
 Zmiana względem wersji 29 / F-8: założenie, że FE może rozróżnić kolizję email (**409**) od złego tokenu na accept-invite. Od tej wersji obie sytuacje = ten sam **401** / envelope na karcie (`docs/ux_dashboard.md`).
 
 Zmiana względem wersji 30 / F-8: martwa rejestracja / brak thank-you / brak deep link aktywacji. Od tej wersji aktywny signup + F-4b.
+
+Zmiana względem wersji 33 / F-8: chip kompletności = sam `missing` / completeness. Od tej wersji chip = F-6 (`agentsActive`); kropki zakładek **nadal tylko** `completeness.missing` (F-8 w tym zakresie **bez unieważnienia** sensu kropek).
 
 F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. UI **filtruje** pozycje do `completed` \| `failed` \| (`cancelled` **oraz** istnieje nie-`null` pole wyniku w snapshotcie — per `SPEC-FEEDBACK.md` Fbk-3a; select może dociągnąć snapshot albo stosować regułę równoważną; **nie** pokazywać `cancelled` bez wyniku). Lista API zostaje pełna — `SPEC-RUNY.md` R-3c. Select agentów = enum z shared (labelki PL). Ocena, Edytuj i finalize tylko gdy snapshot mówi, że sesja jest `startedBy`, status `completed` \| `failed` i przegląd **otwarty**: `reviewFinalizedAt === null` **oraz** nie minął serwerowy **`reviewExpiresAt`** (deadline wyłącznie z API — **zakaz** lokalnego wyliczania z `pipelineFinishedAt` + stałej). FE-only disable **nie** jest jedyną bramką — api i tak zwraca `REVIEW_LOCKED` po TTL / finalize (`SPEC-RUNY.md` R-10). Po lokalnym expiry (lekki timer od pola `reviewExpiresAt` z API, bez SSE): UI jak zamknięty (copy „Przegląd zamknięty”); reload odświeża `reviewFinalizedAt` gdy sweeper zapisał — **nie** wymagane do disable. **Zakaz** nowego chrome deadline / countdown / wiersza „dostępne do…” w MVP tej zmiany. Submit `targetType=run` poza oknem Fbk-3a i tak → **409** `RUN_NOT_REVIEWABLE`.
 
@@ -194,6 +207,9 @@ apps/frontend/src/
 - Widok Kontekst firmy jako zakładki (`docs/ux_dashboard.md`); default Tożsamość; CTA zapisu na każdej zakładce przy jednym `PUT`.
 - Lokalna kopia predykatu C-1 (`isComplete` / `isCompleteOfferItem`) w `modules/company-context` **wyłącznie** do disable CTA zapisu i błędów pól — **nie** import z `apps/api`; **nie** źródło kropek / chipa.
 - Indykator kompletności na triggerze zakładki bramki z `completeness.missing` ostatniego GET/PUT (kropka + etykieta dostępności kompletna / niekompletna). Semantyczna zieleń / czerwień statusu — nie drugi brand produktu.
+- Kompozycję `agentsActive` z `GET .../completeness` **oraz** `GET /api/v1/health/ready` (F-6) — bez zanieczyszczania lokalnego `isComplete` ani `isComplete` domeny siecią.
+- Copy nieaktywnego chipa kanoniczne; dodatkowo `missing` + link `/context` tylko gdy `complete === false`.
+- Refetch completeness / `/health/ready` przy mount i przy okazji (np. po udanym PUT kontekstu) — **bez** interval.
 - First-run jako tryb submitu **tej samej** karty logowania.
 - **Aktywny** przycisk „Zarejestruj się!” gdy bootstrap niedostępny; formularz register; thank-you + resend gdy **201** `verifiedAt === null` (lub **503** po utworzeniu pending); deep link aktywacji → login + activate w tle + toast (F-4b).
 - Header: zawartość **do prawej**; login → „Wyloguj się”; modal; `POST /auth/logout` → `/`.
@@ -214,6 +230,10 @@ apps/frontend/src/
 
 - Sekretów LLM, `X-Gateway-Key`, JWT w `NEXT_PUBLIC_*` / localStorage.
 - `NEXT_PUBLIC_API_BASE_URL` i bezpośredniego fetcha przeglądarki na origin api.
+- Wołania `apps/ai-provider-gateway` z FE (w tym `/health`, `/health/ready`, chat) — wyłącznie BFF → `apps/api`.
+- Interval pollingu completeness albo `/health/ready` (obowiązuje mount + refetch przy okazji — F-6).
+- Liczenia **chipa** wyłącznie z completeness (bez `gatewayAlive`) albo wyłącznie z `/health/ready` (bez completeness).
+- Fałszywego „Uzupełnij kontekst” jako jedynej remedacji, gdy `complete === true` a gateway nie żyje.
 - Buforowania SSE w BFF.
 - Pollingu statusu **jednego** runu zamiast SSE.
 - `EventSource` na `queued` / `completed` / `failed` / `cancelled` albo drugiego socketa na ten sam `runId`.
@@ -230,7 +250,8 @@ apps/frontend/src/
 - Wymuszania nawigacji na szczegóły po `202`.
 - Traktowania GET archiwum (15 min) jako kanału live szczegółów.
 - Egzekucji bramki kompletności **tylko** w UI.
-- Liczenia **kropek / chipa** z draftu formularza albo z lokalnej kopii `isComplete` (obowiązuje `missing` z ostatniego udanego GET/PUT). Lokalny predykat C-1 **nie** zastępuje C-4 / C-5 w api.
+- Liczenia **kropek / chipa** z draftu formularza albo z lokalnej kopii `isComplete` (kropki = `missing` z ostatniego udanego GET/PUT; chip = F-6). Lokalny predykat C-1 **nie** zastępuje C-4 / C-5 w api.
+- Doklejania stanu gateway / `/health/ready` do kropek zakładek kontekstu (kropki **tylko** `completeness.missing` — F-8).
 - Polegania na samym atrybucie `required` HTML jako bramce zapisu.
 - Zapisywania kalekiej oferty (PUT z niepełną pozycją albo `items: []`).
 - `PATCH` per zakładka w MVP (zapis kontekstu = jeden `PUT` całości).
@@ -279,6 +300,7 @@ Zmiana względem wersji 24 / „Nie wolno”: zakaz „Formularza startu na wido
 
 Zmiana względem wersji 25 / „Nie wolno”: dopisano zakazy Stop bez modala / w boxie, podwójnego toasta cancel, mylenia `cancelled` z `failed`, natychmiastowego ukrycia boxa.
 Zmiana względem wersji 28 / „Nie wolno”: dopisano zakazy lokalnego TTL math, FE-only jako jedynej bramki, chrome deadline oraz rozróżnienia copy auto/ręczne.
+Zmiana względem wersji 34 / „Nie wolno”: dopisano zakazy FE→gateway, interval `/health/ready`, chipa bez AND, fałszywego „Uzupełnij kontekst” przy żywym kontekście, gateway w kropkach zakładek.
 
 Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flagą” unieważniony — kanon to zapis treści + flaga (`docs/ux_dashboard.md`). „Gdy powstanie” na Users / accept-invite unieważnione.
 
@@ -303,7 +325,8 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] **Runy** = archiwum `completed` \| `failed` \| `cancelled` (15 min + wejście) **oraz** CTA/modal **„Uruchom agenta”**; **Konto** = start inline + Moje runy live + Stop; po `202` widok źródłowy.
 - [ ] N× SSE tylko własne `running` / `awaiting_hitl` / `interrupted`; `close()` na `completed`/`failed`/`cancelled`; `queued` bez socketa; floating box poza Kontem **bez** Stop; po cancel: „Anulowany” → ukrycie po 200 ms.
 - [ ] Stop + modal „Czy na pewno?” → cancel API; toast „Run anulowany”; dedup SSE; na `cancelled` brak przeglądu / HITL.
-- [ ] Start zablokowany w UI przy niekompletności **i** api 409.
+- [ ] Start zablokowany w UI przy `!agentsActive` (niekompletność **lub** gateway nie żyje) **oraz** api `409` `CONTEXT_INCOMPLETE` przy niekompletnym kontekście; **bez** osobnego kodu „gateway down” na `POST /runs`.
+- [ ] Chip F-6: copy nieaktywnego kanoniczne; przy kompletnym kontekście i martwym gateway — disable CTA **bez** fałszywego „Uzupełnij kontekst” jako jedynej remedacji; kropki zakładek **tylko** z `completeness.missing`.
 - [ ] Konto: email — modal re-auth (`PATCH /auth/me/email` `{ email, currentPassword }`); `INVALID_PASSWORD` / `VALIDATION_FAILED` pod hasłem (bez F-4a); **409** → clear + odblokowanie emaila + błąd pod emailem; sukces bez toastu + `GET /auth/me`; Anuluj bez API; moje runy → szczegóły; start (prefill ze snapshotu); opinia.
 - [ ] Admin: Users + zaproszenie; accept-invite → `/`; błąd kolizji / złego tokenu = ten sam envelope **401** na karcie (bez UI „email zajęty” / bez gałęzi **409**).
 - [ ] `app/` + `modules/`; typy z shared; brak sekretów LLM; brak `NEXT_PUBLIC_` URL-a api.

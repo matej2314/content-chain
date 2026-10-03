@@ -1,6 +1,6 @@
 # Lista endpointów — AI Provider Gateway
 
-Wersja dokumentu: **1.9**.  
+Wersja dokumentu: **1.10**.  
 **OpenAPI:** [`openapi.json`](../../openapi.json) (v0.14.0) — zsynchronizowany z `src/` (health, czat natywny, **models**, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor` (`src/chat/resilience/`), dekoratory `@nestjs/swagger`). **Błędy:** natywny czat i models — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat, models), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat / models:** `@GatewayKeyAndSmartRateLimit()` na `ChatController`, `ChatStreamController`, `ModelsController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — `POST /chat`, `POST /chat/stream` oraz streamy fasad (wspólny magazyn).
 
 ## Konwencje globalne
@@ -27,6 +27,11 @@ Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + 
 | | |
 |--|--|
 | **200** | Liveness: `status: "healthy"`, `timestamp` (**ISO 8601**, `toISOString()` w `HealthService.getLiveness`) — `openapi.json` |
+| **Auth** | **Bez** `X-Gateway-Key` (publiczny) |
+| **Sekrety** | Body **bez** kluczy / allowlisty / topologii wewnętrznej |
+| **Konsumenci (first-class)** | (1) Docker HEALTHCHECK / orchestracja ops; (2) **Content Chain `apps/api`** — serwerowy probe „proces gateway żyje” pod produktowe `GET /api/v1/health/ready` (chip „Agenci aktywni”). Timeout i cache po stronie klienta CC (typowo 1–2 s / 5–15 s). CC **nie** wymaga klucza na tej trasie. |
+
+**Kontrakt konsumencki (liveness):** sukces = HTTP **2xx** + body ze statusem procesu (`healthy`). Breaking change semantyki liveness = świadoma wersja / komunikat w docs gateway **oraz** docs Content Chain.
 
 ### `GET /api/v1/health/ready`
 

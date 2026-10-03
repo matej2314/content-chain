@@ -1,7 +1,7 @@
 ---
-wersja: 11
+wersja: 12
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-02
+data_modyfikacji: 2026-10-03
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -12,6 +12,8 @@ Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
 2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
 
 **Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+
+Zmiana względem: powierzchnia health api = wyłącznie liveness; zależność gateway poza kontraktem produktu. Od tej wersji: publiczny `GET /api/v1/health/ready` (agregat api process + gateway **liveness**); FE czyta gotowość agentów przez ten endpoint (nie przez completeness); api **nie** konsumuje upstream `/health/ready` w tym kontrakcie.
 
 Zmiana względem: przegląd bez limitu czasu; `reviewFinalizedAt` tylko z ręcznego finalize. Od tej wersji: kotwica `pipelineFinishedAt`, okno `REVIEW_TTL`, wyliczane `reviewExpiresAt` na snapshotcie i sukcesach mutacji (nie na liście usera); mutacja po TTL → **409** `REVIEW_LOCKED` **bez** UPDATE locka; trwały auto-finalize = sweeper (boot + `REVIEW_SWEEP_INTERVAL`); GET **bez** side-effectów. Env: `docs/deployment.md`.
 
@@ -738,6 +740,41 @@ Liveness `apps/api` — bez wymogu auth (self-host / orchestracja kontenerów).
 
 **200** — `{ "status": "healthy", "timestamp": "<ISO8601>" }` (kształt może dostać pola wersji w implementacji; semantyka = żywy proces).
 
+**Bez zmian** względem wcześniejszego kontraktu liveness — lekki probe procesu api; **bez** probe gateway.
+
+#### `GET /api/v1/health/ready`
+
+Readiness produktowa `apps/api` — publiczny (jak liveness), **bez** sesji. Konsumenci: `apps/frontend` (chip „Agenci aktywni” / `gatewayAlive`), orchestracja / ops.
+
+**Semantyka (MVP):** agregat = proces api **+** zależność „gateway process up”. Upstream probe = **`GET {GATEWAY_BASE_URL}/api/v1/health`** (liveness procesu gateway). **Nie** wołać upstream `GET .../health/ready` i **nie** mapować drzewa `checks` pełnego readiness gateway (config / redis / cache) do body api.
+
+| Element | Norma |
+|---------|--------|
+| Auth | brak (publiczny) |
+| Sekrety | **zakaz** w body: brak `X-Gateway-Key`, `GATEWAY_KEY`, topologii wewnętrznej poza skrótem statusu checków |
+| HTTP | **200** zawsze przy żywym procesie api — niespójność zależności **nie** wymusza 503; werdykt w body (`status`) |
+| Timeout probe (api → gateway) | **1–2 s** |
+| Cache probe (api) | in-memory **5–15 s** |
+| `status` (agregat) | `ready` tylko gdy **wszystkie** wymagane checki healthy (MVP: `api` + `gateway`) |
+| `checks.gateway` | healthy ← udany upstream liveness (HTTP 2xx + sensowny body); unhealthy ← timeout / unreachable / nie-2xx / błąd parse |
+
+**200** — przykład kształtu:
+
+```json
+{
+  "status": "ready",
+  "timestamp": "2026-10-03T10:00:00.000Z",
+  "checks": {
+    "api": { "status": "healthy", "message": "API process up" },
+    "gateway": { "status": "healthy", "message": "Gateway process up" }
+  }
+}
+```
+
+Gdy gateway nie żyje: `"status": "not_ready"` oraz `"checks.gateway.status": "unhealthy"` (message bez sekretów / bez URL z kluczem).
+
+**Jawnie:** api `/health/ready` (produktowa bramka FE) **≠** upstream gateway `/health/ready` (ops readiness — poza tym kontraktem produktu). Liveness api (`GET /api/v1/health`) pozostaje osobnym, lekkim probe.
+
 ### Metrics (Prometheus)
 
 #### `GET /metrics`
@@ -766,10 +803,12 @@ Content Chain **nie definiuje** własnego kontraktu LLM. Adapter w `apps/api` wo
 | Element | Wartość |
 |---------|---------|
 | Prefiks gateway | `/api/v1` |
-| Auth | nagłówek **`X-Gateway-Key`** (sekret tylko po stronie `apps/api` / env) |
+| Auth (chat / models) | nagłówek **`X-Gateway-Key`** (sekret tylko po stronie `apps/api` / env) |
 | Domyślna ścieżka LLM | **`POST /api/v1/chat`** (odpowiedź pełna JSON, **201**) |
 | Opcjonalnie | `POST /api/v1/chat/stream` (SSE gateway) — gdy krok pipeline’u tego wymaga |
-| Pomocnicze | `GET /api/v1/models`, `GET /api/v1/health`, `GET /api/v1/health/ready` |
+| Probe liveness (oficjalna zależność produktu) | **`GET /api/v1/health`** — wołane serwerowo przez moduł ops `health/` api (timeout 1–2 s); **bez** `X-Gateway-Key`; mapowane do `checks.gateway` na api `/health/ready`. **Nie** port `chat` |
+| Pomocnicze (opcjonalnie) | `GET /api/v1/models` |
+| Poza kontraktem produktu (MVP chip / ready api) | upstream `GET /api/v1/health/ready` (pełny readiness gateway) — ops/orchestracja, **nie** źródło `gatewayAlive` |
 | Poza domyślną ścieżką CC | fasady `/api/v1/openai/...`, `/api/v1/anthropic/...` |
 | `x-request-id` | **Nie ustawiany** przez CC przy chat/stream — gateway generuje `req_<uuid>`; CC zapisuje go z odpowiedzi |
 | `conversationId` w body | **Ten sam** `ConversationId` runu na wszystkich wywołaniach LLM w runie |

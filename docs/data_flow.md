@@ -1,12 +1,14 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-09-30
+data_modyfikacji: 2026-10-03
 ---
 
 # Przepływy danych — Content Chain
 
 Opis orkiestracji i ruchu danych w MVP. Kontrakty HTTP/SSE: `dokumentacja_komunikacji.md`. Identyfikatory: `brand_types.md`, `dictionary.md`.
+
+Zmiana względem: bramka startu UX = tylko completeness. Od tej wersji: chip / disable CTA = completeness **∧** `gatewayAlive` (api `/health/ready` → probe liveness gateway); twardy `POST /runs` nadal tylko `CONTEXT_INCOMPLETE` przy niekompletnym kontekście.
 
 Zmiana względem: przegląd bez limitu czasu; zamknięcie tylko ręczne. Od tej wersji: okno od `pipelineFinishedAt` + `REVIEW_TTL`; po TTL mutacje → 409 bez UPDATE; sweeper (boot / interval) → UPDATE `reviewFinalizedAt`; wyłączenie api nie przedłuża okna.
 
@@ -52,12 +54,16 @@ flowchart LR
   Admin[admin] -->|PUT/PATCH company-context| API[apps/api]
   API --> DB[(DB)]
   API -->|GET completeness| Admin
-  DB -->|complete?| Gate{Bramka}
+  FE[apps/frontend] -->|GET health/ready| API
+  API -->|GET gateway /health liveness| GW[ai-provider-gateway]
+  DB -->|complete?| Gate{Bramka kontekstu}
   Gate -->|nie| Block[Start runu 409 CONTEXT_INCOMPLETE]
   Gate -->|tak| Allow[POST /runs dozwolony — Social i Content]
 ```
 
 Sekcje bramki: tożsamość, oferta, głos SM, CTA/kanały, odbiorca (`dokumentacja_koncepcyjna.md`).  
+**Chip UX „Agenci aktywni”** = `completeness.complete` **∧** `checks.gateway` healthy z api `/health/ready` (probe = liveness gateway). **Nie** mieszać z `isComplete` / `409` `CONTEXT_INCOMPLETE` (te zostają wyłącznie kontekstowe).  
+
 `user` tylko czyta / korzysta; edycja wyłącznie `admin`. **Jedna** bramka na cały `POST /runs` (C-5), także dla `page_*` i rolek.
 
 ---

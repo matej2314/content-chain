@@ -1,7 +1,7 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-09-30
-data_modyfikacji: 2026-10-02
+data_modyfikacji: 2026-10-03
 ---
 
 # Deployment — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-02
 Self-host MVP: jak uruchamiać, konfigurować i utrzymywać jedną instalację (jedna firma = jedna instancja).
 
 Powiązane: `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `testy.md`, `security.md`, `observability.md`.
+
+Zmiana względem: checklist health = tylko liveness api + readiness gateway (ops). Od tej wersji: api `/health` (liveness) **oraz** api `/health/ready` (zależność = gateway **liveness**); gateway `/health/ready` zostaje ops/orchestracja, **nie** bramka chipa „Agenci aktywni”.
 
 Zmiana względem: brak frontmatteru; env api bez zmiennych TTL przeglądu. Od tej wersji: `REVIEW_TTL` (okno przeglądu) i `REVIEW_SWEEP_INTERVAL` (częstotliwość sweepera; boot zawsze raz). MVP = **single-process** api (multi-instance poza zakresem).
 
@@ -130,13 +132,15 @@ Compose może od początku definiować wszystkie trzy usługi; „puste” UI do
 
 1. Ustaw env / sekrety (api, gateway, frontend).  
 2. `docker compose up` (build).  
-3. Sprawdź `GET /api/v1/health` (api) oraz readiness gateway (wewnętrznie).  
-4. Bootstrap admin.  
-5. (Opcjonalnie) smoke zaproszenia: `POST /invitations` → token z maila SMTP; lokalnie adapter logujący → token z logu api. Smoke register + activate (w `production`): `POST /auth/register` → mail `user_activation` / log → `POST /auth/activate` → `POST /auth/login`.  
-6. Uzupełnij kontekst → completeness.  
-7. Smoke: start runu Social i Content (`apps/api/test/postman/` albo UI).  
-8. Podłącz scrape `/metrics` (opcjonalnie od razu).  
-9. Zaplanuj backup volume SQLite.
+3. Sprawdź `GET /api/v1/health` (api — liveness procesu).  
+4. Sprawdź `GET /api/v1/health/ready` (api — agregat; `checks.gateway` = liveness procesu gateway; `status === "ready"` gdy api + gateway żyją).  
+5. (Ops / orchestracja) readiness gateway wewnętrznie: `GET {gateway}/api/v1/health/ready` — **nie** źródło chipa „Agenci aktywni” w CC.  
+6. Bootstrap admin.  
+7. (Opcjonalnie) smoke zaproszenia: `POST /invitations` → token z maila SMTP; lokalnie adapter logujący → token z logu api. Smoke register + activate (w `production`): `POST /auth/register` → mail `user_activation` / log → `POST /auth/activate` → `POST /auth/login`.  
+8. Uzupełnij kontekst → completeness; przy `ready` api chip UX = „Agenci aktywni”.  
+9. Smoke: start runu Social i Content (`apps/api/test/postman/` albo UI).  
+10. Podłącz scrape `/metrics` (opcjonalnie od razu).  
+11. Zaplanuj backup volume SQLite.
 
 ## Anty-patterny deploy (skrót)
 

@@ -2,6 +2,11 @@
 
 import { useMemo, type ReactNode } from 'react';
 import { useCompleteness } from '@/modules/company-context/components/completeness-provider';
+import { useGatewayAlive } from '@/modules/health/components/gateway-alive-provider';
+import {
+  agentsActiveDisableReason,
+  computeAgentsActive,
+} from '@/modules/health/lib/agents-active';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 
 export function useStartRunGate(): {
@@ -9,14 +14,17 @@ export function useStartRunGate(): {
   readonly disableReason: string | null;
 } {
   const { state: completeness } = useCompleteness();
-  const agentsActive = completeness.status === 'ready' && completeness.completeness.complete;
+  const { state: gateway } = useGatewayAlive();
 
-  const disableReason = useMemo(() => {
-    if (completeness.status === 'loading') return 'Sprawdzanie kompletności kontekstu…';
-    if (completeness.status === 'error') return 'Nie można potwierdzić bramki kontekstu.';
-    if (!agentsActive) return 'Agenci nieaktywni. Uzupełnij kontekst firmy.';
-    return null;
-  }, [agentsActive, completeness]);
+  const agentsActive = useMemo(
+    () => computeAgentsActive(completeness, gateway),
+    [completeness, gateway],
+  );
+
+  const disableReason = useMemo(
+    () => agentsActiveDisableReason(completeness, gateway),
+    [completeness, gateway],
+  );
 
   return { agentsActive, disableReason };
 }

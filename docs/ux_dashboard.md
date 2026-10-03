@@ -1,7 +1,7 @@
 ---
-wersja: 13
+wersja: 14
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-10-02
+data_modyfikacji: 2026-10-03
 ---
 
 # UX Dashboard — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-02
 Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / design systemu — widoki, stany i zachowanie względem API/SSE.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`.
+
+Zmiana względem: chip „Agenci aktywni” = wyłącznie `completeness.complete`. Od tej wersji: `agentsActive` = completeness **∧** `gatewayAlive` (api `/health/ready`); copy nieaktywnego kanoniczne; disable CTA na obu powierzchniach startu; kropki zakładek nadal tylko z `completeness.missing`; odświeżanie bez interval (mount + refetch przy okazji).
 
 Zmiana względem: przegląd otwarty do ręcznego „Zamknij przegląd” bez limitu. Od tej wersji: disable gdy `reviewFinalizedAt !== null` **albo** minął serwerowy `reviewExpiresAt`; copy jak po ręcznym finalize („Przegląd zamknięty”); **bez** countdownu / wiersza „dostępne do…”; FE **nie** wylicza TTL lokalnie z `pipelineFinishedAt`.
 
@@ -83,14 +85,31 @@ Zmiana względem Fazy 3 („Bez formularza startu” na Runach; jedyny start = K
 
 ## Globalny wskaźnik: czy agenci są aktywni
 
-Stały element UI (np. pasek pod headerem / chip w sidebarze), widoczny na wszystkich widokach po zalogowaniu:
+Stały element UI (np. pasek pod headerem / chip w sidebarze), widoczny na wszystkich widokach po zalogowaniu.
+
+**Predykat:** `agentsActive` ⇔ `contextComplete` **∧** `gatewayAlive`.
+
+| Sygnał | Źródło | Znaczenie |
+|--------|--------|-----------|
+| `contextComplete` | `GET /company-context/completeness` → `complete === true` | Bramka kontekstu w DB |
+| `gatewayAlive` | `GET /api/v1/health/ready` → `checks.gateway.status === "healthy"` | Proces gateway żyje (api probe upstream **liveness**; **nie** pełny readiness config/redis/cache) |
 
 | Stan | Warunek | Przekaz (PL) |
 |------|---------|--------------|
-| **Agenci aktywni** | `completeness.complete === true` | Można uruchamiać runy produktowe (Social i Content) |
-| **Agenci nieaktywni / zablokowani** | kontekst niekompletny | Start runów zablokowany; lista brakujących sekcji + link do Kontekstu |
-Źródło chipa kompletności: `GET /company-context/completeness`.  
-CTA **„Uruchom agenta”** (Konto — submit formularza; Runy — przycisk otwierający modal **oraz** submit w modalu) disabled + tooltip, gdy agenci nieaktywni — zgodnie z **409** `CONTEXT_INCOMPLETE` po stronie api (UI nie jest jedyną bramką).
+| **Agenci aktywni** | `agentsActive` | Można uruchamiać runy produktowe (Social i Content) |
+| **Agenci nieaktywni / zablokowani** | `!agentsActive` | **„Agenci nieaktywni. Sprawdź kontekst i stan gatewaya.”** |
+
+**Detale remedacji (obok copy kanonicznego):**
+
+| Sytuacja | UI |
+|----------|-----|
+| `complete === false` | Wolno **dodatkowo** pokazać listę `missing` + link „Uzupełnij kontekst” |
+| `complete === true` a gateway nie żyje | **Bez** fałszywego „Uzupełnij kontekst” jako jedynej remedacji — wystarczy copy kanoniczne |
+
+**Odświeżanie:** jak completeness — **mount + refetch przy okazji** (np. po udanym zapisie kontekstu / wspólnym `refetch` providera). **Bez** interval pollingu.  
+**Zakaz:** FE → gateway (wyłącznie BFF → `apps/api`).
+
+CTA **„Uruchom agenta”** (Konto — submit formularza; Runy — przycisk otwierający modal **oraz** submit w modalu) disabled + tooltip, gdy `!agentsActive`. Twarda bramka api na `POST /runs` pozostaje **409** `CONTEXT_INCOMPLETE` przy niekompletnym kontekście — **bez** nowego rejectu „gateway down” na starcie runu (UI nie jest jedyną bramką kontekstu; brak gateway = disable CTA, nie osobny kod HTTP startu).
 
 ## Floating box: własne runy w toku
 
@@ -164,7 +183,7 @@ Formularze w **zakładkach** (nie jeden ciąg sekcji na stronie). Dokładnie **s
 
 - Wejście na widok: otwarta zakładka **Tożsamość**.
 - Dodatki: admin może edytować; **nie** blokują „Agenci aktywni”.
-- Na triggerze każdej zakładki **bramki**: indykator kompletności — **zielona** kropka, gdy klucz sekcji **nie** jest w `missing`; **czerwona**, gdy jest. Źródło: `completeness.missing` z ostatniego **udanego** `GET` / `PUT` kontekstu (ten sam werdykt co chip „Agenci aktywni”). **Nie** z niezapisanego draftu i **nie** z lokalnej kopii `isComplete` jako źródła kropek / chipa.
+- Na triggerze każdej zakładki **bramki**: indykator kompletności — **zielona** kropka, gdy klucz sekcji **nie** jest w `missing`; **czerwona**, gdy jest. Źródło: **wyłącznie** `completeness.missing` z ostatniego **udanego** `GET` / `PUT` kontekstu — **nie** stan gateway / `health/ready`. Kropki = kompletność sekcji; chip „Agenci aktywni” = completeness **∧** `gatewayAlive`. **Nie** z niezapisanego draftu i **nie** z lokalnej kopii `isComplete` jako źródła kropek / chipa.
 - Zakładka Dodatki: **bez** kropki bramki.
 - Kolor nie jest jedynym sygnałem (etykieta dostępności: kompletna / niekompletna).
 - Zapis: jeden `PUT` całego kontekstu (wszystkie zakładki, także nieaktywna); tylko admin; `user` — read-only z komunikatem. CTA zapisu dostępne na każdej zakładce.
@@ -271,7 +290,7 @@ Zmiana względem: założenie, że FE może rozróżnić kolizję email (**409**
 ## Stany puste i błędy
 
 - Brak admina: strona główna (ten sam formularz) → bootstrap → dashboard.
-- Pusty kontekst / po pierwszym wejściu admina: onboarding → uzupełnij kontekst → „Agenci aktywni”.
+- Pusty kontekst / po pierwszym wejściu admina: onboarding → uzupełnij kontekst → (przy żywym gateway) „Agenci aktywni”.
 - Błędy API (MVP): pokazać **wyłącznie `message` z envelope** (jak zwraca API; komunikaty są po angielsku). **`code` nie jest treścią UI** — służy logice klienta (gałęzie HTTP), nie etykiecie przy polu. **Bez** stack trace. Chrome i etykiety poza envelope — po polsku. Tłumaczenie UI (np. next-intl) = **V1 — rozbudowa**, nie MVP. Przy formularzu / błędzie GET bloku: `message` **w miejscu błędu** — **nie** toast (sekcja „Feedback zdarzeń”).
   Zmiana względem: wcześniejsza norma wymagała pokazywania **`code` i `message`**. Od tej wersji w UI obowiązuje tylko **`message`**.
 - `failed` run: status + ostatnie logi z powodem (verifier / gateway) **zostają** na szczegółach. Toast terminalu poza szczegółami („Run nieudany”) **nie** jest magazynem powodu.

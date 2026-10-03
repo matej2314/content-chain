@@ -1,7 +1,7 @@
 ---
-wersja: 11
+wersja: 12
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-02
+data_modyfikacji: 2026-10-03
 ---
 
 # Słownik — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-02
 Kanoniczne definicje pojęć domenowych i technicznych. Identyfikatory typów, kodów i pól API w backtickach; opisy po polsku.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `observability.md`.
+
+Zmiana względem: **Agenci aktywni** = wyłącznie `completeness.complete`. Od tej wersji: `agentsActive` ⇔ kontekst kompletny **∧** żywy proces gateway (`gatewayAlive` z api `GET /api/v1/health/ready` → probe upstream liveness). `isComplete` **bez** sieci / gateway; „Agenci aktywni” **nie** obejmuje konfiguracji gateway ani pełnego readiness upstream.
 
 Zmiana względem: przegląd runu otwarty do ręcznego finalize bez limitu czasu. Od tej wersji okno = `REVIEW_TTL` od `pipelineFinishedAt`; auto-finalize wyłącznie przez sweeper; `reviewExpiresAt` wyliczane (nie kolumna); TTL przeglądu **nie** zamyka opinii tekstowej (`POST /feedback`).
 
@@ -43,7 +45,7 @@ Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez start
 | **Content Chain** | Publiczna, self-hostowalna aplikacja agentowa do generowania treści **Social** (posty i rolki) oraz **Content (BC)** (copy stron / long-form) z weryfikacją względem kontekstu firmy, zapisem wyników i obserwowalnymi runami. |
 | **Kontekst firmy** (`Company Context`) | Kanoniczny zestaw informacji o organizacji w DB (jedna instancja = jedna firma); wejście do generowania i weryfikacji spójności. |
 | **Bramka kontekstu** / kompletność | Programowy warunek: wymagane sekcje kontekstu uzupełnione. Udany `PUT` / `PATCH` kontekstu tylko gdy bramka spełniona (inaczej **400** `VALIDATION_FAILED`). Start **każdego** `POST /runs` odblokowany przy kompletności **w DB** (Social i Content); inaczej start runu zablokowany (`409` `CONTEXT_INCOMPLETE`). Werdykt: `isComplete`. Jedna bramka na cały produkt w MVP (w tym głos SM dla page_* — świadome). |
-| **`isComplete`** | Czysta funkcja domeny kontekstu: `{ complete, missing }` (`missing` = klucze niespełnionych sekcji bramki). Ten sam werdykt dla GET completeness, PUT/PATCH i startu runu; unit-testowalna bez DB/HTTP. |
+| **`isComplete`** | Czysta funkcja domeny kontekstu: `{ complete, missing }` (`missing` = klucze niespełnionych sekcji bramki). Ten sam werdykt dla GET completeness, PUT/PATCH i twardej bramki `POST /runs` (`409` `CONTEXT_INCOMPLETE`). Unit-testowalna bez DB/HTTP. **Nie** obejmuje sieci, procesu gateway ani konfiguracji LLM. |
 | **Sekcje bramki** | Tożsamość, oferta (≥ 1 **kompletna** usługa: nazwa + opis + ≥ 1 korzyść, bez kalekich pozycji), głos SM, CTA/kanały, odbiorca — patrz docs koncepcyjne. |
 | **`CompanyContextExtras`** | Opcjonalny obiekt `extras` kontekstu firmy **poza bramką** i **poza** warunkiem PUT/PATCH: `caseStudies?`, `objections?`, `hashtags?`, `catalogNotes?`, `performanceNotes?`. Walidacja kształtu (Zod `.strict()`); **nie** wchodzi do `missing` / `isComplete`. Brak danych = `null` / omit całego `extras` (preferowane względem pustych tablic). |
 | **Post ideas** | Lista pomysłów na posty SM (`result.ideas`; `SocialIdea`: `id`, `title`, `angle`, `hook`, **`cta?`** — sugerowane CTA). |
@@ -67,7 +69,7 @@ Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez start
 | **Konto (widok)** | Osobna pozycja sidebara (admin i `user`): zmiana własnego emaila (**modal re-auth**: email disabled → hasło; przy **409** clear + odblokowanie emaila → `PATCH /auth/me/email` `{ email, currentPassword }`; złe hasło → **401** `INVALID_PASSWORD` pod polem, bez wylogowania), lista **własnych** runów (**live** dla `running` / `awaiting_hitl` / `interrupted`), **start** runu (**inline**, ten sam brief co modal na Runach), **Stop** na własnym runie nieterminalnym (modal potwierdzenia → `POST .../cancel`), opinia tekstowa. Prefill startu wyłącznie z wiersza „Moje runy” (snapshot `GET /runs/:runId`). **Nie** mylić z widokiem **Runy** (archiwum `completed` \| `failed` \| `cancelled` instancji, paginacja 10 + CTA/modal startu). Wylogowanie jest w **headerze**. Po `POST /runs` **z Konta** użytkownik zostaje na Koncie. |
 | **Runy (widok)** | Archiwum firmy: tylko `completed` \| `failed` \| `cancelled`, `GET /runs?status=completed,failed,cancelled`, odświeżanie przy wejściu i co **15 min**. CTA **„Uruchom agenta”** otwiera modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). **Bez** SSE i **bez** runów w toku na liście. Po `POST /runs` **z modalu** operator zostaje na Runach; live nowego runu = floating box. |
 | **Floating box** | Sygnał własnych runów w toku poza widokiem Konto; zwiniecie/rozwinięcie. N× EventSource per `runId` (bez nowego hubu). `queued` poza boxem. **Bez** przycisku Stop (Stop tylko na Moich runach / szczegółach). Po `cancelled` — krótko label „Anulowany”, potem ukrycie pozycji (delay **200 ms**). |
-| **Agenci aktywni** | Sygnał UX: bramka `complete === true` (można startować runy produktowe: Social i Content). **Nie** oznacza „run w toku”. Odwrotnie: agenci nieaktywni / zablokowani = kontekst niekompletny. |
+| **Agenci aktywni** (`agentsActive`) | Sygnał UX + disable CTA startu: `completeness.complete === true` **∧** `gatewayAlive` (api `GET /api/v1/health/ready` → `checks.gateway` healthy; upstream = liveness procesu gateway). **Nie** oznacza „run w toku”, „konfiguracja gateway OK” ani „hop LLM na pewno się uda”. Odwrotnie: agenci nieaktywni = brak kontekstu **i/lub** gateway unreachable / nie odpowiada w timeoutcie. Copy nieaktywnego: „Agenci nieaktywni. Sprawdź kontekst i stan gatewaya.” Norma UX: `ux_dashboard.md`. |
 | **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, gateway, **SQLite**, logi, SSE, fundament feedbacku, **Social (posty i rolki)** oraz **Content (BC) w podstawowej formie**; w kontrakcie slice’u także typowane `extras`, HITL Social dwuetapowy (min. 1 unikalne id ⊆ draftu, N→N), pola wyniku SM (`cta?`, `characterCount`, `contents[]` / `reelScripts[]`, `sourceIdeaId`) oraz opcjonalne `role` outline — **nie** kolejne workflowy. Zmiana względem: „HITL SM = 1 id” jako kanon slice’u. |
 | **V1 — rozbudowa** | Faza **po MVP**: cutover persistence na **PostgreSQL** + panel odczytu opinii + publikacja na portalach SM + łańcuch audytorów Content + YouTube + **limit per-user liczby runów w toku** (obowiązkowy refaktor; MVP zostawia wyłącznie globalny `MAX_CONCURRENT_RUNS`) + **i18n UI (next-intl)**. **Nie** oznacza „kolejne workflowy / rolki / blog” (te kanały są w MVP). Nie mylić z prefiksem HTTP `/api/v1`. SQLite pozostaje silnikiem MVP **także** po dodaniu Content. |
 
@@ -198,7 +200,7 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 | **Envelope błędu CC** | JSON: `{ code, message, requestId, details? }`. |
 | **Toast (dashboard MVP)** | Efemeryczny sygnał UI po udanej mutacji / terminalu runu poza szczegółami. **Nie** jest elementem envelope HTTP i **nie** jest kanałem live. Copy sukcesu: PL (m.in. `POST .../cancel` **200** → **„Run anulowany”**; SSE terminal `cancelled` jak `completed`/`failed`, z dedupem względem toasta mutacji). Błąd: `message` z envelope (bez `code` w UI), gdy w ogóle toastowany. Norma: `ux_dashboard.md`. Zmiana względem: błąd toastowany jako `code` + `message`. |
 | **`x-request-id`** | Nagłówek korelacji HTTP **odpowiedzi** `apps/api` (to samo `RequestId` co w envelope). Klient **nie musi** go wysyłać. Przy chat/stream do gateway Content Chain **nie** ustawia tego nagłówka. |
-| **Health** | CC: `GET /api/v1/health` — liveness procesu `apps/api`. Gateway (upstream): `GET /api/v1/health` oraz `GET /api/v1/health/ready`. Zmiana względem: wcześniejsze hasło tylko liveness api, bez rozróżnienia gateway. |
+| **Health** | **Liveness api:** `GET /api/v1/health` — żywy proces `apps/api`. **Readiness api (produktowa bramka FE):** `GET /api/v1/health/ready` — agregat: proces api + zależność `gateway` = **liveness** upstream (`GET {GATEWAY}/api/v1/health`); **nie** konsumpcja upstream `/health/ready` (config/redis/cache). Gateway (ops): własne `/health` (liveness) i `/health/ready` (pełny readiness). Zmiana względem: hasło bez readiness api i bez rozróżnienia liveness vs pełny readiness gateway w chipie. |
 | **Metrics / Prometheus** | `GET /metrics` na `apps/api` — metryki operacyjne procesu; **nie** zamiennik logów runu. |
 | **`X-Gateway-Key`** | Sekret klienta gateway; tylko po stronie `apps/api` / env, nigdy w bundlu frontu. |
 | **Natywny czat gateway** | `POST /api/v1/chat` (i opcjonalnie `/chat/stream`) — domyślna ścieżka LLM z Content Chain. |

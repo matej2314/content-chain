@@ -183,6 +183,10 @@ See: `src/chat/chat-stream.controller.ts`, `src/chat/chat.service.ts`, `src/chat
 
 Liveness â `HealthService.getLiveness()`: `{ status: "healthy", timestamp }`. The **`timestamp`** field is **`new Date().toISOString()`** (ISO 8601, UTC), not a locale string.
 
+**Public** — **no** `X-Gateway-Key`. Body **without** secrets.
+
+**First-class consumers:** Docker HEALTHCHECK / ops **and** Content Chain `apps/api` (server-side “process alive” probe for CC `GET /api/v1/health/ready`). Consumer contract: HTTP **2xx** + process status; timeout/cache on the client; no key required. In MVP, CC does **not** base the “Agenci aktywni” chip on this gateway’s `/health/ready`.
+
 ## `GET /api/v1/health/ready`
 
 Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks` (`config`, `redis`, `cache`, optionally `embeddings` and `vectorStore`).

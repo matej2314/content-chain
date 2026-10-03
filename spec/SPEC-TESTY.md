@@ -1,7 +1,7 @@
 ---
-wersja: 27
+wersja: 28
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-02
+data_modyfikacji: 2026-10-03
 ---
 
 # SPEC — Testy
@@ -12,6 +12,7 @@ Norma strategii testów MVP Content Chain: piramida, narzędzia, obowiązkowe pr
 
 Zmiana względem wersji 23: DoD bez TTL / auto-finalize. Od tej wersji D-35…D-40 (lock po TTL bez CAS, sweeper, restart, GET 4a, backfill, regresje) — `docs/testy.md`, `SPEC-RUNY.md` R-10.
 Zmiana względem wersji 25: DoD bez register / activate / resend. Od tej wersji D-41…D-46 — `SPEC-AUTH.md` A-11…A-13.
+Zmiana względem wersji 27: DoD bez readiness api / probe gateway. Od tej wersji D-47…D-49 — `SPEC-KOMUNIKACJA.md` K-10; regresja `CONTEXT_INCOMPLETE` bez `GATEWAY_NOT_READY`.
 
 ## Powiązanie ze stylem z docs
 
@@ -99,6 +100,9 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-44 | Resend: zawsze **200** + `Wiadomość wysłana ponownie` dla pending / brak konta / już aktywny / rate limit / pad SMTP; mail + nowy hash **tylko** przy pending; **bez** **503** |
 | D-45 | Activate: zły token → wspólny **401**; sukces → **200** `{ user }`; login pending / soft-delete / złe hasło → ten sam **401** (bez `ACCOUNT_NOT_ACTIVATED`) |
 | D-46 | Regresja: invite → accept (`verifiedAt` ustawione) → login; bootstrap ustawia `verifiedAt`; register **zawsze** `user`, **nie** `admin`; register revoke pending Invitation; soft-delete usuwa `AccountActivation`; `GET /users` zawiera `verifiedAt` |
+| D-47 | `GET /api/v1/health/ready`: gdy upstream gateway **liveness** OK (HTTP 2xx + sensowny body) → agregat `status: ready`, `checks.gateway.status: healthy`; body **bez** sekretów / `GATEWAY_KEY` / `X-Gateway-Key`. **Bez** wymogu asercji na upstream gateway `/health/ready` |
+| D-48 | `GET /api/v1/health/ready`: upstream liveness timeout **lub** unreachable **lub** nie-2xx → `status: not_ready`, `checks.gateway.status: unhealthy`; HTTP odpowiedzi api nadal **200** (przy żywym procesie api); body bez sekretów |
+| D-49 | Regresja startu: przy kompletnym kontekście `POST /runs` **nie** dostaje nowego kodu „GATEWAY_NOT_READY” / równoważnego rejectu za martwy gateway — nadal wyłącznie `409` `CONTEXT_INCOMPLETE` przy niekompletnym kontekście (D-1). Nota UX (poza automatami FE w MVP): disable CTA gdy gateway nie żyje przy kompletnym kontekście — norma `SPEC-FRONTEND.md` F-6; egzekucja testów UI w feature-planach |
 
 Zmiana względem: D-27 na `PATCH /auth/me` bez `currentPassword` / bez `INVALID_PASSWORD`. (Nota: recovery UI po 409 + brak wylogowania przy `INVALID_PASSWORD` = norma FE / `ux_dashboard.md`; D-27 pozostaje kontraktem HTTP api.)
 
@@ -110,7 +114,9 @@ Zmiana względem wersji 19: dopisano D-29 (twardy zapis kontekstu — C-4). D-1�
 Zmiana względem wersji 18: T-5 i kryteria akceptacji obejmują też D-28 (wcześniej D-28 było w tabeli, bez jawnego pinu w T-5 / checklistcie D-1…D-28).
 Zmiana względem wersji 17: dopisano D-28 (filtr `status` wielowartościowy pod archiwum UI). D-1…D-27 bez kasowania treści.
 
-D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-23a (kolizja email na accept → 401 + revoke) **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel) **oraz** D-35…D-40 (TTL przeglądu / sweeper) **oraz** D-41…D-46 (register / activate / resend). T-3 (cookie) **bez zmian**.
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-23a (kolizja email na accept → 401 + revoke) **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel) **oraz** D-35…D-40 (TTL przeglądu / sweeper) **oraz** D-41…D-46 (register / activate / resend) **oraz** D-47…D-49 (readiness api / probe liveness gateway). T-3 (cookie) **bez zmian**.
+
+Zmiana względem wersji 27: dopisano D-47…D-49 (ready gdy liveness OK; unhealthy przy timeout/unreachable; regresja bez `GATEWAY_NOT_READY` na `POST /runs`). D-1…D-46 bez kasowania treści.
 
 Zmiana względem wersji 25: dopisano D-41…D-46 (register prod/non-prod; kolizja **409**; resend bez enumeracji; wspólny 401 login/activate; regresja invite/bootstrap; zakaz maskowanego 201). D-1…D-40 bez kasowania treści.
 
@@ -164,7 +170,8 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 - Live OpenAI/Anthropic (lub innego vendora) na każdy PR.
 - Wymuszania suite automatycznego FE w v1/MVP.
 - Over-mockowania (testy tylko powtarzające implementację).
-- Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34), TTL / auto-finalize przeglądu (D-35…D-40), register / activate / resend (D-41…D-46) ani cyklu życia SSE (D-14) „na potem” poza DoD.
+- Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34), TTL / auto-finalize przeglądu (D-35…D-40), register / activate / resend (D-41…D-46), readiness api / probe gateway (D-47…D-49) ani cyklu życia SSE (D-14) „na potem” poza DoD.
+- Asercji DoD opartych o konsumpcję upstream gateway `/health/ready` jako źródła `checks.gateway` (obowiązuje probe **liveness** — D-47 / D-48).
 - Maskowanego **201** przy kolizji na register w asercjach (obowiązuje D-43 = **409**).
 - `apps/api/postman/` / `src/postman/` jako pozorne BC.
 - Seed Prisma/SQL kontekstu jako substytut Setupu E2E.
@@ -183,7 +190,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-46 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23, D-23a, D-24…D-29, D-30…D-34, D-35…D-40, D-41…D-46) pokryte testami (warstwa adekwatna do przypadku).
+- [ ] Przypadki D-1…D-49 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23, D-23a, D-24…D-29, D-30…D-34, D-35…D-40, D-41…D-46, D-47…D-49) pokryte testami (warstwa adekwatna do przypadku).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

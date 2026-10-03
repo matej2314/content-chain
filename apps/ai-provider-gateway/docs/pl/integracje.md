@@ -111,6 +111,8 @@ Globalny prefiks aplikacji: **`/api/v1`** (`API_GLOBAL_PREFIX` w `src/setup.app.
 | **OpenAI** | `http://host:3000/api/v1/openai` | `Authorization: Bearer <klucz_klienta>` | `GET /models`, `POST /chat/completions` |
 | **Anthropic** | `http://host:3000/api/v1/anthropic` | `x-api-key` (lub Bearer) | `GET /models`, `POST /messages` |
 
+**Content Chain (`apps/api`) — probe liveness:** obok natywnego `POST /chat`, CC woła serwerowo publiczne `GET /api/v1/health` (bez `X-Gateway-Key`) jako sygnał „proces gateway żyje” pod własny produktowy `/health/ready`. To **nie** jest fasada i **nie** konsumuje `/health/ready` gatewaya w MVP chipa. Szczegóły: `lista_endpointów.md`, docs Content Chain `dokumentacja_komunikacji.md`.
+
 IDE ustawia **Base URL** z segmentem integracji; klient dokleja ścieżki ze specyfikacji vendora (`/models`, `/chat/completions`, `/messages`) — ten sam wzorzec co `https://api.openai.com/v1` + `/chat/completions`.
 
 **Natywny katalog modeli:** `GET /api/v1/models` — własny kontrakt gateway (`GatewayModelDto`), nie kształt OpenAI ani Anthropic. Fasady nadal wystawiają `/openai/models` i `/anthropic/models` w formacie vendora; wszystkie trzy powierzchnie czytają ten sam YAML przez **`GatewayModelsCatalogService`**.

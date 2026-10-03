@@ -1,12 +1,14 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-10-03
 ---
 
 # Architektura katalogów i plików — Content Chain
 
 Propozycja **docelowego drzewa** monorepo (greenfield). Odzwierciedla style i granice z `architektura.md`: trzy aplikacje pod `apps/`, wspólne typy w `packages/shared`, `docs/` w rootcie. **Bez** rootowego katalogu `src/` opakowującego aplikacje.
+
+Zmiana względem: `health/` = liveness i readiness bez doprecyzowania zależności. Od tej wersji: readiness api obejmuje probe **liveness** procesu gateway (nie port `chat`; nie konsumpcja upstream `/health/ready`).
 
 Zmiana względem wcześniejszej wersji (bez frontmatteru): jedna linia o cancel — mapa `AbortController` w workerze Runs (v1 in-process).
 
@@ -163,9 +165,9 @@ Pomocnicze elementy wyłącznie API (np. konfiguracja, interceptory, mapping bł
 
 To **nie** są bounded contexty — brak układu `application` / `domain` / `infrastructure`.
 
-- `health/` — liveness i readiness procesu (`GET /api/v1/health`, `GET /api/v1/health/ready`; kontrakt: `dokumentacja_komunikacji.md`).
+- `health/` — liveness procesu (`GET /api/v1/health`) oraz readiness produktowa (`GET /api/v1/health/ready`: check api + probe upstream **liveness** gateway). Cienki klient HTTP probe **w `health/`** (lub obok), **nie** w porcie `chat` / `llm/`. Kontrakt: `dokumentacja_komunikacji.md`.
 - `metrics/` — eksporter Prometheus (`GET /metrics` poza `/api/v1`; `observability.md`).
-- `llm/` — port LLM i adapter HTTP do `apps/ai-provider-gateway`. Wołają go BC (Social, Content), nie kontrolery HTTP. Helper kształtu logu hopu: `llm-gateway-chat.log.ts` (stdout tylko w `development`, z redakcją `GATEWAY_KEY` — `observability.md`). **Nie** umieszczać tu domeny Content Chain ani kluczy vendorów.
+- `llm/` — port LLM i adapter HTTP do `apps/ai-provider-gateway` (**chat**). Wołają go BC (Social, Content), nie kontrolery HTTP. **Bez** obowiązku pełnienia roli probe health. Helper kształtu logu hopu: `llm-gateway-chat.log.ts` (stdout tylko w `development`, z redakcją `GATEWAY_KEY` — `observability.md`). **Nie** umieszczać tu domeny Content Chain ani kluczy vendorów.
 
 ## `apps/frontend`
 

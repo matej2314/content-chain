@@ -1,7 +1,7 @@
 ---
-wersja: 12
+wersja: 13
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-02
+data_modyfikacji: 2026-10-03
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -13,6 +13,8 @@ Norma **przekrojowa**: bezpieczeństwo implementacji i ekspozycji self-host (env
 Nie zastępuje BC Auth ani pełnego runbooka operatorskiego — spina reguły egzekwowalne w kodzie i przy deployu MVP.
 
 Zmiana względem wersji 10 / cel: surface publiczne auth = accept-invite (+ sesyjne 409). Od tej wersji także register / activate / resend — anti-enum częściowa (`docs/security.md`).
+
+Zmiana względem wersji 12 / cel: publiczny health = tylko liveness. Od tej wersji także publiczny `GET /api/v1/health/ready` — jak liveness: **bez** wrażliwych danych / `GATEWAY_KEY` (`docs/security.md`).
 
 ## Powiązanie ze stylem z docs
 
@@ -39,7 +41,9 @@ Zmiana względem wersji 7: „Nie wolno” dopisuje wprost URL api w `NEXT_PUBLI
 
 B-6. W `production`: `apps/ai-provider-gateway` **nie** jest publikowany do internetu (tylko sieć wewnętrzna compose / równoważna). `GET /metrics` api — scrape z sieci ops / localhost, nie publiczny endpoint internetowy.
 
-B-7. `GET /api/v1/health` może być bez auth do probe — **bez** wrażliwych danych w odpowiedzi.
+B-7. `GET /api/v1/health` oraz `GET /api/v1/health/ready` mogą być bez auth do probe — **bez** wrażliwych danych w odpowiedzi (skrót statusów checków; **zakaz** `GATEWAY_KEY` / `X-Gateway-Key` / wartości env / hostname’ów z kluczami w body). Semantyka ready / probe: `SPEC-KOMUNIKACJA.md` K-10.
+
+Zmiana względem wersji 12 / B-7: norma dotyczyła wyłącznie liveness. Od tej wersji także publiczny `/health/ready` z tą samą dyscypliną sekretów.
 
 B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, **`SMTP_PASS`**, klucze vendorów, **raw token zaproszenia**, **raw token aktywacji konta**) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, treści opinii (`Feedback.body`), labelach Prometheus, stdout procesu w `production`. Dump treści hopu chat na stdout adaptera LLM **wyłącznie** przy `NODE_ENV=development`; w polach tekstowych wartość `GATEWAY_KEY` zastępowana `[REDACTED]`. **Wyjątek `development`:** wolno zalogować URL akceptacji zaproszenia **oraz** URL aktywacji konta (odpowiednik treści maila). Nie rozluźniać B-8 dla `production`.
 
@@ -98,6 +102,7 @@ B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/s
 - Publicznego gateway z kluczami vendorów w production.
 - Publicznego `/metrics` na internet w production.
 - Sekretów LLM / gateway w FE.
+- Wycieku `GATEWAY_KEY` / `X-Gateway-Key` / sekretów env w body `GET /api/v1/health` albo `GET /api/v1/health/ready`.
 - Dumpa pełnych promptów hopu gateway na stdout w `production` (w tym przy `NODE_ENV=production`).
 - Tokenu sesji w query string (SSE/API).
 - Raw tokenu zaproszenia **ani** raw tokenu aktywacji w JSON-ie admina / odpowiedziach ani w logach `production`.
@@ -139,6 +144,7 @@ Zmiana względem wersji 4: B-1 fail-fast SMTP/`MAIL_FROM`/`APP_PUBLIC_URL` w `pr
 - [ ] Api/gateway padają przy starcie bez wymaganych env; `.env.example` istnieje i nie zawiera sekretów.
 - [ ] Helmet (lub równoważne) aktywne na api; CORS czyta allowlistę z env.
 - [ ] W production: gateway i metrics nie są publiczne; cookie Secure.
+- [ ] `GET /api/v1/health` i `GET /api/v1/health/ready` bez wrażliwych danych / bez wycieku `GATEWAY_KEY`.
 - [ ] Brak sekretów w logach runu, SSE, envelope, treści opinii, labelach metrics i stdout (w `development` dump hopu z `[REDACTED]` zamiast `GATEWAY_KEY`; w `production` bez dumpa treści chat; raw invite / activation token nie w logach `production`).
 - [ ] Publiczne auth: register kolizja → **409**; resend = stały sukces; login pending / soft-delete / złe hasło = wspólny **401**; activate-fail = wspólny **401**; accept-invite kolizja = **401** (nie 409).
 - [ ] `/metrics` zwraca co najmniej sygnały z B-9.
