@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-10-03
 ---
 
 # Brand types — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-09-27
 Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time.
 
 Zmiana względem wcześniejszej wersji (bez frontmatteru): `RunStatus` += **`cancelled`**.
+
+Zmiana względem: `UserRole` = `admin` \| `user`. Od tej wersji unia obejmuje **`guest`** (rola DEMO MODE; persistencja = string w DB, bez wymogu Prisma enum).
 
 ## Zasady
 
@@ -67,7 +69,7 @@ Docelowe pliki (propozycja):
 
 | Typ | Wartości MVP |
 |-----|-------------|
-| `UserRole` | `admin` \| `user` |
+| `UserRole` | `admin` \| `user` \| `guest` |
 | `RunStatus` | `queued` \| `running` \| `interrupted` \| `awaiting_hitl` \| `completed` \| `failed` \| `cancelled` |
 | `RunTaskType` | `post_ideas` \| `post_content` \| `post_ideas_then_content` \| `reel_ideas` \| `reel_script` \| `reel_ideas_then_scripts` \| `page_copy` \| `page_outline_then_copy` |
 | `SocialPlatform` | `linkedin` \| `facebook` \| `instagram` — **nie** zawiera `'web'` |

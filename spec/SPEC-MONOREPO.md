@@ -1,7 +1,7 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-04
+data_modyfikacji: 2026-10-03
 ---
 
 # SPEC — Monorepo
@@ -58,7 +58,7 @@ Zmiana względem wersji 5 / M-8: wcześniejsze brzmienie dopuszczało cross-cutt
 ### Wolno
 
 - Deklarować `@content-chain/shared` jako zależność `apps/api` i `apps/frontend` przez `workspace:`.
-- Trzymać w `packages/shared` typy request/response, enumy ról / statusów runu / `RunTaskType` (post_*, reel_*, page_*) / `SocialPlatform` / `RunPlatform` / `ContentKind` / języków oraz brand types zgodne z `docs/brand_types.md`.
+- Trzymać w `packages/shared` typy request/response, enumy ról (`UserRole` = `admin` \| `user` \| **`guest`**) / statusów runu / `RunTaskType` (post_*, reel_*, page_*) / `SocialPlatform` / `RunPlatform` / `ContentKind` / języków oraz brand types zgodne z `docs/brand_types.md`.
 - Trzymać `SocialBrief` / `ContentBrief` w BC Runs (`run.types.ts`) — to payload agregatu, nie publiczny enum FE/BE.
 - Uruchamiać pakiety skryptami root (`pnpm --filter api …`, `pnpm -r …`).
 - Rozszerzać drzewo wewnątrz `apps/*/src` zgodnie z BC i warstwami — w tym `apps/api/src/content/` (nie łamie M-1: nadal trzy aplikacje runtime). Szczegóły BC w osobnych SPEC.
@@ -66,6 +66,7 @@ Zmiana względem wersji 5 / M-8: wcześniejsze brzmienie dopuszczało cross-cutt
 
 Zmiana względem wersji 4 / Wolno: dopisano lokalizację briefów kanałowych (nie shared).
 Zmiana względem wersji 5 / Wolno: jawnie dopuszczono `parse-with-zod.ts` w api shared (M-8).
+Zmiana względem wersji 6 / Wolno: `UserRole` bez `guest`. Od tej wersji unia obejmuje `guest` (`docs/brand_types.md`).
 
 ### Nie wolno
 
@@ -97,7 +98,7 @@ Zmiana względem wersji 3: folder `apps/api/src/content/` nie łamie M-1; shared
 
 - [ ] Root ma `pnpm-workspace.yaml` obejmujący `apps/*` i `packages/*` (lub równoważne globy).
 - [ ] Istnieją dokładnie ścieżki `apps/api`, `apps/frontend`, `apps/ai-provider-gateway`, `packages/shared`.
-- [ ] `apps/api` i `apps/frontend` zależą od `@content-chain/shared` przez `workspace:` i importują wyłącznie nazwą pakietu.
+- [ ] `apps/api` i `apps/frontend` zależą od `@content-chain/shared` przez `workspace:` i importują wyłącznie nazwą pakietu; `UserRole` obejmuje `guest`.
 - [ ] W `packages/shared` brak ORM, use-case’ów, promptów i walidatorów runtime.
 - [ ] Brak importów TS między `apps/api` a `apps/ai-provider-gateway` oraz z `apps/frontend` do źródeł `apps/api`.
 - [ ] Każdy pakiet ma własny `tsconfig`; start DX idzie ze skryptów root (bez Nx/Turborepo).

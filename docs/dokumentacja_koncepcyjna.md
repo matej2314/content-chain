@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-02
+data_modyfikacji: 2026-10-03
 ---
 
 # Dokumentacja koncepcyjna — Content Chain
@@ -20,19 +20,22 @@ Najważniejsza wartość:
 
 Zmiana względem wcześniejszego zapisu „świadomie ograniczony pierwszym slice’em Social (post ideas + post content)”: MVP obejmuje **dwa kanały generowania** — Social (posty **i** rolki) oraz Content (BC, podstawowa forma). To nadal MVP sprawdzające agentów, kontekst, persistence i UX self-host, nie pełny pakiet (łańcuch specjalistów, YouTube, publikacja, WordPress). Jawna zmiana względem `content-chain_brief.md` (odrzucenie rolek/bloga w pierwszym slice — **nadpisane** tą dokumentacją, 2026-08-31).
 
+Zmiana względem: self-register **zawsze** `role = user`. **Refaktor:** przy `DEMO_MODE=true` register tworzy **`guest`**; przy `false` — `user`. Signup **zawsze** dostępny. **Bez** ops czyszczenia kont guest (osobny plan zarządzania użytkownikami).
+
 ## Dla kogo jest system
 
 | Segment | Potrzeba |
 |---------|----------|
 | **Administrator** | Bootstrap własnego konta (email + hasło, bez maila), **zapraszanie** użytkowników e-mailem (podaje tylko adres — nie hasło), **wyłączna** edycja kontekstu firmy; może też generować treści jak zwykły użytkownik. |
-| **Użytkownik** | Self-register albo akceptacja zaproszenia; uruchamianie runów produktowych (Social i Content) na wspólnym kontekście firmy, przegląd wyników i logów; bez edycji kontekstu. |
+| **Użytkownik** | Self-register (`DEMO_MODE=false` → `user`) albo akceptacja zaproszenia; uruchamianie runów produktowych (Social i Content) na wspólnym kontekście firmy, przegląd wyników i logów; bez edycji kontekstu. |
+| **Gość (`guest`)** | Self-register wyłącznie gdy instancja ma `DEMO_MODE=true`. Showcase z limitami slotów i capem dziennym; locki mutacji; **brak** awansu do `user`/`admin`. |
 | **Zespół wewnętrzny (self-host)** | Jedna firma / niewielki zespół: wspólny kontekst, generowanie treści bez multi-tenant SaaS. |
 | **Operator self-host** | Wdrożenie we własnej infrastrukturze, konfiguracja gateway LLM, utrzymanie jednej instancji dla organizacji. |
 
 ## Zakres produktu (MVP)
 
 - Monorepo trzech aplikacji: **web** (Next.js), **api** (NestJS + LangChain/LangGraph), **gateway** LLM (jedyna droga do vendorów modeli).
-- **Auth** w formie docelowej: konto admina (bootstrap: email + hasło, bez maila) + konta nie-admin przez **zaproszenie e-mail** (admin podaje email; konto i pierwsze hasło przy akceptacji) **oraz** przez **otwartą rejestrację** (`POST /auth/register`) z **aktywacją linkiem e-mail** w `NODE_ENV=production`. Zmiana względem: „konta `user` wyłącznie przez zaproszenie” / zakaz otwartej rejestracji; oraz względem admin „zakłada konto `user` z hasłem” (`POST /users`).
+- **Auth** w formie docelowej: konto admina (bootstrap: email + hasło, bez maila) + konta nie-admin przez **zaproszenie e-mail** (admin podaje email; konto i pierwsze hasło przy akceptacji; **zawsze** `user`) **oraz** przez **otwartą rejestrację** (`POST /auth/register`) z **aktywacją linkiem e-mail** w `NODE_ENV=production`. **Zmiana względem:** register zawsze `role = user`. **Refaktor:** `DEMO_MODE=true` → `guest`; `false` → `user`. Zmiana względem: „konta `user` wyłącznie przez zaproszenie” / zakaz otwartej rejestracji; oraz względem admin „zakłada konto `user` z hasłem” (`POST /users`).
 - **Dashboard**: uzupełnianie / podgląd kontekstu firmy (edycja tylko admin), widoki charakterystyczne per flow SM.
 - **Social — posty** (`post_ideas`, `post_content`, `post_ideas_then_content`) oraz **rolki** (`reel_ideas`, `reel_script`, `reel_ideas_then_scripts`) na platformach: LinkedIn, Facebook, Instagram.
 - **Content (BC) — podstawowa forma:** `page_copy` (full-auto) oraz `page_outline_then_copy` (outline → HITL → dokument) dla `contentKind`: `blog` \| `service_page` \| `landing`. Brief wejściowy stron (`ContentBrief`: temat, opcjonalnie kąt / Challenger, długość, odbiorca, cel) **nie** jest briefem SM (`SocialBrief` z liczbą pomysłów). Nadal bez łańcucha 6 specjalistów, WordPress i folderu materiałów jako produktu.
@@ -145,7 +148,7 @@ Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza M
 |---------|-----------|
 | Kontekst firmy | Kanoniczny zestaw informacji o organizacji w DB; wejście do weryfikacji i generowania |
 | Zaproszenie / akceptacja | Invitation ≠ konto: admin wysyła email z tokenem; `User` (`role = user`) powstaje przy `accept-invite` (pierwsze hasło). Bootstrap admina = osobna ścieżka, bez maila |
-| Otwarta rejestracja / aktywacja | Self-register → w `production` pending (`verifiedAt` + `AccountActivation` + mail) → activate → login; poza prod konto gotowe od razu. Invite zostaje jako równoległa droga |
+| Otwarta rejestracja / aktywacja | Self-register → w `production` pending (`verifiedAt` + `AccountActivation` + mail) → activate → login; poza prod konto gotowe od razu. Rola: `guest` gdy demo on, inaczej `user` (**refaktor** względem „zawsze `user`”). Invite zostaje jako równoległa droga (`user`) |
 | Post ideas / Post content | Pomysły i copy postów SM |
 | Reel ideas / Reel script | Pomysły i scenariusz rolek |
 | Page outline / Page document | Szkic i pełny dokument copy strony (`ContentKind`) |

@@ -1,7 +1,7 @@
 ---
-wersja: 13
+wersja: 14
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-02
+data_modyfikacji: 2026-10-03
 ---
 
 # SPEC — Persistence
@@ -14,6 +14,7 @@ Uszczegóławia `docs/architektura.md`, `docs/architektura_katalogi_pliki.md` or
 
 Zmiana względem wersji 9: kanon Run bez `pipelineFinishedAt` / indeksu pod sweeper. Od tej wersji kolumna kotwicy TTL przeglądu + migracja backfill B — `docs/dictionary.md`, `SPEC-RUNY.md` R-10.
 Zmiana względem wersji 11: kanon Auth bez `verifiedAt` / `AccountActivation`. Od tej wersji marker weryfikacji + tabela tokenu aktywacji — `docs/dictionary.md`, `SPEC-AUTH.md` A-11…A-13.
+Zmiana względem wersji 13 / P-5: `User.role` przy register zawsze `user`. Od tej wersji String `admin`\|`user`\|`guest` (bez Prisma enum); sloty guest = COUNT `Run`.
 
 ## Powiązanie ze stylem z docs
 
@@ -50,7 +51,7 @@ P-5. DB jest kanoniczna dla kontekstu firmy, userów, **zaproszeń (Invitation)*
 
 Kanon tabel (Auth):
 
-- Model **`User`**: m.in. `passwordHash` (wymagany), `isActive`, **`verifiedAt`** (`DateTime?` — `null` = nieaktywowane linkiem / pending w prod; po sukcesie activate = timestamp; poza `production` ustawiane przy register). Soft-delete (`isActive = false`) **nie** czyści `verifiedAt` (historia). Pending ≠ soft-delete: pending ma `isActive = true` + `verifiedAt = null`.
+- Model **`User`**: m.in. `passwordHash` (wymagany), `isActive`, **`role`** = **String** (`admin` \| `user` \| `guest` — unia `UserRole` w shared; **zakaz** wymogu Prisma `enum` roli), **`verifiedAt`** (`DateTime?` — `null` = nieaktywowane linkiem / pending w prod; po sukcesie activate = timestamp; poza `production` ustawiane przy register). Soft-delete (`isActive = false`) **nie** czyści `verifiedAt` (historia). Pending ≠ soft-delete: pending ma `isActive = true` + `verifiedAt = null`. Dump/restore przenosi string roli; `DEMO_MODE` **nie** przepisuje ról w DB.
 - Model **`Invitation`** (lub równoważna nazwa) — `id` (`inv_<uuid>`), `email`, `tokenHash`, `purpose` (`invite` w MVP; rezerwa pod `password_reset` bez zmiany modelu świata), `status` (`pending` \| `accepted` \| `revoked`), `expiresAt`, `invitedByUserId`, timestamps; **bez** kolumny raw tokenu. Invitation **nie** jest „User z pustym hasłem”.
 - Model **`AccountActivation`** (lub równoważna nazwa) — `id` = **`act_<uuid>`**; hash tokenu (`tokenHash`, **unikalny**), `userId` (**unikalny**), `expiresAt` (TTL `ACTIVATION_TTL`, default `7d`); ew. `createdAt`; **bez** kolumny raw tokenu. Po udanym activate: update `User.verifiedAt` + **delete** wierszy activation dla tego usera. **Soft-delete** usera (`DELETE /users/:id`) **usuwa** wiersze activation. Raw wyłącznie w mailu / logu DX. Migracja wprowadzająca `verifiedAt`: **backfill** istniejących `User` → `verifiedAt = createdAt`; bootstrap / accept-invite ustawiają `verifiedAt = now()` przy create.
 
@@ -62,7 +63,9 @@ Kanon tabel (Auth):
 
 Ścieżka kolizji (P2002 / `User.email` zajęty, aktywny albo soft-deleted): **brak** `User` z tej próby; Invitation → `revoked` (nie `accepted`); brak „sukcesu” create. Atomowość jak happy path — revoke (lub równoważne zużycie) w tej samej transakcji / atomowym kroku co próba create. Semantyka HTTP: `SPEC-AUTH.md` A-7b (**401**, nie 409).
 
-**D19 (register):** kolizja email na `POST /auth/register` (aktywny **lub** soft-deleted) → **brak** drugiego `User`; HTTP **409** `CONFLICT`, `message`: **`Email already in use`** — `SPEC-AUTH.md` A-11. Happy path: **revoke** pending `Invitation` na email, potem create User (**zawsze** `role = user`). W `production`: `verifiedAt = null` + wiersz `AccountActivation` (+ mail poza transakcją). Po activate: `verifiedAt` + delete activation.
+**D19 (register):** kolizja email na `POST /auth/register` (aktywny **lub** soft-deleted) → **brak** drugiego `User`; HTTP **409** `CONFLICT`, `message`: **`Email already in use`** — `SPEC-AUTH.md` A-11. Happy path: **revoke** pending `Invitation` na email, potem create User (`DEMO_MODE=true` → `role=guest`; `false` → `role=user`). **Zmiana względem:** D19 wersji 13 — zawsze `role = user`. W `production`: `verifiedAt = null` + wiersz `AccountActivation` (+ mail poza transakcją). Po activate: `verifiedAt` + delete activation.
+
+**D20 (sloty guest):** **brak** tabeli slotów. Zużycie = COUNT wierszy `Run` (`startedByUserId` + `taskType`, wszystkie statusy). Opcjonalny indeks wspierający `(startedByUserId, taskType)` — bez pinu nazwy. Cap dzienny / rating = Redis, nie kolumny User/Run.
 
 Zmiana względem wersji 10 / D16: wyłącznie happy path create+`accepted`. Od tej wersji jawna ścieżka P2002 → revoke bez User.
 
@@ -164,7 +167,8 @@ apps/api/
 - `DELETE` runów / wyników w ramach TTL przeglądu lub auto-finalize (obowiązuje UPDATE `reviewFinalizedAt`).
 - Traktowania `reviewExpiresAt` jako kolumny DB.
 - Używania `updatedAt` jako bieżącej kotwicy TTL po wdrożeniu (wyjątek: jednorazowy backfill B).
-- Pozostawiania Invitation w `pending` po nieudanej próbie create przy kolizji `User.email` na accept-invite (D16: revoke / równoważnik; nie `accepted` bez User).
+- Prisma `enum` dla `User.role` (obowiązuje String + unia TS).
+- Tabeli „guest slots” / zużycia per typ (obowiązuje COUNT `Run` — D20).
 
 Zmiana względem wersji 3 / „Nie wolno”: dopisano zakaz reuse kolumn refine Social na Content.
 Zmiana względem wersji 4 / „Nie wolno”: dopisano zakaz zbędnej migracji `brief`.
@@ -198,7 +202,7 @@ Zmiana względem wersji 11 / „Nie wolno”: dopisano zakazy pending przez `isA
 - [ ] W dokumentacji implementacyjnej / README ops jest jasne: cutover PostgreSQL = nowa historia migracji + pusta baza + opcjonalny import danych; SQLite tylko MVP; V1 — rozbudowa = PostgreSQL.
 - [ ] Accept-invite D16: happy path = jedna transakcja create User + `accepted`; kolizja P2002 → brak User, Invitation `revoked` (nie żywego `pending`).
 - [ ] `User.verifiedAt` (`DateTime?`) w schemie; soft-delete **nie** czyści pola.
-- [ ] Model `AccountActivation` (hash + `userId` + `expiresAt`); po activate — `verifiedAt` ustawione + delete wierszy dla usera; jeden aktywny wiersz per user.
+- [ ] `User.role` = String (`admin`/`user`/`guest`); **bez** Prisma enum roli; **brak** tabeli slotów guest.
 
 ## Poza zakresem
 

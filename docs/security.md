@@ -1,5 +1,5 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-09-29
 data_modyfikacji: 2026-10-03
 ---
@@ -14,6 +14,8 @@ Zmiana względem: publiczny health = tylko liveness. Od tej wersji także public
 
 Zmiana względem: zakaz otwartego signup; jedyna droga na `user` = invite. Od tej wersji: self-registration legalna obok invite; aktywacja e-mail w `production` (`verifiedAt` + `AccountActivation`); **409** na register przy kolizji email (świadoma enumeracja UX); resend/login bez enumeracji stanu konta.
 
+Zmiana względem: `security.md` po planie register — register **zawsze** `role = user`; `guest` / `DEMO_MODE` poza kanonem. Od tej wersji **refaktor roli** (dostępność register **bez zmian**): `DEMO_MODE=true` → `guest`; `false` → `user`. Dopisano GuestGuard, martwą sesję guest przy demo off, limity Redis, ownership odczytu/mutacji. **Bez** rozdziału o zarządzaniu/czyszczeniu kont guest (osobny plan).
+
 ## Założenia
 
 - Jedna instancja = jedna firma; zagrożenia to głównie błędna konfiguracja i wyciek sekretów, nie multi-tenant izolacja.
@@ -22,22 +24,25 @@ Zmiana względem: zakaz otwartego signup; jedyna droga na `user` = invite. Od te
 
 ## Role i uprawnienia
 
-| Akcja | `admin` | `user` |
-|-------|---------|--------|
-| Edycja kontekstu firmy | tak | nie |
-| Start runów produktowych (Social i Content) / HITL / odczyt logów / lista runów instancji | tak | tak |
-| Ocena gwiazdkowa / zapis edycji wyniku (`POST .../output-edited`) / finalize przeglądu **własnego** runu | tak | tak |
-| To samo na runie obcego `startedBy` | nie | nie |
-| `GET /runs/user/:userId` tylko gdy `:userId` = sesja | tak (własne) | tak (własne) |
-| `POST /feedback` (opinia tekstowa) | tak | tak |
-| Panel odczytu / analityka opinii | V1 — rozbudowa | V1 — rozbudowa |
-| Lista użytkowników (`GET /users`) | tak | nie |
-| Zaproszenia: create / lista pending / resend / revoke | tak | nie |
-| Soft-delete użytkownika (`DELETE /users/:id`; API; UI MVP bez tego) | tak | nie |
-| Reaktywacja (`PATCH /users/:id`, `{ isActive: true }`; API; UI MVP bez tego) | tak | nie |
-| Bootstrap pierwszego admina | jednorazowy (API + tryb strony głównej / karta logowania) | — |
+| Akcja | `admin` | `user` | `guest` (tylko gdy `DEMO_MODE=true`) |
+|-------|---------|--------|-----------------------------------------|
+| Edycja kontekstu firmy | tak | nie | **nie** (GET kontekstu **tak**; write → **403**) |
+| Start runów produktowych | tak (wszystkie typy) | tak (wszystkie typy) | tak — **allowlista** 3 typów + slot ×1 + global cap Redis (`dokumentacja_komunikacji.md`) |
+| HITL / cancel / ocena / feedback `run` | własne (`startedBy`) | własne | **tylko własne**; cudze → **403** |
+| Lista `GET /runs` (archiwum instancji) | tak | tak | **tak** (showcase) |
+| Detail / logs / events / SSE | własne wg kanonu ownership | własne | **tylko własne**; cudze → **403** |
+| `POST .../output-edited` / finalize-review | własne (okno TTL) | własne | **nie** → **403** |
+| `PATCH /auth/me/email` | tak | tak | **nie** → **403** |
+| `POST /feedback` `application` / `agent` | tak | tak | **tak** (bez limitu Redis) |
+| Panel odczytu / analityka opinii | V1 — rozbudowa | V1 — rozbudowa | V1 — rozbudowa |
+| Lista użytkowników (`GET /users`) | tak | nie | **nie** → **403** |
+| Zaproszenia: create / lista pending / resend / revoke | tak | nie | **nie** → **403** |
+| Soft-delete / reaktywacja usera | tak | nie | **nie** → **403** |
+| Bootstrap pierwszego admina | jednorazowy (API + tryb strony głównej / karta logowania) | — | — |
 
-**403** przy naruszeniu (`FORBIDDEN`). Egzekucja zawsze w `apps/api`, nie tylko w UI.
+**403** przy naruszeniu (`FORBIDDEN`). Egzekucja zawsze w `apps/api`, nie tylko w UI. Nowe trasy: **GuestGuard** — brak `@AllowGuest()` → guest **403** (default deny). `admin`/`user`: `@Roles` jak dotychczas.
+
+Gdy `DEMO_MODE=false`: JWT z `role=guest` na **każdej** chronionej trasie (w tym `/me`, refresh) → **401** jak nieaktywne / złe credentials (anti-enum). Rola guest jest **martwa**. Opcjonalne czyszczenie sesji w DB — poza tym dokumentem (feature).
 
 ## Bootstrap i konta admin
 
@@ -45,7 +50,7 @@ Zmiana względem: zakaz otwartego signup; jedyna droga na `user` = invite. Od te
 2. **`POST /api/v1/auth/bootstrap-admin`** działa **wyłącznie**, gdy w DB **nie ma** żadnego użytkownika z `role = admin`. Po sukcesie ustawia sesję cookie (jak login) oraz **`User.verifiedAt = now()`** (admin gotowy do loginu bez aktywacji linkiem).
 3. Po utworzeniu pierwszego admina endpoint bootstrap jest **trwale niedostępny** (np. **409** `CONFLICT` / **403**); `bootstrap-status.available === false`.
 4. **Twarda blokada:** tworzenie / awans kolejnych użytkowników z `role = admin` jest **zabronione** w MVP (API odrzuca). W systemie jest **co najwyżej jeden** admin — ten z bootstrapu. Register / activate / resend **nigdy** nie tworzą `admin`.
-5. **Dwie drogi na konto nie-admin:** (a) **zaproszenie** — admin podaje tylko email; konto `user` powstaje przy `POST /auth/accept-invite` (aktywne, gotowe do loginu; **`verifiedAt = now()`**); (b) **otwarta rejestracja** — publiczny `POST /auth/register` (zawsze dostępny; **nie** zależy od `DEMO_MODE`). Serwer **zawsze** ustawia **`role = user`** przy register (**bez** mieszania z rolą `guest` / `DEMO_MODE` — to wyłącznie plan demo). Przed utworzeniem `User` register **unieważnia** (`revoked`) ewentualne **`Invitation` `pending`** na ten sam email. **Nie** przez `POST /users` z hasłem. Zmiana względem wersji 4: rola register zależna od `DEMO_MODE` / `guest`. Od tej wersji register = wyłącznie `user`.
+5. **Dwie drogi na konto nie-admin:** (a) **zaproszenie** — admin podaje tylko email; konto `user` powstaje przy `POST /auth/accept-invite` (aktywne, gotowe do loginu; **`verifiedAt = now()`**); **invite nigdy nie tworzy `guest`** (także przy demo on); (b) **otwarta rejestracja** — publiczny `POST /auth/register` (zawsze dostępny; **nie** zależy od `DEMO_MODE`). **Zmiana względem:** po planie register serwer **zawsze** ustawiał **`role = user`**. **Refaktor:** `DEMO_MODE=true` → **`guest`**; `DEMO_MODE=false` → **`user`**. Body **bez** `role`. Register **nigdy** → `admin`. Przed utworzeniem `User` register **unieważnia** (`revoked`) ewentualne **`Invitation` `pending`** na ten sam email. **Nie** przez `POST /users` z hasłem. **Zakaz permanentny** awansu `guest` → `user` / `admin`.
 6. **Self-service konta w MVP:** zalogowany może zmienić **własny email** (`PATCH /api/v1/auth/me/email`, widok Konto) wyłącznie po podaniu **aktualnego hasła** w body (`currentPassword`). To **re-auth** przy mutacji wrażliwej — **nie** jest self-service zmianą hasła. **`GET /auth/me` = wyłącznie probe** (bez mutacji na `PATCH /auth/me`). **Poza MVP:** zmiana hasła zalogowanego (planowany wzorzec: osobna trasa np. `PATCH /auth/me/password` + re-auth + `INVALID_PASSWORD`, po SMTP), usuwanie własnego konta. **Confirm e-mail przy zmianie adresu = V1** — **nie** mylić z aktywacją konta po rejestracji. **Wyjątek onboarding:** pierwsze hasło przy `POST /auth/accept-invite` oraz hasło przy `POST /auth/register`. MVP: login / logout / bootstrap / register + activate + resend / zaproszenia + accept-invite + zmiana własnego emaila z re-auth.
 
 Zmiana względem: mutacja na `PATCH /auth/me` + złe hasło jako `UNAUTHORIZED`. Powód: rozdział probe vs mutacja; uniknięcie konfliktu z cyklem sesji FE.
@@ -54,6 +59,19 @@ Zmiana względem: „self-service email poza zakresem MVP”.
 7. **`DELETE /api/v1/users/:id`** = soft-delete (dezaktywacja); konto nieaktywne nie loguje się. DELETE **usuwa** wiersze **`AccountActivation`** dla tego usera (jeśli były). **`POST /auth/register`** na email soft-deleted → **409** `CONFLICT`, `message`: **`Email already in use`** (reclaim wyłącznie adminem przez `PATCH`, nie self-register). **Reaktywacja** = **`PATCH /api/v1/users/:id`** z body `{ "isActive": true }` (API; UI nadal poza MVP). `PATCH` **nie** przyjmuje `role` (zakaz awansu do `admin`) ani `isActive: false` (dezaktywacja wyłącznie przez DELETE). Reaktywacja **nie** odtwarza sesji refresh — potem zwykły login. Admin `PATCH` **nie** ustawia `verifiedAt` — konto bez weryfikacji nadal nie loguje się w `production` do czasu activate / resend.
 
 Zmiana względem wcześniejszego punktu 7 (tylko DELETE / soft-delete): kanał przywrócenia konta w API jest **PATCH**, nie ręczna edycja SQLite.
+
+## DEMO MODE, GuestGuard i limity gościa
+
+Włączanie wyłącznie env **`DEMO_MODE=true|false`** (default **`false`**), odczyt przy **starcie procesu** — jedyna zmiana trybu to **restart**. **Brak** toggle w panelu admina.
+
+- Publiczny **`GET /api/v1/config`** (V1): wyłącznie `{ "demoMode": boolean }`. FE nie egzekwuje limitów.
+- **Register zawsze dozwolony** (plan register — dostępność **bez zmian**). Rola: jak punkt 5 powyżej.
+- **Login:** kolejność dla pary guest + demo: **najpierw** check `DEMO_MODE`. `guest` && `DEMO_MODE=false` → reject **tym samym 401** + message co złe hasło / konto nieaktywne (anti-enum). `admin` / `user` bez zmian. Przy demo on: login `guest` jak zwykły login (w tym pending `verifiedAt` w `production`).
+- **GuestGuard** + whitelist **`@AllowGuest()`**. Nowe trasy default deny dla guest.
+- Rate limit HTTP (jak pozostałe trasy) **oraz** admit przy `POST /runs` (Redis global cap) — **nie** drugi semafor execute obok `MAX_CONCURRENT_RUNS`. FIFO i cap współbieżności **bez zmian**.
+- Redis: klucze `content-chain:guest:daily:runs:{UTC-date}` oraz `content-chain:guest:daily:ratings:{userId}:{UTC-date}`. Przy `DEMO_MODE=true` Redis potrzebny pod cap + soft rating. Przy `false` Redis **opcjonalny**; `health` / `ready` **nie** failują z braku Redis.
+- Pad Redis przy `POST /runs` guest → **fail closed**. Pad Redis przy ratingu guest → **fail open**.
+- Admin: tylko bootstrap / istniejący wiersz; dump SQLite przenosi role (w tym `guest` i admina). `DEMO_MODE` **nie** degraduje ról w DB.
 
 ## Rejestracja i aktywacja konta (e-mail)
 
@@ -72,7 +90,7 @@ Bramka aktywacji zależy wyłącznie od **`NODE_ENV=production`**. **Nie** zale�
 - **Pending ≠ soft-delete:** pending ma `isActive = true` + `verifiedAt = null`. Soft-delete = `isActive = false`. **Zakaz** reuse `isActive = false` jako „oczekuje na mail”.
 - **`POST /auth/register` + zajęty email:** **409** `CONFLICT`, `message`: **`Email already in use`**. **Bez** drugiego `User`. **Świadoma enumeracja** — trade-off UX (użytkownik musi móc zmienić adres). Zmiana względem chwilowego zapisu „maskowany 201 przy kolizji”.
 - **`POST /auth/resend-activation`:** zawsze **200** + ten sam `message`: **`Wiadomość wysłana ponownie`**, niezależnie czy email istnieje / pending / już aktywny / przekroczony rate limit. Mail + rotacja tokenu **tylko** gdy jest pending z `AccountActivation`; inaczej no-op (w tym pad SMTP — **bez** **503**). Rate limit: **5** żądań / **15 min** na email (soft); po przekroczeniu — **ta sama** odpowiedź **200**. **Bez** enumeracji przez resend. Zmiana względem wersji 4: **503** `MAIL_DELIVERY_FAILED` na resend aktywacji.
-- **`POST /auth/login`:** wspólny **401** dla złego hasła / soft-delete / brak `verifiedAt` w prod — **bez** `ACCOUNT_NOT_ACTIVATED` i bez ujawniania „pending”.
+- **`POST /auth/login`:** wspólny **401** dla złego hasła / soft-delete / brak `verifiedAt` w prod **oraz** (`role=guest` && `DEMO_MODE=false`) — **bez** `ACCOUNT_NOT_ACTIVATED` i bez ujawniania „pending” / „guest przy demo off”. Check demo dla guest **przed** innymi powodami rejectu tego przypadku.
 - **`POST /auth/activate`:** zły / zużyty / wygasły token → wspólny **401** (bez rozróżniania). Sukces → **200** `{ "user": { "id", "email", "role" } }`, **bez** Set-Cookie. **Zakaz** **409** na activate (`Email already in use` = wyłącznie register i inne surface’y z zajętym emailem).
 
 Zmiana względem wersji 5: usunięto **409** na activate; kanoniczny message register **409** = `Email already in use`.
@@ -104,7 +122,7 @@ Zmiana względem: kolizja na accept-invite → **409** `CONFLICT` jako świadoma
 |---------|-------------|-------------|
 | `POST /auth/register` — email już w `User` | **409** `CONFLICT` + jawny komunikat | **Tak — świadoma** (UX) |
 | `POST /auth/resend-activation` | Zawsze ten sam sukces; mail tylko przy pending | **Nie** |
-| `POST /auth/login` | Wspólny **401** (złe hasło / soft-delete / brak `verifiedAt` w prod) | **Nie** |
+| `POST /auth/login` | Wspólny **401** (złe hasło / soft-delete / brak `verifiedAt` w prod / guest przy demo off) | **Nie** |
 | `POST /auth/activate` (zły token) | Wspólny **401** | Bez enumeracji email |
 | `POST /auth/accept-invite` (kolizja email) | Wspólny **401** + revoke Invitation | **Nie** |
 
@@ -148,22 +166,27 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 
 | Wolno | Nie wolno |
 |-------|-----------|
-| Jeden admin z bootstrapu; `user` przez zaproszenie **lub** self-register (**zawsze** `role = user`) | Drugi `role = admin` w MVP; register/activate/resend → `admin`; register → `guest` (plan demo — poza tym kanonem) |
+| Jeden admin z bootstrapu; `user` przez zaproszenie **lub** self-register przy `DEMO_MODE=false`; `guest` wyłącznie self-register przy demo on | Drugi `role = admin` w MVP; register/activate/resend → `admin`; **awans `guest` → `user`/`admin`**; invite → `guest`; **`role` w body register**; osobny endpoint register-as-guest; **blokowanie register przy `DEMO_MODE=false`** |
+| GuestGuard + `@AllowGuest` (default deny dla guest) | Masowe `@Roles('admin','user')` „żeby zablokować guest”; zaufanie do ukrytych przycisków FE |
+| Redis admit przy `POST /runs` guest + `MAX_CONCURRENT_RUNS` bez zmian | Drugi limit współbieżności „dla guest”; fail open Redis na start runu guest |
+| Switch trybu wyłącznie env + restart | Switch demo w panelu admina |
 | bcrypt + polityka haseł jak wyżej (bootstrap / accept-invite / register) | Przechowywanie haseł plaintext / odwracalne; **hasło w mailu**; admin zna hasło `user` |
 | Cookie httpOnly dla **access i refresh** (`cc_access`, `cc_refresh`) wyłącznie po login / bootstrap | Set-Cookie na register / activate / resend; access/refresh w `localStorage` / Bearer jako model MVP |
 | Token invite / activation: w DB tylko hash SHA-256; raw w mailu | Raw token w JSON-ie admina (także „dla Postmana”) |
 | Pending = `isActive=true` + `verifiedAt=null` + `AccountActivation` | Pending przez samo `isActive=false`; wymaganie aktywacji poza `production`; register bramkowany `DEMO_MODE` |
 | **409** na register przy zajętym emailu (świadomy UX) | Maskowany **201** przy kolizji na register („sukces” bez konta / bez maila) |
-| Stały sukces resend; wspólny **401** na loginie (pending / soft-delete / złe hasło) | `ACCOUNT_NOT_ACTIVATED` / różnicowanie stanu konta na loginie lub resendzie |
+| Stały sukces resend; wspólny **401** na loginie (pending / soft-delete / złe hasło / guest przy demo off) | `ACCOUNT_NOT_ACTIVATED` / różnicowanie stanu konta na loginie lub resendzie |
 | Wewnętrzny gateway + ograniczony metrics | Publiczny gateway z kluczami vendorów |
 | Dump hopu chat na stdout wyłącznie przy `NODE_ENV=development`, z redakcją `GATEWAY_KEY`; w `development` wolno logować URL akceptacji / aktywacji | Pełne prompty / `output.text` hopu w logach procesu w `production`; raw token w logach `production` |
 
 ## Poza zakresem MVP
 
 - OAuth / SSO / 2FA  
-- Self-service: zmiana hasła zalogowanego, usuwanie własnego konta (wyjątek: pierwsze hasło na accept-invite / hasło na register — onboarding). **Zmiana własnego emaila z re-auth hasłem jest w MVP** (`PATCH /auth/me/email` + `currentPassword` + `INVALID_PASSWORD`). Wzorzec osobnej mutacji + re-auth = fundament pod przyszłą zmianę hasła (po SMTP; poza MVP). **Confirm e-mail** przy zmianie adresu = **V1** (poza MVP; **nie** mylić z aktywacją po register)  
+- Self-service: zmiana hasła zalogowanego, usuwanie własnego konta (wyjątek: pierwsze hasło na accept-invite / hasło na register — onboarding). **Zmiana własnego emaila z re-auth hasłem jest w MVP** (`PATCH /auth/me/email` + `currentPassword` + `INVALID_PASSWORD`) — **nie** dla `guest`. Wzorzec osobnej mutacji + re-auth = fundament pod przyszłą zmianę hasła (po SMTP; poza MVP). **Confirm e-mail** przy zmianie adresu = **V1** (poza MVP; **nie** mylić z aktywacją po register)  
 - Rotacja wielu adminów / recovery „lost admin” (osobna procedura później)  
 - WAF / full pentest report  
-- Szyfrowanie pliku SQLite at-rest (opcjonalnie później)
+- Szyfrowanie pliku SQLite at-rest (opcjonalnie później)  
+- Zarządzanie / czyszczenie kont `guest` (osobny plan)  
+- Awans `guest` → `user` / `admin` (**zakaz permanentny**, nie „poza V1”)
 
 Szczegóły endpointów: `dokumentacja_komunikacji.md`. Deploy: `deployment.md`.

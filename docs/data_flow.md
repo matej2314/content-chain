@@ -1,5 +1,5 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-09-27
 data_modyfikacji: 2026-10-03
 ---
@@ -13,6 +13,8 @@ Zmiana względem: bramka startu UX = tylko completeness. Od tej wersji: chip / d
 Zmiana względem: przegląd bez limitu czasu; zamknięcie tylko ręczne. Od tej wersji: okno od `pipelineFinishedAt` + `REVIEW_TTL`; po TTL mutacje → 409 bez UPDATE; sweeper (boot / interval) → UPDATE `reviewFinalizedAt`; wyłączenie api nie przedłuża okna.
 
 Zmiana względem wcześniejszej wersji (bez frontmatteru): dopisano ścieżkę **anulowania runu** (`cancelled`), gałęzie recovery z `cancelRequested`, konflikty cancel vs completed/failed oraz notę o slocie `MAX_CONCURRENT_RUNS` / persist bez rollbacku.
+
+Zmiana względem: self-register zawsze `user`; admit startu = tylko bramka kontekstu + `MAX_CONCURRENT_RUNS`. Od tej wersji: register → `guest` wyłącznie gdy `DEMO_MODE=true` (**refaktor**). Dla guest: Redis admit (global cap UTC) **przed** create Run; slot COUNT bez filtra statusu. **Bez** ops czyszczenia kont.
 
 ## Zasady wspólne
 
@@ -45,6 +47,8 @@ sequenceDiagram
 
 Dane: hasła tylko po stronie api (hash w DB); sekrety LLM nigdy we frontendzie.
 
+`POST /auth/register` (zawsze dostępny): **`DEMO_MODE=true` → `User.role = guest`**; **`false` → `user`**. Invite / bootstrap **nie** tworzą `guest`.
+
 ---
 
 ## 2. Kontekst firmy i bramka
@@ -64,7 +68,25 @@ flowchart LR
 Sekcje bramki: tożsamość, oferta, głos SM, CTA/kanały, odbiorca (`dokumentacja_koncepcyjna.md`).  
 **Chip UX „Agenci aktywni”** = `completeness.complete` **∧** `checks.gateway` healthy z api `/health/ready` (probe = liveness gateway). **Nie** mieszać z `isComplete` / `409` `CONTEXT_INCOMPLETE` (te zostają wyłącznie kontekstowe).  
 
-`user` tylko czyta / korzysta; edycja wyłącznie `admin`. **Jedna** bramka na cały `POST /runs` (C-5), także dla `page_*` i rolek.
+`user` tylko czyta / korzysta; edycja wyłącznie `admin`. **`guest`:** GET kontekstu **tak**; write → **403**. **Jedna** bramka na cały `POST /runs` (C-5), także dla `page_*` i rolek.
+
+---
+
+## 2a. Admit startu runu: guest vs `MAX_CONCURRENT_RUNS`
+
+```text
+POST /runs
+  → bramka kontekstu (409 CONTEXT_INCOMPLETE)
+  → [tylko guest] GuestRunPolicy:
+       allowlista taskType
+       COUNT startedBy+taskType (wszystkie statusy) → GUEST_TYPE_QUOTA_EXCEEDED
+       Redis INCR global UTC → GUEST_GLOBAL_QUOTA_EXCEEDED / fail closed
+  → create Run (queued | running)
+  → [create fail] Redis DECR
+  → worker claim pod MAX_CONCURRENT_RUNS (FIFO; bez zmian; nie drugi semafor guest)
+```
+
+Slot gościa **nie** jest tabelą — COUNT z `Run`. HITL nie zużywa slotu.
 
 ---
 
@@ -330,6 +352,9 @@ sequenceDiagram
 | Opinia `targetType=run` gdy nie `completed`/`failed` i nie (`cancelled` z wynikiem) | **409** `RUN_NOT_REVIEWABLE` |
 | Zmiana oceny lub flagi / treści wyniku po finalize **albo** po `REVIEW_TTL` | **409** `REVIEW_LOCKED` (**bez** UPDATE `reviewFinalizedAt` przy samym TTL; lock w DB = sweeper) |
 | Ocena / edycja / opinia / cancel o runie obcej osoby | **403** `FORBIDDEN` |
+| `guest` bez `@AllowGuest` / mutacja zabroniona / cudzy detail | **403** `FORBIDDEN` |
+| `guest` quota typu / global cap | **403** `GUEST_TYPE_*` / `GUEST_GLOBAL_QUOTA_EXCEEDED` |
+| Soft limit rating `guest` | **429**; pad Redis rating → fail open |
 | `GET /runs/user/:userId` z cudzym id | **403** `FORBIDDEN` |
 
 ---

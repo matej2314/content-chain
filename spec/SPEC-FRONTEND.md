@@ -1,5 +1,5 @@
 ---
-wersja: 34
+wersja: 35
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-10-03
 ---
@@ -28,6 +28,7 @@ Zmiana względem wersji 28 / cel: przegląd otwarty do ręcznego finalize bez li
 Zmiana względem wersji 30 / cel: nieaktywne „Zarejestruj się!” / zakaz otwartego signup. Od tej wersji aktywny signup, thank-you+resend (prod), deep link aktywacji → login + toast — `docs/ux_dashboard.md`.
 
 Zmiana względem wersji 33 / cel: chip „Agenci aktywni” = wyłącznie completeness. Od tej wersji `agentsActive` = completeness ∧ `gatewayAlive` (api `/health/ready`) — `docs/ux_dashboard.md`, `docs/dictionary.md`.
+Zmiana względem wersji 34 / cel: DEMO chip / locki `guest` poza SPEC. Od tej wersji F-10 + F-8 nawigacja guest; F-4b **bez** warunku `demoMode`.
 
 ## Powiązanie ze stylem z docs / wyjątek
 
@@ -63,8 +64,10 @@ F-4b. Rejestracja i aktywacja (UX):
 3. Kolizja email (**409** `CONFLICT`, `message`: **`Email already in use`**): **zostajemy** na formularzu rejestracji; jawny błąd przy polu email — **bez** thank-you.
 4. Deep link aktywacji **wyłącznie** `/?activationToken=…`: **natychmiast** widok logowania na `/`; w tle `POST /auth/activate`; po sukcesie toast **„Konto aktywowane! Możesz się zalogować.”** (**wyjątek** — Toaster dozwolony na niezalogowanym `/`). Błąd activate (**401**) → **ogólny** komunikat na karcie logowania. **Bez** dashboardu; **bez** Set-Cookie z activate.
 5. Register / activate / resend **nie** ustawiają sesji w UI (brak cookie z tych tras).
+6. Signup / thank-you / activate **nie** zależą od `demoMode` (F-4a / F-4b **bez** `if (!demoMode) hide`). Opcjonalne copy o ograniczeniach gościa na thank-you **nie** zmienia flow aktywacji.
 
 Zmiana względem wersji 32 / F-4b: sygnał thank-you = `verifiedAt === null`; activate-fail bez **409**; wyjątek Toastera na `/` po sukcesie activate.
+Zmiana względem wersji 34 / F-4b: milczenie o `demoMode`. Od tej wersji jawny zakaz bramkowania signup przez demo.
 
 F-5. Live status runu: **SSE** `.../runs/:runId/events` (same-origin BFF, ta sama sesja cookie). **N×** `EventSource` wyłącznie dla **własnych** runów w `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu: max jedno połączenie na `runId`). `queued` **bez** SSE (GET). Zakaz pollingu statusu **konkretnego** runu jako kanału live. GET archiwum Runy co 15 min **nie** jest kanałem live. Status wizualnie animowany / czytelny (`docs/ux_dashboard.md`) — w tym odrębny stan **`interrupted`** oraz terminal **`cancelled`** (nie mylić z `failed`). Typ statusu z `@content-chain/shared`.
 
@@ -135,7 +138,8 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 - Użytkownicy (admin): lista + zaproszenie email; pending w tym wygasłe; resend/revoke;
 - **Header**: zawartość do prawej; login → „Wyloguj się” → modal → `POST /auth/logout` → `/`;
 - Globalny CTA opinii; na szczegółach: Edytuj (`result` + flaga), gwiazdki, finalize — **tylko** gdy snapshot `completed` \| `failed` (nie na `cancelled`) **oraz** przegląd otwarty (`reviewFinalizedAt === null` **i** nie minął serwerowy `reviewExpiresAt`); po zamknięciu copy **„Przegląd zamknięty”** (bez rozróżnienia auto vs ręczne); **bez** widocznego deadline / countdown / wiersza „dostępne do…”;
-- Chip „Agenci aktywni” wg F-6 (`agentsActive`); **floating box** własnych runów w toku poza Kontem (zwijany; **bez** Stop). Po `cancelled`: krótko **„Anulowany”**, ukrycie pozycji po **200 ms**. **Nie** chip/stos „w toku” w chrome.
+- Chip „Agenci aktywni” wg F-6 (`agentsActive`); **`DemoModeChipSlot` nad CompletenessChip** — **tylko dashboard**, gdy `demoMode === true` (F-10); **floating box** własnych runów w toku poza Kontem (zwijany; **bez** Stop). Po `cancelled`: krótko **„Anulowany”**, ukrycie pozycji po **200 ms**. **Nie** chip/stos „w toku” w chrome.
+- Nawigacja F-8 wg roli: `admin` — Users + zaproszenia; `user` — bez Users; `guest` (demo on) — bez Users / bez zapisu kontekstu / bez Edytuj / finalize; archiwum lista OK; **zakaz** nawigacji do cudzego `/runs/:id` (403 z API). Istniejący `GuestView` w home-entry = stan **anonimowy** (login/register) — **nie** mylić z rolą `guest`.
 
 Zmiana względem wersji 19 / F-8: Runy = cała instancja + start; po starcie szczegóły; chip „w toku”. Od tej wersji: Runy = archiwum; start+live = Konto; box; trasa invite jak mailer.
 
@@ -170,6 +174,17 @@ Zmiana względem wersji 25 / F-9: filtr bez `cancelled`. Od tej wersji `cancelle
 
 Zmiana względem wersji 28 / F-9: „przegląd niezamknięty” = tylko `reviewFinalizedAt === null`. Od tej wersji także serwerowy `reviewExpiresAt`; zakaz lokalnego TTL math i chrome deadline — `docs/ux_dashboard.md`.
 
+F-10. DEMO MODE (UX) — `docs/ux_dashboard.md`:
+
+1. Boot: `DemoModeProvider` (lub równoważny) woła publiczny `GET /config`; jedyne pole używane w V1: `demoMode`.
+2. `DemoModeChipSlot` / `DemoChip` **nad** CompletenessChip — **tylko dashboard**, gdy `demoMode === true`. Copy w stylu „Tryb demo aktywny / Wybrane funkcje ograniczone” + Iconify. Przy `demoMode === false` chip **nie** jest widoczny.
+3. Locki UI (sidebar, formy, disable `taskType` poza allowlistą, zapis kontekstu, Users, Edytuj/finalize, `PATCH /auth/me/email`): wyłącznie gdy **`session.role === 'guest'` AND `demoMode === true`**. Admin na instancji demo **bez** locków gościa.
+4. `GuestLimitModal` **wyłącznie** po błędzie quota z API (`GUEST_TYPE_*` / `GUEST_GLOBAL_QUOTA_EXCEEDED`); CTA kontakt `{ iconName, contactData }[]` (mailto, LinkedIn, GitHub) — hardcoded FE. **Zakaz** preemptive modalu bez odpowiedzi API.
+5. Rating: obsługa **429** (`message` z envelope). Feedback: `application`/`agent` OK; `run` tylko własny.
+6. Egzekucja limitów = API; FE tylko odzwierciedla.
+
+Zmiana względem wersji 34: chip/locki guest poza zakresem. Od tej wersji F-10.
+
 Zmiana względem wersji 1: Konto nie obejmuje zmiany hasła; dodano first-run; lista runów = cała instancja z nawigacją lista → szczegóły; admin users bez edycji/dezaktywacji w UI (soft-delete UI nadal poza MVP).
 
 ## Norma implementacji
@@ -197,7 +212,7 @@ apps/frontend/src/
 
 ### Wolno
 
-- Client components dla SSE, formularzy, HITL, floating boxa.
+- Client components dla SSE, formularzy, HITL, floating boxa, **DemoChip** / **GuestLimitModal**.
 - Reconnect SSE wyłącznie po nieoczekiwanym zerwaniu przy `running` / `awaiting_hitl` / `interrupted` + uzupełnienie snapshotem; `EventSource.close()` po evencie terminalnym (`completed` / `failed` / `cancelled`).
 - N× EventSource w rejestrze layoutu (jedno na `runId`); szczegóły **reuse** tego połączenia.
 - Stop + modal „Czy na pewno?” na Moich runach / szczegółach; `POST .../cancel` tylko po Tak (F-5b).
@@ -290,7 +305,11 @@ apps/frontend/src/
 - Browser Notification API; maila przy `failed` runu.
 - Drugiego Toastera; `window.alert` / `confirm` zamiast envelope.
 - `toast.promise` na formularzach, które już mają `pending`.
-- Logiki / typów toasta w `@content-chain/shared`.
+- Chipu demo poza dashboardem albo przy `demoMode === false`.
+- Locków guest gdy `role !== guest` albo `demoMode === false`.
+- Modalu limitu **przed** błędem quota z API.
+- Bramkowania signup / thank-you / activate przez `demoMode` (F-4b).
+- Wejścia UI w cudzy detail runu dla `guest`.
 
 Zmiana względem wersji 19 / „Nie wolno”: kanon Runy+start+chip oraz fetch wprost na api — unieważnione na rzecz BFF, archiwum, Konta jako startu, boxa.
 Zmiana względem wersji 21 / „Nie wolno”: dopisano zakaz lokalnego werdyktu kompletności na zakładkach, `PATCH` per zakładka, kropki na Dodatki i zagnieżdżeń extras.
@@ -327,6 +346,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Stop + modal „Czy na pewno?” → cancel API; toast „Run anulowany”; dedup SSE; na `cancelled` brak przeglądu / HITL.
 - [ ] Start zablokowany w UI przy `!agentsActive` (niekompletność **lub** gateway nie żyje) **oraz** api `409` `CONTEXT_INCOMPLETE` przy niekompletnym kontekście; **bez** osobnego kodu „gateway down” na `POST /runs`.
 - [ ] Chip F-6: copy nieaktywnego kanoniczne; przy kompletnym kontekście i martwym gateway — disable CTA **bez** fałszywego „Uzupełnij kontekst” jako jedynej remedacji; kropki zakładek **tylko** z `completeness.missing`.
+- [ ] F-10: `GET /config`; chip demo tylko dashboard gdy `demoMode`; locki tylko `guest` ∧ demo on; modal limitu po quota API; 429 rating.
 - [ ] Konto: email — modal re-auth (`PATCH /auth/me/email` `{ email, currentPassword }`); `INVALID_PASSWORD` / `VALIDATION_FAILED` pod hasłem (bez F-4a); **409** → clear + odblokowanie emaila + błąd pod emailem; sukces bez toastu + `GET /auth/me`; Anuluj bez API; moje runy → szczegóły; start (prefill ze snapshotu); opinia.
 - [ ] Admin: Users + zaproszenie; accept-invite → `/`; błąd kolizji / złego tokenu = ten sam envelope **401** na karcie (bez UI „email zajęty” / bez gałęzi **409**).
 - [ ] `app/` + `modules/`; typy z shared; brak sekretów LLM; brak `NEXT_PUBLIC_` URL-a api.
@@ -351,7 +371,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - Pixel-perfect / Figma jako norma.
 - Publikacja postów na API portali (v2).
 - OAuth / social login.
-- DEMO chip / locki roli `guest` (plan demo) — ten SPEC legalizuje signup; limity guest poza.
+- Przełącznik DEMO w UI admina; zarządzanie użytkownikami (osobny plan).
 - Osobny trwały ekran „Aktywacja…”.
 - Zmiana hasła zalogowanego / usuwanie własnego konta; soft-delete users w UI; confirm e-mail przy zmianie adresu (**V1** — **nie** mylić z aktywacją po register). **Zmiana własnego emaila z re-auth (modal) jest w MVP.**
 - `selectedIdeaIds` na starcie; `conversationId` w UI.

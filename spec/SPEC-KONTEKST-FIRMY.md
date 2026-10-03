@@ -1,5 +1,5 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-10-03
 ---
@@ -13,6 +13,7 @@ Norma bounded contextu **Company Context** w `apps/api`: kanoniczny zapis kontek
 Uszczegóławia bramkę i sekcje z `docs/dokumentacja_koncepcyjna.md`, endpointy z `docs/dokumentacja_komunikacji.md` oraz reguły ról z `docs/security.md` / `SPEC-AUTH.md`.
 
 Zmiana względem wersji 5 / cel: milczenie o granicach względem sieci. Od tej wersji jawnie: `isComplete` / C-1…C-5 **bez** gateway; wskaźnik UX „Agenci aktywni” → `SPEC-FRONTEND.md` F-6.
+Zmiana względem wersji 6 / C-4: `user` → 403 na zapis. Od tej wersji także `guest`; GET z `@AllowGuest`.
 
 ## Powiązanie ze stylem z docs
 
@@ -60,11 +61,11 @@ Predykat oferty: `items.length ≥ 1` ∧ `items.every(isCompleteOfferItem)`; ko
 
 Zmiana względem wersji 5 / C-1: milczenie o sieci. Od tej wersji jawny zakaz doklejania gateway do werdyktu domenowego.
 
-C-2. `GET /api/v1/company-context` zwraca aktualny kontekst (w tym `extras`: obiekt albo `null`) + informację o kompletności (flaga / obiekt spójny z docs). Pusta instancja (same `""` / `[]`) jest legalnym odczytem.
+C-2. `GET /api/v1/company-context` zwraca aktualny kontekst (w tym `extras`: obiekt albo `null`) + informację o kompletności (flaga / obiekt spójny z docs). Pusta instancja (same `""` / `[]`) jest legalnym odczytem. Trasa **dozwolona** dla `guest` (`@AllowGuest`, read-only).
 
-C-3. `GET /api/v1/company-context/completeness` zwraca `{ complete, missing }` — ten sam werdykt co C-1.
+C-3. `GET /api/v1/company-context/completeness` zwraca `{ complete, missing }` — ten sam werdykt co C-1. Odczyt **także** dla `guest`.
 
-C-4. Zapis kontekstu: **`PUT` oraz `PATCH`** `/api/v1/company-context` w MVP — **tylko `admin`**. `user` → `403` `FORBIDDEN`. Body może zawierać `extras`; nieznane klucze w `extras` → **400** `VALIDATION_FAILED` (Zod `.strict()` przez wspólny `parseWithZod` z `apps/api/src/shared/parse-with-zod.ts` — nie lokalna kopia w module).
+C-4. Zapis kontekstu: **`PUT` oraz `PATCH`** `/api/v1/company-context` w MVP — **tylko `admin`**. `user` **oraz** `guest` → `403` `FORBIDDEN`. Body może zawierać `extras`; nieznane klucze w `extras` → **400** `VALIDATION_FAILED` (Zod `.strict()` przez wspólny `parseWithZod` z `apps/api/src/shared/parse-with-zod.ts` — nie lokalna kopia w module).
 
 Poza authz i Zod extras: **PUT i PATCH zapisują wyłącznie gdy `isComplete(wynik).complete === true`**. PUT: `wynik` = zmapowane body. PATCH: werdykt na **merge** z aktualnym stanem w DB. Niekompletny wynik (w tym kaleka / pusta oferta, pusta nazwa firmy) → **400** `VALIDATION_FAILED`, `details` z brakującymi sekcjami i/lub ścieżkami pozycji (np. `offer.items.1.description`); **brak** `put` / upsert. **Nie** reuse `409` `CONTEXT_INCOMPLETE` na zapisie (ten kod zostaje na C-5).
 
@@ -101,8 +102,8 @@ apps/api/src/company-context/
 | Walidacja kompletności MVP | pozytywna = **niepuste** wymagane wartości (bez NLP / scoringu jakości); oferta = `every` + `description` |
 | `extras` | typowany obiekt; Zod `.strict()`; poza `isComplete` i poza warunkiem persist |
 | HTTP zapis | PUT (pełna aktualizacja uzgodnionych pól) **i** PATCH (częściowa); persist **tylko** gdy `complete === true` |
-| Authz | `JwtAuthGuard` + `RolesGuard` (`admin` na zapis) |
-| Odczyt | `admin` i `user` (oba mogą czytać / używać przy runach) |
+| Authz | `JwtAuthGuard` + `RolesGuard` (`admin` na zapis) + `GuestGuard` (`@AllowGuest` na GET) |
+| Odczyt | `admin`, `user` i `guest` (read-only dla `user`/`guest`) |
 
 ### Wolno
 
@@ -113,7 +114,7 @@ apps/api/src/company-context/
 
 ### Nie wolno
 
-- Pozwalać `user` na PUT/PATCH kontekstu.
+- Pozwalać `user` **ani** `guest` na PUT/PATCH kontekstu.
 - Egzekwować kompletność **tylko** w `apps/frontend`.
 - Cicho stripować kalekie `offer.items` w adapterze / use-case (kaleka pozycja → 400, nie `filter`).
 - Startować runa w api bez sprawdzenia bramki.
@@ -141,7 +142,7 @@ apps/api/src/company-context/
 - [ ] Unit test: niekompletny kontekst → `complete: false` + poprawne `missing`; kompletny → `complete: true`, `missing: []`; obecność `extras` nie zmienia werdyktu.
 - [ ] Unit: kaleka oferta (brak opisu / pusta korzyść / druga niepełna pozycja / whitespace) → `missing` zawiera `offer`.
 - [ ] Unit parse Zod `extras` (znany kształt OK; nieznany klucz → fail).
-- [ ] `user` nie zapisze kontekstu (`FORBIDDEN`); `admin` tak — **tylko** przy kompletnej bramce.
+- [ ] `user` **i** `guest` nie zapiszą kontekstu (`FORBIDDEN`); `admin` tak — **tylko** przy kompletnej bramce.
 - [ ] `GET .../completeness` zgodne z `isComplete`.
 - [ ] `POST /runs` przy niekompletności → `409` `CONTEXT_INCOMPLETE` (bez utworzenia przebiegu LLM).
 - [ ] HTTP: PUT/PATCH niekompletnej bramki → **400** `VALIDATION_FAILED`; GET bez zmiany (brak upsert).

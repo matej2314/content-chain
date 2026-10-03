@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-08-15
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-10-03
 ---
 
 # SPEC — Feedback (opinie tekstowe)
@@ -57,6 +57,10 @@ Fbk-6. `body` niepusty; górny limit **4000** znaków. Zakaz sekretów w treści
 
 Fbk-7. Controller nie woła LangGraph i nie ładuje promptów. Feedback nie zmienia statusu runu ani wyniku Social / Content.
 
+Fbk-8. `guest` (demo on, `@AllowGuest`): `targetType` `application` / `agent` — **bez** limitu Redis. `targetType=run` — Fbk-3 (tylko własny). Soft limit **429** dotyczy **oceny** gwiazdkowej (`SPEC-RUNY.md` R-12), nie tego POST.
+
+Zmiana względem wersji 5: brak gałęzi guest. Od tej wersji Fbk-8.
+
 ## Norma implementacji
 
 ### Wzorce / struktura
@@ -87,7 +91,7 @@ apps/api/src/feedback/
 - Panelu odczytu / średnich / eksportu opinii w MVP (V1 — rozbudowa).
 - Wołać graf Social albo Content z tego BC.
 - Przyjmować `authorId` z body (tylko sesja).
-- Pozwalać `user`/`admin` zapisać opinię o **cudzym** runie.
+- Pozwalać `user`/`admin`/`guest` zapisać opinię o **cudzym** runie.
 - Zapisywać opinię o runie poza oknem Fbk-3a (`completed` \| `failed` \| (`cancelled` z wynikiem); w tym `cancelled` bez wyniku).
 - Wołać `assertRunReviewable` z BC Runs (ta asercja zamyka też finalize — za szeroka na tekst; na `cancelled` i tak blokuje przegląd).
 - Łamać `GET /runs` `pageSize=10` zamiast `GET /runs/user/:userId`.
@@ -107,7 +111,7 @@ apps/api/src/feedback/
 - [ ] `POST /feedback` z sesją tworzy wiersz z `authorId` + `createdAt` + targetem.
 - [ ] Target `agent` wymaga poprawnego `agentKey`; `run` wymaga własnego `runId` **oraz** okna Fbk-3a (`completed` \| `failed` \| `cancelled`+wynik).
 - [ ] Cudzy `runId` → `FORBIDDEN`; run w toku (własny) → `RUN_NOT_REVIEWABLE`; `cancelled` bez wyniku (np. po cancel z `queued`) → 409; `cancelled` po persist pomysłów / partial wyniku → 201 (przy spełnieniu Fbk-3); druga opinia tego samego autora — nowy wiersz (także po finalize).
-- [ ] Brak GET panelu jako wymogu MVP.
+- [ ] `guest`: `application`/`agent` 201; `run` cudzy → 403.
 - [ ] Brak LangGraph w module.
 
 ## Poza zakresem

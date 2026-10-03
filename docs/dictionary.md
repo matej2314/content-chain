@@ -1,5 +1,5 @@
 ---
-wersja: 12
+wersja: 13
 data_utworzenia: 2026-09-18
 data_modyfikacji: 2026-10-03
 ---
@@ -31,6 +31,8 @@ Zmiana względem: bramka i `isComplete` wyłącznie przy `POST /runs`; oferta = 
 Zmiana względem kanonu Fazy 4.3 (HITL Social dwuetapowy = dokładnie 1 `selectedIdeaId`; HITL SM = 1 id w kontrakcie MVP): Social = podzbiór draftu, min. 1 unikalne id, N→N (`contents[]` / `reelScripts[]` + `sourceIdeaId`). Content bez zmiany: `[outline.id]`.
 
 Zmiana względem kanonu „admin zakłada konto `user` emailem i hasłem” (`POST /users`): drogi na `role = user` = **zaproszenie e-mail** (Invitation) → accept-invite **oraz** **otwarta rejestracja** (`POST /auth/register`) z aktywacją w `production`. Bootstrap admina (email + hasło, bez maila) **bez zmian**. Zmiana względem: „jedyna droga = invite” / zakaz signup.
+
+Zmiana względem: **Otwarta rejestracja** / **`guest`** — register **zawsze** tworzy `user`; `guest` poza kanonem register. Od tej wersji **refaktor**: przy `DEMO_MODE=true` register tworzy **`guest`**, przy `false` — **`user`**. Dostępność `POST /auth/register` **bez zmian** (zawsze). `guest` **nie** powstaje z invite / bootstrap. **Zakaz permanentny** awansu `guest` → `user` / `admin`.
 
 Zmiana względem: kanon milczał o toaście dashboardu. Od tej wersji **Toast (dashboard MVP)** jest osobnym hasłem — **nie** envelope HTTP i **nie** kanał live (`ux_dashboard.md`).
 
@@ -77,14 +79,20 @@ Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez start
 
 | Pojęcie | Definicja |
 |---------|-----------|
-| **`admin`** | Jedyny administrator (bootstrap); wyłączne prawo edycji kontekstu firmy i zapraszania `user`; może generować treści jak `user`. Norma: `security.md`. |
-| **`user`** | Rola uruchamiająca runy produktowe (Social i Content) i przeglądająca wyniki/logi; bez edycji kontekstu i bez zapraszania. Konto powstaje po akceptacji zaproszenia **albo** po self-register (w `production` — po aktywacji e-mail). Widok **Konto** (email, własne runy, start) jest dostępny tak samo jak dla `admin`. |
-| **`guest`** | Rola planu demo (`demo-mode-guest-role-plan.md`) — **poza** kanonem `POST /auth/register` (register **zawsze** tworzy `user`). **Nie** powstaje z invite ani z bootstrapu. |
+| **`admin`** | Jedyny administrator (bootstrap); wyłączne prawo edycji kontekstu firmy i zapraszania `user`; może generować treści jak `user`. Na instancji z `DEMO_MODE=true` **bez** locków gościa. Norma: `security.md`. |
+| **`user`** | Rola uruchamiająca runy produktowe (Social i Content) i przeglądająca wyniki/logi; bez edycji kontekstu i bez zapraszania. Konto powstaje po akceptacji zaproszenia **albo** po self-register **gdy `DEMO_MODE=false`** (w `production` — po aktywacji e-mail). Widok **Konto** (email, własne runy, start) jest dostępny tak samo jak dla `admin`. Invite **zawsze** → `user` (także przy demo on). |
+| **`guest`** | Rola demonstracyjna. Powstaje **wyłącznie** przy `POST /auth/register` gdy `DEMO_MODE=true` (body nadal **bez** `role`). **Nie** z invite, **nie** z bootstrap. Aktywacja e-mail w `production` dotyczy także `guest`. **Zakaz permanentny** awansu `guest` → `user` / `admin` (brak endpointu i ścieżki produktowej). Gdy `DEMO_MODE=false`: login i chronione trasy z JWT `role=guest` → **401** jak konto nieaktywne (rola **martwa** mimo ważnego ciasteczka). |
+| **DEMO MODE** | Tryb instancji sterowany env **`DEMO_MODE`** (`true` \| `false`, default **`false`**), ładowany przy **starcie procesu** (zmiana = restart). **Brak** switcha w UI admina. FE czyta publiczny `GET /config` → `{ demoMode: boolean }`; egzekucja limitów i authz **zawsze** w API. |
+| **Slot gościa** | Hardcoded allowlista startów na życie konta `guest`: `post_ideas` ×1, `page_copy` ×1, `page_outline_then_copy` ×1. Zużycie = COUNT runów `startedByUserId` + `taskType` **bez filtra statusu** (także `failed` / `cancelled` / `completed` / …). HITL **bez** osobnego limitu. **Nie** env. |
+| **Global guest cap** | Dzienny limit **wszystkich** startów `guest` na instancji (niezależnie od typu): env `GUEST_GLOBAL_CAP_PER_DAY` (default **30**); doba **UTC**; Redis INCR; admit **przed** `create` Run. Pad Redis przy `POST /runs` guest → **fail closed**. |
+| **Soft limit rating gościa** | Dzienny limit ocen własnego runu przez `guest`: env `GUEST_RATING_CAP_PER_DAY` (default **10**); doba UTC; **429** + message. Pad Redis → **fail open** (ocena przechodzi). |
+| **GuestGuard** / **`@AllowGuest()`** | Globalny guard API: dla `role === guest` wymagany dekorator **`@AllowGuest()`** (whitelist tras). Brak dekoratora → **403**. Nowe trasy **domyślnie zablokowane** dla guest. Semantyka `@Roles` dla `admin`/`user` **bez zmian** (brak `@Roles` = authenticated OK). **Nie** zastępować tego masowym `@Roles('admin','user')`. |
+| **DemoChip** / **`DemoModeChipSlot`** | Chip UX „tryb demo” **nad** CompletenessChip, **tylko na dashboardzie**, gdy `demoMode === true`. Przy demo off **niewidoczny**. Locki UI (sidebar, formy, disable typów poza allowlistą) wyłącznie gdy `session.role === 'guest'` **i** `demoMode === true`. |
 | **Jedna firma / instancja** | Brak multi-tenant SaaS: wszyscy użytkownicy instancji dzielą jeden kontekst. |
-| **Bootstrap admin** | Utworzenie pierwszego konta administratora przy starcie self-host (first-run): email + hasło, **bez** maila i bez Invitation. Jedyny sposób powstania `admin`. Dump / restore SQLite przenosi admina; DEMO nie resetuje ról. |
+| **Bootstrap admin** | Utworzenie pierwszego konta administratora przy starcie self-host (first-run): email + hasło, **bez** maila i bez Invitation. Jedyny sposób powstania `admin`. Dump / restore SQLite przenosi role (**w tym** admina i `guest`); `DEMO_MODE` **nie** degraduje ról w DB. |
 | **Zaproszenie (Invitation)** | Rekord zaproszenia e-mail na rolę `user` — **nie** jest kontem `User`. Status: `pending` \| `accepted` \| `revoked`. Admin podaje **tylko email**. W DB: hash tokenu (SHA-256), TTL, `purpose = invite` (MVP). Raw token jest w mailu (w `development` także w logu api); **nigdy** w JSON-ie odpowiedzi admina. Wiersz `User` (`role = user`) powstaje dopiero przy akceptacji. Wygaśnięcie: `expiresAt < now` przy walidacji (status **nie** przechodzi sam na „expired” — wygasły wiersz zostaje `pending`). |
 | **Akceptacja zaproszenia** | Publiczny `POST /api/v1/auth/accept-invite` `{ token, password }`: zaproszony ustawia **pierwsze** hasło (polityka z `security.md`). Tworzy aktywnego `User` (`role = user`, **`verifiedAt = now()`**) i zużywa token. **Bez** Set-Cookie — potem zwykły `POST /auth/login`. Kolizja `User.email` (także soft-deleted) → **401** jak nieważny token (bez enumeracji „email zajęty”) + unieważnienie Invitation. Nie jest bootstrapem ani otwartą rejestracją. Zmiana własnego emaila po sesji = widok **Konto** **z re-auth hasłem** (nie confirm mail w MVP). |
-| **Otwarta rejestracja** | Publiczny `POST /api/v1/auth/register` `{ email, password }`. Zawsze dostępny (**nie** zależy od `DEMO_MODE`). Serwer **zawsze** `role = user`; przed create **revoke** `Invitation` `pending` na email. **201** `{ user: { id, email, role, verifiedAt } }`. W `production`: pending (`verifiedAt = null` + `AccountActivation` + mail); poza prod: `verifiedAt` od razu. Kolizja email (aktywny **lub** soft-deleted) → **409**, `message`: **`Email already in use`**. **Bez** Set-Cookie. |
+| **Otwarta rejestracja** | Publiczny `POST /api/v1/auth/register` `{ email, password }`. Zawsze dostępny (**nie** zależy od `DEMO_MODE` — signup **nie** jest „tylko demo”). **Zmiana względem:** po planie register serwer **zawsze** `role = user`. **Refaktor:** `DEMO_MODE=true` → **`guest`**; `DEMO_MODE=false` → **`user`**. Body **bez** `role`. **Nigdy** `admin`. Przed create **revoke** `Invitation` `pending` na email. **201** `{ user: { id, email, role, verifiedAt } }`. W `production`: pending (`verifiedAt = null` + `AccountActivation` + mail) — **także** dla `guest`; poza prod: `verifiedAt` od razu. Kolizja email (aktywny **lub** soft-deleted) → **409**, `message`: **`Email already in use`**. **Bez** Set-Cookie. |
 | **Aktywacja konta** | Weryfikacja e-mail po register w `production`: `POST /auth/activate` `{ token }` ustawia `User.verifiedAt` i usuwa `AccountActivation`. Deep link FE → widok logowania + toast. **Nie** mylić z **reaktywacją** soft-delete (`PATCH /users/:id`) ani z **confirm e-mail** przy zmianie adresu (**V1**). |
 | **`verifiedAt`** | Pole `User` (`DateTime?`): `null` = nieaktywowane linkiem (pending w prod); po sukcesie activate = timestamp. Poza `production` ustawiane przy register. Soft-delete **nie** czyści `verifiedAt`. |
 | **`AccountActivation`** | Tabela tokenu aktywacji: `id` = **`act_<uuid>`**; **`tokenHash`** (unikalny) + **`userId`** (unikalny) + `expiresAt` (TTL `ACTIVATION_TTL`, default `7d`). Raw tylko w mailu / logu DX. Po activate — delete wierszy dla usera; przy soft-delete usera — delete wierszy activation. Kind mailera: `user_activation` (obok `user_invited`). |
@@ -174,7 +182,7 @@ Zmiana względem wcześniejszego, zbyt uproszczonego opisu: **`RequestId` nie je
 | **`FeedbackId`** | Brand; format `fbk_<uuid>`. Jeden wpis opinii tekstowej. Kontrakt MVP w docs/spec; w `packages/shared` przy implementacji BC Feedback. |
 | **`RunUserRating`** | Brand `1` \| `2` \| `3` \| `4` \| `5`. W JSON runu pole `userRating` jest `number \| null` (`null` = brak gwiazdek). Kontrakt MVP w docs/spec; w shared przy implementacji przeglądu runu. |
 | **`GatewayModelAlias`** | Brand aliasu modelu z konfiguracji gateway (≠ vendor `modelId`). |
-| **`UserRole`** | `admin` \| `user` (+ kotwica `guest` przy DEMO — szczegóły enumu = plan demo). |
+| **`UserRole`** | `admin` \| `user` \| `guest` (shared; persistencja String w DB — **bez** wymogu Prisma enum). |
 | **Brand type** | Nominalny typ TypeScript (`Brand<K, Name>`) + walidacja na granicach; patrz `brand_types.md`. |
 
 ### Model korelacji logów (norma)
@@ -195,6 +203,7 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 | Pojęcie | Definicja |
 |---------|-----------|
 | **`/api/v1`** | Prefiks publicznego HTTP API Content Chain. |
+| **`GET /config`** | Publiczny: V1 wyłącznie `{ demoMode: boolean }`. |
 | **Swagger `/docs`** | DX OpenAPI UI `apps/api`, **poza** `/api/v1`. Zakaz montowania pod `/api` (kolizja z prefiksem produktowym). |
 | **JWT + httpOnly cookies** | Access w `cc_access` + refresh w `cc_refresh` (oba httpOnly) dla `apps/frontend` i Postmana; to samo auth dla SSE. Bez Bearer w MVP. |
 | **Envelope błędu CC** | JSON: `{ code, message, requestId, details? }`. |
@@ -211,7 +220,10 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 |--------|-----------|
 | `UNAUTHORIZED` | Brak lub nieważna sesja. **Nie** obejmuje złego hasła przy re-auth (`INVALID_PASSWORD`). |
 | `INVALID_PASSWORD` | Złe `currentPassword` przy re-auth (np. `PATCH /auth/me/email`). HTTP **401**; `message`: `Invalid password`. FE **nie** traktuje jak wygaśnięcie sesji. |
-| `FORBIDDEN` | Brak uprawnień (np. `user` edytuje kontekst). |
+| `FORBIDDEN` | Brak uprawnień (np. `user` edytuje kontekst; `guest` bez `@AllowGuest` albo mutacja zabroniona / cudzy detail). |
+| `GUEST_TYPE_NOT_ALLOWED` | `guest` startuje `taskType` poza allowlistą slotów (`post_ideas` / `page_copy` / `page_outline_then_copy`). |
+| `GUEST_TYPE_QUOTA_EXCEEDED` | `guest` wyczerpał slot danego typu (COUNT ≥ 1 bez filtra statusu). |
+| `GUEST_GLOBAL_QUOTA_EXCEEDED` | `guest` wyczerpał dzienny global cap instancji (`GUEST_GLOBAL_CAP_PER_DAY`, UTC). |
 | `VALIDATION_FAILED` | Błąd walidacji wejścia. |
 | `CONTEXT_INCOMPLETE` | Bramka kontekstu niespełniona — start runu zablokowany. |
 | `UNKNOWN_TASK_TYPE` | Composite executor dostał `taskType` poza unią Social \| Content (log + status `failed`; nie cichy no-op). HTTP spoza enumu → `VALIDATION_FAILED` (400), composite nie jest wołany. |

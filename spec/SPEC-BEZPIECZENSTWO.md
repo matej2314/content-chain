@@ -1,5 +1,5 @@
 ---
-wersja: 13
+wersja: 14
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-10-03
 ---
@@ -15,6 +15,7 @@ Nie zastępuje BC Auth ani pełnego runbooka operatorskiego — spina reguły eg
 Zmiana względem wersji 10 / cel: surface publiczne auth = accept-invite (+ sesyjne 409). Od tej wersji także register / activate / resend — anti-enum częściowa (`docs/security.md`).
 
 Zmiana względem wersji 12 / cel: publiczny health = tylko liveness. Od tej wersji także publiczny `GET /api/v1/health/ready` — jak liveness: **bez** wrażliwych danych / `GATEWAY_KEY` (`docs/security.md`).
+Zmiana względem wersji 13 / cel: brak GuestGuard / DEMO env. Od tej wersji B-11 — `docs/security.md`.
 
 ## Powiązanie ze stylem z docs
 
@@ -77,6 +78,10 @@ B-9. Minimalny zestaw `/metrics` (proces `apps/api`) zgodny z `docs/observabilit
 
 B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/security.md` (ten SPEC nie dubluje szczegółów, ale uznaje je za obowiązujące przy review security).
 
+B-11. **DEMO MODE / guest (authz):** `DEMO_MODE` (bool string, default **`false`**) ładowane przy **starcie procesu** — zmiana wymaga restartu; **brak** switcha w UI. `GuestGuard` + `@AllowGuest` — `SPEC-AUTH.md` A-6a. Redis keys: `content-chain:guest:daily:runs:{UTC-date}`, `content-chain:guest:daily:ratings:{userId}:{UTC-date}`. Przy `DEMO_MODE=true` Redis potrzebny pod cap + soft rating. Przy `false` Redis **opcjonalny**. `GET /health` i `GET /health/ready` **nie** failują z braku Redis. Pad Redis: `POST /runs` guest → fail closed; rating guest → fail open (`SPEC-RUNY.md` R-12). Env capów: `GUEST_GLOBAL_CAP_PER_DAY` (default 30), `GUEST_RATING_CAP_PER_DAY` (default 10) — walidowane przy starcie. Dump SQLite przenosi role (w tym `guest`); `DEMO_MODE` **nie** degraduje ról w DB.
+
+Zmiana względem wersji 13: brak normy DEMO/Redis guest. Od tej wersji B-11.
+
 ## Norma implementacji
 
 ### Wzorce
@@ -110,7 +115,10 @@ B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/s
 - Maskowanego sukcesu (**201**) przy kolizji email na `POST /auth/register` (obowiązuje **409** — B-8 / A-11).
 - Enumeracji stanu konta przez `POST /auth/resend-activation` (różne HTTP / message wg pending vs brak vs aktywny).
 - **503** `MAIL_DELIVERY_FAILED` na `POST /auth/resend-activation` (obowiązuje stały **200**).
-- Osobnego kodu `ACCOUNT_NOT_ACTIVATED` na loginie (wspólny **401** z złym hasłem / soft-delete).
+- Osobnego kodu `ACCOUNT_NOT_ACTIVATED` na loginie (wspólny **401** z złym hasłem / soft-delete / **guest przy demo off**).
+- Switcha DEMO w panelu admina; masowego `@Roles('admin','user')` zamiast GuestGuard.
+- Awansu `guest` → `user`/`admin`.
+- Faila `health`/`ready` wyłącznie z powodu braku Redis.
 - Set-Cookie na register / activate / resend-activation.
 - Drugiego `admin` w MVP; register / activate / resend → `admin`.
 - `Authorization: Bearer` jako modelu auth MVP.
@@ -146,7 +154,8 @@ Zmiana względem wersji 4: B-1 fail-fast SMTP/`MAIL_FROM`/`APP_PUBLIC_URL` w `pr
 - [ ] W production: gateway i metrics nie są publiczne; cookie Secure.
 - [ ] `GET /api/v1/health` i `GET /api/v1/health/ready` bez wrażliwych danych / bez wycieku `GATEWAY_KEY`.
 - [ ] Brak sekretów w logach runu, SSE, envelope, treści opinii, labelach metrics i stdout (w `development` dump hopu z `[REDACTED]` zamiast `GATEWAY_KEY`; w `production` bez dumpa treści chat; raw invite / activation token nie w logach `production`).
-- [ ] Publiczne auth: register kolizja → **409**; resend = stały sukces; login pending / soft-delete / złe hasło = wspólny **401**; activate-fail = wspólny **401**; accept-invite kolizja = **401** (nie 409).
+- [ ] Publiczne auth: register kolizja → **409**; resend = stały sukces; login pending / soft-delete / złe hasło / guest przy demo off = wspólny **401**; activate-fail = wspólny **401**; accept-invite kolizja = **401** (nie 409).
+- [ ] `GET /config` publiczny, body tylko `demoMode`; GuestGuard default deny; Redis nie psuje ready.
 - [ ] `/metrics` zwraca co najmniej sygnały z B-9.
 - [ ] Checklist operatora z `docs/security.md` da się odhaczyć na instalacji compose.
 

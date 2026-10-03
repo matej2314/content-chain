@@ -1,5 +1,5 @@
 ---
-wersja: 14
+wersja: 15
 data_utworzenia: 2026-09-17
 data_modyfikacji: 2026-10-03
 ---
@@ -20,6 +20,8 @@ Zmiana względem: błędy API w UI jako **`code` + `message`**. Od tej wersji w 
 
 Zmiana względem: nieaktywne „Zarejestruj się!” / zakaz otwartego signup. Od tej wersji: aktywna rejestracja (prod i DEMO), strona podziękowań + resend w `production`, deep link aktywacji → logowanie + toast; invite zostaje.
 
+Zmiana względem: UX milczał o chipie demo / lockach `guest`. Od tej wersji: `DemoModeChipSlot` **nad** CompletenessChip — **tylko dashboard**, gdy `demoMode === true`; locki UI wyłącznie `role === guest` **i** `demoMode === true`; modal limitu **po** błędzie quota z API; archiwum lista całej instancji, cudzy detail zablokowany; signup / thank-you / activate **bez zmian** flow względem planu register. **Uwaga nazewnictwa:** istniejący `GuestView` w home-entry = stan **anonimowy** (login/register) — **nie** mylić z rolą `guest`.
+
 ## Założenia UX
 
 - Cienki klient: reguły i pipeline w `apps/api`.
@@ -32,12 +34,14 @@ Zmiana względem: nieaktywne „Zarejestruj się!” / zakaz otwartego signup. O
 
 **Strona główna** (brak ważnej sesji): tło + karta z formularzem logowania (email, hasło, CTA logowania) oraz przycisk **„Nie masz konta? Zarejestruj się!”** pod formularzem. Przycisk jest **aktywny**, gdy `bootstrap-status.available === false` (produkcja pełna i DEMO — **nie** zależy od `demoMode` / `DEMO_MODE`). Przy first-run (`available === true`) rejestracja jest **ukryta / disabled** — pierwsza ścieżka to bootstrap admina. Dashboard (sidebar) **tylko** po udanej sesji — nigdy jako pierwsza treść niezalogowanego.
 
+Komponent home-entry **`GuestView`** = widok **anonimowy** (karta logowania / register). **Nie** jest to rola `UserRole.guest`.
+
 | Ekran / krok | Kiedy | Zachowanie |
 |--------------|-------|------------|
 | **Strona główna — logowanie** | Brak ważnej sesji i `bootstrap-status.available === false` | Ten sam widok; submit → `POST /auth/login` → dashboard |
 | **Strona główna — first-run (tryb)** | Brak ważnej sesji i `bootstrap-status.available === true` | **Ten sam widok** (nie osobna strona). Submit tego samego formularza → `POST /auth/bootstrap-admin` (pierwszy admin) → sesja cookie jak po loginie → dashboard. Przycisk „Zarejestruj się!” **ukryty / disabled** |
 | **Rejestracja** | Klik „Zarejestruj się!” (tylko gdy bootstrap niedostępny) | Formularz: email, hasło, **powtórz hasło** (confirm tylko UI — API dostaje `{ email, password }`). Submit → `POST /auth/register` |
-| **Po register — `production`** | Udany **201** z `verifiedAt: null` **lub** **503** `MAIL_DELIVERY_FAILED` po utworzeniu pending User (`NODE_ENV=production`) | **Bez** sesji / Set-Cookie. Przejście / **pozostanie** na **stronie podziękowań**: copy sukcesu + „Nie otrzymałeś wiadomości e-mail?” + button **„Wyślij ponownie”** → `POST /auth/resend-activation` z `{ email }` ze **stanu formularza / klienta** (nie z body **201**). Sygnał thank-you po **201**: `user.verifiedAt === null` |
+| **Po register — `production`** | Udany **201** z `verifiedAt: null` **lub** **503** `MAIL_DELIVERY_FAILED` po utworzeniu pending User (`NODE_ENV=production`) | **Bez** sesji / Set-Cookie. Przejście / **pozostanie** na **stronie podziękowań**: copy sukcesu + „Nie otrzymałeś wiadomości e-mail?” + button **„Wyślij ponownie”** → `POST /auth/resend-activation` z `{ email }` ze **stanu formularza / klienta** (nie z body **201**). Sygnał thank-you po **201**: `user.verifiedAt === null`. Opcjonalne copy o ograniczeniach gościa (gdy demo) **nie** zmienia flow aktywacji |
 | **Po register — poza `production`** | Udany **201** z `verifiedAt` ustawionym (ISO) | Konto gotowe od razu; krótki sukces → widok logowania (**bez** obligatoryjnego thank-you + resend pod mail) |
 | **Kolizja email (409)** | `POST /auth/register` → **409** `CONFLICT`, `message`: **`Email already in use`** | **Zostajemy na formularzu rejestracji**; jawny błąd przy polu email (zmiana adresu + ponowny submit). **Bez** thank-you, **bez** udawania sukcesu |
 | **Aktywacja z maila** | Deep link **wyłącznie** `{APP_PUBLIC_URL}/?activationToken=…` (mail / opcjonalny log DX) | **Natychmiast** widok logowania (strona główna `/`); w tle `POST /auth/activate` z tokenem z query; po sukcesie **toast** na `/`: „Konto aktywowane! Możesz się zalogować.” (**wyjątek** od „Toaster tylko po sesji”). Błąd activate (**401**) → **ogólny** komunikat na karcie logowania (bez rozróżniania przyczyn). **Bez** dashboardu; **bez** Set-Cookie po activate |
@@ -59,7 +63,20 @@ Klik **„Wyloguj się”** → **modal potwierdzenia** → **Tak** → `POST /a
 
 Zmiana względem: „Wyloguj się” w chrome (sidebar **lub** header), bez wskazania miejsca ani hierarchii login → wylogowanie.
 
-**Konto (MVP):** osobny widok w sidebarze (admin i `user`) — profil, **własne** runy (live) i formularz startu runu (**inline**). Druga powierzchnia startu = CTA **„Uruchom agenta”** na widoku **Runy** (modal, ten sam brief). Nie mylić Runy z listą live — Runy pozostają archiwum `completed` \| `failed` \| `cancelled`. Szczegóły: sekcje „Widok: Konto” i „Widok: Runy”.
+**Konto (MVP):** osobny widok w sidebarze (admin, `user` i `guest` przy demo on) — profil, **własne** runy (live) i formularz startu runu (**inline**). Druga powierzchnia startu = CTA **„Uruchom agenta”** na widoku **Runy** (modal, ten sam brief). Nie mylić Runy z listą live — Runy pozostają archiwum `completed` \| `failed` \| `cancelled`. Szczegóły: sekcje „Widok: Konto” i „Widok: Runy”.
+
+## DEMO MODE — chip i locki
+
+Boot zalogowanego: publiczny `GET /api/v1/config` → `{ demoMode }`. Egzekucja limitów = API; FE odzwierciedla.
+
+| Element | Kiedy | Zachowanie |
+|---------|-------|------------|
+| **`DemoModeChipSlot` / DemoChip** | **Tylko dashboard** (layout po sesji), gdy `demoMode === true` | Slot **nad** CompletenessChip. Copy w stylu **„Tryb demo aktywny / Wybrane funkcje ograniczone”** + Iconify. Przy `demoMode === false` chip **nie** jest widoczny (bez ostrzeżeń ops w UI) |
+| Completeness chip | bez zmian | Demo **nie** zastępuje bramki kontekstu ani chipa kompletności |
+| **Locki UI** | wyłącznie `session.role === 'guest'` **AND** `demoMode === true` | Sidebar (np. Użytkownicy ukryte/disabled), formy (email na Koncie, Edytuj, finalize, write kontekstu), disable `taskType` poza allowlistą (`post_ideas`, `page_copy`, `page_outline_then_copy`). **Admin** na instancji demo **bez** locków |
+| **GuestLimitModal** | po **403** quota z `POST /runs` (`GUEST_TYPE_QUOTA_EXCEEDED` / `GUEST_GLOBAL_QUOTA_EXCEEDED` / `GUEST_TYPE_NOT_ALLOWED`) | Modal **po** odpowiedzi API (nie pre-empt). CTA kontakt: tablica `{ iconName, contactData }[]` (mailto, LinkedIn, GitHub) — hardcoded FE |
+| Archiwum | `guest` + demo | Lista **całej** instancji jak admin/`user`; klik wiersza **cudzego** runu — zablokowany (FE + API **403**) |
+| Rating **429** | `guest` soft cap | `message` z envelope przy kontroli oceny (nie toast walidacji) |
 
 Zmiana względem: pozycja „Konto” tylko jako wylogowanie, bez podstrony i bez zmiany email.
 
@@ -69,11 +86,11 @@ Zmiana względem: **jedyny** formularz startu wyłącznie na Koncie (kanon Fazy 
 
 | Widok | Kto | Cel |
 |-------|-----|-----|
-| **Kontekst firmy** | admin: edycja; user: podgląd | Uzupełnienie sekcji bramki; podgląd completeness |
-| **Runy** | admin, user | **Archiwum firmy:** tylko runy instancji w `completed` \| `failed` \| `cancelled` (paginacja 10, najnowsze pierwsze). Klik wiersza → szczegóły (snapshot; **bez** SSE). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie. Cudzy run w toku **nie** jest na tej liście. Nowy run po starcie **nie** wpadnie na listę, dopóki nie jest terminalny (live = floating box) |
-| **Run (szczegóły)** | admin, user | Podstrona po kliknięciu w **Moich runach** (Konto) albo w archiwum Runy: logi, HITL, wynik, przegląd; **Stop** na własnym nieterminalnym. Live SSE tylko gdy run jest własny i w `running` / `awaiting_hitl` / `interrupted`. **Bez** CTA startu |
-| **Konto** | każdy | Własny email; **Moje runy** (wszystkie statusy, live; **Stop** na własnym nieterminalnym); **start** nowego runu (**inline**, ten sam brief co modal na Runach); opinia tekstowa. Po udanym `POST /runs` **z tego widoku** — **ten** widok (nie od razu pojedyncze szczegóły) |
-| **Użytkownicy** | tylko admin | Lista kont + **zaproszenie (email)**; lista pending (w tym wygasłe); resend/revoke. **W zakresie MVP** dashboardu. Bez edycji / dezaktywacji / soft-delete kont w UI MVP |
+| **Kontekst firmy** | admin: edycja; user i guest: podgląd | Uzupełnienie sekcji bramki (tylko admin); podgląd completeness |
+| **Runy** | admin, user, guest (demo) | **Archiwum firmy:** tylko runy instancji w `completed` \| `failed` \| `cancelled` (paginacja 10, najnowsze pierwsze). Klik wiersza → szczegóły (snapshot; **bez** SSE) — **guest: tylko własne**. CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (guest: typy poza allowlistą disabled). Cudzy run w toku **nie** jest na tej liście. Nowy run po starcie **nie** wpadnie na listę, dopóki nie jest terminalny (live = floating box) |
+| **Run (szczegóły)** | admin, user; guest tylko `startedBy === self` | Podstrona po kliknięciu w **Moich runach** (Konto) albo w archiwum Runy: logi, HITL, wynik, przegląd; **Stop** na własnym nieterminalnym. Guest: **bez** Edytuj / finalize. Live SSE tylko gdy run jest własny i w `running` / `awaiting_hitl` / `interrupted`. **Bez** CTA startu |
+| **Konto** | każdy zalogowany | Własny email (**guest: lock** — bez `PATCH /auth/me/email`); **Moje runy** (wszystkie statusy, live; **Stop** na własnym nieterminalnym); **start** nowego runu (**inline**, ten sam brief co modal na Runach; guest: allowlista); opinia tekstowa. Po udanym `POST /runs` **z tego widoku** — **ten** widok (nie od razu pojedyncze szczegóły) |
+| **Użytkownicy** | tylko admin | Lista kont + **zaproszenie (email)**; lista pending (w tym wygasłe); resend/revoke. **W zakresie MVP** dashboardu. Bez edycji / dezaktywacji / soft-delete kont w UI MVP. **Guest: brak nawigacji** (lock) |
 
 **Wyloguj się** nie jest pozycją sidebara — wyłącznie hierarchia przycisku loginu w headerze (wyżej).
 
@@ -152,6 +169,8 @@ Sukces toasta: **polski**, krótki tytuł. Błąd w toaście **tylko** gdy na ty
 | `PUT /company-context` **400** (walidacja / bramka) | **nie** | envelope + `details` przy formularzu |
 | `POST /runs` **202** | tak | „Run wystartował” (zostajemy na widoku, z którego wystartowano: Konto albo Runy; modal na Runach się zamyka). Live nowego runu: na Koncie = wiersz „Moje runy”; na Runach = floating box (lista archiwum **bez** nowego wiersza) |
 | `POST /runs` **409** `CONTEXT_INCOMPLETE` / **400** | **nie** | envelope na formularzu startu (także w modalu na Runach) |
+| `POST /runs` **403** quota guest (`GUEST_*`) | **nie** (toast) | **GuestLimitModal** + kontakty (po odpowiedzi API) |
+| `POST /runs` **403** quota guest (`GUEST_*`) | **nie** (toast) | **GuestLimitModal** + kontakty (po odpowiedzi API) |
 | `POST .../cancel` **200** | tak | **„Run anulowany”** (zostajemy na widoku źródłowym). Gdy operator **nie** jest na `/runs/:runId` **tego** runu — toast z akcją **Szczegóły**. Gdy **jest** na szczegółach tego runu — toast mutacji bez nawigacji; SSE terminal **nie** dubluje (dedup per `runId`) |
 | SSE `run.completed` / `run.failed` / `run.cancelled` **i** operator **nie** jest na `/runs/:runId` **tego** runu | tak | „Run zakończony” / „Run nieudany” / **„Run anulowany”** + akcja **Szczegóły** (link); `notifyRunTerminal` z dedupem względem toasta mutacji cancel |
 | SSE terminal **na** `/runs/:runId` tego runu | **nie** | status + logi na szczegółach (bez dublowania toasta mutacji) |
@@ -186,7 +205,7 @@ Formularze w **zakładkach** (nie jeden ciąg sekcji na stronie). Dokładnie **s
 - Na triggerze każdej zakładki **bramki**: indykator kompletności — **zielona** kropka, gdy klucz sekcji **nie** jest w `missing`; **czerwona**, gdy jest. Źródło: **wyłącznie** `completeness.missing` z ostatniego **udanego** `GET` / `PUT` kontekstu — **nie** stan gateway / `health/ready`. Kropki = kompletność sekcji; chip „Agenci aktywni” = completeness **∧** `gatewayAlive`. **Nie** z niezapisanego draftu i **nie** z lokalnej kopii `isComplete` jako źródła kropek / chipa.
 - Zakładka Dodatki: **bez** kropki bramki.
 - Kolor nie jest jedynym sygnałem (etykieta dostępności: kompletna / niekompletna).
-- Zapis: jeden `PUT` całego kontekstu (wszystkie zakładki, także nieaktywna); tylko admin; `user` — read-only z komunikatem. CTA zapisu dostępne na każdej zakładce.
+- Zapis: jeden `PUT` całego kontekstu (wszystkie zakładki, także nieaktywna); tylko admin; `user` i `guest` — read-only z komunikatem. CTA zapisu dostępne na każdej zakładce.
 - CTA zapisu **nie** przechodzi, gdy którekolwiek wymagane pole bramki jest puste albo oferta zawiera kaleką usługę (pozycja częściowo wypełniona). Placeholder pustej oferty **nie** jest usługą — strip przed PUT; kalekiej pozycji **nie** stripujemy (blokada submitu + błąd przy pozycji).
 - Nie da się usunąć ostatniej kompletnej usługi tak, by lista spadła do 0 i poszła w PUT.
 - Copy / hint oferty: minimum = nazwa + opis + ≥ 1 korzyść biznesowa (każda pozycja kompletna).
@@ -199,11 +218,11 @@ Zmiana względem: jeden widok ciągiem z tekstem „Kompletna” / „Niekomplet
 - Kolumny listy: `runId`, typ tasku, platforma (lub `web` przy page_*), `contentKind` gdy page_*, język, status, `createdAt`, email inicjatora (`startedBy.email`).
 - Paginacja: **10** na stronę, najnowsze pierwsze; stały rozmiar strony.
 - Filtry MVP na archiwum: `taskType` (post_*, reel_*, page_*), platforma (w tym `web`), użytkownik inicjujący (`userId`). Filtr statusu **tylko** w zbiorze `completed` \| `failed` \| `cancelled` (albo dowolny podzbiór — domyślnie cały trójkąt).
-- CTA **„Uruchom agenta”** (admin i `user`) otwiera **modal** z tym samym formularzem briefu co na Koncie (pola wg `taskType`; bez `selectedIdeaIds`). Draft w modalu jest **pusty** — **bez** prefillu z wiersza archiwum (prefill zostaje na Koncie, z „Moich runów”). Tytuł modalu: **„Uruchom agenta”**.
+- CTA **„Uruchom agenta”** (admin, `user` i `guest` przy demo) otwiera **modal** z tym samym formularzem briefu co na Koncie (pola wg `taskType`; bez `selectedIdeaIds`). Guest: typy poza allowlistą **disabled**. Draft w modalu jest **pusty** — **bez** prefillu z wiersza archiwum (prefill zostaje na Koncie, z „Moich runów”). Tytuł modalu: **„Uruchom agenta”**.
 - Po **202** z modalu: zostajemy na Runach, modal się zamyka, toast „Run wystartował”; live nowego runu = **floating box**. Lista archiwum **nie** dostaje nowego wiersza, dopóki run nie jest `completed` \| `failed` \| `cancelled`.
 - **Bez** SSE i **bez** pokazywania `queued` / `running` / `awaiting_hitl` / `interrupted` na tej liście.
 - Odświeżanie: przy **wejściu** na widok oraz co **15 minut**, gdy widok jest otwarty. To **nie** jest kanał live statusu (`SPEC-FRONTEND.md`).
-- **Nawigacja:** klik wiersza → **Run (szczegóły)** — snapshot GET; EventSource **nie** otwierać (status terminalny). Szczegóły **bez** CTA startu.
+- **Nawigacja:** klik wiersza → **Run (szczegóły)** — snapshot GET; EventSource **nie** otwierać (status terminalny). Szczegóły **bez** CTA startu. **Guest:** klik cudzego wiersza **zablokowany** (brak nawigacji + API 403).
 
 Zmiana względem: Runy = wszystkie statusy instancji + start + wejście w live z tej listy. Od Fazy 3: archiwum terminalne **bez** startu.
 
@@ -211,13 +230,13 @@ Zmiana względem Fazy 3 („Bez formularza startu na tym widoku (start = Konto)�
 
 ## Widok: Konto
 
-Osobna pozycja sidebara (admin i `user`). **Nie** zastępuje widoku Runy.
+Osobna pozycja sidebara (admin, `user`, `guest`). **Nie** zastępuje widoku Runy.
 
 | Blok | Zachowanie |
 |------|------------|
-| **Email** | Formularz nowego adresu → **Zapisz email** → **zawsze** modal: pole email (prefill = draft, **disabled**) + pole aktualnego hasła + Anuluj / Potwierdź. Potwierdź **zawsze** → `PATCH /api/v1/auth/me/email` `{ email, currentPassword }` (brak stanu „już zweryfikowany”). Złe hasło (**401** `INVALID_PASSWORD`) / `VALIDATION_FAILED` hasła → `message` **pod polem hasła**; stan disabled emaila **bez zmian** (przed 409: zostaje **disabled**; **po 409**: zostaje **odblokowany**); **bez** toastu; **bez** refresh/wylogowania przy `INVALID_PASSWORD`. **409** `CONFLICT` → modal **otwarty**; **czyszczenie** pól email + hasło; **odblokowanie** inputu email; błąd **pod polem email**; ponowny Potwierdź znowu z hasłem. Sukces → zamknięcie modala, odświeżenie sesji (`GET /auth/me`), aktualizacja wyświetlanego emaila, **bez** toastu. Anuluj → zamknięcie modala, **zero** API; draft na formularzu Konta bez zmian względem otwarcia (edycja w modalu po 409 nie wraca na formularz). CTA „Zapisz email” **nie** jest disabled wyłącznie dlatego, że adres = obecny (re-auth i tak wymagany). **Bez** self-service zmiany hasła i **bez** usuwania konta na tym widoku |
+| **Email** | Formularz nowego adresu → **Zapisz email** → **zawsze** modal: pole email (prefill = draft, **disabled**) + pole aktualnego hasła + Anuluj / Potwierdź. Potwierdź **zawsze** → `PATCH /api/v1/auth/me/email` `{ email, currentPassword }` (brak stanu „już zweryfikowany”). **Guest (`role === guest` i demo on):** blok **zablokowany** (brak PATCH — API **403**). Złe hasło (**401** `INVALID_PASSWORD`) / `VALIDATION_FAILED` hasła → `message` **pod polem hasła**; stan disabled emaila **bez zmian** (przed 409: zostaje **disabled**; **po 409**: zostaje **odblokowany**); **bez** toastu; **bez** refresh/wylogowania przy `INVALID_PASSWORD`. **409** `CONFLICT` → modal **otwarty**; **czyszczenie** pól email + hasło; **odblokowanie** inputu email; błąd **pod polem email**; ponowny Potwierdź znowu z hasłem. Sukces → zamknięcie modala, odświeżenie sesji (`GET /auth/me`), aktualizacja wyświetlanego emaila, **bez** toastu. Anuluj → zamknięcie modala, **zero** API; draft na formularzu Konta bez zmian względem otwarcia (edycja w modalu po 409 nie wraca na formularz). CTA „Zapisz email” **nie** jest disabled wyłącznie dlatego, że adres = obecny (re-auth i tak wymagany). **Bez** self-service zmiany hasła i **bez** usuwania konta na tym widoku |
 | **Moje runy** | Źródło: `GET /api/v1/runs/user/:userId` (`:userId` z `/auth/me`) — **wszystkie** statusy zalogowanego. Live: SSE per `runId` wyłącznie dla `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu). `queued` i terminalne: snapshot GET (wejście na Konto, po `POST /runs`, po evencie SSE innego własnego runu, focus okna). Przycisk **Stop** na wierszu **własnego** runu w statusie nieterminalnym (`queued` \| `running` \| `awaiting_hitl` \| `interrupted`) → modal **„Czy na pewno?”** → **Tak** = `POST .../cancel`; **Nie** = zamknięcie modala, **zero** API. Po sukcesie: odświeżenie wiersza (`cancelled`); `queued` bez SSE. Klik wiersza → **Run (szczegóły)**. Pełny wynik / HITL / przegląd na szczegółach, nie na liście |
-| **Start runu** | Formularz startu **inline** (ten sam brief co modal **„Uruchom agenta”** na Runach — nie drugi kontrakt). Select `taskType` obejmuje rolki i page_*; **`contentKind` gdy page_***; **platforma ukryta/disabled gdy page_***; język. Brief **zależny od `taskType`**: post_* / reel_* — temat + opcjonalnie grupa, cel, **liczba pomysłów** (bez kąta/długości); `page_*` — temat + opcjonalnie grupa, cel, **kąt**, **długość słów** (bez liczby pomysłów). CTA nie jest polem briefu. **Bez** `selectedIdeaIds`. Start disabled + wyjaśnienie, gdy agenci nieaktywni. Z wiersza **Moje runy**: **nowy** run z prefill `taskType` + brief + platforma/`contentKind` **ze snapshotu** `GET /runs/:runId` (lista user **nie** niesie `brief` / `contentKind`). Prefill **nie** dotyczy wiersza archiwum Runy. Po **202** **z tego widoku**: zostajemy na Koncie (nowy wiersz); nie wymuszamy od razu szczegółów |
+| **Start runu** | Formularz startu **inline** (ten sam brief co modal **„Uruchom agenta”** na Runach — nie drugi kontrakt). Select `taskType` obejmuje rolki i page_*; **`contentKind` gdy page_***; **platforma ukryta/disabled gdy page_***; język. **Guest:** typy poza `post_ideas` / `page_copy` / `page_outline_then_copy` **disabled**. Brief **zależny od `taskType`**: post_* / reel_* — temat + opcjonalnie grupa, cel, **liczba pomysłów** (bez kąta/długości); `page_*` — temat + opcjonalnie grupa, cel, **kąt**, **długość słów** (bez liczby pomysłów). CTA nie jest polem briefu. **Bez** `selectedIdeaIds`. Start disabled + wyjaśnienie, gdy agenci nieaktywni. Z wiersza **Moje runy**: **nowy** run z prefill `taskType` + brief + platforma/`contentKind` **ze snapshotu** `GET /runs/:runId` (lista user **nie** niesie `brief` / `contentKind`). Prefill **nie** dotyczy wiersza archiwum Runy. Po **202** **z tego widoku**: zostajemy na Koncie (nowy wiersz); nie wymuszamy od razu szczegółów |
 | **Opinia tekstowa** | Na Koncie dostępny zapis opinii (`POST /feedback`) — ten sam kanon co globalny CTA „Zostaw opinię” (aplikacja / agent / run; select runów: własne `completed` \| `failed` \| (`cancelled` **z** nie-`null` polem wyniku w snapshotcie)). Globalny CTA w layoutcie **zostaje** |
 
 Wylogowanie **nie** żyje na widoku Konto — header: przycisk loginu → „Wyloguj się” + modal, od pierwszego layoutu.
@@ -303,7 +322,8 @@ Zmiana względem: założenie, że FE może rozróżnić kolizję email (**409**
 - Soft-delete / edycja użytkowników w UI admina (endpoint api istnieje; UI później)  
 - `selectedIdeaIds` na formularzu **startu** runu (HITL dwuetapowy zostaje)  
 - `conversationId` w UI szczegółów runu (zostaje w API / logach)  
-- Limit **per-user** liczby runów w toku (MVP: tylko globalny `MAX_CONCURRENT_RUNS` na execute) — **obowiązkowy** temat **V1 — rozbudowa**  
+- Limit **per-user** liczby runów w toku (MVP: tylko globalny `MAX_CONCURRENT_RUNS` na execute) — **obowiązkowy** temat **V1 — rozbudowa**. Slot ×1 i global cap **gościa** to osobny kanon DEMO MODE (nie ten punkt V1)  
+- Przełącznik DEMO w UI admina; awans roli `guest`; uzależnianie signup od `demoMode`  
 - i18n UI / next-intl (**V1 — rozbudowa**; MVP: PL w chrome, w UI błędów wyłącznie `message` z API bez mapy tłumaczeń)  
 - Panel administracyjny opinii / średnich ocen / analityki feedbacku (**V1 — rozbudowa**)  
 - Stopień edycji outputu (diff / procent / historia wersji) — w MVP zapis **zastępuje** wynik i stawia flagę; bez porównywania z outputem agentów  

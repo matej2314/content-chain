@@ -21,7 +21,7 @@ dist/
 
 graphify-out/cache/
 graphify-out/2026-*
-demo-mode-*
+user-management-plan.md
 
 .DS_Store
 Thumbs.db

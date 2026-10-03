@@ -1,5 +1,5 @@
 ---
-wersja: 28
+wersja: 29
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-10-03
 ---
@@ -13,6 +13,7 @@ Norma strategii testów MVP Content Chain: piramida, narzędzia, obowiązkowe pr
 Zmiana względem wersji 23: DoD bez TTL / auto-finalize. Od tej wersji D-35…D-40 (lock po TTL bez CAS, sweeper, restart, GET 4a, backfill, regresje) — `docs/testy.md`, `SPEC-RUNY.md` R-10.
 Zmiana względem wersji 25: DoD bez register / activate / resend. Od tej wersji D-41…D-46 — `SPEC-AUTH.md` A-11…A-13.
 Zmiana względem wersji 27: DoD bez readiness api / probe gateway. Od tej wersji D-47…D-49 — `SPEC-KOMUNIKACJA.md` K-10; regresja `CONTEXT_INCOMPLETE` bez `GATEWAY_NOT_READY`.
+Zmiana względem wersji 28: D-41/D-46 = zawsze `role=user`. Od tej wersji D-50…D-62 (rola vs demo, GuestGuard, quota, martwa sesja).
 
 ## Powiązanie ze stylem z docs
 
@@ -94,15 +95,28 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-38 | GET snapshot **nie** ustawia `reviewFinalizedAt` (4a — czysty odczyt); po TTL przed sweeperem `reviewExpiresAt` nadal ISO, `reviewFinalizedAt` nadal `null` |
 | D-39 | Backfill B: kotwica z `updatedAt` (fallback `createdAt`); stary run `completed`/`failed` bez finalize, z kotwicą starszą niż TTL → po boot sweeperze locked (`reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL`) |
 | D-40 | Regresja: ręczne finalize **przed** TTL → `REVIEW_LOCKED` na kolejnych mutacjach; `cancelled` → przegląd `RUN_NOT_REVIEWABLE` (`pipelineFinishedAt` null); `POST /feedback` nadal **201** po auto-close / TTL przeglądu (append; nie `REVIEW_LOCKED`) |
-| D-41 | Register happy path (`NODE_ENV=production` lub równoważny setup): `POST /auth/register` → **201** `{ user: { id, email, role, verifiedAt } }` **bez** Set-Cookie; `role = user`; `verifiedAt = null`; wiersz `AccountActivation` (`act_*`, unikalny `userId`); login → wspólny **401**. Po `POST /auth/activate` → **200** `{ user }`; `verifiedAt` ustawione; login → **200** |
-| D-42 | Register poza `production`: **201** z `verifiedAt` w body; login → **200** bez activate |
+| D-41 | Register happy path przy **`DEMO_MODE=false`** (default): `POST /auth/register` → **201** `{ user: { id, email, role, verifiedAt } }` **bez** Set-Cookie; **`role = user`**; `verifiedAt = null` w prod; wiersz `AccountActivation`; login pending → wspólny **401**. Po activate → **200**; login → **200**. **Zmiana względem:** D-41 v28 — `role = user` bez gałęzi demo (nadal ten case przy demo off) |
+| D-42 | Register poza `production`: **201** z `verifiedAt` w body; login → **200** bez activate (rola nadal vs `DEMO_MODE`) |
 | D-43 | Register kolizja (aktywny **lub** soft-deleted email) → **409**, `message`: **`Email already in use`**; **nie** maskowany **201**; brak drugiego `User` |
 | D-44 | Resend: zawsze **200** + `Wiadomość wysłana ponownie` dla pending / brak konta / już aktywny / rate limit / pad SMTP; mail + nowy hash **tylko** przy pending; **bez** **503** |
 | D-45 | Activate: zły token → wspólny **401**; sukces → **200** `{ user }`; login pending / soft-delete / złe hasło → ten sam **401** (bez `ACCOUNT_NOT_ACTIVATED`) |
-| D-46 | Regresja: invite → accept (`verifiedAt` ustawione) → login; bootstrap ustawia `verifiedAt`; register **zawsze** `user`, **nie** `admin`; register revoke pending Invitation; soft-delete usuwa `AccountActivation`; `GET /users` zawiera `verifiedAt` |
-| D-47 | `GET /api/v1/health/ready`: gdy upstream gateway **liveness** OK (HTTP 2xx + sensowny body) → agregat `status: ready`, `checks.gateway.status: healthy`; body **bez** sekretów / `GATEWAY_KEY` / `X-Gateway-Key`. **Bez** wymogu asercji na upstream gateway `/health/ready` |
+| D-46 | Regresja: invite → accept (`verifiedAt` ustawione, **`role=user`** także przy demo on) → login; bootstrap ustawia `verifiedAt`; register **nigdy** `admin`; register revoke pending Invitation; soft-delete usuwa `AccountActivation`; `GET /users` zawiera `verifiedAt`; **brak** ścieżki awansu `guest` |
+| D-47 | `GET /api/v1/health/ready`: gdy upstream gateway **liveness** OK (HTTP 2xx + sensowny body) → agregat `status: ready`, `checks.gateway.status: healthy`; body **bez** sekretów / `GATEWAY_KEY` / `X-Gateway-Key`. **Bez** wymogu asercji na upstream gateway `/health/ready`. **Bez** faila z braku Redis |
 | D-48 | `GET /api/v1/health/ready`: upstream liveness timeout **lub** unreachable **lub** nie-2xx → `status: not_ready`, `checks.gateway.status: unhealthy`; HTTP odpowiedzi api nadal **200** (przy żywym procesie api); body bez sekretów |
 | D-49 | Regresja startu: przy kompletnym kontekście `POST /runs` **nie** dostaje nowego kodu „GATEWAY_NOT_READY” / równoważnego rejectu za martwy gateway — nadal wyłącznie `409` `CONTEXT_INCOMPLETE` przy niekompletnym kontekście (D-1). Nota UX (poza automatami FE w MVP): disable CTA gdy gateway nie żyje przy kompletnym kontekście — norma `SPEC-FRONTEND.md` F-6; egzekucja testów UI w feature-planach |
+| D-50 | Register przy **`DEMO_MODE=true`**: **201** `role = guest`; activate/resend/409 jak D-41/D-43/D-44 (regresja) |
+| D-51 | Login `guest` przy `DEMO_MODE=false` → ten sam **401** co złe hasło (check demo first) |
+| D-52 | Chroniony request (w tym `/me`, refresh) z JWT `role=guest` przy demo off → **401** (nie 403) |
+| D-53 | `guest` + demo on, trasa bez `@AllowGuest` → **403** |
+| D-54 | `POST /runs` guest: typ poza allowlistą → `GUEST_TYPE_NOT_ALLOWED`; drugi start tego samego typu (COUNT wszystkie statusy) → `GUEST_TYPE_QUOTA_EXCEEDED`; global cap Redis → `GUEST_GLOBAL_QUOTA_EXCEEDED`; admit Redis **przed** create |
+| D-55 | Guest: `GET /runs` lista instancji OK; cudzy detail / HITL / cancel → **403** |
+| D-56 | Guest: output-edited, finalize, `PATCH /auth/me/email`, PUT/PATCH kontekstu, users, invitations → **403** |
+| D-57 | Rating guest ponad soft cap → **429**; pad Redis rating → fail open (ocena przechodzi) |
+| D-58 | Pad Redis przy `POST /runs` guest → fail closed |
+| D-59 | `admin` loguje się przy `DEMO_MODE=true` (bez locków guest); brak HTTP promocji roli |
+| D-60 | `GET /config` publiczny → wyłącznie `{ demoMode: boolean }` |
+| D-61 | Guest GET company-context OK; write → 403 |
+| D-62 | HITL guest na własnym runie dozwolony (bez osobnego limitu slotu) |
 
 Zmiana względem: D-27 na `PATCH /auth/me` bez `currentPassword` / bez `INVALID_PASSWORD`. (Nota: recovery UI po 409 + brak wylogowania przy `INVALID_PASSWORD` = norma FE / `ux_dashboard.md`; D-27 pozostaje kontraktem HTTP api.)
 
@@ -114,9 +128,10 @@ Zmiana względem wersji 19: dopisano D-29 (twardy zapis kontekstu — C-4). D-1�
 Zmiana względem wersji 18: T-5 i kryteria akceptacji obejmują też D-28 (wcześniej D-28 było w tabeli, bez jawnego pinu w T-5 / checklistcie D-1…D-28).
 Zmiana względem wersji 17: dopisano D-28 (filtr `status` wielowartościowy pod archiwum UI). D-1…D-27 bez kasowania treści.
 
-D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-23a (kolizja email na accept → 401 + revoke) **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel) **oraz** D-35…D-40 (TTL przeglądu / sweeper) **oraz** D-41…D-46 (register / activate / resend) **oraz** D-47…D-49 (readiness api / probe liveness gateway). T-3 (cookie) **bez zmian**.
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-23a (kolizja email na accept → 401 + revoke) **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel) **oraz** D-35…D-40 (TTL przeglądu / sweeper) **oraz** D-41…D-46 (register / activate / resend; rola vs demo) **oraz** D-47…D-49 (readiness api / probe liveness gateway) **oraz** D-50…D-62 (guest / DEMO). T-3 (cookie) **bez zmian**.
 
 Zmiana względem wersji 27: dopisano D-47…D-49 (ready gdy liveness OK; unhealthy przy timeout/unreachable; regresja bez `GATEWAY_NOT_READY` na `POST /runs`). D-1…D-46 bez kasowania treści.
+Zmiana względem wersji 28: dopisano D-50…D-62; D-41/D-46 refaktor roli vs `DEMO_MODE`. D-1…D-49 bez kasowania treści.
 
 Zmiana względem wersji 25: dopisano D-41…D-46 (register prod/non-prod; kolizja **409**; resend bez enumeracji; wspólny 401 login/activate; regresja invite/bootstrap; zakaz maskowanego 201). D-1…D-40 bez kasowania treści.
 
@@ -170,7 +185,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 - Live OpenAI/Anthropic (lub innego vendora) na każdy PR.
 - Wymuszania suite automatycznego FE w v1/MVP.
 - Over-mockowania (testy tylko powtarzające implementację).
-- Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34), TTL / auto-finalize przeglądu (D-35…D-40), register / activate / resend (D-41…D-46), readiness api / probe gateway (D-47…D-49) ani cyklu życia SSE (D-14) „na potem” poza DoD.
+- Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34), TTL / auto-finalize przeglądu (D-35…D-40), register / activate / resend (D-41…D-46), readiness api / probe gateway (D-47…D-49), guest / DEMO (D-50…D-62) ani cyklu życia SSE (D-14) „na potem” poza DoD.
 - Asercji DoD opartych o konsumpcję upstream gateway `/health/ready` jako źródła `checks.gateway` (obowiązuje probe **liveness** — D-47 / D-48).
 - Maskowanego **201** przy kolizji na register w asercjach (obowiązuje D-43 = **409**).
 - `apps/api/postman/` / `src/postman/` jako pozorne BC.
@@ -190,7 +205,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-49 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23, D-23a, D-24…D-29, D-30…D-34, D-35…D-40, D-41…D-46, D-47…D-49) pokryte testami (warstwa adekwatna do przypadku).
+- [ ] Przypadki D-1…D-62 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23, D-23a, D-24…D-29, D-30…D-34, D-35…D-40, D-41…D-46, D-47…D-49, D-50…D-62) pokryte testami (warstwa adekwatna do przypadku). Chip/locki FE — `SPEC-FRONTEND.md` F-10 (automaty FE poza MVP — T-7).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

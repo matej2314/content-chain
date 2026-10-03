@@ -1,5 +1,5 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-09-30
 data_modyfikacji: 2026-10-03
 ---
@@ -15,6 +15,8 @@ Zmiana względem: checklist health = tylko liveness api + readiness gateway (ops
 Zmiana względem: brak frontmatteru; env api bez zmiennych TTL przeglądu. Od tej wersji: `REVIEW_TTL` (okno przeglądu) i `REVIEW_SWEEP_INTERVAL` (częstotliwość sweepera; boot zawsze raz). MVP = **single-process** api (multi-instance poza zakresem).
 
 Zmiana względem: mailer tylko `user_invited`. Od tej wersji: także `user_activation`; opcjonalne `ACTIVATION_TTL` (default `7d`); backup SQLite przenosi konta (w tym admina); DEMO nie wymaga migracji roli admina.
+
+Zmiana względem: `DEMO_MODE` wyłącznie kotwica planu demo, **nie** w tabeli env. Od tej wersji kanon ops: `DEMO_MODE` (default `false`), `GUEST_GLOBAL_CAP_PER_DAY` (default **30**), `GUEST_RATING_CAP_PER_DAY` (default **10**); TZ limitów = **UTC**; Redis pod cap gdy demo on; dump przenosi role (w tym `guest`); `DEMO_MODE` **nie** degraduje ról w DB.
 
 ## Środowiska
 
@@ -64,7 +66,7 @@ Jeden stack:
 
 | Obszar | Zmienne |
 |--------|---------|
-| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (SQLite), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS`, **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`ACTIVATION_TTL`** (default `7d`, ten sam parser — TTL tokenu aktywacji konta), **`REVIEW_TTL`** (default `2h`, ten sam parser), **`REVIEW_SWEEP_INTERVAL`** (default `5m`, ten sam styl stringa TTL), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`** |
+| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (SQLite), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS`, **`DEMO_MODE`** (`true`\|`false`, default **`false`** — przy starcie procesu; zmiana = restart), **`GUEST_GLOBAL_CAP_PER_DAY`** (default **30**, walidowany), **`GUEST_RATING_CAP_PER_DAY`** (default **10**, walidowany), **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`ACTIVATION_TTL`** (default `7d`, ten sam parser — TTL tokenu aktywacji konta), **`REVIEW_TTL`** (default `2h`, ten sam parser), **`REVIEW_SWEEP_INTERVAL`** (default `5m`, ten sam styl stringa TTL), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`**. Redis (gdy demo on): połączenie pod klucze `content-chain:guest:daily:runs:{UTC-date}` oraz `content-chain:guest:daily:ratings:{userId}:{UTC-date}` |
 | Gateway | klucze providerów, `gateway.config.yaml`, allowlista kluczy, port (szczegóły: `apps/ai-provider-gateway/.env.example`) |
 | Frontend | **`API_BASE_URL`** (tylko proces Next → api; **bez** `NEXT_PUBLIC_*` na ten URL). Przeglądarka nie zna origina api |
 
@@ -95,7 +97,15 @@ Create / resend zaproszenia **oraz** mail aktywacji przy **register**: lokalnie 
 
 Aktywacja linkiem wymagana **tylko** gdy `NODE_ENV=production`. Poza prod: `verifiedAt` przy register od razu; opcjonalny log URL. Migracja wprowadzająca `verifiedAt`: **backfill** istniejących `User` → `verifiedAt = createdAt`; bootstrap / accept-invite ustawiają `verifiedAt = now()` przy create.
 
-`MAX_CONCURRENT_RUNS` ogranicza liczbę równoległych execute: claim `queued → running` **oraz** `interrupted → running` (wznowienia po restarcie). Nie dotyczy wyłącznie nowych `POST /runs`.
+`MAX_CONCURRENT_RUNS` ogranicza liczbę równoległych execute: claim `queued → running` **oraz** `interrupted → running` (wznowienia po restarcie). Nie dotyczy wyłącznie nowych `POST /runs`. **Nie** jest drugim capem gościa — global guest cap to Redis (doba UTC), **przed** create Run.
+
+| Zmienna | Semantyka |
+|---------|-----------|
+| `DEMO_MODE` | `true` \| `false` (string bool), default **`false`**. Ładowane przy starcie. **Brak** UI toggle. Register **zawsze** dostępny; przy `true` nowe self-register → `guest`. |
+| `GUEST_GLOBAL_CAP_PER_DAY` | Default **30**. Wszystkie starty `guest` na instancji / dobę UTC. |
+| `GUEST_RATING_CAP_PER_DAY` | Default **10**. Soft limit ocen `guest` / user / dobę UTC. |
+
+Przy `DEMO_MODE=true` Redis jest potrzebny pod cap runów i soft rating. Przy `false` Redis **opcjonalny**. `GET /health` i `/health/ready` **nie** failują z powodu braku Redis.
 
 Lokalna instancja gateway w tym repo: `apps/ai-provider-gateway/gateway.config.yaml` (m.in. `timeoutMs` i `maxOutputTokens` aliasu używanego przez api) musi unieść hop Social z pełnym JSON kontekstu firmy. **Liczb z YAML nie pinujemy w SPEC** — źródło operatorskie to plik instancji. Ingress native: **10 000** znaków na `content` `user` / `assistant` (`dokumentacja_komunikacji.md`). Jak odpalić happy path: `apps/api/test/postman/README.md`.
 
@@ -114,7 +124,7 @@ W `production`: zalecany Prometheus (lub agent) scrapujący api; alerty poza MVP
 
 - Plik DB na **nazwanym volume** (compose) lub wskazanej ścieżce (`local`).
 - Backup MVP: spójna kopia pliku SQLite przy zatrzymanym zapisie lub z użyciem bezpiecznej procedury kopiowania (np. `sqlite3 .backup`) — szczegóły w runbooku implementacji.
-- **Backup / restore przenosi konta** (w tym `admin` i pozostałych `User`). Nowa pusta DB + bootstrap = **nowy** admin (nie „odzyskanie” starego bez restore volume). Flaga `DEMO_MODE` — wyłącznie plan demo; **nie** w tabeli env tego dokumentu.
+- **Backup / restore przenosi konta i role** (w tym `admin`, `user`, **`guest`**). Nowa pusta DB + bootstrap = **nowy** admin (nie „odzyskanie” starego bez restore volume). **`DEMO_MODE` nie degraduje** ról w DB (guest zostaje guest po restarcie z demo off — sesja/login wtedy **401**, wiersz bez zmiany roli).
 - W **MVP**: wyłącznie SQLite (volume), w tym modele reel i Content. **PostgreSQL** — obowiązkowo od fazy **V1 — rozbudowa** (ops / skala, **nie** warunek dodania Content): nowa historia migracji, pusta baza, ew. osobny import danych — `spec/SPEC-PERSISTENCE.md`.
 - Eksport kontekstu do `.md` / checksum — **nie** w pierwszym dowodzie agentów (tuż po MVP).
 

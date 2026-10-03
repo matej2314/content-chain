@@ -1,5 +1,5 @@
 ---
-wersja: 11
+wersja: 12
 data_utworzenia: 2026-09-18
 data_modyfikacji: 2026-10-03
 ---
@@ -21,6 +21,8 @@ Zmiana względem: „Envelope (`code` + `message`) w miejscu błędu”. Od tej 
 Zmiana względem: brak wiersza o enumeracji email na publicznym accept-invite. Od tej wersji zakaz **409** / „email zajęty” na tej trasie — `security.md`.
 
 Zmiana względem: zakaz otwartego signup. Od tej wersji: zakaz maskowanego sukcesu przy kolizji na register; pending ≠ `isActive=false`; Set-Cookie na register/activate/resend; register bramkowany DEMO; mylenie aktywacji z confirm e-mail V1.
+
+Zmiana względem: register **zawsze** `user`; `guest` poza kanonem. Od tej wersji zakazy: zaufanie do ukrytych przycisków FE jako authz guest; drugi semafor współbieżności „dla guest”; **awans guest→user/admin**; switch demo w panelu; **blokowanie register przy `DEMO_MODE=false`**; osobny endpoint register-as-guest; **`role` w body register**; masowe `@Roles('admin','user')` zamiast GuestGuard.
 
 ---
 
@@ -139,20 +141,25 @@ Zmiana względem: zakaz otwartego signup. Od tej wersji: zakaz maskowanego sukce
 | `user` edytuje kontekst firmy | Łamie model ról | Tylko `admin`; user uruchamia runy produktowe |
 | Admin cancel cudzego runu | Łamie authz Stop = wyłącznie `startedBy` | **403** `FORBIDDEN`; brak wyjątku admina (`dokumentacja_komunikacji.md`) |
 | Multi-tenant „przy okazji” (kontekst per user) | Inny produkt niż self-host jednej firmy | Jeden kontekst na instancję |
-| Drugi `admin` / awans user→admin w MVP | Łamie `security.md` | Tylko bootstrap jednego admina; potem `user` (invite / register — register **zawsze** `user`) |
+| Drugi `admin` / awans user→admin **lub** `guest`→`user`/`admin` w MVP | Łamie `security.md` | Tylko bootstrap jednego admina; `user` = invite **lub** register przy demo off; `guest` = wyłącznie register przy demo on; **brak** ścieżki promocji |
+| Osobny endpoint „register-as-guest” albo `role` w body register | Druga powierzchnia; klient wybiera rolę | Jedna trasa `POST /auth/register`; rola wyłącznie z `DEMO_MODE` |
+| Register bramkowany `DEMO_MODE` / aktywacja wymagana poza `production` | Łamie kanon: register zawsze; activate tylko w prod | Register zawsze; `verifiedAt` od razu poza prod |
+| Switch `DEMO_MODE` w UI admina | Tryb ma być ops/env, nie produktowy toggle | Env przy starcie procesu; zmiana = restart |
+| Masowe `@Roles('admin','user')` na każdej trasie „żeby zablokować guest” | Drift; nowe trasy łatwo pominąć | Globalny **GuestGuard** + `@AllowGuest()` (default deny) |
+| Zaufanie do ukrytych przycisków / disable FE jako jedynej bramki guest | Postman omija UI | Egzekucja w API (policy + guard) |
+| Drugi limit współbieżności execute „dla guest” obok `MAX_CONCURRENT_RUNS` | Dwa semafory; dryft FIFO | Cap globalny guest = Redis admit **przed** create; `MAX_CONCURRENT_RUNS` **bez zmian** |
 | Admin ustawia hasło `user` / hasło w mailu / `POST /users` z `password` | Łamie kanon zaproszeń / register; admin zna sekret konta | Admin podaje **tylko email** przy invite; pierwsze hasło = accept-invite **albo** self-register |
 | Publiczny `accept-invite` zwraca **409** / „email zajęty” przy kolizji `User.email` | Enumeracja kont bez sesji; probe istnienia `User` | **401** `UNAUTHORIZED`, ten sam `message` co zły token; revoke Invitation; **409** zostaje na admin `POST /invitations`, `PATCH /auth/me/email` **oraz** świadomie na `POST /auth/register` (`security.md`) |
 | Maskowany **201** przy kolizji email na `POST /auth/register` | Użytkownik czeka na maila, którego nie będzie; nie wie, że ma zmienić adres | **409** `CONFLICT` + jawny komunikat; FE zostaje na formularzu (`ux_dashboard.md`) |
 | Pending aktywacji przez samo `isActive = false` | Mylenie z soft-delete; reaktywacja „naprawia” weryfikację | Pending = `isActive=true` + `verifiedAt=null` + `AccountActivation` |
 | Set-Cookie na register / activate / resend | Sesja bez weryfikacji / bez świadomego loginu | Sesja tylko po login / bootstrap |
-| Register bramkowany `DEMO_MODE` / aktywacja wymagana poza `production` | Łamie kanon: register zawsze; activate tylko w prod | Register zawsze; `verifiedAt` od razu poza prod |
-| `ACCOUNT_NOT_ACTIVATED` / różny message na loginie dla pending | Enumeracja „pending” vs złe hasło | Wspólny **401** jak soft-delete / złe hasło |
+| `ACCOUNT_NOT_ACTIVATED` / różny message na loginie dla pending | Enumeracja „pending” vs złe hasło | Wspólny **401** jak soft-delete / złe hasło / guest przy demo off |
 | Mylenie aktywacji konta z confirm e-mail przy `PATCH /auth/me/email` | Dwa różne flows; confirm = V1 | Aktywacja = register + mail; confirm przy zmianie adresu = **V1** |
 | **503** na `POST /auth/resend-activation` przy padzie SMTP | Enumeracja / zły UX thank-you | Zawsze **200** + `Wiadomość wysłana ponownie`; mail best-effort w tle |
 | Self-register na email soft-deleted | Obejście reaktywacji admina | **409** `Email already in use`; reclaim = `PATCH /users/:id` |
 | Nodemailer (lub inny SMTP client) w use-case / domain | Warstwa aplikacji zależy od vendora maila | Port mailera w Auth; adapter SMTP = nodemailer **tylko** w infrastructure |
 | Dwa `pending` na ten sam email (obejście bez indeksu SQL) | Wyścig `POST /invitations`; dwa ważne tokeny | Partial unique SQL `UNIQUE (email) WHERE status = 'pending'` (jak `User_one_admin`) |
-| OAuth w MVP „bo tak się robi” | Opóźnia dowód pipeline’u | JWT w httpOnly `cc_access` + `cc_refresh`, 2 role |
+| OAuth w MVP „bo tak się robi” | Opóźnia dowód pipeline’u | JWT w httpOnly `cc_access` + `cc_refresh`, role `admin` \| `user` \| `guest` |
 | Token SSE w query string | Wyciek w logach proxy / historii | Ta sama sesja co API (cookie httpOnly) |
 | Access JWT w body / localStorage / Bearer jako model web | XSS i niespójność z cookie-only | Wyłącznie `cc_access` + `cc_refresh` (httpOnly); Postman = cookie jar |
 | Zmiana własnego emaila samym cookie (bez `currentPassword`) | Skradziona sesja przejmuje identyfikator konta | `PATCH /auth/me/email` wymaga `currentPassword` (bcrypt compare jak przy logowaniu, **bez** polityki haseł); UI = modal re-auth (`ux_dashboard.md`, `security.md`) |
