@@ -30,6 +30,7 @@ import { LlmModule } from './llm/llm.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { ContentModule } from './content/content.module';
 import { RunLifecycleModule } from './runs/run-lifecycle.module';
+import { PublicConfigModule } from './public-config/public-config.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { ContentRunExecutor } from './content/application/content-run.executor';
 import {
@@ -42,7 +43,6 @@ import {
   ContentResultStore,
 } from './content/domain/content-result.port';
 import { CompositeRunResultReader } from './runs/application/composite-run-result.reader';
-
 
 @Module({
   imports: [
@@ -92,6 +92,7 @@ import { CompositeRunResultReader } from './runs/application/composite-run-resul
     LlmModule,
     MetricsModule,
     FeedbackModule,
+    PublicConfigModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

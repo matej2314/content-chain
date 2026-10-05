@@ -27,6 +27,15 @@ export const envSchema = z
     SMTP_PORT: z.coerce.number().int().positive().optional(),
     SMTP_USER: z.string().min(1).optional(),
     SMTP_PASS: z.string().min(1).optional(),
+    DEMO_MODE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    GUEST_GLOBAL_CAP_PER_DAY: z.coerce.number().int().positive().default(30),
+    GUEST_RATING_CAP_PER_DAY: z.coerce.number().int().positive().default(10),
+    REDIS_URL: z.url().optional(),
+    REDIS_HOST: z.string().min(1).optional(),
+    REDIS_PORT: z.coerce.number().int().positive().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === 'production' && value.CORS_ORIGIN.trim() === '*') {
@@ -35,6 +44,20 @@ export const envSchema = z
         path: ['CORS_ORIGIN'],
         message: 'CORS_ORIGIN cannot be * in production',
       });
+    }
+    if (value.DEMO_MODE === true) {
+      const hasUrl =
+        value.REDIS_URL !== undefined && value.REDIS_URL.length > 0;
+      const hasHostPort =
+        value.REDIS_HOST !== undefined && value.REDIS_PORT !== undefined;
+      if (!hasUrl && !hasHostPort) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['REDIS_URL'],
+          message:
+            'REDIS_URL or REDIS_HOST+REDIS_PORT is required when DEMO_MODE=true',
+        });
+      }
     }
     if (value.NODE_ENV !== 'production') {
       return;

@@ -3,7 +3,7 @@
 // Schemy Zod dla tych enumów żyją w apps/api (application), NIE tutaj.
 // ---------------------------------------------------------------------------
 
-export type UserRole = 'admin' | 'user';
+export type UserRole = 'admin' | 'user' | 'guest';
 export type RunStatus =
   'queued' | 'running' | 'interrupted' | 'awaiting_hitl' | 'completed' | 'failed' | 'cancelled';
 export type SocialTaskType =
@@ -34,7 +34,7 @@ export const FEEDBACK_TARGET_TYPES = [
   'run',
 ] as const satisfies readonly FeedbackTargetType[];
 
-export const USER_ROLES = ['admin', 'user'] as const satisfies readonly UserRole[];
+export const USER_ROLES = ['admin', 'user', 'guest'] as const satisfies readonly UserRole[];
 
 export const FEEDBACK_AGENT_KEYS = [
   'IdeationAgent',

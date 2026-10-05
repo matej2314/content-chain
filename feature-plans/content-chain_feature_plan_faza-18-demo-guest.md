@@ -70,7 +70,7 @@ Odpowiada major **Faza 18** HOW pkt 1–3 (część config). Jedna faza zestawu.
 
 ### KROK 1 — `UserRole` += `guest`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Unia kontraktu obejmuje `guest`; `isUserRole` akceptuje JWT/DB. Prisma zostaje `String`. `docs/brand_types.md`, `SPEC-PERSISTENCE.md`, major HOW pkt 1.
 
@@ -122,7 +122,7 @@ export const USER_ROLE_LABELS = {
 
 ### KROK 2 — Env `DEMO_MODE` i capy + Redis connection
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Fail-fast przy starcie; default demo off; capy dodatnie; Redis wymagany wyłącznie przy demo on. `docs/deployment.md`, `SPEC-BEZPIECZENSTWO.md` B-11.
 
@@ -213,7 +213,7 @@ Dodać `"ioredis": "^5.4.0"` do `dependencies` (lockfile przez `pnpm` przy imple
 
 ### KROK 3 — Publiczny `GET /api/v1/config`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** V1 wyłącznie `{ demoMode: boolean }`. `SPEC-KOMUNIKACJA.md` K-11, D-60.
 
