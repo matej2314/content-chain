@@ -31,8 +31,7 @@ const CREATED_AT = new Date('2026-01-01T00:00:00.000Z');
 const REGISTER_EMAIL = 'new.user@example.com';
 const PASSWORD = 'ValidPassword1!';
 
-const TEST_ENV = validateEnv({
-  NODE_ENV: 'test',
+const BASE_ENV_FIELDS = {
   DATABASE_URL: 'file:./test.db',
   GATEWAY_BASE_URL: 'http://localhost:3100',
   GATEWAY_KEY: 'test-gateway-key',
@@ -41,18 +40,31 @@ const TEST_ENV = validateEnv({
   APP_PUBLIC_URL: 'http://localhost:3000',
   INVITE_TTL: '7d',
   ACTIVATION_TTL: '7d',
+} as const;
+
+/** D-41: default / DEMO_MODE off → role user */
+const TEST_ENV = validateEnv({
+  NODE_ENV: 'test',
+  ...BASE_ENV_FIELDS,
+});
+
+const TEST_ENV_DEMO_OFF = validateEnv({
+  NODE_ENV: 'test',
+  ...BASE_ENV_FIELDS,
+  DEMO_MODE: 'false',
+});
+
+/** D-50: DEMO_MODE on → role guest (Redis required by env schema) */
+const TEST_ENV_DEMO_ON = validateEnv({
+  NODE_ENV: 'test',
+  ...BASE_ENV_FIELDS,
+  DEMO_MODE: 'true',
+  REDIS_URL: 'redis://127.0.0.1:6379',
 });
 
 const PROD_ENV = validateEnv({
   NODE_ENV: 'production',
-  DATABASE_URL: 'file:./test.db',
-  GATEWAY_BASE_URL: 'http://localhost:3100',
-  GATEWAY_KEY: 'test-gateway-key',
-  JWT_SECRET: 'test-jwt-secret',
-  CORS_ORIGIN: 'http://localhost:3000',
-  APP_PUBLIC_URL: 'http://localhost:3000',
-  INVITE_TTL: '7d',
-  ACTIVATION_TTL: '7d',
+  ...BASE_ENV_FIELDS,
   MAIL_FROM: 'noreply@example.com',
   SMTP_HOST: 'smtp.example.com',
   SMTP_PORT: 587,
@@ -170,7 +182,7 @@ function makeAuthUser(overrides: Partial<AuthUser> = {}): AuthUser {
 }
 
 describe('RegisterUserUseCase', () => {
-  it('registers in non-prod via users.create with verifiedAt set and without activation mail (D-42)', async () => {
+  it('registers in non-prod via users.create with role user by default and without activation mail (D-41/D-42)', async () => {
     const create = jest.fn(
       async (data: CreateUserData): Promise<AuthUser> =>
         makeAuthUser({
@@ -207,6 +219,7 @@ describe('RegisterUserUseCase', () => {
 
     expect(result.user.email).toBe(REGISTER_EMAIL);
     expect(result.user.role).toBe('user');
+    expect(result.user.role).not.toBe('admin');
     expect(result.user.verifiedAt).toEqual(expect.any(Date));
     expect(create).toHaveBeenCalledTimes(1);
     expect(create.mock.calls[0]?.[0]).toMatchObject({
@@ -216,6 +229,84 @@ describe('RegisterUserUseCase', () => {
     });
     expect(createPendingUser).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it('registers with role user when DEMO_MODE is explicitly false (D-41)', async () => {
+    const create = jest.fn(
+      async (data: CreateUserData): Promise<AuthUser> =>
+        makeAuthUser({
+          id: data.id,
+          email: data.email,
+          role: data.role,
+          verifiedAt: data.verifiedAt,
+        }),
+    );
+    const useCase = new RegisterUserUseCase(
+      unusedUsers({
+        findForAuth: async () => null,
+        create,
+      }),
+      unusedInvitations({
+        findPendingByEmail: async () => null,
+      }),
+      unusedActivations(),
+      unusedMailer(),
+      TEST_ENV_DEMO_OFF,
+    );
+
+    const result = await useCase.execute({
+      email: REGISTER_EMAIL,
+      password: PASSWORD,
+    });
+
+    expect(result.user.role).toBe('user');
+    expect(create.mock.calls[0]?.[0]).toMatchObject({ role: 'user' });
+    expect(create.mock.calls[0]?.[0].role).not.toBe('admin');
+    expect(create.mock.calls[0]?.[0].role).not.toBe('guest');
+  });
+
+  it('registers with role guest when DEMO_MODE is true (D-50)', async () => {
+    const create = jest.fn(
+      async (data: CreateUserData): Promise<AuthUser> =>
+        makeAuthUser({
+          id: data.id,
+          email: data.email,
+          role: data.role,
+          verifiedAt: data.verifiedAt,
+        }),
+    );
+    const createPendingUser = jest.fn(
+      async (_input: CreatePendingUser): Promise<AuthUser> =>
+        makeAuthUser({ verifiedAt: null }),
+    );
+    const useCase = new RegisterUserUseCase(
+      unusedUsers({
+        findForAuth: async () => null,
+        create,
+      }),
+      unusedInvitations({
+        findPendingByEmail: async () => null,
+      }),
+      unusedActivations({ createPendingUser }),
+      unusedMailer(),
+      TEST_ENV_DEMO_ON,
+    );
+
+    const result = await useCase.execute({
+      email: REGISTER_EMAIL,
+      password: PASSWORD,
+    });
+
+    expect(result.user.role).toBe('guest');
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls[0]?.[0]).toMatchObject({
+      email: REGISTER_EMAIL,
+      role: 'guest',
+      verifiedAt: expect.any(Date),
+    });
+    expect(create.mock.calls[0]?.[0].role).not.toBe('admin');
+    expect(create.mock.calls[0]?.[0].role).not.toBe('user');
+    expect(createPendingUser).not.toHaveBeenCalled();
   });
 
   it('registers in production as pending with activation mail (D-41)', async () => {
@@ -376,6 +467,8 @@ describe('RegisterUserUseCase', () => {
     expect(revoke).toHaveBeenCalledWith(INVITATION_ID);
     expect(create).toHaveBeenCalledTimes(1);
     expect(result.user.role).toBe('user');
+    expect(result.user.role).not.toBe('admin');
+    expect(create.mock.calls[0]?.[0]).toMatchObject({ role: 'user' });
     expect(revoke.mock.invocationCallOrder[0]).toBeLessThan(
       create.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
     );
@@ -479,14 +572,17 @@ describe('RegisterUserUseCase', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it('rejects unknown body keys with VALIDATION_FAILED', async () => {
+  it('rejects role in body (never admin via request) with VALIDATION_FAILED', async () => {
     const findForAuth = jest.fn(async () => null);
+    const create = jest.fn(
+      async (_data: CreateUserData): Promise<AuthUser> => makeAuthUser(),
+    );
     const useCase = new RegisterUserUseCase(
-      unusedUsers({ findForAuth }),
+      unusedUsers({ findForAuth, create }),
       unusedInvitations(),
       unusedActivations(),
       unusedMailer(),
-      TEST_ENV,
+      TEST_ENV_DEMO_ON,
     );
 
     await expect(
@@ -501,5 +597,6 @@ describe('RegisterUserUseCase', () => {
       httpStatus: 400,
     });
     expect(findForAuth).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
   });
 });

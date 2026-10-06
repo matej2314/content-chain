@@ -29,22 +29,37 @@ const INVALID_CREDENTIALS = {
   message: 'Invalid credentials',
 } as const;
 
-const TEST_ENV = validateEnv({
-  NODE_ENV: 'test',
+const BASE_ENV_FIELDS = {
   DATABASE_URL: 'file:./test.db',
   GATEWAY_BASE_URL: 'http://localhost:3100',
   GATEWAY_KEY: 'test-gateway-key',
   JWT_SECRET: 'test-jwt-secret',
   CORS_ORIGIN: 'http://localhost:3000',
+} as const;
+
+/** Default / DEMO_MODE off */
+const TEST_ENV = validateEnv({
+  NODE_ENV: 'test',
+  ...BASE_ENV_FIELDS,
+});
+
+const TEST_ENV_DEMO_OFF = validateEnv({
+  NODE_ENV: 'test',
+  ...BASE_ENV_FIELDS,
+  DEMO_MODE: 'false',
+});
+
+/** DEMO_MODE on (Redis required by env schema) */
+const TEST_ENV_DEMO_ON = validateEnv({
+  NODE_ENV: 'test',
+  ...BASE_ENV_FIELDS,
+  DEMO_MODE: 'true',
+  REDIS_URL: 'redis://127.0.0.1:6379',
 });
 
 const PRODUCTION_ENV = validateEnv({
   NODE_ENV: 'production',
-  DATABASE_URL: 'file:./test.db',
-  GATEWAY_BASE_URL: 'http://localhost:3100',
-  GATEWAY_KEY: 'test-gateway-key',
-  JWT_SECRET: 'test-jwt-secret',
-  CORS_ORIGIN: 'http://localhost:3000',
+  ...BASE_ENV_FIELDS,
   APP_PUBLIC_URL: 'https://app.example.com',
   MAIL_FROM: 'noreply@example.com',
   SMTP_HOST: 'smtp.example.com',
@@ -219,6 +234,93 @@ describe('LoginUseCase', () => {
       }),
     ).rejects.toMatchObject(INVALID_CREDENTIALS);
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a guest when DEMO_MODE is false with the same UNAUTHORIZED as a bad password (D-51)', async () => {
+    const create = jest.fn(
+      async (_session: RefreshSessionRecord): Promise<void> => undefined,
+    );
+    const jwt = makeJwt();
+    const useCase = new LoginUseCase(
+      unusedUsers({
+        findForAuth: async () => makeAuthUser({ role: 'guest' }),
+      }),
+      unusedSessions({ create }),
+      jwt,
+      TEST_ENV_DEMO_OFF,
+    );
+
+    await expect(
+      useCase.execute({
+        email: 'user@example.com',
+        password: PASSWORD,
+      }),
+    ).rejects.toMatchObject(INVALID_CREDENTIALS);
+    expect(create).not.toHaveBeenCalled();
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('authenticates a guest when DEMO_MODE is true', async () => {
+    const authUser = makeAuthUser({ role: 'guest' });
+    const create = jest.fn(
+      async (_session: RefreshSessionRecord): Promise<void> => undefined,
+    );
+    const jwt = makeJwt();
+    const useCase = new LoginUseCase(
+      unusedUsers({
+        findForAuth: async () => authUser,
+      }),
+      unusedSessions({ create }),
+      jwt,
+      TEST_ENV_DEMO_ON,
+    );
+
+    const result = await useCase.execute({
+      email: authUser.email,
+      password: PASSWORD,
+    });
+
+    expect(result.user).toEqual({
+      id: authUser.id,
+      email: authUser.email,
+      role: 'guest',
+    });
+    expect(result.accessToken).toBe(ACCESS_TOKEN);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(jwt.signAsync).toHaveBeenCalledWith({
+      sub: authUser.id,
+      email: authUser.email,
+      role: 'guest',
+    });
+  });
+
+  it('authenticates an admin when DEMO_MODE is true', async () => {
+    const authUser = makeAuthUser({ role: 'admin' });
+    const create = jest.fn(
+      async (_session: RefreshSessionRecord): Promise<void> => undefined,
+    );
+    const jwt = makeJwt();
+    const useCase = new LoginUseCase(
+      unusedUsers({
+        findForAuth: async () => authUser,
+      }),
+      unusedSessions({ create }),
+      jwt,
+      TEST_ENV_DEMO_ON,
+    );
+
+    const result = await useCase.execute({
+      email: authUser.email,
+      password: PASSWORD,
+    });
+
+    expect(result.user).toEqual({
+      id: authUser.id,
+      email: authUser.email,
+      role: 'admin',
+    });
+    expect(result.accessToken).toBe(ACCESS_TOKEN);
+    expect(create).toHaveBeenCalledTimes(1);
   });
 
   it('rejects a pending user in production with the same UNAUTHORIZED as a bad password', async () => {

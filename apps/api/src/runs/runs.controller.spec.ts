@@ -5,6 +5,7 @@ import { BadRequestException } from '@nestjs/common';
 import { createUserId } from '@content-chain/shared';
 import type { AuthUserContext } from '../auth/domain/auth-user.types';
 import { ENV, type Env } from '../shared/config/env';
+import { ALLOW_GUEST_KEY } from '../shared/decorators/allow-guest.decorator';
 import { IS_PUBLIC_KEY } from '../shared/decorators/public.decorator';
 import { ROLES_KEY } from '../shared/decorators/roles.decorator';
 import { newConversationId, newRunId } from '../shared/http/new-ids';
@@ -129,6 +130,25 @@ describe('RunsController', () => {
       Reflect.getMetadata(ROLES_KEY, proto.postFinalizeReview),
     ).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.cancel)).toBeUndefined();
+
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, RunsController)).toBeUndefined();
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.create)).toBe(true);
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.logs)).toBe(true);
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.events)).toBe(true);
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.hitl)).toBe(true);
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.list)).toBe(true);
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.getRunsByUser)).toBe(
+      true,
+    );
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.get)).toBe(true);
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.patchRating)).toBe(true);
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.cancel)).toBe(true);
+    expect(
+      Reflect.getMetadata(ALLOW_GUEST_KEY, proto.postOutputEdited),
+    ).toBeUndefined();
+    expect(
+      Reflect.getMetadata(ALLOW_GUEST_KEY, proto.postFinalizeReview),
+    ).toBeUndefined();
   });
 
   it('declares parameterized routes before GET :runId', () => {

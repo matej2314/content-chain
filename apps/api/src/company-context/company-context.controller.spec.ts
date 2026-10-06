@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { ALLOW_GUEST_KEY } from '../shared/decorators/allow-guest.decorator';
 import { IS_PUBLIC_KEY } from '../shared/decorators/public.decorator';
 import { ROLES_KEY } from '../shared/decorators/roles.decorator';
 import { CompanyContextController } from './company-context.controller';
@@ -39,6 +40,16 @@ describe('CompanyContextController', () => {
     ).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.get)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.completeness)).toBeUndefined();
+
+    expect(
+      Reflect.getMetadata(ALLOW_GUEST_KEY, CompanyContextController),
+    ).toBeUndefined();
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.get)).toBe(true);
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.completeness)).toBe(
+      true,
+    );
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.put)).toBeUndefined();
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.patch)).toBeUndefined();
 
     expect(Reflect.getMetadata(ROLES_KEY, proto.put)).toEqual(['admin']);
     expect(Reflect.getMetadata(ROLES_KEY, proto.patch)).toEqual(['admin']);

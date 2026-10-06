@@ -13,7 +13,7 @@ import {
   type MessageEvent,
 } from '@nestjs/common';
 import { CurrentUser } from '../shared/decorators/current-user.decorator';
-import type { AuthUserContext } from '../auth/domain/auth-user.types';
+import { AllowGuest } from '../shared/decorators/allow-guest.decorator';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { COOKIE_AUTH_NAME } from '../shared/http/configure-swagger';
 import {
@@ -36,6 +36,7 @@ import { RateRunUseCase } from './application/rate-run.use-case';
 import { CancelRunUseCase } from './application/cancel-run.use-case';
 import { SaveOutputEditedUseCase } from './application/save-output-edited.use-case';
 import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
+import { PatchRunRatingDto } from './http/dto/patch-run-rating.dto';
 import {
   ListRunsUserUseCase,
   type ListRunsUserOutput,
@@ -53,7 +54,7 @@ import { ParseRunIdPipe } from './http/parse-run-id.pipe';
 import { createUserId, isUserId } from '@content-chain/shared';
 import type { RunId, RunStatus } from '@content-chain/shared';
 import type { ListRunsQuery } from './domain/run.port';
-import { PatchRunRatingDto } from './http/dto/patch-run-rating.dto';
+import type { AuthUserContext } from '../auth/domain/auth-user.types';
 
 function isTerminalStatus(status: RunStatus): boolean {
   return (
@@ -80,6 +81,7 @@ export class RunsController {
     @Inject(ENV) private readonly env: Env,
   ) {}
 
+  @AllowGuest()
   @Post()
   @HttpCode(202)
   async create(
@@ -94,11 +96,13 @@ export class RunsController {
     };
   }
 
+  @AllowGuest()
   @Get(':runId/logs')
   logs(@Param('runId', ParseRunIdPipe) runId: RunId) {
     return this.getLogs.execute(runId);
   }
 
+  @AllowGuest()
   @Sse(':runId/events')
   async events(
     @Param('runId', ParseRunIdPipe) runId: RunId,
@@ -140,12 +144,14 @@ export class RunsController {
     return merge(live$, heartbeat$);
   }
 
+  @AllowGuest()
   @Post(':runId/hitl')
   @HttpCode(202)
   hitl(@Param('runId', ParseRunIdPipe) runId: RunId, @Body() body: HitlDto) {
     return this.resumeHitl.execute(runId, body.selectedIdeaIds);
   }
 
+  @AllowGuest()
   @Get()
   list(@Query() query: ListRunsQueryDto): Promise<unknown> {
     if (query.userId && !isUserId(query.userId)) {
@@ -161,6 +167,7 @@ export class RunsController {
     return this.listRuns.execute(command);
   }
 
+  @AllowGuest()
   @Get('user/:userId')
   async getRunsByUser(
     @Param('userId') userId: string,
@@ -172,11 +179,13 @@ export class RunsController {
     return this.listRunsUser.execute(createUserId(userId), user);
   }
 
+  @AllowGuest()
   @Get(':runId')
   get(@Param('runId', ParseRunIdPipe) runId: RunId) {
     return this.getRun.execute(runId);
   }
 
+  @AllowGuest()
   @Patch(':runId/rating')
   @HttpCode(200)
   async patchRating(
@@ -206,6 +215,7 @@ export class RunsController {
     return this.finalizeReview.execute(runId, user);
   }
 
+  @AllowGuest()
   @Post(':runId/cancel')
   @HttpCode(200)
   cancel(

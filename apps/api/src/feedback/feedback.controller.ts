@@ -1,6 +1,7 @@
 import { Controller, Body, HttpCode, Post } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../shared/decorators/current-user.decorator';
+import { AllowGuest } from '../shared/decorators/allow-guest.decorator';
 import { COOKIE_AUTH_NAME } from '../shared/http/configure-swagger';
 import { CreateFeedbackUseCase } from './application/create-feedback.use-case';
 import { CreateFeedbackDto } from './http/dto/create-feedback.dto';
@@ -12,6 +13,7 @@ import type { AuthUserContext } from '../shared/types/auth-user-context';
 export class FeedbackController {
   constructor(private readonly createFeedback: CreateFeedbackUseCase) {}
 
+  @AllowGuest()
   @Post()
   @HttpCode(201)
   async create(

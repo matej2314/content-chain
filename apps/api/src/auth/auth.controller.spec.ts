@@ -3,6 +3,7 @@ import { RequestMethod, UnauthorizedException } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { createUserId } from '@content-chain/shared';
 import { ENV, type Env } from '../shared/config/env';
+import { ALLOW_GUEST_KEY } from '../shared/decorators/allow-guest.decorator';
 import { IS_PUBLIC_KEY } from '../shared/decorators/public.decorator';
 import { BootstrapAdminUseCase } from './application/bootstrap-admin.use-case';
 import { BootstrapStatusUseCase } from './application/bootstrap-status.use-case';
@@ -154,6 +155,13 @@ describe('AuthController', () => {
     expect(isPublic(proto.postLogout)).toBe(false);
     expect(isPublic(proto.getMe)).toBe(false);
     expect(isPublic(proto.patchMeEmail)).toBe(false);
+
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, AuthController)).toBeUndefined();
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.postLogout)).toBe(true);
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.getMe)).toBe(true);
+    expect(
+      Reflect.getMetadata(ALLOW_GUEST_KEY, proto.patchMeEmail),
+    ).toBeUndefined();
 
     expect(Reflect.getMetadata('path', proto.getBootstrapStatus)).toBe(
       'bootstrap-status',

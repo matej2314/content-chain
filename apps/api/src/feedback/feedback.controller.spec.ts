@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { createFeedbackId, createUserId } from '@content-chain/shared';
+import { ALLOW_GUEST_KEY } from '../shared/decorators/allow-guest.decorator';
 import { IS_PUBLIC_KEY } from '../shared/decorators/public.decorator';
 import { ROLES_KEY } from '../shared/decorators/roles.decorator';
 import type { AuthUserContext } from '../shared/types/auth-user-context';
@@ -39,6 +40,10 @@ describe('FeedbackController', () => {
     expect(Reflect.getMetadata(ROLES_KEY, FeedbackController)).toBeUndefined();
     expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.create)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.create)).toBeUndefined();
+    expect(
+      Reflect.getMetadata(ALLOW_GUEST_KEY, FeedbackController),
+    ).toBeUndefined();
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.create)).toBe(true);
     expect(Reflect.getMetadata('path', proto.create)).toBe('/');
   });
 

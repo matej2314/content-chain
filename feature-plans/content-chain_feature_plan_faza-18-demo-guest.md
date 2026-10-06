@@ -289,7 +289,7 @@ Load DEMO_MODE and guest caps at process start so register and guards can branch
 
 ### KROK 1 — Refaktor `RegisterUserUseCase` (rola vs `DEMO_MODE`)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** `DEMO_MODE=true` → `guest`; `false` → `user`. Dostępność register **bez zmian**. `SPEC-AUTH.md` A-11, D-41 / D-50.
 
@@ -326,7 +326,7 @@ Reszta (revoke invite, pending prod, 409, nigdy admin) **bez zmian**.
 
 ### KROK 2 — Login + refresh: `guest` && demo off → 401
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Check `DEMO_MODE` **przed** innymi powodami rejectu dla znalezionego `guest`. Ten sam `UNAUTHORIZED` / `Invalid credentials` co złe hasło. `SPEC-AUTH.md` A-2 / A-6a, D-51 / D-52. `POST /auth/refresh` jest `@Public()` — **nie** idzie przez `GuestGuard`; check w use-case.
 
@@ -401,7 +401,7 @@ Po `findById`, przed rotacją:
 
 ### KROK 3 — `GuestGuard` + `@AllowGuest` + `APP_GUARD`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Default deny dla `guest` przy demo on; demo off + JWT guest → **401** (nie 403). `SPEC-AUTH.md` A-6a. Context7: ten sam `Reflector` co `@Public()`.
 

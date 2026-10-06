@@ -19,6 +19,7 @@ import {
 import { loginSchema } from './auth.schemas';
 import { ENV, type Env } from '../../shared/config/env';
 import type { AuthTokenResult } from './bootstrap-admin.use-case';
+import { rejectDeadGuestSession } from './reject-dead-guest-session';
 
 @Injectable()
 export class LoginUseCase {
@@ -34,7 +35,12 @@ export class LoginUseCase {
     const command = parseWithZod(loginSchema, input);
 
     const userForAuth = await this.users.findForAuth(command.email);
-    if (!userForAuth || !userForAuth.isActive) {
+    if (!userForAuth) {
+      throw new DomainException('UNAUTHORIZED', 'Invalid credentials', 401);
+    }
+
+    rejectDeadGuestSession(userForAuth.role, this.env.DEMO_MODE);
+    if (!userForAuth.isActive) {
       throw new DomainException('UNAUTHORIZED', 'Invalid credentials', 401);
     }
 

@@ -25,15 +25,40 @@ const INVALID_REFRESH = {
   httpStatus: 401,
   message: 'Invalid or expired refresh token',
 } as const;
+const INVALID_CREDENTIALS = {
+  name: 'DomainException',
+  code: 'UNAUTHORIZED',
+  httpStatus: 401,
+  message: 'Invalid credentials',
+} as const;
 
-const TEST_ENV = validateEnv({
-  NODE_ENV: 'test',
+const BASE_ENV_FIELDS = {
   DATABASE_URL: 'file:./test.db',
   GATEWAY_BASE_URL: 'http://localhost:3100',
   GATEWAY_KEY: 'test-gateway-key',
   JWT_SECRET: 'test-jwt-secret',
   CORS_ORIGIN: 'http://localhost:3000',
   JWT_REFRESH_TTL: '1d',
+} as const;
+
+/** Default / DEMO_MODE off */
+const TEST_ENV = validateEnv({
+  NODE_ENV: 'test',
+  ...BASE_ENV_FIELDS,
+});
+
+const TEST_ENV_DEMO_OFF = validateEnv({
+  NODE_ENV: 'test',
+  ...BASE_ENV_FIELDS,
+  DEMO_MODE: 'false',
+});
+
+/** DEMO_MODE on (Redis required by env schema) */
+const TEST_ENV_DEMO_ON = validateEnv({
+  NODE_ENV: 'test',
+  ...BASE_ENV_FIELDS,
+  DEMO_MODE: 'true',
+  REDIS_URL: 'redis://127.0.0.1:6379',
 });
 
 function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
@@ -217,6 +242,118 @@ describe('RefreshUseCase', () => {
       message: 'User not found or inactive',
     });
     expect(rotate).not.toHaveBeenCalled();
+  });
+
+  it('rejects a guest when DEMO_MODE is false with the same UNAUTHORIZED as invalid credentials (D-52)', async () => {
+    const { raw, hash } = generateRefreshToken();
+    const rotate = jest.fn(
+      async (
+        _current: string,
+        _next: RefreshSessionRecord,
+      ): Promise<RotateRefreshSessionResult> => ({ ok: true }),
+    );
+    const jwt = makeJwt();
+    const useCase = new RefreshUseCase(
+      unusedUsers({
+        findById: async () => makeUser({ role: 'guest' }),
+      }),
+      unusedSessions({
+        findValidByHash: async () => ({
+          id: 'session-1',
+          userId: USER_ID,
+          tokenHash: hash,
+          expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+        }),
+        rotate,
+      }),
+      jwt,
+      TEST_ENV_DEMO_OFF,
+    );
+
+    await expect(useCase.execute(raw)).rejects.toMatchObject(
+      INVALID_CREDENTIALS,
+    );
+    expect(rotate).not.toHaveBeenCalled();
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects an inactive guest when DEMO_MODE is false with Invalid credentials, not inactive', async () => {
+    const { raw, hash } = generateRefreshToken();
+    const rotate = jest.fn(
+      async (
+        _current: string,
+        _next: RefreshSessionRecord,
+      ): Promise<RotateRefreshSessionResult> => ({ ok: true }),
+    );
+    const jwt = makeJwt();
+    const useCase = new RefreshUseCase(
+      unusedUsers({
+        findById: async () => makeUser({ role: 'guest', isActive: false }),
+      }),
+      unusedSessions({
+        findValidByHash: async () => ({
+          id: 'session-1',
+          userId: USER_ID,
+          tokenHash: hash,
+          expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+        }),
+        rotate,
+      }),
+      jwt,
+      TEST_ENV_DEMO_OFF,
+    );
+
+    await expect(useCase.execute(raw)).rejects.toMatchObject(
+      INVALID_CREDENTIALS,
+    );
+    expect(rotate).not.toHaveBeenCalled();
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('rotates tokens for a guest when DEMO_MODE is true', async () => {
+    const { raw, hash } = generateRefreshToken();
+    const session: RefreshSessionRecord = {
+      id: 'session-1',
+      userId: USER_ID,
+      tokenHash: hash,
+      expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+    };
+    const rotate = jest.fn(
+      async (
+        _current: string,
+        _next: RefreshSessionRecord,
+      ): Promise<RotateRefreshSessionResult> => ({ ok: true }),
+    );
+    const jwt = makeJwt();
+    const user = makeUser({ role: 'guest' });
+    const useCase = new RefreshUseCase(
+      unusedUsers({
+        findById: async () => user,
+      }),
+      unusedSessions({
+        findValidByHash: async (tokenHash) =>
+          tokenHash === hashRefreshToken(raw) ? session : null,
+        rotate,
+      }),
+      jwt,
+      TEST_ENV_DEMO_ON,
+    );
+
+    const result = await useCase.execute(raw);
+
+    expect(result.user).toEqual({
+      id: user.id,
+      email: user.email,
+      role: 'guest',
+    });
+    expect(result.accessToken).toBe(ACCESS_TOKEN);
+    expect(result.refreshToken).not.toBe(raw);
+    expect(rotate).toHaveBeenCalledTimes(1);
+    expect(jwt.signAsync).toHaveBeenCalledWith({
+      sub: user.id,
+      email: user.email,
+      role: 'guest',
+    });
   });
 
   it('rejects a consumed refresh hash (rotate not-found) with UNAUTHORIZED', async () => {

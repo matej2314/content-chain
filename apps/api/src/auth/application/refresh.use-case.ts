@@ -17,6 +17,7 @@ import {
 } from '../domain/user-repository.port';
 import { ENV, type Env } from '../../shared/config/env';
 import type { AuthTokenResult } from './bootstrap-admin.use-case';
+import { rejectDeadGuestSession } from './reject-dead-guest-session';
 
 @Injectable()
 export class RefreshUseCase {
@@ -45,7 +46,15 @@ export class RefreshUseCase {
     }
 
     const user = await this.users.findById(session.userId);
-    if (!user || !user.isActive) {
+    if (!user) {
+      throw new DomainException(
+        'UNAUTHORIZED',
+        'User not found or inactive',
+        401,
+      );
+    }
+    rejectDeadGuestSession(user.role, this.env.DEMO_MODE);
+    if (!user.isActive) {
       throw new DomainException(
         'UNAUTHORIZED',
         'User not found or inactive',

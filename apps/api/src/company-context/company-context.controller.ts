@@ -1,6 +1,7 @@
 import { Controller, Body, Get, Patch, Put } from '@nestjs/common';
 import { ApiCookieAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../shared/decorators/roles.decorator';
+import { AllowGuest } from '../shared/decorators/allow-guest.decorator';
 import { COOKIE_AUTH_NAME } from '../shared/http/configure-swagger';
 import { GetCompanyContextUseCase } from './application/get-company-context.use-case';
 import { GetCompletenessUseCase } from './application/get-completeness.use-case';
@@ -26,11 +27,13 @@ export class CompanyContextController {
     private readonly putContext: PutCompanyContextUseCase,
   ) {}
 
+  @AllowGuest()
   @Get('completeness')
   completeness() {
     return this.getCompleteness.execute();
   }
 
+  @AllowGuest()
   @Get()
   @ApiOkResponse({ description: 'Canonical company context + completeness' })
   get() {

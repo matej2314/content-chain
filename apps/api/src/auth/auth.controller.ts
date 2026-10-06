@@ -14,6 +14,7 @@ import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { Public } from '../shared/decorators/public.decorator';
 import { COOKIE_AUTH_NAME } from '../shared/http/configure-swagger';
 import { CurrentUser } from '../shared/decorators/current-user.decorator';
+import { AllowGuest } from '../shared/decorators/allow-guest.decorator';
 import {
   setAuthCookies,
   clearAuthCookies,
@@ -132,6 +133,7 @@ export class AuthController {
     return { expiresIn: this.env.JWT_ACCESS_TTL };
   }
 
+  @AllowGuest()
   @ApiCookieAuth(COOKIE_AUTH_NAME)
   @Post('logout')
   @HttpCode(200)
@@ -149,6 +151,7 @@ export class AuthController {
     return { ok: true };
   }
 
+  @AllowGuest()
   @ApiCookieAuth(COOKIE_AUTH_NAME)
   @Get('me')
   async getMe(@CurrentUser() user: AuthUserContext) {

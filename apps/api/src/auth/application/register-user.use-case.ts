@@ -75,7 +75,7 @@ export class RegisterUserUseCase {
 
     const passwordHash = await hashPassword(command.password);
     const userId = newUserId();
-    const role: UserRole = 'user';
+    const role: UserRole = this.env.DEMO_MODE ? 'guest' : 'user';
     const isProduction = this.env.NODE_ENV === 'production';
 
     let user;
