@@ -1782,15 +1782,15 @@
     "semantic_hash": "aeca542d095be645072522d6623a25a4"
   },
   "apps/api/src/runs/runs.controller.ts": {
-    "mtime": 1791280475.8319538,
-    "seen": 1791280615.9424517,
-    "ast_hash": "bb50c563be1e3be299fe5739cd6aecab",
+    "mtime": 1791288112.3842165,
+    "seen": 1791288292.2599742,
+    "ast_hash": "278bede66085eda9f9b117e8058c6739",
     "semantic_hash": ""
   },
   "apps/api/src/runs/runs.module.ts": {
-    "mtime": 1790857888.2833905,
-    "seen": 1790858851.6509793,
-    "ast_hash": "a15cd7e39ecee1b887e94683d5ba108b",
+    "mtime": 1791287475.300367,
+    "seen": 1791287493.0798662,
+    "ast_hash": "9299023dc44411a667c621fafb755b30",
     "semantic_hash": ""
   },
   "apps/api/src/social/social.module.ts": {
@@ -2004,15 +2004,15 @@
     "semantic_hash": "504333f4f5c1d35cf2f4fd8f48c1ab7d"
   },
   "apps/api/src/runs/application/get-run-logs.use-case.ts": {
-    "mtime": 1788880918.0,
-    "seen": 1789403048.304686,
-    "ast_hash": "645615adf3fedd62968c2661380e4e51",
-    "semantic_hash": "645615adf3fedd62968c2661380e4e51"
+    "mtime": 1791288187.9216144,
+    "seen": 1791288292.2599075,
+    "ast_hash": "49941bb65fb48a911d0b5a811c202b48",
+    "semantic_hash": ""
   },
   "apps/api/src/runs/application/get-run.use-case.ts": {
-    "mtime": 1790853277.9943883,
-    "seen": 1790853410.3951159,
-    "ast_hash": "9de506959e607d169538dc078163365f",
+    "mtime": 1791288187.8526149,
+    "seen": 1791288292.2599092,
+    "ast_hash": "7e6626a2161486481c9baa5076f5f54a",
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/recover-interrupted-runs.use-case.ts": {
@@ -2028,9 +2028,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/start-run.use-case.ts": {
-    "mtime": 1790849316.9807425,
-    "seen": 1790849723.6048105,
-    "ast_hash": "569f1e77f6fe54fb2e449d05598773a7",
+    "mtime": 1791287475.068369,
+    "seen": 1791287493.0798295,
+    "ast_hash": "812ed1eda073bc39e65b0ac832bf2a74",
     "semantic_hash": ""
   },
   "apps/api/src/runs/domain/is-retryable.ts": {
@@ -2052,9 +2052,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/domain/run.port.ts": {
-    "mtime": 1790853935.030307,
-    "seen": 1790857528.5818887,
-    "ast_hash": "38e202c806dcff45fd8251b306f56030",
+    "mtime": 1791285214.280186,
+    "seen": 1791286968.823018,
+    "ast_hash": "eb641d7a4c382420ded95f895485c6e0",
     "semantic_hash": ""
   },
   "apps/api/src/runs/domain/run.types.ts": {
@@ -2070,9 +2070,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/infrastructure/prisma-run.adapter.ts": {
-    "mtime": 1790856640.0141263,
-    "seen": 1790857528.5819092,
-    "ast_hash": "83efa2652a3fa97a118981427f18ec59",
+    "mtime": 1791285306.1832433,
+    "seen": 1791286968.8230329,
+    "ast_hash": "9921c56f702ffb188dc7188947b07269",
     "semantic_hash": ""
   },
   "apps/api/src/runs/infrastructure/run-sse.hub.ts": {
@@ -2322,10 +2322,10 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/resume-hitl.use-case.ts": {
-    "mtime": 1788614240.0,
-    "seen": 1789403048.3047018,
-    "ast_hash": "31278d274c11af47606216ba779f73e8",
-    "semantic_hash": "31278d274c11af47606216ba779f73e8"
+    "mtime": 1791288187.9418185,
+    "seen": 1791288292.2599192,
+    "ast_hash": "e17f68a6a05a519daecddaaa5b4e2711",
+    "semantic_hash": ""
   },
   "apps/api/src/runs/application/run.schemas.ts": {
     "mtime": 1788614240.0,
@@ -3180,9 +3180,9 @@
     "semantic_hash": "ee0fe5ee75555fdb68cf8ccda5a18bd1"
   },
   "apps/api/src/runs/application/rate-run.use-case.ts": {
-    "mtime": 1790853793.6433578,
-    "seen": 1790857528.5818586,
-    "ast_hash": "66d1481ca9b7a7d1d5869106d717bad4",
+    "mtime": 1791288798.0962536,
+    "seen": 1791288856.3130724,
+    "ast_hash": "4b806a1ed43fb30bbdd20482df284e84",
     "semantic_hash": ""
   },
   "apps/api/src/runs/domain/assert-run-reviewable.ts": {
@@ -3828,9 +3828,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/cancel-run.use-case.ts": {
-    "mtime": 1790681729.1701984,
-    "seen": 1790681978.811001,
-    "ast_hash": "7a43f46ea0ebed1c4477a372c0292929",
+    "mtime": 1791288108.711738,
+    "seen": 1791288292.2599027,
+    "ast_hash": "09070084fb966c13468d703b1144d140",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/cancel-run-dialog.tsx": {
@@ -4047,6 +4047,36 @@
     "mtime": 1791278907.567424,
     "seen": 1791279168.643233,
     "ast_hash": "664136600968f1523bf3be28e7993d97",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/domain/guest-quota.port.ts": {
+    "mtime": 1791284096.805222,
+    "seen": 1791284930.5192323,
+    "ast_hash": "031b492ab56af9886f5eb913338cd483",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/guest-quota.module.ts": {
+    "mtime": 1791284461.296112,
+    "seen": 1791284930.5192409,
+    "ast_hash": "40d6e63595c4f33da82c284495a07a9e",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/infrastructure/ioredis-guest-quota.adapter.ts": {
+    "mtime": 1791284107.861896,
+    "seen": 1791284930.5192463,
+    "ast_hash": "a13867bad8198aab2069e0e6f9817c11",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/infrastructure/unavailable-guest-quota.adapter.ts": {
+    "mtime": 1791284179.0518887,
+    "seen": 1791284930.5192533,
+    "ast_hash": "6d0547ef27f2b3250a8945b9c06ab354",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/application/guest-run-policy.service.ts": {
+    "mtime": 1791287475.1513684,
+    "seen": 1791287493.0798168,
+    "ast_hash": "39e077ffeef3ba6e8608d2fe7ea17e8d",
     "semantic_hash": ""
   }
 }

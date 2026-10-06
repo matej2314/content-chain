@@ -288,6 +288,15 @@ export class PrismaRunAdapter implements RunRepository {
     return locked;
   }
 
+  async countByUserAndType(
+    userId: UserId,
+    taskType: RunRecord['taskType'],
+  ): Promise<number> {
+    return this.prisma.run.count({
+      where: { startedByUserId: userId, taskType },
+    });
+  }
+
   async setPipelineFinishedAt(id: RunId, at: Date): Promise<void> {
     await this.prisma.run.updateMany({
       where: { id, pipelineFinishedAt: null },

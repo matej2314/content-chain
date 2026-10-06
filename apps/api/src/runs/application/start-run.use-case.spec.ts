@@ -1,10 +1,22 @@
+import { createUserId } from '@content-chain/shared';
 import type { GetCompletenessUseCase } from '../../company-context/application/get-completeness.use-case';
 import type { Completeness } from '../../company-context/domain/company-context.types';
 import { DomainException } from '../../shared/exceptions/domain.exception';
+import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import type { RunRecord } from '../domain/run.types';
+import type {
+  GuestRunAdmit,
+  GuestRunPolicyService,
+} from './guest-run-policy.service';
 import type { InProcessRunWorker } from './in-process-run.worker';
 import { StartRunUseCase, type StartRunCommand } from './start-run.use-case';
+
+const ACTOR: AuthUserContext = {
+  id: createUserId('usr_11111111-1111-4111-8111-111111111111'),
+  email: 'user@example.com',
+  role: 'user',
+};
 
 function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
   const unexpected = async () => {
@@ -30,6 +42,8 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     saveOutputEdited: unexpected,
     saveFinalizedAt: unexpected,
     setPipelineFinishedAt: unexpected,
+    finalizeExpiredReviews: unexpected,
+    countByUserAndType: unexpected,
     ...overrides,
   };
 }
@@ -62,19 +76,24 @@ function makeUseCase(args: {
   gate?: Completeness;
   runs: RunRepository;
   notifyQueued?: jest.Mock;
+  admitStart?: jest.Mock<Promise<GuestRunAdmit | null>>;
 }) {
   const completeness = {
     execute: jest.fn(async () => args.gate ?? { complete: true, missing: [] }),
   };
   const notifyQueued = args.notifyQueued ?? jest.fn();
+  const admitStart = args.admitStart ?? jest.fn(async () => null);
+  const guestPolicy = { admitStart } as unknown as GuestRunPolicyService;
   return {
     useCase: new StartRunUseCase(
       completeness as unknown as GetCompletenessUseCase,
       args.runs,
       { notifyQueued } as unknown as InProcessRunWorker,
+      guestPolicy,
     ),
     completeness,
     notifyQueued,
+    admitStart,
   };
 }
 
@@ -424,5 +443,55 @@ describe('StartRunUseCase', () => {
     expect(result.status).toBe('queued');
     expect(result.id).toBe(create.mock.calls[0][0].id);
     expect(result.conversationId).toBe(create.mock.calls[0][0].conversationId);
+  });
+
+  it('stores actor.id as startedByUserId and does not release after a successful create', async () => {
+    const created: RunRecord[] = [];
+    const release = jest.fn(async () => undefined);
+    const admitStart = jest.fn(async (): Promise<GuestRunAdmit> => ({
+      release,
+    }));
+    const { useCase } = makeUseCase({
+      runs: unusedRepo({
+        create: async (run) => {
+          created.push(run);
+        },
+        getById: async (id) => {
+          const run = created.find((row) => row.id === id);
+          return run ? asSnapshot(run) : null;
+        },
+      }),
+      admitStart,
+    });
+
+    await useCase.execute(validCommand(), ACTOR);
+
+    expect(admitStart).toHaveBeenCalledWith(ACTOR, 'post_ideas');
+    expect(created[0]?.startedByUserId).toBe(ACTOR.id);
+    expect(release).not.toHaveBeenCalled();
+  });
+
+  it('calls guestAdmit.release when create throws', async () => {
+    const release = jest.fn(async () => undefined);
+    const admitStart = jest.fn(async (): Promise<GuestRunAdmit> => ({
+      release,
+    }));
+    const persistError = new Error('persist failed');
+    const create = jest.fn(async () => {
+      throw persistError;
+    });
+    const { useCase, notifyQueued } = makeUseCase({
+      runs: unusedRepo({ create }),
+      admitStart,
+    });
+
+    await expect(useCase.execute(validCommand(), ACTOR)).rejects.toBe(
+      persistError,
+    );
+
+    expect(admitStart).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(notifyQueued).not.toHaveBeenCalled();
   });
 });

@@ -4,7 +4,8 @@ import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { RunAbortRegistry } from './run-abort.registry';
 import { RunLifecycleService } from './run-lifecycle.service';
 import { GetRunUseCase, type GetRunOutput } from './get-run.use-case';
-import type { RunId, UserId } from '@content-chain/shared';
+import type { AuthUserContext } from '../../shared/types/auth-user-context';
+import type { RunId } from '@content-chain/shared';
 
 @Injectable()
 export class CancelRunUseCase {
@@ -15,16 +16,16 @@ export class CancelRunUseCase {
     private readonly getRun: GetRunUseCase,
   ) {}
 
-  async execute(runId: RunId, actorId: UserId): Promise<GetRunOutput> {
+  async execute(runId: RunId, actor: AuthUserContext): Promise<GetRunOutput> {
     const snapshot = await this.runs.getById(runId);
     if (!snapshot) {
       throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
     }
-    if (snapshot.startedBy?.id !== actorId) {
+    if (snapshot.startedBy?.id !== actor.id) {
       throw new DomainException('FORBIDDEN', 'Access denied', 403);
     }
     if (snapshot.status === 'cancelled') {
-      return this.getRun.execute(runId);
+      return this.getRun.execute(runId, actor);
     }
     if (snapshot.status === 'completed' || snapshot.status === 'failed') {
       throw new DomainException(
@@ -39,7 +40,7 @@ export class CancelRunUseCase {
     if (!caseSucceeded) {
       const latest = await this.runs.getById(runId);
       if (latest?.status === 'cancelled') {
-        return this.getRun.execute(runId);
+        return this.getRun.execute(runId, actor);
       }
       throw new DomainException(
         'RUN_NOT_CANCELABLE',
@@ -59,6 +60,6 @@ export class CancelRunUseCase {
     });
     this.lifecycle.publishCancelled(runId);
 
-    return this.getRun.execute(runId);
+    return this.getRun.execute(runId, actor);
   }
 }

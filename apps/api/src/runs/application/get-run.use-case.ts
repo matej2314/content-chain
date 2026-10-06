@@ -13,6 +13,8 @@ import {
   type RunResultReader,
 } from '../domain/run-result-reader.port';
 import { parseWithZod } from '../../shared/parse-with-zod';
+import type { AuthUserContext } from '../../shared/types/auth-user-context';
+import { GuestRunPolicyService } from './guest-run-policy.service';
 import { runIdSchema } from './run.schemas';
 import type {
   ContentKind,
@@ -96,14 +98,16 @@ export class GetRunUseCase {
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
     @Inject(RUN_RESULT_READER) private readonly results: RunResultReader,
     @Inject(ENV) private readonly env: Env,
+    private readonly guestPolicy: GuestRunPolicyService,
   ) {}
 
-  async execute(runId: RunId): Promise<GetRunOutput> {
+  async execute(runId: RunId, actor: AuthUserContext): Promise<GetRunOutput> {
     const parsedRunId = parseWithZod(runIdSchema, runId);
     const run = await this.runs.getById(parsedRunId);
     if (!run) {
       throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
     }
+    this.guestPolicy.assertGuestOwnsRun(actor, run.startedByUserId);
 
     const [
       ideas,

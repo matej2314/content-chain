@@ -532,7 +532,7 @@ Role comes from DEMO_MODE at register time; GuestGuard default-deny keeps new ro
 
 ### KROK 1 — Port Redis quota + adapter `ioredis`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** INCR/DECR dziennych kluczy UTC; brak klienta gdy brak konfiguracji; **nie** wpinane w `health`/`ready`. B-11, R-12 pkt 3–6.
 
@@ -597,16 +597,18 @@ export class UnavailableGuestQuotaAdapter implements GuestQuotaPort {
 
 #### Nowy plik — `ioredis-guest-quota.adapter.ts`
 
+Składnia zgodna z `apps/api/src/runs/infrastructure/ioredis-guest-quota.adapter.ts` (Prettier / Nest `OnModuleDestroy` / import order). HOW bez zmian. Typ wyniku: `GuestQuotaAdmitResult`.
+
 ```typescript
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import Redis from 'ioredis';
-import type { UserId } from '@content-chain/shared';
 import { ENV, type Env } from '../../shared/config/env';
 import { resolveRedisStandalone } from '../../shared/config/redis-connection';
 import type {
   GuestQuotaAdmitResult,
   GuestQuotaPort,
 } from '../domain/guest-quota.port';
+import type { UserId } from '@content-chain/shared';
 
 const RUNS_PREFIX = 'content-chain:guest:daily:runs:';
 const RATINGS_PREFIX = 'content-chain:guest:daily:ratings:';
@@ -621,7 +623,7 @@ function utcDateKey(now: Date): string {
   return now.toISOString().slice(0, 10);
 }
 
-function msUntilNextUtcMidnight(now: Date): number {
+function msUntilNextMidnight(now: Date): number {
   const next = Date.UTC(
     now.getUTCFullYear(),
     now.getUTCMonth(),
@@ -633,7 +635,7 @@ function msUntilNextUtcMidnight(now: Date): number {
 function createRedis(env: Env): Redis {
   const standalone = resolveRedisStandalone(env);
   if (standalone === null) {
-    throw new Error('Redis configuration missing');
+    throw new Error('Redis configuration missing.');
   }
   if (standalone.kind === 'url') {
     return new Redis(standalone.url, REDIS_COMMAND_OPTIONS);
@@ -646,14 +648,16 @@ function createRedis(env: Env): Redis {
 }
 
 @Injectable()
-export class IoredisGuestQuotaAdapter implements GuestQuotaPort, OnModuleDestroy {
+export class IoredisGuestQuotaAdapter
+  implements GuestQuotaPort, OnModuleDestroy
+{
   private readonly redis: Redis;
 
-  constructor(@Inject(ENV) env: Env) {
+  constructor(@Inject(ENV) private readonly env: Env) {
     this.redis = createRedis(env);
   }
 
-  async onModuleDestroy(): Promise<void> {
+  onModuleDestroy(): void {
     this.redis.disconnect();
   }
 
@@ -692,7 +696,7 @@ export class IoredisGuestQuotaAdapter implements GuestQuotaPort, OnModuleDestroy
     try {
       const value = await this.redis.incr(key);
       if (value === 1) {
-        await this.redis.pexpire(key, msUntilNextUtcMidnight(now));
+        await this.redis.pexpire(key, msUntilNextMidnight(now));
       }
       if (value > cap) {
         await this.redis.decr(key);
@@ -744,7 +748,7 @@ Test adaptera: mock `Redis.prototype.incr` — `unavailable` przy throw; `exceed
 
 ### KROK 2 — `countByUserAndType` + `GuestRunPolicy` na `POST /runs`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Allowlista + COUNT wszystkie statusy + Redis **przed** `create` + DECR przy rollbacku. R-12, D-54 / D-58. Kolejność w start: walidacja → kompletność kontekstu → polityka guest → `create`.
 
@@ -935,7 +939,7 @@ Spec `start-run.use-case.spec.ts`: `makeUseCase` wstrzykuje fake policy (`admitS
 
 ### KROK 3 — Ownership detail / HITL / logs / SSE / cancel / feedback `run`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Guest czyta i mutuje **tylko własne** runy; lista instancji bez filtra. D-55 / D-61 / D-62. Cancel już sprawdza `startedBy` dla **wszystkich** ról — guest korzysta z tego. Admin nadal widzi cudzy detail.
 
@@ -993,7 +997,7 @@ Zaktualizować unit specy GetRun / logs / HITL / controller (nowy argument).
 
 ### KROK 4 — Soft cap rating (429, fail open)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** R-12 pkt 6, D-57. Ownership zostaje w `assertRunReviewable` (już `startedByUserId !== actorId` → 403).
 

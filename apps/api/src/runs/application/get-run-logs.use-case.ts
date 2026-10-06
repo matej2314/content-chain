@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { parseWithZod } from '../../shared/parse-with-zod';
+import type { AuthUserContext } from '../../shared/types/auth-user-context';
+import { GuestRunPolicyService } from './guest-run-policy.service';
 import { runIdSchema } from './run.schemas';
 import type { ConversationId, RunId } from '@content-chain/shared';
 import type { RunLogLevel } from '../domain/run.types';
@@ -19,14 +21,21 @@ export interface GetRunLogsOutput {
 
 @Injectable()
 export class GetRunLogsUseCase {
-  constructor(@Inject(RUN_REPOSITORY) private readonly runs: RunRepository) {}
+  constructor(
+    @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
+    private readonly guestPolicy: GuestRunPolicyService,
+  ) {}
 
-  async execute(runId: RunId): Promise<GetRunLogsOutput> {
+  async execute(
+    runId: RunId,
+    actor: AuthUserContext,
+  ): Promise<GetRunLogsOutput> {
     const parsedRunId = parseWithZod(runIdSchema, runId);
     const run = await this.runs.getById(parsedRunId);
     if (!run) {
       throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
     }
+    this.guestPolicy.assertGuestOwnsRun(actor, run.startedByUserId);
     const items = await this.runs.listLogs(parsedRunId);
     return {
       items: items.map((entry) => ({

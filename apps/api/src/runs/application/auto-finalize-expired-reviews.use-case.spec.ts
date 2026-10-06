@@ -31,6 +31,7 @@ function unusedRepo(overrides: Partial<RunRepository> = {}): RunRepository {
     saveFinalizedAt: unexpected,
     setPipelineFinishedAt: unexpected,
     finalizeExpiredReviews: unexpected,
+    countByUserAndType: unexpected,
     ...overrides,
   };
 }

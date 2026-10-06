@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { GetCompletenessUseCase } from '../../company-context/application/get-completeness.use-case';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
+import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { InProcessRunWorker } from './in-process-run.worker';
 import { parseWithZod } from '../../shared/parse-with-zod';
@@ -11,7 +12,6 @@ import {
 } from './run.schemas';
 import {
   isContentTaskType,
-  type UserId,
   type ContentKind,
   type ContentLanguage,
   type ContentTaskType,
@@ -23,6 +23,7 @@ import type {
   RunRecord,
   SocialRunRecord,
 } from '../domain/run.types';
+import { GuestRunPolicyService } from './guest-run-policy.service';
 
 export type StartRunBriefInput = {
   topic: string;
@@ -74,11 +75,12 @@ export class StartRunUseCase {
     private readonly completeness: GetCompletenessUseCase,
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
     private readonly worker: InProcessRunWorker,
+    private readonly guestPolicy: GuestRunPolicyService,
   ) {}
 
   async execute(
     command: StartRunCommand,
-    startedByUserId: UserId | null = null,
+    actor: AuthUserContext | null = null,
   ): Promise<Pick<RunRecord, 'id' | 'conversationId' | 'status'>> {
     const parsedCommand = parseWithZod(
       startRunCommandSchema,
@@ -93,6 +95,12 @@ export class StartRunUseCase {
         gate.missing.map((section) => ({ section })),
       );
     }
+
+    const guestAdmit =
+      actor === null
+        ? null
+        : await this.guestPolicy.admitStart(actor, parsedCommand.taskType);
+    const startedByUserId = actor?.id ?? null;
 
     let run: RunRecord;
     if (isContentStartCommand(parsedCommand)) {
@@ -138,7 +146,14 @@ export class StartRunUseCase {
         createdAt: new Date(),
       } satisfies SocialRunRecord;
     }
-    await this.runs.create(run);
+    try {
+      await this.runs.create(run);
+    } catch (error) {
+      if (guestAdmit !== null) {
+        await guestAdmit.release();
+      }
+      throw error;
+    }
     this.worker.notifyQueued();
     const fresh = await this.runs.getById(run.id);
     return {

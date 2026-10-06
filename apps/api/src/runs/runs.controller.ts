@@ -88,7 +88,7 @@ export class RunsController {
     @Body() body: StartRunDto,
     @CurrentUser() user: AuthUserContext,
   ) {
-    const result = await this.startRun.execute(body, user.id);
+    const result = await this.startRun.execute(body, user);
     return {
       runId: result.id,
       conversationId: result.conversationId,
@@ -98,16 +98,20 @@ export class RunsController {
 
   @AllowGuest()
   @Get(':runId/logs')
-  logs(@Param('runId', ParseRunIdPipe) runId: RunId) {
-    return this.getLogs.execute(runId);
+  logs(
+    @Param('runId', ParseRunIdPipe) runId: RunId,
+    @CurrentUser() user: AuthUserContext,
+  ) {
+    return this.getLogs.execute(runId, user);
   }
 
   @AllowGuest()
   @Sse(':runId/events')
   async events(
     @Param('runId', ParseRunIdPipe) runId: RunId,
+    @CurrentUser() user: AuthUserContext,
   ): Promise<Observable<MessageEvent>> {
-    const snapshot = await this.getRun.execute(runId);
+    const snapshot = await this.getRun.execute(runId, user);
     const snapshotEvent: RunSseEvent = {
       event: 'run.status',
       data: { runId, status: snapshot.status },
@@ -120,7 +124,7 @@ export class RunsController {
       return of(toMessage(snapshotEvent));
     }
 
-    const latest = await this.getRun.execute(runId);
+    const latest = await this.getRun.execute(runId, user);
     if (isTerminalStatus(latest.status)) {
       return of(
         toMessage({
@@ -147,8 +151,12 @@ export class RunsController {
   @AllowGuest()
   @Post(':runId/hitl')
   @HttpCode(202)
-  hitl(@Param('runId', ParseRunIdPipe) runId: RunId, @Body() body: HitlDto) {
-    return this.resumeHitl.execute(runId, body.selectedIdeaIds);
+  hitl(
+    @Param('runId', ParseRunIdPipe) runId: RunId,
+    @Body() body: HitlDto,
+    @CurrentUser() user: AuthUserContext,
+  ) {
+    return this.resumeHitl.execute(runId, body.selectedIdeaIds, user);
   }
 
   @AllowGuest()
@@ -181,8 +189,11 @@ export class RunsController {
 
   @AllowGuest()
   @Get(':runId')
-  get(@Param('runId', ParseRunIdPipe) runId: RunId) {
-    return this.getRun.execute(runId);
+  get(
+    @Param('runId', ParseRunIdPipe) runId: RunId,
+    @CurrentUser() user: AuthUserContext,
+  ) {
+    return this.getRun.execute(runId, user);
   }
 
   @AllowGuest()
@@ -222,6 +233,6 @@ export class RunsController {
     @Param('runId', ParseRunIdPipe) runId: RunId,
     @CurrentUser() user: AuthUserContext,
   ) {
-    return this.cancelRun.execute(runId, user.id);
+    return this.cancelRun.execute(runId, user);
   }
 }

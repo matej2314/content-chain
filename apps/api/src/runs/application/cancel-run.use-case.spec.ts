@@ -7,6 +7,7 @@ import {
   type UserId,
 } from '@content-chain/shared';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
+import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import { makeSocialSnapshot } from '../run-record.test-helpers';
 import { CancelRunUseCase } from './cancel-run.use-case';
@@ -14,12 +15,13 @@ import type { GetRunOutput, GetRunUseCase } from './get-run.use-case';
 import type { RunAbortRegistry } from './run-abort.registry';
 import type { RunLifecycleService } from './run-lifecycle.service';
 
-const ACTOR: UserId = createUserId(
-  'usr_11111111-1111-4111-8111-111111111111',
-);
-const OTHER: UserId = createUserId(
-  'usr_22222222-2222-4222-8222-222222222222',
-);
+const ACTOR: UserId = createUserId('usr_11111111-1111-4111-8111-111111111111');
+const OTHER: UserId = createUserId('usr_22222222-2222-4222-8222-222222222222');
+const ACTOR_USER: AuthUserContext = {
+  id: ACTOR,
+  email: 'user@example.com',
+  role: 'user',
+};
 
 function unusedRepo(overrides: Partial<RunRepository> = {}): RunRepository {
   const unexpected = async () => {
@@ -45,13 +47,13 @@ function unusedRepo(overrides: Partial<RunRepository> = {}): RunRepository {
     saveOutputEdited: unexpected,
     saveFinalizedAt: unexpected,
     setPipelineFinishedAt: unexpected,
+    finalizeExpiredReviews: unexpected,
+    countByUserAndType: unexpected,
     ...overrides,
   };
 }
 
-function makeGetRunOutput(
-  overrides: Partial<GetRunOutput> = {},
-): GetRunOutput {
+function makeGetRunOutput(overrides: Partial<GetRunOutput> = {}): GetRunOutput {
   const runId = overrides.runId ?? newRunId();
   const conversationId: ConversationId =
     overrides.conversationId ?? newConversationId();
@@ -87,10 +89,7 @@ function makeGetRunOutput(
   };
 }
 
-function asRepoSnapshot(
-  output: GetRunOutput,
-  status: RunStatus,
-): RunSnapshot {
+function asRepoSnapshot(output: GetRunOutput, status: RunStatus): RunSnapshot {
   const startedById = output.startedBy?.id;
   return makeSocialSnapshot({
     id: output.runId,
@@ -107,13 +106,15 @@ function asRepoSnapshot(
   });
 }
 
-function setup(args: {
-  getRunOutputs?: GetRunOutput[];
-  attemptCancelResult?: boolean;
-  latestAfterCas?: RunSnapshot | null;
-  /** Initial repo snapshot for first getById; defaults from getRunOutputs[0]. */
-  initialSnapshot?: RunSnapshot | null;
-} = {}) {
+function setup(
+  args: {
+    getRunOutputs?: GetRunOutput[];
+    attemptCancelResult?: boolean;
+    latestAfterCas?: RunSnapshot | null;
+    /** Initial repo snapshot for first getById; defaults from getRunOutputs[0]. */
+    initialSnapshot?: RunSnapshot | null;
+  } = {},
+) {
   const setCancelRequested = jest.fn(async (_id: RunId): Promise<void> => {});
   const attemptCancel = jest.fn(
     async (_id: RunId, _at: Date): Promise<boolean> =>
@@ -130,31 +131,31 @@ function setup(args: {
         : null;
 
   let getByIdCall = 0;
-  const getById = jest.fn(
-    async (_id: RunId): Promise<RunSnapshot | null> => {
-      getByIdCall += 1;
-      if (getByIdCall === 1) {
-        return initialSnapshot;
-      }
-      if (args.latestAfterCas !== undefined) {
-        return args.latestAfterCas;
-      }
+  const getById = jest.fn(async (_id: RunId): Promise<RunSnapshot | null> => {
+    getByIdCall += 1;
+    if (getByIdCall === 1) {
       return initialSnapshot;
-    },
-  );
+    }
+    if (args.latestAfterCas !== undefined) {
+      return args.latestAfterCas;
+    }
+    return initialSnapshot;
+  });
   const requestCancel = jest.fn((_id: RunId): void => {});
   const appendLog = jest.fn(async (): Promise<void> => {});
   const publishCancelled = jest.fn((_id: RunId): void => {});
 
   let getRunCall = 0;
-  const getRunExecute = jest.fn(async (_runId: RunId): Promise<GetRunOutput> => {
-    const next = outputs[getRunCall] ?? outputs[outputs.length - 1];
-    getRunCall += 1;
-    if (!next) {
-      throw new Error('getRun mock exhausted');
-    }
-    return next;
-  });
+  const getRunExecute = jest.fn(
+    async (_runId: RunId, _actor: AuthUserContext): Promise<GetRunOutput> => {
+      const next = outputs[getRunCall] ?? outputs[outputs.length - 1];
+      getRunCall += 1;
+      if (!next) {
+        throw new Error('getRun mock exhausted');
+      }
+      return next;
+    },
+  );
 
   const useCase = new CancelRunUseCase(
     unusedRepo({
@@ -201,7 +202,7 @@ describe('CancelRunUseCase', () => {
       initialSnapshot: asRepoSnapshot(initial, 'running'),
     });
 
-    await expect(useCase.execute(initial.runId, ACTOR)).resolves.toEqual(
+    await expect(useCase.execute(initial.runId, ACTOR_USER)).resolves.toEqual(
       cancelled,
     );
 
@@ -217,6 +218,7 @@ describe('CancelRunUseCase', () => {
     });
     expect(publishCancelled).toHaveBeenCalledWith(initial.runId);
     expect(getRunExecute).toHaveBeenCalledTimes(1);
+    expect(getRunExecute).toHaveBeenCalledWith(initial.runId, ACTOR_USER);
   });
 
   it('already cancelled: returns snapshot without persist, abort, or cancel log', async () => {
@@ -234,7 +236,7 @@ describe('CancelRunUseCase', () => {
       getRunExecute,
     } = setup({ getRunOutputs: [cancelled] });
 
-    await expect(useCase.execute(cancelled.runId, ACTOR)).resolves.toEqual(
+    await expect(useCase.execute(cancelled.runId, ACTOR_USER)).resolves.toEqual(
       cancelled,
     );
 
@@ -259,7 +261,9 @@ describe('CancelRunUseCase', () => {
       getRunExecute,
     } = setup({ getRunOutputs: [initial] });
 
-    await expect(useCase.execute(initial.runId, ACTOR)).rejects.toMatchObject({
+    await expect(
+      useCase.execute(initial.runId, ACTOR_USER),
+    ).rejects.toMatchObject({
       name: 'DomainException',
       code: 'FORBIDDEN',
       httpStatus: 403,
@@ -277,7 +281,9 @@ describe('CancelRunUseCase', () => {
       const { useCase, setCancelRequested, attemptCancel, requestCancel } =
         setup({ getRunOutputs: [initial] });
 
-      await expect(useCase.execute(initial.runId, ACTOR)).rejects.toMatchObject({
+      await expect(
+        useCase.execute(initial.runId, ACTOR_USER),
+      ).rejects.toMatchObject({
         name: 'DomainException',
         code: 'RUN_NOT_CANCELABLE',
         httpStatus: 409,
@@ -312,7 +318,7 @@ describe('CancelRunUseCase', () => {
       latestAfterCas: asRepoSnapshot(cancelled, 'cancelled'),
     });
 
-    await expect(useCase.execute(initial.runId, ACTOR)).resolves.toEqual(
+    await expect(useCase.execute(initial.runId, ACTOR_USER)).resolves.toEqual(
       cancelled,
     );
 
@@ -342,7 +348,9 @@ describe('CancelRunUseCase', () => {
       latestAfterCas: asRepoSnapshot(initial, 'completed'),
     });
 
-    await expect(useCase.execute(initial.runId, ACTOR)).rejects.toMatchObject({
+    await expect(
+      useCase.execute(initial.runId, ACTOR_USER),
+    ).rejects.toMatchObject({
       name: 'DomainException',
       code: 'RUN_NOT_CANCELABLE',
       httpStatus: 409,
@@ -364,7 +372,7 @@ describe('CancelRunUseCase', () => {
       },
     );
 
-    await expect(useCase.execute(runId, ACTOR)).rejects.toMatchObject({
+    await expect(useCase.execute(runId, ACTOR_USER)).rejects.toMatchObject({
       name: 'DomainException',
       code: 'RUN_NOT_FOUND',
       httpStatus: 404,

@@ -1,4 +1,8 @@
 import type { PageOutline } from '../../content/domain/content.types';
+import { createUserId } from '@content-chain/shared';
+import type { Env } from '../../shared/config/env';
+import type { AuthUserContext } from '../../shared/types/auth-user-context';
+import type { GuestQuotaPort } from '../domain/guest-quota.port';
 import type { RunResultReader } from '../domain/run-result-reader.port';
 import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import type { RunRecord } from '../domain/run.types';
@@ -6,6 +10,7 @@ import { makeContentRun, makeSocialRun } from '../run-record.test-helpers';
 import type { ReelIdea, SocialIdea } from '../../social/domain/social.types';
 import type { InProcessRunWorker } from './in-process-run.worker';
 import type { RunLifecycleService } from './run-lifecycle.service';
+import { GuestRunPolicyService } from './guest-run-policy.service';
 import { ResumeHitlUseCase } from './resume-hitl.use-case';
 
 const outline: PageOutline = {
@@ -43,6 +48,26 @@ const hitlInvalidSelection = {
   message: 'selectedIdeaIds must be a non-empty unique subset of hitl draft',
 } as const;
 
+const ADMIN: AuthUserContext = {
+  id: createUserId('usr_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  email: 'admin@example.com',
+  role: 'admin',
+};
+const GUEST: AuthUserContext = {
+  id: createUserId('usr_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
+  email: 'guest@example.com',
+  role: 'guest',
+};
+const OTHER_ID = createUserId('usr_cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+
+function makeGuestPolicy(): GuestRunPolicyService {
+  return new GuestRunPolicyService(
+    {} as Env,
+    {} as RunRepository,
+    {} as GuestQuotaPort,
+  );
+}
+
 function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
   const unexpected = async () => {
     throw new Error('unexpected repository call');
@@ -67,6 +92,8 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     saveOutputEdited: unexpected,
     saveFinalizedAt: unexpected,
     setPipelineFinishedAt: unexpected,
+    finalizeExpiredReviews: unexpected,
+    countByUserAndType: unexpected,
     ...overrides,
   };
 }
@@ -121,6 +148,7 @@ function makeUseCase(args: {
     { notifyHitlResumed } as unknown as InProcessRunWorker,
     { transition } as unknown as RunLifecycleService,
     args.reader ?? fakeReader(),
+    makeGuestPolicy(),
   );
   return { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition };
 }
@@ -138,7 +166,7 @@ describe('ResumeHitlUseCase', () => {
       });
 
     await expect(
-      useCase.execute(run.id, ['not-the-outline-id']),
+      useCase.execute(run.id, ['not-the-outline-id'], ADMIN),
     ).rejects.toMatchObject({
       name: 'DomainException',
       code: 'HITL_INVALID_SELECTION',
@@ -159,7 +187,9 @@ describe('ResumeHitlUseCase', () => {
     const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
       makeUseCase({ run });
 
-    await expect(useCase.execute(run.id, [outline.id])).rejects.toMatchObject({
+    await expect(
+      useCase.execute(run.id, [outline.id], ADMIN),
+    ).rejects.toMatchObject({
       name: 'DomainException',
       code: 'CONFLICT',
       httpStatus: 409,
@@ -181,10 +211,12 @@ describe('ResumeHitlUseCase', () => {
         reader: fakeReader({ getPageOutline: async () => outline }),
       });
 
-    await expect(useCase.execute(run.id, [outline.id])).resolves.toEqual({
-      runId: run.id,
-      status: 'running',
-    });
+    await expect(useCase.execute(run.id, [outline.id], ADMIN)).resolves.toEqual(
+      {
+        runId: run.id,
+        status: 'running',
+      },
+    );
 
     expect(saveSelectedIdeaIds).toHaveBeenCalledWith(run.id, [outline.id]);
     expect(transition).toHaveBeenCalledWith(asSnapshot(run), 'running');
@@ -206,7 +238,7 @@ describe('ResumeHitlUseCase', () => {
         reader: fakeReader({ listIdeas: async () => socialIdeas }),
       });
 
-    await expect(useCase.execute(run.id, [])).rejects.toMatchObject(
+    await expect(useCase.execute(run.id, [], ADMIN)).rejects.toMatchObject(
       hitlInvalidSelection,
     );
 
@@ -227,7 +259,7 @@ describe('ResumeHitlUseCase', () => {
       });
 
     await expect(
-      useCase.execute(run.id, ['idea_1', 'idea_1']),
+      useCase.execute(run.id, ['idea_1', 'idea_1'], ADMIN),
     ).rejects.toMatchObject(hitlInvalidSelection);
 
     expect(saveSelectedIdeaIds).not.toHaveBeenCalled();
@@ -247,7 +279,7 @@ describe('ResumeHitlUseCase', () => {
       });
 
     await expect(
-      useCase.execute(run.id, ['not-in-draft']),
+      useCase.execute(run.id, ['not-in-draft'], ADMIN),
     ).rejects.toMatchObject(hitlInvalidSelection);
 
     expect(saveSelectedIdeaIds).not.toHaveBeenCalled();
@@ -270,7 +302,7 @@ describe('ResumeHitlUseCase', () => {
         }),
       });
 
-    await expect(useCase.execute(run.id, ['idea_1'])).resolves.toEqual({
+    await expect(useCase.execute(run.id, ['idea_1'], ADMIN)).resolves.toEqual({
       runId: run.id,
       status: 'running',
     });
@@ -297,7 +329,9 @@ describe('ResumeHitlUseCase', () => {
         reader: fakeReader({ listIdeas: async () => socialIdeas }),
       });
 
-    await expect(useCase.execute(run.id, selectedIdeaIds)).resolves.toEqual({
+    await expect(
+      useCase.execute(run.id, selectedIdeaIds, ADMIN),
+    ).resolves.toEqual({
       runId: run.id,
       status: 'running',
     });
@@ -327,7 +361,7 @@ describe('ResumeHitlUseCase', () => {
       });
 
     await expect(
-      useCase.execute(run.id, ['idea_1', 'idea_2']),
+      useCase.execute(run.id, ['idea_1', 'idea_2'], ADMIN),
     ).resolves.toEqual({
       runId: run.id,
       status: 'running',
@@ -344,5 +378,49 @@ describe('ResumeHitlUseCase', () => {
       status: 'running',
       selectedIdeaIds: ['idea_1', 'idea_2'],
     });
+  });
+
+  it('allows a guest to resume HITL on their own run', async () => {
+    const run = makeContentRun({
+      status: 'awaiting_hitl',
+      taskType: 'page_outline_then_copy',
+      startedByUserId: GUEST.id,
+    });
+    const { useCase, saveSelectedIdeaIds } = makeUseCase({
+      run,
+      reader: fakeReader({ getPageOutline: async () => outline }),
+    });
+
+    await expect(useCase.execute(run.id, [outline.id], GUEST)).resolves.toEqual(
+      {
+        runId: run.id,
+        status: 'running',
+      },
+    );
+    expect(saveSelectedIdeaIds).toHaveBeenCalledWith(run.id, [outline.id]);
+  });
+
+  it('rejects a guest HITL on a foreign run with FORBIDDEN before persist', async () => {
+    const run = makeContentRun({
+      status: 'awaiting_hitl',
+      taskType: 'page_outline_then_copy',
+      startedByUserId: OTHER_ID,
+    });
+    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+      makeUseCase({
+        run,
+        reader: fakeReader({ getPageOutline: async () => outline }),
+      });
+
+    await expect(
+      useCase.execute(run.id, [outline.id], GUEST),
+    ).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'FORBIDDEN',
+      httpStatus: 403,
+    });
+    expect(saveSelectedIdeaIds).not.toHaveBeenCalled();
+    expect(transition).not.toHaveBeenCalled();
+    expect(notifyHitlResumed).not.toHaveBeenCalled();
   });
 });

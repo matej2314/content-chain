@@ -8,6 +8,8 @@ import {
 import { InProcessRunWorker } from './in-process-run.worker';
 import { RunLifecycleService } from './run-lifecycle.service';
 import { parseWithZod } from '../../shared/parse-with-zod';
+import type { AuthUserContext } from '../../shared/types/auth-user-context';
+import { GuestRunPolicyService } from './guest-run-policy.service';
 import { runIdSchema, hitlSelectedIdeaIdsSchema } from './run.schemas';
 import type { RunId } from '@content-chain/shared';
 
@@ -18,9 +20,14 @@ export class ResumeHitlUseCase {
     private readonly worker: InProcessRunWorker,
     private readonly lifeCycle: RunLifecycleService,
     @Inject(RUN_RESULT_READER) private readonly results: RunResultReader,
+    private readonly guestPolicy: GuestRunPolicyService,
   ) {}
 
-  async execute(runId: RunId, selectedIdeaIds: string[]) {
+  async execute(
+    runId: RunId,
+    selectedIdeaIds: string[],
+    actor: AuthUserContext,
+  ) {
     const parsedRunId = parseWithZod(runIdSchema, runId);
     const parsedSelectedIdeaIds = parseWithZod(
       hitlSelectedIdeaIdsSchema,
@@ -30,6 +37,7 @@ export class ResumeHitlUseCase {
     if (!run) {
       throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
     }
+    this.guestPolicy.assertGuestOwnsRun(actor, run.startedByUserId);
     if (run.status !== 'awaiting_hitl') {
       throw new DomainException(
         'HITL_REQUIRED',

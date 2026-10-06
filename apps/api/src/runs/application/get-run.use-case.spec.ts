@@ -1,10 +1,14 @@
+import { createUserId } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import type { Env } from '../../shared/config/env';
 import { newRunId } from '../../shared/http/new-ids';
+import type { AuthUserContext } from '../../shared/types/auth-user-context';
+import type { GuestQuotaPort } from '../domain/guest-quota.port';
 import type { RunResultReader } from '../domain/run-result-reader.port';
 import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import type { RunRecord, SocialRunRecord } from '../domain/run.types';
 import { makeContentRun, makeSocialRun } from '../run-record.test-helpers';
+import { GuestRunPolicyService } from './guest-run-policy.service';
 import type {
   PageDocument,
   PageOutline,
@@ -47,6 +51,25 @@ const reelScript: ReelScript = {
 const TEST_ENV = { REVIEW_TTL: '2h' } as Env;
 const ANCHOR = new Date('2026-09-30T10:00:00.000Z');
 const EXPIRES_ISO = '2026-09-30T12:00:00.000Z';
+const ADMIN: AuthUserContext = {
+  id: createUserId('usr_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  email: 'admin@example.com',
+  role: 'admin',
+};
+const GUEST: AuthUserContext = {
+  id: createUserId('usr_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
+  email: 'guest@example.com',
+  role: 'guest',
+};
+const OTHER_ID = createUserId('usr_cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+
+function makeGuestPolicy(): GuestRunPolicyService {
+  return new GuestRunPolicyService(
+    {} as Env,
+    {} as RunRepository,
+    {} as GuestQuotaPort,
+  );
+}
 
 function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
   const unexpected = async () => {
@@ -72,6 +95,8 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     saveOutputEdited: unexpected,
     saveFinalizedAt: unexpected,
     setPipelineFinishedAt: unexpected,
+    finalizeExpiredReviews: unexpected,
+    countByUserAndType: unexpected,
     ...overrides,
   };
 }
@@ -133,7 +158,7 @@ function makeUseCase(
   repo: RunRepository,
   reader: RunResultReader = fakeReader(),
 ): GetRunUseCase {
-  return new GetRunUseCase(repo, reader, TEST_ENV);
+  return new GetRunUseCase(repo, reader, TEST_ENV, makeGuestPolicy());
 }
 
 const openReviewMeta = {
@@ -153,7 +178,7 @@ describe('GetRunUseCase', () => {
       unusedRepo({ getById: async () => asSnapshot(run) }),
     );
 
-    await expect(useCase.execute(run.id)).resolves.toEqual({
+    await expect(useCase.execute(run.id, ADMIN)).resolves.toEqual({
       runId: run.id,
       taskType: run.taskType,
       platform: run.platform,
@@ -195,7 +220,7 @@ describe('GetRunUseCase', () => {
       }),
     );
 
-    await expect(useCase.execute(run.id)).resolves.toEqual({
+    await expect(useCase.execute(run.id, ADMIN)).resolves.toEqual({
       runId: run.id,
       taskType: 'reel_ideas_then_scripts',
       platform: run.platform,
@@ -231,7 +256,7 @@ describe('GetRunUseCase', () => {
       unusedRepo({ getById: async () => asSnapshot(run) }),
     );
 
-    const snapshot = await useCase.execute(run.id);
+    const snapshot = await useCase.execute(run.id, ADMIN);
     expect(snapshot.hitl).toBeNull();
     expect(snapshot.result).toEqual({
       ideas,
@@ -263,7 +288,7 @@ describe('GetRunUseCase', () => {
       }),
     );
 
-    const snapshot = await useCase.execute(run.id);
+    const snapshot = await useCase.execute(run.id, ADMIN);
     expect(snapshot.result).toEqual({
       ideas,
       content: null,
@@ -300,7 +325,7 @@ describe('GetRunUseCase', () => {
       }),
     );
 
-    const snapshot = await useCase.execute(run.id);
+    const snapshot = await useCase.execute(run.id, ADMIN);
     expect(snapshot.result.content).toBeNull();
     expect(snapshot.result.contents).toEqual([second, first]);
     expect(snapshot.result.contents).toHaveLength(2);
@@ -321,7 +346,7 @@ describe('GetRunUseCase', () => {
       }),
     );
 
-    const snapshot = await useCase.execute(run.id);
+    const snapshot = await useCase.execute(run.id, ADMIN);
     expect(snapshot.result).toEqual({
       ideas: [],
       content: null,
@@ -358,7 +383,7 @@ describe('GetRunUseCase', () => {
       }),
     );
 
-    const snapshot = await useCase.execute(run.id);
+    const snapshot = await useCase.execute(run.id, ADMIN);
     expect(snapshot.result.reelScript).toBeNull();
     expect(snapshot.result.reelScripts).toEqual([scriptIdea1, scriptIdea2]);
     expect(snapshot.result.reelScripts[0]?.sourceIdeaId).toBe('idea_1');
@@ -383,7 +408,7 @@ describe('GetRunUseCase', () => {
       }),
     );
 
-    const snapshot = await useCase.execute(run.id);
+    const snapshot = await useCase.execute(run.id, ADMIN);
     expect(snapshot.result).toEqual({
       ideas,
       content,
@@ -416,7 +441,7 @@ describe('GetRunUseCase', () => {
       }),
     );
 
-    await expect(useCase.execute(run.id)).resolves.toEqual({
+    await expect(useCase.execute(run.id, ADMIN)).resolves.toEqual({
       runId: run.id,
       taskType: 'page_outline_then_copy',
       platform: 'web',
@@ -468,7 +493,7 @@ describe('GetRunUseCase', () => {
       }),
     );
 
-    const snapshot = await useCase.execute(run.id);
+    const snapshot = await useCase.execute(run.id, ADMIN);
     expect(snapshot.result).toEqual({
       ideas: [],
       content: null,
@@ -492,7 +517,7 @@ describe('GetRunUseCase', () => {
       }),
     );
 
-    const snapshot = await useCase.execute(run.id);
+    const snapshot = await useCase.execute(run.id, ADMIN);
     expect(snapshot.reviewFinalizedAt).toBeNull();
     expect(snapshot.pipelineFinishedAt).toBe(openReviewMeta.pipelineFinishedAt);
     expect(snapshot.reviewExpiresAt).toBe(openReviewMeta.reviewExpiresAt);
@@ -511,7 +536,7 @@ describe('GetRunUseCase', () => {
       }),
     );
 
-    const snapshot = await useCase.execute(run.id);
+    const snapshot = await useCase.execute(run.id, ADMIN);
     expect(snapshot.reviewFinalizedAt).toBeNull();
     expect(snapshot.pipelineFinishedAt).toBe(expiredAnchor.toISOString());
     expect(snapshot.reviewExpiresAt).toBe('2026-09-30T10:00:00.000Z');
@@ -530,7 +555,7 @@ describe('GetRunUseCase', () => {
       }),
     );
 
-    const snapshot = await useCase.execute(run.id);
+    const snapshot = await useCase.execute(run.id, ADMIN);
     expect(snapshot.reviewFinalizedAt).toBe(finalizedAt.toISOString());
     expect(snapshot.pipelineFinishedAt).toBe(ANCHOR.toISOString());
     expect(snapshot.reviewExpiresAt).toBeNull();
@@ -552,7 +577,7 @@ describe('GetRunUseCase', () => {
       }),
     );
 
-    await useCase.execute(run.id);
+    await useCase.execute(run.id, ADMIN);
     expect(saveRating).not.toHaveBeenCalled();
     expect(saveOutputEdited).not.toHaveBeenCalled();
     expect(saveFinalizedAt).not.toHaveBeenCalled();
@@ -562,11 +587,51 @@ describe('GetRunUseCase', () => {
   it('throws RUN_NOT_FOUND when the run is missing', async () => {
     const useCase = makeUseCase(unusedRepo({ getById: async () => null }));
 
-    await expect(useCase.execute(newRunId())).rejects.toBeInstanceOf(
+    await expect(useCase.execute(newRunId(), ADMIN)).rejects.toBeInstanceOf(
       DomainException,
     );
-    await expect(useCase.execute(newRunId())).rejects.toMatchObject({
+    await expect(useCase.execute(newRunId(), ADMIN)).rejects.toMatchObject({
       code: 'RUN_NOT_FOUND',
+    });
+  });
+
+  it('allows a guest to read their own run', async () => {
+    const run = makeRun('completed', { startedByUserId: GUEST.id });
+    const useCase = makeUseCase(
+      unusedRepo({ getById: async () => asSnapshot(run) }),
+    );
+
+    await expect(useCase.execute(run.id, GUEST)).resolves.toMatchObject({
+      runId: run.id,
+      status: 'completed',
+    });
+  });
+
+  it('rejects a guest reading a foreign run with FORBIDDEN before loading results', async () => {
+    const run = makeRun('completed', { startedByUserId: OTHER_ID });
+    const listIdeas = jest.fn(async () => ideas);
+    const useCase = makeUseCase(
+      unusedRepo({ getById: async () => asSnapshot(run) }),
+      fakeReader({ listIdeas }),
+    );
+
+    await expect(useCase.execute(run.id, GUEST)).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'FORBIDDEN',
+      httpStatus: 403,
+    });
+    expect(listIdeas).not.toHaveBeenCalled();
+  });
+
+  it('lets an admin read a run started by someone else', async () => {
+    const run = makeRun('completed', { startedByUserId: OTHER_ID });
+    const useCase = makeUseCase(
+      unusedRepo({ getById: async () => asSnapshot(run) }),
+    );
+
+    await expect(useCase.execute(run.id, ADMIN)).resolves.toMatchObject({
+      runId: run.id,
+      status: 'completed',
     });
   });
 });

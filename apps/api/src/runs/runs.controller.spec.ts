@@ -131,7 +131,9 @@ describe('RunsController', () => {
     ).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.cancel)).toBeUndefined();
 
-    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, RunsController)).toBeUndefined();
+    expect(
+      Reflect.getMetadata(ALLOW_GUEST_KEY, RunsController),
+    ).toBeUndefined();
     expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.create)).toBe(true);
     expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.logs)).toBe(true);
     expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.events)).toBe(true);
@@ -244,7 +246,7 @@ describe('RunsController', () => {
       conversationId,
       status: 'queued',
     });
-    expect(startRun.execute).toHaveBeenCalledWith(body, sessionUser.id);
+    expect(startRun.execute).toHaveBeenCalledWith(body, sessionUser);
   });
 
   it('delegates GET :runId to GetRunUseCase', async () => {
@@ -256,8 +258,8 @@ describe('RunsController', () => {
     };
     getRun.execute.mockResolvedValue(snapshot);
 
-    await expect(controller.get(runId)).resolves.toBe(snapshot);
-    expect(getRun.execute).toHaveBeenCalledWith(runId);
+    await expect(controller.get(runId, sessionUser)).resolves.toBe(snapshot);
+    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser);
   });
 
   it('delegates GET :runId/logs to GetRunLogsUseCase', async () => {
@@ -265,8 +267,8 @@ describe('RunsController', () => {
     const logs = { items: [] };
     getLogs.execute.mockResolvedValue(logs);
 
-    await expect(controller.logs(runId)).resolves.toBe(logs);
-    expect(getLogs.execute).toHaveBeenCalledWith(runId);
+    await expect(controller.logs(runId, sessionUser)).resolves.toBe(logs);
+    expect(getLogs.execute).toHaveBeenCalledWith(runId, sessionUser);
   });
 
   it('delegates POST :runId/hitl with selectedIdeaIds', async () => {
@@ -275,10 +277,13 @@ describe('RunsController', () => {
     resumeHitl.execute.mockResolvedValue(result);
 
     const body: HitlDto = { selectedIdeaIds: ['idea-1', 'idea-2'] };
-    await expect(controller.hitl(runId, body)).resolves.toBe(result);
+    await expect(controller.hitl(runId, body, sessionUser)).resolves.toBe(
+      result,
+    );
     expect(resumeHitl.execute).toHaveBeenCalledWith(
       runId,
       body.selectedIdeaIds,
+      sessionUser,
     );
   });
 
@@ -340,7 +345,7 @@ describe('RunsController', () => {
     await expect(controller.cancel(runId, sessionUser)).resolves.toBe(
       cancelled,
     );
-    expect(cancelRun.execute).toHaveBeenCalledWith(runId, sessionUser.id);
+    expect(cancelRun.execute).toHaveBeenCalledWith(runId, sessionUser);
   });
 
   it('startWith emits latest status, not the earlier snapshot', async () => {
@@ -350,7 +355,7 @@ describe('RunsController', () => {
       .mockResolvedValueOnce({ runId, status: 'running' });
     sse.subscribe.mockReturnValue(of());
 
-    const stream = await controller.events(runId);
+    const stream = await controller.events(runId, sessionUser);
     const events = await firstValueFrom(stream.pipe(take(1), toArray()));
 
     expect(getRun.execute).toHaveBeenCalledTimes(2);
@@ -366,7 +371,7 @@ describe('RunsController', () => {
     getRun.execute.mockResolvedValue({ runId, status: 'running' });
     sse.subscribe.mockReturnValue(NEVER);
 
-    const stream = await controller.events(runId);
+    const stream = await controller.events(runId, sessionUser);
     const collected: Array<{ type?: string; data?: unknown }> = [];
     const sub = stream.subscribe((event) => collected.push(event));
 
@@ -392,7 +397,7 @@ describe('RunsController', () => {
     const hub$ = new Subject<RunSseEvent>();
     sse.subscribe.mockReturnValue(hub$.asObservable());
 
-    const stream = await controller.events(runId);
+    const stream = await controller.events(runId, sessionUser);
     const collected: Array<{ type?: string; data?: unknown }> = [];
     let completed = false;
     stream.subscribe({
@@ -437,11 +442,11 @@ describe('RunsController', () => {
     };
     sse.subscribe.mockReturnValue(of(live));
 
-    const stream = await controller.events(runId);
+    const stream = await controller.events(runId, sessionUser);
     const events = await firstValueFrom(stream.pipe(take(2), toArray()));
 
     expect(getRun.execute).toHaveBeenCalledTimes(2);
-    expect(getRun.execute).toHaveBeenCalledWith(runId);
+    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser);
     expect(sse.subscribe).toHaveBeenCalledWith(runId);
     expect(sse.complete).not.toHaveBeenCalled();
     expect(events).toEqual([
@@ -457,11 +462,11 @@ describe('RunsController', () => {
       status: 'completed',
     });
 
-    const stream = await controller.events(runId);
+    const stream = await controller.events(runId, sessionUser);
     const events = await firstValueFrom(stream.pipe(toArray()));
 
     expect(getRun.execute).toHaveBeenCalledTimes(1);
-    expect(getRun.execute).toHaveBeenCalledWith(runId);
+    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser);
     expect(sse.subscribe).not.toHaveBeenCalled();
     expect(sse.complete).not.toHaveBeenCalled();
     expect(events).toEqual([
@@ -476,7 +481,7 @@ describe('RunsController', () => {
       status: 'failed',
     });
 
-    const stream = await controller.events(runId);
+    const stream = await controller.events(runId, sessionUser);
     await firstValueFrom(stream.pipe(toArray()));
 
     expect(sse.subscribe).not.toHaveBeenCalled();
@@ -491,7 +496,7 @@ describe('RunsController', () => {
     });
     sse.subscribe.mockReturnValue(of());
 
-    await controller.events(runId);
+    await controller.events(runId, sessionUser);
 
     expect(sse.subscribe).toHaveBeenCalledWith(runId);
     expect(sse.complete).not.toHaveBeenCalled();
@@ -503,7 +508,7 @@ describe('RunsController', () => {
       .mockResolvedValueOnce({ runId, status: 'running' })
       .mockResolvedValueOnce({ runId, status: 'completed' });
 
-    const stream = await controller.events(runId);
+    const stream = await controller.events(runId, sessionUser);
     const events = await firstValueFrom(stream.pipe(toArray()));
 
     expect(getRun.execute).toHaveBeenCalledTimes(2);
@@ -521,11 +526,11 @@ describe('RunsController', () => {
       status: 'cancelled',
     });
 
-    const stream = await controller.events(runId);
+    const stream = await controller.events(runId, sessionUser);
     const events = await firstValueFrom(stream.pipe(toArray()));
 
     expect(getRun.execute).toHaveBeenCalledTimes(1);
-    expect(getRun.execute).toHaveBeenCalledWith(runId);
+    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser);
     expect(sse.subscribe).not.toHaveBeenCalled();
     expect(sse.complete).not.toHaveBeenCalled();
     expect(events).toEqual([

@@ -68,4 +68,5 @@ export interface RunRepository {
   /** Sets once (WHERE pipelineFinishedAt IS NULL). No-op if already set. */
   setPipelineFinishedAt(id: RunId, at: Date): Promise<void>;
   finalizeExpiredReviews(now: Date, reviewTtlMs: number): Promise<number>;
+  countByUserAndType(userId: UserId, taskType: RunTaskType): Promise<number>;
 }

@@ -6,11 +6,13 @@ import {
   type OptionalFactoryDependency,
 } from '@nestjs/common';
 import { CompanyContextModule } from '../company-context/company-context.module';
+import { GuestQuotaModule } from './guest-quota.module';
 import { InProcessRunWorker } from './application/in-process-run.worker';
 import { RecoverInterruptedRunsUseCase } from './application/recover-interrupted-runs.use-case';
 import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
 import { GetRunUseCase } from './application/get-run.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
+import { GuestRunPolicyService } from './application/guest-run-policy.service';
 import { StartRunUseCase } from './application/start-run.use-case';
 import { ListRunsUseCase } from './application/list-runs.use-case';
 import { RunAbortRegistry } from './application/run-abort.registry';
@@ -41,13 +43,14 @@ export type RunsModuleAsyncOptions = {
 };
 
 @Module({
-  imports: [CompanyContextModule, RunLifecycleModule],
+  imports: [CompanyContextModule, RunLifecycleModule, GuestQuotaModule],
   controllers: [RunsController],
   providers: [
     RunAbortRegistry,
     RecoverInterruptedRunsUseCase,
     AutoFinalizeExpiredReviewsUseCase,
     InProcessRunWorker,
+    GuestRunPolicyService,
     StartRunUseCase,
     ResumeHitlUseCase,
     GetRunUseCase,

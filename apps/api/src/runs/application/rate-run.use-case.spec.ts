@@ -1,6 +1,11 @@
-import { createUserId, type RunId } from '@content-chain/shared';
+import { createUserId, type RunId, type UserId } from '@content-chain/shared';
+import { validateEnv } from '../../shared/config/env.schema';
 import type { Env } from '../../shared/config/env';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
+import type {
+  GuestQuotaAdmitResult,
+  GuestQuotaPort,
+} from '../domain/guest-quota.port';
 import type { RunRepository } from '../domain/run.port';
 import {
   makeSocialSnapshot,
@@ -14,11 +19,44 @@ const ACTOR: AuthUserContext = {
   role: 'user',
 };
 
+const GUEST: AuthUserContext = {
+  id: createUserId('usr_33333333-3333-4333-8333-333333333333'),
+  email: 'guest@example.com',
+  role: 'guest',
+};
+
+const ADMIN: AuthUserContext = {
+  id: createUserId('usr_44444444-4444-4444-8444-444444444444'),
+  email: 'admin@example.com',
+  role: 'admin',
+};
+
 const NOW = new Date('2026-09-30T11:00:00.000Z');
 const ANCHOR_OPEN = new Date('2026-09-30T10:00:00.000Z');
 const ANCHOR_EXPIRED = new Date('2026-09-30T08:00:00.000Z');
 
-const TEST_ENV = { REVIEW_TTL: '2h' } as Env;
+const BASE_ENV_FIELDS = {
+  DATABASE_URL: 'file:./test.db',
+  GATEWAY_BASE_URL: 'http://localhost:3100',
+  GATEWAY_KEY: 'test-gateway-key',
+  JWT_SECRET: 'test-jwt-secret',
+  CORS_ORIGIN: 'http://localhost:3000',
+  REVIEW_TTL: '2h',
+} as const;
+
+const TEST_ENV = validateEnv({
+  NODE_ENV: 'test',
+  ...BASE_ENV_FIELDS,
+  DEMO_MODE: 'false',
+});
+
+const ENV_DEMO_ON = validateEnv({
+  NODE_ENV: 'test',
+  ...BASE_ENV_FIELDS,
+  DEMO_MODE: 'true',
+  REDIS_URL: 'redis://127.0.0.1:6379',
+  GUEST_RATING_CAP_PER_DAY: '10',
+});
 
 function unusedRepo(overrides: Partial<RunRepository> = {}): RunRepository {
   const unexpected = async () => {
@@ -44,8 +82,30 @@ function unusedRepo(overrides: Partial<RunRepository> = {}): RunRepository {
     saveOutputEdited: unexpected,
     saveFinalizedAt: unexpected,
     setPipelineFinishedAt: unexpected,
+    finalizeExpiredReviews: unexpected,
+    countByUserAndType: unexpected,
     ...overrides,
   };
+}
+
+function unusedQuota(overrides: Partial<GuestQuotaPort> = {}): GuestQuotaPort {
+  const unexpected = async () => {
+    throw new Error('unexpected quota call');
+  };
+  return {
+    tryAdmitDailyRun: unexpected,
+    releaseDailyRun: unexpected,
+    tryAdmitDailyRating: unexpected,
+    ...overrides,
+  };
+}
+
+function makeUseCase(
+  repo: RunRepository,
+  env: Env = TEST_ENV,
+  quota: GuestQuotaPort = unusedQuota(),
+): RateRunUseCase {
+  return new RateRunUseCase(repo, env, quota);
 }
 
 function snapshot(
@@ -56,6 +116,16 @@ function snapshot(
     startedByUserId: ACTOR.id,
     startedBy: { id: ACTOR.id, email: ACTOR.email },
     pipelineFinishedAt: ANCHOR_OPEN,
+    ...overrides,
+  });
+}
+
+function guestSnapshot(
+  overrides: Partial<SocialRunSnapshot> = {},
+): SocialRunSnapshot {
+  return snapshot({
+    startedByUserId: GUEST.id,
+    startedBy: { id: GUEST.id, email: GUEST.email },
     ...overrides,
   });
 }
@@ -75,12 +145,11 @@ describe('RateRunUseCase', () => {
     const saveRating = jest.fn(
       async (_id: RunId, _rating: number | null): Promise<boolean> => true,
     );
-    const useCase = new RateRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({
         getById: async () => run,
         saveRating,
       }),
-      TEST_ENV,
     );
 
     await expect(
@@ -101,12 +170,11 @@ describe('RateRunUseCase', () => {
     const saveRating = jest.fn(
       async (_id: RunId, _rating: number | null): Promise<boolean> => true,
     );
-    const useCase = new RateRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({
         getById: async () => run,
         saveRating,
       }),
-      TEST_ENV,
     );
 
     await expect(
@@ -126,12 +194,11 @@ describe('RateRunUseCase', () => {
     const saveRating = jest.fn(
       async (_id: RunId, _rating: number | null): Promise<boolean> => true,
     );
-    const useCase = new RateRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({
         getById: async () => run,
         saveRating,
       }),
-      TEST_ENV,
     );
 
     await expect(
@@ -140,12 +207,7 @@ describe('RateRunUseCase', () => {
     expect(saveRating).toHaveBeenCalledWith(run.id, 1);
   });
 
-  it.each([
-    { rating: 0 },
-    { rating: 6 },
-    { rating: 1.5 },
-    {},
-  ])(
+  it.each([{ rating: 0 }, { rating: 6 }, { rating: 1.5 }, {}])(
     'rejects invalid rating %j with VALIDATION_FAILED and skips persist',
     async (input) => {
       const run = snapshot();
@@ -153,16 +215,15 @@ describe('RateRunUseCase', () => {
       const saveRating = jest.fn(
         async (_id: RunId, _rating: number | null): Promise<boolean> => true,
       );
-      const useCase = new RateRunUseCase(
-        unusedRepo({ getById, saveRating }),
-        TEST_ENV,
-      );
+      const useCase = makeUseCase(unusedRepo({ getById, saveRating }));
 
-      await expect(useCase.execute(run.id, input, ACTOR)).rejects.toMatchObject({
-        name: 'DomainException',
-        code: 'VALIDATION_FAILED',
-        httpStatus: 400,
-      });
+      await expect(useCase.execute(run.id, input, ACTOR)).rejects.toMatchObject(
+        {
+          name: 'DomainException',
+          code: 'VALIDATION_FAILED',
+          httpStatus: 400,
+        },
+      );
       expect(getById).not.toHaveBeenCalled();
       expect(saveRating).not.toHaveBeenCalled();
     },
@@ -173,12 +234,11 @@ describe('RateRunUseCase', () => {
     const saveRating = jest.fn(
       async (_id: RunId, _rating: number | null): Promise<boolean> => false,
     );
-    const useCase = new RateRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({
         getById: async () => run,
         saveRating,
       }),
-      TEST_ENV,
     );
 
     await expect(
@@ -196,12 +256,11 @@ describe('RateRunUseCase', () => {
     const saveRating = jest.fn(
       async (_id: RunId, _rating: number | null): Promise<boolean> => true,
     );
-    const useCase = new RateRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({
         getById: async () => run,
         saveRating,
       }),
-      TEST_ENV,
     );
 
     await expect(
@@ -219,12 +278,11 @@ describe('RateRunUseCase', () => {
     const saveRating = jest.fn(
       async (_id: RunId, _rating: number | null): Promise<boolean> => true,
     );
-    const useCase = new RateRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({
         getById: async () => run,
         saveRating,
       }),
-      TEST_ENV,
     );
 
     await expect(
@@ -245,16 +303,120 @@ describe('RateRunUseCase', () => {
     const saveRating = jest.fn(
       async (_id: RunId, _rating: number | null): Promise<boolean> => true,
     );
-    const useCase = new RateRunUseCase(
+    const useCase = makeUseCase(
       unusedRepo({
         getById: async () => run,
         saveRating,
       }),
-      TEST_ENV,
     );
 
     await expect(
       useCase.execute(run.id, { rating: 4 }, ACTOR),
+    ).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'REVIEW_LOCKED',
+      httpStatus: 409,
+    });
+    expect(saveRating).not.toHaveBeenCalled();
+  });
+
+  it('rejects guest rating over daily cap with TOO_MANY_REQUESTS 429 (D-57)', async () => {
+    const run = guestSnapshot();
+    const saveRating = jest.fn(
+      async (_id: RunId, _rating: number | null): Promise<boolean> => true,
+    );
+    const tryAdmitDailyRating = jest.fn<
+      Promise<GuestQuotaAdmitResult>,
+      [UserId, number, Date?]
+    >(async () => ({ kind: 'exceeded' }));
+    const useCase = makeUseCase(
+      unusedRepo({
+        getById: async () => run,
+        saveRating,
+      }),
+      ENV_DEMO_ON,
+      unusedQuota({ tryAdmitDailyRating }),
+    );
+
+    await expect(
+      useCase.execute(run.id, { rating: 4 }, GUEST),
+    ).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'TOO_MANY_REQUESTS',
+      httpStatus: 429,
+    });
+    expect(tryAdmitDailyRating).toHaveBeenCalledWith(
+      GUEST.id,
+      ENV_DEMO_ON.GUEST_RATING_CAP_PER_DAY,
+    );
+    expect(saveRating).not.toHaveBeenCalled();
+  });
+
+  it('saves guest rating when quota is unavailable (D-57 fail open)', async () => {
+    const run = guestSnapshot();
+    const saveRating = jest.fn(
+      async (_id: RunId, _rating: number | null): Promise<boolean> => true,
+    );
+    const tryAdmitDailyRating = jest.fn<
+      Promise<GuestQuotaAdmitResult>,
+      [UserId, number, Date?]
+    >(async () => ({ kind: 'unavailable' }));
+    const useCase = makeUseCase(
+      unusedRepo({
+        getById: async () => run,
+        saveRating,
+      }),
+      ENV_DEMO_ON,
+      unusedQuota({ tryAdmitDailyRating }),
+    );
+
+    await expect(
+      useCase.execute(run.id, { rating: 5 }, GUEST),
+    ).resolves.toMatchObject({ userRating: 5 });
+    expect(tryAdmitDailyRating).toHaveBeenCalledTimes(1);
+    expect(saveRating).toHaveBeenCalledWith(run.id, 5);
+  });
+
+  it('does not call quota for admin when demo is on', async () => {
+    const run = snapshot({
+      startedByUserId: ADMIN.id,
+      startedBy: { id: ADMIN.id, email: ADMIN.email },
+    });
+    const saveRating = jest.fn(
+      async (_id: RunId, _rating: number | null): Promise<boolean> => true,
+    );
+    const useCase = makeUseCase(
+      unusedRepo({
+        getById: async () => run,
+        saveRating,
+      }),
+      ENV_DEMO_ON,
+    );
+
+    await expect(
+      useCase.execute(run.id, { rating: 3 }, ADMIN),
+    ).resolves.toMatchObject({ userRating: 3 });
+    expect(saveRating).toHaveBeenCalledWith(run.id, 3);
+  });
+
+  it('does not consume rating cap when guest review is already locked', async () => {
+    const run = guestSnapshot({
+      pipelineFinishedAt: ANCHOR_EXPIRED,
+      reviewFinalizedAt: null,
+    });
+    const saveRating = jest.fn(
+      async (_id: RunId, _rating: number | null): Promise<boolean> => true,
+    );
+    const useCase = makeUseCase(
+      unusedRepo({
+        getById: async () => run,
+        saveRating,
+      }),
+      ENV_DEMO_ON,
+    );
+
+    await expect(
+      useCase.execute(run.id, { rating: 4 }, GUEST),
     ).rejects.toMatchObject({
       name: 'DomainException',
       code: 'REVIEW_LOCKED',
