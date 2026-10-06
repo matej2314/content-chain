@@ -22,6 +22,11 @@ const ACTOR_USER: AuthUserContext = {
   email: 'user@example.com',
   role: 'user',
 };
+const ACTOR_GUEST: AuthUserContext = {
+  id: ACTOR,
+  email: 'guest@example.com',
+  role: 'guest',
+};
 
 function unusedRepo(overrides: Partial<RunRepository> = {}): RunRepository {
   const unexpected = async () => {
@@ -272,6 +277,27 @@ describe('CancelRunUseCase', () => {
     expect(attemptCancel).not.toHaveBeenCalled();
     expect(requestCancel).not.toHaveBeenCalled();
     expect(getRunExecute).not.toHaveBeenCalled();
+  });
+
+  it('guest on a foreign run → FORBIDDEN 403 before persist (D-55)', async () => {
+    const initial = makeGetRunOutput({
+      status: 'running',
+      startedBy: { id: OTHER, email: 'other@example.com' },
+    });
+    const { useCase, setCancelRequested, attemptCancel, requestCancel } = setup(
+      { getRunOutputs: [initial] },
+    );
+
+    await expect(
+      useCase.execute(initial.runId, ACTOR_GUEST),
+    ).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'FORBIDDEN',
+      httpStatus: 403,
+    });
+    expect(setCancelRequested).not.toHaveBeenCalled();
+    expect(attemptCancel).not.toHaveBeenCalled();
+    expect(requestCancel).not.toHaveBeenCalled();
   });
 
   it.each(['completed', 'failed'] as const)(

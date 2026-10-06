@@ -26,8 +26,9 @@ describe('HealthService', () => {
     expect(body.status).toBe('ready');
     expect(body.checks.api.status).toBe('healthy');
     expect(body.checks.gateway.status).toBe('healthy');
+    expect(Object.keys(body.checks)).toEqual(['api', 'gateway']);
     expect(JSON.stringify(body)).not.toMatch(
-      /GATEWAY_KEY|X-Gateway-Key|JWT_SECRET|password/i,
+      /GATEWAY_KEY|X-Gateway-Key|JWT_SECRET|password|REDIS|ioredis/i,
     );
   });
 

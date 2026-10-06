@@ -6,6 +6,7 @@ Powtarzalny happy path **bez UI**:
 - **Content** — to samo Setup, potem `page_copy` i `page_outline_then_copy`
 - **Review + feedback** — `review.postman-collection.json`: login + kontekst, cienkie fixture’y runów, **Cancel** (`POST .../cancel` — D-30…D-32), ocena / finalize / feedback, **Authz druga sesja**, na końcu **Dokończ HITL** (pełny `post_ideas_then_content`)
 - **Zaproszenia** — `invitations-pipeline.postman-collection.json`: login admina → create → **token z maila** → accept (konto `user` zostaje w bazie)
+- **DEMO guest** — `demo-guest.postman-collection.json`: `GET /config`, register `role=guest`, allowlista (context GET / `POST /runs`), deny 403, login admina przy `DEMO_MODE=true`
 
 Katalog ręcznego Send (bez asercji Collection Runnera) jest w `apps/api/content-chain.postman-collection.json` — te same endpointy review/feedback do kliknięcia na dowolnym `runId`.
 
@@ -17,7 +18,7 @@ Kontrakt sesji, bootstrap i 401/403 auth są w **`auth.postman-collection.json`*
 
 ## Wymagania
 
-1. Skopiować `apps/api/.env.example` → `apps/api/.env` oraz analogicznie env gateway (`apps/ai-provider-gateway/.env.example`). Uzupełnić sekrety lokalnie — **nie** wklejać ich do kolekcji. Dla przeglądu: `REVIEW_TTL` (default `2h`) i `REVIEW_SWEEP_INTERVAL` (default `5m`) — patrz `apps/api/.env.example`.
+1. Skopiować `apps/api/.env.example` → `apps/api/.env` oraz analogicznie env gateway (`apps/ai-provider-gateway/.env.example`). Uzupełnić sekrety lokalnie — **nie** wklejać ich do kolekcji. Dla przeglądu: `REVIEW_TTL` (default `2h`) i `REVIEW_SWEEP_INTERVAL` (default `5m`) — patrz `apps/api/.env.example`. Kolekcja **DEMO guest** wymaga `DEMO_MODE=true` oraz Redis (`REDIS_URL` wygrywa z `REDIS_HOST`+`REDIS_PORT`) — bez tego api nie wstanie (fail-fast env). Przy `DEMO_MODE=false` `GET /config` wraca `{ demoMode: false }` i resztę runnera **pomiń** (register da `role=user`). Redis **nie** wchodzi do `health`/`ready`.
 2. Migracje Prisma api (SQLite), w tym tabela `Feedback` i kolumny przeglądu na `Run` (`userRating`, `outputEdited`, `reviewFinalizedAt`, `pipelineFinishedAt`).
 3. **Istniejący admin w bazie.** Zmienne `adminEmail` / `adminPassword` w kolekcjach Social, Content i Review są te same co w `auth.postman-collection.json`. Pipeline nie woła `bootstrap-admin`. Pusta baza → login **401**; jednorazowo odpal Bootstrap w kolekcji auth (albo ręczny `POST /auth/bootstrap-admin`).
 4. Uruchomić procesy (kolejność: najpierw gateway, potem api):
@@ -33,12 +34,13 @@ PUT/PATCH `/company-context` i start runów wymagają sesji **admina** (`cc_acce
 
 ## Import i odpalenie (Postman GUI)
 
-1. Import → plik kolekcji (`social-pipeline.postman-collection.json`, `content-pipeline.postman-collection.json`, `review.postman-collection.json` albo `invitations-pipeline.postman-collection.json`).
+1. Import → plik kolekcji (`social-pipeline.postman-collection.json`, `content-pipeline.postman-collection.json`, `review.postman-collection.json`, `invitations-pipeline.postman-collection.json` albo `demo-guest.postman-collection.json`).
 2. Collection Runner:
    - Social: foldery w kolejności **Setup → A → B → C → D**.
    - Content: foldery w kolejności **Setup → A → B**.
    - Review: foldery w kolejności **Setup → Fixtures → Cancel → Review → Feedback → Lista autora → Authz druga sesja → Dokończ HITL**.
    - Zaproszenia: najpierw **Setup → A. Create**, potem wklej `inviteToken` z maila, potem **B. Accept** (nie jeden ciągły run).
+   - DEMO guest: **Config → Register guest → Allow → Deny → Admin przy demo**. Collection Runner **nie** jest T-5 CI (Jest pokrywa D-50…D-62). `guestEmail` / `guestPassword` — prerequest nadpisuje email; nie commituj prawdziwego adresu. Przed Allow kontekst firmy musi być kompletny (np. Setup Social jako admin).
 3. Zmienna `baseUrl` (domyślnie `http://localhost:3001/api/v1`) — zmień tylko gdy api nie stoi na 3001. `adminEmail` / `adminPassword` zmieniaj tylko gdy lokalny admin ma inne dane niż w kolekcji auth. Folder **Authz druga sesja** w Review wymaga `userEmail` / `userPassword` istniejącego konta `user` (to z pipeline zaproszeń). Nie commituj prawdziwego adresu.
 
 Pętla `GET /runs/:runId` jest w skryptach testów (do ~6 min na poll). SSE nie jest częścią DoD Milestone 4 / 4.2.
@@ -53,6 +55,7 @@ Runner nie jest spięty w SPEC — GUI Postmana albo Newman są równoważne. Ne
 npx --yes newman run apps/api/test/postman/social-pipeline.postman-collection.json
 npx --yes newman run apps/api/test/postman/content-pipeline.postman-collection.json
 npx --yes newman run apps/api/test/postman/review.postman-collection.json
+npx --yes newman run apps/api/test/postman/demo-guest.postman-collection.json
 ```
 
 Newman **nie** pauzuje na mail — folder B zaproszeń wymaga `inviteToken` ustawionego wcześniej. Do smoke na prawdziwą skrzynkę użyj GUI (dwa runy).
@@ -75,6 +78,15 @@ Cel: żywy HTTP Fazy 6 — przegląd runu (`SPEC-RUNY.md` R-10) i zapis opinii (
 Cudzy `startedBy` jest w folderze Authz (wymaga `userEmail` / `userPassword`). Status `failed` nadal poza runnerem (fixture’y Review failują test przy `failed`). Unit: `assertRunReviewable` / `CreateFeedbackUseCase`.
 
 **TTL / auto-finalize (D-35…D-40):** negatywy po wygaśnięciu okna, sweeper i GET bez side-effect są w Jest e2e (`apps/api/test/runs-review-ttl.e2e-spec.ts`), nie w Collection Runnerze — Postman pokrywa happy path + pola meta `pipelineFinishedAt` / `reviewExpiresAt` przy otwartym oknie (domyślne `REVIEW_TTL=2h`). Folder „TTL locked” nie jest w kolekcji (wymagałby krótkiego TTL albo ręcznego seedu kotwicy w DB).
+
+## DEMO guest (`demo-guest.postman-collection.json`)
+
+Cel: żywy HTTP Fazy 18 — `DEMO_MODE`, rola `guest`, GuestGuard, sloty typu. **Nie** suite Jest.
+
+1. Api z `DEMO_MODE=true` i Redis. Restart procesu po zmianie env.
+2. Istniejący admin (`adminEmail` / `adminPassword`) oraz **kompletny** company-context (Setup Social/Content/Review).
+3. Collection Runner w kolejności folderów z opisu importu.
+4. Config asercja `demoMode === true`. Register → `role === guest` + login. Allow: GET context 200, pierwszy `post_ideas` 202, drugi 403 `GUEST_TYPE_QUOTA_EXCEEDED`, `post_content` 403 `GUEST_TYPE_NOT_ALLOWED`. Deny: PATCH email / GET users / PUT context / output-edited → 403. Admin przy demo: login admin 200 (D-59); **brak** endpointu promocji roli.
 
 ## Zaproszenia (`invitations-pipeline.postman-collection.json`)
 

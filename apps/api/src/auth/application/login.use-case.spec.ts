@@ -10,11 +10,23 @@ import type {
   UserForAuth,
   UserRepository,
 } from '../domain/user-repository.port';
+import { comparePassword } from './auth.helpers';
 import { LoginUseCase } from './login.use-case';
 
 jest.mock('@nestjs/jwt', () => ({
   JwtService: class JwtService {},
 }));
+
+jest.mock('./auth.helpers', () => {
+  const actual =
+    jest.requireActual<typeof import('./auth.helpers')>('./auth.helpers');
+  return {
+    ...actual,
+    comparePassword: jest.fn((plain: string, hash: string) =>
+      actual.comparePassword(plain, hash),
+    ),
+  };
+});
 
 type JwtDep = ConstructorParameters<typeof LoginUseCase>[2];
 
@@ -127,6 +139,10 @@ describe('LoginUseCase', () => {
 
   beforeAll(async () => {
     passwordHash = await bcryptHash(PASSWORD, 4);
+  });
+
+  beforeEach(() => {
+    jest.mocked(comparePassword).mockClear();
   });
 
   function makeAuthUser(overrides: Partial<UserForAuth> = {}): UserForAuth {
@@ -258,6 +274,7 @@ describe('LoginUseCase', () => {
     ).rejects.toMatchObject(INVALID_CREDENTIALS);
     expect(create).not.toHaveBeenCalled();
     expect(jwt.signAsync).not.toHaveBeenCalled();
+    expect(comparePassword).not.toHaveBeenCalled();
   });
 
   it('authenticates a guest when DEMO_MODE is true', async () => {

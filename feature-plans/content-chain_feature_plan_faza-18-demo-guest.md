@@ -1053,7 +1053,7 @@ Admit Redis before persist so a failed create does not consume the instance cap,
 
 ### KROK 1 — Unit / e2e D-50…D-62 + regresje
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** `SPEC-TESTY.md` D-50…D-62 oraz D-41/D-46 (rola vs demo) i D-47 (Redis **nie** psuje ready).
 
@@ -1078,7 +1078,7 @@ Gdy e2e podnosi app z `DEMO_MODE=true`, env **musi** mieć `REDIS_URL` (walidacj
 
 ### KROK 2 — Postman
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Żywy HTTP demo (lokalnie `DEMO_MODE=true` + Redis). Nie zastępuje Jest.
 
