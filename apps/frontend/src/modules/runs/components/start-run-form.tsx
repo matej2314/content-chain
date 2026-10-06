@@ -23,6 +23,9 @@ import { EnvelopeError, FormField } from '@/shared/ui/form-field';
 import { ApiError } from '@/shared/api/envelope';
 import { useOwnRuns } from '@/modules/runs/components/own-runs-provider';
 import { AgentsGateTooltip, useStartRunGate } from '@/modules/runs/components/start-run-gate';
+import { GuestLimitModal } from '@/modules/demo/components/guest-limit-modal';
+import { isGuestAllowedTaskType, isGuestQuotaCode } from '@/modules/demo/lib/guest-policy';
+import { useGuestLocked } from '@/modules/demo/lib/use-guest-locked';
 import { startRun } from '@/modules/runs/api/runs.api';
 import { notifyProduct } from '@/modules/notifications/notify-product';
 import {
@@ -134,8 +137,10 @@ export function StartRunForm({
 }: StartRunFormProps) {
   const { refresh } = useOwnRuns();
   const { agentsActive, disableReason } = useStartRunGate();
+  const guestLocked = useGuestLocked();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
+  const [quota, setQuota] = useState<{ code: string; message: string } | null>(null);
   const pageTask = isContentTaskType(draft.taskType);
 
   const inputReady = useMemo(() => toInput(draft) !== null, [draft]);
@@ -144,8 +149,10 @@ export function StartRunForm({
     event.preventDefault();
     const input = toInput(draft);
     if (!input || !agentsActive) return;
+    if (guestLocked && !isGuestAllowedTaskType(draft.taskType)) return;
     setPending(true);
     setError(null);
+    setQuota(null);
     try {
       await startRun(input);
       await refresh();
@@ -153,6 +160,11 @@ export function StartRunForm({
       onSuccess?.();
     } catch (reason: unknown) {
       if (reason instanceof ApiError) {
+        if (isGuestQuotaCode(reason.envelope.code)) {
+          setQuota({ code: reason.envelope.code, message: reason.envelope.message });
+          setError(null);
+          return;
+        }
         setError({ code: reason.envelope.code, message: reason.envelope.message });
       } else {
         setError({ code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' });
@@ -175,12 +187,21 @@ export function StartRunForm({
           }}
         >
           {RUN_TASK_TYPES.map((taskType) => (
-            <option key={taskType} value={taskType}>
+            <option
+              key={taskType}
+              value={taskType}
+              disabled={guestLocked && !isGuestAllowedTaskType(taskType)}
+            >
               {RUN_TASK_TYPE_LABELS[taskType]}
             </option>
           ))}
         </NativeSelect>
       </FormField>
+      {guestLocked ? (
+        <p className="text-xs text-muted-foreground">
+          Konto demonstracyjne: dostępne typy to pomysły postów oraz copy / outline strony.
+        </p>
+      ) : null}
       {pageTask ? (
         <FormField label="Rodzaj strony" htmlFor={`${idPrefix}-content-kind`}>
           <NativeSelect
@@ -293,6 +314,14 @@ export function StartRunForm({
           {pending ? 'Uruchamianie…' : 'Uruchom agenta'}
         </Button>
       </AgentsGateTooltip>
+      <GuestLimitModal
+        open={quota !== null}
+        onOpenChange={(next) => {
+          if (!next) setQuota(null);
+        }}
+        code={quota?.code ?? null}
+        message={quota?.message ?? null}
+      />
     </form>
   );
 }

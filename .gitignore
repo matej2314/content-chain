@@ -22,6 +22,8 @@ dist/
 graphify-out/cache/
 graphify-out/2026-*
 users-management-plan.md
+change_invited_user_role-plan.md
+api-structure-refactor-plan.md
 
 .DS_Store
 Thumbs.db

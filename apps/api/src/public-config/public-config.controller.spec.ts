@@ -9,7 +9,6 @@ function createEnv(demoMode: boolean): Env {
     DEMO_MODE: demoMode,
     GUEST_GLOBAL_CAP_PER_DAY: 30,
     GUEST_RATING_CAP_PER_DAY: 10,
-    REDIS_URL: 'redis://127.0.0.1:6379',
     REDIS_HOST: '127.0.0.1',
     REDIS_PORT: 6379,
     GATEWAY_KEY: 'secret-gateway-key',

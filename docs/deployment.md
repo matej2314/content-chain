@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 8
 data_utworzenia: 2026-09-30
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-06
 ---
 
 # Deployment — Content Chain
@@ -17,6 +17,12 @@ Zmiana względem: brak frontmatteru; env api bez zmiennych TTL przeglądu. Od te
 Zmiana względem: mailer tylko `user_invited`. Od tej wersji: także `user_activation`; opcjonalne `ACTIVATION_TTL` (default `7d`); backup SQLite przenosi konta (w tym admina); DEMO nie wymaga migracji roli admina.
 
 Zmiana względem: `DEMO_MODE` wyłącznie kotwica planu demo, **nie** w tabeli env. Od tej wersji kanon ops: `DEMO_MODE` (default `false`), `GUEST_GLOBAL_CAP_PER_DAY` (default **30**), `GUEST_RATING_CAP_PER_DAY` (default **10**); TZ limitów = **UTC**; Redis pod cap gdy demo on; dump przenosi role (w tym `guest`); `DEMO_MODE` **nie** degraduje ról w DB.
+
+Zmiana względem: Redis w ops tylko jako „połączenie pod klucze” bez nazw env. Od tej wersji: `REDIS_URL` **albo** `REDIS_HOST`+`REDIS_PORT` (URL wygrywa); opcjonalne **`REDIS_PASSWORD`** wyłącznie w trybie HOST/PORT.
+
+Zmiana względem: kanon `REDIS_URL` **albo** HOST/PORT. Od tej wersji **tylko** `REDIS_HOST`+`REDIS_PORT` (+ opcjonalne `REDIS_PASSWORD`); **`REDIS_URL` usunięte**.
+
+Zmiana względem: Faza 18 — przy `DEMO_MODE=true` tylko self-register → `guest`. Od tej wersji: konta z **register i accept-invite** → `guest`; cel instancji demo = sandbox do poklikania. Restart / dump / brak degradacji ról przez sam flag — **bez zmian**.
 
 ## Środowiska
 
@@ -66,7 +72,7 @@ Jeden stack:
 
 | Obszar | Zmienne |
 |--------|---------|
-| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (SQLite), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS`, **`DEMO_MODE`** (`true`\|`false`, default **`false`** — przy starcie procesu; zmiana = restart), **`GUEST_GLOBAL_CAP_PER_DAY`** (default **30**, walidowany), **`GUEST_RATING_CAP_PER_DAY`** (default **10**, walidowany), **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`ACTIVATION_TTL`** (default `7d`, ten sam parser — TTL tokenu aktywacji konta), **`REVIEW_TTL`** (default `2h`, ten sam parser), **`REVIEW_SWEEP_INTERVAL`** (default `5m`, ten sam styl stringa TTL), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`**. Redis (gdy demo on): połączenie pod klucze `content-chain:guest:daily:runs:{UTC-date}` oraz `content-chain:guest:daily:ratings:{userId}:{UTC-date}` |
+| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (SQLite), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS`, **`DEMO_MODE`** (`true`\|`false`, default **`false`** — przy starcie procesu; zmiana = restart), **`GUEST_GLOBAL_CAP_PER_DAY`** (default **30**, walidowany), **`GUEST_RATING_CAP_PER_DAY`** (default **10**, walidowany), **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`ACTIVATION_TTL`** (default `7d`, ten sam parser — TTL tokenu aktywacji konta), **`REVIEW_TTL`** (default `2h`, ten sam parser), **`REVIEW_SWEEP_INTERVAL`** (default `5m`, ten sam styl stringa TTL), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`**. Redis (gdy demo on / cap guest): **`REDIS_HOST`**+**`REDIS_PORT`** (wymagane przy `DEMO_MODE=true`); opcjonalne **`REDIS_PASSWORD`**. Klucze: `content-chain:guest:daily:runs:{UTC-date}` oraz `content-chain:guest:daily:ratings:{userId}:{UTC-date}` |
 | Gateway | klucze providerów, `gateway.config.yaml`, allowlista kluczy, port (szczegóły: `apps/ai-provider-gateway/.env.example`) |
 | Frontend | **`API_BASE_URL`** (tylko proces Next → api; **bez** `NEXT_PUBLIC_*` na ten URL). Przeglądarka nie zna origina api |
 
@@ -101,9 +107,11 @@ Aktywacja linkiem wymagana **tylko** gdy `NODE_ENV=production`. Poza prod: `veri
 
 | Zmienna | Semantyka |
 |---------|-----------|
-| `DEMO_MODE` | `true` \| `false` (string bool), default **`false`**. Ładowane przy starcie. **Brak** UI toggle. Register **zawsze** dostępny; przy `true` nowe self-register → `guest`. |
+| `DEMO_MODE` | `true` \| `false` (string bool), default **`false`**. Ładowane przy starcie. **Brak** UI toggle. Register **zawsze** dostępny. Przy `true`: nowe konta z **register i accept-invite** → `guest` (sandbox do poklikania); przy `false`: obie ścieżki → `user` (invite = członek zespołu). |
 | `GUEST_GLOBAL_CAP_PER_DAY` | Default **30**. Wszystkie starty `guest` na instancji / dobę UTC. |
 | `GUEST_RATING_CAP_PER_DAY` | Default **10**. Soft limit ocen `guest` / user / dobę UTC. |
+| `REDIS_HOST` + `REDIS_PORT` | Standalone Redis. Przy `DEMO_MODE=true` **wymagane** (fail-fast). |
+| `REDIS_PASSWORD` | Opcjonalne hasło AUTH (ioredis `password`). Sekret — nie w logach / envelope / health. |
 
 Przy `DEMO_MODE=true` Redis jest potrzebny pod cap runów i soft rating. Przy `false` Redis **opcjonalny**. `GET /health` i `/health/ready` **nie** failują z powodu braku Redis.
 
@@ -146,7 +154,7 @@ Compose może od początku definiować wszystkie trzy usługi; „puste” UI do
 4. Sprawdź `GET /api/v1/health/ready` (api — agregat; `checks.gateway` = liveness procesu gateway; `status === "ready"` gdy api + gateway żyją).  
 5. (Ops / orchestracja) readiness gateway wewnętrznie: `GET {gateway}/api/v1/health/ready` — **nie** źródło chipa „Agenci aktywni” w CC.  
 6. Bootstrap admin.  
-7. (Opcjonalnie) smoke zaproszenia: `POST /invitations` → token z maila SMTP; lokalnie adapter logujący → token z logu api. Smoke register + activate (w `production`): `POST /auth/register` → mail `user_activation` / log → `POST /auth/activate` → `POST /auth/login`.  
+7. (Opcjonalnie) smoke zaproszenia: `POST /invitations` → token z maila SMTP; lokalnie adapter logujący → token z logu api → `POST /auth/accept-invite` → `POST /auth/login`. Przy **`DEMO_MODE=true`**: po loginie widać chip demo / limity gościa (`role=guest`). Smoke register + activate (w `production`): `POST /auth/register` → mail `user_activation` / log → `POST /auth/activate` → `POST /auth/login`.  
 8. Uzupełnij kontekst → completeness; przy `ready` api chip UX = „Agenci aktywni”.  
 9. Smoke: start runu Social i Content (`apps/api/test/postman/` albo UI).  
 10. Podłącz scrape `/metrics` (opcjonalnie od razu).  

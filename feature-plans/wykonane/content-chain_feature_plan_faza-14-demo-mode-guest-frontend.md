@@ -74,7 +74,7 @@ Odpowiada major **Faza 14**.
 
 ### KROK 1 — Kontrakt: `UserRole` += `guest`, `GET /config`, quota, allowlista
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Parser sesji/register akceptuje `guest`; cienki klient BFF pod F-10 czyta wyłącznie `demoMode`; stałe quota + allowlista istnieją **zanim** UI ich użyje. Major Faza 14 HOW #1; `SPEC-FRONTEND.md` F-10; `docs/brand_types.md`; `SPEC-KOMUNIKACJA.md` K-11 / K-12.
 
@@ -237,7 +237,7 @@ export const GUEST_CONTACTS: readonly GuestContact[] = [
 
 ### KROK 2 — `DemoModeProvider` + `DemoChip` nad CompletenessChip
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Boot dashboardu zna `demoMode`; chip widoczny tylko gdy true. Major HOW #1–#3; F-10 pkt 1–2; `docs/ux_dashboard.md` tabela DEMO MODE.
 
@@ -418,7 +418,7 @@ Import `DemoModeProvider`. Zamknięcie JSX: dodać `</DemoModeProvider>` tuż we
 
 ### KROK 3 — Predykat `guestLocked` i locki powierzchni
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** UI gościa na instancji demo nie udaje uprawnień admin/`user`. Major HOW #4; F-10 pkt 3; F-8. Egzekucja nadal w API.
 
@@ -552,7 +552,7 @@ W `run-details-view.tsx` przekaż `guestLocked={useGuestLocked()}` (hook na gór
 
 ### KROK 4 — Archiwum: lista OK, brak nawigacji do cudzego detail
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Gość widzi archiwum instancji; nie wchodzi w cudzy `/runs/:id` z listy. Major HOW #6; F-8 / F-10; `docs/ux_dashboard.md` (guest: tylko własne szczegóły). API 403 zostaje siatką na deep link.
 
@@ -613,7 +613,7 @@ Deep link `/runs/:id` cudzego runu: istniejący `EnvelopeError` z 403 — **bez*
 
 ### KROK 5 — `GuestLimitModal` po quota `POST /runs` + 429 rating
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Limit slotu/capu nie jest zgadywany w UI; operator widzi modal **po** 403 z kodami `GUEST_*` i kontakty. Rating 429: `message` z envelope przy gwiazdkach, **nie** toast. Major HOW #5–#6; F-10 pkt 4–5; mapa toasta UX: quota **nie** toast.
 

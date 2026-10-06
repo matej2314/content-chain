@@ -1,7 +1,7 @@
 ---
-wersja: 20
+wersja: 23
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-06
 ---
 
 # SPEC — Runy / logi
@@ -11,6 +11,8 @@ data_modyfikacji: 2026-10-03
 Norma bounded contextu **Runs / Logs** w `apps/api`: cykl życia async runu, **lista runów instancji** (paginacja / filtry), polityka statusów, **anulowanie (`cancelled`)**, kanoniczne logi w DB, emisja SSE, kolejka współbieżności, recovery po przerwaniu procesu, **przegląd runu z TTL** (`pipelineFinishedAt` + `REVIEW_TTL`, sweeper auto-finalize) oraz **`GuestRunPolicy`** (sloty / Redis admit — `docs/dokumentacja_komunikacji.md`).
 
 Uszczegóławia `docs/architektura.md` (async run, klej composite, cancel v1), `docs/dokumentacja_komunikacji.md` (lista / SSE / GET / cancel / ocena / lista user / unia startu), `docs/data_flow.md` (ścieżka cancel, recovery + `cancelRequested`, TTL przeglądu), `docs/observability.md` (pola logów vs metrics) oraz współpracę z `SPEC-SOCIAL.md`, `SPEC-CONTENT.md` i `SPEC-FEEDBACK.md`.
+
+Zmiana względem wersji 22 / R-3c: doprecyzowano, że **paginacja UI** „Moje runy” (FE, `pageSize = 10`) **nie** zmienia kontraktu HTTP R-3c — pełna lista nadal z API (`docs/ux_dashboard.md`, `SPEC-FRONTEND.md` F-8).
 
 Zmiana względem wersji 7: **jeden** executor Social w MVP unieważniony — klej composite (Social \| Content); `UNKNOWN_TASK_TYPE`; unia `platform` / `contentKind`; HITL `selectedIdeaIds` także dla reel/page.
 
@@ -117,7 +119,9 @@ Zmiana względem wersji 11: pola wyniku SM/outline bez addytywnych kluczy kontra
 
 Zmiana względem wersji 2: snapshot ma obowiązkowe pola przeglądu (`userRating` zawsze `null` \| `1`…`5`; `outputEdited`; `reviewFinalizedAt`) zgodnie z `docs/dokumentacja_komunikacji.md`.
 
-R-3c. `GET /api/v1/runs/user/:userId` — **wszystkie** runy z `startedBy = :userId`, sort `createdAt` desc, **bez** stałego `pageSize=10`. Pozycja lekka: `runId`, `taskType`, `platform`, `language`, `status`, `createdAt`. **Bez** `pipelineFinishedAt` / `reviewExpiresAt` / pełnych metadanych przeglądu. `:userId` **musi** równać się id sesji; inaczej **403** `FORBIDDEN` (brak wyjątku admin w MVP). Konsumenci: select opinii **oraz** lista „Moje runy” na Koncie (live) (`docs/ux_dashboard.md`). Wynik runu — przez `GET /runs/:runId` (widok szczegółów), nie przez ten listing.
+R-3c. `GET /api/v1/runs/user/:userId` — **wszystkie** runy z `startedBy = :userId`, sort `createdAt` desc, **bez** stałego `pageSize=10` na HTTP. Pozycja lekka: `runId`, `taskType`, `platform`, `language`, `status`, `createdAt`. **Bez** `pipelineFinishedAt` / `reviewExpiresAt` / pełnych metadanych przeglądu. `:userId` **musi** równać się id sesji; inaczej **403** `FORBIDDEN` (brak wyjątku admin w MVP). Konsumenci: select opinii **oraz** lista „Moje runy” na Koncie (live) (`docs/ux_dashboard.md`). **UI Konto** może **paginować wyświetlanie** stałym `pageSize = 10` (slice FE) — **bez** zmiany tego kontraktu i **bez** query `page` / `pageSize` na tym endpoincie (`SPEC-FRONTEND.md` F-8). Wynik runu — przez `GET /runs/:runId` (widok szczegółów), nie przez ten listing.
+
+Zmiana względem wersji 22 / R-3c: dopisano kanon paginacji UI Moje runy (FE) przy zachowaniu pełnej listy HTTP.
 
 Zmiana względem wersji 15 / R-3c: endpoint był opisany wyłącznie pod select opinii.
 
@@ -210,8 +214,11 @@ R-12. **`GuestRunPolicy`** (tylko `role === guest` **i** `DEMO_MODE=true`; `admi
 4. HITL / cancel / detail / logs / events / SSE: guest **tylko** `startedBy === self`; cudze → **403**.
 5. `POST .../output-edited` oraz `POST .../finalize-review`: guest → **403** (także na własnym runie).
 6. `PATCH .../rating`: dozwolony na własnym runie (R-10 poza punktem 5) + soft limit env `GUEST_RATING_CAP_PER_DAY` (default **10**, walidowany); klucz Redis `content-chain:guest:daily:ratings:{userId}:{UTC-date}` → **429** + `message`. Pad Redis przy ratingu guest → **fail open** (ocena przechodzi). Tylko własny run.
+7. Połączenie Redis (adapter guest quota): **`REDIS_HOST`+`REDIS_PORT`**; opcjonalne **`REDIS_PASSWORD`**. **Bez** `REDIS_URL`. Szczegóły env / sekret: `SPEC-BEZPIECZENSTWO.md` B-11, `docs/deployment.md`.
 
 Zmiana względem wersji 19: brak osobnej polityki guest na starcie / odczycie. Od tej wersji R-12; R-6 **nie** unieważnione.
+Zmiana względem wersji 20 / R-12: brak punktu o env połączenia Redis. Od tej wersji punkt 7 — `REDIS_PASSWORD` opcjonalne (HOST/PORT).
+Zmiana względem wersji 21 / R-12.7: `REDIS_URL` **albo** HOST/PORT. Od tej wersji wyłącznie HOST/PORT + opcjonalne `REDIS_PASSWORD`.
 
 ## Norma implementacji
 
@@ -285,7 +292,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Tworzenia `interrupted` z HTTP (`POST /runs`, HITL).
 - Wycieku sekretów do `run.log`.
 - Listy tylko „moje runy” jako **jedynego** trybu MVP (norma: archiwum instancji `GET /runs` **oraz** `GET /runs/user/:userId`). UI Runy filtruje terminalne; API bez `status` nadal zwraca całą instancję.
-- Zmiennego `pageSize` / dowolnego `limit` z query na `GET /runs` w MVP (stałe 10). `GET /runs/user/:userId` jest **osobnym** wyjątkiem bez tej paginacji — nie mylić z R-3a.
+- Zmiennego `pageSize` / dowolnego `limit` z query na `GET /runs` w MVP (stałe 10). `GET /runs/user/:userId` jest **osobnym** wyjątkiem bez paginacji HTTP — nie mylić z R-3a **ani** z paginacją UI „Moje runy” (FE, `SPEC-FRONTEND.md`).
 - Oceny / edycji wyniku / finalize na runie obcego `startedBy`.
 - Zmiany `userRating` / treści wyniku / `outputEdited` po `reviewFinalizedAt` **albo** po minięciu `REVIEW_TTL` (produktowo locked — R-10).
 - UPDATE `reviewFinalizedAt` przy mutacji po TTL (lock w DB poza ręcznym finalize = wyłącznie sweeper).

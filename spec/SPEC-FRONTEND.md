@@ -1,7 +1,7 @@
 ---
-wersja: 35
+wersja: 37
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-06
 ---
 
 # SPEC — Frontend
@@ -13,6 +13,8 @@ Norma `apps/frontend`: cienki klient self-host (**strona główna = karta logowa
 Aplikacja `apps/frontend` **już istnieje** w monorepo jako cienki klient Next (App Router, `modules/`). Ten SPEC dotyczy **ekranów i zachowania produktowego** na tym kliencie — bez ponownego bootstrapu aplikacji.
 
 Bez reguł domenowych pipeline’u, bez bramki kompletności jako jedynej egzekucji, bez sekretów LLM.
+
+Zmiana względem wersji 35 / cel: shell dashboardu rósł z treścią (chipy poza pierwszym ekranem); Moje runy bez paginacji UI. Od tej wersji: **viewport shell** (scroll tylko w `main`); **Moje runy** = paginacja UI `pageSize = 10` (slice FE; API R-3c bez zmian) — `docs/ux_dashboard.md`.
 
 Zmiana względem wersji 13 / cel: dopisano akceptację zaproszenia i zapis **treści** wyniku (nie tylko flagi); nota, że SPEC nie oznacza tworzenia aplikacji od zera.
 Zmiana względem wersji 14 / cel: strona główna = karta logowania (nie osobny first-run); dashboard po sesji.
@@ -29,6 +31,7 @@ Zmiana względem wersji 30 / cel: nieaktywne „Zarejestruj się!” / zakaz otw
 
 Zmiana względem wersji 33 / cel: chip „Agenci aktywni” = wyłącznie completeness. Od tej wersji `agentsActive` = completeness ∧ `gatewayAlive` (api `/health/ready`) — `docs/ux_dashboard.md`, `docs/dictionary.md`.
 Zmiana względem wersji 34 / cel: DEMO chip / locki `guest` poza SPEC. Od tej wersji F-10 + F-8 nawigacja guest; F-4b **bez** warunku `demoMode`.
+Zmiana względem wersji 36 / F-10: locki `guest` ∧ demo — bez jawnej ścieżki invite. Od tej wersji po accept+login przy demo on obowiązują te same locki co po register→guest (`SPEC-AUTH.md` A-7b); predykat F-10 **bez zmian**.
 
 ## Powiązanie ze stylem z docs / wyjątek
 
@@ -129,9 +132,9 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 - Strona główna: tło + karta logowania + **aktywny** **„Nie masz konta? Zarejestruj się!”** (gdy bootstrap niedostępny; przy first-run ukryty/disabled); first-run = tryb submitu tej karty; formularz rejestracji (F-4b); thank-you + resend po **201** w prod; **akceptacja zaproszenia** na **`/invite/accept?token=`** (tożsame z URL w mailu `{APP_PUBLIC_URL}/invite/accept?token=…`) → `POST /auth/accept-invite` → strona główna — dashboard dopiero po loginie; deep link aktywacji → widok logowania + activate w tle + toast (F-4b). Błędy wyłącznie `message` z envelope na karcie (bez Toastera na login/register/accept-invite — toast aktywacji **dozwolony** po sukcesie activate). Kolizja email na accept-invite i nieważny token = ten sam **401** — UI **bez** osobnego copy „email zajęty” i **bez** gałęzi na **409** `CONFLICT` z tej trasy. Kolizja na **register** = **409** → błąd przy polu email (F-4b). Opcjonalnie stała pomocnicza na accept-invite (bez leak z API): ogólne „Nie można dokończyć zaproszenia. Skontaktuj się z administratorem.” — **tylko** jeśli mapowana z tego samego 401 (bez rozróżniania przyczyn po `code`);
 - Kontekst firmy: **sześć zakładek** — Tożsamość (domyślnie otwarta), Oferta, Głos SM, CTA / kanały, Odbiorca, Dodatki (`extras` w jednym panelu, bez podzakładek). Na triggerach zakładek bramki indykator z `completeness.missing` ostatniego **udanego** GET/PUT (zielona = kompletna, czerwona = brak); zakładka Dodatki **bez** kropki bramki. Zapis = jeden `PUT` całości. Submit **nie** wysyła, gdy draft nie spełnia bramki (puste wymagane pole albo kaleka oferta); lokalny predykat identyczny z C-1 **wyłącznie** do disable CTA zapisu i błędów pól — **kropki** nadal wyłącznie z `missing` odpowiedzi (**nie** gateway); **chip** „Agenci aktywni” = F-6 (`agentsActive`, nie sam `missing`). Placeholdery pustej oferty stripowane; kalekiej usługi nie stripujemy. Nie da się usunąć ostatniej kompletnej usługi tak, by PUT poszedł z `items: []`. Szczegóły: `docs/ux_dashboard.md` (Widok: Kontekst firmy);
 - **Runy** = archiwum instancji `completed` \| `failed` \| `cancelled` (`GET /runs?status=completed,failed,cancelled`, strona 10, odświeżanie przy wejściu i co **15 min**). **Bez** SSE, **bez** runów w toku na liście (także cudzych). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). Po **202** z modalu — zostajemy na Runach, modal zamknięty, toast „Run wystartował”; live = floating box;
-- **Konto**: email — formularz → modal re-auth (email **disabled** + `currentPassword`) → `PATCH /auth/me/email` `{ email, currentPassword }` (każdy Potwierdź z obu pól); złe hasło (`INVALID_PASSWORD`) / `VALIDATION_FAILED` pod polem hasła (email zostaje disabled; **bez** cyklu F-4a); **409** → modal otwarty, clear pól, odblokowanie emaila, błąd pod polem email; sukces bez toastu + `GET /auth/me`; Anuluj bez API (draft formularza bez zmian względem otwarcia); **Moje runy** (`GET /runs/user/:userId`, wszystkie statusy; **Stop** + modal na własnym nieterminalnym — F-5b); formularz **startu inline** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId` z wiersza „Moje runy”); opinia. Po **202** startu **z Konta** — zostajemy na Koncie **oraz** toast „Run wystartował”;
+- **Konto**: email — formularz → modal re-auth (email **disabled** + `currentPassword`) → `PATCH /auth/me/email` `{ email, currentPassword }` (każdy Potwierdź z obu pól); złe hasło (`INVALID_PASSWORD`) / `VALIDATION_FAILED` pod polem hasła (email zostaje disabled; **bez** cyklu F-4a); **409** → modal otwarty, clear pól, odblokowanie emaila, błąd pod polem email; sukces bez toastu + `GET /auth/me`; Anuluj bez API (draft formularza bez zmian względem otwarcia); **Moje runy** (`GET /runs/user/:userId` — **pełna** lista HTTP; **paginacja UI** stałe `pageSize = 10` jak archiwum Runy — Poprzednia / `strona / totalPages (total)` / Następna; wszystkie statusy; **Stop** + modal na własnym nieterminalnym — F-5b); formularz **startu inline** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId` z wiersza „Moje runy”); opinia. Po **202** startu **z Konta** — zostajemy na Koncie **oraz** toast „Run wystartował”;
 - `PUT` kontekstu **200** → toast „Kontekst zapisany”; **400** → envelope przy formularzu, **zero** toasta (lokalny predykat / envelope); `POST .../cancel` **200** → toast **„Run anulowany”** (F-5b);
-- Layout **zalogowany**: Toaster (warstwa `--z-toast`); pozycja **nie** gryzie się z floating boxem (toast `top-right`; box `bottom-right`). **Brak** Toastera na karcie logowania / first-run / accept-invite / formularzu register (toast po sukcesie activate — wyjątek F-4b);
+- Layout **zalogowany**: root **`h-dvh`** + overflow ukryty; **scroll tylko w `main`**; sidebar (desktop) = wysokość viewportu — DemoChip (gdy demo) + chip agentów **zawsze w viewportcie**; Toaster (warstwa `--z-toast`); pozycja **nie** gryzie się z floating boxem (toast `top-right`; box `bottom-right`). **Brak** Toastera na karcie logowania / first-run / accept-invite / formularzu register (toast po sukcesie activate — wyjątek F-4b);
 - Run szczegóły: HITL / wynik **post vs rolka vs strona** / przegląd (bez `conversationId` w UI); **Stop** + modal (F-5b) dla własnego nieterminalnego; po `cancelled` HITL znika, przegląd niedostępny, partial wynik jak przy `failed`; live SSE tylko własny `running` \| `awaiting_hitl` \| `interrupted` (ten sam rejestr co box);
 - HITL Social: **multi-select** (min. 1); Content: `[outline.id]`;
 - Wynik dwuetapowy Social = listy `contents[]` / `reelScripts[]`; `characterCount` / `cta?` / `role?` jak UX;
@@ -166,6 +169,8 @@ Zmiana względem wersji 30 / F-8: martwa rejestracja / brak thank-you / brak dee
 
 Zmiana względem wersji 33 / F-8: chip kompletności = sam `missing` / completeness. Od tej wersji chip = F-6 (`agentsActive`); kropki zakładek **nadal tylko** `completeness.missing` (F-8 w tym zakresie **bez unieważnienia** sensu kropek).
 
+Zmiana względem wersji 35 / F-8: layout rósł z treścią (sidebar/chipy poza pierwszym ekranem); Moje runy = pełna tabela bez paginacji UI. Od tej wersji: viewport shell + paginacja UI Moje runy (=10) — `docs/ux_dashboard.md`.
+
 F-9. Select runów w formularzu opinii: wyłącznie `GET /api/v1/runs/user/:userId` z id z `/auth/me`. Zakaz ładowania „wszystkich runów instancji” z `GET /runs` do tego selecta. UI **filtruje** pozycje do `completed` \| `failed` \| (`cancelled` **oraz** istnieje nie-`null` pole wyniku w snapshotcie — per `SPEC-FEEDBACK.md` Fbk-3a; select może dociągnąć snapshot albo stosować regułę równoważną; **nie** pokazywać `cancelled` bez wyniku). Lista API zostaje pełna — `SPEC-RUNY.md` R-3c. Select agentów = enum z shared (labelki PL). Ocena, Edytuj i finalize tylko gdy snapshot mówi, że sesja jest `startedBy`, status `completed` \| `failed` i przegląd **otwarty**: `reviewFinalizedAt === null` **oraz** nie minął serwerowy **`reviewExpiresAt`** (deadline wyłącznie z API — **zakaz** lokalnego wyliczania z `pipelineFinishedAt` + stałej). FE-only disable **nie** jest jedyną bramką — api i tak zwraca `REVIEW_LOCKED` po TTL / finalize (`SPEC-RUNY.md` R-10). Po lokalnym expiry (lekki timer od pola `reviewExpiresAt` z API, bez SSE): UI jak zamknięty (copy „Przegląd zamknięty”); reload odświeża `reviewFinalizedAt` gdy sweeper zapisał — **nie** wymagane do disable. **Zakaz** nowego chrome deadline / countdown / wiersza „dostępne do…” w MVP tej zmiany. Submit `targetType=run` poza oknem Fbk-3a i tak → **409** `RUN_NOT_REVIEWABLE`.
 
 Zmiana względem wersji 12 / F-9: select pokazywał wszystkie runy autora (w tym w toku). Od tej wersji filtr kliencki `completed` \| `failed`; bramka HTTP jak w docs komunikacji.
@@ -178,12 +183,13 @@ F-10. DEMO MODE (UX) — `docs/ux_dashboard.md`:
 
 1. Boot: `DemoModeProvider` (lub równoważny) woła publiczny `GET /config`; jedyne pole używane w V1: `demoMode`.
 2. `DemoModeChipSlot` / `DemoChip` **nad** CompletenessChip — **tylko dashboard**, gdy `demoMode === true`. Copy w stylu „Tryb demo aktywny / Wybrane funkcje ograniczone” + Iconify. Przy `demoMode === false` chip **nie** jest widoczny.
-3. Locki UI (sidebar, formy, disable `taskType` poza allowlistą, zapis kontekstu, Users, Edytuj/finalize, `PATCH /auth/me/email`): wyłącznie gdy **`session.role === 'guest'` AND `demoMode === true`**. Admin na instancji demo **bez** locków gościa.
+3. Locki UI (sidebar, formy, disable `taskType` poza allowlistą, zapis kontekstu, Users, Edytuj/finalize, `PATCH /auth/me/email`): wyłącznie gdy **`session.role === 'guest'` AND `demoMode === true`**. Admin na instancji demo **bez** locków gościa. Ten sam predykat obejmuje konta `guest` z **register** oraz z **accept-invite** przy demo on (`SPEC-AUTH.md` A-7b) — po accept → `/` → login flow bez zmian; locki dopiero po sesji z `role === guest`.
 4. `GuestLimitModal` **wyłącznie** po błędzie quota z API (`GUEST_TYPE_*` / `GUEST_GLOBAL_QUOTA_EXCEEDED`); CTA kontakt `{ iconName, contactData }[]` (mailto, LinkedIn, GitHub) — hardcoded FE. **Zakaz** preemptive modalu bez odpowiedzi API.
 5. Rating: obsługa **429** (`message` z envelope). Feedback: `application`/`agent` OK; `run` tylko własny.
 6. Egzekucja limitów = API; FE tylko odzwierciedla.
 
 Zmiana względem wersji 34: chip/locki guest poza zakresem. Od tej wersji F-10.
+Zmiana względem wersji 36 / F-10: bez jawnej ścieżki invite→guest. Od tej wersji zaproszony przy demo on podlega tym samym lockom co self-register guest; predykat **bez zmian**; `GuestView` ≠ `UserRole.guest` (F-8) — bez zmian.
 
 Zmiana względem wersji 1: Konto nie obejmuje zmiany hasła; dodano first-run; lista runów = cała instancja z nawigacją lista → szczegóły; admin users bez edycji/dezaktywacji w UI (soft-delete UI nadal poza MVP).
 
@@ -228,13 +234,14 @@ apps/frontend/src/
 - First-run jako tryb submitu **tej samej** karty logowania.
 - **Aktywny** przycisk „Zarejestruj się!” gdy bootstrap niedostępny; formularz register; thank-you + resend gdy **201** `verifiedAt === null` (lub **503** po utworzeniu pending); deep link aktywacji → login + activate w tle + toast (F-4b).
 - Header: zawartość **do prawej**; login → „Wyloguj się”; modal; `POST /auth/logout` → `/`.
-- Widok **Konto**: email z modalem re-auth (`PATCH /auth/me/email` + `currentPassword`; recovery **409**; `INVALID_PASSWORD` bez wylogowania), Moje runy (live), **start inline**, opinia; po starcie **z Konta** zostajemy tutaj.
+- Widok **Konto**: email z modalem re-auth (`PATCH /auth/me/email` + `currentPassword`; recovery **409**; `INVALID_PASSWORD` bez wylogowania), Moje runy (live; **paginacja UI** 10), **start inline**, opinia; po starcie **z Konta** zostajemy tutaj.
 - Widok **Runy**: archiwum `completed` \| `failed` \| `cancelled`; GET co 15 min + przy wejściu; CTA/modal **„Uruchom agenta”** (ten sam brief); po **202** z Run — zostać, zamknąć modal.
 - Client components dla modalu startu (Dialog kitu shadcn).
 - Floating box poza Kontem (zwijany).
 - Cienki wrapper `notifyProduct` / `notifyRunTerminal` (Sonner jako adapter; unia produktowa, bez `any`).
 - Odczyt pathname App Router (`usePathname` lub równoważny) do `viewingRunId` przy toaście terminalu.
 - Toaster w gałęzi authenticated layoutu; token `--z-toast`; **wyjątek:** toast po sukcesie activate na niezalogowanym `/`.
+- Viewport shell: `h-dvh`, scroll wyłącznie w obszarze roboczym; chipy chrome w sidebarze w viewportcie.
 - Publiczny `/invite/accept?token=` → strona główna.
 - Formularz opinii, gwiazdki i edytor wyniku jako Client Components.
 - Zapis Edytuj przez `POST .../output-edited` z `result`.
@@ -279,6 +286,8 @@ apps/frontend/src/
 - Traktowania **401** `INVALID_PASSWORD` jak wygaśnięcie sesji (refresh / logout) — obowiązuje F-4a wyłącznie na `UNAUTHORIZED`.
 - Toasta sukcesu / walidacji / **409** przy `PATCH /auth/me/email` (obowiązuje envelope pod polami modala).
 - Ładowania listy instancji (`GET /runs` bez filtra terminalnego) jako „Moje runy”.
+- Pokazywania **całej** tabeli „Moje runy” bez paginacji UI (obowiązuje stałe `pageSize = 10` jak Runy — F-8); **oraz** dodawania query `page` / `pageSize` do `GET /runs/user/:userId` (kontrakt R-3c bez paginacji HTTP).
+- Rozciągania sidebara / chipów demo i agentów poza viewport przy długiej treści (obowiązuje viewport shell — F-8).
 - UI create użytkownika z hasłem; UI soft-delete w MVP.
 - Pomijania Users albo `/invite/accept` w MVP.
 - Pokazywania dashboardu bez sesji; osobnej strony first-run.
@@ -320,6 +329,7 @@ Zmiana względem wersji 24 / „Nie wolno”: zakaz „Formularza startu na wido
 Zmiana względem wersji 25 / „Nie wolno”: dopisano zakazy Stop bez modala / w boxie, podwójnego toasta cancel, mylenia `cancelled` z `failed`, natychmiastowego ukrycia boxa.
 Zmiana względem wersji 28 / „Nie wolno”: dopisano zakazy lokalnego TTL math, FE-only jako jedynej bramki, chrome deadline oraz rozróżnienia copy auto/ręczne.
 Zmiana względem wersji 34 / „Nie wolno”: dopisano zakazy FE→gateway, interval `/health/ready`, chipa bez AND, fałszywego „Uzupełnij kontekst” przy żywym kontekście, gateway w kropkach zakładek.
+Zmiana względem wersji 35 / „Nie wolno”: dopisano zakazy pełnej tabeli Moje runy bez paginacji UI, query `page`/`pageSize` na `GET /runs/user/:userId`, oraz rozciągania sidebara/chipów poza viewport.
 
 Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flagą” unieważniony — kanon to zapis treści + flaga (`docs/ux_dashboard.md`). „Gdy powstanie” na Users / accept-invite unieważnione.
 
@@ -341,14 +351,15 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Register: **409** `Email already in use` → błąd na formularzu; **201** `verifiedAt === null` lub **503** → thank-you + resend (email ze stanu klienta); **201** z `verifiedAt` → login; **bez** sesji z register/activate/resend.
 - [ ] Header: do prawej; login → „Wyloguj się”; modal → logout → `/`.
 - [ ] Fetch same-origin `/api/v1`; **401** `UNAUTHORIZED` → refresh → retry; cookie httpOnly na originie FE; **401** `INVALID_PASSWORD` **bez** refresh/wylogowania.
-- [ ] **Runy** = archiwum `completed` \| `failed` \| `cancelled` (15 min + wejście) **oraz** CTA/modal **„Uruchom agenta”**; **Konto** = start inline + Moje runy live + Stop; po `202` widok źródłowy.
+- [ ] **Runy** = archiwum `completed` \| `failed` \| `cancelled` (15 min + wejście) **oraz** CTA/modal **„Uruchom agenta”**; **Konto** = start inline + Moje runy live (paginacja UI 10) + Stop; po `202` widok źródłowy.
+- [ ] Layout zalogowany: `h-dvh`, scroll tylko w `main`; chipy w sidebarze widoczne bez scrolla treści.
 - [ ] N× SSE tylko własne `running` / `awaiting_hitl` / `interrupted`; `close()` na `completed`/`failed`/`cancelled`; `queued` bez socketa; floating box poza Kontem **bez** Stop; po cancel: „Anulowany” → ukrycie po 200 ms.
 - [ ] Stop + modal „Czy na pewno?” → cancel API; toast „Run anulowany”; dedup SSE; na `cancelled` brak przeglądu / HITL.
 - [ ] Start zablokowany w UI przy `!agentsActive` (niekompletność **lub** gateway nie żyje) **oraz** api `409` `CONTEXT_INCOMPLETE` przy niekompletnym kontekście; **bez** osobnego kodu „gateway down” na `POST /runs`.
 - [ ] Chip F-6: copy nieaktywnego kanoniczne; przy kompletnym kontekście i martwym gateway — disable CTA **bez** fałszywego „Uzupełnij kontekst” jako jedynej remedacji; kropki zakładek **tylko** z `completeness.missing`.
-- [ ] F-10: `GET /config`; chip demo tylko dashboard gdy `demoMode`; locki tylko `guest` ∧ demo on; modal limitu po quota API; 429 rating.
-- [ ] Konto: email — modal re-auth (`PATCH /auth/me/email` `{ email, currentPassword }`); `INVALID_PASSWORD` / `VALIDATION_FAILED` pod hasłem (bez F-4a); **409** → clear + odblokowanie emaila + błąd pod emailem; sukces bez toastu + `GET /auth/me`; Anuluj bez API; moje runy → szczegóły; start (prefill ze snapshotu); opinia.
-- [ ] Admin: Users + zaproszenie; accept-invite → `/`; błąd kolizji / złego tokenu = ten sam envelope **401** na karcie (bez UI „email zajęty” / bez gałęzi **409**).
+- [ ] F-10: `GET /config`; chip demo tylko dashboard gdy `demoMode`; locki tylko `guest` ∧ demo on (także po accept+login przy demo on — te same co register→guest); modal limitu po quota API; 429 rating.
+- [ ] Konto: email — modal re-auth (`PATCH /auth/me/email` `{ email, currentPassword }`); `INVALID_PASSWORD` / `VALIDATION_FAILED` pod hasłem (bez F-4a); **409** → clear + odblokowanie emaila + błąd pod emailem; sukces bez toastu + `GET /auth/me`; Anuluj bez API; moje runy (paginacja UI 10) → szczegóły; start (prefill ze snapshotu); opinia.
+- [ ] Admin: Users + zaproszenie; accept-invite → `/` → login (flow bez zmian; przy demo on sesja `guest` → locki F-10); błąd kolizji / złego tokenu = ten sam envelope **401** na karcie (bez UI „email zajęty” / bez gałęzi **409**).
 - [ ] `app/` + `modules/`; typy z shared; brak sekretów LLM; brak `NEXT_PUBLIC_` URL-a api.
 - [ ] Opinia / gwiazdki / Edytuj / finalize wg kontraktu; disable po `reviewFinalizedAt` **lub** po serwerowym `reviewExpiresAt`; copy „Przegląd zamknięty”; **bez** countdown / „dostępne do…”; HITL Social multi-select; wynik then_* = listy.
 - [ ] Envelope błędu w UI: `message` z API (bez `code` w treści).

@@ -1,7 +1,7 @@
 ---
-wersja: 8
+wersja: 11
 data_utworzenia: 2026-09-29
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-06
 ---
 
 # Bezpieczeństwo — Content Chain
@@ -15,6 +15,12 @@ Zmiana względem: publiczny health = tylko liveness. Od tej wersji także public
 Zmiana względem: zakaz otwartego signup; jedyna droga na `user` = invite. Od tej wersji: self-registration legalna obok invite; aktywacja e-mail w `production` (`verifiedAt` + `AccountActivation`); **409** na register przy kolizji email (świadoma enumeracja UX); resend/login bez enumeracji stanu konta.
 
 Zmiana względem: `security.md` po planie register — register **zawsze** `role = user`; `guest` / `DEMO_MODE` poza kanonem. Od tej wersji **refaktor roli** (dostępność register **bez zmian**): `DEMO_MODE=true` → `guest`; `false` → `user`. Dopisano GuestGuard, martwą sesję guest przy demo off, limity Redis, ownership odczytu/mutacji. **Bez** rozdziału o zarządzaniu/czyszczeniu kont guest (osobny plan).
+
+Zmiana względem: Redis guest bez normy hasła połączenia. Od tej wersji: opcjonalne **`REDIS_PASSWORD`** (HOST/PORT); przy `REDIS_URL` hasło w URL; sekret jak `SMTP_PASS` (nie w logach / health / envelope) — `deployment.md`.
+
+Zmiana względem: kanon `REDIS_URL` **albo** HOST/PORT. Od tej wersji wyłącznie **`REDIS_HOST`+`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); **`REDIS_URL` usunięte**.
+
+Zmiana względem: Faza 18 / demo — *„invite nigdy nie tworzy `guest` (także przy demo on)”*; `guest` wyłącznie self-register. Od tej wersji accept-invite **mirror register**: `DEMO_MODE=true` → **`guest`**, `false` → **`user`**. Sens: przy demo off invite = pełnoprawny członek zespołu; przy demo on = kolejny gość sandboxu (rekruterzy / zaciekawieni), **nie** członkostwo zespołu — te same limity co register→guest. Body nadal bez `role`; invite **nigdy** → `admin`. Register **bez zmian**.
 
 ## Założenia
 
@@ -50,7 +56,7 @@ Gdy `DEMO_MODE=false`: JWT z `role=guest` na **każdej** chronionej trasie (w ty
 2. **`POST /api/v1/auth/bootstrap-admin`** działa **wyłącznie**, gdy w DB **nie ma** żadnego użytkownika z `role = admin`. Po sukcesie ustawia sesję cookie (jak login) oraz **`User.verifiedAt = now()`** (admin gotowy do loginu bez aktywacji linkiem).
 3. Po utworzeniu pierwszego admina endpoint bootstrap jest **trwale niedostępny** (np. **409** `CONFLICT` / **403**); `bootstrap-status.available === false`.
 4. **Twarda blokada:** tworzenie / awans kolejnych użytkowników z `role = admin` jest **zabronione** w MVP (API odrzuca). W systemie jest **co najwyżej jeden** admin — ten z bootstrapu. Register / activate / resend **nigdy** nie tworzą `admin`.
-5. **Dwie drogi na konto nie-admin:** (a) **zaproszenie** — admin podaje tylko email; konto `user` powstaje przy `POST /auth/accept-invite` (aktywne, gotowe do loginu; **`verifiedAt = now()`**); **invite nigdy nie tworzy `guest`** (także przy demo on); (b) **otwarta rejestracja** — publiczny `POST /auth/register` (zawsze dostępny; **nie** zależy od `DEMO_MODE`). **Zmiana względem:** po planie register serwer **zawsze** ustawiał **`role = user`**. **Refaktor:** `DEMO_MODE=true` → **`guest`**; `DEMO_MODE=false` → **`user`**. Body **bez** `role`. Register **nigdy** → `admin`. Przed utworzeniem `User` register **unieważnia** (`revoked`) ewentualne **`Invitation` `pending`** na ten sam email. **Nie** przez `POST /users` z hasłem. **Zakaz permanentny** awansu `guest` → `user` / `admin`.
+5. **Dwie drogi na konto nie-admin:** (a) **zaproszenie** — admin podaje tylko email; aktywne konto powstaje przy `POST /auth/accept-invite` (gotowe do loginu; **`verifiedAt = now()`**); **rola vs `DEMO_MODE`** jak register: **`true` → `guest`**, **`false` → `user`**. Body invite / accept **bez** `role`; invite **nigdy** → `admin`. **Sens:** demo off = pełnoprawny członek zespołu; demo on = gość sandboxu (nie członkostwo zespołu). (b) **otwarta rejestracja** — publiczny `POST /auth/register` (zawsze dostępny; **nie** zależy od `DEMO_MODE`). **Zmiana względem:** po planie register serwer **zawsze** ustawiał **`role = user`**. **Refaktor register:** `DEMO_MODE=true` → **`guest`**; `DEMO_MODE=false` → **`user`**. Body **bez** `role`. Register **nigdy** → `admin`. Przed utworzeniem `User` register **unieważnia** (`revoked`) ewentualne **`Invitation` `pending`** na ten sam email. **Nie** przez `POST /users` z hasłem. **Zakaz permanentny** awansu `guest` → `user` / `admin`.
 6. **Self-service konta w MVP:** zalogowany może zmienić **własny email** (`PATCH /api/v1/auth/me/email`, widok Konto) wyłącznie po podaniu **aktualnego hasła** w body (`currentPassword`). To **re-auth** przy mutacji wrażliwej — **nie** jest self-service zmianą hasła. **`GET /auth/me` = wyłącznie probe** (bez mutacji na `PATCH /auth/me`). **Poza MVP:** zmiana hasła zalogowanego (planowany wzorzec: osobna trasa np. `PATCH /auth/me/password` + re-auth + `INVALID_PASSWORD`, po SMTP), usuwanie własnego konta. **Confirm e-mail przy zmianie adresu = V1** — **nie** mylić z aktywacją konta po rejestracji. **Wyjątek onboarding:** pierwsze hasło przy `POST /auth/accept-invite` oraz hasło przy `POST /auth/register`. MVP: login / logout / bootstrap / register + activate + resend / zaproszenia + accept-invite + zmiana własnego emaila z re-auth.
 
 Zmiana względem: mutacja na `PATCH /auth/me` + złe hasło jako `UNAUTHORIZED`. Powód: rozdział probe vs mutacja; uniknięcie konfliktu z cyklem sesji FE.
@@ -69,7 +75,7 @@ Włączanie wyłącznie env **`DEMO_MODE=true|false`** (default **`false`**), od
 - **Login:** kolejność dla pary guest + demo: **najpierw** check `DEMO_MODE`. `guest` && `DEMO_MODE=false` → reject **tym samym 401** + message co złe hasło / konto nieaktywne (anti-enum). `admin` / `user` bez zmian. Przy demo on: login `guest` jak zwykły login (w tym pending `verifiedAt` w `production`).
 - **GuestGuard** + whitelist **`@AllowGuest()`**. Nowe trasy default deny dla guest.
 - Rate limit HTTP (jak pozostałe trasy) **oraz** admit przy `POST /runs` (Redis global cap) — **nie** drugi semafor execute obok `MAX_CONCURRENT_RUNS`. FIFO i cap współbieżności **bez zmian**.
-- Redis: klucze `content-chain:guest:daily:runs:{UTC-date}` oraz `content-chain:guest:daily:ratings:{userId}:{UTC-date}`. Przy `DEMO_MODE=true` Redis potrzebny pod cap + soft rating. Przy `false` Redis **opcjonalny**; `health` / `ready` **nie** failują z braku Redis.
+- Redis: klucze `content-chain:guest:daily:runs:{UTC-date}` oraz `content-chain:guest:daily:ratings:{userId}:{UTC-date}`. Przy `DEMO_MODE=true` Redis potrzebny pod cap + soft rating. Przy `false` Redis **opcjonalny**; `health` / `ready` **nie** failują z braku Redis. Połączenie: **`REDIS_HOST`+`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**). **`REDIS_PASSWORD`** = sekret (nie w logach, metrics, envelope, body `health`/`ready`).
 - Pad Redis przy `POST /runs` guest → **fail closed**. Pad Redis przy ratingu guest → **fail open**.
 - Admin: tylko bootstrap / istniejący wiersz; dump SQLite przenosi role (w tym `guest` i admina). `DEMO_MODE` **nie** degraduje ról w DB.
 
@@ -166,7 +172,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 
 | Wolno | Nie wolno |
 |-------|-----------|
-| Jeden admin z bootstrapu; `user` przez zaproszenie **lub** self-register przy `DEMO_MODE=false`; `guest` wyłącznie self-register przy demo on | Drugi `role = admin` w MVP; register/activate/resend → `admin`; **awans `guest` → `user`/`admin`**; invite → `guest`; **`role` w body register**; osobny endpoint register-as-guest; **blokowanie register przy `DEMO_MODE=false`** |
+| Jeden admin z bootstrapu; `user` przez zaproszenie **lub** self-register przy `DEMO_MODE=false`; `guest` z self-register **lub** accept-invite gdy demo on | Drugi `role = admin` w MVP; register/activate/resend → `admin`; **awans `guest` → `user`/`admin`**; **`role` w body** invite / accept / register; osobny endpoint register-as-guest; **blokowanie register przy `DEMO_MODE=false`** |
 | GuestGuard + `@AllowGuest` (default deny dla guest) | Masowe `@Roles('admin','user')` „żeby zablokować guest”; zaufanie do ukrytych przycisków FE |
 | Redis admit przy `POST /runs` guest + `MAX_CONCURRENT_RUNS` bez zmian | Drugi limit współbieżności „dla guest”; fail open Redis na start runu guest |
 | Switch trybu wyłącznie env + restart | Switch demo w panelu admina |

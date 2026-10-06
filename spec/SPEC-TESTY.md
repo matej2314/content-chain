@@ -1,7 +1,7 @@
 ---
-wersja: 29
+wersja: 31
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-06
 ---
 
 # SPEC — Testy
@@ -14,6 +14,8 @@ Zmiana względem wersji 23: DoD bez TTL / auto-finalize. Od tej wersji D-35…D-
 Zmiana względem wersji 25: DoD bez register / activate / resend. Od tej wersji D-41…D-46 — `SPEC-AUTH.md` A-11…A-13.
 Zmiana względem wersji 27: DoD bez readiness api / probe gateway. Od tej wersji D-47…D-49 — `SPEC-KOMUNIKACJA.md` K-10; regresja `CONTEXT_INCOMPLETE` bez `GATEWAY_NOT_READY`.
 Zmiana względem wersji 28: D-41/D-46 = zawsze `role=user`. Od tej wersji D-50…D-62 (rola vs demo, GuestGuard, quota, martwa sesja).
+Zmiana względem wersji 29: DoD DEMO bez env połączenia Redis. Od tej wersji D-50 / D-54 / D-58 zakładają **`REDIS_HOST`+`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); **bez** `REDIS_URL`.
+Zmiana względem wersji 30 / D-23 / D-46: accept → `role=user` także przy demo on. Od tej wersji invite rola vs `DEMO_MODE` (mirror register); demo on → `guest` + pokrycie smoke w `demo-guest` / równoważnym.
 
 ## Powiązanie ze stylem z docs
 
@@ -76,7 +78,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-20 | Unit Zod `CompanyContextExtras`: znany kształt OK; nieznany klucz → fail; `isComplete` ignoruje extras. Unit/e2e unknown key → **400**; ścieżki w `details` zgodne z separatorem `'.'` wspólnego `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`). Case na **kompletnym** body bramki (niekompletny zapis = D-29). Bez wymogu osobnego testu wyłącznie na lokalizację pliku helpera. |
 | D-21 | HITL Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): 0 id, duplikat albo obcy id → **400** `HITL_INVALID_SELECTION` (bez zapisu, status `awaiting_hitl`); **2 poprawne** id → `completed` z 2 artefaktami (`contents[]` / `reelScripts[]`, `sourceIdeaId`); 1 poprawny → tablica długości 1 |
 | D-22 | GET result: `characterCount === body.length` (skalar lub każda pozycja `contents[]`); outline z `role` enum przechodzi parse; nieznany `role` → fail |
-| D-23 | Zaproszenie (admin, cookie): `POST /invitations` `{ email }` → pending; publiczny `POST /auth/accept-invite` `{ token, password }` → `User` `role=user`; potem `POST /auth/login` nowym kontem. Artefakt E2E: istniejąca kolekcja Postman (`T-5` — bez pinu runnera) |
+| D-23 | Zaproszenie (admin, cookie): `POST /invitations` `{ email }` → pending; publiczny `POST /auth/accept-invite` `{ token, password }` → `User` z `verifiedAt` ustawionym; potem `POST /auth/login` nowym kontem. **Rola:** przy **`DEMO_MODE=false`** (default) → **`role=user`**; przy **`DEMO_MODE=true`** → **`role=guest`** (dalej locki/quota jak D-50…D-62; smoke Postman `demo-guest` / równoważny — invite→accept→login→quota/403). Artefakt E2E: istniejąca kolekcja Postman (`T-5` — bez pinu runnera). **Zmiana względem:** D-23 v30 — pin `role=user` bez gałęzi demo |
 | D-23a | Negatyw accept-invite: ważny token `pending` + istniejący `User` (ten sam email, także soft-deleted) → **401** `UNAUTHORIZED` z **tym samym** `message` co zły token; Invitation po próbie `revoked` (lub zdefiniowany równoważnik); **asercja: nie 409**; brak nowego `User` z tej próby. Regresja: scenariusze / Postman expecting **409** na accept przy zajętym emailu — **unieważnione** |
 | D-24 | `user` woła `POST /invitations` → **403**. Drugi `POST` przy `pending` (także wygasłym) → **409**. `GET /invitations` zwraca też wygasłe pending |
 | D-25 | Soft-delete: `DELETE /users/:id` → `isActive = false`; nieaktywny nie loguje się (ten sam komunikat 401 co złe hasło — bez enumeracji) |
@@ -100,19 +102,19 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-43 | Register kolizja (aktywny **lub** soft-deleted email) → **409**, `message`: **`Email already in use`**; **nie** maskowany **201**; brak drugiego `User` |
 | D-44 | Resend: zawsze **200** + `Wiadomość wysłana ponownie` dla pending / brak konta / już aktywny / rate limit / pad SMTP; mail + nowy hash **tylko** przy pending; **bez** **503** |
 | D-45 | Activate: zły token → wspólny **401**; sukces → **200** `{ user }`; login pending / soft-delete / złe hasło → ten sam **401** (bez `ACCOUNT_NOT_ACTIVATED`) |
-| D-46 | Regresja: invite → accept (`verifiedAt` ustawione, **`role=user`** także przy demo on) → login; bootstrap ustawia `verifiedAt`; register **nigdy** `admin`; register revoke pending Invitation; soft-delete usuwa `AccountActivation`; `GET /users` zawiera `verifiedAt`; **brak** ścieżki awansu `guest` |
+| D-46 | Regresja: invite → accept (`verifiedAt` ustawione; **`DEMO_MODE=false` → `role=user`**; **`DEMO_MODE=true` → `role=guest`**) → login; bootstrap ustawia `verifiedAt`; register **nigdy** `admin`; register revoke pending Invitation; soft-delete usuwa `AccountActivation`; `GET /users` zawiera `verifiedAt`; **brak** ścieżki awansu `guest`. **Zmiana względem:** D-46 v30 — *„`role=user` także przy demo on”* **unieważnione**; invite demo on = dodatkowa ścieżka tego samego stanu `guest` co D-50 (pokrycie Postman `demo-guest` / równoważnym smoke) |
 | D-47 | `GET /api/v1/health/ready`: gdy upstream gateway **liveness** OK (HTTP 2xx + sensowny body) → agregat `status: ready`, `checks.gateway.status: healthy`; body **bez** sekretów / `GATEWAY_KEY` / `X-Gateway-Key`. **Bez** wymogu asercji na upstream gateway `/health/ready`. **Bez** faila z braku Redis |
 | D-48 | `GET /api/v1/health/ready`: upstream liveness timeout **lub** unreachable **lub** nie-2xx → `status: not_ready`, `checks.gateway.status: unhealthy`; HTTP odpowiedzi api nadal **200** (przy żywym procesie api); body bez sekretów |
 | D-49 | Regresja startu: przy kompletnym kontekście `POST /runs` **nie** dostaje nowego kodu „GATEWAY_NOT_READY” / równoważnego rejectu za martwy gateway — nadal wyłącznie `409` `CONTEXT_INCOMPLETE` przy niekompletnym kontekście (D-1). Nota UX (poza automatami FE w MVP): disable CTA gdy gateway nie żyje przy kompletnym kontekście — norma `SPEC-FRONTEND.md` F-6; egzekucja testów UI w feature-planach |
-| D-50 | Register przy **`DEMO_MODE=true`**: **201** `role = guest`; activate/resend/409 jak D-41/D-43/D-44 (regresja) |
+| D-50 | Register przy **`DEMO_MODE=true`**: **201** `role = guest`; activate/resend/409 jak D-41/D-43/D-44 (regresja). Env: **`REDIS_HOST`+`REDIS_PORT`** wymagane przy starcie api (fail-fast); opcjonalne **`REDIS_PASSWORD`**; **bez** `REDIS_URL` |
 | D-51 | Login `guest` przy `DEMO_MODE=false` → ten sam **401** co złe hasło (check demo first) |
 | D-52 | Chroniony request (w tym `/me`, refresh) z JWT `role=guest` przy demo off → **401** (nie 403) |
 | D-53 | `guest` + demo on, trasa bez `@AllowGuest` → **403** |
-| D-54 | `POST /runs` guest: typ poza allowlistą → `GUEST_TYPE_NOT_ALLOWED`; drugi start tego samego typu (COUNT wszystkie statusy) → `GUEST_TYPE_QUOTA_EXCEEDED`; global cap Redis → `GUEST_GLOBAL_QUOTA_EXCEEDED`; admit Redis **przed** create |
+| D-54 | `POST /runs` guest: typ poza allowlistą → `GUEST_TYPE_NOT_ALLOWED`; drugi start tego samego typu (COUNT wszystkie statusy) → `GUEST_TYPE_QUOTA_EXCEEDED`; global cap Redis (`REDIS_HOST`/`REDIS_PORT`/[opcjonalnie]`REDIS_PASSWORD`) → `GUEST_GLOBAL_QUOTA_EXCEEDED`; admit Redis **przed** create |
 | D-55 | Guest: `GET /runs` lista instancji OK; cudzy detail / HITL / cancel → **403** |
 | D-56 | Guest: output-edited, finalize, `PATCH /auth/me/email`, PUT/PATCH kontekstu, users, invitations → **403** |
 | D-57 | Rating guest ponad soft cap → **429**; pad Redis rating → fail open (ocena przechodzi) |
-| D-58 | Pad Redis przy `POST /runs` guest → fail closed |
+| D-58 | Pad Redis przy `POST /runs` guest → fail closed (ten sam klient HOST/PORT/PASSWORD co D-54) |
 | D-59 | `admin` loguje się przy `DEMO_MODE=true` (bez locków guest); brak HTTP promocji roli |
 | D-60 | `GET /config` publiczny → wyłącznie `{ demoMode: boolean }` |
 | D-61 | Guest GET company-context OK; write → 403 |
@@ -132,6 +134,7 @@ D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zap
 
 Zmiana względem wersji 27: dopisano D-47…D-49 (ready gdy liveness OK; unhealthy przy timeout/unreachable; regresja bez `GATEWAY_NOT_READY` na `POST /runs`). D-1…D-46 bez kasowania treści.
 Zmiana względem wersji 28: dopisano D-50…D-62; D-41/D-46 refaktor roli vs `DEMO_MODE`. D-1…D-49 bez kasowania treści.
+Zmiana względem wersji 30: D-23 / D-46 — invite rola vs `DEMO_MODE` (unieważnienie pinu `user` przy demo on); D-50…D-62 **bez kasowania**. D-1…D-62 bez kasowania treści.
 
 Zmiana względem wersji 25: dopisano D-41…D-46 (register prod/non-prod; kolizja **409**; resend bez enumeracji; wspólny 401 login/activate; regresja invite/bootstrap; zakaz maskowanego 201). D-1…D-40 bez kasowania treści.
 
@@ -144,7 +147,7 @@ Zmiana względem wersji 13 / D-11: `POST /feedback` na własny run w toku nie by
 
 Zmiana względem wersji 12: dopisano D-23…D-25 (zaproszenie → accept → login; 403/409 pending; GET wygasłych; soft-delete). D-1…D-22 bez kasowania.
 
-Zmiana względem wersji 24: dopisano D-23a (kolizja email na accept → **401** + revoke; zakaz 409 / unieważnienie starych asercji 409). D-23 happy path **bez zmian**.
+Zmiana względem wersji 24: dopisano D-23a (kolizja email na accept → **401** + revoke; zakaz 409 / unieważnienie starych asercji 409). D-23 happy path statusów **bez zmian** (rola vs demo — od wersji 31).
 
 Zmiana względem wersji 11 / D-16: asercja wyłącznie skalaru `reelScript.segments` na then_scripts — od tej wersji `reelScripts[]` + `sourceIdeaId`.
 Zmiana względem wersji 11 / D-21 (i v9: D-21 = 2+ → 400): 2 legalne id to pozytyw N→N; 400 tylko przy 0 / duplikacie / obcym id.

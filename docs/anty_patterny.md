@@ -1,7 +1,7 @@
 ---
-wersja: 12
+wersja: 13
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-06
 ---
 
 # Anty-patterny — Content Chain
@@ -23,6 +23,8 @@ Zmiana względem: brak wiersza o enumeracji email na publicznym accept-invite. O
 Zmiana względem: zakaz otwartego signup. Od tej wersji: zakaz maskowanego sukcesu przy kolizji na register; pending ≠ `isActive=false`; Set-Cookie na register/activate/resend; register bramkowany DEMO; mylenie aktywacji z confirm e-mail V1.
 
 Zmiana względem: register **zawsze** `user`; `guest` poza kanonem. Od tej wersji zakazy: zaufanie do ukrytych przycisków FE jako authz guest; drugi semafor współbieżności „dla guest”; **awans guest→user/admin**; switch demo w panelu; **blokowanie register przy `DEMO_MODE=false`**; osobny endpoint register-as-guest; **`role` w body register**; masowe `@Roles('admin','user')` zamiast GuestGuard.
+
+Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accept zawsze `user`. Od tej wersji: `guest` = register **lub** accept-invite przy demo on; **anty-pattern** = hardcode accept → `user` przy `DEMO_MODE=true`.
 
 ---
 
@@ -141,8 +143,9 @@ Zmiana względem: register **zawsze** `user`; `guest` poza kanonem. Od tej wersj
 | `user` edytuje kontekst firmy | Łamie model ról | Tylko `admin`; user uruchamia runy produktowe |
 | Admin cancel cudzego runu | Łamie authz Stop = wyłącznie `startedBy` | **403** `FORBIDDEN`; brak wyjątku admina (`dokumentacja_komunikacji.md`) |
 | Multi-tenant „przy okazji” (kontekst per user) | Inny produkt niż self-host jednej firmy | Jeden kontekst na instancję |
-| Drugi `admin` / awans user→admin **lub** `guest`→`user`/`admin` w MVP | Łamie `security.md` | Tylko bootstrap jednego admina; `user` = invite **lub** register przy demo off; `guest` = wyłącznie register przy demo on; **brak** ścieżki promocji |
-| Osobny endpoint „register-as-guest” albo `role` w body register | Druga powierzchnia; klient wybiera rolę | Jedna trasa `POST /auth/register`; rola wyłącznie z `DEMO_MODE` |
+| Drugi `admin` / awans user→admin **lub** `guest`→`user`/`admin` w MVP | Łamie `security.md` | Tylko bootstrap jednego admina; `user` = invite **lub** register przy demo off; `guest` = register **lub** accept-invite przy demo on; **brak** ścieżki promocji |
+| Accept-invite zawsze `role=user` przy `DEMO_MODE=true` | Omija limity demo; niespójne z register; invite w sandboxie wygląda jak członkostwo zespołu | Rola vs `DEMO_MODE` jak register; demo invite = gość sandboxu (`security.md`) |
+| Osobny endpoint „register-as-guest” albo `role` w body register / invite / accept | Druga powierzchnia; klient wybiera rolę | Jedna trasa `POST /auth/register` / accept bez `role` w body; rola wyłącznie z `DEMO_MODE` |
 | Register bramkowany `DEMO_MODE` / aktywacja wymagana poza `production` | Łamie kanon: register zawsze; activate tylko w prod | Register zawsze; `verifiedAt` od razu poza prod |
 | Switch `DEMO_MODE` w UI admina | Tryb ma być ops/env, nie produktowy toggle | Env przy starcie procesu; zmiana = restart |
 | Masowe `@Roles('admin','user')` na każdej trasie „żeby zablokować guest” | Drift; nowe trasy łatwo pominąć | Globalny **GuestGuard** + `@AllowGuest()` (default deny) |

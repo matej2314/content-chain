@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 6
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-06
 ---
 
 # Przepływy danych — Content Chain
@@ -15,6 +15,10 @@ Zmiana względem: przegląd bez limitu czasu; zamknięcie tylko ręczne. Od tej 
 Zmiana względem wcześniejszej wersji (bez frontmatteru): dopisano ścieżkę **anulowania runu** (`cancelled`), gałęzie recovery z `cancelRequested`, konflikty cancel vs completed/failed oraz notę o slocie `MAX_CONCURRENT_RUNS` / persist bez rollbacku.
 
 Zmiana względem: self-register zawsze `user`; admit startu = tylko bramka kontekstu + `MAX_CONCURRENT_RUNS`. Od tej wersji: register → `guest` wyłącznie gdy `DEMO_MODE=true` (**refaktor**). Dla guest: Redis admit (global cap UTC) **przed** create Run; slot COUNT bez filtra statusu. **Bez** ops czyszczenia kont.
+
+Zmiana względem: Faza 18 — *„Invite / bootstrap nie tworzą `guest`”*. Od tej wersji: **bootstrap** nadal nie; **invite przy `DEMO_MODE=true` tworzy `guest`** (mirror register).
+
+Zmiana względem: Redis admit bez nazw env połączenia. Od tej wersji: klient guest quota = **`REDIS_HOST`** + **`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); **bez** `REDIS_URL` — `deployment.md`.
 
 ## Zasady wspólne
 
@@ -47,7 +51,7 @@ sequenceDiagram
 
 Dane: hasła tylko po stronie api (hash w DB); sekrety LLM nigdy we frontendzie.
 
-`POST /auth/register` (zawsze dostępny): **`DEMO_MODE=true` → `User.role = guest`**; **`false` → `user`**. Invite / bootstrap **nie** tworzą `guest`.
+`POST /auth/register` (zawsze dostępny): **`DEMO_MODE=true` → `User.role = guest`**; **`false` → `user`**. `POST /auth/accept-invite`: ta sama reguła roli vs `DEMO_MODE`. **Bootstrap** nie tworzy `guest`.
 
 ---
 
@@ -81,12 +85,13 @@ POST /runs
        allowlista taskType
        COUNT startedBy+taskType (wszystkie statusy) → GUEST_TYPE_QUOTA_EXCEEDED
        Redis INCR global UTC → GUEST_GLOBAL_QUOTA_EXCEEDED / fail closed
+         (klient: REDIS_HOST + REDIS_PORT [+ REDIS_PASSWORD]; bez REDIS_URL)
   → create Run (queued | running)
   → [create fail] Redis DECR
   → worker claim pod MAX_CONCURRENT_RUNS (FIFO; bez zmian; nie drugi semafor guest)
 ```
 
-Slot gościa **nie** jest tabelą — COUNT z `Run`. HITL nie zużywa slotu.
+Slot gościa **nie** jest tabelą — COUNT z `Run`. HITL nie zużywa slotu. Env połączenia Redis: `deployment.md`.
 
 ---
 

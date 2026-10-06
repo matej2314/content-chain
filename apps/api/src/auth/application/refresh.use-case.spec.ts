@@ -58,7 +58,8 @@ const TEST_ENV_DEMO_ON = validateEnv({
   NODE_ENV: 'test',
   ...BASE_ENV_FIELDS,
   DEMO_MODE: 'true',
-  REDIS_URL: 'redis://127.0.0.1:6379',
+  REDIS_HOST: '127.0.0.1',
+  REDIS_PORT: 6379,
 });
 
 function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {

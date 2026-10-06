@@ -1,7 +1,7 @@
 ---
-wersja: 14
+wersja: 16
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-06
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -16,6 +16,8 @@ Zmiana względem wersji 10 / cel: surface publiczne auth = accept-invite (+ sesy
 
 Zmiana względem wersji 12 / cel: publiczny health = tylko liveness. Od tej wersji także publiczny `GET /api/v1/health/ready` — jak liveness: **bez** wrażliwych danych / `GATEWAY_KEY` (`docs/security.md`).
 Zmiana względem wersji 13 / cel: brak GuestGuard / DEMO env. Od tej wersji B-11 — `docs/security.md`.
+Zmiana względem wersji 14 / B-8 + B-11: Redis guest bez hasła połączenia w normie. Od tej wersji opcjonalne **`REDIS_PASSWORD`** (HOST/PORT) jako sekret; przy `REDIS_URL` hasło w URL — `docs/deployment.md` / `docs/security.md`.
+Zmiana względem wersji 15 / B-8 + B-11: kanon URL **albo** HOST/PORT. Od tej wersji wyłącznie **`REDIS_HOST`+`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); **`REDIS_URL` usunięte**.
 
 ## Powiązanie ze stylem z docs
 
@@ -46,7 +48,7 @@ B-7. `GET /api/v1/health` oraz `GET /api/v1/health/ready` mogą być bez auth do
 
 Zmiana względem wersji 12 / B-7: norma dotyczyła wyłącznie liveness. Od tej wersji także publiczny `/health/ready` z tą samą dyscypliną sekretów.
 
-B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, **`SMTP_PASS`**, klucze vendorów, **raw token zaproszenia**, **raw token aktywacji konta**) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, treści opinii (`Feedback.body`), labelach Prometheus, stdout procesu w `production`. Dump treści hopu chat na stdout adaptera LLM **wyłącznie** przy `NODE_ENV=development`; w polach tekstowych wartość `GATEWAY_KEY` zastępowana `[REDACTED]`. **Wyjątek `development`:** wolno zalogować URL akceptacji zaproszenia **oraz** URL aktywacji konta (odpowiednik treści maila). Nie rozluźniać B-8 dla `production`.
+B-8. Sekrety (`X-Gateway-Key`, JWT secrets, hasła, **`SMTP_PASS`**, opcjonalne **`REDIS_PASSWORD`**, klucze vendorów, **raw token zaproszenia**, **raw token aktywacji konta**) **nigdy** w: bundlu FE, `NEXT_PUBLIC_*`, envelope HTTP, SSE, `run.log`, treści opinii (`Feedback.body`), labelach Prometheus, stdout procesu w `production`. Dump treści hopu chat na stdout adaptera LLM **wyłącznie** przy `NODE_ENV=development`; w polach tekstowych wartość `GATEWAY_KEY` zastępowana `[REDACTED]`. **Wyjątek `development`:** wolno zalogować URL akceptacji zaproszenia **oraz** URL aktywacji konta (odpowiednik treści maila). Nie rozluźniać B-8 dla `production`.
 
 **503** `MAIL_DELIVERY_FAILED` **nie** jest wyciekiem sekretu — w `details` wyłącznie `id` (Invitation albo User) (`docs/dokumentacja_komunikacji.md`).
 
@@ -78,9 +80,11 @@ B-9. Minimalny zestaw `/metrics` (proces `apps/api`) zgodny z `docs/observabilit
 
 B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/security.md` (ten SPEC nie dubluje szczegółów, ale uznaje je za obowiązujące przy review security).
 
-B-11. **DEMO MODE / guest (authz):** `DEMO_MODE` (bool string, default **`false`**) ładowane przy **starcie procesu** — zmiana wymaga restartu; **brak** switcha w UI. `GuestGuard` + `@AllowGuest` — `SPEC-AUTH.md` A-6a. Redis keys: `content-chain:guest:daily:runs:{UTC-date}`, `content-chain:guest:daily:ratings:{userId}:{UTC-date}`. Przy `DEMO_MODE=true` Redis potrzebny pod cap + soft rating. Przy `false` Redis **opcjonalny**. `GET /health` i `GET /health/ready` **nie** failują z braku Redis. Pad Redis: `POST /runs` guest → fail closed; rating guest → fail open (`SPEC-RUNY.md` R-12). Env capów: `GUEST_GLOBAL_CAP_PER_DAY` (default 30), `GUEST_RATING_CAP_PER_DAY` (default 10) — walidowane przy starcie. Dump SQLite przenosi role (w tym `guest`); `DEMO_MODE` **nie** degraduje ról w DB.
+B-11. **DEMO MODE / guest (authz):** `DEMO_MODE` (bool string, default **`false`**) ładowane przy **starcie procesu** — zmiana wymaga restartu; **brak** switcha w UI. `GuestGuard` + `@AllowGuest` — `SPEC-AUTH.md` A-6a. Redis keys: `content-chain:guest:daily:runs:{UTC-date}`, `content-chain:guest:daily:ratings:{userId}:{UTC-date}`. Przy `DEMO_MODE=true` Redis potrzebny pod cap + soft rating. Przy `false` Redis **opcjonalny**. `GET /health` i `GET /health/ready` **nie** failują z braku Redis. Pad Redis: `POST /runs` guest → fail closed; rating guest → fail open (`SPEC-RUNY.md` R-12). Env capów: `GUEST_GLOBAL_CAP_PER_DAY` (default 30), `GUEST_RATING_CAP_PER_DAY` (default 10) — walidowane przy starcie. Połączenie Redis (przy `DEMO_MODE=true` wymagane): **`REDIS_HOST`**+**`REDIS_PORT`**; opcjonalne **`REDIS_PASSWORD`**. **Zakaz** `REDIS_URL`. Dump SQLite przenosi role (w tym `guest`); `DEMO_MODE` **nie** degraduje ról w DB.
 
 Zmiana względem wersji 13: brak normy DEMO/Redis guest. Od tej wersji B-11.
+Zmiana względem wersji 14 / B-11: brak nazw env połączenia Redis / `REDIS_PASSWORD`. Od tej wersji kanon URL vs HOST/PORT + opcjonalne hasło HOST/PORT (`docs/deployment.md`).
+Zmiana względem wersji 15 / B-11: `REDIS_URL` **albo** HOST/PORT. Od tej wersji wyłącznie HOST/PORT + opcjonalne `REDIS_PASSWORD`.
 
 ## Norma implementacji
 

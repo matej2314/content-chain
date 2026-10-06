@@ -20,6 +20,7 @@ import {
 import { CompanyContextForm } from '@/modules/company-context/components/company-context-form';
 import { isComplete } from '@/modules/company-context/lib/is-complete';
 import { notifyProduct } from '@/modules/notifications/notify-product';
+import { StartAgentDialog } from '@/modules/runs/components/start-agent-dialog';
 
 type ViewState =
   | { readonly status: 'loading' }
@@ -95,41 +96,41 @@ export function CompanyContextView() {
     }
   }
 
-  if (view.status === 'loading') {
-    return (
-      <div className="flex max-w-3xl flex-col gap-3">
-        <Skeleton className="h-7 w-48" />
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    );
-  }
-
-  if (view.status === 'error') {
-    return <EnvelopeError code={view.envelope.code} message={view.envelope.message} />;
-  }
-
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex max-w-3xl flex-col gap-1">
-        <h1 className="text-lg font-medium">Kontekst firmy</h1>
-        <p className="text-sm text-muted-foreground">
-          Uzupełnij wszystkie obowiązkowe pola. Dodatki są opcjonalne.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex max-w-3xl flex-col gap-1">
+          <h1 className="text-lg font-medium">Kontekst firmy</h1>
+          <p className="text-sm text-muted-foreground">
+            Uzupełnij wszystkie obowiązkowe pola. Dodatki są opcjonalne.
+          </p>
+        </div>
+        <StartAgentDialog />
       </div>
-      <CompanyContextForm
-        value={view.context}
-        completeness={view.completeness}
-        readOnly={readOnly}
-        pending={pending}
-        error={submitError}
-        onChange={(context) =>
-          setView({ status: 'ready', context, completeness: view.completeness })
-        }
-        onSubmit={() => {
-          void onSubmit();
-        }}
-      />
+      {view.status === 'loading' ? (
+        <div className="flex max-w-3xl flex-col gap-3">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-40 w-full" />
+        </div>
+      ) : null}
+      {view.status === 'error' ? (
+        <EnvelopeError code={view.envelope.code} message={view.envelope.message} />
+      ) : null}
+      {view.status === 'ready' ? (
+        <CompanyContextForm
+          value={view.context}
+          completeness={view.completeness}
+          readOnly={readOnly}
+          pending={pending}
+          error={submitError}
+          onChange={(context) =>
+            setView({ status: 'ready', context, completeness: view.completeness })
+          }
+          onSubmit={() => {
+            void onSubmit();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

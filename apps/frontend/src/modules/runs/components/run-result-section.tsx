@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import type { UserId } from '@content-chain/shared';
 import { EnvelopeError } from '@/shared/ui/form-field';
 import type { RunSnapshot } from '@/modules/runs/api/runs.types';
+import { useGuestLocked } from '@/modules/demo/lib/use-guest-locked';
 import { canEditSnapshot } from '@/modules/runs/components/run-edit-access';
 import { RunResultEditActions } from '@/modules/runs/components/run-result-edit-actions';
 import { RunResultEditor } from '@/modules/runs/components/run-result-editor';
@@ -27,7 +28,8 @@ export function RunResultSection({
   const nowMs = useReviewExpiryTick(snapshot.reviewExpiresAt);
   const edit = useRunResultEdit(snapshot, onReload);
   const editing = edit.state.status === 'editing';
-  const canEdit = userId !== null && canEditSnapshot(snapshot, userId, nowMs);
+  const guestLocked = useGuestLocked();
+  const canEdit = userId !== null && !guestLocked && canEditSnapshot(snapshot, userId, nowMs);
 
   useEffect(() => {
     onEditingChange(editing);

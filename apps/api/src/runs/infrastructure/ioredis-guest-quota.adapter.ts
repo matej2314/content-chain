@@ -35,12 +35,10 @@ function createRedis(env: Env): Redis {
   if (standalone === null) {
     throw new Error('Redis configuration missing.');
   }
-  if (standalone.kind === 'url') {
-    return new Redis(standalone.url, REDIS_COMMAND_OPTIONS);
-  }
   return new Redis({
     host: standalone.host,
     port: standalone.port,
+    password: standalone.password,
     ...REDIS_COMMAND_OPTIONS,
   });
 }

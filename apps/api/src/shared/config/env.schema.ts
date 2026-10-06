@@ -33,9 +33,9 @@ export const envSchema = z
       .transform((value) => value === 'true'),
     GUEST_GLOBAL_CAP_PER_DAY: z.coerce.number().int().positive().default(30),
     GUEST_RATING_CAP_PER_DAY: z.coerce.number().int().positive().default(10),
-    REDIS_URL: z.url().optional(),
     REDIS_HOST: z.string().min(1).optional(),
     REDIS_PORT: z.coerce.number().int().positive().optional(),
+    REDIS_PASSWORD: z.string().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === 'production' && value.CORS_ORIGIN.trim() === '*') {
@@ -46,16 +46,13 @@ export const envSchema = z
       });
     }
     if (value.DEMO_MODE === true) {
-      const hasUrl =
-        value.REDIS_URL !== undefined && value.REDIS_URL.length > 0;
       const hasHostPort =
         value.REDIS_HOST !== undefined && value.REDIS_PORT !== undefined;
-      if (!hasUrl && !hasHostPort) {
+      if (!hasHostPort) {
         ctx.addIssue({
           code: 'custom',
-          path: ['REDIS_URL'],
-          message:
-            'REDIS_URL or REDIS_HOST+REDIS_PORT is required when DEMO_MODE=true',
+          path: ['REDIS_HOST'],
+          message: 'REDIS_HOST+REDIS_PORT is required when DEMO_MODE=true',
         });
       }
     }

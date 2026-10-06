@@ -54,7 +54,8 @@ const ENV_DEMO_ON = validateEnv({
   NODE_ENV: 'test',
   ...BASE_ENV_FIELDS,
   DEMO_MODE: 'true',
-  REDIS_URL: 'redis://127.0.0.1:6379',
+  REDIS_HOST: '127.0.0.1',
+  REDIS_PORT: 6379,
   GUEST_RATING_CAP_PER_DAY: '10',
 });
 

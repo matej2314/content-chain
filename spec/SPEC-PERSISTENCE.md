@@ -1,7 +1,7 @@
 ---
-wersja: 14
+wersja: 15
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-06
 ---
 
 # SPEC — Persistence
@@ -15,6 +15,7 @@ Uszczegóławia `docs/architektura.md`, `docs/architektura_katalogi_pliki.md` or
 Zmiana względem wersji 9: kanon Run bez `pipelineFinishedAt` / indeksu pod sweeper. Od tej wersji kolumna kotwicy TTL przeglądu + migracja backfill B — `docs/dictionary.md`, `SPEC-RUNY.md` R-10.
 Zmiana względem wersji 11: kanon Auth bez `verifiedAt` / `AccountActivation`. Od tej wersji marker weryfikacji + tabela tokenu aktywacji — `docs/dictionary.md`, `SPEC-AUTH.md` A-11…A-13.
 Zmiana względem wersji 13 / P-5: `User.role` przy register zawsze `user`. Od tej wersji String `admin`\|`user`\|`guest` (bez Prisma enum); sloty guest = COUNT `Run`.
+Zmiana względem wersji 14 / D16: `users.create(role=user)` przy accept-invite. Od tej wersji `role` z use-case (`guest` \| `user` vs `DEMO_MODE`) — `SPEC-AUTH.md` A-7b; **bez** migracji / backfill istniejących ról.
 
 ## Powiązanie ze stylem z docs
 
@@ -59,7 +60,7 @@ Kanon tabel (Auth):
 
 **D17:** migracja SQL `UNIQUE (email) WHERE status = 'pending'` (komentarz w `schema.prisma` jak `User_one_admin`; Prisma 6 nie wyrazi partial unique; indeks **bez** `purpose`). Wygasły wiersz zostaje `status = pending` — indeks nadal blokuje drugi `POST`.
 
-**D16:** accept-invite happy path = **jedna** transakcja Prisma: `users.create(role=user)` **oraz** Invitation → `accepted`.
+**D16:** accept-invite happy path = **jedna** transakcja Prisma: `users.create(role=<guest|user z use-case vs DEMO_MODE>, verifiedAt=now())` **oraz** Invitation → `accepted`. Rola **nie** jest hardcodowana w adapterze — przychodzi z inputu portu (`SPEC-AUTH.md` A-7b). Atomowość create + `accepted` **bez zmian**.
 
 Ścieżka kolizji (P2002 / `User.email` zajęty, aktywny albo soft-deleted): **brak** `User` z tej próby; Invitation → `revoked` (nie `accepted`); brak „sukcesu” create. Atomowość jak happy path — revoke (lub równoważne zużycie) w tej samej transakcji / atomowym kroku co próba create. Semantyka HTTP: `SPEC-AUTH.md` A-7b (**401**, nie 409).
 
@@ -68,6 +69,7 @@ Kanon tabel (Auth):
 **D20 (sloty guest):** **brak** tabeli slotów. Zużycie = COUNT wierszy `Run` (`startedByUserId` + `taskType`, wszystkie statusy). Opcjonalny indeks wspierający `(startedByUserId, taskType)` — bez pinu nazwy. Cap dzienny / rating = Redis, nie kolumny User/Run.
 
 Zmiana względem wersji 10 / D16: wyłącznie happy path create+`accepted`. Od tej wersji jawna ścieżka P2002 → revoke bez User.
+Zmiana względem wersji 14 / D16: pin `role=user` w `users.create`. Od tej wersji `role` z use-case vs `DEMO_MODE`; **bez** migracji / backfill istniejących wierszy `User`.
 
 Zmiana względem wersji 11 / P-5: kanon Auth bez `verifiedAt` / `AccountActivation` / D19. Od tej wersji marker + tabela aktywacji; `User` także z register.
 
@@ -200,7 +202,7 @@ Zmiana względem wersji 11 / „Nie wolno”: dopisano zakazy pending przez `isA
 - [ ] Model `Run` ma `cancelledAt`, `cancelRequested`, `pipelineFinishedAt` oraz dopuszcza status `cancelled` (migracja w historii Prisma); istnieje indeks wspierający zapytanie sweepera.
 - [ ] Migracja backfill B ustawia tylko kotwicę (`updatedAt` else `createdAt`); **bez** ustawiania `reviewFinalizedAt` w migracji.
 - [ ] W dokumentacji implementacyjnej / README ops jest jasne: cutover PostgreSQL = nowa historia migracji + pusta baza + opcjonalny import danych; SQLite tylko MVP; V1 — rozbudowa = PostgreSQL.
-- [ ] Accept-invite D16: happy path = jedna transakcja create User + `accepted`; kolizja P2002 → brak User, Invitation `revoked` (nie żywego `pending`).
+- [ ] Accept-invite D16: happy path = jedna transakcja create User (`role` vs `DEMO_MODE`) + `accepted`; kolizja P2002 → brak User, Invitation `revoked` (nie żywego `pending`).
 - [ ] `User.verifiedAt` (`DateTime?`) w schemie; soft-delete **nie** czyści pola.
 - [ ] `User.role` = String (`admin`/`user`/`guest`); **bez** Prisma enum roli; **brak** tabeli slotów guest.
 

@@ -15,11 +15,13 @@ import { FormField } from '@/shared/ui/form-field';
 import { ApiError } from '@/shared/api/envelope';
 import { fetchUserSession, patchOwnEmail } from '@/modules/auth/api/auth.api';
 import { useSession } from '@/modules/auth/components/session-provider';
+import { useGuestLocked } from '@/modules/demo/lib/use-guest-locked';
 
 const FALLBACK_MESSAGE = 'Nie udało się odczytać odpowiedzi.';
 
 export function AccountEmailForm() {
   const { state, setAuthenticated } = useSession();
+  const guestLocked = useGuestLocked();
   const current = state.status === 'authenticated' ? state.user.email : '';
   const [email, setEmail] = useState(current);
   const [open, setOpen] = useState(false);
@@ -33,6 +35,19 @@ export function AccountEmailForm() {
   const [openedDraft, setOpenedDraft] = useState(current);
 
   if (state.status !== 'authenticated') return null;
+
+  if (guestLocked) {
+    return (
+      <div className="flex max-w-xl flex-col gap-2">
+        <p className="text-sm">
+          Email: <span className="font-medium">{current}</span>
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Zmiana adresu niedostępna dla konta demonstracyjnego.
+        </p>
+      </div>
+    );
+  }
 
   function openReauthModal(draft: string): void {
     setOpenedDraft(draft);

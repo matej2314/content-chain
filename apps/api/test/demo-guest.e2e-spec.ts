@@ -60,9 +60,11 @@ function deployTestDb(): void {
 }
 
 function restoreEnv(
-  snapshot: Readonly<Record<'DEMO_MODE' | 'REDIS_URL', string | undefined>>,
+  snapshot: Readonly<
+    Record<'DEMO_MODE' | 'REDIS_HOST' | 'REDIS_PORT', string | undefined>
+  >,
 ): void {
-  (['DEMO_MODE', 'REDIS_URL'] as const).forEach((key) => {
+  (['DEMO_MODE', 'REDIS_HOST', 'REDIS_PORT'] as const).forEach((key) => {
     const previous = snapshot[key];
     if (previous === undefined) {
       delete process.env[key];
@@ -77,7 +79,10 @@ describe('DEMO MODE guest HTTP (e2e)', () => {
   let admin: E2eAgent;
   let guest: E2eAgent;
   let prisma: PrismaService;
-  let envSnapshot: Record<'DEMO_MODE' | 'REDIS_URL', string | undefined>;
+  let envSnapshot: Record<
+    'DEMO_MODE' | 'REDIS_HOST' | 'REDIS_PORT',
+    string | undefined
+  >;
   const fakeLlm = new FakeLlmGateway();
   const quota: GuestQuotaPort = {
     tryAdmitDailyRun: async () => ({ kind: 'ok' }),
@@ -88,10 +93,12 @@ describe('DEMO MODE guest HTTP (e2e)', () => {
   beforeAll(async () => {
     envSnapshot = {
       DEMO_MODE: process.env.DEMO_MODE,
-      REDIS_URL: process.env.REDIS_URL,
+      REDIS_HOST: process.env.REDIS_HOST,
+      REDIS_PORT: process.env.REDIS_PORT,
     };
     process.env.DEMO_MODE = 'true';
-    process.env.REDIS_URL = 'redis://127.0.0.1:6379';
+    process.env.REDIS_HOST = '127.0.0.1';
+    process.env.REDIS_PORT = '6379';
     deployTestDb();
 
     const moduleRef = await Test.createTestingModule({

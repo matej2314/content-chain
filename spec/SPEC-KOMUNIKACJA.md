@@ -1,7 +1,7 @@
 ---
-wersja: 33
+wersja: 36
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-06
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -15,6 +15,8 @@ Norma **implementacji obu powierzchni I/O** Content Chain:
 
 Uszczegóławia `docs/dokumentacja_komunikacji.md` oraz korelację ID z `docs/brand_types.md` / `docs/dictionary.md`. **Nie** redefiniuje listy endpointów ani payloadów — odwołuje się do docs; tu obowiązują wzorce warstw, walidacja, envelope, SSE i adapter LLM.
 
+Zmiana względem wersji 34 / cel: doprecyzowano K-2b — pełna lista HTTP `GET /runs/user/:userId`; paginacja „Moje runy” = wyłącznie UI (`docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`).
+
 Zmiana względem wersji 23 / cel: dopisano konsumpcję `run.completed` / `run.failed` w dashboardzie (toast). **Bez** nowych kodów HTTP, eventów SSE i endpointów.
 
 Zmiana względem wersji 24 / cel: brak `POST .../cancel` i `run.cancelled`. Od tej wersji trzeci terminal SSE + kod `RUN_NOT_CANCELABLE` — skrót egzekwowalny; pełne payloady w docs.
@@ -25,6 +27,7 @@ Zmiana względem wersji 28 / cel: publiczne surface auth = bootstrap / accept-in
 
 Zmiana względem wersji 31 / cel: powierzchnia health = wyłącznie liveness api. Od tej wersji także publiczny `GET /api/v1/health/ready` (agregat api + gateway **liveness**); probe upstream **bez** konsumpcji gateway `/health/ready` — `docs/dokumentacja_komunikacji.md`.
 Zmiana względem wersji 32 / cel: K-2g = zawsze `role = user`. Od tej wersji **refaktor** `user.role` w odpowiedzi register (`guest` \| `user`) + `GET /config` + kody quota guest.
+Zmiana względem wersji 35 / K-2f: happy path 201 bez jawnej normy roli vs demo. Od tej wersji `role` w 201 accept-invite vs `DEMO_MODE` (odsyłacz A-7b).
 
 ## Powiązanie ze stylem z docs
 
@@ -43,7 +46,7 @@ Wiążące (`docs/architektura.md`):
 |--------------|-------------------|--------|
 | Publiczne API CC | `/api/v1` | JSON |
 | Lista runów | `GET /api/v1/runs` | JSON (paginacja stała 10) |
-| Runy użytkownika (select opinii + Konto) | `GET /api/v1/runs/user/:userId` | JSON (wszystkie, bez pageSize=10) |
+| Runy użytkownika (select opinii + Konto) | `GET /api/v1/runs/user/:userId` | JSON (wszystkie, bez pageSize HTTP; paginacja UI Moje runy = FE) |
 | Live run | `GET /api/v1/runs/:runId/events` | SSE (`text/event-stream`) |
 | Anulowanie runu | `POST /api/v1/runs/:runId/cancel` | JSON (body puste; snapshot) |
 | Opinia tekstowa | `POST /api/v1/feedback` | JSON (zapis MVP) |
@@ -102,7 +105,9 @@ Zmiana względem wersji 15 / K-2c: enumeracja `result` bez `contents` / `reelScr
 
 Zmiana względem wersji 26 / K-2c: snapshot bez pól TTL / bez normy GET bez side-effect. Od tej wersji `pipelineFinishedAt` + `reviewExpiresAt` + 4a.
 
-K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora: select opinii **oraz** „Moje runy” na Koncie (live) (`SPEC-RUNY.md` R-3c, `docs/ux_dashboard.md`). W formularzu opinii UI filtruje `completed` \| `failed` \| (`cancelled` **z** wynikiem — Fbk-3a); lista Konta pokazuje wszystkie statusy. `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`): przy `targetType=run` okno `completed` \| `failed` \| (`cancelled` **oraz** istnieje wynik); inaczej **409** `RUN_NOT_REVIEWABLE` (Fbk-3a). Ocena / **zapis edycji wyniku** (`POST .../output-edited` z `{ result }`) / finalize — wyłącznie `completed` \| `failed` **oraz** w oknie `REVIEW_TTL` (`SPEC-RUNY.md` R-10); `cancelled` → **409** `RUN_NOT_REVIEWABLE`; po finalize **albo** po TTL → **409** `REVIEW_LOCKED` (**bez** side-effect UPDATE `reviewFinalizedAt` przy samym TTL — lock w DB = sweeper). Payloady w `docs/dokumentacja_komunikacji.md`. Env okna / sweepera: `REVIEW_TTL`, `REVIEW_SWEEP_INTERVAL` — `docs/deployment.md` (ten SPEC nie redefiniuje tabeli env).
+K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora: select opinii **oraz** „Moje runy” na Koncie (live) (`SPEC-RUNY.md` R-3c, `docs/ux_dashboard.md`). **Bez** paginacji HTTP (`page` / `pageSize`); FE **wolno** paginować wyświetlanie tabeli Konta stałym `pageSize = 10` (slice) — `SPEC-FRONTEND.md` F-8. W formularzu opinii UI filtruje `completed` \| `failed` \| (`cancelled` **z** wynikiem — Fbk-3a); lista Konta pokazuje wszystkie statusy. `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`): przy `targetType=run` okno `completed` \| `failed` \| (`cancelled` **oraz** istnieje wynik); inaczej **409** `RUN_NOT_REVIEWABLE` (Fbk-3a). Ocena / **zapis edycji wyniku** (`POST .../output-edited` z `{ result }`) / finalize — wyłącznie `completed` \| `failed` **oraz** w oknie `REVIEW_TTL` (`SPEC-RUNY.md` R-10); `cancelled` → **409** `RUN_NOT_REVIEWABLE`; po finalize **albo** po TTL → **409** `REVIEW_LOCKED` (**bez** side-effect UPDATE `reviewFinalizedAt` przy samym TTL — lock w DB = sweeper). Payloady w `docs/dokumentacja_komunikacji.md`. Env okna / sweepera: `REVIEW_TTL`, `REVIEW_SWEEP_INTERVAL` — `docs/deployment.md` (ten SPEC nie redefiniuje tabeli env).
+
+Zmiana względem wersji 34 / K-2b: dopisano kanon paginacji UI Moje runy (FE) przy zachowaniu pełnej listy HTTP.
 
 Zmiana względem wersji 19 / K-2b: endpoint user-runs tylko pod select opinii. Od tej wersji także lista Konta; dopisano K-2d.
 
@@ -120,9 +125,10 @@ Zmiana względem wcześniejszego K-2d: trasa `PATCH /auth/me` (z lub bez `curren
 
 K-2e. `POST /api/v1/runs/:runId/cancel` — body puste; sesja cookie. Authz `startedBy` (inaczej **403** `FORBIDDEN`). Odpowiedzi: **200** + snapshot (`status: cancelled`, `cancelledAt`) przy pierwszym legalnym cancelu **oraz** gdy run już `cancelled` (idempotencja); **404**; **409** `RUN_NOT_CANCELABLE` gdy status już `completed` \| `failed`. **200 nie czeka** na zwinięcie execute. Semantyka CAS / abort / recovery — `SPEC-RUNY.md` R-11. Pełny kontrakt: `docs/dokumentacja_komunikacji.md`.
 
-K-2f. `POST /api/v1/auth/accept-invite` — publiczny; body `{ token, password }`. Happy path: **201** `{ user: { id, email, role } }` — **bez** Set-Cookie. Token zły / zużyty / `revoked` / wygasły → **401** `UNAUTHORIZED` (wspólny `message`). Hasło poza polityką → **400** `VALIDATION_FAILED`. Kolizja `User.email` (w tym soft-deleted) przy ważnym tokenie → **401** `UNAUTHORIZED`, **identyczny** `code` + `message` co zły token; Invitation → `revoked`; **zakaz** **409** `CONFLICT` / „email zajęty” na tej trasie. Pełna tabela: `docs/dokumentacja_komunikacji.md`. Semantyka Auth: `SPEC-AUTH.md` A-7b.
+K-2f. `POST /api/v1/auth/accept-invite` — publiczny; body `{ token, password }` (bez `role`). Happy path: **201** `{ user: { id, email, role } }` — **bez** Set-Cookie; **`user.role`:** `guest` gdy `DEMO_MODE=true`, `user` gdy `false` (`SPEC-AUTH.md` A-7b). Token zły / zużyty / `revoked` / wygasły → **401** `UNAUTHORIZED` (wspólny `message`). Hasło poza polityką → **400** `VALIDATION_FAILED`. Kolizja `User.email` (w tym soft-deleted) przy ważnym tokenie → **401** `UNAUTHORIZED`, **identyczny** `code` + `message` co zły token; Invitation → `revoked`; **zakaz** **409** `CONFLICT` / „email zajęty” na tej trasie. Pełna tabela: `docs/dokumentacja_komunikacji.md`. Semantyka Auth: `SPEC-AUTH.md` A-7b.
 
 Zmiana względem wersji 27: brak osobnego wymogu K-2f; kolizja email na accept-invite żyła tylko w `SPEC-AUTH.md` jako **409**. Od tej wersji kontrakt HTTP = maskowanie **401** (Faza 1 docs).
+Zmiana względem wersji 35 / K-2f: 201 bez jawnej normy `role` vs demo. Od tej wersji `role` vs `DEMO_MODE` (mirror K-2g / A-7b); statusy / cookie / 401 — **bez zmian**.
 
 K-2g. `POST /api/v1/auth/register` — publiczny; body `{ email, password }` (`.strict()`; bez `role`). **Zawsze** dostępny (nie bramka `DEMO_MODE`). **`user.role` w 201:** `guest` gdy `DEMO_MODE=true`, `user` gdy `false`. **Zmiana względem:** K-2g wersji 32 — zawsze `role = user`. Reszta kontraktu **bez zmian**: revoke pending `Invitation`; **201** `{ user: { id, email, role, verifiedAt } }` **bez** Set-Cookie; w `production`: pending; poza prod: `verifiedAt` od razu; kolizja → **409** `CONFLICT`, `message`: **`Email already in use`**; hasło poza polityką → **400**; pad SMTP → **503** `MAIL_DELIVERY_FAILED` + `details.id`. Semantyka: `SPEC-AUTH.md` A-11; pełne payloady: `docs/dokumentacja_komunikacji.md`.
 
@@ -207,9 +213,10 @@ Zmiana względem wersji 31: brak normy readiness api / probe. Od tej wersji K-10
 
 K-11. `GET /api/v1/config` — publiczny (`@Public()`); V1: **wyłącznie** `{ "demoMode": boolean }` (`true` gdy proces wystartował z `DEMO_MODE=true`). **Zakaz** innych pól w V1 (capy, role, Redis). Egzekucja limitów i tak w API.
 
-K-12. Quota / rating guest — kody jak `docs/dokumentacja_komunikacji.md`: `GUEST_TYPE_NOT_ALLOWED`, `GUEST_TYPE_QUOTA_EXCEEDED`, `GUEST_GLOBAL_QUOTA_EXCEEDED` (**403**); soft rating → **429** + `message`. Semantyka admit / fail modes: `SPEC-RUNY.md` R-12. Redis **nie** jest checkiem `health` / `ready` (K-10 **bez** faila na brak Redis; przy `DEMO_MODE=false` Redis opcjonalny).
+K-12. Quota / rating guest — kody jak `docs/dokumentacja_komunikacji.md`: `GUEST_TYPE_NOT_ALLOWED`, `GUEST_TYPE_QUOTA_EXCEEDED`, `GUEST_GLOBAL_QUOTA_EXCEEDED` (**403**); soft rating → **429** + `message`. Semantyka admit / fail modes: `SPEC-RUNY.md` R-12. Redis **nie** jest checkiem `health` / `ready` (K-10 **bez** faila na brak Redis; przy `DEMO_MODE=false` Redis opcjonalny). Połączenie klienta guest quota: **`REDIS_HOST`** + **`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); przy `DEMO_MODE=true` HOST+PORT wymagane (fail-fast). **Zakaz** `REDIS_URL` — `docs/deployment.md` / `SPEC-BEZPIECZENSTWO.md` B-11.
 
 Zmiana względem wersji 32: brak `GET /config` i kodów quota. Od tej wersji K-11 / K-12.
+Zmiana względem wersji 33 / K-12: Redis bez nazw env połączenia. Od tej wersji kanon HOST/PORT/(opcjonalne) PASSWORD; bez `REDIS_URL`.
 
 ## Norma implementacji
 
@@ -318,7 +325,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - [ ] `GET /api/v1/runs/user/:userId` i `POST /feedback` oraz rating/edit/finalize istnieją w kontrakcie docs; kody `REVIEW_LOCKED` / `RUN_NOT_REVIEWABLE` / `RUN_NOT_CANCELABLE` w envelope; snapshot + sukcesy mutacji przeglądu niosą `pipelineFinishedAt` / `reviewExpiresAt`; lista usera **bez** tych pól; GET bez side-effect finalize.
 - [ ] `POST /api/v1/runs/:runId/cancel`: 200 (legalne + idempotencja), 403, 404, 409 `RUN_NOT_CANCELABLE`; body puste; bez await execute.
 - [ ] `PATCH /api/v1/auth/me/email` `{ email, currentPassword }` w kontrakcie docs (**400** / **401** `UNAUTHORIZED` \| `INVALID_PASSWORD` / **409** gdy zajęty); nie przez `PATCH /users/:id`; brak mutacji na `PATCH /auth/me`.
-- [ ] `POST /api/v1/auth/accept-invite`: **201** bez Set-Cookie; zły token / kolizja email → **401** `UNAUTHORIZED` (ten sam `message`); **nie** **409** przy zajętym emailu.
+- [ ] `POST /api/v1/auth/accept-invite`: **201** bez Set-Cookie; `role` = `guest` \| `user` vs `DEMO_MODE`; zły token / kolizja email → **401** `UNAUTHORIZED` (ten sam `message`); **nie** **409** przy zajętym emailu.
 - [ ] `POST /api/v1/auth/register`: **201** bez Set-Cookie (nowy email); `role` = `guest` \| `user` vs `DEMO_MODE`; kolizja → **409** `CONFLICT`; **nie** maskowany 201; pad SMTP → **503** + `details.id` User.
 - [ ] `GET /api/v1/config`: publiczny; body wyłącznie `{ demoMode }`.
 - [ ] `POST /api/v1/auth/activate`: **200** bez Set-Cookie; zły token → wspólny **401**.

@@ -17,6 +17,7 @@ type RunReviewPanelProps = {
   readonly snapshot: RunSnapshot;
   readonly userId: UserId;
   readonly finalizeDisabled: boolean;
+  readonly guestLocked: boolean;
   readonly onReload: () => Promise<void>;
 };
 
@@ -27,6 +28,7 @@ export function RunReviewPanel({
   snapshot,
   userId,
   finalizeDisabled,
+  guestLocked,
   onReload,
 }: RunReviewPanelProps) {
   const nowMs = useReviewExpiryTick(snapshot.reviewExpiresAt);
@@ -47,8 +49,14 @@ export function RunReviewPanel({
       await action();
       await onReload();
     } catch (reason: unknown) {
-      if (reason instanceof ApiError) setEnvelope(reason.envelope);
-      else setEnvelope(FALLBACK);
+      if (reason instanceof ApiError) {
+        setEnvelope({
+          code: reason.envelope.code,
+          message: reason.envelope.message,
+        });
+        return;
+      }
+      setEnvelope(FALLBACK);
     } finally {
       setPending(false);
     }
@@ -103,7 +111,7 @@ export function RunReviewPanel({
           </Button>
         ) : null}
       </div>
-      {reviewable ? (
+      {reviewable && !guestLocked ? (
         <Button
           type="button"
           disabled={pending || finalizeDisabled}

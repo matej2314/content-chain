@@ -1,7 +1,7 @@
 ---
-wersja: 13
+wersja: 16
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-06
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -13,11 +13,15 @@ Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
 
 **Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
 
+Zmiana względem: lista user = pełna odpowiedź HTTP; UI Konto pokazywał całą tabelę. Od tej wersji: kontrakt `GET /runs/user/:userId` **bez zmiany** (pełna lista, bez `pageSize`); **paginacja UI** „Moje runy” (10) jest wyłącznie w FE — `docs/ux_dashboard.md`.
+
 Zmiana względem: powierzchnia health api = wyłącznie liveness; zależność gateway poza kontraktem produktu. Od tej wersji: publiczny `GET /api/v1/health/ready` (agregat api process + gateway **liveness**); FE czyta gotowość agentów przez ten endpoint (nie przez completeness); api **nie** konsumuje upstream `/health/ready` w tym kontrakcie.
 
 Zmiana względem: przegląd bez limitu czasu; `reviewFinalizedAt` tylko z ręcznego finalize. Od tej wersji: kotwica `pipelineFinishedAt`, okno `REVIEW_TTL`, wyliczane `reviewExpiresAt` na snapshotcie i sukcesach mutacji (nie na liście usera); mutacja po TTL → **409** `REVIEW_LOCKED` **bez** UPDATE locka; trwały auto-finalize = sweeper (boot + `REVIEW_SWEEP_INTERVAL`); GET **bez** side-effectów. Env: `docs/deployment.md`.
 
 Zmiana względem wcześniejszej wersji tego dokumentu: trzeci terminal **`cancelled`**; krawędzie z `queued` \| `running` \| `awaiting_hitl` \| `interrupted`; endpoint `POST .../cancel`; SSE `run.cancelled`; archiwum UI `completed,failed,cancelled`; rozszczep przegląd vs opinia na `cancelled`. `POST /runs` nadal nigdy nie tworzy `cancelled`.
+
+Zmiana względem: Redis admit / rating bez nazw env połączenia w kontrakcie I/O. Od tej wersji: api → Redis = **`REDIS_HOST`** + **`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); **bez** `REDIS_URL` — `deployment.md`.
 
 Zmiana względem wcześniejszej wersji tego dokumentu (korelacja): **`ConversationId` jest jeden na run agentowy** (główna oś kroków LLM). **`RequestId`** zawsze z **odpowiedzi** (`apps/api` dla HTTP, gateway dla LLM) — klienci nie generują go z góry. Formaty jak w gateway — patrz `brand_types.md` / `dictionary.md`.
 
@@ -34,6 +38,8 @@ Zmiana względem kanonu Fazy 4.3 (HITL Social dwuetapowy = dokładnie 1 `selecte
 Zmiana względem kanonu Users (`POST /api/v1/users` z `email` + `password`): ta trasa **wypada z kanonu**. Drogi na konto nie-admin: **zaproszenie** → `POST /auth/accept-invite` **oraz** **otwarta rejestracja** → `POST /auth/register` (+ aktywacja w `production`). Soft-delete (`DELETE /users/:id`) **bez zmian**. Zmiana względem: „jedyna droga = invite” / zakaz signup; **oraz** względem chwilowego „maskowany 201 przy kolizji na register”.
 
 Zmiana względem: register **zawsze** `role = user`; `guest` poza kontraktem. Od tej wersji **refaktor roli** (dostępność register **bez zmian**): `DEMO_MODE=true` → `guest`; `false` → `user`. Dopisano publiczny `GET /config` (`demoMode` only), kody quota guest, admit Redis przed create, ownership guest na detail/HITL, mutacje zabronione.
+
+Zmiana względem: Faza 18 — accept-invite zawsze `role = user`; *„Nigdy `guest` z invite”*. Od tej wersji accept-invite **mirror register**: `DEMO_MODE=true` → `guest`, `false` → `user` (201 może zwrócić `role: guest`). Sens: prod invite = zespół; demo invite = sandbox guest. Brak Set-Cookie / **401** kolizja / body `{ token, password }` — **bez zmian**.
 
 Zmiana względem wiersza PATCH Users („Aktualizacja (np. reaktywacja)” bez body; API „pod późniejsze V1”): w MVP `PATCH /api/v1/users/:id` jest **obowiązkowy** i **wyłącznie** reaktywacją — body `{ "isActive": true }`; dezaktywacja zostaje `DELETE`. UI nadal poza MVP.
 
@@ -130,7 +136,7 @@ Jednorazowy bootstrap **pierwszego i jedynego** admina self-host. Działa tylko,
 
 **201** — `{ "user": { "id", "email", "role" } }` (+ Set-Cookie **`cc_access`** / **`cc_refresh`**). Kolejne wywołania: `CONFLICT` / `FORBIDDEN`.
 
-Nie mylić z `POST /auth/accept-invite` (publiczna akceptacja zaproszenia `user` — **bez** Set-Cookie).
+Nie mylić z `POST /auth/accept-invite` (publiczna akceptacja zaproszenia — aktywne konto nie-admin; **bez** Set-Cookie).
 
 #### `POST /api/v1/auth/login`
 
@@ -190,7 +196,7 @@ Zmiana względem: flow FE wymagał `code` + `message` pod polem hasła. Od tej w
 
 Otwarta rejestracja — **`@Public()`**. Zawsze dostępna (**nie** bramkowana `DEMO_MODE`). Body: `{ "email", "password" }` (`.strict()`); **bez** `role` w body. Confirm hasła tylko na FE.
 
-**Zmiana względem:** po planie register serwer **zawsze** `role = user`. **Refaktor:** `DEMO_MODE=true` → **`guest`**; `DEMO_MODE=false` → **`user`**. **Nigdy** `admin`. **Nigdy** `guest` z invite. Przed `User.create`: **revoke** ewentualnego **`Invitation` `pending`** na ten sam email.
+**Zmiana względem:** po planie register serwer **zawsze** `role = user`. **Refaktor:** `DEMO_MODE=true` → **`guest`**; `DEMO_MODE=false` → **`user`**. **Nigdy** `admin`. Accept-invite przy demo on **także** może tworzyć `guest` (mirror tej reguły — sekcja accept-invite). Przed `User.create`: **revoke** ewentualnego **`Invitation` `pending`** na ten sam email.
 
 | Warunek | HTTP | `code` | Skutek |
 |---------|------|--------|--------|
@@ -221,14 +227,14 @@ Ponowne wysłanie maila aktywacji — **`@Public()`**. Body np. `{ "email" }` (`
 
 #### `POST /api/v1/auth/accept-invite` (publiczny)
 
-Akceptacja zaproszenia — **`@Public()`**. Nie wymaga sesji i **nie** mylić z bootstrapem ani z register. Jedna z dróg na aktywne konto `user` (obok self-register): ważny, niezużyty, niewygasły, nieunieważniony token zaproszenia.
+Akceptacja zaproszenia — **`@Public()`**. Nie wymaga sesji i **nie** mylić z bootstrapem ani z register. Jedna z dróg na aktywne konto nie-admin (obok self-register): ważny, niezużyty, niewygasły, nieunieważniony token zaproszenia. **Rola** jak register vs `DEMO_MODE`: **`true` → `guest`**, **`false` → `user`** (nigdy `admin`). Sens: prod = członek zespołu; demo = gość sandboxu.
 
 | Pole | Typ | Wymagane |
 |------|-----|----------|
 | `token` | string | tak (raw z maila / logu dev — ten sam token) |
 | `password` | string | tak (polityka haseł — `security.md`) |
 
-**201** — `{ "user": { "id", "email", "role" } }` **bez** Set-Cookie; **`verifiedAt = now()`** na utworzonym `User`. Potem zwykły `POST /auth/login`.
+**201** — `{ "user": { "id", "email", "role" } }` **bez** Set-Cookie; **`verifiedAt = now()`** na utworzonym `User`. Przy demo on `role` w 201 może być **`guest`**. Potem zwykły `POST /auth/login`.
 
 | Warunek | HTTP | `code` | Skutek dla zaproszenia |
 |---------|------|--------|------------------------|
@@ -238,11 +244,11 @@ Akceptacja zaproszenia — **`@Public()`**. Nie wymaga sesji i **nie** mylić z 
 
 Zmiana względem: wiersz „Email już zajęty” → **409** `CONFLICT` / świadoma enumeracja / „nie maskować jako 401”. Od tej wersji: maskowanie jako **401** + unieważnienie zaproszenia. Historycznie **409** na tej trasie przy zajętym emailu **nie** obowiązuje.
 
-Atomowość happy path: po walidacji tokenu i hasła **jedna** transakcja tworzy `User` (`role = user`) **oraz** ustawia Invitation na `accepted`. Przy kolizji email: **brak** `User`; Invitation → `revoked` w atomowym kroku z próbą create. Szczegół transakcji = `spec/SPEC-AUTH.md` / `spec/SPEC-PERSISTENCE.md`.
+Atomowość happy path: po walidacji tokenu i hasła **jedna** transakcja tworzy `User` (**rola vs `DEMO_MODE`**: `guest` \| `user`) **oraz** ustawia Invitation na `accepted`. Przy kolizji email: **brak** `User`; Invitation → `revoked` w atomowym kroku z próbą create. Szczegół transakcji = `spec/SPEC-AUTH.md` / `spec/SPEC-PERSISTENCE.md`.
 
 #### Users (admin)
 
-Zasób kont — **bez** create-z-hasłem przez admina. `POST /api/v1/users` **usunięty** z kanonu (zmiana względem: create `user` = `email` + `password` w `POST /users`). Konta nie-admin powstają przez **invite → accept-invite** (`role = user`) albo **register** (+ activate w prod; rola vs `DEMO_MODE`). `guest` → **403** na całym zasobie.
+Zasób kont — **bez** create-z-hasłem przez admina. `POST /api/v1/users` **usunięty** z kanonu (zmiana względem: create `user` = `email` + `password` w `POST /users`). Konta nie-admin powstają przez **invite → accept-invite** (rola vs `DEMO_MODE`: demo off = zespół/`user`, demo on = sandbox/`guest`) albo **register** (+ activate w prod; rola vs `DEMO_MODE`). `guest` → **403** na całym zasobie.
 
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
@@ -465,7 +471,7 @@ Page + `platform: linkedin` → **400** `VALIDATION_FAILED`. Page + `selectedIde
 
 `interrupted` **nie** jest statusem startowym — `POST /runs` go nie zwraca. `cancelled` **nigdy** nie powstaje z `POST /runs`.
 
-**Polityka `guest` (DEMO on):** allowlista `taskType`: `post_ideas` \| `page_copy` \| `page_outline_then_copy`. Per typ **1 start na życie konta** — COUNT `startedBy` + `taskType` **wszystkie statusy**. HITL **bez** osobnego limitu. Global cap: Redis INCR na `content-chain:guest:daily:runs:{UTC-date}` (`GUEST_GLOBAL_CAP_PER_DAY`, default **30**); **najpierw** Redis admit, **potem** create Run; DECR przy rollbacku gdy create się nie uda. Pad Redis → **fail closed**. `MAX_CONCURRENT_RUNS` + FIFO **bez zmian** (nie drugi semafor).
+**Polityka `guest` (DEMO on):** allowlista `taskType`: `post_ideas` \| `page_copy` \| `page_outline_then_copy`. Per typ **1 start na życie konta** — COUNT `startedBy` + `taskType` **wszystkie statusy**. HITL **bez** osobnego limitu. Global cap: Redis INCR na `content-chain:guest:daily:runs:{UTC-date}` (`GUEST_GLOBAL_CAP_PER_DAY`, default **30**); **najpierw** Redis admit, **potem** create Run; DECR przy rollbacku gdy create się nie uda. Pad Redis → **fail closed**. `MAX_CONCURRENT_RUNS` + FIFO **bez zmian** (nie drugi semafor). Połączenie Redis w api: **`REDIS_HOST`** + **`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); przy `DEMO_MODE=true` HOST+PORT wymagane (fail-fast). **Bez** `REDIS_URL` (`deployment.md`).
 
 | Warunek guest | HTTP | `code` |
 |---------------|------|--------|
@@ -596,7 +602,9 @@ Zmiana względem kanonu Fazy 4.3 (jeden skalar `content` / `reelScript` po HITL 
 
 #### `GET /api/v1/runs/user/:userId`
 
-Lekka lista **wszystkich** runów, których inicjatorem jest `:userId` (filtr `startedBy`). **Bez** paginacji `pageSize=10` (wyjątek względem listingu **Runy** / instancji). Konsumenci UI: select formularza opinii **oraz** lista **Moje runy** na widoku Konto (`docs/ux_dashboard.md`). Sort: `createdAt` desc.
+Lekka lista **wszystkich** runów, których inicjatorem jest `:userId` (filtr `startedBy`). **Bez** paginacji HTTP `pageSize=10` (wyjątek względem listingu **Runy** / instancji). Konsumenci UI: select formularza opinii **oraz** lista **Moje runy** na widoku Konto (`docs/ux_dashboard.md`). Sort: `createdAt` desc.
+
+**UI (Konto):** tabela „Moje runy” **paginuje po stronie FE** stałym `pageSize = 10` (jak Runy) — **nie** dodaje query `page` / `pageSize` do tego endpointu. Pełna lista z odpowiedzi pozostaje źródłem live/SSE / floating box / selectu opinii.
 
 **Authz:** `:userId` **musi** być id zalogowanego użytkownika (sesja). Inny id → **403** `FORBIDDEN`. Brak wyjątku dla `admin` w MVP (panel cudzych runów = V1).
 
@@ -612,7 +620,7 @@ Ustawienie oceny przez **autora** runu (`startedBy`). Body: `{ "rating": 1 | 2 |
 
 Dozwolone wielokrotnie, dopóki przegląd otwarty (`reviewFinalizedAt === null` **i** `now < pipelineFinishedAt + REVIEW_TTL`). Status runu: tylko `completed` \| `failed` (**nie** `cancelled` → **409** `RUN_NOT_REVIEWABLE`).
 
-**`guest`:** tylko własny run; soft limit dzienny Redis `content-chain:guest:daily:ratings:{userId}:{UTC-date}` (`GUEST_RATING_CAP_PER_DAY`, default **10**) → **429** + `message`. Pad Redis → **fail open** (ocena przechodzi).
+**`guest`:** tylko własny run; soft limit dzienny Redis `content-chain:guest:daily:ratings:{userId}:{UTC-date}` (`GUEST_RATING_CAP_PER_DAY`, default **10**) → **429** + `message`. Pad Redis → **fail open** (ocena przechodzi). Ten sam klient Redis co admit startu: **`REDIS_HOST`** + **`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**).
 
 **200** — `{ "runId", "userRating", "reviewFinalizedAt", "pipelineFinishedAt", "reviewExpiresAt" }` (meta TTL spójnie ze snapshotem).  
 **403** gdy sesja ≠ autor. **409** `REVIEW_LOCKED` po finalize **albo** po TTL (sam 409 — **bez** UPDATE `reviewFinalizedAt`; trwały lock w DB = sweeper). **409** `RUN_NOT_REVIEWABLE` przy innym statusie (w tym `cancelled`).

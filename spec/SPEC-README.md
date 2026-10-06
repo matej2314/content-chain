@@ -1,7 +1,7 @@
 ---
-wersja: 13
+wersja: 16
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-06
 ---
 
 # SPEC — README
@@ -27,17 +27,17 @@ SPEC **uszczegóławia** docs; nie zastępuje ich i nie tworzy równoległej dok
 | Plik | Obszar |
 |------|--------|
 | `SPEC-MONOREPO.md` | Granice apps/*, `packages/shared`, pnpm, importy |
-| `SPEC-KOMUNIKACJA.md` | HTTP/SSE api + klient → gateway; snapshot TTL (`pipelineFinishedAt` / `reviewExpiresAt`); publiczne auth: register / activate / resend; **`GET /config`** (`demoMode`); **`GET /health` + `/health/ready`** (probe liveness gateway) |
-| `SPEC-AUTH.md` | Auth, cookie `cc_access`/`cc_refresh`, role `admin`\|`user`\|**`guest`**; **otwarta rejestracja** (rola vs `DEMO_MODE`) + aktywacja e-mail; GuestGuard |
+| `SPEC-KOMUNIKACJA.md` | HTTP/SSE api + klient → gateway; snapshot TTL (`pipelineFinishedAt` / `reviewExpiresAt`); publiczne auth: register / activate / resend; **`GET /config`** (`demoMode`); **`GET /health` + `/health/ready`** (probe liveness gateway); lista user **bez** pageSize HTTP (paginacja UI Moje runy = FE) |
+| `SPEC-AUTH.md` | Auth, cookie `cc_access`/`cc_refresh`, role `admin`\|`user`\|**`guest`**; **otwarta rejestracja** i **accept-invite** (rola vs `DEMO_MODE`) + aktywacja e-mail; GuestGuard |
 | `SPEC-KONTEKST-FIRMY.md` | Company context, bramka kompletności (`isComplete` **bez** sieci / gateway); GET dla guest; zapis tylko admin |
 | `SPEC-SOCIAL.md` | Pipeline Social (posty **i** rolki), LangGraph, HITL model B |
 | `SPEC-CONTENT.md` | Pipeline Content (page copy / outline), LangGraph, HITL model B |
-| `SPEC-RUNY.md` | Cykl życia runu (`completed` / `failed` / **`cancelled`**), logi, SSE, kolejka, recovery, anulowanie (R-11), **przegląd z `REVIEW_TTL` / sweeper auto-finalize (R-10)**, **GuestRunPolicy (R-12)**, ocena / edycja outputu, composite executor, unia `SocialBrief` / `ContentBrief` na `RunRecord` |
+| `SPEC-RUNY.md` | Cykl życia runu (`completed` / `failed` / **`cancelled`**), logi, SSE, kolejka, recovery, anulowanie (R-11), **przegląd z `REVIEW_TTL` / sweeper auto-finalize (R-10)**, **GuestRunPolicy (R-12)** + Redis **`REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`**, ocena / edycja outputu, composite executor, unia `SocialBrief` / `ContentBrief` na `RunRecord`; R-3c pełna lista HTTP |
 | `SPEC-FEEDBACK.md` | Opinie tekstowe (zapis MVP; panel odczytu = V1; okno `cancelled`+wynik; **nie** blokowane TTL przeglądu; guest: application/agent + run własny) |
 | `SPEC-PERSISTENCE.md` | Prisma; SQLite w MVP; PostgreSQL od V1 — rozbudowa; pola Run `cancelledAt` / `cancelRequested` / **`pipelineFinishedAt`** (+ indeks sweepera, backfill B); **`User.verifiedAt`** + **`AccountActivation`**; `User.role` String (`guest`) |
-| `SPEC-FRONTEND.md` | Next.js, modules/, shadcn, SSE UI, Stop + modal, archiwum z `cancelled`, disable przeglądu po `reviewExpiresAt`; **signup / thank-you / deep link aktywacji**; **F-6 `agentsActive`**; **F-10 DEMO chip / locki guest** |
+| `SPEC-FRONTEND.md` | Next.js, modules/, shadcn, SSE UI, Stop + modal, archiwum z `cancelled`, disable przeglądu po `reviewExpiresAt`; **signup / thank-you / deep link aktywacji**; **F-6 `agentsActive`**; **F-10 DEMO chip / locki guest**; **viewport shell** + **paginacja UI Moje runy (10)** |
 | `SPEC-TESTY.md` | Jest, supertest, piramida, DoD (w tym D-30…D-34 cancel, **D-35…D-40 TTL / sweeper**, **D-41…D-46 register / activate / resend**, **D-47…D-49 health/ready**, **D-50…D-62 guest / DEMO**) |
-| `SPEC-BEZPIECZENSTWO.md` | Env, ekspozycja, Helmet, CORS, metrics/logi bez sekretów; anti-enum (409 register / stały resend / wspólny 401 login w tym guest przy demo off); GuestGuard; Redis fail modes; publiczny health **i** ready bez wycieku `GATEWAY_KEY` |
+| `SPEC-BEZPIECZENSTWO.md` | Env, ekspozycja, Helmet, CORS, metrics/logi bez sekretów; anti-enum (409 register / stały resend / wspólny 401 login w tym guest przy demo off); GuestGuard; Redis fail modes + połączenie **`REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`** (bez `REDIS_URL`); publiczny health **i** ready bez wycieku `GATEWAY_KEY` |
 
 ## Terminologia faz (skrót)
 
@@ -54,6 +54,9 @@ Zmiana względem wersji 8: mapa bez TTL przeglądu. Od tej wersji indeks wskazuj
 Zmiana względem wersji 9: mapa bez otwartej rejestracji. Od tej wersji AUTH / KOMUNIKACJA / FRONTEND / PERSISTENCE / TESTY / BEZPIECZENSTWO wskazują register + aktywację e-mail.
 Zmiana względem wersji 11: mapa bez `agentsActive` / api `/health/ready`. Od tej wersji FRONTEND F-6, KOMUNIKACJA K-10, BEZPIECZENSTWO B-7, KONTEKST (granica `isComplete`), TESTY D-47…D-49.
 Zmiana względem wersji 12: mapa bez DEMO/`guest`. Od tej wersji AUTH A-11 refaktor, RUNY R-12, FRONTEND F-10, TESTY D-50…D-62.
+Zmiana względem wersji 13: Redis guest bez nazw env w indeksie. Od tej wersji BEZPIECZENSTWO / RUNY / TESTY / KOMUNIKACJA wskazują **`REDIS_HOST`+`REDIS_PORT`(+`REDIS_PASSWORD`)**; bez `REDIS_URL`.
+Zmiana względem wersji 14: mapa bez viewport shell / paginacji UI Moje runy. Od tej wersji FRONTEND / KOMUNIKACJA / RUNY wskazują shell `h-dvh` + paginację UI 10 przy pełnej liście HTTP R-3c.
+Zmiana względem wersji 15 / AUTH: „rola vs `DEMO_MODE`” tylko przy register. Od tej wersji obejmuje **register i accept-invite**.
 
 Szczegóły: `docs/dictionary.md`, `SPEC-PERSISTENCE.md`.
 

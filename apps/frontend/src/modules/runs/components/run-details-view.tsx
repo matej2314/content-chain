@@ -7,6 +7,7 @@ import { Button } from '@/shared/ui/button';
 import { EnvelopeError } from '@/shared/ui/form-field';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { useSession } from '@/modules/auth/components/session-provider';
+import { useGuestLocked } from '@/modules/demo/lib/use-guest-locked';
 import { fetchRunLogs, fetchRunSnapshot } from '@/modules/runs/api/runs.api';
 import {
   CONTENT_KIND_LABELS,
@@ -56,6 +57,7 @@ function envelopeFromUnknown(reason: unknown): { code: string; message: string }
 
 export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) {
   const { state: session } = useSession();
+  const guestLocked = useGuestLocked();
   const { patchStatus, refresh } = useOwnRuns();
   const [view, setView] = useState<DetailsState>({ status: 'loading' });
   const [resultEditing, setResultEditing] = useState(false);
@@ -259,6 +261,7 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
           snapshot={snapshot}
           userId={session.user.id}
           finalizeDisabled={resultEditing}
+          guestLocked={guestLocked}
           onReload={async () => {
             await reloadDetails(snapshot.runId);
           }}
