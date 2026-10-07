@@ -1,17 +1,19 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
 import { EnvelopeError, FormField } from '@/shared/ui/form-field';
+import { ACCEPT_INVITE_DEMO_HINT } from '@/modules/auth/accept-invite-demo-copy';
 import { acceptInvite } from '@/modules/auth/api/auth.api';
 import {
   toAcceptInviteFormError,
   type AcceptInviteFormError,
 } from '@/modules/auth/accept-invite-form-error';
 import { passwordMeetsPolicy } from '@/modules/auth/password-policy';
+import { fetchAppConfig } from '@/modules/demo/api/config.api';
 
 type AcceptInviteFormProps = {
   readonly token: string;
@@ -23,6 +25,26 @@ export function AcceptInviteForm({ token }: AcceptInviteFormProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<AcceptInviteFormError | null>(null);
   const [localHint, setLocalHint] = useState<string | undefined>(undefined);
+  const [showDemoHint, setShowDemoHint] = useState(false);
+  const configRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    const requestId = ++configRequestIdRef.current;
+    void (async () => {
+      try {
+        const config = await fetchAppConfig();
+        if (requestId !== configRequestIdRef.current) return;
+        setShowDemoHint(config.demoMode);
+      } catch {
+        if (requestId !== configRequestIdRef.current) return;
+        // Fail-silent: brak hintu; formularz accept działa bez /config.
+        setShowDemoHint(false);
+      }
+    })();
+    return () => {
+      configRequestIdRef.current += 1;
+    };
+  }, []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -63,6 +85,11 @@ export function AcceptInviteForm({ token }: AcceptInviteFormProps) {
         <p className="text-sm text-muted-foreground">
           Po zapisaniu wrócisz na kartę logowania. Dashboard otworzy się dopiero po zalogowaniu.
         </p>
+        {showDemoHint ? (
+          <p className="text-sm text-muted-foreground" data-slot="accept-invite-demo-hint">
+            {ACCEPT_INVITE_DEMO_HINT}
+          </p>
+        ) : null}
       </CardHeader>
       <CardContent>
         <form className="flex flex-col gap-4" onSubmit={onSubmit}>

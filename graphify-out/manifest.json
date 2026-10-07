@@ -3018,9 +3018,9 @@
     "semantic_hash": "98fe1cba81c245291c436f4a3e397311"
   },
   "apps/api/src/auth/application/accept-invite.use-case.ts": {
-    "mtime": 1791363116.435393,
-    "seen": 1791363728.669037,
-    "ast_hash": "f2bb5b7ec0d2b491bcc503c26770e353",
+    "mtime": 1791365032.8138373,
+    "seen": 1791365685.7850192,
+    "ast_hash": "3a596064525f05467fc5b6197c34766e",
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/invite-user.use-case.ts": {
@@ -3234,9 +3234,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/api/auth.api.ts": {
-    "mtime": 1791021773.5614665,
-    "seen": 1791027779.0678172,
-    "ast_hash": "93b836fa4bce5b7a4fd789fa84a4f23a",
+    "mtime": 1791365656.3369868,
+    "seen": 1791365685.7855637,
+    "ast_hash": "ed92ffec662340da5d0c0751bed0ea89",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/event-source-registry.ts": {
@@ -3342,9 +3342,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/accept-invite-form.tsx": {
-    "mtime": 1791021773.5616455,
-    "seen": 1791027779.0678196,
-    "ast_hash": "3275736b03accd0070d944ed25d76200",
+    "mtime": 1791366041.509029,
+    "seen": 1791366050.7214699,
+    "ast_hash": "ddb5e2f4926c566f21432229b6926f6a",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/password-policy.ts": {
@@ -4119,6 +4119,12 @@
     "mtime": 1791292895.206363,
     "seen": 1791292900.54337,
     "ast_hash": "88245ab3e1247b3112c5b3a0f99899e6",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/auth/accept-invite-demo-copy.ts": {
+    "mtime": 1791366027.354935,
+    "seen": 1791366050.721463,
+    "ast_hash": "5346ac5b6dd157bcae5345fa2fb73c34",
     "semantic_hash": ""
   }
 }

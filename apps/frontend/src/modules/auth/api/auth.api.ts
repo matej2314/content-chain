@@ -65,17 +65,23 @@ export async function logoutSession(): Promise<void> {
   await apiFetch('/auth/logout', { method: 'POST' });
 }
 
+/**
+ * Publiczny accept-invite: **201** bez Set-Cookie.
+ * Parsuje `user.role` (w tym `guest` przy demo on — api Faza 19), ale **nie**
+ * ustanawia sesji FE — dashboard dopiero po `loginSession`.
+ */
 export async function acceptInvite(input: {
   readonly token: string;
   readonly password: string;
-}): Promise<SessionUser> {
+}): Promise<void> {
   const body = await apiFetch('/auth/accept-invite', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
     skipAuthRefresh: true,
   });
-  return parseAuthUserWrapper(body);
+  // Walidacja kształtu + roli (guest|user|admin) — wynik celowo odrzucony.
+  parseAuthUserWrapper(body);
 }
 
 export async function registerAccount(credentials: Credentials): Promise<RegisteredUser> {

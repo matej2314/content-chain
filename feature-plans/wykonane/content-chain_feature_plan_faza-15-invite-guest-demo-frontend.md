@@ -62,7 +62,7 @@ Odpowiada major **Faza 15**.
 
 ### KROK 1 — Audyt kontraktu FE + hardening `acceptInvite` (role-agnostyczny)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Potwierdzić i domknąć, że FE **nie** zakłada `role=user` po accept; parser akceptuje `guest` w **201**; invite UI bez pickera; Users pokazuje „Gość”; locki Fazy 14 działają po loginie bez drugiego predykatu. Major Faza 15 HOW #1, #4, #5; `SPEC-FRONTEND.md` F-10; `SPEC-AUTH.md` A-7b.
 
@@ -150,7 +150,7 @@ export async function acceptInvite(input: {
 
 ### KROK 2 — Opcjonalne copy demo na karcie accept (`GET /config`)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jedno zdanie PL na `/invite/accept`, gdy `demoMode === true`: zaproszony na demo = gość sandboxu (ograniczenia), **bez** zmiany flow hasło→`/`→login. Major Faza 15 HOW #3; `docs/ux_dashboard.md`; `SPEC-FRONTEND.md` F-10; dziedziczenie `content-chain-product-ui`.
 
