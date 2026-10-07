@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-07
 ---
 
 # Testy — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-06
 Strategia testów **MVP**. Cel: szybka pewność na domenie i granicach `apps/api` + kontrakt z gateway (przez port), bez rozdmuchanego E2E UI.
 
 Powiązane: `architektura.md`, `data_flow.md`, `anty_patterny.md`, `spec/SPEC-TESTY.md`.
+
+Zmiana względem: soft-delete Users bez rozróżnienia roli; cancel wyłącznie owner; brak oczekiwań purge / `isActive` na access. Od tej wersji skrót: soft tylko `user`; hard+purge `guest`; reaktywacja tylko `user`; cancel admin→guest; access po soft/hard → **401**. Pełne D-* → `spec/SPEC-TESTY.md` (po Fazie 2 planu Users).
 
 Zmiana względem: lokalizacja fixture `run-record.test-helpers.ts` bez jawnego zakazu przenosin. Od tej wersji: plik **zostaje** w korzeniu BC Runs (`apps/api/src/runs/`); **nie** przenosić do `infrastructure/` ani `helpers/` — `architektura_katalogi_pliki.md`.
 
@@ -73,8 +75,9 @@ Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATE
 
 - Bramka: niekompletny kontekst → brak startu runu (`CONTEXT_INCOMPLETE`).
 - Authz: `user` nie zapisze kontekstu; `admin` tak; obaj mogą startować run (przy kompletności).
-- Zaproszenia (E2E API / Postman, adapter logujący): happy path `POST /invitations` (admin) → token z logu api → `POST /auth/accept-invite` (bez cookie admina) → `POST /auth/login` nowym kontem. Przy **`DEMO_MODE=false`**: konto `role=user`. Przy **`DEMO_MODE=true`**: konto `role=guest` + limity / **403** quota / chip jak ścieżka register→guest (kolekcja `demo-guest` / równoważny smoke: invite → accept → login → jeden slot typu). `user` nie zaprasza (**403**). Drugi `POST /invitations` przy `pending` (także wygasłym) → **409**. Wygasły token → **401** na accept; wiersz nadal na `GET /invitations` (pending). Negatyw: ważny token + istniejący `User` (ten sam email, także soft-deleted) → **401** `UNAUTHORIZED` z tym samym `message` co zły token; Invitation po próbie `revoked` (lub równoważnik); **nie** **409**. Soft-delete jak dotychczas (`DELETE /users/:id` → `isActive = false`; nieaktywny nie loguje się).
-- Cookie auth: chronione trasy bez sesji → `UNAUTHORIZED`.
+- Zaproszenia (E2E API / Postman, adapter logujący): happy path `POST /invitations` (admin) → token z logu api → `POST /auth/accept-invite` (bez cookie admina) → `POST /auth/login` nowym kontem. Przy **`DEMO_MODE=false`**: konto `role=user`. Przy **`DEMO_MODE=true`**: konto `role=guest` + limity / **403** quota / chip jak ścieżka register→guest (kolekcja `demo-guest` / równoważny smoke: invite → accept → login → jeden slot typu). `user` nie zaprasza (**403**). Drugi `POST /invitations` przy `pending` (także wygasłym) → **409**. Wygasły token → **401** na accept; wiersz nadal na `GET /invitations` (pending). Negatyw: ważny token + istniejący `User` (ten sam email, także soft-deleted `user`) → **401** `UNAUTHORIZED` z tym samym `message` co zły token; Invitation po próbie `revoked` (lub równoważnik); **nie** **409**.
+- Users DELETE / PATCH (skrót; pełne D-* w SPEC po Fazie 2): soft `role=user` → `isActive=false`, runy zostają, kolejne requesty z access → **401** (check `isActive`); hard `guest` → brak wiersza / runów / feedback, ratings DEL (lub fail-open); live guest bez `purge` → **409** `GUEST_HAS_ACTIVE_RUN`; z `?purge=true` → **200**; target admin → **403**; `user` woła DELETE → **403**; PATCH reaktywacja tylko `user` (PATCH `guest` → **403**); legacy soft-guest → hard; access po hard → **401** (brak wiersza).
+- Cookie auth: chronione trasy bez sesji → `UNAUTHORIZED`; soft/hard zamyka sesję access (validate DB).
 - `post_ideas` full-auto: queued→running→completed; logi + wynik w DB.
 - `post_ideas_then_content`: `awaiting_hitl` → resume → `contents[]` → completed. Dwuetapowy Social: case **2 z N** (pozytyw) oraz **0 / obcy / duplikat** (negatyw 400 `HITL_INVALID_SELECTION`) — D-21 w `spec/SPEC-TESTY.md`.
 - `reel_ideas` full-auto (D-15); `reel_ideas_then_scripts` HITL (D-16) — analogicznie 2 z N / negatywy selekcji.
@@ -83,7 +86,7 @@ Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATE
 - Verifier + refine: sukces po poprawce; fail po `max N=2`.
 - Błąd gateway (stub): run `failed` / retry wg polityki — czytelny log bez wycieku `X-Gateway-Key`.
 - Kolejka współbieżności i recovery runu — wg `spec/SPEC-RUNY.md` / `spec/SPEC-TESTY.md`: nowy run ponad cap → `queued`; leftover `running` → `interrupted` → claim pod `MAX_CONCURRENT_RUNS` (priorytet nad `queued`); 3× przerwany execute → `failed` + log; leftover z `cancelRequested` → `cancelled` (bez `recoveryAttempts++`).
-- Anulowanie (`cancelled`) — skrót oczekiwań (pełne D-* w `spec/SPEC-TESTY.md`): happy path cancel; idempotencja **200** gdy już `cancelled`; **409** `RUN_NOT_CANCELABLE` przy wyścigu z `completed`/`failed`; HITL po cancel nielegalny; feedback `cancelled` ± wynik; SSE `run.cancelled` + complete huba.
+- Anulowanie (`cancelled`) — skrót oczekiwań (pełne D-* w `spec/SPEC-TESTY.md`): happy path cancel (owner); admin cancel gdy `startedBy.role=guest` → **200**; admin cancel cudzego `user` → **403**; idempotencja **200** gdy już `cancelled`; **409** `RUN_NOT_CANCELABLE` przy wyścigu z `completed`/`failed`; HITL po cancel nielegalny; feedback `cancelled` ± wynik; SSE `run.cancelled` + complete huba; `startedBy.role` na detail.
 - Feedback: zapis opinii z metadanymi; ocena `null`/`1–5`; `POST .../output-edited` z `{ result }` (nadpis kanonicznego wyniku + `outputEdited`); lock po finalize **oraz** po `REVIEW_TTL` (mutacja → `REVIEW_LOCKED` **bez** UPDATE `reviewFinalizedAt`); auto-finalize sweepera (boot + interval) ustawia `reviewFinalizedAt = pipelineFinishedAt + TTL`; GET bez side-effect finalize; `POST /feedback` nadal dozwolone po auto-close przeglądu; `403` na cudzy run; `targetType=run` w toku → `409` `RUN_NOT_REVIEWABLE`; `GET /runs/user/:id` tylko własny id. Pełne D-* (w tym D-35+) → `spec/SPEC-TESTY.md`.
 - SSE: hub nie zatrzymuje subjectu po `completed`/`failed`/`cancelled`; `GET .../events` na skończonym runie emituje snapshot statusu i **kończy** stream (nie wisi).
 

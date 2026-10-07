@@ -1,12 +1,14 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-07
 ---
 
 # Przepływy danych — Content Chain
 
 Opis orkiestracji i ruchu danych w MVP. Kontrakty HTTP/SSE: `dokumentacja_komunikacji.md`. Identyfikatory: `brand_types.md`, `dictionary.md`.
+
+Zmiana względem: brak ścieżki Users DELETE/purge; cancel wyłącznie owner; access bez checku `isActive`. Od tej wersji: soft `user` / hard+purge `guest` (409 → confirm → `purge=true`); Redis SCAN ratings; sesja nieważna przy soft/hard; cancel admin→guest.
 
 Zmiana względem: bramka startu UX = tylko completeness. Od tej wersji: chip / disable CTA = completeness **∧** `gatewayAlive` (api `/health/ready` → probe liveness gateway); twardy `POST /runs` nadal tylko `CONTEXT_INCOMPLETE` przy niekompletnym kontekście.
 
@@ -14,7 +16,7 @@ Zmiana względem: przegląd bez limitu czasu; zamknięcie tylko ręczne. Od tej 
 
 Zmiana względem wcześniejszej wersji (bez frontmatteru): dopisano ścieżkę **anulowania runu** (`cancelled`), gałęzie recovery z `cancelRequested`, konflikty cancel vs completed/failed oraz notę o slocie `MAX_CONCURRENT_RUNS` / persist bez rollbacku.
 
-Zmiana względem: self-register zawsze `user`; admit startu = tylko bramka kontekstu + `MAX_CONCURRENT_RUNS`. Od tej wersji: register → `guest` wyłącznie gdy `DEMO_MODE=true` (**refaktor**). Dla guest: Redis admit (global cap UTC) **przed** create Run; slot COUNT bez filtra statusu. **Bez** ops czyszczenia kont.
+Zmiana względem: self-register zawsze `user`; admit startu = tylko bramka kontekstu + `MAX_CONCURRENT_RUNS`. Od tej wersji: register → `guest` wyłącznie gdy `DEMO_MODE=true` (**refaktor**). Dla guest: Redis admit (global cap UTC) **przed** create Run; slot COUNT bez filtra statusu. Per-konto hard/purge guest — w kanonie (sekcja Users poniżej); reset instancji poza.
 
 Zmiana względem: Faza 18 — *„Invite / bootstrap nie tworzą `guest`”*. Od tej wersji: **bootstrap** nadal nie; **invite przy `DEMO_MODE=true` tworzy `guest`** (mirror register).
 
@@ -309,17 +311,18 @@ Szczegóły: `dictionary.md` (hasła `interrupted`, `cancelled`, `cancelRequeste
 
 ## 6a. Anulowanie runu (`cancelled`)
 
-Ścieżka HTTP → CAS → SSE → abort w tle (v1 in-process):
+Ścieżka HTTP → CAS → SSE → abort w tle (v1 in-process). Authz: `startedBy` **lub** (admin ∧ `startedBy.role === guest`).
 
 ```mermaid
 sequenceDiagram
-  participant Op as Operator startedBy
+  participant Op as Operator owner or admin
   participant API as apps/api HTTP
   participant Repo as attemptCancel CAS
   participant Hub as SSE hub
   participant W as InProcessRunWorker
 
   Op->>API: POST /runs/:runId/cancel
+  Note over API: authz: owner OR admin+guest
   API->>Repo: attemptCancel id cancelledAt
   alt CAS wygrał lub już cancelled
     Repo-->>API: true / idempotent
@@ -337,7 +340,34 @@ sequenceDiagram
 |--------|--------|
 | Slot `MAX_CONCURRENT_RUNS` | HTTP cancel **nie** dekrementuje licznika in-flight; zwalnia go `finally` execute po aborcie. Cancel `queued` / `awaiting_hitl` / `interrupted` **nie** zajmuje slotu execute |
 | Persist | **Bez rollbacku** wyniku już zacommitowanego. Hop w locie **nie** jest dopisywany po `cancelled` |
-| Logi | Append-only + wpis informujący o anulowaniu przez użytkownika |
+| Logi | Append-only + wpis rozróżniający aktora (`cancelled by admin` vs owner) |
+| Authz | Cudzy `role=user` → **403** także dla admina; admin→guest **dozwolone** |
+
+---
+
+## 6b. Zarządzanie kontem (DELETE / PATCH Users)
+
+```text
+Admin DELETE /users/:id
+  → target admin → 403
+  → target user → soft (tx: isActive=false + sesje + activation; runy zostają)
+       → kolejne requesty z access JWT → validate: isActive≠true → 401
+  → target guest + live, bez purge → 409 GUEST_HAS_ACTIVE_RUN
+  → UI confirm force → DELETE ?purge=true
+       → abort live (poza DB) → jedna tx hard (runy+dzieci+Feedback+User)
+       → Redis SCAN DEL ratings:{userId}:* (fail-open)
+  → target guest bez live → hard (ta sama tx + Redis ratings)
+Admin PATCH /users/:id { isActive: true }
+  → tylko role=user; guest → 403
+```
+
+| Reguła | Norma |
+|--------|--------|
+| Soft `user` | Bez 409 przy live; bez kasowania Run/Feedback |
+| Hard / purge `guest` | Kasuje runy gościa (nie `startedByUserId = null`); Feedback jawnie (`authorId` OR `runId` ∈ runów) |
+| Redis | Tylko `…:ratings:{userId}:*`; **nie** DECR globalnego `daily:runs` |
+| Sesja | Brak blacklisty; check DB w `JwtCookieStrategy.validate` |
+| Purge vs Cancel | Purge = skrót z listy Users; Cancel = pojedynczy run na detail |
 
 ---
 
@@ -356,11 +386,14 @@ sequenceDiagram
 | Ocena / Edytuj / finalize gdy nie `completed`/`failed` (w tym `cancelled`) | **409** `RUN_NOT_REVIEWABLE` |
 | Opinia `targetType=run` gdy nie `completed`/`failed` i nie (`cancelled` z wynikiem) | **409** `RUN_NOT_REVIEWABLE` |
 | Zmiana oceny lub flagi / treści wyniku po finalize **albo** po `REVIEW_TTL` | **409** `REVIEW_LOCKED` (**bez** UPDATE `reviewFinalizedAt` przy samym TTL; lock w DB = sweeper) |
-| Ocena / edycja / opinia / cancel o runie obcej osoby | **403** `FORBIDDEN` |
+| Ocena / edycja / opinia o runie obcej osoby; cancel cudzego `user` (także admin) | **403** `FORBIDDEN` |
 | `guest` bez `@AllowGuest` / mutacja zabroniona / cudzy detail | **403** `FORBIDDEN` |
 | `guest` quota typu / global cap | **403** `GUEST_TYPE_*` / `GUEST_GLOBAL_QUOTA_EXCEEDED` |
 | Soft limit rating `guest` | **429**; pad Redis rating → fail open |
 | `GET /runs/user/:userId` z cudzym id | **403** `FORBIDDEN` |
+| `DELETE` guest + live bez `purge` | **409** `GUEST_HAS_ACTIVE_RUN` |
+| Target admin na DELETE/PATCH; PATCH na `guest` | **403** `FORBIDDEN` |
+| Access JWT po soft (`!isActive`) lub hard (brak User) | **401** `UNAUTHORIZED` |
 
 ---
 

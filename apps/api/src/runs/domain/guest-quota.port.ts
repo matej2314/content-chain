@@ -15,4 +15,5 @@ export interface GuestQuotaPort {
     cap: number,
     now?: Date,
   ): Promise<GuestQuotaAdmitResult>;
+  deleteDailyRatings(userId: UserId): Promise<boolean>;
 }

@@ -1,7 +1,7 @@
 ---
-wersja: 14
+wersja: 15
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-07
 ---
 
 # Anty-patterny — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-06
 Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego źle → zamiast tego. Ogólny podręcznik Nest/Next — poza zakresem.
 
 Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `security.md`.
+
+Zmiana względem: zakaz „admin cancel cudzego runu” bez wyjątku; soft/hard bez rozróżnienia roli; brak checku `isActive` na access. Od tej wersji: cancel admin→`guest` **legalny**; soft tylko `user`; hard/purge tylko `guest`; zakaz Soft+Hard na `user`, soft `guest`, reaktywacji `guest`, DEL globalnego daily runs, mylenia z resetem instancji, `PATCH` `isActive: false`, osobnych canceli zamiast `purge` jako skrótu Users, braku checku `isActive`/braku wiersza na access.
 
 Zmiana względem: brak wierszy o układzie katalogów warstw BC (płaski dump `infrastructure/`, kind-folders). Od tej wersji zakazy: płaski dump wielu I/O w jednym katalogu; `helpers/` / `adapters/` / `mappers/` jako kanon; podkatalogi use-case’ów Auth „na siłę”; podkatalogi w `health/` / `metrics/` / `llm/` na wzór BC. Norma drzewa: `architektura_katalogi_pliki.md`.
 
@@ -147,7 +149,16 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | Anty-pattern | Dlaczego źle | Zamiast tego |
 |--------------|--------------|--------------|
 | `user` edytuje kontekst firmy | Łamie model ról | Tylko `admin`; user uruchamia runy produktowe |
-| Admin cancel cudzego runu | Łamie authz Stop = wyłącznie `startedBy` | **403** `FORBIDDEN`; brak wyjątku admina (`dokumentacja_komunikacji.md`) |
+| Admin cancel cudzego runu **`role = user`** | Łamie authz Stop dla członka zespołu | **403** `FORBIDDEN`; cancel cudzego = **tylko** gdy `startedBy.role === guest` (`dokumentacja_komunikacji.md`) |
+| Soft **oraz** Hard jako dwa przyciski / dwa endpointy na `user` | Rozjazd semantyki; ryzyko kasowania runów zespołu | Soft **tylko** `user` (jeden `DELETE`); hard **tylko** `guest` |
+| Hard-delete konta `user` (kasowanie wiersza / runów członka) | Utrata artefaktów zespołu; email „wolny” bez reclaim | Soft + reaktywacja `PATCH`; runy zostają |
+| Soft-delete konta `guest` (`isActive=false` zamiast hard) | Orphany runów/feedback; email zablokowany; niespójny reclaim | Hard (lub `?purge=true` przy live); email wolny |
+| Reaktywacja `guest` przez `PATCH { isActive: true }` | Soft na gościu nie jest kanonem; reclaim = hard | **403**; reclaim = `DELETE` (hard) |
+| DEL globalnego Redis `…:guest:daily:runs:{UTC-date}` przy hard/purge | Zaniża / psuje dzienny cap całej instancji | Tylko SCAN DEL `…:ratings:{userId}:*`; global runs **nie** ruszać |
+| Traktowanie per-konto hard/purge jak **resetu instancji** / factory wipe | Inny produkt (Maintenance / CLI); kasuje admina i kontekst | Reset / bulk / wipe **poza** Users; Users = jedno konto |
+| `PATCH /users/:id` z `isActive: false` | Drugi kanał dezaktywacji; drift względem DELETE | Dezaktywacja wyłącznie `DELETE`; PATCH tylko `{ isActive: true }` na `user` |
+| Wymuszanie N osobnych canceli z UI Run zamiast `?purge=true` jako **wymaganej** ścieżki skróconej z listy Users | Ops nie czyści gościa z live w jednym kroku | Flow Users: Usuń → 409 → confirm → `DELETE ?purge=true` |
+| Access JWT bez checku `isActive` / braku wiersza User | Soft/hard zostawia ważną sesję do wygaśnięcia TTL | `JwtCookieStrategy.validate`: brak User **lub** `isActive !== true` → **401**; bez blacklisty |
 | Multi-tenant „przy okazji” (kontekst per user) | Inny produkt niż self-host jednej firmy | Jeden kontekst na instancję |
 | Drugi `admin` / awans user→admin **lub** `guest`→`user`/`admin` w MVP | Łamie `security.md` | Tylko bootstrap jednego admina; `user` = invite **lub** register przy demo off; `guest` = register **lub** accept-invite przy demo on; **brak** ścieżki promocji |
 | Accept-invite zawsze `role=user` przy `DEMO_MODE=true` | Omija limity demo; niespójne z register; invite w sandboxie wygląda jak członkostwo zespołu | Rola vs `DEMO_MODE` jak register; demo invite = gość sandboxu (`security.md`) |
@@ -165,7 +176,7 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | `ACCOUNT_NOT_ACTIVATED` / różny message na loginie dla pending | Enumeracja „pending” vs złe hasło | Wspólny **401** jak soft-delete / złe hasło / guest przy demo off |
 | Mylenie aktywacji konta z confirm e-mail przy `PATCH /auth/me/email` | Dwa różne flows; confirm = V1 | Aktywacja = register + mail; confirm przy zmianie adresu = **V1** |
 | **503** na `POST /auth/resend-activation` przy padzie SMTP | Enumeracja / zły UX thank-you | Zawsze **200** + `Wiadomość wysłana ponownie`; mail best-effort w tle |
-| Self-register na email soft-deleted | Obejście reaktywacji admina | **409** `Email already in use`; reclaim = `PATCH /users/:id` |
+| Self-register na email soft-deleted **`user`** | Obejście reaktywacji admina | **409** `Email already in use`; reclaim = `PATCH /users/:id` (tylko `user`). Po hard `guest` email jest wolny — register legalny |
 | Nodemailer (lub inny SMTP client) w use-case / domain | Warstwa aplikacji zależy od vendora maila | Port mailera w Auth; adapter SMTP = nodemailer **tylko** w infrastructure |
 | Dwa `pending` na ten sam email (obejście bez indeksu SQL) | Wyścig `POST /invitations`; dwa ważne tokeny | Partial unique SQL `UNIQUE (email) WHERE status = 'pending'` (jak `User_one_admin`) |
 | OAuth w MVP „bo tak się robi” | Opóźnia dowód pipeline’u | JWT w httpOnly `cc_access` + `cc_refresh`, role `admin` \| `user` \| `guest` |

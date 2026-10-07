@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-07
 ---
 
 # Dokumentacja koncepcyjna — Content Chain
@@ -20,7 +20,9 @@ Najważniejsza wartość:
 
 Zmiana względem wcześniejszego zapisu „świadomie ograniczony pierwszym slice’em Social (post ideas + post content)”: MVP obejmuje **dwa kanały generowania** — Social (posty **i** rolki) oraz Content (BC, podstawowa forma). To nadal MVP sprawdzające agentów, kontekst, persistence i UX self-host, nie pełny pakiet (łańcuch specjalistów, YouTube, publikacja, WordPress). Jawna zmiana względem `content-chain_brief.md` (odrzucenie rolek/bloga w pierwszym slice — **nadpisane** tą dokumentacją, 2026-08-31).
 
-Zmiana względem: self-register **zawsze** `role = user`. **Refaktor:** przy `DEMO_MODE=true` register tworzy **`guest`**; przy `false` — `user`. Signup **zawsze** dostępny. **Bez** ops czyszczenia kont guest (osobny plan zarządzania użytkownikami).
+Zmiana względem: **Bez** ops czyszczenia kont guest (osobny plan). Od tej wersji: **per-konto** soft `user` / hard+purge `guest` + cancel admin→guest **w kanonie** produktu (`security.md`, Users UI). Reset instancji / bulk wipe **poza** tym wycinkiem.
+
+Zmiana względem: self-register **zawsze** `role = user`. **Refaktor:** przy `DEMO_MODE=true` register tworzy **`guest`**; przy `false` — `user`. Signup **zawsze** dostępny.
 
 Zmiana względem: Faza 18 — zaproszenie zawsze `user` / invite nadal user przy demo on. Od tej wersji accept-invite **vs `DEMO_MODE`** jak register (prod = zespół/`user`; demo = sandbox/`guest`).
 
@@ -28,9 +30,9 @@ Zmiana względem: Faza 18 — zaproszenie zawsze `user` / invite nadal user przy
 
 | Segment | Potrzeba |
 |---------|----------|
-| **Administrator** | Bootstrap własnego konta (email + hasło, bez maila), **zapraszanie** e-mailem (podaje tylko adres — nie hasło; przy demo on = kolejny gość sandboxu, nie członkostwo zespołu), **wyłączna** edycja kontekstu firmy; może też generować treści jak zwykły użytkownik. |
-| **Użytkownik** | Self-register (`DEMO_MODE=false` → `user`) albo akceptacja zaproszenia przy demo off; uruchamianie runów produktowych (Social i Content) na wspólnym kontekście firmy, przegląd wyników i logów; bez edycji kontekstu. |
-| **Gość (`guest`)** | Self-register **lub** accept-invite gdy instancja ma `DEMO_MODE=true`. Showcase z limitami slotów i capem dziennym; locki mutacji; **brak** awansu do `user`/`admin`. |
+| **Administrator** | Bootstrap własnego konta (email + hasło, bez maila), **zapraszanie** e-mailem (podaje tylko adres — nie hasło; przy demo on = kolejny gość sandboxu, nie członkostwo zespołu), **wyłączna** edycja kontekstu firmy, **zarządzanie kontami** (dezaktywacja/reaktywacja `user`, usunięcie trwałe / purge `guest`, cancel runów gościa na szczegółach); może też generować treści jak zwykły użytkownik. |
+| **Użytkownik** | Self-register (`DEMO_MODE=false` → `user`) albo akceptacja zaproszenia przy demo off; uruchamianie runów produktowych (Social i Content) na wspólnym kontekście firmy, przegląd wyników i logów; bez edycji kontekstu. Soft-delete zachowuje jego runy. |
+| **Gość (`guest`)** | Self-register **lub** accept-invite gdy instancja ma `DEMO_MODE=true`. Showcase z limitami slotów i capem dziennym; locki mutacji; **brak** awansu do `user`/`admin`. Admin może **trwale** usunąć konto i artefakty gościa (hard/purge) — **nie** mylić z resetem całej instancji. |
 | **Zespół wewnętrzny (self-host)** | Jedna firma / niewielki zespół: wspólny kontekst, generowanie treści bez multi-tenant SaaS. |
 | **Operator self-host** | Wdrożenie we własnej infrastrukturze, konfiguracja gateway LLM, utrzymanie jednej instancji dla organizacji. |
 
@@ -151,6 +153,7 @@ Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza M
 | Kontekst firmy | Kanoniczny zestaw informacji o organizacji w DB; wejście do weryfikacji i generowania |
 | Zaproszenie / akceptacja | Invitation ≠ konto: admin wysyła email z tokenem; `User` powstaje przy `accept-invite` (pierwsze hasło; rola vs `DEMO_MODE` jak register). Bootstrap admina = osobna ścieżka, bez maila |
 | Otwarta rejestracja / aktywacja | Self-register → w `production` pending (`verifiedAt` + `AccountActivation` + mail) → activate → login; poza prod konto gotowe od razu. Rola: `guest` gdy demo on, inaczej `user` (**refaktor** względem „zawsze `user`”). Invite = równoległa droga z **tą samą** regułą roli vs demo (prod = zespół, demo = sandbox guest) |
+| Zarządzanie kontami (admin) | Jedna `DELETE /users/:id`: soft tylko `user` (runy zostają); hard/purge tylko `guest` (konto + treści). Reaktywacja tylko `user`. Cancel admin→guest na szczegółach runu. Reset instancji **poza** Users |
 | Post ideas / Post content | Pomysły i copy postów SM |
 | Reel ideas / Reel script | Pomysły i scenariusz rolek |
 | Page outline / Page document | Szkic i pełny dokument copy strony (`ContentKind`) |

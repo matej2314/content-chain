@@ -1,7 +1,7 @@
 ---
-wersja: 17
+wersja: 18
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-07
 ---
 
 # UX Dashboard — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-06
 Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / design systemu — widoki, stany i zachowanie względem API/SSE.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`.
+
+Zmiana względem: „Brak UI edycji / soft-delete / reaktywacji w MVP”; Stop wyłącznie własny run; brak Cancel admin→guest. Od tej wersji: kolumna **Akcje** na Kontach — toggle soft `user` / **Usuń** hard+purge `guest`; Cancel/Stop admina na **szczegółach** gdy `startedBy.role=guest`; **bez** Cancel admina na cudzych `user` i **bez** Cancel admin→guest na liście archiwum. Lock nawigacji guest **bez zmian**.
 
 Zmiana względem: shell dashboardu rozciągał sidebar do pełnej wysokości treści (chipy demo / agenci na dole wymagają długiego scrolla). Od tej wersji: layout zalogowany = **viewport shell** (`h-dvh`, overflow ukryty na rootcie); **scroll tylko w obszarze roboczym** (`main`); sidebar + chipy zawsze w viewportcie. **Moje runy** na Koncie: **paginacja UI** `pageSize = 10` (jak lista Runy) — slice po stronie FE; `GET /runs/user/:userId` nadal zwraca **całą** listę (SSE / floating box / select opinii).
 
@@ -93,9 +95,9 @@ Zmiana względem: **jedyny** formularz startu wyłącznie na Koncie (kanon Fazy 
 |-------|-----|-----|
 | **Kontekst firmy** | admin: edycja; user i guest: podgląd | Uzupełnienie sekcji bramki (tylko admin); podgląd completeness |
 | **Runy** | admin, user, guest (demo) | **Archiwum firmy:** tylko runy instancji w `completed` \| `failed` \| `cancelled` (paginacja 10, najnowsze pierwsze). Klik wiersza → szczegóły (snapshot; **bez** SSE) — **guest: tylko własne**. CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (guest: typy poza allowlistą disabled). Cudzy run w toku **nie** jest na tej liście. Nowy run po starcie **nie** wpadnie na listę, dopóki nie jest terminalny (live = floating box) |
-| **Run (szczegóły)** | admin, user; guest tylko `startedBy === self` | Podstrona po kliknięciu w **Moich runach** (Konto) albo w archiwum Runy: logi, HITL, wynik, przegląd; **Stop** na własnym nieterminalnym. Guest: **bez** Edytuj / finalize. Live SSE tylko gdy run jest własny i w `running` / `awaiting_hitl` / `interrupted`. **Bez** CTA startu |
+| **Run (szczegóły)** | admin, user; guest tylko `startedBy === self` | Podstrona po kliknięciu w **Moich runach** (Konto) albo w archiwum Runy: logi, HITL, wynik, przegląd; **Stop** gdy owner **lub** (`session.role=admin` ∧ `startedBy.role=guest`) na nieterminalnym. Guest: **bez** Edytuj / finalize. Live SSE tylko gdy run jest własny i w `running` / `awaiting_hitl` / `interrupted`. **Bez** CTA startu |
 | **Konto** | każdy zalogowany | Własny email (**guest: lock** — bez `PATCH /auth/me/email`); **Moje runy** (wszystkie statusy, live; **paginacja UI** 10 jak Runy; **Stop** na własnym nieterminalnym); **start** nowego runu (**inline**, ten sam brief co modal na Runach; guest: allowlista); opinia tekstowa. Po udanym `POST /runs` **z tego widoku** — **ten** widok (nie od razu pojedyncze szczegóły) |
-| **Użytkownicy** | tylko admin | Lista kont + **zaproszenie (email)**; lista pending (w tym wygasłe); resend/revoke. **W zakresie MVP** dashboardu. Bez edycji / dezaktywacji / soft-delete kont w UI MVP. **Guest: brak nawigacji** (lock) |
+| **Użytkownicy** | tylko admin | Lista kont + kolumna **Akcje** (toggle soft `user` / Usuń hard `guest`) + **zaproszenie (email)**; lista pending (w tym wygasłe); resend/revoke. **Guest: brak nawigacji** (lock) |
 
 **Wyloguj się** nie jest pozycją sidebara — wyłącznie hierarchia przycisku loginu w headerze (wyżej).
 
@@ -259,7 +261,7 @@ Wejście: z listy **Moje runy** na Koncie, z archiwum **Runy**, z floating boxa,
 | Element | Zachowanie |
 |---------|------------|
 | **Nagłówek / meta** | Te same podstawowe pola co wiersz listy. **`conversationId` poza MVP UI** (zostaje w API / logach / snapshotcie — dashboard go nie pokazuje) |
-| **Stop** | Ten sam przepływ co na Moich runach: przycisk **Stop** dla **własnego** runu nieterminalnego → modal **„Czy na pewno?”** → Tak = `POST .../cancel`; Nie = close, zero API. Po `cancelled` panel HITL **znika**; przegląd (gwiazdki / Edytuj / finalize) **niedostępny** |
+| **Stop** | Przycisk **Stop** / Cancel gdy: owner **lub** (`session.role=admin` ∧ `startedBy.role=guest`) i status nieterminalny → modal **„Czy na pewno?”** → Tak = `POST .../cancel`; Nie = close, zero API. **Bez** Stop admina na cudzym `role=user`. **Bez** Cancel admin→guest na liście archiwum (tylko ten widok szczegółów). Po `cancelled` panel HITL **znika**; przegląd (gwiazdki / Edytuj / finalize) **niedostępny**. Parse `startedBy.role` ze snapshotu `GET /runs/:id` |
 | **Status live** | Gdy run jest własny i w `running` \| `awaiting_hitl` \| `interrupted`: ten sam `EventSource` co rejestr layoutu (nie drugie połączenie na ten `runId`). Prezentacja **animowana / atrakcyjna**. `queued` / `completed` / `failed` / `cancelled` / cudzy run: **bez** nowej subskrypcji — GET snapshot |
 | **Logi** | Przyrostowo z SSE `run.log` + możliwość dociągnięcia historii GET logs |
 | **HITL** | Panel wyboru: pomysły postu, pomysły rolek albo outline strony — wg `taskType` i `hitl.options`. Social dwuetapowy: **multi-select** (min. 1 unikalne id ⊆ options; np. checkboxy / chipy); Content: akceptacja outline’u (**bez** zmian — nadal `[outline.id]`). Submit → `POST .../hitl`. Po `cancelled` panel **nie** jest pokazywany |
@@ -299,15 +301,23 @@ Authz selecta runów: wyłącznie runy autora; obcy `userId` → api `403`.
 
 **W zakresie MVP** dashboardu (`apps/frontend`). Weryfikacja samego API (Postman + token z maila/logu) **nie** zastępuje tych ekranów w produkcie.
 
-- Lista kont (`GET /users`) — bez pending invites.
+- Lista kont (`GET /users`) — bez pending invites; kolumna **Akcje** (jeden slot / wiersz).
+- **Akcje wg roli wiersza:**
+  - `role = admin`: **brak** przycisku.
+  - `role = user`: jeden przycisk **toggle** — aktywny → **Dezaktywuj** (`DELETE` soft); nieaktywny → **Aktywuj** (`PATCH` `{ isActive: true }`). **Każda** akcja z modalem potwierdzenia przed API. Copy: dezaktywacja / aktywacja konta członka — **nie** mylić z aktywacją e-mail (`verifiedAt`).
+  - `role = guest` (także gdy `DEMO_MODE=true`): ten sam slot = **„Usuń”** (hard; **nigdy** toggle soft / PATCH). Copy: usunięcie **trwałe** (konto + treści gościa).
+- **Flow Usuń gościa (purge):** (1) Usuń → modal „trwałe usunięcie”; (2) `DELETE` bez `purge`; (3) przy **409** `GUEST_HAS_ACTIVE_RUN` — dialog z `message` envelope (sytuacja live; **bez** listy runów) → potwierdzenie force; (4) `DELETE ?purge=true` → reload listy. Przy braku live: zwykły hard po pierwszym modalu (bez kroku 409).
+- Błędy Users (invite + Akcje): **`message` z envelope** przy dialogu (jak invite) — **nie** toast. Po sukcesie: **reload** listy kont.
 - **Zaproszenie:** pole **email** (admin **nie** podaje hasła) → `POST /invitations`.
 - Lista pending (`GET /invitations`) — **wszystkie** `pending`, **w tym wygasłe** (`expiresAt < now`); akcje resend / revoke.
 - Brak UI do tworzenia drugiego admina.
-- Brak UI edycji / soft-delete kont w MVP (api ma soft-delete pod późniejsze V1).
+- **Bez** dwóch przycisków Soft+Hard na `user`; **bez** edycji roli / emaila z tej listy.
 
 **Akceptacja zaproszenia (publiczna, MVP):** trasa **`/invite/accept?token=`** (ten sam kształt, który api wkłada do maila jako `{APP_PUBLIC_URL}/invite/accept?token=…`) — **nie** strona główna. Formularz pierwszego hasła (polityka z `security.md`) → `POST /auth/accept-invite` → **strona główna (logowanie)**. Dashboard dopiero po udanym `POST /auth/login`. Trasa poza layoutem zalogowanego.
 
-Błędy na tej powierzchni: **wyłącznie** `message` z envelope na karcie (bez Toastera — jak login / bootstrap). Kolizja email i nieważny token przychodzą jako ten sam **401** — UI **nie** ma osobnego copy „email zajęty” ani gałęzi na **409** `CONFLICT` z tej trasy. Opcjonalnie stała pomocnicza (bez leak z API): ogólne „Nie można dokończyć zaproszenia. Skontaktuj się z administratorem.” — **tylko** jeśli nadal mapowane z tego samego 401 (bez rozróżniania przyczyn po `code`).
+Błędy na accept-invite: **wyłącznie** `message` z envelope na karcie (bez Toastera — jak login / bootstrap). Kolizja email i nieważny token przychodzą jako ten sam **401** — UI **nie** ma osobnego copy „email zajęty” ani gałęzi na **409** `CONFLICT` z tej trasy. Opcjonalnie stała pomocnicza (bez leak z API): ogólne „Nie można dokończyć zaproszenia. Skontaktuj się z administratorem.” — **tylko** jeśli nadal mapowane z tego samego 401 (bez rozróżniania przyczyn po `code`).
+
+Zmiana względem: „Brak UI edycji / soft-delete / reaktywacji w MVP”. Od tej wersji: toggle `user` + Usuń/purge `guest` w kanonie UX.
 
 Zmiana względem: widok Users i accept-invite jako „przyszły FE / gdy ekran powstanie”; implementacja UI była odkładana względem DoD API. Od wcześniejszej wersji oba ekrany są kanonem UX MVP.
 
@@ -326,7 +336,7 @@ Zmiana względem: założenie, że FE może rozróżnić kolizję email (**409**
 ## Poza zakresem UX MVP
 
 - Zmiana hasła zalogowanego / usuwanie własnego konta przez użytkownika (pierwsze hasło na accept-invite = onboarding, nie ten punkt). **Zmiana własnego emaila z re-auth hasłem jest w MVP** (widok Konto → `PATCH /auth/me/email`). Wzorzec pod przyszłą zmianę hasła (po SMTP) = poza MVP. **Confirm e-mail** przy zmianie adresu = **V1** (poza MVP)  
-- Soft-delete / edycja użytkowników w UI admina (endpoint api istnieje; UI później)  
+- Edycja roli / emaila z listy Users; dwa przyciski Soft+Hard na `user`; Cancel admin→guest na liście archiwum; reset instancji z UI  
 - `selectedIdeaIds` na formularzu **startu** runu (HITL dwuetapowy zostaje)  
 - `conversationId` w UI szczegółów runu (zostaje w API / logach)  
 - Limit **per-user** liczby runów w toku (MVP: tylko globalny `MAX_CONCURRENT_RUNS` na execute) — **obowiązkowy** temat **V1 — rozbudowa**. Slot ×1 i global cap **gościa** to osobny kanon DEMO MODE (nie ten punkt V1)  

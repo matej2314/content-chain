@@ -1,18 +1,20 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-08-15
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-07
 ---
 
 # SPEC — Feedback (opinie tekstowe)
 
 ## Cel / zakres względem dokumentacji
 
-Norma bounded contextu **Feedback** w `apps/api`: **zapis** opinii tekstowych o aplikacji, agencie albo runie (append-only, z metadanymi autora i czasu).
+Norma bounded contextu **Feedback** w `apps/api`: **zapis** opinii tekstowych o aplikacji, agencie albo runie (append-only, z metadanymi autora i czasu) oraz **wyjątek kasowania** przy hard/purge konta `guest`.
 
 Uszczegóławia `docs/dokumentacja_komunikacji.md` (POST `/feedback`), `docs/ux_dashboard.md` (formularz „Zostaw opinię”) oraz podział z `docs/architektura.md` (Feedback ≠ Runs ≠ Social).
 
 **Nie** obejmuje: oceny gwiazdkowej runu, flagi edycji outputu ani finalize przeglądu — to **BC Runs** (`SPEC-RUNY.md`). **Nie** obejmuje panelu administracyjnego / listy odczytu / analityki — **V1 — rozbudowa**.
+
+Zmiana względem wersji 6 / Fbk-2: append-only bez wyjątków kasowania. Od tej wersji Fbk-9 — hard/purge `guest` kasuje Feedback jawnie (`SPEC-AUTH.md` A-10, `SPEC-PERSISTENCE.md` D21).
 
 ## Powiązanie ze stylem z docs / wyjątek
 
@@ -39,7 +41,7 @@ Zmiana względem wersji 2: zakaz wołania grafu obejmuje też Content; Feedback 
 
 Fbk-1. `POST /api/v1/feedback` wymaga sesji. Zapisuje wiersz z co najmniej: `id` (`FeedbackId` / `fbk_<uuid>`), `targetType`, `body`, `authorId` (z sesji), `createdAt`; plus `agentKey` albo `runId` zgodnie z tabelą targetów.
 
-Fbk-2. Wiele opinii tego samego autora na ten sam target — **dozwolone** (append-only). Brak edycji i usuwania wpisów w MVP.
+Fbk-2. Wiele opinii tego samego autora na ten sam target — **dozwolone** (append-only). Brak edycji i usuwania wpisów przez API użytkownika w MVP (**wyjątek** kasowania systemowego: Fbk-9).
 
 Fbk-3. Gdy `targetType = run`: `runId` musi istnieć **oraz** `startedBy` runu = autor sesji. Inaczej **403** `FORBIDDEN` (nieznany run dla obcego id: **404** `RUN_NOT_FOUND` albo 403 — spójnie: obcy run **nie** ujawnia istnienia ponad `FORBIDDEN` gdy id jest poprawnym `RunId` należącym do kogoś innego; nieznany format / nieistniejący → `RUN_NOT_FOUND` / `VALIDATION_FAILED`).
 
@@ -61,6 +63,10 @@ Fbk-8. `guest` (demo on, `@AllowGuest`): `targetType` `application` / `agent` �
 
 Zmiana względem wersji 5: brak gałęzi guest. Od tej wersji Fbk-8.
 
+Fbk-9. **Wyjątek append-only przy hard / purge `guest`:** gdy Auth usuwa konto `guest` (A-10), Feedback eksportuje port purge (`FeedbackPurgePort` / równoważnik) — w **tej samej** tx co delete tree kasuje wiersze gdzie `authorId` = id gościa **OR** `runId` ∈ zbioru runów gościa (także opinie admina/user *o* runie gościa). Soft-delete `user` **nie** kasuje Feedback. **Zakaz** orphan Feedback po hard. Brak HTTP DELETE `/feedback/:id` w MVP.
+
+Zmiana względem wersji 6 / Fbk-2: *„Brak edycji i usuwania wpisów w MVP”* bez wyjątku. Od tej wersji kasowanie systemowe przy hard guest = Fbk-9.
+
 ## Norma implementacji
 
 ### Wzorce / struktura
@@ -78,6 +84,7 @@ apps/api/src/feedback/
 |---------|--------|
 | Warstwy | jak pozostałe BC poza Social |
 | Port runów | odczyt `startedBy`, `status` **oraz** obecności wyniku (Fbk-3 / Fbk-3a); bez SQL w domain Feedback; bez importu `RunsModule` |
+| Port purge | eksport dla Auth hard/purge guest (Fbk-9); bez cyklu Auth↔Feedback w HTTP |
 | Shared | `FeedbackId`, `FeedbackTargetType`, `FeedbackAgentKey` w `@content-chain/shared` |
 
 ### Wolno
@@ -85,6 +92,7 @@ apps/api/src/feedback/
 - Osobna tabela Prisma (nie JSON-plik).
 - Walidacja HTTP class-validator; application Zod.
 - Współdzielić `PrismaClient` z innymi adapterami.
+- Port purge Feedback wywoływany wyłącznie z Auth hard/purge (Fbk-9).
 
 ### Nie wolno
 
@@ -96,6 +104,8 @@ apps/api/src/feedback/
 - Wołać `assertRunReviewable` z BC Runs (ta asercja zamyka też finalize — za szeroka na tekst; na `cancelled` i tak blokuje przegląd).
 - Łamać `GET /runs` `pageSize=10` zamiast `GET /runs/user/:userId`.
 - Traktować opinii tekstowej jako zamiennika `userRating` na runie.
+- Zostawiać orphan Feedback po hard/purge `guest` (obowiązuje Fbk-9).
+- Publicznego HTTP DELETE opinii (kasowanie tylko systemowe przy hard guest).
 
 ### Zatwierdzony stack (obszar)
 
@@ -112,6 +122,7 @@ apps/api/src/feedback/
 - [ ] Target `agent` wymaga poprawnego `agentKey`; `run` wymaga własnego `runId` **oraz** okna Fbk-3a (`completed` \| `failed` \| `cancelled`+wynik).
 - [ ] Cudzy `runId` → `FORBIDDEN`; run w toku (własny) → `RUN_NOT_REVIEWABLE`; `cancelled` bez wyniku (np. po cancel z `queued`) → 409; `cancelled` po persist pomysłów / partial wyniku → 201 (przy spełnieniu Fbk-3); druga opinia tego samego autora — nowy wiersz (także po finalize).
 - [ ] `guest`: `application`/`agent` 201; `run` cudzy → 403.
+- [ ] Hard/purge `guest`: brak Feedback z `authorId` gościa ani z `runId` jego runów (Fbk-9); soft `user` zostawia Feedback.
 - [ ] Brak LangGraph w module.
 
 ## Poza zakresem

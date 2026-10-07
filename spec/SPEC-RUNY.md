@@ -1,7 +1,7 @@
 ---
-wersja: 24
+wersja: 25
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-07
 ---
 
 # SPEC — Runy / logi
@@ -20,6 +20,7 @@ Zmiana względem wersji 17: dwa terminale (`completed` / `failed`); brak HTTP ca
 
 Zmiana względem wersji 18: przegląd otwarty do ręcznego finalize **bez limitu czasu**. Od tej wersji okno = `REVIEW_TTL` od `pipelineFinishedAt`; lock w DB poza ręcznym finalize = wyłącznie sweeper — `docs/dictionary.md`, `docs/data_flow.md`.
 Zmiana względem wersji 19 / cel: brak GuestRunPolicy. Od tej wersji R-12 + ownership odczytu dla `guest`.
+Zmiana względem wersji 24 / R-11 / R-3b: cancel wyłącznie `startedBy`; `startedBy` na detail bez `role`; hard guest poza Runy. Od tej wersji: admin cancel gdy `startedBy.role === guest`; `startedBy.role` w detail; hard/purge usuwa Run+dzieci (port dla Auth A-10) — `docs/security.md`, `users-management-plan.md` Faza 2.
 
 ## Powiązanie ze stylem z docs
 
@@ -84,7 +85,7 @@ Zmiana względem wersji 16 / R-3a: `status` wyłącznie pojedynczy enum; UI Runy
 
 Zmiana względem wersji 17 / R-3a: archiwum UI `completed,failed`. Od tej wersji `completed,failed,cancelled` (`docs/ux_dashboard.md`).
 
-R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) **oraz** `conversationId`, `brief` (kształt zapisany: `SocialBrief` albo `ContentBrief` wg `taskType`), `userRating`, `outputEdited`, `reviewFinalizedAt`, **`pipelineFinishedAt`**, **`reviewExpiresAt`** (wyliczane), **`cancelledAt`** (`null` \| ISO8601), wynik addytywny gdy jest (`ideas` / `content` / `contents` / `reelIdeas` / `reelScript` / `reelScripts` / `pageOutline` / `pageDocument`), metadane HITL (`options` wg `taskType`). Semantyka `pipelineFinishedAt` / `reviewExpiresAt` oraz zakaz side-effect na GET — R-10. Lista `GET /runs/user/:userId` **bez** tych dwóch pól TTL. **`guest`:** `GET /runs/:id`, logi, events/SSE — **tylko** gdy `startedBy === self`; cudze → **403** `FORBIDDEN`. `admin`/`user`: odczyt detail **bez zmian** względem dotychczasowego ownership (lista instancji; mutacje nadal `startedBy`).
+R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) — na **detail** `startedBy = { id, email, role }` (**`role` obowiązkowe** na detail; lista `GET /runs` **bez** wymogu `role` w tym wycinku) — **oraz** `conversationId`, `brief` (kształt zapisany: `SocialBrief` albo `ContentBrief` wg `taskType`), `userRating`, `outputEdited`, `reviewFinalizedAt`, **`pipelineFinishedAt`**, **`reviewExpiresAt`** (wyliczane), **`cancelledAt`** (`null` \| ISO8601), wynik addytywny gdy jest (`ideas` / `content` / `contents` / `reelIdeas` / `reelScript` / `reelScripts` / `pageOutline` / `pageDocument`), metadane HITL (`options` wg `taskType`). Semantyka `pipelineFinishedAt` / `reviewExpiresAt` oraz zakaz side-effect na GET — R-10. Lista `GET /runs/user/:userId` **bez** tych dwóch pól TTL. **`guest`:** `GET /runs/:id`, logi, events/SSE — **tylko** gdy `startedBy === self`; cudze → **403** `FORBIDDEN`. `admin`/`user`: odczyt detail **bez zmian** względem dotychczasowego ownership (lista instancji; mutacje nadal `startedBy`).
 
 Zmiana względem wersji 18 / R-3b: snapshot bez `pipelineFinishedAt` / `reviewExpiresAt`. Od tej wersji pola meta TTL na `GET /runs/:id` (i sukcesach mutacji przeglądu) — `docs/dokumentacja_komunikacji.md`.
 
@@ -193,18 +194,21 @@ Zmiana względem wersji 18 / R-10: przegląd otwarty do ręcznego finalize **bez
 
 R-11. Anulowanie runu (`cancelled`) — Stop / decyzja operatora (**nie** błąd agenta, **nie** recovery):
 
-1. Endpoint: `POST /api/v1/runs/:runId/cancel`, body **puste**, sesja cookie. Authz: wyłącznie `startedBy`. Inna sesja → **403** `FORBIDDEN`. Brak admin-cancel cudzego runu w MVP.
+1. Endpoint: `POST /api/v1/runs/:runId/cancel`, body **puste**, sesja cookie. Authz: `startedBy` **lub** (aktor `role = admin` **i** `startedBy.role === guest`). Cudzy run z `startedBy.role === user` → **403** `FORBIDDEN` (także dla admina). Źródło `startedBy.role` w BE: join w `RunSnapshot` (to samo pole co w detail HTTP — R-3b).
 2. Durable guard: przed / w trakcie wyścigu z executorem api ustawia `cancelRequested` na runie (chroni crash między cancel a zapisem statusu — R-9).
 3. Atomowy zapis statusu: port repozytorium `attemptCancel(id, cancelledAt): Promise<boolean>` (CAS) — warunkowy update tylko ze statusu nieterminalnego; przy wygranej: `status = cancelled`, `cancelledAt`, **zerowanie** `cancelRequested`. `true` = CAS wygrał; `false` przy statusie już `completed` \| `failed` → use-case → **409** `RUN_NOT_CANCELABLE`. Już `cancelled` → **200** + snapshot (**idempotencja**; bez ponownego abortu / logu cancel).
 4. Odpowiedź HTTP **200** + snapshot (`status: cancelled`, `cancelledAt`) **nie czeka** na zwinięcie `execute` (zakaz await execute w requeście cancel).
-5. Abort v1 in-process: po wygranej CAS worker (`InProcessRunWorker`) `requestCancel(runId)` → `AbortController.abort()`; `RunExecutorPort.execute` przyjmuje `AbortSignal`; klient HTTP do gateway przekazuje sygnał. Ograniczenie: wyłącznie in-process (jeden proces Node `apps/api`); abort na gateway / providerze **poza** v1.
+5. Abort v1 in-process: po wygranej CAS worker (`InProcessRunWorker`) `requestCancel(runId)` → `AbortController.abort()`; `RunExecutorPort.execute` przyjmuje `AbortSignal`; klient HTTP do gateway przekazuje sygnał. Ograniczenie: wyłącznie in-process (jeden proces Node `apps/api`); abort na gateway / providerze **poza** v1. Przy hard/purge gościa (Auth A-10) abort live jest **poza** tx DB — ten sam mechanizm abort; persistence kasuje Run w osobnej tx.
 6. Persist: **bez rollbacku** już zacommitowanego wyniku; hop w locie **nie** jest dopisywany po `cancelled`. Slot `MAX_CONCURRENT_RUNS`: HTTP cancel **nie** dekrementuje; zwalnia `finally` execute. Cancel `queued` / `awaiting_hitl` / `interrupted` nie zajmuje slotu execute.
-7. Log: append-only wpis informacyjny, że run anulował użytkownik (`docs/observability.md`).
+7. Log / audyt: append-only wpis informacyjny — **rozróżnić** aktora (`cancelled by admin` vs owner / `startedBy`) (`docs/observability.md`, `docs/security.md`).
 8. SSE: `run.status` → `run.cancelled` → complete huba (R-4a).
 9. HITL po `cancelled` nielegalny (`POST .../hitl` — run nie jest w `awaiting_hitl`; jak docs komunikacji). Panel HITL w UI znika — `SPEC-FRONTEND.md`.
 10. Resume / retry / „dokończ” na tym samym `runId` po `cancelled` — **zakazane**. Nowy przebieg = nowy `POST /runs`.
+11. **Hard / purge gościa** (Auth A-10): port eksportowany z Runs (`GuestPurgePort` / równoważnik) kasuje **wszystkie** runy `startedBy` gościa + dzieci w **jednej** tx z Auth — **bez** Cascade ORM jako wymogu; kolejność aplikacyjna. Soft `user` **nie** kasuje runów.
 
-Źródło: `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md`, `docs/architektura.md`, `docs/dictionary.md`.
+Zmiana względem wersji 24 / R-11: *„Authz: wyłącznie startedBy; Brak admin-cancel cudzego runu w MVP”*. Od tej wersji wyjątek admin→`guest`; log rozróżnia aktora; hard/purge = port dla Auth.
+
+Źródło: `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md`, `docs/architektura.md`, `docs/dictionary.md`, `docs/security.md`.
 
 R-12. **`GuestRunPolicy`** (tylko `role === guest` **i** `DEMO_MODE=true`; `admin`/`user` **omijają**):
 
@@ -294,7 +298,8 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Utożsamiania `cancelled` z `failed` / `interrupted` / LangGraph `interrupt()`.
 - Resume / retry / wyjść z `cancelled` na tym samym `runId`.
 - Rollbacku wyniku po cancel; await execute w requeście HTTP cancel.
-- Admin-cancel cudzego runu; cancel bez authz `startedBy`.
+- Admin-cancel cudzego runu **`role = user`**; cancel bez authz (`startedBy` **ani** admin+`startedBy.role=guest`).
+  Zmiana względem wersji 24 / „Nie wolno”: *„Admin-cancel cudzego runu; cancel bez authz startedBy”* — unieważnione dla admin→guest; zakaz cancel cudzego `user` **zostaje**.
 - Mapy Subject bez evikcji po terminalu (wpis na zawsze w singletonie procesu).
 - Subjectu bez TTL automatu ewikcji — zombie Subject przy hung/crashed runie powoduje memory leak i głodzi file descriptory.
 - Hardkodowania wartości `SSE_HEARTBEAT_MS` i `RUN_SSE_SUBJECT_TTL_MS` w kodzie (env z walidacją Zod).
@@ -361,7 +366,8 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 | Pola przeglądu `userRating` / `outputEdited` / `reviewFinalizedAt` / `pipelineFinishedAt` + wyliczone `reviewExpiresAt` + zapis kanonicznego `result` przy Edytuj + `GET /runs/user/:userId` | obowiązkowe w **MVP** (fundament zapisu) |
 | `REVIEW_TTL` (default `2h`) + `REVIEW_SWEEP_INTERVAL` (default `5m`) + sweeper boot+okresowy (R-10) | obowiązkowe w **MVP** |
 | Osobny worker process / per-user limit / TTL logów | poza MVP |
-| Abort na gateway / providerze LLM; admin cancel; resume po cancel; rollback wyniku | poza v1 / poza MVP |
+| Abort na gateway / providerze LLM; resume po cancel; rollback wyniku | poza v1 / poza MVP |
+| Admin cancel gdy `startedBy.role === guest` (R-11) | obowiązkowe w MVP |
 | Self-register grafów / `@Global()` na BC grafu jako klej | poza MVP (i zakazane jako obejście cyklu) |
 | Stopień edycji outputu / zmiana oceny po finalize; HITL TTL; multi-instance sweeper / distributed lock | poza MVP |
 
@@ -375,7 +381,8 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 - [ ] Snapshot zawiera `userRating` (`null` \| 1–5), `outputEdited`, `reviewFinalizedAt`, `pipelineFinishedAt`, `reviewExpiresAt`, `cancelledAt` (`null` \| ISO8601).
 - [ ] Ocena i Edytuj (zapis treści + flaga) działają na `completed` i `failed` tylko dla autora w oknie TTL; na `cancelled` → `RUN_NOT_REVIEWABLE`; po finalize **albo** po TTL → `REVIEW_LOCKED` (po samym TTL **bez** UPDATE `reviewFinalizedAt`); GET snapshot po Edytuj zwraca treść użytkownika; GET **nie** ustawia finalize.
 - [ ] Transition → `completed`/`failed` ustawia `pipelineFinishedAt` raz; sweeper (boot / interval) ustawia `reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL` dla zaległych; restart api nie odmraża wygasłego przeglądu.
-- [ ] `POST .../cancel`: `startedBy` → 200 + `cancelled` (+ idempotencja); obcy → 403; `completed`/`failed` → 409 `RUN_NOT_CANCELABLE`; HTTP nie awaituje execute; abort in-process po CAS.
+- [ ] `POST .../cancel`: `startedBy` → 200 + `cancelled` (+ idempotencja); admin + `startedBy.role=guest` → 200; admin + cudzy `user` → 403; inny obcy → 403; `completed`/`failed` → 409 `RUN_NOT_CANCELABLE`; HTTP nie awaituje execute; abort in-process po CAS; log rozróżnia admin vs owner.
+- [ ] Snapshot detail niesie `startedBy.role`; lista archiwum bez wymogu `role`.
 - [ ] Przy zajętych slotach nowy run jest `queued` i startuje po zwolnieniu slotu (globalny limit, default 3); `interrupted` ma priorytet nad `queued`.
 - [ ] Po restarcie api: `awaiting_hitl` bez zmian; leftover `running` bez flagi → `interrupted` (claim pod `MAX_CONCURRENT_RUNS`); leftover `running`/`interrupted` **z** `cancelRequested` → `cancelled` (bez `recoveryAttempts++`); po 3 przerwanych execute → `failed` z logiem. N leftover przy `MAX=1` → jeden execute naraz, reszta zostaje `interrupted`.
 - [ ] HITL po `cancelled` odrzucony; flaga `cancelRequested` na już-terminalnym ignorowana.

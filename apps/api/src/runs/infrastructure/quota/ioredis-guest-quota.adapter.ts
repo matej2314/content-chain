@@ -84,6 +84,29 @@ export class IoredisGuestQuotaAdapter
     );
   }
 
+  async deleteDailyRatings(userId: UserId): Promise<boolean> {
+    const pattern = `${RATINGS_PREFIX}${userId}:*`;
+    try {
+      let cursor = '0';
+      do {
+        const [nexCursor, keys] = await this.redis.scan(
+          cursor,
+          'MATCH',
+          pattern,
+          'COUNT',
+          100,
+        );
+        cursor = nexCursor;
+        if (keys.length > 0) {
+          await this.redis.del(...keys);
+        }
+      } while (cursor !== '0');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   private async tryIncr(
     key: string,
     cap: number,

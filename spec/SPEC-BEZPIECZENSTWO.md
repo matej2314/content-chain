@@ -1,7 +1,7 @@
 ---
-wersja: 16
+wersja: 17
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-07
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -18,6 +18,7 @@ Zmiana względem wersji 12 / cel: publiczny health = tylko liveness. Od tej wers
 Zmiana względem wersji 13 / cel: brak GuestGuard / DEMO env. Od tej wersji B-11 — `docs/security.md`.
 Zmiana względem wersji 14 / B-8 + B-11: Redis guest bez hasła połączenia w normie. Od tej wersji opcjonalne **`REDIS_PASSWORD`** (HOST/PORT) jako sekret; przy `REDIS_URL` hasło w URL — `docs/deployment.md` / `docs/security.md`.
 Zmiana względem wersji 15 / B-8 + B-11: kanon URL **albo** HOST/PORT. Od tej wersji wyłącznie **`REDIS_HOST`+`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); **`REDIS_URL` usunięte**.
+Zmiana względem wersji 16: brak B-12 (Users DELETE / cancel / sesja isActive / Redis ratings SCAN). Od tej wersji B-12 — `docs/security.md`, `users-management-plan.md` Faza 2.
 
 ## Powiązanie ze stylem z docs
 
@@ -86,6 +87,16 @@ Zmiana względem wersji 13: brak normy DEMO/Redis guest. Od tej wersji B-11.
 Zmiana względem wersji 14 / B-11: brak nazw env połączenia Redis / `REDIS_PASSWORD`. Od tej wersji kanon URL vs HOST/PORT + opcjonalne hasło HOST/PORT (`docs/deployment.md`).
 Zmiana względem wersji 15 / B-11: `REDIS_URL` **albo** HOST/PORT. Od tej wersji wyłącznie HOST/PORT + opcjonalne `REDIS_PASSWORD`.
 
+B-12. **Zarządzanie kontami / sesja / cancel (authz + audyt):**
+
+1. **Users DELETE / PATCH** — authz `@Roles('admin')`; semantyka soft `user` / hard+purge `guest`; target admin → **403**; reaktywacja tylko `user` — `SPEC-AUTH.md` A-10 / A-10a. Per-konto hard/purge **w kanonie**; reset / bulk / wipe **poza**.
+2. **Cancel** — admin może `POST .../cancel` gdy `startedBy.role === guest`; cudzy `user` → **403** — `SPEC-RUNY.md` R-11. Log/audyt cancel rozróżnia aktora (admin vs owner).
+3. **Sesja access:** `JwtCookieStrategy.validate` — brak User **lub** `isActive !== true` → **401**; **bez** blacklisty JWT — `SPEC-AUTH.md` A-3c.
+4. **Redis przy hard/purge `guest`:** obowiązkowy SCAN/DEL `content-chain:guest:daily:ratings:{userId}:*` (fail-open + warning); **zakaz** DEL globalnego `…:guest:daily:runs:{UTC-date}`.
+5. **Audyt strukturalny** (logger aplikacji): soft/hard/purge → `adminId`, `targetId`, `targetRole`, `mode`; bez osobnego store audytu.
+
+Zmiana względem wersji 16: brak normy Users DELETE rozgałęzionego / cancel admin→guest / isActive na access / Redis ratings SCAN. Od tej wersji B-12.
+
 ## Norma implementacji
 
 ### Wzorce
@@ -128,6 +139,10 @@ Zmiana względem wersji 15 / B-11: `REDIS_URL` **albo** HOST/PORT. Od tej wersji
 - `Authorization: Bearer` jako modelu auth MVP.
 - Cichego fallbacku kontekstu z `.md` (`SPEC-PERSISTENCE.md`).
 - URL-a api w `NEXT_PUBLIC_*` (B-5a).
+- Blacklisty access JWT zamiast checku `isActive` / braku User (B-12 / A-3c).
+- DEL globalnego Redis daily runs przy hard/purge guest (B-12).
+- Soft-delete `guest` / hard-delete `user` / reaktywacji `guest` przez PATCH (B-12 / A-10).
+- Admin cancel cudzego runu `role = user` (B-12 / R-11).
 
 Zmiana względem wersji 10 / „Nie wolno”: dopisano zakazy maskowanego 201 na register, enumeracji przez resend, `ACCOUNT_NOT_ACTIVATED`, Set-Cookie na register/activate/resend, raw activation token.
 
@@ -160,6 +175,7 @@ Zmiana względem wersji 4: B-1 fail-fast SMTP/`MAIL_FROM`/`APP_PUBLIC_URL` w `pr
 - [ ] Brak sekretów w logach runu, SSE, envelope, treści opinii, labelach metrics i stdout (w `development` dump hopu z `[REDACTED]` zamiast `GATEWAY_KEY`; w `production` bez dumpa treści chat; raw invite / activation token nie w logach `production`).
 - [ ] Publiczne auth: register kolizja → **409**; resend = stały sukces; login pending / soft-delete / złe hasło / guest przy demo off = wspólny **401**; activate-fail = wspólny **401**; accept-invite kolizja = **401** (nie 409).
 - [ ] `GET /config` publiczny, body tylko `demoMode`; GuestGuard default deny; Redis nie psuje ready.
+- [ ] B-12: soft/hard DELETE wg roli; access po soft/hard → 401; Redis ratings SCAN fail-open; cancel admin→guest; audyt strukturalny.
 - [ ] `/metrics` zwraca co najmniej sygnały z B-9.
 - [ ] Checklist operatora z `docs/security.md` da się odhaczyć na instalacji compose.
 

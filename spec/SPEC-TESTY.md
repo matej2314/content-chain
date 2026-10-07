@@ -1,7 +1,7 @@
 ---
-wersja: 31
+wersja: 32
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-07
 ---
 
 # SPEC — Testy
@@ -16,6 +16,7 @@ Zmiana względem wersji 27: DoD bez readiness api / probe gateway. Od tej wersji
 Zmiana względem wersji 28: D-41/D-46 = zawsze `role=user`. Od tej wersji D-50…D-62 (rola vs demo, GuestGuard, quota, martwa sesja).
 Zmiana względem wersji 29: DoD DEMO bez env połączenia Redis. Od tej wersji D-50 / D-54 / D-58 zakładają **`REDIS_HOST`+`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); **bez** `REDIS_URL`.
 Zmiana względem wersji 30 / D-23 / D-46: accept → `role=user` także przy demo on. Od tej wersji invite rola vs `DEMO_MODE` (mirror register); demo on → `guest` + pokrycie smoke w `demo-guest` / równoważnym.
+Zmiana względem wersji 31 / D-25 / D-26 / cancel: soft bez rozróżnienia roli; reaktywacja bez filtra; cancel wyłącznie owner; brak purge / isActive na access. Od tej wersji D-25/D-26 zawężone + **D-63…D-72** (hard/purge guest, cancel admin→guest, isActive/null na access) — `users-management-plan.md` Faza 2.
 
 ## Powiązanie ze stylem z docs
 
@@ -81,14 +82,14 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-23 | Zaproszenie (admin, cookie): `POST /invitations` `{ email }` → pending; publiczny `POST /auth/accept-invite` `{ token, password }` → `User` z `verifiedAt` ustawionym; potem `POST /auth/login` nowym kontem. **Rola:** przy **`DEMO_MODE=false`** (default) → **`role=user`**; przy **`DEMO_MODE=true`** → **`role=guest`** (dalej locki/quota jak D-50…D-62; smoke Postman `demo-guest` / równoważny — invite→accept→login→quota/403). Artefakt E2E: istniejąca kolekcja Postman (`T-5` — bez pinu runnera). **Zmiana względem:** D-23 v30 — pin `role=user` bez gałęzi demo |
 | D-23a | Negatyw accept-invite: ważny token `pending` + istniejący `User` (ten sam email, także soft-deleted) → **401** `UNAUTHORIZED` z **tym samym** `message` co zły token; Invitation po próbie `revoked` (lub zdefiniowany równoważnik); **asercja: nie 409**; brak nowego `User` z tej próby. Regresja: scenariusze / Postman expecting **409** na accept przy zajętym emailu — **unieważnione** |
 | D-24 | `user` woła `POST /invitations` → **403**. Drugi `POST` przy `pending` (także wygasłym) → **409**. `GET /invitations` zwraca też wygasłe pending |
-| D-25 | Soft-delete: `DELETE /users/:id` → `isActive = false`; nieaktywny nie loguje się (ten sam komunikat 401 co złe hasło — bez enumeracji) |
-| D-26 | Reaktywacja: `PATCH /users/:id` `{ isActive: true }` na soft-deleted `user` → **200** `isActive: true`; następnie `POST /auth/login` tym kontem → **200**. `isActive: false` → **400**. `user` woła PATCH → **403**. |
+| D-25 | Soft-delete **tylko `role=user`**: `DELETE /users/:id` → `isActive = false`; runy **zostają**; nieaktywny nie loguje się (ten sam komunikat 401 co złe hasło); kolejne requesty z ważnym access → **401** dzięki checkowi `isActive` (A-3c). Soft przy live runie → **200** (bez 409). **Zmiana względem:** D-25 v31 — soft bez rozróżnienia roli / bez asercji access po soft |
+| D-26 | Reaktywacja **tylko `user`**: `PATCH /users/:id` `{ isActive: true }` na soft-deleted `user` → **200** `isActive: true`; następnie `POST /auth/login` → **200**. `isActive: false` → **400**. `user` woła PATCH → **403**. Target `guest` → **403**. (UI toggle opisowo / API — `SPEC-FRONTEND.md` F-8.) **Zmiana względem:** D-26 v31 — bez filtra roli targetu |
 | D-27 | `PATCH /auth/me/email` `{ email, currentPassword }` (sesja, poprawne hasło): **200** `{ id, email, role }`; `GET /auth/me` zgadza się. Ten sam email co obecny + poprawne hasło → **200** bez zmiany wiersza. Złe hasło → **401** `INVALID_PASSWORD` / `Invalid password`, email w DB **bez** zmiany. Pusty / brak `currentPassword` → **400** `VALIDATION_FAILED`, email bez zmiany. Brak sesji → **401** `UNAUTHORIZED`. Drugi użytkownik / email zajęty (po udanym re-auth) → **409**. `PATCH /users/:id` z `email` nadal **400**. Brak mutacji na `PATCH /auth/me` (albo trasa nie istnieje / nie zmienia emaila). |
 | D-28 | `GET /runs?status=completed,failed,cancelled`: tylko te statusy, `pageSize=10`, sort `createdAt` desc (mieszane); pojedynczy `status=interrupted` bez regresji; nieznana wartość w liście → **400** `VALIDATION_FAILED` |
 | D-29 | PUT/PATCH `/company-context` przy niekompletnej bramce (w tym kaleka oferta: brak opisu / pusta korzyść / druga niepełna pozycja) → **400** `VALIDATION_FAILED`; singleton w DB **bez zmiany** (brak upsert). D-1 (start → 409 `CONTEXT_INCOMPLETE`) **zostaje**. |
 | D-30 | Cancel happy: `startedBy` woła `POST .../cancel` na nieterminalnym → **200**, `status=cancelled`, `cancelledAt` ustawione; log append; SSE `run.status` + `run.cancelled` + complete huba |
 | D-31 | Cancel idempotencja: drugi `POST .../cancel` na już `cancelled` → **200** (bez błędu) |
-| D-32 | Cancel race: status już `completed` \| `failed` → **409** `RUN_NOT_CANCELABLE`; obcy `startedBy` → **403** |
+| D-32 | Cancel race: status już `completed` \| `failed` → **409** `RUN_NOT_CANCELABLE`; obcy `startedBy` (nie admin→guest) → **403** |
 | D-33 | Recovery + flaga: leftover `running` lub `interrupted` z `cancelRequested` na bootcie → `cancelled` (bez `recoveryAttempts++`); flaga na już-terminalnym ignorowana |
 | D-34 | HITL po cancel: `POST .../hitl` na `cancelled` → odrzucenie (nielegalny status; bez wznowienia pipeline) |
 | D-35 | Po TTL (`now ≥ pipelineFinishedAt + REVIEW_TTL`), `reviewFinalizedAt` jeszcze `null`: mutacja rating / output-edited / finalize → **409** `REVIEW_LOCKED`; `userRating` / `result` / `outputEdited` / `reviewFinalizedAt` **bez zmian** przy tej mutacji (brak CAS / side-effect UPDATE locka) |
@@ -119,6 +120,18 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-60 | `GET /config` publiczny → wyłącznie `{ demoMode: boolean }` |
 | D-61 | Guest GET company-context OK; write → 403 |
 | D-62 | HITL guest na własnym runie dozwolony (bez osobnego limitu slotu) |
+| D-63 | Hard-delete `guest`: `DELETE /users/:id` (bez live) → **200** `{ ok: true }`; brak wiersza User; brak runów gościa / dzieci / Feedback (`authorId` OR `runId` ∈ runów); Redis ratings usunięte **lub** fail-open; email wolny (register tego emaila legalny) |
+| D-64 | Guest + live **bez** `purge` → **409** `GUEST_HAS_ACTIVE_RUN` (wspólny `message`; bez listy `runId`); User zostaje |
+| D-65 | Guest + live **z** `?purge=true` → **200**; brak User / runów / feedback; abort live best-effort |
+| D-66 | Target `admin` → `DELETE` **403**; `user` woła `DELETE /users/:id` → **403** |
+| D-67 | Legacy soft-deleted `guest` (`isActive=false`, wiersz istnieje) → kolejny `DELETE` = hard (**nie** 404) |
+| D-68 | Access po hard-delete: request z JWT skasowanego gościa → **401** (brak wiersza User) |
+| D-69 | Admin cancel gdy `startedBy.role === guest` → **200** `cancelled`; log/audyt rozróżnia aktora admin |
+| D-70 | Admin cancel cudzego runu `startedBy.role === user` → **403** |
+| D-71 | `GET /runs/:id` detail niesie `startedBy.role` (`admin` \| `user` \| `guest`) |
+| D-72 | Soft `user` **nie** kasuje runów/feedback; hard `guest` kasuje Feedback (Fbk-9) |
+
+Zmiana względem wersji 31: dopisano D-63…D-72; D-25 / D-26 zawężone (rola + isActive na access / PATCH guest 403). D-1…D-62 bez kasowania treści.
 
 Zmiana względem: D-27 na `PATCH /auth/me` bez `currentPassword` / bez `INVALID_PASSWORD`. (Nota: recovery UI po 409 + brak wylogowania przy `INVALID_PASSWORD` = norma FE / `ux_dashboard.md`; D-27 pozostaje kontraktem HTTP api.)
 
@@ -130,11 +143,12 @@ Zmiana względem wersji 19: dopisano D-29 (twardy zapis kontekstu — C-4). D-1�
 Zmiana względem wersji 18: T-5 i kryteria akceptacji obejmują też D-28 (wcześniej D-28 było w tabeli, bez jawnego pinu w T-5 / checklistcie D-1…D-28).
 Zmiana względem wersji 17: dopisano D-28 (filtr `status` wielowartościowy pod archiwum UI). D-1…D-27 bez kasowania treści.
 
-D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-23a (kolizja email na accept → 401 + revoke) **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel) **oraz** D-35…D-40 (TTL przeglądu / sweeper) **oraz** D-41…D-46 (register / activate / resend; rola vs demo) **oraz** D-47…D-49 (readiness api / probe liveness gateway) **oraz** D-50…D-62 (guest / DEMO). T-3 (cookie) **bez zmian**.
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-23a (kolizja email na accept → 401 + revoke) **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel) **oraz** D-35…D-40 (TTL przeglądu / sweeper) **oraz** D-41…D-46 (register / activate / resend; rola vs demo) **oraz** D-47…D-49 (readiness api / probe liveness gateway) **oraz** D-50…D-62 (guest / DEMO) **oraz** D-63…D-72 (Users DELETE/purge / cancel admin→guest / isActive). T-3 (cookie) **bez zmian**.
 
 Zmiana względem wersji 27: dopisano D-47…D-49 (ready gdy liveness OK; unhealthy przy timeout/unreachable; regresja bez `GATEWAY_NOT_READY` na `POST /runs`). D-1…D-46 bez kasowania treści.
 Zmiana względem wersji 28: dopisano D-50…D-62; D-41/D-46 refaktor roli vs `DEMO_MODE`. D-1…D-49 bez kasowania treści.
 Zmiana względem wersji 30: D-23 / D-46 — invite rola vs `DEMO_MODE` (unieważnienie pinu `user` przy demo on); D-50…D-62 **bez kasowania**. D-1…D-62 bez kasowania treści.
+Zmiana względem wersji 31: dopisano D-63…D-72; D-25/D-26 zawężone.
 
 Zmiana względem wersji 25: dopisano D-41…D-46 (register prod/non-prod; kolizja **409**; resend bez enumeracji; wspólny 401 login/activate; regresja invite/bootstrap; zakaz maskowanego 201). D-1…D-40 bez kasowania treści.
 
@@ -188,7 +202,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 - Live OpenAI/Anthropic (lub innego vendora) na każdy PR.
 - Wymuszania suite automatycznego FE w v1/MVP.
 - Over-mockowania (testy tylko powtarzające implementację).
-- Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34), TTL / auto-finalize przeglądu (D-35…D-40), register / activate / resend (D-41…D-46), readiness api / probe gateway (D-47…D-49), guest / DEMO (D-50…D-62) ani cyklu życia SSE (D-14) „na potem” poza DoD.
+- Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34), TTL / auto-finalize przeglądu (D-35…D-40), register / activate / resend (D-41…D-46), readiness api / probe gateway (D-47…D-49), guest / DEMO (D-50…D-62), Users delete/purge / cancel admin→guest / isActive (D-63…D-72) ani cyklu życia SSE (D-14) „na potem” poza DoD.
 - Asercji DoD opartych o konsumpcję upstream gateway `/health/ready` jako źródła `checks.gateway` (obowiązuje probe **liveness** — D-47 / D-48).
 - Maskowanego **201** przy kolizji na register w asercjach (obowiązuje D-43 = **409**).
 - `apps/api/postman/` / `src/postman/` jako pozorne BC.
@@ -208,7 +222,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-62 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23, D-23a, D-24…D-29, D-30…D-34, D-35…D-40, D-41…D-46, D-47…D-49, D-50…D-62) pokryte testami (warstwa adekwatna do przypadku). Chip/locki FE — `SPEC-FRONTEND.md` F-10 (automaty FE poza MVP — T-7).
+- [ ] Przypadki D-1…D-72 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23, D-23a, D-24…D-29, D-30…D-34, D-35…D-40, D-41…D-46, D-47…D-49, D-50…D-62, D-63…D-72) pokryte testami (warstwa adekwatna do przypadku). Chip/locki FE — `SPEC-FRONTEND.md` F-10 (automaty FE poza MVP — T-7).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.

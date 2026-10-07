@@ -16,4 +16,8 @@ export class UnavailableGuestQuotaAdapter implements GuestQuotaPort {
   async tryAdmitDailyRating(_userId: UserId): Promise<GuestQuotaAdmitResult> {
     return Promise.resolve({ kind: 'unavailable' });
   }
+
+  async deleteDailyRatings(_userId: UserId): Promise<boolean> {
+    return Promise.resolve(true);
+  }
 }

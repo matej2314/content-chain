@@ -1,20 +1,21 @@
 ---
-wersja: 20
+wersja: 21
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-07
 ---
 
 # SPEC — Auth
 
 ## Cel / zakres względem dokumentacji
 
-Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, **`PATCH /auth/me/email` (własny email + re-auth; nie dla `guest`)**, role `admin` | `user` | **`guest`**, lista kont, **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite** (rola vs `DEMO_MODE`, mirror register), **otwarta rejestracja** (`POST /auth/register` — rola vs `DEMO_MODE`), **aktywacja konta** (`POST /auth/activate` + `AccountActivation` / `verifiedAt`; także dla `guest`), **resend aktywacji**, **GuestGuard** / martwa sesja `guest` przy demo off, soft-delete, **reaktywacja PATCH**, polityka haseł i sesji.
+Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, **`PATCH /auth/me/email` (własny email + re-auth; nie dla `guest`)**, role `admin` | `user` | **`guest`**, lista kont, **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite** (rola vs `DEMO_MODE`, mirror register), **otwarta rejestracja** (`POST /auth/register` — rola vs `DEMO_MODE`), **aktywacja konta** (`POST /auth/activate` + `AccountActivation` / `verifiedAt`; także dla `guest`), **resend aktywacji**, **GuestGuard** / martwa sesja `guest` przy demo off, **DELETE użytkowników wg roli** (soft `user` / hard+purge `guest`), **reaktywacja PATCH tylko `user` (z UI)**, check `isActive` / braku wiersza na access JWT, polityka haseł i sesji.
 
 Zmiana względem wersji 5: zakres „lista + tworzenie z hasłem” zastąpiony zaproszeniami + accept-invite (`docs/dokumentacja_komunikacji.md`).
 Zmiana względem wersji 6: A-10a — `PATCH /users/:id` obowiązkowy w MVP i wyłącznie reaktywacją (`{ isActive: true }`); UI nadal poza MVP.
 Zmiana względem wersji 14: zakaz otwartego signup / „jedyna droga = invite”. Od tej wersji self-register + aktywacja e-mail w `production` (A-11…A-13) — `docs/security.md`, `docs/dokumentacja_komunikacji.md`.
 Zmiana względem wersji 17 / cel: A-11 = zawsze `role = user`; `guest` / DEMO poza Auth. Od tej wersji **refaktor A-11** (rola vs `DEMO_MODE`) + GuestGuard + martwa sesja guest — `docs/security.md`.
 Zmiana względem wersji 18 / A-7 / A-7b / tabela ról: accept-invite **zawsze** `role = user` (także przy demo on); zakaz invite→`guest` (Faza 18). Od tej wersji **refaktor A-7 / A-7b** — rola accept-invite vs `DEMO_MODE` (mirror A-11); sens: demo off = członek zespołu (`user`); demo on = gość sandboxu (`guest`) — `docs/security.md`.
+Zmiana względem wersji 20 / A-10 / A-10a / sesja: DELETE = wyłącznie soft; zakaz twardego DELETE w MVP; A-10a bez filtra roli targetu; UI reaktywacji poza MVP; access JWT bez checku DB. Od tej wersji **refaktor**: DELETE rozgałęziony po `target.role` (soft `user` / hard+purge `guest`); A-10a tylko target `user` (**z UI**); `JwtCookieStrategy.validate` — brak User **lub** `!isActive` → **401**. Cancel admin→guest → `SPEC-RUNY.md` R-11. Źródło: `docs/security.md`, `users-management-plan.md` Faza 2.
 
 Uszczegóławia `docs/security.md` oraz endpointy auth/users z `docs/dokumentacja_komunikacji.md`. Egzekucja uprawnień zawsze w `apps/api`, nie tylko w UI.
 
@@ -34,12 +35,13 @@ Wiążące (`docs/architektura.md`): klasyczne warstwy Nest — HTTP → applica
 | Start runów / HITL / logi / SSE / lista `GET /runs` | tak | tak | lista **tak** (showcase); start wg `GuestRunPolicy` (`SPEC-RUNY.md` R-12); HITL / logi / SSE / detail **tylko własne** |
 | Ocena **własnego** runu | tak | tak | tak + soft limit (`SPEC-RUNY.md` R-12) |
 | Output-edited / finalize | tak (własny) | tak (własny) | nie → `FORBIDDEN` |
-| Cudzy detail / HITL / cancel / rating / feedback-run | nie → `FORBIDDEN` | nie → `FORBIDDEN` | nie → `FORBIDDEN` |
+| Cudzy detail / HITL / rating / feedback-run | nie → `FORBIDDEN` | nie → `FORBIDDEN` | nie → `FORBIDDEN` |
+| Cancel (`POST .../cancel`) | własne **oraz** gdy `startedBy.role === guest` (`SPEC-RUNY.md` R-11) | tylko własne | tylko własne; cudze → `FORBIDDEN` |
 | `GET /runs/user/:userId` tylko własny id; `POST /feedback` | tak | tak | tak (`application`/`agent`; `run` tylko własny) |
 | Lista kont (`GET /users`) | tak | nie | nie → `FORBIDDEN` |
 | Zaproszenia: create / lista pending / resend / revoke | tak | nie | nie → `FORBIDDEN` |
-| Soft-delete (`DELETE`) użytkownika | tak (API; UI MVP bez tego) | nie | nie → `FORBIDDEN` |
-| Reaktywacja (`PATCH /users/:id`, `{ isActive: true }`) | tak (API; UI MVP bez tego) | nie | nie → `FORBIDDEN` |
+| `DELETE /users/:id` (soft `user` / hard+purge `guest`) | tak (**z UI** — `SPEC-FRONTEND.md` F-8) | nie → `FORBIDDEN` | nie → `FORBIDDEN` |
+| Reaktywacja (`PATCH /users/:id`, `{ isActive: true }`) — tylko target `user` | tak (**z UI** toggle) | nie → `FORBIDDEN` | nie → `FORBIDDEN` |
 | Zmiana własnego emaila (`PATCH /auth/me/email` + `currentPassword`) | tak | tak | nie → `FORBIDDEN` |
 | `GET /auth/me` / refresh / logout | tak | tak | tak (przy demo on + `@AllowGuest`) |
 | Akceptacja zaproszenia (`POST /auth/accept-invite`) | publiczna (bez roli / bez sesji) | publiczna | publiczna |
@@ -54,6 +56,7 @@ Zmiana względem wersji 4: dopisano, że te same guardy obejmują runy Content (
 Zmiana względem wersji 14 / tabela ról: brak publicznych tras register / activate / resend.
 Zmiana względem wersji 17 / tabela ról: dwie kolumny `admin`/`user`; `guest` poza. Od tej wersji kolumna `guest` + zakaz awansu.
 Zmiana względem wersji 18 / nota przy tabeli ról: *„Invite nigdy nie tworzy `guest` (także przy `DEMO_MODE=true`)”*. Od tej wersji invite przy demo on → `guest`; przy demo off → `user`.
+Zmiana względem wersji 20 / tabela ról: DELETE = soft (API; UI poza); reaktywacja bez filtra roli / UI poza; cancel cudzy zawsze `FORBIDDEN` dla admina. Od tej wersji: DELETE soft/hard wg targetu **z UI**; reaktywacja tylko `user` **z UI**; cancel admin→guest legalny (R-11).
 
 ## Wymagania (egzekwowalne)
 
@@ -78,9 +81,13 @@ Zmiana względem wersji 1 tego SPEC (oraz wcześniejszego zapisu docs „accessT
 Zmiana względem wersji 14 / A-2: odrzucenie loginu tylko soft-delete / nieaktywne. Od tej wersji także brak `verifiedAt` w `production` — ten sam 401.
 Zmiana względem wersji 17 / A-2: brak gałęzi guest przy demo off. Od tej wersji ten sam 401 + check demo first.
 
-A-3. Refresh (`POST /api/v1/auth/refresh`) na podstawie cookie `cc_refresh`: waliduje sesję w DB, **rotuje** refresh (stary wpis unieważniony, nowy hash + nowe `cc_refresh`), wystawia nowy JWT w `cc_access`. Body bez tokenów (ew. `expiresIn` — opcjonalnie). Kanoniczny probe tożsamości UI = A-3a, nie refresh.
+A-3. Refresh (`POST /api/v1/auth/refresh`) na podstawie cookie `cc_refresh`: waliduje sesję w DB, **rotuje** refresh (stary wpis unieważniony, nowy hash + nowe `cc_refresh`), wystawia nowy JWT w `cc_access`. Body bez tokenów (ew. `expiresIn` — opcjonalnie). Przy refresh: brak wiersza `User` **lub** `isActive !== true` → **401** `UNAUTHORIZED` (ten sam sens co A-3c na access). Kanoniczny probe tożsamości UI = A-3a, nie refresh.
 
 A-3a. `GET /api/v1/auth/me` (wymaga ważnego `cc_access`): **200** `{ "id", "email", "role" }` wyłącznie; brak / nieważna sesja → **401** `UNAUTHORIZED`.
+
+A-3c. **Sesja access / `JwtCookieStrategy.validate` (async):** po zdekodowaniu JWT — `users.findById(sub)`; brak wiersza (**hard-delete** → `null`) **lub** `isActive !== true` → **401** `UNAUTHORIZED` (sesja nieważna). **Bez** blacklisty access JWT. Access TTL nadal ogranicza okno; check DB zamyka lukę soft/hard natychmiast. Źródło: `docs/security.md`, `docs/dictionary.md` (Sesja nieważna).
+
+Zmiana względem wersji 20 / sesja: access JWT bez checku `isActive` / braku wiersza w `validate`. Od tej wersji A-3c obowiązkowe.
 
 A-3b. `PATCH /api/v1/auth/me/email` (ta sama sesja): body `{ "email", "currentPassword" }` (`.strict()`) — zmiana **własnego** adresu po re-auth. **`GET /auth/me` = wyłącznie probe** (A-3a); **bez** mutacji na `PATCH /auth/me`. Kolejność: Zod → bcrypt compare `currentPassword` z hashem użytkownika sesji (jak login, A-2; **bez** polityki A-5 — to weryfikacja istniejącego hasła, nie ustawianie nowego) → zapis emaila gdy różny od obecnego. **200** `{ id, email, role }` także gdy email bez zmian (po udanym re-auth, bez UPDATE). Zajęty email (w tym soft-deleted) → **409** `CONFLICT` (dopiero po udanym re-auth). Brak / pusty `currentPassword` / zły kształt → **400**. Złe hasło → **401** `INVALID_PASSWORD`, `message`: `Invalid password` (**nie** `UNAUTHORIZED`). Brak sesji → **401** `UNAUTHORIZED`. **Nie** `PATCH /users/:id` (tam nadal zakaz `email`). Bez self-service **zmiany** hasła / roli / `isActive`. Bez maila potwierdzającego w MVP (V1). Sesja refresh / cookie **bez** rotacji z powodu A-3b. Wzorzec osobnej ścieżki mutacji + re-auth + `INVALID_PASSWORD` = fundament pod przyszłe `PATCH /auth/me/password` (poza MVP).
 
@@ -134,13 +141,31 @@ A-8. TTL: **konfigurowalne env**; domyślnie access **15 minut**, refresh **1 dz
 
 A-9. MVP: **zakaz** transportu access przez `Authorization: Bearer` (web, Postman, integracje) — wyłącznie cookie jar / `credentials: 'include'`.
 
-A-10. `DELETE /api/v1/users/:id` = **soft-delete / dezaktywacja** (brak twardego usunięcia wiersza w MVP). `:id` = `UserId`; zły format → **400** `VALIDATION_FAILED`; brak wiersza → **404** `USER_NOT_FOUND`; target `role = admin` → **403** `FORBIDDEN`. DELETE kasuje refresh w DB **oraz** usuwa wiersze **`AccountActivation`** dla usera. Soft-delete **nie** czyści `verifiedAt` (historia).
+A-10. `DELETE /api/v1/users/:id` — **jedna** trasa; body **puste**; authz `@Roles('admin')` (bez osobnego self-check w kanonie). Semantyka po **`target.role`**. Opcjonalny query **`purge=true`** — skutek **wyłącznie** gdy target `role = guest` **i** istnieje ≥1 live run (`queued` \| `running` \| `interrupted` \| `awaiting_hitl`); w pozostałych przypadkach zachowanie **identyczne** jak bez flagi. `:id` = `UserId`; zły format → **400** `VALIDATION_FAILED`; brak wiersza → **404** `USER_NOT_FOUND`; target `role = admin` → **403** `FORBIDDEN`. Sukces soft / hard / purge → **200** `{ "ok": true }`.
 
-A-10a. `PATCH /api/v1/users/:id` = **wyłącznie reaktywacja** (kontrakt: `docs/dokumentacja_komunikacji.md`). Body `{ "isActive": true }` (literał; Zod `.strict()`; zakaz `role` / `email` / `password`). `isActive: false` → **400** `VALIDATION_FAILED` (dezaktywacja = DELETE, jeden kanał). Authz: `@Roles('admin')` + cookie; `user` → **403** `FORBIDDEN`; brak sesji → **401** `UNAUTHORIZED`. Path `:id` = `UserId`; zły format → **400** `VALIDATION_FAILED`; brak wiersza → **404** `USER_NOT_FOUND`; target `role = admin` → **403** `FORBIDDEN`. Target już `isActive: true` → **200** idempotentnie (bez 409). Sukces **200**: `{ id, email, role, isActive, verifiedAt, createdAt }` z `isActive: true`. **Bez** Set-Cookie; **bez** `RefreshSession.create` — potem zwykły `POST /auth/login`. **Nie** ustawia `verifiedAt` — konto bez weryfikacji nadal nie loguje się w `production` do czasu activate / resend. UI poza MVP.
+| Target | Zachowanie |
+|--------|------------|
+| `role = user` | **Soft:** `isActive = false`; w **jednej** tx: `setActive(false)` + kasuj refresh + usuń `AccountActivation`. **Bez** kasowania Run / Feedback. Soft **dozwolony** także przy live runie (**bez** 409), niezależnie od `DEMO_MODE`. Już `isActive = false` → **200** (idempotencja). Soft **nie** czyści `verifiedAt`. |
+| `role = guest` + live **bez** `purge` | **409** `GUEST_HAS_ACTIVE_RUN` + wspólny `message` (niezależnie od liczby live; **bez** `details.runIds`) |
+| `role = guest` + live **z** `?purge=true` | **Force purge:** (1) poza DB — abort wszystkich live (`RunAbortRegistry` / równoważnik); (2) **jedna** tx Prisma — skasować **wszystkie** runy gościa (live + historyczne) + dzieci + Feedback (`authorId` = guest **OR** `runId` ∈ runów) + sesje + activation + `User`; (3) po commit — Redis DEL ratings (poniżej) + audyt. SSE cancel = best-effort poza tx. **Nie** jedna ACID tx z abortem in-process. |
+| `role = guest` **bez** live (lub zbędny `purge`) | **Hard:** ta sama tx delete tree + `User` (jak wyżej bez kroku abort). Email **wolny**. |
+| Legacy soft-deleted `guest` (`isActive=false`, wiersz istnieje) | Kolejny `DELETE` = **hard** (sprzątanie); **nie** 404. |
 
-Zmiana względem wersji 6 (A-10: „PATCH może służyć m.in. reaktywacji — poza UI MVP”): PATCH jest **obowiązkowy** w MVP i **tylko** reaktywacją (nie ogólną aktualizacją konta). UI nadal poza MVP.
+**Redis (hard / purge `guest`):** obowiązkowy DEL **wszystkich** kluczy `content-chain:guest:daily:ratings:{userId}:*` (SCAN / równoważnik; port `GuestQuotaPort.deleteDailyRatings(userId)` lub równoważny). Globalnego `…:guest:daily:runs:{UTC-date}` **nie** ruszać. Pad Redis → **fail-open** (DB hard i tak przechodzi; log warning + audyt).
 
-Zmiana względem wersji 2 („dezaktywacja zamiast DELETE, jeśli implementacja tak wybierze”): soft-delete jest **obowiązkowy** dla DELETE.
+**Audyt:** log strukturalny (logger aplikacji — bez osobnego store): `adminId`, `targetId`, `targetRole`, `mode` (`soft` \| `hard` \| `purge`); przy hard/purge opcjonalnie liczby skasowanych runów/feedback.
+
+**Architektura:** `DeleteUserUseCase` w Auth **orkiestruje** porty (`GuestPurgePort` / kasowanie runów+dzieci, `FeedbackPurgePort`, `GuestQuotaPort.deleteDailyRatings` itd.) — **zakaz** Prisma Run w HTTP / fat controller; uniknąć cyklu Auth↔Runs (Runs/Feedback eksportują porty). Persistence tree: `SPEC-PERSISTENCE.md`. Cancel pojedynczego runu → `SPEC-RUNY.md` R-11 (nie ten wymóg).
+
+Zmiana względem wersji 20 / A-10: *„DELETE = soft-delete / dezaktywacja (brak twardego usunięcia wiersza w MVP)”*. Od tej wersji soft **tylko** `user`; hard+purge **tylko** `guest`; kod `GUEST_HAS_ACTIVE_RUN`; UI w zakresie FE.
+
+Zmiana względem wersji 6 (A-10: „PATCH może służyć m.in. reaktywacji — poza UI MVP”): PATCH jest **obowiązkowy** w MVP i **tylko** reaktywacją (nie ogólną aktualizacją konta).
+
+Zmiana względem wersji 2 („dezaktywacja zamiast DELETE, jeśli implementacja tak wybierze”): soft-delete jest **obowiązkowy** dla gałęzi `user` na DELETE.
+
+A-10a. `PATCH /api/v1/users/:id` = **wyłącznie reaktywacja** targetu **`role = user`** (kontrakt: `docs/dokumentacja_komunikacji.md`). Body `{ "isActive": true }` (literał; Zod `.strict()`; zakaz `role` / `email` / `password`). `isActive: false` → **400** `VALIDATION_FAILED` (dezaktywacja = DELETE soft, jeden kanał). Authz: `@Roles('admin')` + cookie; `user` / `guest` → **403** `FORBIDDEN`; brak sesji → **401** `UNAUTHORIZED`. Path `:id` = `UserId`; zły format → **400** `VALIDATION_FAILED`; brak wiersza → **404** `USER_NOT_FOUND`; target `role = admin` → **403** `FORBIDDEN`; target `role = guest` → **403** `FORBIDDEN` (reclaim guest = hard DELETE, nie PATCH). Target `user` już `isActive: true` → **200** idempotentnie (bez 409). Soft-deleted `user` → **200** `isActive: true`. Sukces **200**: `{ id, email, role, isActive, verifiedAt, createdAt }` z `isActive: true`. **Bez** Set-Cookie; **bez** `RefreshSession.create` — potem zwykły `POST /auth/login`. **Nie** ustawia `verifiedAt`. **UI w zakresie** (toggle na liście Konta — `SPEC-FRONTEND.md` F-8).
+
+Zmiana względem wersji 20 / A-10a: reaktywacja bez rozróżnienia roli targetu; UI poza MVP. Od tej wersji tylko `user`; `guest` → **403**; UI **w wycinku**.
 
 Zmiana względem wersji 14 / A-10a: milczenie o `verifiedAt` przy reaktywacji. Od tej wersji jawnie: PATCH **nie** ustawia `verifiedAt`.
 
@@ -150,7 +175,7 @@ A-11. `POST /api/v1/auth/register` — publiczny (`@Public()`); body `{ email, p
 |------------|------|--------|
 | Nowy email, `NODE_ENV=production` | **201** `{ user: { id, email, role, verifiedAt } }` | `isActive=true`, `verifiedAt=null`, wiersz `AccountActivation` (`act_<uuid>`, unikalny `userId`, unikalny `tokenHash`), mail `user_activation`; **bez** Set-Cookie |
 | Nowy email, poza `production` | **201** jak wyżej | `verifiedAt` ustawione od razu (ISO w body); bez wymogu maila aktywacyjnego; **bez** Set-Cookie |
-| Email już w `User` (aktywny **lub** soft-deleted) | **409** `CONFLICT`, `message`: **`Email already in use`** | **Bez** drugiego `User`; **świadoma enumeracja** (UX); reclaim soft-delete = admin `PATCH`, nie register |
+| Email już w `User` (aktywny **lub** soft-deleted `user`) | **409** `CONFLICT`, `message`: **`Email already in use`** | **Bez** drugiego `User`; **świadoma enumeracja** (UX); reclaim soft-deleted `user` = admin `PATCH` (A-10a); reclaim `guest` = hard DELETE (A-10), nie register |
 | Hasło poza A-5 | **400** `VALIDATION_FAILED` | brak User |
 | Pad SMTP (`production`, **nowy** User właśnie utworzony) | **503** `MAIL_DELIVERY_FAILED` + `details.id` = id User | User pending zostaje; FE thank-you + resend (`SPEC-FRONTEND.md` F-4b) |
 
@@ -212,17 +237,19 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 ### Sesja (cookie-only)
 
 1. Login: wydaj JWT → `cc_access`; wygeneruj sekret refresh → hash w DB → `cc_refresh`.
-2. Refresh: waliduj `cc_refresh` vs DB → unieważnij stary → nowy refresh + nowy access w cookie.
+2. Refresh: waliduj `cc_refresh` vs DB → sprawdź User (`isActive` / brak wiersza — A-3c) → unieważnij stary → nowy refresh + nowy access w cookie.
 3. Logout / reuse unieważnionego refresh: unieważnij sesję; wyczyść oba cookie.
-4. Access JWT nie zastępuje store’u refresh.
+4. Access JWT nie zastępuje store’u refresh; **każdy** request z `cc_access` przechodzi A-3c (`findById` + `isActive`).
+5. **Bez** blacklisty access — nieważność po soft/hard = A-3c.
 
 ### Wolno
 
 - Port persistence użytkowników, sesji refresh, **zaproszeń** oraz **aktywacji konta** (`AccountActivation`); adapter Prisma w `infrastructure/persistence/`.
 - Port mailera transakcyjnego w Auth (`user_invited` **oraz** `user_activation`); adapter logujący poza `production` w `infrastructure/mail/`; adapter SMTP = **nodemailer** wyłącznie w `infrastructure/mail/`.
-- Strategia cookie / JWT (`JwtCookieStrategy`, helpers cookie) w `infrastructure/session/`.
+- Strategia cookie / JWT (`JwtCookieStrategy` async `validate` + A-3c, helpers cookie) w `infrastructure/session/`.
 - Walidacja DTO auth class-validator + reguły haseł w domain/application (Zod — `SPEC-KOMUNIKACJA.md`).
-- Soft-delete + flaga aktywności; odrzucenie loginu dla kont nieaktywnych **oraz** (w prod) bez `verifiedAt`; PATCH reaktywacji **bez** odtwarzania sesji refresh i **bez** ustawiania `verifiedAt`.
+- Soft-delete `user` + flaga aktywności; hard/purge `guest` przez porty (A-10); odrzucenie loginu dla kont nieaktywnych **oraz** (w prod) bez `verifiedAt`; PATCH reaktywacji **tylko `user`**, **bez** odtwarzania sesji refresh i **bez** ustawiania `verifiedAt`.
+- Orkiestracja `DeleteUserUseCase` przez porty purge / Redis ratings (A-10) — bez Prisma Run w controllerze.
 - Publiczny `bootstrap-status`, `accept-invite`, **`register`**, **`activate`**, **`resend-activation`** bez sesji.
 - `UserRole` w `@content-chain/shared`: `admin` \| `user` \| **`guest`**; persistencja `User.role` = **String** (bez wymogu Prisma enum) — `SPEC-MONOREPO.md` / `SPEC-PERSISTENCE.md`.
 - `GuestGuard` + `@AllowGuest` na allowliście; `DEMO_MODE` wyłącznie env przy starcie procesu (default `false`; zmiana = restart; **brak** toggle UI).
@@ -256,9 +283,16 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
   Zmiana względem wersji 9: zakaz obejmował też zmianę email — od tej wersji A-3b **jest** w MVP (re-auth: `PATCH /auth/me/email` + `currentPassword`).
   Zmiana względem: A-3b na `PATCH /auth/me` bez re-auth / złe hasło jako `UNAUTHORIZED`.
 - Mutacji wrażliwej email / hasła na `PATCH /auth/me` (miesza probe z update) — obowiązuje osobna ścieżka A-3b.
-- Twardego DELETE użytkownika jako domyślnego zachowania MVP (obowiązuje soft-delete).
-- `PATCH /users/:id` z `role` / `email` / `password` albo `isActive: false` (dezaktywacja wyłącznie DELETE). Własny email = wyłącznie `PATCH /auth/me/email` (A-3b).
+- Soft-delete na `guest` oraz hard-delete na `user` (obowiązuje A-10: soft tylko `user`, hard tylko `guest`).
+- Soft+Hard jako dwa przyciski / dwa czasowniki REST na tym samym `user`; osobnej trasy `/status` / `/role` / drugiego czasownika hard.
+- Reaktywacji `guest` przez `PATCH` (obowiązuje **403**; reclaim = hard).
+- Fat controllera / Prisma `Run` / `Feedback` w HTTP Auth — obowiązują porty (A-10).
+- Blacklisty access JWT zamiast A-3c.
+- DEL globalnego Redis `…:guest:daily:runs:{UTC-date}` przy hard/purge.
+- `PATCH /users/:id` z `role` / `email` / `password` albo `isActive: false` (dezaktywacja wyłącznie DELETE soft `user`). Własny email = wyłącznie `PATCH /auth/me/email` (A-3b).
 - Refresh wyłącznie jako JWT w cookie **bez** wpisu w DB.
+
+Zmiana względem wersji 20 / „Nie wolno”: *„Twardego DELETE użytkownika jako domyślnego zachowania MVP (obowiązuje soft-delete)”* — **unieważnione** dla `guest`; soft nadal obowiązkowy dla `user`.
 - Wycieku hashów haseł, sekretów JWT, plaintext refresh, raw tokenu zaproszenia ani raw tokenu aktywacji (w `production`) do logów / envelope.
 - **409** `CONFLICT` / odrębnego kodu „email zajęty” na publicznym `POST /auth/accept-invite` przy kolizji `User.email` — obowiązuje **401** jak nieważny token + revoke (A-7b). **409** na `POST /invitations`, `PATCH /auth/me/email` **oraz** `POST /auth/register` **zostaje**.
 - Masowego `@Roles('admin','user')` zamiast `GuestGuard` / `@AllowGuest`.
@@ -280,7 +314,8 @@ Zmiana względem wersji 14 / „Nie wolno”: zakaz otwartego signup unieważnio
 | Kind mailera `user_invited` **oraz** `user_activation` | obowiązkowe |
 | Bearer access / OAuth / 2FA / zmiana hasła zalogowanego / usuwanie siebie / confirm e-mail przy zmianie adresu | poza MVP (V1 confirm) |
 | `GET /auth/me` + `PATCH /auth/me/email` (`email` + `currentPassword`) + `GET /auth/bootstrap-status` + `POST /auth/accept-invite` + `POST /auth/register` + `POST /auth/activate` + `POST /auth/resend-activation` | obowiązkowe |
-| `PATCH /users/:id` (reaktywacja `{ isActive: true }`) | obowiązkowe |
+| `DELETE /users/:id` (soft `user` / hard+purge `guest`) + `PATCH /users/:id` (reaktywacja tylko `user`) | obowiązkowe |
+| `JwtCookieStrategy.validate` + check `isActive` / brak User (A-3c) | obowiązkowe |
 | Model `User.verifiedAt` + tabela `AccountActivation` | obowiązkowe (`SPEC-PERSISTENCE.md`) |
 
 ## Kryteria akceptacji
@@ -290,34 +325,37 @@ Zmiana względem wersji 14 / „Nie wolno”: zakaz otwartego signup unieważnio
 - [ ] Login ustawia `cc_access` i `cc_refresh` (httpOnly); body bez tokenów; chronione trasy działają na cookie.
 - [ ] Login → ten sam **401** dla złego hasła / soft-delete / (prod) `verifiedAt == null` / (`guest` && `DEMO_MODE=false`); **bez** `ACCOUNT_NOT_ACTIVATED`.
 - [ ] `GET /auth/me` / refresh z JWT `guest` przy `DEMO_MODE=false` → **401** (nie 403).
+- [ ] Po soft-delete `user`: kolejne requesty z ważnym access → **401** (A-3c `!isActive`); po hard-delete `guest`: access → **401** (brak wiersza).
 - [ ] Guest bez `@AllowGuest` przy demo on → **403**; `GET /users` / invitations / `PATCH /auth/me/email` dla guest → **403**.
 - [ ] `GET /auth/me` zwraca `{ id, email, role }` albo **401** `UNAUTHORIZED`; `PATCH /auth/me/email` `{ email, currentPassword }` zmienia własny adres po re-auth albo **409** gdy zajęty; złe hasło → **401** `INVALID_PASSWORD` / `Invalid password`; brak / pusty `currentPassword` → **400**; refresh rotuje cookie; logout czyści oba i unieważnia sesję w DB; A-3b **nie** rotuje sesji; **brak** mutacji na `PATCH /auth/me`.
 - [ ] Hasło niespełniające polityki → `VALIDATION_FAILED`; spełniające → bcrypt(cost 12) — na accept-invite **oraz** register.
-- [ ] `user` nie przechodzi tras admin-only (`RolesGuard` → `FORBIDDEN`), w tym `POST /invitations` → 403.
+- [ ] `user` nie przechodzi tras admin-only (`RolesGuard` → `FORBIDDEN`), w tym `POST /invitations` → 403; `user` → `DELETE /users/:id` → **403**.
 - [ ] Admin zaprasza (`POST /invitations`, tylko email, bez `role`) → pending + mail; accept-invite: `DEMO_MODE=false` → `role=user`, `DEMO_MODE=true` → `role=guest`; potem login; raw token nie wraca w JSON admina.
 - [ ] `POST /auth/register`: nowy email → **201** bez Set-Cookie; prod = pending + mail; poza prod = `verifiedAt` od razu; zajęty email → **409** `CONFLICT` (bez drugiego User); **nie** maskowany 201; `DEMO_MODE=true` → `role=guest`; `false` → `role=user`.
 - [ ] `POST /auth/activate`: sukces → **200** `{ user }` + `verifiedAt` + delete `AccountActivation`; zły token → wspólny **401**.
 - [ ] `POST /auth/resend-activation`: zawsze **200** + `Wiadomość wysłana ponownie`; mail tylko przy pending; **bez** **503**.
-- [ ] DELETE soft-delete usuwa wiersze `AccountActivation`; register **nigdy** `admin`; bootstrap **nigdy** `guest`; invite **nigdy** `admin`; invite rola vs `DEMO_MODE` (nie pin „zawsze user”).
+- [ ] Soft DELETE `user` usuwa `AccountActivation` + sesje; **nie** kasuje runów/feedback; **nie** czyści `verifiedAt`; live run **nie** daje 409.
+- [ ] Hard DELETE `guest` usuwa wiersz User + runy + dzieci + Feedback + Redis ratings (lub fail-open); email wolny; live bez `purge` → **409** `GUEST_HAS_ACTIVE_RUN`; z `?purge=true` → **200** + brak User/runów.
+- [ ] Target admin → **403**; legacy soft-guest → hard; register **nigdy** `admin`; bootstrap **nigdy** `guest`; invite **nigdy** `admin`; invite rola vs `DEMO_MODE` (nie pin „zawsze user”).
 - [ ] Brak ścieżki HTTP promocji `guest` → `user`/`admin`.
 - [ ] Drugi `POST /invitations` przy `pending` (także wygasłym) → **409**; `GET` pending obejmuje wygasłe.
 - [ ] Zużyty / wygasły / revoked token → **401** na accept-invite; hasło poza A-5 → **400** (pending bez zmian).
 - [ ] Kolizja `User.email` (także soft-deleted) przy ważnym tokenie → **401** `UNAUTHORIZED`, ten sam `message` co zły token; Invitation → `revoked`; **nie** **409**; brak `User` z tej próby.
 - [ ] Pad SMTP po zapisie (gdy testowany adapter SMTP) → **503** `MAIL_DELIVERY_FAILED` + `details.id` (Invitation albo User).
-- [ ] DELETE użytkownika = soft-delete; nieaktywny nie loguje się; soft-delete **nie** czyści `verifiedAt`.
-- [ ] PATCH `{ isActive: true }` na soft-deleted `user` → 200 `isActive: true`; **nie** ustawia `verifiedAt`. `isActive: false` / `role` w body → 400. `user` woła PATCH → 403. PATCH admina → 403.
+- [ ] PATCH `{ isActive: true }` na soft-deleted `user` → 200 `isActive: true`; **nie** ustawia `verifiedAt`. Target `guest` → **403**. `isActive: false` / `role` w body → 400. `user` woła PATCH → 403. PATCH admina → 403.
 - [ ] Postman / FE bez Bearer — wyłącznie cookie.
 - [ ] Domyślne TTL: access 15m, refresh 1d, invite 7d, activation 7d (nadpisywalne env).
 
 ## Poza zakresem
 
-- Widoki UI (first-run, login, rejestracja, thank-you, aktywacja→login+toast, użytkownicy, konto, akceptacja zaproszenia) — **MVP dashboardu** → `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`. Ten SPEC nie wymaga ekranów jako DoD API (Postman zostaje).
+- Widoki UI (first-run, login, rejestracja, thank-you, aktywacja→login+toast, użytkownicy toggle/Usuń, konto, akceptacja zaproszenia, Cancel admin→guest na detail) — **MVP dashboardu** → `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`. Ten SPEC nie wymaga ekranów jako DoD API (Postman zostaje).
 
 Zmiana względem wersji 7 / poza zakresem: doprecyzowano, że ekrany Users i accept-invite są w zakresie MVP FE, nie „przyszłe”.
 Zmiana względem wersji 14 / poza zakresem: dopisano rejestrację / thank-you / deep link aktywacji jako widoki FE.
+Zmiana względem wersji 20 / poza zakresem: *„Soft-delete / reaktywacja w UI admina (API tak; UI MVP nie)”* oraz *„Zarządzanie / czyszczenie kont guest (osobny plan)”* — **unieważnione** dla per-konto soft/hard/purge + UI toggle/Usuń; reset / bulk / wipe **zostaje** poza.
 - Self-service: zmiana hasła **zalogowanego** / usuwanie własnego konta; OAuth, SSO, 2FA, recovery „lost admin”; confirm e-mail przy zmianie adresu (**V1** — **nie** mylić z A-12). Pierwsze hasło na accept-invite **oraz** hasło na register **są** w zakresie. **Zmiana własnego emaila z re-auth (A-3b) jest w zakresie MVP** — wzorzec ścieżki + `INVALID_PASSWORD` = fundament pod przyszłe `PATCH /auth/me/password` (poza MVP).
-- Soft-delete / reaktywacja w UI admina (API tak; UI MVP nie) — płynne V1.
-- Zarządzanie / czyszczenie kont `guest` (osobny plan).
-- Chip / locki UI DEMO — `SPEC-FRONTEND.md`. Polityka slotów / Redis admit — `SPEC-RUNY.md` R-12.
+- Reset instancji / factory wipe / CLI / **bulk** purge gości (masowy, nie per-konto).
+- Authz cancel (admin→guest) → `SPEC-RUNY.md` R-11; UI Cancel / Users → `SPEC-FRONTEND.md`.
+- Chip / locki UI DEMO — `SPEC-FRONTEND.md`. Polityka slotów / Redis admit — `SPEC-RUNY.md` R-12 (DEL ratings przy hard = A-10).
 - Szczegóły ekspozycji sieciowej gateway/metrics / reverse proxy → `SPEC-BEZPIECZENSTWO.md`.
-- Schema Prisma — `SPEC-PERSISTENCE.md` / implementacja, byle port sesji refresh, zaproszeń, aktywacji (`AccountActivation` / `verifiedAt`) i flagi aktywności istniał.
+- Schema Prisma — `SPEC-PERSISTENCE.md` / implementacja, byle port sesji refresh, zaproszeń, aktywacji (`AccountActivation` / `verifiedAt`), flagi aktywności oraz porty purge istniały.

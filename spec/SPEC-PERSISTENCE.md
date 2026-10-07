@@ -1,7 +1,7 @@
 ---
-wersja: 16
+wersja: 17
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-07
 ---
 
 # SPEC — Persistence
@@ -16,6 +16,7 @@ Zmiana względem wersji 9: kanon Run bez `pipelineFinishedAt` / indeksu pod swee
 Zmiana względem wersji 11: kanon Auth bez `verifiedAt` / `AccountActivation`. Od tej wersji marker weryfikacji + tabela tokenu aktywacji — `docs/dictionary.md`, `SPEC-AUTH.md` A-11…A-13.
 Zmiana względem wersji 13 / P-5: `User.role` przy register zawsze `user`. Od tej wersji String `admin`\|`user`\|`guest` (bez Prisma enum); sloty guest = COUNT `Run`.
 Zmiana względem wersji 14 / D16: `users.create(role=user)` przy accept-invite. Od tej wersji `role` z use-case (`guest` \| `user` vs `DEMO_MODE`) — `SPEC-AUTH.md` A-7b; **bez** migracji / backfill istniejących ról.
+Zmiana względem wersji 16 / P-5: DELETE Users = zawsze soft; brak normy hard/purge tree. Od tej wersji soft vs hard/purge; zakaz orphan Feedback; jedna tx delete tree; **bez** obowiązku migracji Cascade; abort **poza** tx — `SPEC-AUTH.md` A-10, `users-management-plan.md` Faza 2.
 
 ## Powiązanie ze stylem z docs
 
@@ -54,9 +55,23 @@ Kanon tabel (Auth):
 
 - Model **`User`**: m.in. `passwordHash` (wymagany), `isActive`, **`role`** = **String** (`admin` \| `user` \| `guest` — unia `UserRole` w shared; **zakaz** wymogu Prisma `enum` roli), **`verifiedAt`** (`DateTime?` — `null` = nieaktywowane linkiem / pending w prod; po sukcesie activate = timestamp; poza `production` ustawiane przy register). Soft-delete (`isActive = false`) **nie** czyści `verifiedAt` (historia). Pending ≠ soft-delete: pending ma `isActive = true` + `verifiedAt = null`. Dump/restore przenosi string roli; `DEMO_MODE` **nie** przepisuje ról w DB.
 - Model **`Invitation`** (lub równoważna nazwa) — `id` (`inv_<uuid>`), `email`, `tokenHash`, `purpose` (`invite` w MVP; rezerwa pod `password_reset` bez zmiany modelu świata), `status` (`pending` \| `accepted` \| `revoked`), `expiresAt`, `invitedByUserId`, timestamps; **bez** kolumny raw tokenu. Invitation **nie** jest „User z pustym hasłem”.
-- Model **`AccountActivation`** (lub równoważna nazwa) — `id` = **`act_<uuid>`**; hash tokenu (`tokenHash`, **unikalny**), `userId` (**unikalny**), `expiresAt` (TTL `ACTIVATION_TTL`, default `7d`); ew. `createdAt`; **bez** kolumny raw tokenu. Po udanym activate: update `User.verifiedAt` + **delete** wierszy activation dla tego usera. **Soft-delete** usera (`DELETE /users/:id`) **usuwa** wiersze activation. Raw wyłącznie w mailu / logu DX. Migracja wprowadzająca `verifiedAt`: **backfill** istniejących `User` → `verifiedAt = createdAt`; bootstrap / accept-invite ustawiają `verifiedAt = now()` przy create.
+- Model **`AccountActivation`** (lub równoważna nazwa) — `id` = **`act_<uuid>`**; hash tokenu (`tokenHash`, **unikalny**), `userId` (**unikalny**), `expiresAt` (TTL `ACTIVATION_TTL`, default `7d`); ew. `createdAt`; **bez** kolumny raw tokenu. Po udanym activate: update `User.verifiedAt` + **delete** wierszy activation dla tego usera. Soft-delete `user` **oraz** hard/purge `guest` **usuwają** wiersze activation. Raw wyłącznie w mailu / logu DX. Migracja wprowadzająca `verifiedAt`: **backfill** istniejących `User` → `verifiedAt = createdAt`; bootstrap / accept-invite ustawiają `verifiedAt = now()` przy create.
 
 `User.passwordHash` nadal wymagany — wiersz `User` powstaje przy accept-invite **albo** przy register (A-11); **nie** przy samym Invitation pending.
+
+**D21 (Users DELETE — soft vs hard/purge):** semantyka HTTP = `SPEC-AUTH.md` A-10. Persistence:
+
+| Tryb | Tx Prisma (jedna) | Poza tx |
+|------|-------------------|---------|
+| Soft `user` | `isActive=false` + delete refresh sessions + delete `AccountActivation` | — |
+| Hard / purge `guest` | Delete dzieci Run (kolejność aplikacyjna) + Run gościa + Feedback (`authorId` = guest **OR** `runId` ∈ runów gościa) + refresh + activation + `User` | Abort live (purge) **przed** tx; Redis DEL ratings **po** commit (fail-open) |
+
+- Soft **nie** kasuje Run / Feedback; soft **nie** czyści `verifiedAt`.
+- Hard **usuwa wiersz** `User` — email wolny.
+- **Zakaz orphan Feedback** po hard (Feedback **nie** ma FK — kasować **jawnie**).
+- **Bez** obowiązku migracji `onDelete: Cascade` na dzieciach Run — kolejność w **jednej** transakcji aplikacyjnej wystarczy.
+- Abort in-process / SSE **nie** wchodzą do tej samej ACID tx co delete tree.
+- Soft `user` także w **jednej** tx (jak tabela).
 
 **D17:** migracja SQL `UNIQUE (email) WHERE status = 'pending'` (komentarz w `schema.prisma` jak `User_one_admin`; Prisma 6 nie wyrazi partial unique; indeks **bez** `purpose`). Wygasły wiersz zostaje `status = pending` — indeks nadal blokuje drugi `POST`.
 
@@ -169,6 +184,9 @@ Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/
 - Reuse `isActive = false` jako „pending aktywacji” (obowiązuje `verifiedAt = null` + `AccountActivation`).
 - Pozostawiania wierszy `AccountActivation` po udanym activate (obowiązuje delete).
 - Czyszczenia `verifiedAt` przy soft-delete.
+- Orphan `Feedback` po hard/purge `guest` (obowiązuje jawne delete — D21).
+- Wymogu migracji Cascade jako jedynej drogi delete tree (obowiązuje jedna tx aplikacyjna — D21).
+- Składania abortu in-process / SSE w tej samej ACID tx co hard/purge (abort poza tx — D21).
 - Drugiego aktywnego wiersza `AccountActivation` per user (jeden pending).
 - Przechowywania raw tokenu aktywacji w DB.
 - `DELETE` runów / wyników w ramach TTL przeglądu lub auto-finalize (obowiązuje UPDATE `reviewFinalizedAt`).
@@ -210,6 +228,7 @@ Zmiana względem wersji 11 / „Nie wolno”: dopisano zakazy pending przez `isA
 - [ ] Accept-invite D16: happy path = jedna transakcja create User (`role` vs `DEMO_MODE`) + `accepted`; kolizja P2002 → brak User, Invitation `revoked` (nie żywego `pending`).
 - [ ] `User.verifiedAt` (`DateTime?`) w schemie; soft-delete **nie** czyści pola.
 - [ ] `User.role` = String (`admin`/`user`/`guest`); **bez** Prisma enum roli; **brak** tabeli slotów guest.
+- [ ] Soft `user` = jedna tx bez kasowania Run/Feedback; hard/purge `guest` = jedna tx delete tree + User; brak orphan Feedback; abort poza tx.
 
 ## Poza zakresem
 

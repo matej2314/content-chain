@@ -1,7 +1,7 @@
 ---
-wersja: 16
+wersja: 17
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-07
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -12,6 +12,8 @@ Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
 2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
 
 **Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+
+Zmiana względem: `DELETE /users/:id` = zawsze soft; PATCH reaktywacja bez filtra roli / UI poza MVP; cancel wyłącznie `startedBy`; `startedBy` na detail bez `role`. Od tej wersji: DELETE wg roli + opcjonalny `?purge=true`; PATCH tylko target `user` (UI toggle); cancel admin→`guest`; `startedBy.role` na **`GET /runs/:id`**; kod **`GUEST_HAS_ACTIVE_RUN`**. Lista archiwum: `startedBy` bez wymogu `role`.
 
 Zmiana względem: lista user = pełna odpowiedź HTTP; UI Konto pokazywał całą tabelę. Od tej wersji: kontrakt `GET /runs/user/:userId` **bez zmiany** (pełna lista, bez `pageSize`); **paginacja UI** „Moje runy” (10) jest wyłącznie w FE — `docs/ux_dashboard.md`.
 
@@ -35,13 +37,13 @@ Zmiana względem Milestone 4 (HITL post/reel bez walidacji długości; luźne po
 
 Zmiana względem kanonu Fazy 4.3 (HITL Social dwuetapowy = dokładnie 1 `selectedIdeaId`; 2+ id → 400): HITL Social dwuetapowy = **min. 1** unikalne id ⊆ `hitl.options`; wynik = **tablica** osobnych artefaktów (`contents[]` / `reelScripts[]` + `sourceIdeaId`); 2+ legalne, gdy wszystkie ∈ options. Content (`page_outline_then_copy`) bez zmiany: nadal `[outline.id]`.
 
-Zmiana względem kanonu Users (`POST /api/v1/users` z `email` + `password`): ta trasa **wypada z kanonu**. Drogi na konto nie-admin: **zaproszenie** → `POST /auth/accept-invite` **oraz** **otwarta rejestracja** → `POST /auth/register` (+ aktywacja w `production`). Soft-delete (`DELETE /users/:id`) **bez zmian**. Zmiana względem: „jedyna droga = invite” / zakaz signup; **oraz** względem chwilowego „maskowany 201 przy kolizji na register”.
+Zmiana względem kanonu Users (`POST /api/v1/users` z `email` + `password`): ta trasa **wypada z kanonu**. Drogi na konto nie-admin: **zaproszenie** → `POST /auth/accept-invite` **oraz** **otwarta rejestracja** → `POST /auth/register` (+ aktywacja w `production`). `DELETE /users/:id` — semantyka wg roli (soft `user` / hard `guest`) — patrz sekcja Users. Zmiana względem: „jedyna droga = invite” / zakaz signup; **oraz** względem chwilowego „maskowany 201 przy kolizji na register”.
 
 Zmiana względem: register **zawsze** `role = user`; `guest` poza kontraktem. Od tej wersji **refaktor roli** (dostępność register **bez zmian**): `DEMO_MODE=true` → `guest`; `false` → `user`. Dopisano publiczny `GET /config` (`demoMode` only), kody quota guest, admit Redis przed create, ownership guest na detail/HITL, mutacje zabronione.
 
 Zmiana względem: Faza 18 — accept-invite zawsze `role = user`; *„Nigdy `guest` z invite”*. Od tej wersji accept-invite **mirror register**: `DEMO_MODE=true` → `guest`, `false` → `user` (201 może zwrócić `role: guest`). Sens: prod invite = zespół; demo invite = sandbox guest. Brak Set-Cookie / **401** kolizja / body `{ token, password }` — **bez zmian**.
 
-Zmiana względem wiersza PATCH Users („Aktualizacja (np. reaktywacja)” bez body; API „pod późniejsze V1”): w MVP `PATCH /api/v1/users/:id` jest **obowiązkowy** i **wyłącznie** reaktywacją — body `{ "isActive": true }`; dezaktywacja zostaje `DELETE`. UI nadal poza MVP.
+Zmiana względem wiersza PATCH Users („Aktualizacja (np. reaktywacja)” bez body; API „pod późniejsze V1” / UI poza MVP): `PATCH /api/v1/users/:id` jest **obowiązkowy** i **wyłącznie** reaktywacją targetu `role = user` — body `{ "isActive": true }`; target `guest` → **403**; dezaktywacja `user` = `DELETE`; UI toggle **w zakresie** (`ux_dashboard.md`).
 
 Zmiana względem: komunikacja opisywała tylko transport SSE; nie mówiła, że UI dashboardu może z `run.completed` / `run.failed` zrobić sygnał poza widokiem szczegółów. Payloady eventów, statusy runu i kody HTTP PUT/POST (**200** / **202** / **400** / **409**) **bez zmian**.
 
@@ -90,7 +92,9 @@ Wybrane kody domenowe:
 | `REVIEW_LOCKED` | 409 | Przegląd zamknięty (`reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL`) — zmiana oceny / Edytuj / finalize zabroniona; po samym TTL **bez** side-effect UPDATE `reviewFinalizedAt` |
 | `RUN_NOT_REVIEWABLE` | 409 | **Przegląd** (ocena / Edytuj / finalize): status inny niż `completed` \| `failed` (w tym `cancelled`). **Opinia** `POST /feedback` `targetType=run`: poza oknem `completed` \| `failed` \| (`cancelled` **z** wynikiem — dowolne nie-`null` pole wyniku w snapshotcie); `cancelled` bez wyniku → ten kod |
 | `RUN_NOT_CANCELABLE` | 409 | Cancel gdy status już `completed` \| `failed` (wyścig z executorem) |
-| `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; istniejący `User` przy `POST /invitations`; `User.email` zajęty przy `PATCH /auth/me/email`; **`User.email` zajęty przy `POST /auth/register`**. **Nie** dotyczy `POST /auth/accept-invite` (kolizja email → **401** `UNAUTHORIZED`) |
+| `GUEST_HAS_ACTIVE_RUN` | 409 | `DELETE /users/:id` na `guest` z ≥1 live run **bez** `?purge=true`; wspólny `message` (niezależnie od liczby live); **bez** `details.runIds` |
+| `USER_NOT_FOUND` | 404 | Brak wiersza `User` przy Users (`DELETE` / `PATCH`) |
+| `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; istniejący `User` przy `POST /invitations`; `User.email` zajęty przy `PATCH /auth/me/email`; **`User.email` zajęty przy `POST /auth/register`** (w tym soft-deleted `user`). **Nie** dotyczy `POST /auth/accept-invite` (kolizja email → **401** `UNAUTHORIZED`) |
 | *(rating guest)* | 429 | Soft cap dzienny ocen `guest` (`GUEST_RATING_CAP_PER_DAY`); `message` z envelope |
 | `MAIL_DELIVERY_FAILED` | 503 | Pad SMTP po zapisie zaproszenia (create / resend invite) **albo** po utworzeniu pending User przy **register**; w `details` wyłącznie `id` (Invitation albo User). **Nie** dotyczy `POST /auth/resend-activation` (tam zawsze **200** — `security.md`) |
 | `INTERNAL_ERROR` | 500 | Błąd nieobsłużony |
@@ -248,25 +252,42 @@ Atomowość happy path: po walidacji tokenu i hasła **jedna** transakcja tworzy
 
 #### Users (admin)
 
-Zasób kont — **bez** create-z-hasłem przez admina. `POST /api/v1/users` **usunięty** z kanonu (zmiana względem: create `user` = `email` + `password` w `POST /users`). Konta nie-admin powstają przez **invite → accept-invite** (rola vs `DEMO_MODE`: demo off = zespół/`user`, demo on = sandbox/`guest`) albo **register** (+ activate w prod; rola vs `DEMO_MODE`). `guest` → **403** na całym zasobie.
+Zasób kont — **bez** create-z-hasłem przez admina. `POST /api/v1/users` **usunięty** z kanonu (zmiana względem: create `user` = `email` + `password` w `POST /users`). Konta nie-admin powstają przez **invite → accept-invite** (rola vs `DEMO_MODE`: demo off = zespół/`user`, demo on = sandbox/`guest`) albo **register** (+ activate w prod; rola vs `DEMO_MODE`). `user` / `guest` → **403** na całym zasobie.
 
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
 | `GET` | `/api/v1/users` | Lista kont (w tym `isActive`). Pozycja: `{ id, email, role, isActive, verifiedAt, createdAt }` (`verifiedAt` ISO lub `null`). **Bez** pending invites. |
-| `PATCH` | `/api/v1/users/:id` | **Wyłącznie reaktywacja** — body `{ "isActive": true }`; **bez** `role` / `email` / `password`. UI MVP bez tego (API w MVP). |
-| `DELETE` | `/api/v1/users/:id` | **Soft-delete / dezaktywacja** (konto pozostaje; login zablokowany); **nie** twarde usunięcie wiersza |
+| `PATCH` | `/api/v1/users/:id` | **Wyłącznie reaktywacja targetu `role = user`** — body `{ "isActive": true }`; **bez** `role` / `email` / `password` / `isActive: false`. UI: toggle na liście Konta. |
+| `DELETE` | `/api/v1/users/:id` | Semantyka po `target.role`: soft `user` / hard `guest`. Body **puste**. Opcjonalny query **`purge=true`** (skutek tylko przy `guest` + live). |
 
 Zmiana względem wcześniejszego zapisu „`role` dowolna”: w MVP jest **co najwyżej jeden** `admin` (bootstrap). Tworzenie / ustawienie kolejnego `admin` → **403** / **400**. Norma: `security.md`.
 
-Zmiana względem „DELETE = dezaktywacja / usunięcie wg polityki”: w MVP DELETE = wyłącznie soft-delete / dezaktywacja.
+Zmiana względem „DELETE = wyłącznie soft-delete”: semantyka **rozgałęziona** po roli; hard **tylko** `guest`; soft **tylko** `user`.
 
-Zmiana względem „PATCH = aktualizacja (np. reaktywacja) pod V1”: PATCH w MVP **nie** aktualizuje email / hasła / roli — jeden kanał reaktywacji (`isActive: true`); `isActive: false` → **400** (dezaktywacja = `DELETE`).
+Zmiana względem „PATCH = reaktywacja bez filtra roli / UI poza MVP”: sukces tylko target `user`; `guest` → **403**; UI toggle w zakresie.
 
-Cały zasób: `@Roles('admin')` + globalny JWT.
+Cały zasób: `@Roles('admin')` + globalny JWT. **Nota:** **nie** `PATCH` z `role` / `isActive: false`; **nie** osobnych tras `/status` / `/role` / drugiego czasownika hard.
+
+#### `DELETE /api/v1/users/:id` (admin)
+
+Body puste. Query (opcjonalny): `purge=true` — skutek **wyłącznie** gdy target `role = guest` **i** istnieje ≥1 live run; w pozostałych przypadkach zachowanie **identyczne** jak bez flagi.
+
+| Target / sytuacja | HTTP | Odpowiedź / `code` |
+|-------------------|------|---------------------|
+| `role = user` (soft; także przy live) | **200** | `{ "ok": true }` — `isActive=false`; sesje + activation skasowane; runy/feedback zostają |
+| `role = user` już `isActive=false` | **200** | `{ "ok": true }` (idempotentnie) |
+| `role = guest` bez live (hard) | **200** | `{ "ok": true }` — wiersz + runy + feedback + Redis ratings usunięte |
+| `role = guest` + live **bez** `purge` | **409** | `GUEST_HAS_ACTIVE_RUN` + `message` (bez listy runów) |
+| `role = guest` + live **z** `?purge=true` | **200** | `{ "ok": true }` — abort live + tx hard wszystkich runów + konta |
+| Legacy soft-deleted `guest` (wiersz istnieje) | **200** | hard (sprzątanie) |
+| Target `role = admin` | **403** | `FORBIDDEN` |
+| Brak wiersza | **404** | `USER_NOT_FOUND` |
+| `:id` zły format (`UserId`) | **400** | `VALIDATION_FAILED` |
+| Sesja nie-admin / brak sesji | **403** / **401** | `FORBIDDEN` / `UNAUTHORIZED` |
 
 #### `PATCH /api/v1/users/:id` (admin)
 
-Reaktywacja konta po soft-delete. **Nie** jest ogólną aktualizacją konta.
+Reaktywacja konta **tylko** po soft-delete `role = user`. **Nie** jest ogólną aktualizacją konta. Reclaim gościa = hard `DELETE`, nie PATCH.
 
 | Pole | Typ | Wymagane |
 |------|-----|----------|
@@ -274,17 +295,18 @@ Reaktywacja konta po soft-delete. **Nie** jest ogólną aktualizacją konta.
 
 Body: `.strict()` (application Zod) oraz `forbidNonWhitelisted` (HTTP). Zakaz pól `role` / `email` / `password`.
 
-**200** — projekcja jak pozycja `GET /users`: `{ id, email, role, isActive, verifiedAt, createdAt }` z `isActive: true`. **Bez** Set-Cookie (to nie login). **`DELETE /users/:id`** (soft-delete) kasuje refresh w DB **oraz** usuwa wiersze **`AccountActivation`** dla usera. Reaktywacja **nie** odtwarza sesji — potem zwykły `POST /auth/login`. Reaktywacja **nie** ustawia `verifiedAt` — pending nadal wymaga activate / resend w `production`.
+**200** — projekcja jak pozycja `GET /users`: `{ id, email, role, isActive, verifiedAt, createdAt }` z `isActive: true`. **Bez** Set-Cookie (to nie login). Soft `DELETE` kasuje refresh w DB **oraz** usuwa wiersze **`AccountActivation`**. Reaktywacja **nie** odtwarza sesji — potem zwykły `POST /auth/login`. Reaktywacja **nie** ustawia `verifiedAt` — pending nadal wymaga activate / resend w `production`.
 
 | Warunek | HTTP | `code` |
 |---------|------|--------|
 | Brak / nieważna sesja | **401** | `UNAUTHORIZED` |
-| Sesja `user` (nie admin) | **403** | `FORBIDDEN` |
+| Sesja `user` / `guest` (nie admin) | **403** | `FORBIDDEN` |
 | `:id` zły format (`UserId`) | **400** | `VALIDATION_FAILED` |
 | `isActive: false` albo `role` / `email` / `password` / inny nieznany klucz | **400** | `VALIDATION_FAILED` |
 | Brak wiersza | **404** | `USER_NOT_FOUND` |
 | Target `role = admin` | **403** | `FORBIDDEN` |
-| Target już `isActive: true` | **200** | — (idempotentnie; bez 409) |
+| Target `role = guest` | **403** | `FORBIDDEN` |
+| Target `role = user` już `isActive: true` | **200** | — (idempotentnie; bez 409) |
 
 #### Invitations (admin)
 
@@ -297,7 +319,7 @@ Porównanie `email` (**Invitation** i **User**) jest **case-sensitive** — bez 
 | `GET` | `/api/v1/invitations` | Lista; MVP: **wszystkie** `status = pending` (w tym wygasłe: `expiresAt < now`). Pola: `id`, `email`, `createdAt`, `expiresAt`, `invitedBy`. Bez tokenu, bez hashu. |
 | `POST` | `/api/v1/invitations` | `{ "email" }` — zapis **najpierw**, potem send. Send OK (albo adapter logujący w `development` / `test`) → **201** `{ id, email, expiresAt }` (bez tokenu). Pad prawdziwego SMTP **po** zapisie → **503** `MAIL_DELIVERY_FAILED`, envelope jak pozostałe błędy CC, w `details` **`id` zaproszenia**; wiersz zostaje `pending` (operator: `resend`; retry `POST` przy pending → **409**). Adapter logujący **zawsze** kończy send sukcesem → zawsze **201**; **503** tylko przy prawdziwym SMTP (`production`). `user` → 403. Pending (także wygasły) / istniejący User → 409. |
 | `POST` | `/api/v1/invitations/:id/resend` | Rotacja tokenu (nowy raw, nowy hash, nowy `expiresAt`; stary token nieważny) + ponowny mail. Ten sam `id`. Brak / nie-pending → **404**. Pad SMTP → **503** + to samo `id` w `details`. |
-| `DELETE` | `/api/v1/invitations/:id` | Revoke pending: status `revoked` (token nieważny). **Nie** twardy DELETE wiersza — spójnie z duchem soft-delete usera, ale **osobny** zasób. |
+| `DELETE` | `/api/v1/invitations/:id` | Revoke pending: status `revoked` (token nieważny). **Nie** twardy DELETE wiersza — osobny zasób Invitation (nie mylić z hard `guest`). |
 
 Mail zawiera jednorazowy token (link + ten sam token jako tekst pod Postman). **Kanon URL w mailu zaproszenia:** `{APP_PUBLIC_URL}/invite/accept?token={raw}` — ta sama ścieżka co publiczny ekran FE (`docs/ux_dashboard.md`). **Nigdy** hasła. TTL zaproszenia: env `INVITE_TTL`, default **7 dni** (ten sam parser co JWT TTL, np. `7d`). Mail aktywacji konta (`user_activation`): `{APP_PUBLIC_URL}/?activationToken={raw}`; TTL: `ACTIVATION_TTL`, default **`7d`**.
 
@@ -404,6 +426,7 @@ Zmiana względem: `status` wyłącznie jako pojedynczy enum.
 ```
 
 - `startedBy.email` — identyfikator wyświetlany w MVP jako „nazwa użytkownika” (brak osobnego display name w MVP).
+- Lista archiwum: `startedBy` **bez** wymogu `role` w tym wycinku (Cancel UI admin→guest opiera się na **detail**).
 - Przy starcie ze sesją `startedBy` jest zawsze ustawiony. W erze przed domknięciem auth (np. Postman bez sesji) pole może być `null` — po auth na api start bez sesji jest odrzucany, więc nowe runy zawsze mają inicjatora.
 
 #### `POST /api/v1/runs`
@@ -488,17 +511,19 @@ Page + `platform: linkedin` → **400** `VALIDATION_FAILED`. Page + `selectedIde
 
 #### `POST /api/v1/runs/:runId/cancel`
 
-Anulowanie runu przez **autora** (`startedBy`). Body **puste**. Sesja cookie jak pozostałe chronione trasy Runs.
+Anulowanie runu. Body **puste**. Sesja cookie jak pozostałe chronione trasy Runs.
+
+**Authz:** aktor = `startedBy` **albo** (aktor `role = admin` **i** `startedBy.role === guest`). Cudzy run `startedBy.role === user` → **403** (także dla admina). Źródło `startedBy.role` w BE: join w snapshocie runu (to samo pole co w detail HTTP).
 
 | Sytuacja | HTTP | Odpowiedź / `code` |
 |----------|------|---------------------|
 | pierwsze legalne anulowanie (status nieterminalny) | **200** | snapshot (`status: cancelled`, `cancelledAt`) |
 | run już `cancelled` | **200** | snapshot (idempotentne) |
-| sesja ≠ `startedBy` | **403** | `FORBIDDEN` |
+| brak uprawnień (cudzy `user`; guest/user ≠ owner) | **403** | `FORBIDDEN` |
 | brak runu | **404** | `RUN_NOT_FOUND` |
 | status już `completed` \| `failed` | **409** | `RUN_NOT_CANCELABLE` |
 
-**200 nie czeka** na zwinięcie execute / hopu LLM. Prawda dla klienta: snapshot i SSE; abort in-process leci w tle (`docs/architektura.md`, `docs/data_flow.md`).
+**200 nie czeka** na zwinięcie execute / hopu LLM. Prawda dla klienta: snapshot i SSE; abort in-process leci w tle (`docs/architektura.md`, `docs/data_flow.md`). Log / audyt rozróżnia aktora (`cancelled by admin` vs owner).
 
 #### `GET /api/v1/runs/:runId`
 
@@ -518,7 +543,7 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
   "status": "completed",
   "createdAt": "2026-08-12T10:00:00.000Z",
   "cancelledAt": null,
-  "startedBy": { "id": "usr_…", "email": "user@example.com" },
+  "startedBy": { "id": "usr_…", "email": "user@example.com", "role": "user" },
   "userRating": null,
   "outputEdited": false,
   "reviewFinalizedAt": null,
@@ -543,6 +568,7 @@ Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów
 - `platform` — enum SM albo `'web'` (page_*).
 - `brief` — zwracany w **kształcie zapisanym** (unia): `SocialBrief` albo `ContentBrief` wg `taskType`. Snapshot nie spłaszcza obu kształtów do jednego obiektu SM.
 - `cancelledAt` — `null` \| ISO8601; ustawiane przy pierwszym udanym przejściu do `cancelled`.
+- `startedBy` — `{ id, email, role }` (`role`: `admin` \| `user` \| `guest`). **Zmiana względem** samego `{ id, email }`. Minimum pod Cancel UI admin→guest. Lista `GET /runs` **bez** obowiązku `role` w tym wycinku.
 - `userRating` — **zawsze** w JSON: `null` (brak gwiazdek) albo `1`…`5`. Pozytywna wartość tylko gdy autor faktycznie ocenił.
 - `outputEdited` — `true` po zapisie Edytuj (treść wyniku została zastąpiona przez autora; bez diff / historii wersji w MVP).
 - `reviewFinalizedAt` — `null` dopóki przegląd nie jest zapięty w DB (ręczne finalize **albo** auto-finalize sweepera); po ustawieniu ISO8601 i pola oceny/edycji/wyniku niemutowalne.
