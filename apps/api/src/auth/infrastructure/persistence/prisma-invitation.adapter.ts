@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../shared/persistence/prisma.service';
+import { PrismaService } from '../../../shared/persistence/prisma.service';
 import {
   createInvitationId,
   createUserId,
   isUserRole,
 } from '@content-chain/shared';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import type { AuthUser } from '../domain/auth-user.types';
+import { DomainException } from '../../../shared/exceptions/domain.exception';
+import type { AuthUser } from '../../domain/auth-user.types';
 import type {
   AcceptInviteAndCreateUserInput,
   AcceptInviteAndCreateUserResult,
@@ -19,7 +19,7 @@ import type {
   InvitationRepository,
   InvitationStatus,
   RotateInvitationTokenInput,
-} from '../domain/invitation-repository.port';
+} from '../../domain/invitation-repository.port';
 
 function isUniqueConstraintViolation(
   error: unknown,

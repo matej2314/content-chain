@@ -4,15 +4,15 @@ import {
   createUserId,
   isUserRole,
 } from '@content-chain/shared';
-import { PrismaService } from '../../shared/persistence/prisma.service';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import type { AuthUser } from '../domain/auth-user.types';
+import { PrismaService } from '../../../shared/persistence/prisma.service';
+import { DomainException } from '../../../shared/exceptions/domain.exception';
+import type { AuthUser } from '../../domain/auth-user.types';
 import type {
   AccountActivationRecord,
   AccountActivationRepository,
   CreatePendingUser,
   RotateActivationTokenInput,
-} from '../domain/account-activation-repository.port';
+} from '../../domain/account-activation-repository.port';
 import type { UserId } from '@content-chain/shared';
 
 type ActivationRow = {

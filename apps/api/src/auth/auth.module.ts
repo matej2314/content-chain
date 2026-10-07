@@ -5,13 +5,13 @@ import { AuthController } from './auth.controller';
 import { PrismaModule } from '../shared/persistence/prisma.module';
 import { EnvModule } from '../shared/config/env.module';
 import { ENV, type Env } from '../shared/config/env';
-import { JwtCookieStrategy } from './infrastructure/jwt-cookie.strategy';
-import { PrismaUserAdapter } from './infrastructure/prisma-user.adapter';
-import { PrismaRefreshSessionAdapter } from './infrastructure/prisma-refresh-session.adapter';
+import { JwtCookieStrategy } from './infrastructure/session/jwt-cookie.strategy';
+import { PrismaUserAdapter } from './infrastructure/persistence/prisma-user.adapter';
+import { PrismaRefreshSessionAdapter } from './infrastructure/persistence/prisma-refresh-session.adapter';
 import { USER_REPOSITORY } from './domain/user-repository.port';
 import { REFRESH_SESSION_REPOSITORY } from './domain/refresh-session.repository.port';
 import { ACCOUNT_ACTIVATION_REPOSITORY } from './domain/account-activation-repository.port';
-import { PrismaAccountActivationAdapter } from './infrastructure/prisma-account-activation.adapter';
+import { PrismaAccountActivationAdapter } from './infrastructure/persistence/prisma-account-activation.adapter';
 import { BootstrapAdminUseCase } from './application/bootstrap-admin.use-case';
 import { BootstrapStatusUseCase } from './application/bootstrap-status.use-case';
 import { ListUsersUseCase } from './application/list-users.use-case';
@@ -36,15 +36,15 @@ import { UpdateMeEmailUseCase } from './application/update-me-email.use-case';
 import { parseTtlSeconds } from './application/auth.helpers';
 import { UsersController } from './users.controller';
 import { InvitationsController } from './invitations.controller';
-import { PrismaInvitationAdapter } from './infrastructure/prisma-invitation.adapter';
+import { PrismaInvitationAdapter } from './infrastructure/persistence/prisma-invitation.adapter';
 
 import { INVITATION_REPOSITORY } from './domain/invitation-repository.port';
 import {
   TRANSACTIONAL_MAILER,
   TransactionalMailer,
 } from './domain/transactional-mailer.port';
-import { NodemailerSmtpMailerAdapter } from './infrastructure/nodemailer-smtp-mailer.adapter';
-import { LoggingMailerAdapter } from './infrastructure/logging-mailer.adapter';
+import { NodemailerSmtpMailerAdapter } from './infrastructure/mail/nodemailer-smtp-mailer.adapter';
+import { LoggingMailerAdapter } from './infrastructure/mail/logging-mailer.adapter';
 import { SoftEmailRateLimiter } from './application/soft-email-rate-limiter';
 
 @Module({

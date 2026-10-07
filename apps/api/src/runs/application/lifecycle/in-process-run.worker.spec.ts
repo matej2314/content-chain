@@ -554,7 +554,7 @@ describe('InProcessRunWorker', () => {
       .mockImplementation((() => {
         order.push('setInterval');
         return 0 as unknown as ReturnType<typeof setInterval>;
-      }) as typeof setInterval);
+      }) as unknown as typeof setInterval);
 
     const runs = unusedRepo({
       claimNextInterrupted: async () => {

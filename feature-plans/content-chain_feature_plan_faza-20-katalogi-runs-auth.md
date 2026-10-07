@@ -514,13 +514,15 @@ Align the Runs BC folder tree with the catalog norm without changing HTTP or gue
 
 ## FAZA 2 — Auth: `infrastructure/{persistence,mail,session}`
 
+**Status:** `WYKONANY`
+
 Odpowiada major **Faza 20** HOW pkt 3.
 
 ---
 
 ### KROK 1 — Przeniesienie I/O Auth + `AuthModule` / controllery
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Podział Auth `infrastructure/` po granicy I/O. `application/` płaskie; controllery w korzeniu BC — bez ruchu do `http/`. `SPEC-AUTH.md`.
 

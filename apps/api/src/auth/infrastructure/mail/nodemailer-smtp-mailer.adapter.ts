@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import nodemailer from 'nodemailer';
-import { ENV, type Env } from '../../shared/config/env';
+import { ENV, type Env } from '../../../shared/config/env';
 import type { Transporter } from 'nodemailer';
 import type {
   TransactionalMailer,
   TransactionalMail,
-} from '../domain/transactional-mailer.port';
+} from '../../domain/transactional-mailer.port';
 
 type SmtpConfig = {
   host: string;

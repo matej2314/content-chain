@@ -40,17 +40,15 @@ import { AuthController } from './auth.controller';
 import {
   clearAuthCookies,
   setAuthCookies,
-} from './infrastructure/cookie.helper';
+} from './infrastructure/session/cookie.helper';
 import type { Request, Response } from 'express';
 
 jest.mock('@nestjs/jwt', () => ({
   JwtService: class JwtService {},
 }));
 
-jest.mock('./infrastructure/cookie.helper', () => {
-  const actual = jest.requireActual(
-    './infrastructure/cookie.helper',
-  );
+jest.mock('./infrastructure/session/cookie.helper', () => {
+  const actual = jest.requireActual('./infrastructure/session/cookie.helper');
   return {
     __esModule: true,
     ...actual,
@@ -156,7 +154,9 @@ describe('AuthController', () => {
     expect(isPublic(proto.getMe)).toBe(false);
     expect(isPublic(proto.patchMeEmail)).toBe(false);
 
-    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, AuthController)).toBeUndefined();
+    expect(
+      Reflect.getMetadata(ALLOW_GUEST_KEY, AuthController),
+    ).toBeUndefined();
     expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.postLogout)).toBe(true);
     expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.getMe)).toBe(true);
     expect(
@@ -369,7 +369,9 @@ describe('AuthController', () => {
       cookies: { cc_refresh: 'refresh.raw' },
     });
 
-    await expect(controller.postLogout(req, res)).resolves.toEqual({ ok: true });
+    await expect(controller.postLogout(req, res)).resolves.toEqual({
+      ok: true,
+    });
     expect(logout.execute).toHaveBeenCalledWith(sessionUser.id, 'refresh.raw');
     expect(clearAuthCookies).toHaveBeenCalledWith(res, env);
   });

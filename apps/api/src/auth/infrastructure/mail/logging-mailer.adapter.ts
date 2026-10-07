@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type {
   TransactionalMailer,
   TransactionalMail,
-} from '../domain/transactional-mailer.port';
+} from '../../domain/transactional-mailer.port';
 
 @Injectable()
 export class LoggingMailerAdapter implements TransactionalMailer {

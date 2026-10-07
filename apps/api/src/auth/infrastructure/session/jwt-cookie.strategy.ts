@@ -2,11 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { createUserId, isUserId, isUserRole } from '@content-chain/shared';
-import { ENV, type Env } from '../../shared/config/env';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { ENV, type Env } from '../../../shared/config/env';
+import { DomainException } from '../../../shared/exceptions/domain.exception';
 import { readCookie } from './cookie.helper';
 import type { Request } from 'express';
-import type { AuthUserContext } from '../domain/auth-user.types';
+import type { AuthUserContext } from '../../domain/auth-user.types';
 
 function isRecord(value: unknown): value is {
   sub?: unknown;

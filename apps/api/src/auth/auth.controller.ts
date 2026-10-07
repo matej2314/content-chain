@@ -18,7 +18,7 @@ import { AllowGuest } from '../shared/decorators/allow-guest.decorator';
 import {
   setAuthCookies,
   clearAuthCookies,
-} from './infrastructure/cookie.helper';
+} from './infrastructure/session/cookie.helper';
 import { BootstrapStatusUseCase } from './application/bootstrap-status.use-case';
 import { BootstrapAdminUseCase } from './application/bootstrap-admin.use-case';
 import { LoginUseCase } from './application/login.use-case';
@@ -37,7 +37,7 @@ import { RegisterUserDto } from './http/register-user.dto';
 import { ActivateAccountDto } from './http/activate-account.dto';
 import { ResendActivationDto } from './http/resend-activation.dto';
 import { ENV, type Env } from '../shared/config/env';
-import { readCookie } from './infrastructure/cookie.helper';
+import { readCookie } from './infrastructure/session/cookie.helper';
 import type { AuthUserContext } from './domain/auth-user.types';
 import type { Request, Response } from 'express';
 

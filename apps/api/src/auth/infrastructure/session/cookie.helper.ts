@@ -1,6 +1,6 @@
-import { parseTtlMs } from '../application/auth.helpers';
+import { parseTtlMs } from '../../application/auth.helpers';
 import type { CookieOptions, Response, Request } from 'express';
-import type { Env } from '../../shared/config/env';
+import type { Env } from '../../../shared/config/env';
 
 const ACCESS_COOKIE = 'cc_access';
 const REFRESH_COOKIE = 'cc_refresh';

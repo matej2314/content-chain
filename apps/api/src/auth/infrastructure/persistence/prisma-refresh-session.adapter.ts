@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../shared/persistence/prisma.service';
+import { PrismaService } from '../../../shared/persistence/prisma.service';
 import { createUserId, type UserId } from '@content-chain/shared';
 import type {
   RefreshSessionRecord,
   RefreshSessionRepository,
   RotateRefreshSessionResult,
-} from '../domain/refresh-session.repository.port';
+} from '../../domain/refresh-session.repository.port';
 
 @Injectable()
 export class PrismaRefreshSessionAdapter implements RefreshSessionRepository {
