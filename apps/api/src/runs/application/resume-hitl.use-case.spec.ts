@@ -8,9 +8,9 @@ import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import type { RunRecord } from '../domain/run.types';
 import { makeContentRun, makeSocialRun } from '../run-record.test-helpers';
 import type { ReelIdea, SocialIdea } from '../../social/domain/social.types';
-import type { InProcessRunWorker } from './in-process-run.worker';
-import type { RunLifecycleService } from './run-lifecycle.service';
-import { GuestRunPolicyService } from './guest-run-policy.service';
+import type { InProcessRunWorker } from './lifecycle/in-process-run.worker';
+import type { RunLifecycleService } from './lifecycle/run-lifecycle.service';
+import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 import { ResumeHitlUseCase } from './resume-hitl.use-case';
 
 const outline: PageOutline = {

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { isRetryable } from '../domain/is-retryable';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import { RunLifecycleService } from './run-lifecycle.service';
+import { RunLifecycleService } from './lifecycle/run-lifecycle.service';
 
 const RECOVERY_CAP = 3;
 

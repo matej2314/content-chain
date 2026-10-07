@@ -5,11 +5,11 @@ import {
   RUN_RESULT_READER,
   type RunResultReader,
 } from '../domain/run-result-reader.port';
-import { InProcessRunWorker } from './in-process-run.worker';
-import { RunLifecycleService } from './run-lifecycle.service';
+import { InProcessRunWorker } from './lifecycle/in-process-run.worker';
+import { RunLifecycleService } from './lifecycle/run-lifecycle.service';
 import { parseWithZod } from '../../shared/parse-with-zod';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
-import { GuestRunPolicyService } from './guest-run-policy.service';
+import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 import { runIdSchema, hitlSelectedIdeaIdsSchema } from './run.schemas';
 import type { RunId } from '@content-chain/shared';
 

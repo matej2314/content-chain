@@ -1,11 +1,11 @@
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import Redis from 'ioredis';
-import { ENV, type Env } from '../../shared/config/env';
-import { resolveRedisStandalone } from '../../shared/config/redis-connection';
+import { ENV, type Env } from '../../../shared/config/env';
+import { resolveRedisStandalone } from '../../../shared/config/redis-connection';
 import type {
   GuestQuotaAdmitResult,
   GuestQuotaPort,
-} from '../domain/guest-quota.port';
+} from '../../domain/guest-quota.port';
 import type { UserId } from '@content-chain/shared';
 
 const RUNS_PREFIX = 'content-chain:guest:daily:runs:';

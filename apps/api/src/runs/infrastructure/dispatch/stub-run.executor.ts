@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { RunLifecycleService } from '../application/run-lifecycle.service';
-import type { RunExecutorPort } from '../domain/run-executor.port';
-import type { RunRecord } from '../domain/run.types';
+import { RunLifecycleService } from '../../application/lifecycle/run-lifecycle.service';
+import type { RunExecutorPort } from '../../domain/run-executor.port';
+import type { RunRecord } from '../../domain/run.types';
 
 /** Only for testing purposes. Not registered as the production `RUN_EXECUTOR`. */
 @Injectable()

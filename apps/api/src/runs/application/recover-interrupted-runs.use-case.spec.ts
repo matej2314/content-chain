@@ -2,7 +2,7 @@ import type { RunRepository } from '../domain/run.port';
 import type { RunLogEntry, RunRecord } from '../domain/run.types';
 import { makeSocialRun } from '../run-record.test-helpers';
 import { RecoverInterruptedRunsUseCase } from './recover-interrupted-runs.use-case';
-import type { RunLifecycleService } from './run-lifecycle.service';
+import type { RunLifecycleService } from './lifecycle/run-lifecycle.service';
 
 function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
   const unexpected = async () => {

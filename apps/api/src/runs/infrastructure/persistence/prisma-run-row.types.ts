@@ -1,4 +1,4 @@
-import type { RunSnapshot } from '../domain/run.port';
+import type { RunSnapshot } from '../../domain/run.port';
 
 export type RunRow = {
   id: string;

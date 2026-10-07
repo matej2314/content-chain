@@ -7,7 +7,7 @@ import type { RunRepository } from '../domain/run.port';
 import type { RunLogEntry } from '../domain/run.types';
 import { makeSocialRun } from '../run-record.test-helpers';
 import { GetRunLogsUseCase } from './get-run-logs.use-case';
-import { GuestRunPolicyService } from './guest-run-policy.service';
+import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 
 const ADMIN: AuthUserContext = {
   id: createUserId('usr_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),

@@ -8,7 +8,7 @@ import type { RunResultReader } from '../domain/run-result-reader.port';
 import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import type { RunRecord, SocialRunRecord } from '../domain/run.types';
 import { makeContentRun, makeSocialRun } from '../run-record.test-helpers';
-import { GuestRunPolicyService } from './guest-run-policy.service';
+import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 import type {
   PageDocument,
   PageOutline,

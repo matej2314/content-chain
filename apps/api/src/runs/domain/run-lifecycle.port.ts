@@ -1,4 +1,4 @@
-import type { RunLifecycleService } from '../application/run-lifecycle.service';
+import type { RunLifecycleService } from '../application/lifecycle/run-lifecycle.service';
 
 export const RUN_LIFECYCLE = Symbol('RUN_LIFECYCLE');
 

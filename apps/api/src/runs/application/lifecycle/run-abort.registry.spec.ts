@@ -1,4 +1,4 @@
-import { newRunId } from '../../shared/http/new-ids';
+import { newRunId } from '../../../shared/http/new-ids';
 import { RunAbortRegistry } from './run-abort.registry';
 
 describe('RunAbortRegistry', () => {

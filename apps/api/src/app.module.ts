@@ -38,7 +38,7 @@ import {
   RUN_LIFECYCLE,
   RunLifecyclePort,
 } from './runs/domain/run-lifecycle.port';
-import { RunDispatchExecutor } from './runs/application/run-dispatch.executor';
+import { RunDispatchExecutor } from './runs/application/lifecycle/run-dispatch.executor';
 import {
   CONTENT_RESULT_STORE,
   ContentResultStore,

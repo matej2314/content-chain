@@ -1,4 +1,4 @@
-import type { RunRecord } from '../domain/run.types';
+import type { RunRecord } from '../../domain/run.types';
 
 export function toPipelinePhase(
   value: string | null,

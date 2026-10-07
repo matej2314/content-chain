@@ -11,9 +11,9 @@ import {
   type RunId,
   type RunStatus,
 } from '@content-chain/shared';
-import { PrismaService } from '../../shared/persistence/prisma.service';
-import { assertTransition } from '../domain/status-transitions';
-import { toInputJson } from '../../shared/persistence/to-input-json';
+import { PrismaService } from '../../../shared/persistence/prisma.service';
+import { assertTransition } from '../../domain/status-transitions';
+import { toInputJson } from '../../../shared/persistence/to-input-json';
 import {
   LightRunItem,
   PAGE_SIZE,
@@ -21,19 +21,19 @@ import {
   type ListRunsResult,
   type RunRepository,
   type RunSnapshot,
-} from '../domain/run.port';
+} from '../../domain/run.port';
 import {
   contentBriefSchema,
   socialBriefSchema,
-} from '../application/run.schemas';
-import { CANCELABLE_RUN_STATUSES } from '../domain/status-transitions';
+} from '../../application/run.schemas';
+import { CANCELABLE_RUN_STATUSES } from '../../domain/status-transitions';
 import { toRunSnapshotBase } from './to-run-snapshot-base';
 import type {
   ContentRunRecord,
   RunLogEntry,
   RunRecord,
   SocialRunRecord,
-} from '../domain/run.types';
+} from '../../domain/run.types';
 import type {
   RunLogRow,
   RunRow,

@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import { RunAbortRegistry } from './run-abort.registry';
-import { RunLifecycleService } from './run-lifecycle.service';
+import { RunAbortRegistry } from './lifecycle/run-abort.registry';
+import { RunLifecycleService } from './lifecycle/run-lifecycle.service';
 import { GetRunUseCase, type GetRunOutput } from './get-run.use-case';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { RunId } from '@content-chain/shared';

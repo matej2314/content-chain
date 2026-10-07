@@ -10,7 +10,7 @@ import {
 import { toSelectedIdeaIds } from './to-selected-idea-ids';
 import { toPipelinePhase } from './to-pipeline-phase';
 import type { RunRow } from './prisma-run-row.types';
-import type { RunRecordBase } from '../domain/run.types';
+import type { RunRecordBase } from '../../domain/run.types';
 import type { RunReviewFields } from './prisma-run-row.types';
 
 export type RunSnapshotBase = RunRecordBase &

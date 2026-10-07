@@ -7,15 +7,15 @@ import {
 } from '@nestjs/common';
 import { CompanyContextModule } from '../company-context/company-context.module';
 import { GuestQuotaModule } from './guest-quota.module';
-import { InProcessRunWorker } from './application/in-process-run.worker';
+import { InProcessRunWorker } from './application/lifecycle/in-process-run.worker';
 import { RecoverInterruptedRunsUseCase } from './application/recover-interrupted-runs.use-case';
 import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
 import { GetRunUseCase } from './application/get-run.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
-import { GuestRunPolicyService } from './application/guest-run-policy.service';
+import { GuestRunPolicyService } from './application/guest/guest-run-policy.service';
 import { StartRunUseCase } from './application/start-run.use-case';
 import { ListRunsUseCase } from './application/list-runs.use-case';
-import { RunAbortRegistry } from './application/run-abort.registry';
+import { RunAbortRegistry } from './application/lifecycle/run-abort.registry';
 import { ListRunsUserUseCase } from './application/list-runs-user.use-case';
 import { RUN_EXECUTOR, type RunExecutorPort } from './domain/run-executor.port';
 import {

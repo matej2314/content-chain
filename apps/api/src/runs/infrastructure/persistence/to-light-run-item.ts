@@ -5,7 +5,7 @@ import {
   isRunStatus,
   isRunTaskType,
 } from '@content-chain/shared';
-import type { LightRunItem } from '../domain/run.port';
+import type { LightRunItem } from '../../domain/run.port';
 
 export type LightRunRow = {
   id: string;

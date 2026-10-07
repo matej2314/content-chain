@@ -14,7 +14,7 @@ import {
 } from '../domain/run-result-reader.port';
 import { parseWithZod } from '../../shared/parse-with-zod';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
-import { GuestRunPolicyService } from './guest-run-policy.service';
+import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 import { runIdSchema } from './run.schemas';
 import type {
   ContentKind,

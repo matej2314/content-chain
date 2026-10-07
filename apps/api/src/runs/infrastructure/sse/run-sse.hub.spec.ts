@@ -1,6 +1,6 @@
 import { firstValueFrom, toArray } from 'rxjs';
-import type { Env } from '../../shared/config/env';
-import { newRunId } from '../../shared/http/new-ids';
+import type { Env } from '../../../shared/config/env';
+import { newRunId } from '../../../shared/http/new-ids';
 import { InMemoryRunSseHub } from './run-sse.hub';
 
 const TTL_MS = 1_000;
@@ -60,7 +60,9 @@ describe('InMemoryRunSseHub', () => {
   it('closes the subject with an error after TTL and deletes the map entry', () => {
     jest.useFakeTimers();
 
-    const hub = new InMemoryRunSseHub(testEnv({ RUN_SSE_SUBJECT_TTL_MS: TTL_MS }));
+    const hub = new InMemoryRunSseHub(
+      testEnv({ RUN_SSE_SUBJECT_TTL_MS: TTL_MS }),
+    );
     const runId = newRunId();
     const errors: unknown[] = [];
     hub.subscribe(runId).subscribe({
@@ -81,7 +83,9 @@ describe('InMemoryRunSseHub', () => {
 
   it('TTL timer does not error a subject already completed', () => {
     jest.useFakeTimers();
-    const hub = new InMemoryRunSseHub(testEnv({ RUN_SSE_SUBJECT_TTL_MS: TTL_MS }));
+    const hub = new InMemoryRunSseHub(
+      testEnv({ RUN_SSE_SUBJECT_TTL_MS: TTL_MS }),
+    );
     const runId = newRunId();
     const errors: unknown[] = [];
     hub.subscribe(runId).subscribe({

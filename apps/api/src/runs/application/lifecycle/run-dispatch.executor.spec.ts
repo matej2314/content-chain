@@ -1,10 +1,7 @@
-import type { RunExecutorPort } from '../domain/run-executor.port';
-import type { RunLifecyclePort } from '../domain/run-lifecycle.port';
-import type { RunRecord } from '../domain/run.types';
-import {
-  makeContentRun,
-  makeSocialRun,
-} from '../run-record.test-helpers';
+import type { RunExecutorPort } from '../../domain/run-executor.port';
+import type { RunLifecyclePort } from '../../domain/run-lifecycle.port';
+import type { RunRecord } from '../../domain/run.types';
+import { makeContentRun, makeSocialRun } from '../../run-record.test-helpers';
 import { RunDispatchExecutor } from './run-dispatch.executor';
 
 function fakeExecutor(): jest.Mocked<RunExecutorPort> {

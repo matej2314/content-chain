@@ -1,7 +1,7 @@
-import type { RunRepository } from '../domain/run.port';
-import type { RunRecord } from '../domain/run.types';
-import type { RunSseHub } from '../domain/run-sse.port';
-import { makeSocialRun } from '../run-record.test-helpers';
+import type { RunRepository } from '../../domain/run.port';
+import type { RunRecord } from '../../domain/run.types';
+import type { RunSseHub } from '../../domain/run-sse.port';
+import { makeSocialRun } from '../../run-record.test-helpers';
 import { RunLifecycleService } from './run-lifecycle.service';
 
 function makeRun(status: RunRecord['status'] = 'running'): RunRecord {

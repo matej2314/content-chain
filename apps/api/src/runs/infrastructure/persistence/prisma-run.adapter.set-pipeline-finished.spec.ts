@@ -1,5 +1,5 @@
 import { createRunId } from '@content-chain/shared';
-import type { PrismaService } from '../../shared/persistence/prisma.service';
+import type { PrismaService } from '../../../shared/persistence/prisma.service';
 import { PrismaRunAdapter } from './prisma-run.adapter';
 
 const RUN_ID = createRunId('run_22222222-2222-4222-8222-222222222222');

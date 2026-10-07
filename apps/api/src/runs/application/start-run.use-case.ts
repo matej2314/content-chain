@@ -4,7 +4,7 @@ import { DomainException } from '../../shared/exceptions/domain.exception';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import { InProcessRunWorker } from './in-process-run.worker';
+import { InProcessRunWorker } from './lifecycle/in-process-run.worker';
 import { parseWithZod } from '../../shared/parse-with-zod';
 import {
   startRunCommandSchema,
@@ -23,7 +23,7 @@ import type {
   RunRecord,
   SocialRunRecord,
 } from '../domain/run.types';
-import { GuestRunPolicyService } from './guest-run-policy.service';
+import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 
 export type StartRunBriefInput = {
   topic: string;

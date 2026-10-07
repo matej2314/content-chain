@@ -1,6 +1,6 @@
-import type { RunRecord } from '../domain/run.types';
-import type { RunLifecycleService } from '../application/run-lifecycle.service';
-import { makeSocialRun } from '../run-record.test-helpers';
+import type { RunRecord } from '../../domain/run.types';
+import type { RunLifecycleService } from '../../application/lifecycle/run-lifecycle.service';
+import { makeSocialRun } from '../../run-record.test-helpers';
 import { StubRunExecutor } from './stub-run.executor';
 
 function makeRun(): RunRecord {

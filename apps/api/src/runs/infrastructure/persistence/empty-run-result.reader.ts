@@ -3,7 +3,7 @@ import type { RunId } from '@content-chain/shared';
 import type {
   PageDocument,
   PageOutline,
-} from '../../content/domain/content.types';
+} from '../../../content/domain/content.types';
 import type {
   ReelIdea,
   ReelScript,
@@ -12,8 +12,8 @@ import type {
   SocialContentItem,
   SocialIdea,
   VerifierVerdict,
-} from '../../social/domain/social.types';
-import type { RunResultReader } from '../domain/run-result-reader.port';
+} from '../../../social/domain/social.types';
+import type { RunResultReader } from '../../domain/run-result-reader.port';
 
 @Injectable()
 export class EmptyRunResultReader implements RunResultReader {

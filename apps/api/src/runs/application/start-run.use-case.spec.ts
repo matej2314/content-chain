@@ -8,8 +8,8 @@ import type { RunRecord } from '../domain/run.types';
 import type {
   GuestRunAdmit,
   GuestRunPolicyService,
-} from './guest-run-policy.service';
-import type { InProcessRunWorker } from './in-process-run.worker';
+} from './guest/guest-run-policy.service';
+import type { InProcessRunWorker } from './lifecycle/in-process-run.worker';
 import { StartRunUseCase, type StartRunCommand } from './start-run.use-case';
 
 const ACTOR: AuthUserContext = {

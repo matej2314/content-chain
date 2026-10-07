@@ -2,7 +2,7 @@ import type { UserId } from '@content-chain/shared';
 import type {
   GuestQuotaAdmitResult,
   GuestQuotaPort,
-} from '../domain/guest-quota.port';
+} from '../../domain/guest-quota.port';
 
 export class UnavailableGuestQuotaAdapter implements GuestQuotaPort {
   async tryAdmitDailyRun(): Promise<GuestQuotaAdmitResult> {

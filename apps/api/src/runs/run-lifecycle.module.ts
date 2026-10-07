@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { RunLifecycleService } from './application/run-lifecycle.service';
+import { RunLifecycleService } from './application/lifecycle/run-lifecycle.service';
 import { RUN_LIFECYCLE } from './domain/run-lifecycle.port';
 import { OUTPUT_EDITED_WRITER } from './domain/output-edited-writer.port';
 import { RUN_REPOSITORY } from './domain/run.port';
 import { RUN_SSE_HUB } from './domain/run-sse.port';
-import { PrismaOutputEditedAdapter } from './infrastructure/prisma-output-edited.adapter';
-import { PrismaRunAdapter } from './infrastructure/prisma-run.adapter';
-import { InMemoryRunSseHub } from './infrastructure/run-sse.hub';
+import { PrismaOutputEditedAdapter } from './infrastructure/persistence/prisma-output-edited.adapter';
+import { PrismaRunAdapter } from './infrastructure/persistence/prisma-run.adapter';
+import { InMemoryRunSseHub } from './infrastructure/sse/run-sse.hub';
 
 @Module({
   providers: [

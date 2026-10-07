@@ -2,9 +2,9 @@ import { isContentTaskType, isSocialTaskType } from '@content-chain/shared';
 import type {
   RunExecutorPort,
   RunExecuteOptions,
-} from '../domain/run-executor.port';
-import type { RunLifecyclePort } from '../domain/run-lifecycle.port';
-import type { RunRecord } from '../domain/run.types';
+} from '../../domain/run-executor.port';
+import type { RunLifecyclePort } from '../../domain/run-lifecycle.port';
+import type { RunRecord } from '../../domain/run.types';
 
 export class RunDispatchExecutor implements RunExecutorPort {
   constructor(

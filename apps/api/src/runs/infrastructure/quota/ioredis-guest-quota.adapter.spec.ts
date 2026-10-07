@@ -1,4 +1,4 @@
-import { validateEnv } from '../../shared/config/env.schema';
+import { validateEnv } from '../../../shared/config/env.schema';
 import { IoredisGuestQuotaAdapter } from './ioredis-guest-quota.adapter';
 
 const mockIncr = jest.fn(async (_key: string): Promise<number> => 0);

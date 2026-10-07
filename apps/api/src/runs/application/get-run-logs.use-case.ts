@@ -3,7 +3,7 @@ import { DomainException } from '../../shared/exceptions/domain.exception';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { parseWithZod } from '../../shared/parse-with-zod';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
-import { GuestRunPolicyService } from './guest-run-policy.service';
+import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 import { runIdSchema } from './run.schemas';
 import type { ConversationId, RunId } from '@content-chain/shared';
 import type { RunLogLevel } from '../domain/run.types';

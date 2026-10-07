@@ -1,14 +1,14 @@
 import { Logger } from '@nestjs/common';
-import type { Env } from '../../shared/config/env.schema';
-import type { RunExecutorPort } from '../domain/run-executor.port';
-import type { RunRepository, RunSnapshot } from '../domain/run.port';
-import type { RunSseHub } from '../domain/run-sse.port';
-import type { RunRecord } from '../domain/run.types';
-import { makeSocialRun } from '../run-record.test-helpers';
-import type { AutoFinalizeExpiredReviewsUseCase } from './auto-finalize-expired-reviews.use-case';
+import type { Env } from '../../../shared/config/env.schema';
+import type { RunExecutorPort } from '../../domain/run-executor.port';
+import type { RunRepository, RunSnapshot } from '../../domain/run.port';
+import type { RunSseHub } from '../../domain/run-sse.port';
+import type { RunRecord } from '../../domain/run.types';
+import { makeSocialRun } from '../../run-record.test-helpers';
+import type { AutoFinalizeExpiredReviewsUseCase } from '../auto-finalize-expired-reviews.use-case';
 import { InProcessRunWorker } from './in-process-run.worker';
 import { RunAbortRegistry } from './run-abort.registry';
-import type { RecoverInterruptedRunsUseCase } from './recover-interrupted-runs.use-case';
+import type { RecoverInterruptedRunsUseCase } from '../recover-interrupted-runs.use-case';
 import type { RunLifecycleService } from './run-lifecycle.service';
 
 const TEST_ENV_BASE = {
@@ -575,12 +575,7 @@ describe('InProcessRunWorker', () => {
       await worker.onModuleInit();
       await waitUntil(() => order.includes('pump'), 'pump after boot');
 
-      expect(order).toEqual([
-        'recover',
-        'autoFinalize',
-        'setInterval',
-        'pump',
-      ]);
+      expect(order).toEqual(['recover', 'autoFinalize', 'setInterval', 'pump']);
       expect(setIntervalSpy).toHaveBeenCalledWith(
         expect.any(Function),
         SWEEP_INTERVAL_MS,

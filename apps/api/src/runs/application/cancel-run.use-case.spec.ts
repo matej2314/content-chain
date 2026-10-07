@@ -12,8 +12,8 @@ import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import { makeSocialSnapshot } from '../run-record.test-helpers';
 import { CancelRunUseCase } from './cancel-run.use-case';
 import type { GetRunOutput, GetRunUseCase } from './get-run.use-case';
-import type { RunAbortRegistry } from './run-abort.registry';
-import type { RunLifecycleService } from './run-lifecycle.service';
+import type { RunAbortRegistry } from './lifecycle/run-abort.registry';
+import type { RunLifecycleService } from './lifecycle/run-lifecycle.service';
 
 const ACTOR: UserId = createUserId('usr_11111111-1111-4111-8111-111111111111');
 const OTHER: UserId = createUserId('usr_22222222-2222-4222-8222-222222222222');
