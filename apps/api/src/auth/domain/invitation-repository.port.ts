@@ -1,4 +1,4 @@
-import type { InvitationId, UserId } from '@content-chain/shared';
+import type { InvitationId, UserId, UserRole } from '@content-chain/shared';
 import type { AuthUser } from './auth-user.types';
 
 export const INVITATION_REPOSITORY = Symbol('INVITATION_REPOSITORY');
@@ -37,6 +37,7 @@ export type AcceptInviteAndCreateUserInput = {
   userId: UserId;
   email: string;
   passwordHash: string;
+  role: UserRole;
 };
 
 export type InvitationListRecord = {

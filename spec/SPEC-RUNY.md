@@ -1,5 +1,5 @@
 ---
-wersja: 23
+wersja: 24
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-10-06
 ---
@@ -227,11 +227,24 @@ Zmiana względem wersji 21 / R-12.7: `REDIS_URL` **albo** HOST/PORT. Od tej wers
 ```text
 apps/api/src/runs/
 ├── runs.module.ts
+├── run-lifecycle.module.ts
+├── guest-quota.module.ts
 ├── runs.controller.ts           # list, snapshot, logs, events SSE, hitl, cancel, user/:userId, rating, output-edited, finalize
-├── application/                 # list, start, enqueue, resume hitl, cancel, recovery on boot; auto-finalize sweeper; StartRunCommand unia
+├── run-record.test-helpers.ts   # unit fixture; korzeń BC; nie adapter
+├── http/                        # dto, pipe — bez zmian układu
+├── application/
+│   ├── lifecycle/               # kernel procesu (worker, abort, dispatch; nie use-case HTTP)
+│   ├── guest/                   # GuestRunPolicy
+│   └── …                        # *use-case*, schemy, composite reader — płasko
 ├── domain/                      # status transitions, isRetryable, porty (w tym attemptCancel); SocialBrief / ContentBrief; RunRecord unia taskType
-└── infrastructure/              # Prisma run/log, SSE hub / subject
+└── infrastructure/
+    ├── persistence/             # Prisma run/log/output-edited + mapowania wiersza
+    ├── sse/                     # hub SSE / subject
+    ├── quota/                   # Redis guest + adapter niedostępności
+    └── dispatch/                # stub executor (I/O test/fallback pod port)
 ```
+
+Zmiana względem wersji 23 / drzewo: wcześniej płaskie `infrastructure/` (Prisma + SSE w jednym komentarzu) oraz płaskie `application/` (kernel + use-case’y razem). Od tej wersji podkatalogi po granicy I/O (`persistence/` / `sse/` / `quota/` / `dispatch/`) oraz kernel w `application/lifecycle/` + polityka w `application/guest/` — `docs/architektura_katalogi_pliki.md`. Semantyka HTTP / guest / review / portów **bez zmian**.
 
 Wolno wydzielić kernel Nest (lifecycle + repo + hub) od HTTP/workera **w tym samym** BC, gdy zamyka to cykl importów. To nie nowy bounded context.
 
@@ -246,6 +259,7 @@ Wolno wydzielić kernel Nest (lifecycle + repo + hub) od HTTP/workera **w tym sa
 | Port lifecycle | Token + interfejs `appendLog` + `transition` w `domain/`; graf zależy od portu, nie od klasy `RunLifecycleService` |
 | Port executor | Token `RunExecutorPort` w Runs; **composite** w kleju wpinający Social i Content; **binding w `AppModule` / `registerAsync`**; `execute` z `AbortSignal` |
 | Odczyt snapshotu `result`/`hitl` | Composite reader; **zakaz** wstrzykiwania store Social/Content do use-case’u Runs przez `imports: [SocialModule]` / `ContentModule` |
+| Lokalizacja I/O / kernel | Hub SSE = `infrastructure/sse/`; Prisma run/log/output-edited + mapowania wiersza = `infrastructure/persistence/`; Redis guest quota = `infrastructure/quota/`; stub dispatch = `infrastructure/dispatch/`; kernel worker/abort/dispatch = `application/lifecycle/`; `GuestRunPolicy` = `application/guest/` |
 
 Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnienia lifecycle vs executor vs reader; binding executora nie był unormowany (feature plan Fazy 4 wstawiał `forwardRef`).
 
@@ -265,13 +279,16 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Ustawiać `pipelineFinishedAt` raz przy transition → `completed` \| `failed`; wyliczać `reviewExpiresAt` w snapshotcie i sukcesach mutacji przeglądu (R-10).
 - Zapis edycji wyniku przez `POST .../output-edited` (nadpis store wyniku Social/Content przez porty odczytu/zapisu wyniku — **nie** przez graf).
 - `RunsModule.registerAsync` (lub równoważny klej w `AppModule`) wpinające **composite** `RunExecutorPort` (Social + Content) — bez `forwardRef`.
-- Domyślną (pustą) implementację portu odczytu wyniku w Runs, podmienianą w kleju na composite reader.
+- Domyślną (pustą) implementację portu odczytu wyniku w `infrastructure/persistence/`, podmienianą w kleju na composite reader.
+- Podkatalogi I/O w `infrastructure/` (`persistence/` / `sse/` / `quota/` / `dispatch/`) oraz kernel w `application/lifecycle/` + `GuestRunPolicy` w `application/guest/` — gdy warstwa miesza granice I/O / kernel vs use-case.
 - Trzymać `SocialBrief` / `ContentBrief` w `runs/domain/run.types.ts` (payload Run, nie shared kernel).
 - Importować `parseWithZod` z `apps/api/src/shared/parse-with-zod.ts` dla walidacji komend application (start / HITL / id) — bez lokalnej kopii w `runs/application/`.
 - Admit Redis **przed** create dla guest (R-12); DECR przy rollbacku create.
 
 ### Nie wolno
 
+- `helpers/` / `adapters/` / `mappers/` jako kanonu warstw Runs; mapperów wiersza Prisma poza `infrastructure/persistence/`.
+- Przenoszenia portów z `domain/` do `infrastructure/`.
 - Pollingu statusu runu jako live.
 - `complete` subjectu SSE na `awaiting_hitl` albo `interrupted`.
 - Utożsamiania `cancelled` z `failed` / `interrupted` / LangGraph `interrupt()`.

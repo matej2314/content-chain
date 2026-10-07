@@ -1,5 +1,5 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-09-27
 data_modyfikacji: 2026-10-06
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-06
 Strategia testów **MVP**. Cel: szybka pewność na domenie i granicach `apps/api` + kontrakt z gateway (przez port), bez rozdmuchanego E2E UI.
 
 Powiązane: `architektura.md`, `data_flow.md`, `anty_patterny.md`, `spec/SPEC-TESTY.md`.
+
+Zmiana względem: lokalizacja fixture `run-record.test-helpers.ts` bez jawnego zakazu przenosin. Od tej wersji: plik **zostaje** w korzeniu BC Runs (`apps/api/src/runs/`); **nie** przenosić do `infrastructure/` ani `helpers/` — `architektura_katalogi_pliki.md`.
 
 Zmiana względem: Feedback / przegląd bez TTL. Od tej wersji skrót: TTL + auto-finalize (sweeper) + lock mutacji bez zapisu; szczegóły case’ów → `spec/SPEC-TESTY.md` (D-35+).
 
@@ -46,7 +48,7 @@ Zmiana względem: Faza 18 — accept-invite → zawsze `role=user` (także przy 
 
 Nazwa pliku kolekcji Social: `social-pipeline.postman-collection.json` (myślnik, nie `_collection`) — foldery A/B (posty, Milestone 4) **oraz** C (`reel_ideas`) / D (`reel_ideas_then_scripts`) w tym samym pliku. Content = osobny JSON: `content-pipeline.postman-collection.json` (foldery A `page_copy`, B `page_outline_then_copy`). Setup obu = `PUT /company-context` + asercja `GET /company-context/completeness` (nie seed Prisma). Jak odpalić: `apps/api/test/postman/README.md`.
 
-Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATEWAY_KEY` w helperze logu hopu (`llm-gateway-chat.log.spec.ts`); preprocess zarzutów verifiera z obiektu `{ itemId, issue }` do `string[]` (`social.schemas.spec.ts`). Unia `RunRecord`: fabryki `makeSocialRun` / `makeContentRun` w `apps/api/src/runs/run-record.test-helpers.ts` (unit `*.spec.ts` przy `src/`); **nie** `Partial<RunRecord>`. `apps/api/test/` (e2e) tego pliku nie używa.
+Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATEWAY_KEY` w helperze logu hopu (`llm-gateway-chat.log.spec.ts`); preprocess zarzutów verifiera z obiektu `{ itemId, issue }` do `string[]` (`social.schemas.spec.ts`). Unia `RunRecord`: fabryki `makeSocialRun` / `makeContentRun` w `apps/api/src/runs/run-record.test-helpers.ts` (unit `*.spec.ts` przy `src/`; fixture w **korzeniu** BC Runs — nie w `infrastructure/` ani `helpers/`); **nie** `Partial<RunRecord>`. `apps/api/test/` (e2e) tego pliku nie używa.
 
 ## Zasady
 

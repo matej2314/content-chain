@@ -1,4 +1,5 @@
 import { createInvitationId, createUserId } from '@content-chain/shared';
+import { validateEnv } from '../../shared/config/env.schema';
 import { hashRefreshToken } from './auth.helpers';
 import type { AuthUser } from '../domain/auth-user.types';
 import type {
@@ -18,6 +19,31 @@ const CREATED_AT = new Date('2026-01-01T00:00:00.000Z');
 const RAW_TOKEN = 'invite-raw-token';
 const PASSWORD = 'ValidPassword1!';
 const INVITE_EMAIL = 'new.user@example.com';
+
+const BASE_ENV_FIELDS = {
+  DATABASE_URL: 'file:./test.db',
+  GATEWAY_BASE_URL: 'http://localhost:3100',
+  GATEWAY_KEY: 'test-gateway-key',
+  JWT_SECRET: 'test-jwt-secret',
+  CORS_ORIGIN: 'http://localhost:3000',
+  APP_PUBLIC_URL: 'http://localhost:3000',
+  INVITE_TTL: '7d',
+  ACTIVATION_TTL: '7d',
+} as const;
+
+const TEST_ENV_DEMO_OFF = validateEnv({
+  NODE_ENV: 'test',
+  ...BASE_ENV_FIELDS,
+  DEMO_MODE: 'false',
+});
+
+const TEST_ENV_DEMO_ON = validateEnv({
+  NODE_ENV: 'test',
+  ...BASE_ENV_FIELDS,
+  DEMO_MODE: 'true',
+  REDIS_HOST: '127.0.0.1',
+  REDIS_PORT: 6379,
+});
 
 function unusedInvitations(
   overrides: Partial<InvitationRepository> = {},
@@ -69,8 +95,8 @@ function makeCreatedUser(overrides: Partial<AuthUser> = {}): AuthUser {
 }
 
 describe('AcceptInviteUseCase', () => {
-  it('creates a user with role user from a valid pending token', async () => {
-    const created = makeCreatedUser();
+  it('creates a user with role user when DEMO_MODE is false (D-23)', async () => {
+    const created = makeCreatedUser({ role: 'user' });
     const acceptAndCreateUser = jest.fn(
       async (
         _input: AcceptInviteAndCreateUserInput,
@@ -84,6 +110,7 @@ describe('AcceptInviteUseCase', () => {
         findPendingByHash: async () => makeInvitation(),
         acceptAndCreateUser,
       }),
+      TEST_ENV_DEMO_OFF,
     );
 
     await expect(
@@ -100,10 +127,46 @@ describe('AcceptInviteUseCase', () => {
     expect(acceptAndCreateUser.mock.calls[0]?.[0]).toMatchObject({
       invitationId: INVITATION_ID,
       email: INVITE_EMAIL,
+      role: 'user',
     });
+    expect(acceptAndCreateUser.mock.calls[0]?.[0].role).not.toBe('admin');
+    expect(acceptAndCreateUser.mock.calls[0]?.[0].role).not.toBe('guest');
     expect(typeof acceptAndCreateUser.mock.calls[0]?.[0].passwordHash).toBe(
       'string',
     );
+  });
+
+  it('creates a user with role guest when DEMO_MODE is true (D-23 / D-46)', async () => {
+    const acceptAndCreateUser = jest.fn(
+      async (
+        input: AcceptInviteAndCreateUserInput,
+      ): Promise<AcceptInviteAndCreateUserResult> => ({
+        ok: true,
+        user: makeCreatedUser({ role: input.role }),
+      }),
+    );
+    const useCase = new AcceptInviteUseCase(
+      unusedInvitations({
+        findPendingByHash: async () => makeInvitation(),
+        acceptAndCreateUser,
+      }),
+      TEST_ENV_DEMO_ON,
+    );
+
+    await expect(
+      useCase.execute({ token: RAW_TOKEN, password: PASSWORD }),
+    ).resolves.toEqual({
+      user: {
+        id: USER_ID,
+        email: INVITE_EMAIL,
+        role: 'guest',
+      },
+    });
+    expect(acceptAndCreateUser.mock.calls[0]?.[0]).toMatchObject({
+      role: 'guest',
+    });
+    expect(acceptAndCreateUser.mock.calls[0]?.[0].role).not.toBe('admin');
+    expect(acceptAndCreateUser.mock.calls[0]?.[0].role).not.toBe('user');
   });
 
   it('rejects an unknown or expired token with UNAUTHORIZED', async () => {
@@ -120,6 +183,7 @@ describe('AcceptInviteUseCase', () => {
         findPendingByHash: async () => null,
         acceptAndCreateUser,
       }),
+      TEST_ENV_DEMO_OFF,
     );
 
     await expect(
@@ -147,6 +211,7 @@ describe('AcceptInviteUseCase', () => {
         findPendingByHash: async () => makeInvitation(),
         acceptAndCreateUser,
       }),
+      TEST_ENV_DEMO_OFF,
     );
 
     await expect(
@@ -169,6 +234,7 @@ describe('AcceptInviteUseCase', () => {
           reason: 'email-taken',
         }),
       }),
+      TEST_ENV_DEMO_OFF,
     );
 
     await expect(
@@ -185,6 +251,7 @@ describe('AcceptInviteUseCase', () => {
     const findPendingByHash = jest.fn(async () => makeInvitation());
     const useCase = new AcceptInviteUseCase(
       unusedInvitations({ findPendingByHash }),
+      TEST_ENV_DEMO_OFF,
     );
 
     await expect(useCase.execute({ password: PASSWORD })).rejects.toMatchObject(

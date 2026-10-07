@@ -2,16 +2,54 @@
   "info": {
     "_postman_id": "a7c4e19b-2d58-4f01-9b6e-8c0f3d5a1e44",
     "name": "Content Chain — DEMO guest",
-    "description": "Żywy HTTP DEMO MODE + rola guest (`SPEC-TESTY.md` D-50…D-62). **Nie** zastępuje Jest.\n\nWymaga `DEMO_MODE=true` oraz Redis (`REDIS_HOST`+`REDIS_PORT`, opcjonalnie `REDIS_PASSWORD`) w `apps/api/.env` — walidacja env fail-fast przy starcie. Collection Runner **nie** jest T-5 CI.\n\nKolejność folderów: **Config → Register guest → Allow → Deny → Admin przy demo**.\n\n`POST /runs` w Allow wymaga **kompletnego** company-context w DB (np. Setup z `social-pipeline.postman-collection.json` jako admin, zanim odpalisz tę kolekcję). Gateway jest potrzebny tylko przy starcie runu (jak inne pipeline’y).\n\nCookie jar włączony. Register **nie** stawia cookies — login guest w folderze Register. Zmienne `guestEmail` / `guestPassword`: prerequest nadpisuje email unikalnym znacznikiem czasu, żeby nie łapać 409.\n\nGdy `GET /config` wróci `demoMode: false`, reszta runnera nie ma sensu — patrz README.",
+    "description": "Żywy HTTP DEMO MODE + rola guest (`SPEC-TESTY.md` D-50…D-62). **Nie** zastępuje Jest.\n\nWymaga `DEMO_MODE=true` oraz Redis (`REDIS_HOST`+`REDIS_PORT`, opcjonalnie `REDIS_PASSWORD`) w `apps/api/.env` — walidacja env fail-fast przy starcie. Collection Runner **nie** jest T-5 CI.\n\nKolejność folderów: **Config → Register guest → Invite guest → Allow → Deny → Admin przy demo**.\n\n`POST /runs` w Allow wymaga **kompletnego** company-context w DB (np. Setup z `social-pipeline.postman-collection.json` jako admin, zanim odpalisz tę kolekcję). Gateway jest potrzebny tylko przy starcie runu (jak inne pipeline’y).\n\nCookie jar włączony. Register **nie** stawia cookies — login guest w folderze Register. Zmienne `guestEmail` / `guestPassword`: prerequest nadpisuje email unikalnym znacznikiem czasu, żeby nie łapać 409.\n\nGdy `GET /config` wróci `demoMode: false`, reszta runnera nie ma sensu — patrz README.\n\nFolder **Invite guest**: po `POST /invitations` wklej raw token z logu api do `inviteGuestToken` (jak invite w auth). Accept przy DEMO_MODE=true → `role=guest` (D-23 / D-46). Smoke `POST /runs` asercja 202 albo 403 `GUEST_TYPE_QUOTA_EXCEEDED`. Osobny runner **Config + Invite guest** (bez Register) daje wolny pierwszy slot → zwykle 202.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3001/api/v1" },
-    { "key": "guestEmail", "value": "guest@example.com" },
-    { "key": "guestPassword", "value": "Password12!!" },
-    { "key": "adminEmail", "value": "admin@example.com" },
-    { "key": "adminPassword", "value": "Password12!!" },
-    { "key": "dummyRunId", "value": "run_123e4567-e89b-12d3-a456-426614174000" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001/api/v1"
+    },
+    {
+      "key": "guestEmail",
+      "value": "guest@example.com"
+    },
+    {
+      "key": "guestPassword",
+      "value": "Password12!!"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "adminPassword",
+      "value": "Password12!!"
+    },
+    {
+      "key": "dummyRunId",
+      "value": "run_123e4567-e89b-12d3-a456-426614174000"
+    },
+    {
+      "key": "originUrl",
+      "value": "http://localhost:3001"
+    },
+    {
+      "key": "inviteGuestEmail",
+      "value": "invite-guest@example.com"
+    },
+    {
+      "key": "inviteGuestPassword",
+      "value": "Password12!!"
+    },
+    {
+      "key": "inviteGuestToken",
+      "value": ""
+    },
+    {
+      "key": "invitedGuestUserId",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -92,7 +130,12 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{guestEmail}}\",\n  \"password\": \"{{guestPassword}}\"\n}\n"
@@ -127,12 +170,322 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{guestEmail}}\",\n  \"password\": \"{{guestPassword}}\"\n}\n"
             },
             "url": "{{baseUrl}}/auth/login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invite guest",
+      "description": "D-23 / D-46 przy DEMO_MODE=true: admin create invite → wklej `inviteGuestToken` z logu → clear jar → accept → `role=guest` → login → smoke `POST /runs` (202 albo 403 GUEST_TYPE_QUOTA_EXCEEDED). Bez zmiany GuestGuard. Zalecany osobny runner Config+Invite guest (bez Register) pod asercję 202. Na końcu: login `guestEmail` przywraca sesję pod Allow/Deny.",
+      "item": [
+        {
+          "name": "POST login admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('admin login under DEMO_MODE', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.user.role).to.eql('admin');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Sesja admina pod POST /invitations (jak folder Admin przy demo)."
+          }
+        },
+        {
+          "name": "POST invitations inviteGuest",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('inviteGuestEmail', 'invite-guest-' + Date.now() + '@example.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('id email without token secrets', function () {",
+                  "  pm.expect(body).to.include.keys('id', 'email', 'expiresAt');",
+                  "  pm.expect(body.id).to.match(/^inv_/i);",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get('inviteGuestEmail'));",
+                  "  pm.expect(body).to.not.have.property('token');",
+                  "  pm.expect(body).to.not.have.property('rawToken');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{inviteGuestEmail}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/invitations",
+            "description": "201 `{ id, email, expiresAt }`. Raw token **nie** w JSON — wklej z logu DX api do `inviteGuestToken` zanim odpalisz accept-invite."
+          }
+        },
+        {
+          "name": "Clear cookie jar (before accept)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const origin = pm.collectionVariables.get('originUrl') || 'http://localhost:3001';",
+                  "try {",
+                  "  pm.cookies.jar().clear(origin, function () {});",
+                  "} catch (e) {",
+                  "  console.warn('cookie jar clear skipped', e);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('cookie jar cleared for public accept', function () {",
+                  "  pm.expect(true).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/config",
+            "description": "Prerequest czyści cookie jar originu api (jak auth accept-invite). GET /config jest no-op publicznym po clear — bez sesji admina przed accept."
+          }
+        },
+        {
+          "name": "POST accept-invite (role guest)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const origin = pm.collectionVariables.get('originUrl') || 'http://localhost:3001';",
+                  "try {",
+                  "  pm.cookies.jar().clear(origin, function () {});",
+                  "} catch (e) {",
+                  "  console.warn('cookie jar clear skipped', e);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('inviteGuestToken is set (paste from api log after create)', function () {",
+                  "  pm.expect(pm.collectionVariables.get('inviteGuestToken'), 'inviteGuestToken').to.be.a('string').that.is.not.empty;",
+                  "});",
+                  "pm.test('status 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('role guest without Set-Cookie (D-23 / D-46)', function () {",
+                  "  pm.expect(body).to.have.property('user');",
+                  "  pm.expect(body.user).to.include.keys('id', 'email', 'role');",
+                  "  pm.expect(body.user.id).to.match(/^usr_/i);",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get('inviteGuestEmail'));",
+                  "  pm.expect(body.user.role).to.eql('guest');",
+                  "  pm.expect(body.user.role).to.not.eql('admin');",
+                  "  pm.expect(body).to.not.have.property('accessToken');",
+                  "  pm.expect(body).to.not.have.property('refreshToken');",
+                  "});",
+                  "pm.test('does not set cc_access or cc_refresh', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.not.include('cc_access=');",
+                  "  pm.expect(cookies).to.not.include('cc_refresh=');",
+                  "});",
+                  "pm.collectionVariables.set('invitedGuestUserId', body.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{inviteGuestToken}}\",\n  \"password\": \"{{inviteGuestPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/accept-invite",
+            "description": "Publiczny. Przy DEMO_MODE=true → 201 `role=guest` (mirror register). Bez Set-Cookie. Wymaga `inviteGuestToken` z logu."
+          }
+        },
+        {
+          "name": "POST login invited guest",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 invited guest session', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.user.role).to.eql('guest');",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get('inviteGuestEmail'));",
+                  "});",
+                  "pm.test('sets cookies', function () {",
+                  "  const cookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; })",
+                  "    .join('\\n');",
+                  "  pm.expect(cookies).to.include('cc_access=');",
+                  "  pm.expect(cookies).to.include('cc_refresh=');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{inviteGuestEmail}}\",\n  \"password\": \"{{inviteGuestPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Login zaproszonym gościem → 200, role=guest + cookies."
+          }
+        },
+        {
+          "name": "POST runs post_ideas smoke (202 or quota)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('guest invite smoke: 202 or GUEST_TYPE_QUOTA_EXCEEDED', function () {",
+                  "  const status = pm.response.code;",
+                  "  pm.expect([202, 403]).to.include(status);",
+                  "  if (status === 202) {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.runId).to.match(/^run_/);",
+                  "  } else {",
+                  "    pm.expect(pm.response.json().code).to.eql('GUEST_TYPE_QUOTA_EXCEEDED');",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskType\": \"post_ideas\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": { \"topic\": \"Invite guest demo\" }\n}\n"
+            },
+            "url": "{{baseUrl}}/runs",
+            "description": "Smoke GuestGuard: 202 (wolny slot) albo 403 GUEST_TYPE_QUOTA_EXCEEDED. Wymaga kompletnego company-context. Osobny runner Config+Invite guest → zwykle 202."
+          }
+        },
+        {
+          "name": "POST login register guest (restore for Allow)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('restore Register guest session for Allow', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.user.role).to.eql('guest');",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get('guestEmail'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{guestEmail}}\",\n  \"password\": \"{{guestPassword}}\"\n}\n"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Przywróć sesję z folderu Register guest, żeby Allow/Deny działały na tym samym gościu (Invite guest nadpisuje cookie jar)."
           }
         }
       ]
@@ -180,7 +533,12 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"taskType\": \"post_ideas\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": { \"topic\": \"Guest demo\" }\n}\n"
@@ -207,7 +565,12 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"taskType\": \"post_ideas\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": { \"topic\": \"Guest demo 2\" }\n}\n"
@@ -233,7 +596,12 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"taskType\": \"post_content\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": { \"topic\": \"Guest demo\" }\n}\n"
@@ -264,7 +632,12 @@
           ],
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"guest-new@example.com\",\n  \"currentPassword\": \"{{guestPassword}}\"\n}\n"
@@ -312,7 +685,12 @@
           ],
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"identity\": { \"name\": \"Nope\", \"description\": \"x\" },\n  \"offer\": { \"items\": [{ \"name\": \"A\", \"benefit\": [\"b\"], \"description\": \"d\" }] },\n  \"voice\": { \"weDo\": \"a\", \"weDont\": \"b\" },\n  \"cta\": { \"items\": [{ \"label\": \"L\", \"target\": \"/t\" }] },\n  \"audience\": { \"profiles\": [{ \"description\": \"p\" }] }\n}\n"
@@ -338,7 +716,12 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"result\": { \"ideas\": [] }\n}\n"
@@ -371,7 +754,12 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"

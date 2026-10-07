@@ -1,5 +1,5 @@
 ---
-wersja: 13
+wersja: 14
 data_utworzenia: 2026-09-18
 data_modyfikacji: 2026-10-06
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-06
 Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego źle → zamiast tego. Ogólny podręcznik Nest/Next — poza zakresem.
 
 Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `security.md`.
+
+Zmiana względem: brak wierszy o układzie katalogów warstw BC (płaski dump `infrastructure/`, kind-folders). Od tej wersji zakazy: płaski dump wielu I/O w jednym katalogu; `helpers/` / `adapters/` / `mappers/` jako kanon; podkatalogi use-case’ów Auth „na siłę”; podkatalogi w `health/` / `metrics/` / `llm/` na wzór BC. Norma drzewa: `architektura_katalogi_pliki.md`.
 
 Zmiana względem: brak wierszy o bramce „Agenci aktywni” vs gateway. Od tej wersji zakazy: FE→gateway health; doklejanie sieci do `isComplete`; mylenie liveness z pełnym readiness gateway w chipie.
 
@@ -46,6 +48,10 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | Anty-pattern | Dlaczego źle | Zamiast tego |
 |--------------|--------------|--------------|
 | Fat controller: ORM + prompt + HTTP | Niemożliwy unit test domeny; puchnięcie tras | Controller → application → domain/porty; graf w `infrastructure/graph` |
+| Płaski dump `infrastructure/` (Prisma + Redis + SSE + SMTP + cookie w jednym katalogu) | Nawigacja i pomyłka „gdzie dodać adapter” | Podkatalogi po I/O (`persistence/`, `sse/`, `quota/`, `mail/`, `session/`) jak `graph/` / `prompts/` w Social/Content |
+| `helpers/` / `adapters/` / `mappers/` jako kanon warstwy | Drugi dump po rodzaju pliku; mapper oderwany od adaptera | Mapowanie wiersza przy persistence; nazwa pliku po odpowiedzialności |
+| Podkatalogi use-case’ów Auth „na siłę” | Udawane pod-BC; duży diff bez nowej granicy | Płaskie `application/` przy unikalnych `*-use-case.ts` |
+| Podkatalogi w `health/` / `metrics/` / `llm/` na wzór BC | Łamie „nie-BC” | Ops bez `application` / `domain` / `infrastructure` |
 | Fat Social: page copy / outline w `apps/api/src/social/` | Łamie BC; Content przestaje być osobnym kanałem | Strony wyłącznie w `apps/api/src/content/` |
 | `'web'` jako wartość `SocialPlatform` | Miesza sentinel kolumny z enumem SM; psuje filtry i DTO | `RunPlatform = SocialPlatform \| 'web'`; `'web'` tylko kolumna przy `page_*` |
 | Dump hopu chat (prompty / `output.text`) na stdout w `production` | Wyciek treści i ryzyko sekretu w agregatorze logów | Tylko `NODE_ENV=development` + redakcja `GATEWAY_KEY`; kanon przebiegu = `run.log` |

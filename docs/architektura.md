@@ -1,7 +1,7 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-10-06
 ---
 
 # Architektura — Content Chain
@@ -13,6 +13,8 @@ Content Chain to **modularny monolit w monorepo** z trzema osobnymi procesami ru
 Zmiana względem wcześniejszej wersji tego dokumentu: ścieżki aplikacji ujednolicono do `apps/api`, `apps/frontend`, `apps/ai-provider-gateway` (w rootcie monorepo, **bez** opakowania `src/apps/`). Szczegółowe drzewo: `architektura_katalogi_pliki.md`.
 
 Zmiana względem: dwa terminale SSE (`completed` / `failed`). Od tej wersji trzeci terminal **`cancelled`** (Stop / `POST .../cancel`); complete huba jak R-4a; mechanizm abortu v1 in-process + port `attemptCancel` (CAS) — norma w `SPEC-RUNY.md`.
+
+Zmiana względem: warstwy BC bez normy podkatalogów I/O poza Social/Content. Od tej wersji: podział `infrastructure/` po granicy I/O (m.in. `persistence` / SSE / quota / mail / session / graph) oraz kernel w `application/` (Runs) **nie** tworzy nowych BC i **nie** zmienia kierunku zależności. Szczegół drzewa → `architektura_katalogi_pliki.md`.
 
 | Element                    | Rola                                                                                                        |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------- |
@@ -123,9 +125,9 @@ flowchart TB
 ```
 
 - **Controllers:** walidacja wejścia, mapowanie HTTP, authz — bez ORM i bez promptów.
-- **Application:** orkiestracja przypadku użycia (start runu, wznowienie po HITL, odczyt logów).
+- **Application:** orkiestracja przypadku użycia (start runu, wznowienie po HITL, odczyt logów). Gdy warstwa miesza kernel procesu z use-case’ami HTTP — wolno wydzielić podkatalogi (`lifecycle/`, `guest/`); to nadal ta sama warstwa application, nie nowe BC.
 - **Domain:** reguły niezależne od Nest/LLM (kompletność kontekstu, dozwolone przejścia statusów, role).
-- **Ports / adapters:** Prisma + **SQLite w MVP** (ORM tylko w infrastructure); klient HTTP (lub równoważny) do gateway jako adapter portu LLM. PostgreSQL — od fazy **V1 — rozbudowa** (ops/skala, nie warunek Content).
+- **Ports / adapters:** Prisma + **SQLite w MVP** (ORM tylko w infrastructure); klient HTTP (lub równoważny) do gateway jako adapter portu LLM. PostgreSQL — od fazy **V1 — rozbudowa** (ops/skala, nie warunek Content). Gdy `infrastructure/` miesza kilka granic I/O, podkatalogi (`persistence/`, `sse/`, `quota/`, `mail/`, `session/`, `graph/`, …) organizują adaptery — **bez** zmiany kierunku zależności ani nowych BC. Szczegół → `architektura_katalogi_pliki.md`.
 - **Cross-cutting w `apps/api` (MVP):** `@nestjs/config` (env), **Pino** / `nestjs-pino` (logi procesu — `observability.md`), DX OpenAPI **Swagger UI pod `/docs`** (poza prefiksem produktowym `/api/v1`; szczegóły `dokumentacja_komunikacji.md`). Walidacja HTTP: class-validator; application: Zod — `SPEC-KOMUNIKACJA.md`.
 
 **Anty-patterny do unikania:** reguły biznesowe w controllerze; bezpośrednie wywołania vendorów LLM z `apps/api`; logika SM / Content w `apps/frontend` lub w gateway; synchroniczne blokowanie HTTP na cały długi run LLM; montowanie Swagger pod `/api` (kolizja z `/api/v1`); wzajemny `forwardRef` między modułami Nest BC Runs i grafem (albo import `SocialModule` / `ContentModule` z `RunsModule`) jako klej pipeline’u; traktowanie `'web'` jako `SocialPlatform`.

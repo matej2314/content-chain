@@ -180,7 +180,7 @@ export class PrismaInvitationAdapter implements InvitationRepository {
             id: input.userId,
             email: input.email,
             passwordHash: input.passwordHash,
-            role: 'user',
+            role: input.role,
             isActive: true,
             verifiedAt: new Date(),
           },

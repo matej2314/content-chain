@@ -1589,7 +1589,7 @@
               "raw": "{\n  \"token\": \"{{inviteToken}}\",\n  \"password\": \"{{invitePassword}}\"\n}\n"
             },
             "url": "{{baseUrl}}/auth/accept-invite",
-            "description": "Publiczny. 201 `{ user: { id, email, role } }` z role=user. Bez Set-Cookie. Test zapisuje invitedUserId."
+            "description": "Publiczny. 201 `{ user: { id, email, role } }`. Suite auth zakłada DEMO_MODE=false → role=user (D-23). Przy DEMO_MODE=true ta sama trasa zwraca guest — pokrycie w demo-guest. Bez Set-Cookie. Test zapisuje invitedUserId."
           }
         },
         {

@@ -1,5 +1,5 @@
 ---
-wersja: 19
+wersja: 20
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-10-06
 ---
@@ -186,10 +186,16 @@ apps/api/src/auth/
 ├── auth.controller.ts          # bootstrap-status, bootstrap, login, refresh, logout, me, me/email, accept-invite, register, activate, resend-activation
 ├── users.controller.ts         # GET/PATCH/DELETE users (admin) — bez POST create-z-hasłem
 ├── invitations.controller.ts   # GET/POST invitations, resend, revoke (admin) — lub równoważny podział
-├── application/                # use-case’y (InviteUser, AcceptInvite, RegisterUser, ActivateAccount, ResendActivation, ListInvitations, Resend, Revoke, lista/soft-delete/reaktywacja)
+├── application/                # use-case’y, schemy, limiter — płasko (bez podkatalogów use-case’ów „na siłę”)
 ├── domain/                     # reguły ról, polityka haseł, soft-delete, porty invitation + account-activation + mailer
-└── infrastructure/             # Prisma (User, Invitation, AccountActivation), hash bcrypt, JWT, cookie helpers, adapter SMTP (nodemailer) / adapter logujący
+├── http/                       # DTO — bez zmian układu
+└── infrastructure/
+    ├── persistence/            # Prisma User / Invitation / AccountActivation / refresh
+    ├── mail/                   # nodemailer + adapter logujący
+    └── session/                # cookie + JwtCookieStrategy
 ```
+
+Zmiana względem wersji 19 / drzewo: wcześniej płaskie `infrastructure/` (komentarz: Prisma, hash, JWT, cookie, SMTP w jednym worku). Od tej wersji podkatalogi po granicy I/O: `persistence/` / `mail/` / `session/` — `docs/architektura_katalogi_pliki.md`. A-* i tabele ról **bez zmian**.
 
 | Element | Norma |
 |---------|--------|
@@ -197,8 +203,9 @@ apps/api/src/auth/
 | Access | JWT w cookie `cc_access`; krótki TTL; stateless do wygaśnięcia |
 | Refresh | hash w DB + cookie `cc_refresh`; rotacja przy każdym refresh |
 | Cookie (production) | `httpOnly`; `Secure` + `SameSite=strict` na **obu** cookie; origin = FE (BFF) |
-| Biblioteki | `@nestjs/jwt`, `@nestjs/passport`, `passport-jwt`, `bcrypt` (lub `bcryptjs`); **nodemailer** wyłącznie jako adapter SMTP w infrastructure |
-| Mailer | Port w Auth (`send({ kind: 'user_invited' \| 'user_activation', … })`); `development` / `test`: adapter logujący; `production`: nodemailer SMTP |
+| Biblioteki | `@nestjs/jwt`, `@nestjs/passport`, `passport-jwt`, `bcrypt` (lub `bcryptjs`); **nodemailer** wyłącznie jako adapter SMTP w `infrastructure/mail/` |
+| Mailer | Port w Auth (`send({ kind: 'user_invited' \| 'user_activation', … })`); `development` / `test`: adapter logujący w `infrastructure/mail/`; `production`: nodemailer SMTP w `infrastructure/mail/` |
+| Lokalizacja I/O | Prisma (User / Invitation / AccountActivation / refresh) = `infrastructure/persistence/`; JWT/cookie helpers + `JwtCookieStrategy` = `infrastructure/session/`; SMTP / adapter logujący = `infrastructure/mail/` |
 
 Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentication](https://docs.nestjs.com/security/authentication)). Cost bcrypt = 12 — [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html). Adapter SMTP: [Nodemailer `createTransport` + `sendMail`](https://github.com/nodemailer/nodemailer) (`host` / `port` / `auth.user` / `auth.pass` ↔ `SMTP_*`; `from` ↔ `MAIL_FROM`).
 
@@ -211,17 +218,20 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 
 ### Wolno
 
-- Port persistence użytkowników, sesji refresh, **zaproszeń** oraz **aktywacji konta** (`AccountActivation`); adapter Prisma w `infrastructure`.
-- Port mailera transakcyjnego w Auth (`user_invited` **oraz** `user_activation`); adapter logujący poza `production`; adapter SMTP = **nodemailer** wyłącznie w infrastructure.
+- Port persistence użytkowników, sesji refresh, **zaproszeń** oraz **aktywacji konta** (`AccountActivation`); adapter Prisma w `infrastructure/persistence/`.
+- Port mailera transakcyjnego w Auth (`user_invited` **oraz** `user_activation`); adapter logujący poza `production` w `infrastructure/mail/`; adapter SMTP = **nodemailer** wyłącznie w `infrastructure/mail/`.
+- Strategia cookie / JWT (`JwtCookieStrategy`, helpers cookie) w `infrastructure/session/`.
 - Walidacja DTO auth class-validator + reguły haseł w domain/application (Zod — `SPEC-KOMUNIKACJA.md`).
 - Soft-delete + flaga aktywności; odrzucenie loginu dla kont nieaktywnych **oraz** (w prod) bez `verifiedAt`; PATCH reaktywacji **bez** odtwarzania sesji refresh i **bez** ustawiania `verifiedAt`.
 - Publiczny `bootstrap-status`, `accept-invite`, **`register`**, **`activate`**, **`resend-activation`** bez sesji.
 - `UserRole` w `@content-chain/shared`: `admin` \| `user` \| **`guest`**; persistencja `User.role` = **String** (bez wymogu Prisma enum) — `SPEC-MONOREPO.md` / `SPEC-PERSISTENCE.md`.
 - `GuestGuard` + `@AllowGuest` na allowliście; `DEMO_MODE` wyłącznie env przy starcie procesu (default `false`; zmiana = restart; **brak** toggle UI).
 - `guest` z self-register **lub** accept-invite gdy `DEMO_MODE=true` (A-7b / A-11).
+- Płaskie `application/` przy unikalnych `*-use-case.ts` (bez podkatalogów use-case’ów jako normy).
 
 ### Nie wolno
 
+- `helpers/` / `adapters/` / `mappers/` jako kanonu warstw Auth; podkatalogów use-case’ów Auth „na siłę”.
 - Drugiego `role = admin` ani awansu `user` → `admin` w MVP; register / activate / resend → `admin`; invite → `admin`.
 - **Awansu `guest` → `user` / `admin`** (endpoint, skrypt produktowy, „promocja”) — **zakaz permanentny**.
 - Przypisywania `guest` przy **bootstrap** (bootstrap → wyłącznie `admin`).
@@ -229,7 +239,7 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - Osobnego endpointu register-as-guest albo `role` w body register / invitations / accept-invite.
 - Przechowywania haseł plaintext / odwracalnych.
 - Hasła w mailu; admin zna hasło `user`; `POST /users` z hasłem.
-- Nodemailera (ani innego klienta SMTP) w domain / use-case — wyłącznie adapter infrastructure.
+- Nodemailera (ani innego klienta SMTP) w domain / use-case — wyłącznie adapter `infrastructure/mail/`; **zakaz** nodemailera w `infrastructure/persistence/` ani `infrastructure/session/`.
 - Bramkowania `POST /auth/register` przez `DEMO_MODE` (register zawsze publiczny).
   Zmiana względem wersji 14 / „Nie wolno”: „Otwartego signup (konto `user` tylko z ważnym tokenem zaproszenia)” — **unieważnione**; obowiązuje A-11 + invite.
 - Pending przez samo `isActive=false` (obowiązuje `verifiedAt=null` + `AccountActivation` w prod).

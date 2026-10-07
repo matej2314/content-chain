@@ -1,5 +1,5 @@
 ---
-wersja: 15
+wersja: 16
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-10-06
 ---
@@ -19,7 +19,7 @@ Zmiana względem wersji 14 / D16: `users.create(role=user)` przy accept-invite. 
 
 ## Powiązanie ze stylem z docs
 
-Wiążące: porty w domain/application; Prisma **wyłącznie** w `infrastructure` (+ katalog `apps/api/prisma`). Reguły biznesowe nie zależą od silnika SQL.
+Wiążące: porty w domain/application; Prisma **wyłącznie** w `infrastructure` albo `infrastructure/persistence/` (+ katalog `apps/api/prisma`). Reguły biznesowe nie zależą od silnika SQL.
 
 **Wyjątek względem stylu globalnego:** brak.
 
@@ -130,13 +130,16 @@ apps/api/
 │   ├── schema.prisma
 │   └── migrations/          # historia pod aktualny provider
 └── src/
-    └── <bc>/infrastructure/ # jedyne miejsce użycia PrismaClient w BC
+    └── <bc>/infrastructure/              # albo …
+        └── persistence/                  # gdy BC ma kilka granic I/O — jedyne miejsce PrismaClient w BC
 ```
+
+Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/infrastructure/` bez `persistence/`. Od tej wersji Prisma w BC = `infrastructure/` **albo** `infrastructure/persistence/` gdy warstwa miesza kilka I/O — nadal **jedyne** miejsce `PrismaClient` w BC (`docs/architektura_katalogi_pliki.md`).
 
 | Element | Norma |
 |---------|--------|
 | Port persistence | interfejsy per potrzeba BC (users, **invitations**, **account-activation**, sessions, context, runs, logs, wyniki SM, feedback) |
-| Adapter | Prisma implementuje porty |
+| Adapter | Prisma implementuje porty; lokalizacja = `<bc>/infrastructure/` **albo** `<bc>/infrastructure/persistence/` (gdy BC ma kilka I/O) |
 | SQLite ops (WAL, busy_timeout) | **poza** sztywną normą SPEC — decyzja implementacyjna pod współbieżność runów |
 | Kolumny kontekstu firmy | per sekcja — `SPEC-KONTEKST-FIRMY.md` |
 | Sesje refresh (hash) | `SPEC-AUTH.md` |
@@ -144,12 +147,14 @@ apps/api/
 ### Wolno
 
 - Współdzielić jednego `PrismaClient` między adapterami.
+- Trzymać adapter Prisma w `infrastructure/persistence/`, gdy BC ma kilka granic I/O (Runs, Auth; wzorzec Social/Content).
 - Archiwizować katalog migracji SQLite przy starcie historii PostgreSQL.
 - Traktować cutover na PostgreSQL jako zaplanowany krok fazy V1 — rozbudowa (nie jako wymóg dnia 1 MVP).
 
 ### Nie wolno
 
 - Prisma / SQL w `domain/` lub w `packages/shared`.
+- Prisma w `infrastructure/sse` \| `quota` \| `mail` \| `session` \| `graph` (te podkatalogi = inne I/O; ORM wyłącznie w `infrastructure/` lub `infrastructure/persistence/`).
 - Cichego odczytu kontekstu z `.md` przy dziurawej DB.
 - PostgreSQL jako providera **w MVP**.
 - Pozostawania przy SQLite jako kanonie po wejściu w V1 — rozbudowę (ops/skala; **nie** mylić z „po dodaniu Content” — Content jest w MVP na SQLite).

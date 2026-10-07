@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-06
 ---
 
 # SPEC — Monorepo
@@ -62,14 +62,17 @@ Zmiana względem wersji 5 / M-8: wcześniejsze brzmienie dopuszczało cross-cutt
 - Trzymać `SocialBrief` / `ContentBrief` w BC Runs (`run.types.ts`) — to payload agregatu, nie publiczny enum FE/BE.
 - Uruchamiać pakiety skryptami root (`pnpm --filter api …`, `pnpm -r …`).
 - Rozszerzać drzewo wewnątrz `apps/*/src` zgodnie z BC i warstwami — w tym `apps/api/src/content/` (nie łamie M-1: nadal trzy aplikacje runtime). Szczegóły BC w osobnych SPEC.
+- Podkatalogi I/O / kernel **wewnątrz** warstwy BC (Runs, Auth; Social/Content już: `graph/` / `prompts/` / `persistence/`) — nie łamie M-1; nie tworzy nowego workspace package ani nowego BC (`docs/architektura_katalogi_pliki.md`, `SPEC-RUNY.md`, `SPEC-AUTH.md`).
 - Trzymać w `apps/api/src/shared/` cienki helper `parse-with-zod.ts` (Zod → `VALIDATION_FAILED`) współdzielony przez BC — bez przenoszenia reguł domenowych ani Zod do `packages/shared`.
 
 Zmiana względem wersji 4 / Wolno: dopisano lokalizację briefów kanałowych (nie shared).
 Zmiana względem wersji 5 / Wolno: jawnie dopuszczono `parse-with-zod.ts` w api shared (M-8).
 Zmiana względem wersji 6 / Wolno: `UserRole` bez `guest`. Od tej wersji unia obejmuje `guest` (`docs/brand_types.md`).
+Zmiana względem wersji 7 / Wolno: drzewo warstw bez normy podkatalogów I/O. Od tej wersji podkatalogi po granicy I/O / kernel wewnątrz warstwy BC są legalne i nie łamią M-1.
 
 ### Nie wolno
 
+- Udawania BC przez folder `helpers/` / `adapters/` / `mappers/` jako kanon warstwy (podział po rodzaju pliku zamiast granicy I/O).
 - Umieszczać use-case’ów, Prisma, promptów, reguł Social / Content / bramki kontekstu w `packages/shared`.
 - Umieszczać `SocialBrief` / `ContentBrief` w `packages/shared` albo `apps/api/src/shared/types`.
 - Importować kod źródłowy `apps/ai-provider-gateway` z `apps/api` (lub odwrotnie) jako moduł TS.

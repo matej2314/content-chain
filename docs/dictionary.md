@@ -1,5 +1,5 @@
 ---
-wersja: 16
+wersja: 17
 data_utworzenia: 2026-09-18
 data_modyfikacji: 2026-10-06
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-06
 Kanoniczne definicje pojęć domenowych i technicznych. Identyfikatory typów, kodów i pól API w backtickach; opisy po polsku.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `observability.md`.
+
+Zmiana względem: adapter Prisma wyłącznie jako „w `infrastructure`” bez normy podkatalogów I/O. Od tej wersji: adapter Prisma (i mapowanie wiersza) w `infrastructure/` **albo** `infrastructure/persistence/` BC; inne I/O (SSE, Redis quota, SMTP, cookie/JWT) w osobnych podkatalogach tej samej warstwy, gdy katalog puchnie. Dopisano hasło **Podkatalog warstwy (I/O / kernel)**. Sens **Portu**, BC, modułu Nest i kleju procesu — bez zmiany.
 
 Zmiana względem: **Konto (widok)** — Moje runy bez paginacji UI. Od tej wersji lista na Koncie ma **paginację UI** `pageSize = 10` (slice FE); `GET /runs/user/:userId` nadal zwraca całość. Shell dashboardu: chipy w sidebarze w viewportcie (`ux_dashboard.md`).
 
@@ -112,14 +114,15 @@ Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez start
 |---------|-----------|
 | **Modularny monolit** | Trzy procesy w jednym monorepo (`apps/api`, `apps/frontend`, `apps/ai-provider-gateway`) ze wspólnym `packages/shared`. |
 | **Cienki klient** | `apps/frontend`: UI + HTTP/SSE; **bez** reguł bramki, grafu Social / Content, Prisma i sekretów LLM. |
-| **Port / adapter** | Granica I/O: domain/application zależą od portu. Prisma = adapter w `infrastructure` BC. Klient gateway = adapter HTTP w `apps/api/src/llm/` (port `LlmGateway`). Zmiana względem: wcześniejszy opis bez lokalizacji adaptera LLM. |
+| **Port / adapter** | Granica I/O: domain/application zależą od portu. Prisma = adapter w `infrastructure` BC **albo** w `infrastructure/persistence/`, gdy warstwa ma kilka granic I/O; mapowanie wiersza przy tym adapterze. Inne I/O (SSE, Redis quota, SMTP, cookie/JWT) — osobne podkatalogi tej samej warstwy `infrastructure/`, gdy katalog puchnie. Klient gateway = adapter HTTP w `apps/api/src/llm/` (port `LlmGateway`). **Nie** redefiniuje pojęcia portu. Zmiana względem: lokalizacja wyłącznie „w `infrastructure`” bez podkatalogów I/O. |
 | **Port `LlmGateway`** | Port chat (i opcjonalnie stream) do `apps/ai-provider-gateway`; jedyna droga `apps/api` do LLM. Wołają go BC (np. Social), nie kontrolery HTTP. |
-| **Bounded context (BC)** | Obszar odpowiedzialności w `apps/api` z układem warstw HTTP → application → domain + porty → adaptery: **Auth**, **Company Context**, **Social**, **Content**, **Runs / Logs**, **Feedback**. **Nie** to samo co jeden plik `*.module.ts` Nest — jeden BC może mieć kernel + HTTP. Zmiana względem: lista bez Content (Content wchodzi w MVP, nie V1). |
-| **Moduł Nest** | Jednostka DI (`@Module`). Import w **jedną** stronę jest legalny (Social → kernel lifecycle). Pętla `forwardRef` między BC grafu a Runs — zakaz (`architektura.md`, `anty_patterny.md`). |
+| **Podkatalog warstwy (I/O / kernel)** | Folder **wewnątrz** `infrastructure/` albo `application/` BC, gdy warstwa miesza różne granice I/O albo kernel procesu z use-case’ami HTTP. **Nie** jest bounded contextem i **nie** jest podziałem po rodzaju pliku (`helpers` / `adapters` / `mappers`). Norma drzewa: `architektura_katalogi_pliki.md`. |
+| **Bounded context (BC)** | Obszar odpowiedzialności w `apps/api` z układem warstw HTTP → application → domain + porty → adaptery: **Auth**, **Company Context**, **Social**, **Content**, **Runs / Logs**, **Feedback**. **Nie** to samo co jeden plik `*.module.ts` Nest — jeden BC może mieć kernel + HTTP (`RunLifecycleModule` / `GuestQuotaModule` zostają w korzeniu `runs/`). Zmiana względem: lista bez Content (Content wchodzi w MVP, nie V1). |
+| **Moduł Nest** | Jednostka DI (`@Module`). Import w **jedną** stronę jest legalny (Social → kernel lifecycle). Pętla `forwardRef` między BC grafu a Runs — zakaz (`architektura.md`, `anty_patterny.md`). Moduły Nest BC (w tym kernel Runs) żyją w korzeniu folderu BC — nie w `infrastructure/`. |
 | **Port lifecycle runu** | Port Runs: `appendLog` + `transition`. Wołają go węzły/fasada grafu. Token w `runs/domain/`; **nie** w `packages/shared`. |
 | **Port `RunExecutor`** | Port Runs: `execute(run)`. W MVP: **composite** w kleju procesu — `taskType` Social → `SocialRunExecutor`; `taskType` Content → `ContentRunExecutor`; nieznany → `failed` z kodem `UNKNOWN_TASK_TYPE`. Binding tokenu = klej procesu, nie import grafu z `RunsModule`. |
 | **Port `RunResultReader`** | Port odczytu wyniku runu (snapshot GET). W MVP: **composite** w kleju — składa **addytywny** snapshot: `ideas` / `content` / **`contents`** (posty), `reelIdeas` / `reelScript` / **`reelScripts`** (rolki), `pageOutline` / `pageDocument` (Content). Brak kanału = pusta tablica / `null` (nie null-crash). Binding jak executora — composition root, nie import grafu z `RunsModule`. |
-| **Klej procesu (composition root)** | Spięcie tokenów Nest przy starcie `apps/api` (`AppModule` / `registerAsync`). **Nie** bounded context i **nie** `health/` / `llm/`. |
+| **Klej procesu (composition root)** | Spięcie tokenów Nest przy starcie `apps/api` (`AppModule` / `registerAsync`). **Nie** bounded context i **nie** `health/` / `llm/`. Kernel lifecycle Runs (`RunLifecycleModule`) to nadal BC Runs — nie klej procesu. |
 | **Feedback (BC)** | Bounded context zapisu opinii tekstowych (`application` \| `agent` \| `run`). Bez LangGraph; panel odczytu = **V1 — rozbudowa**. **Nie** ocena gwiazdkowa, flaga edycji ani finalize (to Runs). |
 | **LangGraph / graf** | Orchestracja pipeline’u za fasadą application service (nie w controllerze). MVP: osobny graf Social i osobny graf Content; **zakaz** fat Social (strony w `social/`). |
 | **Async run** | Asynchroniczne wykonanie pipeline’u; klient dostaje `RunId`, postęp przez SSE. |
