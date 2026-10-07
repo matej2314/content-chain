@@ -712,13 +712,15 @@ Match the Auth BC catalog norm; keep flat application use-cases and cookie seman
 
 ## FAZA 3 — Graphify + regresja
 
+**Status:** `WYKONANY`
+
 Odpowiada major **Faza 20** HOW pkt 5–6.
 
 ---
 
 ### KROK 1 — `graphify update .`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Odświeżyć graf wiedzy po przeniesieniu plików TS (major HOW pkt 5).
 
@@ -741,7 +743,7 @@ Uruchom z roota monorepo po domknięciu FAZA 1–2.
 
 ### KROK 2 — Unit Runs/Auth + smoke checklist (bez nowych D-*)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Potwierdzić **zero regresji zachowania** — istniejące testy, bez nowych case’ów produktowych / folderów Postman.
 
