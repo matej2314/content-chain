@@ -97,6 +97,7 @@ function unusedQuota(overrides: Partial<GuestQuotaPort> = {}): GuestQuotaPort {
     tryAdmitDailyRun: unexpected,
     releaseDailyRun: unexpected,
     tryAdmitDailyRating: unexpected,
+    deleteDailyRatings: unexpected,
     ...overrides,
   };
 }
@@ -115,7 +116,7 @@ function snapshot(
   return makeSocialSnapshot({
     status: 'completed',
     startedByUserId: ACTOR.id,
-    startedBy: { id: ACTOR.id, email: ACTOR.email },
+    startedBy: { id: ACTOR.id, email: ACTOR.email, role: ACTOR.role },
     pipelineFinishedAt: ANCHOR_OPEN,
     ...overrides,
   });
@@ -126,7 +127,7 @@ function guestSnapshot(
 ): SocialRunSnapshot {
   return snapshot({
     startedByUserId: GUEST.id,
-    startedBy: { id: GUEST.id, email: GUEST.email },
+    startedBy: { id: GUEST.id, email: GUEST.email, role: GUEST.role },
     ...overrides,
   });
 }
@@ -381,7 +382,7 @@ describe('RateRunUseCase', () => {
   it('does not call quota for admin when demo is on', async () => {
     const run = snapshot({
       startedByUserId: ADMIN.id,
-      startedBy: { id: ADMIN.id, email: ADMIN.email },
+      startedBy: { id: ADMIN.id, email: ADMIN.email, role: ADMIN.role },
     });
     const saveRating = jest.fn(
       async (_id: RunId, _rating: number | null): Promise<boolean> => true,

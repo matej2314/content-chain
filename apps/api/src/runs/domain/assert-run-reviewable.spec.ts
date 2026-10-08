@@ -22,7 +22,7 @@ function snapshot(
   return makeSocialSnapshot({
     status: 'completed',
     startedByUserId: ACTOR,
-    startedBy: { id: ACTOR, email: 'user@example.com' },
+    startedBy: { id: ACTOR, email: 'user@example.com', role: 'user' },
     pipelineFinishedAt: ANCHOR_OPEN,
     ...overrides,
   });

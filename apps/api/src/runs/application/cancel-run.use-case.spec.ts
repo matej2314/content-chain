@@ -17,6 +17,7 @@ import type { RunLifecycleService } from './lifecycle/run-lifecycle.service';
 
 const ACTOR: UserId = createUserId('usr_11111111-1111-4111-8111-111111111111');
 const OTHER: UserId = createUserId('usr_22222222-2222-4222-8222-222222222222');
+const ADMIN: UserId = createUserId('usr_33333333-3333-4333-8333-333333333333');
 const ACTOR_USER: AuthUserContext = {
   id: ACTOR,
   email: 'user@example.com',
@@ -26,6 +27,11 @@ const ACTOR_GUEST: AuthUserContext = {
   id: ACTOR,
   email: 'guest@example.com',
   role: 'guest',
+};
+const ACTOR_ADMIN: AuthUserContext = {
+  id: ADMIN,
+  email: 'admin@example.com',
+  role: 'admin',
 };
 
 function unusedRepo(overrides: Partial<RunRepository> = {}): RunRepository {
@@ -72,7 +78,7 @@ function makeGetRunOutput(overrides: Partial<GetRunOutput> = {}): GetRunOutput {
     status: 'running',
     conversationId,
     createdAt: '2026-09-29T12:00:00.000Z',
-    startedBy: { id: ACTOR, email: 'user@example.com' },
+    startedBy: { id: ACTOR, email: 'user@example.com', role: 'user' },
     userRating: null,
     outputEdited: false,
     reviewFinalizedAt: null,
@@ -256,7 +262,7 @@ describe('CancelRunUseCase', () => {
   it('foreign startedBy → FORBIDDEN 403 before persist', async () => {
     const initial = makeGetRunOutput({
       status: 'running',
-      startedBy: { id: OTHER, email: 'other@example.com' },
+      startedBy: { id: OTHER, email: 'other@example.com', role: 'user' },
     });
     const {
       useCase,
@@ -282,7 +288,7 @@ describe('CancelRunUseCase', () => {
   it('guest on a foreign run → FORBIDDEN 403 before persist (D-55)', async () => {
     const initial = makeGetRunOutput({
       status: 'running',
-      startedBy: { id: OTHER, email: 'other@example.com' },
+      startedBy: { id: OTHER, email: 'other@example.com', role: 'user' },
     });
     const { useCase, setCancelRequested, attemptCancel, requestCancel } = setup(
       { getRunOutputs: [initial] },
@@ -298,6 +304,77 @@ describe('CancelRunUseCase', () => {
     expect(setCancelRequested).not.toHaveBeenCalled();
     expect(attemptCancel).not.toHaveBeenCalled();
     expect(requestCancel).not.toHaveBeenCalled();
+  });
+
+  it('admin + guest startedBy (other id) → CAS path; log cancelled by admin (D-69)', async () => {
+    const initial = makeGetRunOutput({
+      status: 'running',
+      startedBy: { id: OTHER, email: 'guest@example.com', role: 'guest' },
+    });
+    const cancelled = makeGetRunOutput({
+      runId: initial.runId,
+      conversationId: initial.conversationId,
+      status: 'cancelled',
+      cancelledAt: '2026-09-29T12:01:00.000Z',
+      startedBy: initial.startedBy,
+    });
+    const {
+      useCase,
+      setCancelRequested,
+      attemptCancel,
+      requestCancel,
+      appendLog,
+      publishCancelled,
+      getRunExecute,
+    } = setup({
+      getRunOutputs: [cancelled],
+      initialSnapshot: asRepoSnapshot(initial, 'running'),
+    });
+
+    await expect(useCase.execute(initial.runId, ACTOR_ADMIN)).resolves.toEqual(
+      cancelled,
+    );
+
+    expect(setCancelRequested).toHaveBeenCalledWith(initial.runId);
+    expect(attemptCancel).toHaveBeenCalledWith(initial.runId, expect.any(Date));
+    expect(requestCancel).toHaveBeenCalledWith(initial.runId);
+    expect(appendLog).toHaveBeenCalledWith({
+      runId: initial.runId,
+      conversationId: initial.conversationId,
+      level: 'info',
+      message: 'Run cancelled by admin',
+      step: 'CancelRunUseCase',
+    });
+    expect(publishCancelled).toHaveBeenCalledWith(initial.runId);
+    expect(getRunExecute).toHaveBeenCalledWith(initial.runId, ACTOR_ADMIN);
+  });
+
+  it('admin + user startedBy (other id) → FORBIDDEN 403; no attemptCancel (D-70)', async () => {
+    const initial = makeGetRunOutput({
+      status: 'running',
+      startedBy: { id: OTHER, email: 'other@example.com', role: 'user' },
+    });
+    const {
+      useCase,
+      setCancelRequested,
+      attemptCancel,
+      requestCancel,
+      appendLog,
+      getRunExecute,
+    } = setup({ getRunOutputs: [initial] });
+
+    await expect(
+      useCase.execute(initial.runId, ACTOR_ADMIN),
+    ).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'FORBIDDEN',
+      httpStatus: 403,
+    });
+    expect(setCancelRequested).not.toHaveBeenCalled();
+    expect(attemptCancel).not.toHaveBeenCalled();
+    expect(requestCancel).not.toHaveBeenCalled();
+    expect(appendLog).not.toHaveBeenCalled();
+    expect(getRunExecute).not.toHaveBeenCalled();
   });
 
   it.each(['completed', 'failed'] as const)(

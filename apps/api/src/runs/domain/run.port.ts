@@ -3,7 +3,7 @@ import type {
   RunPlatform,
   RunTaskType,
 } from '@content-chain/shared';
-import type { RunId, RunStatus, UserId } from '@content-chain/shared';
+import type { RunId, RunStatus, UserId, UserRole } from '@content-chain/shared';
 import type { RunLogEntry, RunRecord } from './run.types';
 
 export const RUN_REPOSITORY = Symbol('RUN_REPOSITORY');
@@ -18,7 +18,7 @@ export type ListRunsQuery = {
   userId?: UserId;
 };
 
-export type RunStartedBy = { id: string; email: string };
+export type RunStartedBy = { id: string; email: string; role: UserRole };
 
 export type RunSnapshot = RunRecord & {
   startedBy: RunStartedBy | null;

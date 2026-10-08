@@ -56,7 +56,7 @@ function snapshot(
   return makeSocialSnapshot({
     status: 'completed',
     startedByUserId: ACTOR.id,
-    startedBy: { id: ACTOR.id, email: ACTOR.email },
+    startedBy: { id: ACTOR.id, email: ACTOR.email, role: ACTOR.role },
     pipelineFinishedAt: ANCHOR_OPEN,
     ...overrides,
   });

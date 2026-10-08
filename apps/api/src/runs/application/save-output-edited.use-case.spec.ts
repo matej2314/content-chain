@@ -118,7 +118,7 @@ function snapshot(
     status: 'completed',
     startedByUserId: ACTOR.id,
     taskType: 'post_content',
-    startedBy: { id: ACTOR.id, email: ACTOR.email },
+    startedBy: { id: ACTOR.id, email: ACTOR.email, role: ACTOR.role },
     pipelineFinishedAt: ANCHOR_OPEN,
     ...overrides,
   });

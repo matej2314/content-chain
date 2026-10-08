@@ -21,7 +21,11 @@ export class CancelRunUseCase {
     if (!snapshot) {
       throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
     }
-    if (snapshot.startedBy?.id !== actor.id) {
+    const startedBy = snapshot.startedBy;
+    const isOwner = startedBy?.id === actor.id;
+    const isAdminCancellingGuest =
+      actor.role === 'admin' && startedBy?.role === 'guest';
+    if (!isOwner && !isAdminCancellingGuest) {
       throw new DomainException('FORBIDDEN', 'Access denied', 403);
     }
     if (snapshot.status === 'cancelled') {
@@ -55,7 +59,9 @@ export class CancelRunUseCase {
       runId,
       conversationId: snapshot.conversationId,
       level: 'info',
-      message: 'Run cancelled by user',
+      message: isAdminCancellingGuest
+        ? 'Run cancelled by admin'
+        : 'Run cancelled by user',
       step: 'CancelRunUseCase',
     });
     this.lifecycle.publishCancelled(runId);

@@ -77,10 +77,14 @@ function makeService(args: {
     [UserId, number, Date?]
   >(async () => ({ kind: 'ok' }));
   const runs = { countByUserAndType } as unknown as RunRepository;
+  const deleteDailyRatings = jest.fn<Promise<boolean>, [UserId]>(
+    async () => true,
+  );
   const quota: GuestQuotaPort = {
     tryAdmitDailyRun,
     releaseDailyRun,
     tryAdmitDailyRating,
+    deleteDailyRatings,
   };
   return {
     service: new GuestRunPolicyService(args.env, runs, quota),

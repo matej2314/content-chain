@@ -75,7 +75,7 @@ export class PrismaRunAdapter implements RunRepository {
   async getById(id: RunId): Promise<RunSnapshot | null> {
     const row = await this.prisma.run.findUnique({
       where: { id },
-      include: { startedBy: { select: { id: true, email: true } } },
+      include: { startedBy: { select: { id: true, email: true, role: true } } },
     });
     return row ? this.toSnapshot(row) : null;
   }
@@ -183,7 +183,9 @@ export class PrismaRunAdapter implements RunRepository {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
-        include: { startedBy: { select: { id: true, email: true } } },
+        include: {
+          startedBy: { select: { id: true, email: true, role: true } },
+        },
       }),
     ]);
     return {

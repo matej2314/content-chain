@@ -24,7 +24,7 @@ export type RunRow = {
   reviewFinalizedAt: Date | null;
   pipelineFinishedAt: Date | null;
   createdAt: Date;
-  startedBy: { id: string; email: string } | null;
+  startedBy: { id: string; email: string; role: string } | null;
 };
 
 export type RunLogRow = {

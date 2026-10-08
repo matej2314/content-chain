@@ -6,6 +6,7 @@ import {
   isRunStatus,
   isContentLanguage,
   isRunTaskType,
+  isUserRole,
 } from '@content-chain/shared';
 import { toSelectedIdeaIds } from './to-selected-idea-ids';
 import { toPipelinePhase } from './to-pipeline-phase';
@@ -56,6 +57,20 @@ export const toRunSnapshotBase = (row: RunRow): RunSnapshotBase => {
     reviewFinalizedAt: row.reviewFinalizedAt,
     pipelineFinishedAt: row.pipelineFinishedAt,
     createdAt: row.createdAt,
-    startedBy: row.startedBy,
+    startedBy:
+      row.startedBy === null
+        ? null
+        : {
+            id: row.startedBy.id,
+            email: row.startedBy.email,
+            role: (() => {
+              if (!isUserRole(row.startedBy.role)) {
+                throw new Error(
+                  `Run.startedBy.role is not a UserRole: ${row.startedBy.role}`,
+                );
+              }
+              return row.startedBy.role;
+            })(),
+          },
   };
 };

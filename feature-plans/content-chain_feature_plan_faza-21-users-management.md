@@ -422,7 +422,7 @@ Odpowiada major HOW pkt 5–6.
 
 ### KROK 1 — `RunStartedBy.role` na getById / detail
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Snapshot detail niesie `role`; lista archiwum **bez** wymogu `role` (może zostać `undefined` / bez pola przy `startedBy: null` z claim — przy list z joinem wolno dodać `role` addytywnie, ale DoD = **GET /runs/:id**). `SPEC-KOMUNIKACJA.md` K-2c, D-71.
 
@@ -496,7 +496,7 @@ Zaktualizuj `RunRow.startedBy` na `{ id: string; email: string; role: string } |
 
 ### KROK 2 — `CancelRunUseCase` authz admin→guest
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Owner **lub** (`actor.role === 'admin'` && `startedBy.role === 'guest'`); cudzy `user` → 403; log rozróżnia aktora. R-11, D-69 / D-70.
 

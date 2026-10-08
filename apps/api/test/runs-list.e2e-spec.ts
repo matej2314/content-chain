@@ -4,6 +4,7 @@ import { join } from 'path';
 import { type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { isUserRole, type UserRole } from '@content-chain/shared';
 import { AppModule } from '../src/app.module';
 import { RUN_EXECUTOR } from '../src/runs/domain/run-executor.port';
 import { StubRunExecutor } from '../src/runs/infrastructure/dispatch/stub-run.executor';
@@ -47,6 +48,10 @@ type SessionIdentity = {
   email: string;
 };
 
+type StartedByIdentity = SessionIdentity & {
+  role: UserRole;
+};
+
 type ListRunItem = {
   runId: string;
   taskType: string;
@@ -55,7 +60,7 @@ type ListRunItem = {
   language: string;
   status: string;
   createdAt: string;
-  startedBy: SessionIdentity | null;
+  startedBy: StartedByIdentity | null;
 };
 
 type ListRunsBody = {
@@ -131,11 +136,20 @@ function readSessionIdentity(value: unknown, label: string): SessionIdentity {
   return { id: value.id, email: value.email };
 }
 
-function readStartedBy(value: unknown): SessionIdentity | null {
+function readStartedBy(value: unknown): StartedByIdentity | null {
   if (value === null) {
     return null;
   }
-  return readSessionIdentity(value, 'startedBy');
+  if (!isRecord(value)) {
+    throw new Error('startedBy is not an object');
+  }
+  if (typeof value.id !== 'string' || typeof value.email !== 'string') {
+    throw new Error('startedBy is missing id/email');
+  }
+  if (typeof value.role !== 'string' || !isUserRole(value.role)) {
+    throw new Error('startedBy is missing a valid role');
+  }
+  return { id: value.id, email: value.email, role: value.role };
 }
 
 function readListItem(value: unknown): ListRunItem {
@@ -468,7 +482,11 @@ describe('Runs list (e2e)', () => {
       expect.objectContaining({
         runId: otherUserRunId,
         platform: 'instagram',
-        startedBy: { id: otherUserId, email: OTHER_USER_EMAIL },
+        startedBy: expect.objectContaining({
+          id: otherUserId,
+          email: OTHER_USER_EMAIL,
+          role: expect.stringMatching(/^(admin|user|guest)$/),
+        }),
       }),
     );
 
@@ -522,7 +540,11 @@ describe('Runs list (e2e)', () => {
         taskType: 'page_copy',
         platform: 'web',
         contentKind: 'landing',
-        startedBy: sessionUser,
+        startedBy: expect.objectContaining({
+          id: sessionUser.id,
+          email: sessionUser.email,
+          role: expect.stringMatching(/^(admin|user|guest)$/),
+        }),
       }),
     );
   });
