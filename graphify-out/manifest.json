@@ -3414,9 +3414,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/api/runs.types.ts": {
-    "mtime": 1791367829.3932495,
-    "seen": 1791372753.0101986,
-    "ast_hash": "089948af94ef8b0b996d50d304b39e22",
+    "mtime": 1791461344.0868812,
+    "seen": 1791462158.2534156,
+    "ast_hash": "a3fcbe351837e5f1344dfd6f1c4ad6d6",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/own-runs-provider.tsx": {
@@ -3456,9 +3456,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/run-details-view.tsx": {
-    "mtime": 1791367876.3764482,
-    "seen": 1791372753.01021,
-    "ast_hash": "f9ee84b6a8c7b9989d362b303f88c418",
+    "mtime": 1791463209.1462483,
+    "seen": 1791463238.8103201,
+    "ast_hash": "0afe1c1cf72f9e57320d265c5d32ba8d",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/company-context/components/gate-completeness-dot.tsx": {
@@ -3648,9 +3648,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/users/api/users.api.ts": {
-    "mtime": 1791367829.3952606,
-    "seen": 1791372753.0102458,
-    "ast_hash": "af6c214b60ef7c64af4fdf968b10adc0",
+    "mtime": 1791462697.4070601,
+    "seen": 1791463238.8103485,
+    "ast_hash": "760ffeaf02229cb4a6cfa3441733ee67",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/users/api/users.types.ts": {
@@ -3660,9 +3660,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/users/components/users-view.tsx": {
-    "mtime": 1791367829.3952606,
-    "seen": 1791372753.0102484,
-    "ast_hash": "a62e2dea93e6e6d1ad59aec68991dbd5",
+    "mtime": 1791462148.5777688,
+    "seen": 1791462158.2534525,
+    "ast_hash": "b7eebb2b2e21f424f82ebefe2e7baa4a",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/run-edit-access.ts": {
@@ -4104,9 +4104,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/infrastructure/quota/ioredis-guest-quota.adapter.ts": {
-    "mtime": 1791400552.360436,
-    "seen": 1791445099.3605216,
-    "ast_hash": "4d6d66b8eae14a0763d6da790fce0842",
+    "mtime": 1791460208.2670386,
+    "seen": 1791462158.2533107,
+    "ast_hash": "2c26919fcea66a339b138bc76911ba0b",
     "semantic_hash": ""
   },
   "apps/api/src/runs/infrastructure/quota/unavailable-guest-quota.adapter.ts": {
@@ -4155,6 +4155,18 @@
     "mtime": 1791456729.2871087,
     "seen": 1791457040.0832443,
     "ast_hash": "221428353879f43a85c6ffd2edaa732f",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/lib/can-cancel-run-snapshot.ts": {
+    "mtime": 1791461729.2258625,
+    "seen": 1791462158.2534385,
+    "ast_hash": "cd582ca72916d9132c65ac11cbb1b3d0",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/users/components/account-action-dialog.tsx": {
+    "mtime": 1791462133.1808121,
+    "seen": 1791462158.2534516,
+    "ast_hash": "b9ba48253c61d86f09d6e7cd0c29831d",
     "semantic_hash": ""
   }
 }

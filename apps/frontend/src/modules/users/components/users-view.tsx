@@ -30,6 +30,10 @@ import {
   isInvitationExpired,
   type InvitationListItem,
 } from '@/modules/users/api/invitations.types';
+import {
+  AccountActionDialog,
+  type AccountAction,
+} from '@/modules/users/components/account-action-dialog';
 import { IsoDateTime } from '@/shared/datetime/iso-date-time';
 
 const FALLBACK = { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' };
@@ -59,6 +63,7 @@ function UsersAdminView() {
   const [email, setEmail] = useState('');
   const [pending, setPending] = useState(false);
   const [revokeId, setRevokeId] = useState<InvitationId | null>(null);
+  const [accountAction, setAccountAction] = useState<AccountAction | null>(null);
 
   const reload = useCallback(async (): Promise<void> => {
     setLoadError(null);
@@ -247,7 +252,8 @@ function UsersAdminView() {
                   <th className="py-2 pr-3 font-medium">Email</th>
                   <th className="py-2 pr-3 font-medium">Rola</th>
                   <th className="py-2 pr-3 font-medium">Aktywne</th>
-                  <th className="py-2 font-medium">Utworzono</th>
+                  <th className="py-2 pr-3 font-medium">Utworzono</th>
+                  <th className="py-2 font-medium">Akcje</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -256,8 +262,36 @@ function UsersAdminView() {
                     <td className="py-2 pr-3">{item.email}</td>
                     <td className="py-2 pr-3">{USER_ROLE_LABELS[item.role]}</td>
                     <td className="py-2 pr-3">{item.isActive ? 'Tak' : 'Nie'}</td>
-                    <td className="py-2">
+                    <td className="py-2 pr-3">
                       <IsoDateTime iso={item.createdAt} className="text-xs tabular-nums" />
+                    </td>
+                    <td className="py-2">
+                      {item.role === 'admin' ? null : item.role === 'guest' ? (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() => setAccountAction({ kind: 'delete-guest', user: item })}
+                        >
+                          Usuń
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() =>
+                            setAccountAction({
+                              kind: item.isActive ? 'deactivate' : 'activate',
+                              user: item,
+                            })
+                          }
+                        >
+                          {item.isActive ? 'Dezaktywuj' : 'Aktywuj'}
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -291,6 +325,19 @@ function UsersAdminView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AccountActionDialog
+        action={accountAction}
+        onOpenChange={(open) => {
+          if (!open) setAccountAction(null);
+        }}
+        onSuccess={async () => {
+          await reload();
+        }}
+        onNeedsPurge={(user, message) => {
+          setAccountAction({ kind: 'purge-guest', user, message });
+        }}
+      />
     </div>
   );
 }

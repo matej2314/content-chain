@@ -20,6 +20,8 @@ import {
   type SocialPlatform,
   type SocialTaskType,
   type UserId,
+  type UserRole,
+  isUserRole,
 } from '@content-chain/shared';
 import { isRecord } from '@/shared/api/envelope';
 import {
@@ -81,6 +83,7 @@ export type RunBrief = SocialBrief | ContentBrief;
 export type StartedBy = {
   readonly id: UserId;
   readonly email: string;
+  readonly role?: UserRole;
 };
 
 export type UserRunItem = {
@@ -169,7 +172,14 @@ export function parseStartedBy(value: unknown): StartedBy | null {
   if (typeof value.email !== 'string' || value.email.length === 0) {
     throw new Error('Invalid startedBy.email');
   }
-  return { id: createUserId(value.id), email: value.email };
+  const base = { id: createUserId(value.id), email: value.email };
+  if (value.role === undefined) {
+    return base;
+  }
+  if (typeof value.role !== 'string' || !isUserRole(value.role)) {
+    throw new Error('Invalid startedBy.role');
+  }
+  return { ...base, role: value.role };
 }
 
 export function parseSocialBrief(value: unknown): SocialBrief {

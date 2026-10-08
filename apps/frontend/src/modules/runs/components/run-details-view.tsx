@@ -16,7 +16,6 @@ import {
   RUN_TASK_TYPE_LABELS,
 } from '@/modules/runs/api/run-labels';
 import {
-  isCancelableRunStatus,
   isLiveRunStatus,
   type RunLogItem,
   type RunSnapshot,
@@ -29,6 +28,7 @@ import { RunReviewPanel } from '@/modules/runs/components/run-review-panel';
 import { RunStatusView } from '@/modules/runs/components/run-status';
 import { useRunEventSource } from '@/modules/runs/components/use-run-event-source';
 import { useOwnRuns } from '@/modules/runs/components/own-runs-provider';
+import { canCancelRunSnapshot } from '@/modules/runs/lib/can-cancel-run-snapshot';
 import { IsoDateTime } from '@/shared/datetime/iso-date-time';
 
 type DetailsState =
@@ -175,7 +175,13 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
   }
 
   const { snapshot, logs } = view;
-  const canCancel = own && isCancelableRunStatus(snapshot.status);
+  const canCancel =
+    session.status === 'authenticated' &&
+    canCancelRunSnapshot({
+      snapshot,
+      sessionUserId: session.user.id,
+      sessionRole: session.user.role,
+    });
 
   return (
     <article className="flex max-w-3xl flex-col gap-6">

@@ -65,7 +65,7 @@ Odpowiada major **Faza 16**.
 
 ### KROK 1 — Klienci API: `deleteUser` / `reactivateUser`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Cienki klient BFF pod A-10 / A-10a istnieje **zanim** UI wywoła mutacje. Major Faza 16 HOW #1–2; `SPEC-FRONTEND.md` F-8; `docs/dokumentacja_komunikacji.md`.
 
@@ -147,7 +147,7 @@ export async function reactivateUser(id: UserId): Promise<void> {
 
 ### KROK 2 — `StartedBy.role` + `canCancelRunSnapshot`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Parser detail akceptuje `startedBy.role`; helper cancel egzekwuje F-5b **zanim** UI detail go użyje. Lista archiwum **bez** wymogu `role` (pole opcjonalne). Major HOW #5; `SPEC-FRONTEND.md` F-5b / F-8; `SPEC-RUNY.md` R-11.
 
@@ -263,7 +263,7 @@ export function canCancelRunSnapshot(args: {
 
 ### KROK 3 — `UsersView`: kolumna Akcje + dialogi (toggle / Usuń / purge)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Na liście **Konta** jeden slot Akcje / wiersz wg F-8; flow 409→purge; envelope w dialogu; reload po sukcesie. Major HOW #3–4 / #6; `docs/ux_dashboard.md` „Widok: Użytkownicy”; skill product-ui (dziedziczenie).
 
@@ -593,7 +593,7 @@ const [accountAction, setAccountAction] = useState<AccountAction | null>(null);
 
 ### KROK 4 — `run-details-view`: Stop owner **lub** admin→guest
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Przycisk Stop na szczegółach zgodny z F-5b po api z `startedBy.role`. **Bez** zmian archiwum i **bez** Stop admina na Moich runach cudzych (Moje runy = tylko własne). Major HOW #5–6.
 

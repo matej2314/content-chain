@@ -26,8 +26,9 @@ export function GuestLimitModal({ open, onOpenChange, code, message }: GuestLimi
       <DialogContent className="z-(--z-modal) sm:max-w-md" data-slot="guest-limit-modal">
         <DialogHeader>
           <DialogTitle>Limit konta demonstracyjnego</DialogTitle>
-          <DialogDescription>
-            Ten start nie przeszedł limitu instancji. Skontaktuj się, jeśli chcesz pełny dostęp.
+          <DialogDescription className="flex flex-col gap-1">
+            <span>Osiągnąłeś limit startów demonstracyjnych.</span>
+            <span>Skontaktuj się z administratorem, jeśli chcesz rozszerzyć dostęp.</span>
           </DialogDescription>
         </DialogHeader>
         {code !== null && message !== null ? <EnvelopeError code={code} message={message} /> : null}
