@@ -5,6 +5,10 @@ import { createUserId, isUserId, isUserRole } from '@content-chain/shared';
 import { ENV, type Env } from '../../../shared/config/env';
 import { DomainException } from '../../../shared/exceptions/domain.exception';
 import { readCookie } from './cookie.helper';
+import {
+  USER_REPOSITORY,
+  type UserRepository,
+} from '../../domain/user-repository.port';
 import type { Request } from 'express';
 import type { AuthUserContext } from '../../domain/auth-user.types';
 
@@ -21,7 +25,10 @@ export class JwtCookieStrategy extends PassportStrategy(
   Strategy,
   'jwt-cookie',
 ) {
-  constructor(@Inject(ENV) private readonly env: Env) {
+  constructor(
+    @Inject(ENV) private readonly env: Env,
+    @Inject(USER_REPOSITORY) private readonly users: UserRepository,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         (req: Request | undefined) => {
@@ -35,7 +42,7 @@ export class JwtCookieStrategy extends PassportStrategy(
     });
   }
 
-  validate(payload: unknown): AuthUserContext {
+  async validate(payload: unknown): Promise<AuthUserContext> {
     if (
       !isRecord(payload) ||
       typeof payload.sub !== 'string' ||
@@ -47,10 +54,20 @@ export class JwtCookieStrategy extends PassportStrategy(
     ) {
       throw new DomainException('UNAUTHORIZED', 'Invalid token subject', 401);
     }
+
+    const userId = createUserId(payload.sub);
+    const user = await this.users.findById(userId);
+    if (!user || !user.isActive) {
+      throw new DomainException(
+        'UNAUTHORIZED',
+        'User not found or inactive',
+        401,
+      );
+    }
     return {
-      id: createUserId(payload.sub),
-      email: payload.email,
-      role: payload.role,
+      id: user.id,
+      email: user.email,
+      role: user.role,
     };
   }
 }

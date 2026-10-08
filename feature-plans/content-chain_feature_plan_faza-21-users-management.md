@@ -569,7 +569,7 @@ Odpowiada major HOW pkt 7; A-3c.
 
 ### KROK 1 — `JwtCookieStrategy.validate` async + DB
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Brak wiersza **lub** `isActive !== true` → 401 (ten sam sens co refresh). Bez blacklisty. D-25 / D-68.
 
