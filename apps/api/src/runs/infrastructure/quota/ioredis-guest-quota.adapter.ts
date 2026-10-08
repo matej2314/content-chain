@@ -89,14 +89,14 @@ export class IoredisGuestQuotaAdapter
     try {
       let cursor = '0';
       do {
-        const [nexCursor, keys] = await this.redis.scan(
+        const [nextCursor, keys] = await this.redis.scan(
           cursor,
           'MATCH',
           pattern,
           'COUNT',
           100,
         );
-        cursor = nexCursor;
+        cursor = nextCursor;
         if (keys.length > 0) {
           await this.redis.del(...keys);
         }

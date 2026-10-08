@@ -40,7 +40,7 @@ PUT/PATCH `/company-context` i start runów wymagają sesji **admina** (`cc_acce
    - Content: foldery w kolejności **Setup → A → B**.
    - Review: foldery w kolejności **Setup → Fixtures → Cancel → Review → Feedback → Lista autora → Authz druga sesja → Dokończ HITL**.
    - Zaproszenia: najpierw **Setup → A. Create**, potem wklej `inviteToken` z maila, potem **B. Accept** (nie jeden ciągły run).
-   - DEMO guest: **Config → Register guest → Invite guest → Allow → Deny → Admin przy demo**. Po create invite wklej `inviteGuestToken` z logu api (pauza jak w zaproszeniach). Collection Runner **nie** jest T-5 CI (Jest pokrywa D-50…D-62). `guestEmail` / `guestPassword` — prerequest nadpisuje email; nie commituj prawdziwego adresu. Przed Allow / smoke Invite kontekst firmy musi być kompletny (np. Setup Social jako admin).
+   - DEMO guest: **Config → Register guest → Invite guest → Guest delete / purge → Admin cancel guest → Allow → Deny → Admin przy demo**. Po create invite wklej `inviteGuestToken` z logu api (pauza jak w zaproszeniach). Collection Runner **nie** jest T-5 CI (Jest: D-50…D-62 + `users-management.e2e-spec.ts` D-25/26/63–72). `guestEmail` / `guestPassword` — prerequest nadpisuje email; nie commituj prawdziwego adresu. Przed Allow / smoke Invite kontekst firmy musi być kompletny (np. Setup Social jako admin).
 3. Zmienna `baseUrl` (domyślnie `http://localhost:3001/api/v1`) — zmień tylko gdy api nie stoi na 3001. `adminEmail` / `adminPassword` zmieniaj tylko gdy lokalny admin ma inne dane niż w kolekcji auth. Folder **Authz druga sesja** w Review wymaga `userEmail` / `userPassword` istniejącego konta `user` (to z pipeline zaproszeń). Nie commituj prawdziwego adresu.
 
 Pętla `GET /runs/:runId` jest w skryptach testów (do ~6 min na poll). SSE nie jest częścią DoD Milestone 4 / 4.2.
@@ -88,7 +88,9 @@ Cel: żywy HTTP Fazy 18–19 — `DEMO_MODE`, rola `guest` (register **oraz** in
 3. Collection Runner w kolejności folderów z opisu importu.
 4. Config asercja `demoMode === true`. Register → `role === guest` + login.
 5. **Invite guest** (D-23 / D-46 przy demo on): login admina → `POST /invitations` (unikalny `inviteGuestEmail`) → wklej raw token z logu api do `inviteGuestToken` → clear jar → `POST /auth/accept-invite` → **201** `role === guest` (bez Set-Cookie) → login zaproszonym → smoke `POST /runs` `post_ideas`: **202** albo **403** `GUEST_TYPE_QUOTA_EXCEEDED` → login `guestEmail` przywraca sesję pod Allow. Zalecany osobny runner tylko **Config + Invite guest** (bez Register), gdy chcesz pewny pierwszy slot → asercja 202.
-6. Allow: GET context 200, pierwszy `post_ideas` 202, drugi 403 `GUEST_TYPE_QUOTA_EXCEEDED`, `post_content` 403 `GUEST_TYPE_NOT_ALLOWED`. Deny: PATCH email / GET users / PUT context / output-edited → 403. Admin przy demo: login admin 200 (D-59); **brak** endpointu promocji roli.
+6. **Guest delete / purge** (przed Allow): D-26 PATCH guest 403; świeży guest + live → D-64/D-65/D-68; hard bez live + email wolny (D-63); DELETE admin → 403 (D-66). Nie kasuje konta Register guest.
+7. **Admin cancel guest**: świeży guest → `startedBy.role` (D-71) → admin cancel 200 + log (D-69); D-70 opcjonalnie przez `userCancelRunId` (pełne = Jest e2e).
+8. Allow: GET context 200, pierwszy `post_ideas` 202, drugi 403 `GUEST_TYPE_QUOTA_EXCEEDED`, `post_content` 403 `GUEST_TYPE_NOT_ALLOWED`. Deny: PATCH email / GET users / PUT context / output-edited → 403. Admin przy demo: login admin 200 (D-59); **brak** endpointu promocji roli.
 
 Auth / invitations-pipeline zakładają `DEMO_MODE=false` — asercje `role=user` na accept tam zostają; ścieżka invite→guest jest wyłącznie tu.
 
@@ -172,7 +174,8 @@ Skalar `result.content` / `result.reelScript` na dwuetapowych (`post_ideas_then_
 - `post_content` solo
 - `reel_script` solo (Jest e2e, nie Postman)
 - SSE (`GET .../events`)
-- Pełna suite auth (bootstrap, refresh, logout, invite+accept, soft-delete/reaktywacja D-26, własny email D-27, register/activate/resend D-41…D-46) — `auth.postman-collection.json`
+- Pełna suite auth (bootstrap, refresh, logout, invite+accept, soft-delete + D-25 access 401 / reaktywacja D-26, własny email D-27, register/activate/resend D-41…D-46) — `auth.postman-collection.json`
+- Users delete/purge / cancel admin→guest (D-63…D-72, D-26 guest PATCH) — foldery **Guest delete / purge** + **Admin cancel guest** w `demo-guest.postman-collection.json`; CI = Jest `users-management.e2e-spec.ts`
 - Resend / revoke zaproszenia (osobne foldery, nie v1 tego pipeline)
 - Suite CI PR
 - Pełny happy path **2 id → 2 hopów LLM** na żywym gateway (Jest + fake LLM)

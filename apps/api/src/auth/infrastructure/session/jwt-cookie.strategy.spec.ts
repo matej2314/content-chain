@@ -73,7 +73,7 @@ describe('JwtCookieStrategy', () => {
     });
   });
 
-  it('rejects a missing user with UNAUTHORIZED', async () => {
+  it('D-68: rejects a missing user with UNAUTHORIZED', async () => {
     const strategy = makeStrategy(
       unusedUsers({
         findById: async () => null,
@@ -88,7 +88,7 @@ describe('JwtCookieStrategy', () => {
     });
   });
 
-  it('rejects an inactive user with the same UNAUTHORIZED as a missing user', async () => {
+  it('D-25: rejects an inactive user with the same UNAUTHORIZED as a missing user', async () => {
     const strategy = makeStrategy(
       unusedUsers({
         findById: async () => makeUser({ isActive: false }),

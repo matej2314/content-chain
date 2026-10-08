@@ -73,6 +73,10 @@
     {
       "key": "registeredUserId",
       "value": ""
+    },
+    {
+      "key": "invitedAccessToken",
+      "value": ""
     }
   ],
   "item": [
@@ -1468,7 +1472,7 @@
     },
     {
       "name": "Accept-invite",
-      "description": "Start bez sesji admina: pierwsze requesty (accept-invite) czyszczą cookie jar originu api. Wymaga `inviteToken` wklejonego z logu **po resend**. Najpierw słabe hasło (400, pending bez zmian), potem happy path 201 bez Set-Cookie, login nowego usera, 403 na invitations/users (w tym PATCH), soft-delete adminem, login zdezaktywowanego → 401, D-26: PATCH `{ isActive: true }` (sesja admina) → 200, login tym kontem → 200. `isActive: false` → 400.",
+      "description": "Start bez sesji admina: pierwsze requesty (accept-invite) czyszczą cookie jar originu api. Wymaga `inviteToken` wklejonego z logu **po resend**. Najpierw słabe hasło (400, pending bez zmian), potem happy path 201 bez Set-Cookie, login nowego usera, 403 na invitations/users (w tym PATCH), soft-delete adminem, login zdezaktywowanego → 401, D-26: PATCH `{ isActive: true }` (sesja admina) → 200, login tym kontem → 200. `isActive: false` → 400. Po soft-delete: GET /auth/me ze starym `cc_access` → **401** (D-25). PATCH guest → osobno w demo-guest.",
       "item": [
         {
           "name": "POST accept-invite weak password (400)",
@@ -1666,7 +1670,17 @@
                   "    .join('\\n');",
                   "  pm.expect(cookies).to.include('cc_access=');",
                   "  pm.expect(cookies).to.include('cc_refresh=');",
-                  "});"
+                  "});",
+                  "// D-25: zachowaj cc_access przed nadpisaniem sesji adminem",
+                  "const setCookies = pm.response.headers.all()",
+                  "  .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "  .map(function (h) { return h.value; });",
+                  "const accessLine = setCookies.find(function (c) { return c.indexOf('cc_access=') === 0 || c.indexOf('cc_access=') > -1; });",
+                  "if (accessLine) {",
+                  "  const part = accessLine.split(';')[0];",
+                  "  const idx = part.indexOf('cc_access=');",
+                  "  pm.collectionVariables.set('invitedAccessToken', part.slice(idx + 'cc_access='.length));",
+                  "}"
                 ]
               }
             }
@@ -1884,6 +1898,82 @@
             "header": [],
             "url": "{{baseUrl}}/users/{{invitedUserId}}",
             "description": "Soft-delete. 200 `{ ok: true }`. Konto zostaje; login zablokowany."
+          }
+        },
+        {
+          "name": "GET me with stale access after soft-delete (401) — D-25",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const origin = pm.collectionVariables.get('originUrl') || 'http://localhost:3001';",
+                  "try { pm.cookies.jar().clear(origin, function () {}); } catch (e) { console.warn(e); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401 (D-25 access after soft)', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('UNAUTHORIZED envelope', function () {",
+                  "  pm.expect(body.code).to.eql('UNAUTHORIZED');",
+                  "});",
+                  "pm.test('invitedAccessToken was captured', function () {",
+                  "  pm.expect(pm.collectionVariables.get('invitedAccessToken')).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "cc_access={{invitedAccessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "D-25: ten sam cc_access po soft-delete user → 401 (A-3c isActive), bez nowego loginu."
+          }
+        },
+        {
+          "name": "POST login as admin after D-25 access check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Przywraca sesję admina po clear jar w D-25 (kolejne kroki reaktywacji).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{adminEmail}}\", \"password\": \"{{adminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         },
         {

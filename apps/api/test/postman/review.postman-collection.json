@@ -97,6 +97,26 @@
     {
       "key": "pollCountCancel",
       "value": "0"
+    },
+    {
+      "key": "guestCancelEmail",
+      "value": ""
+    },
+    {
+      "key": "guestCancelPassword",
+      "value": ""
+    },
+    {
+      "key": "guestCancelUserId",
+      "value": ""
+    },
+    {
+      "key": "guestCancelRunId",
+      "value": ""
+    },
+    {
+      "key": "pollCountGuestCancel",
+      "value": "0"
     }
   ],
   "item": [
@@ -937,6 +957,28 @@
               "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}\n"
             },
             "description": "Przywróć sesję admina przed Review / HITL."
+          }
+        },
+        {
+          "name": "G0. Info — D-69/D-70 w demo-guest / Jest e2e",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('D-69/D-70 covered outside this DEMO_MODE=false review suite', function () {",
+                  "  pm.expect(true).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/config",
+            "description": "D-69 (admin cancel guest) i D-70 (admin cancel cudzego user → 403) są w `demo-guest.postman-collection.json` (folder Admin cancel guest) oraz `apps/api/test/users-management.e2e-spec.ts`. Ten folder Cancel zostaje owner-path D-30…D-32."
           }
         }
       ]

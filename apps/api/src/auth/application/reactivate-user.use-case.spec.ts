@@ -152,7 +152,7 @@ describe('ReactivateUserUseCase', () => {
     expect(setActive).not.toHaveBeenCalled();
   });
 
-  it('rejects a guest target with FORBIDDEN and skips setActive', async () => {
+  it('D-26: rejects a guest target with FORBIDDEN and skips setActive', async () => {
     const guest = makeUser({
       id: GUEST_ID,
       email: 'guest@example.com',

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a7c4e19b-2d58-4f01-9b6e-8c0f3d5a1e44",
     "name": "Content Chain — DEMO guest",
-    "description": "Żywy HTTP DEMO MODE + rola guest (`SPEC-TESTY.md` D-50…D-62). **Nie** zastępuje Jest.\n\nWymaga `DEMO_MODE=true` oraz Redis (`REDIS_HOST`+`REDIS_PORT`, opcjonalnie `REDIS_PASSWORD`) w `apps/api/.env` — walidacja env fail-fast przy starcie. Collection Runner **nie** jest T-5 CI.\n\nKolejność folderów: **Config → Register guest → Invite guest → Allow → Deny → Admin przy demo**.\n\n`POST /runs` w Allow wymaga **kompletnego** company-context w DB (np. Setup z `social-pipeline.postman-collection.json` jako admin, zanim odpalisz tę kolekcję). Gateway jest potrzebny tylko przy starcie runu (jak inne pipeline’y).\n\nCookie jar włączony. Register **nie** stawia cookies — login guest w folderze Register. Zmienne `guestEmail` / `guestPassword`: prerequest nadpisuje email unikalnym znacznikiem czasu, żeby nie łapać 409.\n\nGdy `GET /config` wróci `demoMode: false`, reszta runnera nie ma sensu — patrz README.\n\nFolder **Invite guest**: po `POST /invitations` wklej raw token z logu api do `inviteGuestToken` (jak invite w auth). Accept przy DEMO_MODE=true → `role=guest` (D-23 / D-46). Smoke `POST /runs` asercja 202 albo 403 `GUEST_TYPE_QUOTA_EXCEEDED`. Osobny runner **Config + Invite guest** (bez Register) daje wolny pierwszy slot → zwykle 202.",
+    "description": "Żywy HTTP DEMO MODE + rola guest (`SPEC-TESTY.md` D-50…D-62). **Nie** zastępuje Jest.\n\nWymaga `DEMO_MODE=true` oraz Redis (`REDIS_HOST`+`REDIS_PORT`, opcjonalnie `REDIS_PASSWORD`) w `apps/api/.env` — walidacja env fail-fast przy starcie. Collection Runner **nie** jest T-5 CI.\n\nKolejność folderów: **Config → Register guest → Invite guest → Allow → Deny → Admin przy demo**.\n\n`POST /runs` w Allow wymaga **kompletnego** company-context w DB (np. Setup z `social-pipeline.postman-collection.json` jako admin, zanim odpalisz tę kolekcję). Gateway jest potrzebny tylko przy starcie runu (jak inne pipeline’y).\n\nCookie jar włączony. Register **nie** stawia cookies — login guest w folderze Register. Zmienne `guestEmail` / `guestPassword`: prerequest nadpisuje email unikalnym znacznikiem czasu, żeby nie łapać 409.\n\nGdy `GET /config` wróci `demoMode: false`, reszta runnera nie ma sensu — patrz README.\n\nFolder **Invite guest**: po `POST /invitations` wklej raw token z logu api do `inviteGuestToken` (jak invite w auth). Accept przy DEMO_MODE=true → `role=guest` (D-23 / D-46). Smoke `POST /runs` asercja 202 albo 403 `GUEST_TYPE_QUOTA_EXCEEDED`. Osobny runner **Config + Invite guest** (bez Register) daje wolny pierwszy slot → zwykle 202.\n\nFolder **Guest delete / purge**: D-63…D-68 / D-26 guest PATCH / D-66 admin target. D-64/D-65 wymagają wolnego slotu `post_ideas` dla gościa (albo świeżego konta).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -48,6 +48,114 @@
     },
     {
       "key": "invitedGuestUserId",
+      "value": ""
+    },
+    {
+      "key": "guestUserId",
+      "value": ""
+    },
+    {
+      "key": "guestHardRunId",
+      "value": ""
+    },
+    {
+      "key": "guestLiveRunId",
+      "value": ""
+    },
+    {
+      "key": "guestFeedbackId",
+      "value": ""
+    },
+    {
+      "key": "purgeGuestEmail",
+      "value": ""
+    },
+    {
+      "key": "purgeGuestPassword",
+      "value": ""
+    },
+    {
+      "key": "purgeGuestUserId",
+      "value": ""
+    },
+    {
+      "key": "purgeGuestAccessToken",
+      "value": ""
+    },
+    {
+      "key": "legacyGuestUserId",
+      "value": ""
+    },
+    {
+      "key": "adminUserId",
+      "value": ""
+    },
+    {
+      "key": "guestCancelRunId",
+      "value": ""
+    },
+    {
+      "key": "userCancelRunId",
+      "value": ""
+    },
+    {
+      "key": "otherUserEmail",
+      "value": ""
+    },
+    {
+      "key": "otherUserPassword",
+      "value": ""
+    },
+    {
+      "key": "otherUserId",
+      "value": ""
+    },
+    {
+      "key": "pollGuestCancel",
+      "value": ""
+    },
+    {
+      "key": "liveGuestEmail",
+      "value": ""
+    },
+    {
+      "key": "liveGuestPassword",
+      "value": ""
+    },
+    {
+      "key": "liveGuestUserId",
+      "value": ""
+    },
+    {
+      "key": "liveGuestAccessToken",
+      "value": ""
+    },
+    {
+      "key": "liveGuestRunId",
+      "value": ""
+    },
+    {
+      "key": "hardGuestEmail",
+      "value": ""
+    },
+    {
+      "key": "hardGuestPassword",
+      "value": ""
+    },
+    {
+      "key": "hardGuestUserId",
+      "value": ""
+    },
+    {
+      "key": "cancelGuestEmail",
+      "value": ""
+    },
+    {
+      "key": "cancelGuestPassword",
+      "value": ""
+    },
+    {
+      "key": "cancelGuestUserId",
       "value": ""
     }
   ],
@@ -163,7 +271,13 @@
                   "    .join('\\n');",
                   "  pm.expect(cookies).to.include('cc_access=');",
                   "  pm.expect(cookies).to.include('cc_refresh=');",
-                  "});"
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.user && body.user.id) {",
+                  "    pm.collectionVariables.set('guestUserId', body.user.id);",
+                  "  }",
+                  "}"
                 ]
               }
             }
@@ -486,6 +600,837 @@
             },
             "url": "{{baseUrl}}/auth/login",
             "description": "Przywróć sesję z folderu Register guest, żeby Allow/Deny działały na tym samym gościu (Invite guest nadpisuje cookie jar)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Guest delete / purge",
+      "description": "D-26 guest PATCH, D-63 hard+email free, D-64 409, D-65 purge, D-68 access 401, D-66 admin. Nie kasuje konta z Register guest (zostaje pod Allow / Admin cancel). Ścieżki live/hard używają świeżych emaili.",
+      "item": [
+        {
+          "name": "POST login admin (for delete)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{adminEmail}}\", \"password\": \"{{adminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Assert guestUserId from Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('guestUserId from Register guest', function () {",
+                  "  pm.expect(pm.collectionVariables.get('guestUserId')).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/config"
+          }
+        },
+        {
+          "name": "PATCH guest isActive true (403) — D-26",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403 (D-26)', function () { pm.response.to.have.status(403); });",
+                  "pm.test('FORBIDDEN guest', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.code).to.eql('FORBIDDEN');",
+                  "  pm.expect(body.message).to.eql('Cannot reactivate a guest account');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{guestUserId}}",
+            "description": "D-26: target guest → 403. Konto Register guest zostaje.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"isActive\": true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST register live guest (D-64/65)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('liveGuestEmail', 'live-guest-' + Date.now() + '@content-chain.test');",
+                  "pm.collectionVariables.set('liveGuestPassword', 'LiveGuestPass12!');",
+                  "const origin = pm.collectionVariables.get('originUrl') || 'http://localhost:3001';",
+                  "try { pm.cookies.jar().clear(origin, function () {}); } catch (e) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('liveGuestUserId', pm.response.json().user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{liveGuestEmail}}\", \"password\": \"{{liveGuestPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST login live guest",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  const setCookies = pm.response.headers.all()",
+                  "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; });",
+                  "  const accessLine = setCookies.find(function (c) { return c.indexOf('cc_access=') >= 0; });",
+                  "  if (accessLine) {",
+                  "    const part = accessLine.split(';')[0];",
+                  "    const idx = part.indexOf('cc_access=');",
+                  "    pm.collectionVariables.set('liveGuestAccessToken', part.slice(idx + 'cc_access='.length));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{liveGuestEmail}}\", \"password\": \"{{liveGuestPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST runs post_ideas live guest",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 202', function () { pm.response.to.have.status(202); });",
+                  "if (pm.response.code === 202) {",
+                  "  pm.collectionVariables.set('liveGuestRunId', pm.response.json().runId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs",
+            "description": "Świeży guest → zwykle 202 (global cap Redis może dać 403 GUEST_GLOBAL_QUOTA — wtedy D-64/65 skip).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"taskType\": \"post_ideas\", \"platform\": \"linkedin\", \"language\": \"pl\", \"brief\": {\"topic\": \"live-guest-purge\"}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST login admin (before 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{adminEmail}}\", \"password\": \"{{adminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE live guest without purge (409) — D-64",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = pm.collectionVariables.get('liveGuestRunId');",
+                  "if (!runId) { console.warn('SKIP D-64: no live run'); return; }",
+                  "pm.test('status 409 (D-64)', function () { pm.response.to.have.status(409); });",
+                  "pm.test('GUEST_HAS_ACTIVE_RUN', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.code).to.eql('GUEST_HAS_ACTIVE_RUN');",
+                  "  pm.expect(body.message).to.eql('Guest has an active run');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{liveGuestUserId}}"
+          }
+        },
+        {
+          "name": "DELETE live guest purge=true (200) — D-65",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = pm.collectionVariables.get('liveGuestRunId');",
+                  "if (!runId) { console.warn('SKIP D-65: no live run'); return; }",
+                  "pm.test('status 200 (D-65)', function () { pm.response.to.have.status(200); });",
+                  "pm.test('ok true', function () { pm.expect(pm.response.json()).to.eql({ ok: true }); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{liveGuestUserId}}?purge=true"
+          }
+        },
+        {
+          "name": "GET me stale live-guest access (401) — D-68",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const origin = pm.collectionVariables.get('originUrl') || 'http://localhost:3001';",
+                  "try { pm.cookies.jar().clear(origin, function () {}); } catch (e) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = pm.collectionVariables.get('liveGuestRunId');",
+                  "const token = pm.collectionVariables.get('liveGuestAccessToken');",
+                  "if (!runId || !token) { console.warn('SKIP D-68'); return; }",
+                  "pm.test('status 401 (D-68)', function () { pm.response.to.have.status(401); });",
+                  "pm.test('UNAUTHORIZED', function () { pm.expect(pm.response.json().code).to.eql('UNAUTHORIZED'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "cc_access={{liveGuestAccessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "POST register hard guest (D-63)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('hardGuestEmail', 'hard-guest-' + Date.now() + '@content-chain.test');",
+                  "pm.collectionVariables.set('hardGuestPassword', 'HardGuestPass12!');",
+                  "const origin = pm.collectionVariables.get('originUrl') || 'http://localhost:3001';",
+                  "try { pm.cookies.jar().clear(origin, function () {}); } catch (e) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('hardGuestUserId', pm.response.json().user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{hardGuestEmail}}\", \"password\": \"{{hardGuestPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST login admin (hard delete)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{adminEmail}}\", \"password\": \"{{adminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE hard guest without live (200) — D-63",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 (D-63)', function () { pm.response.to.have.status(200); });",
+                  "pm.test('ok true', function () { pm.expect(pm.response.json()).to.eql({ ok: true }); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{hardGuestUserId}}",
+            "description": "D-63 / D-72: hard bez live."
+          }
+        },
+        {
+          "name": "POST register same email after hard (201) — D-63",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const origin = pm.collectionVariables.get('originUrl') || 'http://localhost:3001';",
+                  "try { pm.cookies.jar().clear(origin, function () {}); } catch (e) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201 email free (D-63)', function () { pm.response.to.have.status(201); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{hardGuestEmail}}\", \"password\": \"{{hardGuestPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST login admin (D-66)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{adminEmail}}\", \"password\": \"{{adminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET me adminId (D-66)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('adminUserId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "DELETE admin target (403) — D-66",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403 (D-66)', function () { pm.response.to.have.status(403); });",
+                  "pm.test('FORBIDDEN', function () { pm.expect(pm.response.json().code).to.eql('FORBIDDEN'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{adminUserId}}"
+          }
+        },
+        {
+          "name": "POST login register guest (restore after delete folder)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 Register guest still alive', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Przywraca sesję Register guest pod Admin cancel / Allow.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{guestEmail}}\", \"password\": \"{{guestPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin cancel guest",
+      "description": "D-69 / D-71 (+ opcjonalnie D-70 przez `userCancelRunId`). Własny świeży guest — nie zużywa slotu Register guest pod Allow.",
+      "item": [
+        {
+          "name": "POST register cancel guest",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('cancelGuestEmail', 'cancel-guest-' + Date.now() + '@content-chain.test');",
+                  "pm.collectionVariables.set('cancelGuestPassword', 'CancelGuestPass12!');",
+                  "const origin = pm.collectionVariables.get('originUrl') || 'http://localhost:3001';",
+                  "try { pm.cookies.jar().clear(origin, function () {}); } catch (e) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('cancelGuestUserId', pm.response.json().user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{cancelGuestEmail}}\", \"password\": \"{{cancelGuestPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST login cancel guest",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{cancelGuestEmail}}\", \"password\": \"{{cancelGuestPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST runs post_ideas (cancel guest)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 202', function () { pm.response.to.have.status(202); });",
+                  "if (pm.response.code === 202) {",
+                  "  pm.collectionVariables.set('guestCancelRunId', pm.response.json().runId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"taskType\": \"post_ideas\", \"platform\": \"linkedin\", \"language\": \"pl\", \"brief\": {\"topic\": \"admin-cancel-guest\"}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET cancel-guest run detail (D-71)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = pm.collectionVariables.get('guestCancelRunId');",
+                  "if (!runId) { console.warn('SKIP D-71'); return; }",
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { return; }",
+                  "pm.test('startedBy.role guest (D-71)', function () {",
+                  "  pm.expect(pm.response.json().startedBy.role).to.eql('guest');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{guestCancelRunId}}"
+          }
+        },
+        {
+          "name": "POST login admin (cancel guest)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{adminEmail}}\", \"password\": \"{{adminPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST cancel guest run (200) — D-69",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = pm.collectionVariables.get('guestCancelRunId');",
+                  "if (!runId) { console.warn('SKIP D-69'); return; }",
+                  "pm.test('status 200 (D-69)', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  pm.expect(pm.response.json().status).to.eql('cancelled');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{guestCancelRunId}}/cancel",
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET guest cancel logs — D-69",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = pm.collectionVariables.get('guestCancelRunId');",
+                  "if (!runId) { console.warn('SKIP D-69 logs'); return; }",
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { return; }",
+                  "const items = pm.response.json().items || [];",
+                  "pm.test('log cancelled by admin', function () {",
+                  "  pm.expect(items.some(function (e) {",
+                  "    return e.level === 'info' && e.message === 'Run cancelled by admin';",
+                  "  })).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{guestCancelRunId}}/logs"
+          }
+        },
+        {
+          "name": "POST cancel foreign user run (403) — D-70",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = pm.collectionVariables.get('userCancelRunId');",
+                  "if (!runId) { console.warn('SKIP D-70: set userCancelRunId'); return; }",
+                  "pm.test('status 403 (D-70)', function () { pm.response.to.have.status(403); });",
+                  "pm.test('FORBIDDEN', function () { pm.expect(pm.response.json().code).to.eql('FORBIDDEN'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{userCancelRunId}}/cancel",
+            "description": "Opcjonalnie: ustaw `userCancelRunId` na żywy run role=user. Pełne D-70 = Jest e2e.",
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST login register guest (restore after cancel folder)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{guestEmail}}\", \"password\": \"{{guestPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         }
       ]

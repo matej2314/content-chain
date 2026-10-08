@@ -994,7 +994,7 @@ Odpowiada major HOW pkt 9.
 
 ### KROK 1 — Unit / e2e D-25, D-26, D-63…D-72
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Piramida wg `SPEC-TESTY.md`. Preferuj unit use-case + wąskie e2e tam, gdzie cookie/JWT.
 
@@ -1021,7 +1021,7 @@ Odpowiada major HOW pkt 9.
 
 ### KROK 2 — Postman
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Regresja kolekcji auth + dopisek scenariuszy guest delete/purge + cancel admin→guest (folder w `demo-guest` lub `auth`).
 

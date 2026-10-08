@@ -177,7 +177,7 @@ function makeUseCase(deps: {
 }
 
 describe('DeleteUserUseCase', () => {
-  it('soft-deletes a user without calling guest purge ports', async () => {
+  it('D-25/D-72: soft-deletes a user without calling guest purge ports', async () => {
     const tx = makeSoftTx();
     const hasLiveRuns = jest.fn(async () => true);
     const deleteRunTree = jest.fn(async () => {
@@ -230,7 +230,7 @@ describe('DeleteUserUseCase', () => {
     expect(tx.user.update).toHaveBeenCalled();
   });
 
-  it('hard-deletes a guest without live runs and clears redis ratings', async () => {
+  it('D-63: hard-deletes a guest without live runs and clears redis ratings', async () => {
     const tx = makeHardTx();
     const hasLiveRuns = jest.fn(async () => false);
     const listLiveRunIds = jest.fn(async (): Promise<RunId[]> => []);
@@ -275,7 +275,7 @@ describe('DeleteUserUseCase', () => {
     expect(deleteDailyRatings).toHaveBeenCalledWith(GUEST_ID);
   });
 
-  it('rejects guest with live runs without purge with GUEST_HAS_ACTIVE_RUN and skips delete', async () => {
+  it('D-64: rejects guest with live runs without purge with GUEST_HAS_ACTIVE_RUN and skips delete', async () => {
     const tx = makeHardTx();
     const hasLiveRuns = jest.fn(async () => true);
     const deleteRunTree = jest.fn();
@@ -302,7 +302,7 @@ describe('DeleteUserUseCase', () => {
     expect(deleteDailyRatings).not.toHaveBeenCalled();
   });
 
-  it('purges guest with live runs: aborts then hard-deletes tree', async () => {
+  it('D-65: purges guest with live runs: aborts then hard-deletes tree', async () => {
     const tx = makeHardTx();
     const liveIds = [
       RUN_ID,
@@ -345,7 +345,7 @@ describe('DeleteUserUseCase', () => {
     expect(deleteDailyRatings).toHaveBeenCalledWith(GUEST_ID);
   });
 
-  it('rejects an admin target with FORBIDDEN and skips soft/hard work', async () => {
+  it('D-66: rejects an admin target with FORBIDDEN and skips soft/hard work', async () => {
     const tx = makeSoftTx();
     const hasLiveRuns = jest.fn(async () => false);
     const useCase = makeUseCase({
@@ -411,7 +411,7 @@ describe('DeleteUserUseCase', () => {
     expect(tx.user.update).not.toHaveBeenCalled();
   });
 
-  it('hard-deletes a legacy inactive guest without requiring purge', async () => {
+  it('D-67: hard-deletes a legacy inactive guest without requiring purge', async () => {
     const tx = makeHardTx();
     const hasLiveRuns = jest.fn(async () => false);
     const deleteRunTree = jest.fn(async () => ({

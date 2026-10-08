@@ -88,6 +88,7 @@ describe('DEMO MODE guest HTTP (e2e)', () => {
     tryAdmitDailyRun: async () => ({ kind: 'ok' }),
     releaseDailyRun: async () => undefined,
     tryAdmitDailyRating: async () => ({ kind: 'ok' }),
+    deleteDailyRatings: async () => true,
   };
 
   beforeAll(async () => {
