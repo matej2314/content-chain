@@ -32,6 +32,18 @@ export class ReactivateUserUseCase {
         403,
       );
     }
+
+    if (user.role === 'guest') {
+      throw new DomainException(
+        'FORBIDDEN',
+        'Cannot reactivate a guest account',
+        403,
+      );
+    }
+
+    if (user.role !== 'user') {
+      throw new DomainException('FORBIDDEN', 'Cannot update this account', 403);
+    }
     if (!user.isActive) {
       await this.users.setActive(userId, true);
     }

@@ -1,17 +1,26 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { AuthController } from './auth.controller';
 import { PrismaModule } from '../shared/persistence/prisma.module';
+import { GuestPurgeModule } from '../runs/guest-purge.module';
+import { GuestQuotaModule } from '../runs/guest-quota.module';
+import { FeedbackModule } from '../feedback/feedback.module';
+import { RunLifecycleModule } from '../runs/run-lifecycle.module';
+import { AuthController } from './auth.controller';
+import { UsersController } from './users.controller';
+import { InvitationsController } from './invitations.controller';
+import { LoggingMailerAdapter } from './infrastructure/mail/logging-mailer.adapter';
+import { PrismaAccountActivationAdapter } from './infrastructure/persistence/prisma-account-activation.adapter';
+import { PrismaRefreshSessionAdapter } from './infrastructure/persistence/prisma-refresh-session.adapter';
+import { PrismaInvitationAdapter } from './infrastructure/persistence/prisma-invitation.adapter';
+import { PrismaUserAdapter } from './infrastructure/persistence/prisma-user.adapter';
+import { NodemailerSmtpMailerAdapter } from './infrastructure/mail/nodemailer-smtp-mailer.adapter';
 import { EnvModule } from '../shared/config/env.module';
 import { ENV, type Env } from '../shared/config/env';
 import { JwtCookieStrategy } from './infrastructure/session/jwt-cookie.strategy';
-import { PrismaUserAdapter } from './infrastructure/persistence/prisma-user.adapter';
-import { PrismaRefreshSessionAdapter } from './infrastructure/persistence/prisma-refresh-session.adapter';
 import { USER_REPOSITORY } from './domain/user-repository.port';
 import { REFRESH_SESSION_REPOSITORY } from './domain/refresh-session.repository.port';
 import { ACCOUNT_ACTIVATION_REPOSITORY } from './domain/account-activation-repository.port';
-import { PrismaAccountActivationAdapter } from './infrastructure/persistence/prisma-account-activation.adapter';
 import { BootstrapAdminUseCase } from './application/bootstrap-admin.use-case';
 import { BootstrapStatusUseCase } from './application/bootstrap-status.use-case';
 import { ListUsersUseCase } from './application/list-users.use-case';
@@ -26,26 +35,20 @@ import {
   RESEND_ACTIVATION_RATE_LIMITER,
   ResendActivationUseCase,
 } from './application/resend-activation.use-case';
-import { SoftDeleteUserUseCase } from './application/soft-delete-user.use-case';
 import { ReactivateUserUseCase } from './application/reactivate-user.use-case';
 import { LoginUseCase } from './application/login.use-case';
 import { LogoutUseCase } from './application/logout.use-case';
 import { RefreshUseCase } from './application/refresh.use-case';
 import { MeUseCase } from './application/me.use-case';
 import { UpdateMeEmailUseCase } from './application/update-me-email.use-case';
-import { parseTtlSeconds } from './application/auth.helpers';
-import { UsersController } from './users.controller';
-import { InvitationsController } from './invitations.controller';
-import { PrismaInvitationAdapter } from './infrastructure/persistence/prisma-invitation.adapter';
-
+import { DeleteUserUseCase } from './application/delete-user.use-case';
 import { INVITATION_REPOSITORY } from './domain/invitation-repository.port';
 import {
   TRANSACTIONAL_MAILER,
   TransactionalMailer,
 } from './domain/transactional-mailer.port';
-import { NodemailerSmtpMailerAdapter } from './infrastructure/mail/nodemailer-smtp-mailer.adapter';
-import { LoggingMailerAdapter } from './infrastructure/mail/logging-mailer.adapter';
 import { SoftEmailRateLimiter } from './application/soft-email-rate-limiter';
+import { parseTtlSeconds } from './application/auth.helpers';
 
 @Module({
   imports: [
@@ -60,6 +63,10 @@ import { SoftEmailRateLimiter } from './application/soft-email-rate-limiter';
     }),
     PrismaModule,
     EnvModule,
+    GuestPurgeModule,
+    GuestQuotaModule,
+    FeedbackModule,
+    RunLifecycleModule,
   ],
   controllers: [AuthController, UsersController, InvitationsController],
   providers: [
@@ -105,12 +112,12 @@ import { SoftEmailRateLimiter } from './application/soft-email-rate-limiter';
     ResendInvitationUseCase,
     RevokeInvitationUseCase,
     AcceptInviteUseCase,
-    SoftDeleteUserUseCase,
     ReactivateUserUseCase,
     UpdateMeEmailUseCase,
     RegisterUserUseCase,
     ActivateAccountUseCase,
     ResendActivationUseCase,
+    DeleteUserUseCase,
   ],
   exports: [USER_REPOSITORY, JwtModule],
 })

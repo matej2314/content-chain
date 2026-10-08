@@ -684,7 +684,7 @@ Odpowiada major HOW pkt 1–4 (+ A-10a).
 
 ### KROK 1 — `DeleteUserUseCase` (następca soft)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Gałęzie soft / hard / 409 / purge; audyt; orkiestracja portów. A-10, D21.
 
@@ -853,7 +853,7 @@ export class DeleteUserUseCase {
 
 ### KROK 2 — `ReactivateUserUseCase`: guest → 403
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** A-10a — reaktywacja tylko `role=user`; target `guest` → 403. D-26.
 
@@ -891,7 +891,7 @@ export class DeleteUserUseCase {
 
 ### KROK 3 — `UsersController` + `AuthModule` wiring
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Query `purge`; actor do audytu; DI. K-2j.
 

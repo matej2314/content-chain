@@ -4,14 +4,20 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { createUserId } from '@content-chain/shared';
 import { IS_PUBLIC_KEY } from '../shared/decorators/public.decorator';
 import { ROLES_KEY } from '../shared/decorators/roles.decorator';
+import { DeleteUserUseCase } from './application/delete-user.use-case';
 import { ListUsersUseCase } from './application/list-users.use-case';
 import { ReactivateUserUseCase } from './application/reactivate-user.use-case';
-import { SoftDeleteUserUseCase } from './application/soft-delete-user.use-case';
-import type { UserListItem } from './domain/auth-user.types';
+import type { AuthUserContext, UserListItem } from './domain/auth-user.types';
 import type { PatchUserDto } from './http/patch-user.dto';
 import { UsersController } from './users.controller';
 
 const USER_ID = createUserId('usr_11111111-1111-4111-8111-111111111111');
+
+const actor: AuthUserContext = {
+  id: createUserId('usr_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  email: 'admin@example.com',
+  role: 'admin',
+};
 
 const userItem: UserListItem = {
   id: USER_ID,
@@ -25,19 +31,19 @@ const userItem: UserListItem = {
 describe('UsersController', () => {
   let controller: UsersController;
   let listUsers: { execute: jest.Mock };
-  let softDelete: { execute: jest.Mock };
+  let deleteUser: { execute: jest.Mock };
   let reactivate: { execute: jest.Mock };
 
   beforeEach(async () => {
     listUsers = { execute: jest.fn() };
-    softDelete = { execute: jest.fn() };
+    deleteUser = { execute: jest.fn() };
     reactivate = { execute: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UsersController],
       providers: [
         { provide: ListUsersUseCase, useValue: listUsers },
-        { provide: SoftDeleteUserUseCase, useValue: softDelete },
+        { provide: DeleteUserUseCase, useValue: deleteUser },
         { provide: ReactivateUserUseCase, useValue: reactivate },
       ],
     }).compile();
@@ -81,7 +87,7 @@ describe('UsersController', () => {
     await expect(controller.list()).resolves.toBe(payload);
     expect(listUsers.execute).toHaveBeenCalledWith();
     expect(reactivate.execute).not.toHaveBeenCalled();
-    expect(softDelete.execute).not.toHaveBeenCalled();
+    expect(deleteUser.execute).not.toHaveBeenCalled();
   });
 
   it('delegates PATCH :id to ReactivateUserUseCase', async () => {
@@ -91,16 +97,32 @@ describe('UsersController', () => {
     await expect(controller.patch(USER_ID, body)).resolves.toBe(userItem);
     expect(reactivate.execute).toHaveBeenCalledWith(USER_ID, body);
     expect(listUsers.execute).not.toHaveBeenCalled();
-    expect(softDelete.execute).not.toHaveBeenCalled();
+    expect(deleteUser.execute).not.toHaveBeenCalled();
   });
 
-  it('delegates DELETE :id to SoftDeleteUserUseCase', async () => {
+  it('delegates DELETE :id with purge=false by default', async () => {
     const payload = { ok: true as const };
-    softDelete.execute.mockResolvedValue(payload);
+    deleteUser.execute.mockResolvedValue(payload);
 
-    await expect(controller.delete(USER_ID)).resolves.toBe(payload);
-    expect(softDelete.execute).toHaveBeenCalledWith(USER_ID);
+    await expect(
+      controller.delete(USER_ID, undefined, actor),
+    ).resolves.toEqual(payload);
+    expect(deleteUser.execute).toHaveBeenCalledWith(USER_ID, actor, {
+      purge: false,
+    });
     expect(listUsers.execute).not.toHaveBeenCalled();
     expect(reactivate.execute).not.toHaveBeenCalled();
+  });
+
+  it('maps purge=true query to options.purge', async () => {
+    const payload = { ok: true as const };
+    deleteUser.execute.mockResolvedValue(payload);
+
+    await expect(controller.delete(USER_ID, 'true', actor)).resolves.toEqual(
+      payload,
+    );
+    expect(deleteUser.execute).toHaveBeenCalledWith(USER_ID, actor, {
+      purge: true,
+    });
   });
 });

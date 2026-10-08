@@ -15,7 +15,7 @@ import { RefreshUseCase } from '../../auth/application/refresh.use-case';
 import { ReactivateUserUseCase } from '../../auth/application/reactivate-user.use-case';
 import { RegisterUserUseCase } from '../../auth/application/register-user.use-case';
 import { ResendActivationUseCase } from '../../auth/application/resend-activation.use-case';
-import { SoftDeleteUserUseCase } from '../../auth/application/soft-delete-user.use-case';
+import { DeleteUserUseCase } from '../../auth/application/delete-user.use-case';
 import { UpdateMeEmailUseCase } from '../../auth/application/update-me-email.use-case';
 import { UsersController } from '../../auth/users.controller';
 import { HealthController } from '../../health/health.controller';
@@ -150,7 +150,7 @@ describe('SwaggerModule.createDocument (auth + users + health)', () => {
         { provide: ActivateAccountUseCase, useValue: stubExecute },
         { provide: ResendActivationUseCase, useValue: stubExecute },
         { provide: ListUsersUseCase, useValue: stubExecute },
-        { provide: SoftDeleteUserUseCase, useValue: stubExecute },
+        { provide: DeleteUserUseCase, useValue: stubExecute },
         { provide: ReactivateUserUseCase, useValue: stubExecute },
         { provide: HealthService, useValue: { liveness: jest.fn() } },
         { provide: ENV, useValue: env },

@@ -1758,9 +1758,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/auth.module.ts": {
-    "mtime": 1791373728.463299,
-    "seen": 1791445099.3602753,
-    "ast_hash": "b4a9c65e8efba01bd9ea68f09b31f997",
+    "mtime": 1791457706.6805758,
+    "seen": 1791458140.8553476,
+    "ast_hash": "3137cbc975bb934052e4fbed99eaba50",
     "semantic_hash": ""
   },
   "apps/api/src/company-context/company-context.controller.ts": {
@@ -2987,12 +2987,6 @@
     "ast_hash": "5104b0fc9fff964db34432727421450b",
     "semantic_hash": "5104b0fc9fff964db34432727421450b"
   },
-  "apps/api/src/auth/application/soft-delete-user.use-case.ts": {
-    "mtime": 1791367829.3641067,
-    "seen": 1791372753.0097687,
-    "ast_hash": "51da86d340b24e2e05b63e17b5eb8260",
-    "semantic_hash": ""
-  },
   "apps/api/src/auth/domain/invitation-repository.port.ts": {
     "mtime": 1791367876.3705587,
     "seen": 1791372753.0097802,
@@ -3024,10 +3018,10 @@
     "semantic_hash": "4fdb9f5c4b67a0ac15b150ad9820d28d"
   },
   "apps/api/src/auth/users.controller.ts": {
-    "mtime": 1791367829.365228,
-    "seen": 1791372753.0098178,
-    "ast_hash": "db131dd4b34c4c147ae6883648ebd31f",
-    "semantic_hash": "db131dd4b34c4c147ae6883648ebd31f"
+    "mtime": 1791457371.2412496,
+    "seen": 1791458140.8553772,
+    "ast_hash": "3fc5e6afede023f09380c27e5b436df3",
+    "semantic_hash": ""
   },
   "apps/api/src/feedback/application/create-feedback.use-case.ts": {
     "mtime": 1791367829.367384,
@@ -3126,9 +3120,9 @@
     "semantic_hash": "e708d012286e6f8bfac9d26a2569c027"
   },
   "apps/api/src/auth/application/reactivate-user.use-case.ts": {
-    "mtime": 1791367829.3633893,
-    "seen": 1791372753.0097525,
-    "ast_hash": "b5f752193cda5394cace2dc90d5a7316",
+    "mtime": 1791456918.9530268,
+    "seen": 1791457040.083253,
+    "ast_hash": "fb98ad812e4e5a58561f75bbc3dc37c2",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/api/session.types.ts": {
@@ -4155,6 +4149,12 @@
     "mtime": 1791398725.5873706,
     "seen": 1791445099.3605099,
     "ast_hash": "e9a7f080b04146e12b821ecfbe702063",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/application/delete-user.use-case.ts": {
+    "mtime": 1791456729.2871087,
+    "seen": 1791457040.0832443,
+    "ast_hash": "221428353879f43a85c6ffd2edaa732f",
     "semantic_hash": ""
   }
 }

@@ -6,6 +6,7 @@ import { ReactivateUserUseCase } from './reactivate-user.use-case';
 
 const USER_ID = createUserId('usr_11111111-1111-4111-8111-111111111111');
 const ADMIN_ID = createUserId('usr_22222222-2222-4222-8222-222222222222');
+const GUEST_ID = createUserId('usr_33333333-3333-4333-8333-333333333333');
 const CREATED_AT = new Date('2026-01-01T00:00:00.000Z');
 const PATCH_BODY = { isActive: true as const };
 
@@ -147,6 +148,36 @@ describe('ReactivateUserUseCase', () => {
       code: 'FORBIDDEN',
       httpStatus: 403,
       message: 'Cannot update the admin account',
+    });
+    expect(setActive).not.toHaveBeenCalled();
+  });
+
+  it('rejects a guest target with FORBIDDEN and skips setActive', async () => {
+    const guest = makeUser({
+      id: GUEST_ID,
+      email: 'guest@example.com',
+      role: 'guest',
+      isActive: false,
+    });
+    const setActive = jest.fn(
+      async (_id: UserId, _isActive: boolean): Promise<void> => undefined,
+    );
+    const useCase = makeUseCase(
+      unusedUsers({
+        findById: async () => guest,
+        setActive,
+      }),
+    );
+
+    const error = await useCase
+      .execute(GUEST_ID, PATCH_BODY)
+      .catch((err: unknown) => err);
+
+    expect(error).toBeInstanceOf(DomainException);
+    expect(error).toMatchObject({
+      code: 'FORBIDDEN',
+      httpStatus: 403,
+      message: 'Cannot reactivate a guest account',
     });
     expect(setActive).not.toHaveBeenCalled();
   });

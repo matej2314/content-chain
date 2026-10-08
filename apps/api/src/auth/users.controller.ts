@@ -2,6 +2,7 @@ import {
   Controller,
   Body,
   Get,
+  Query,
   Patch,
   Delete,
   Param,
@@ -9,11 +10,13 @@ import {
 } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../shared/decorators/roles.decorator';
+import { CurrentUser } from '../shared/decorators/current-user.decorator';
 import { COOKIE_AUTH_NAME } from '../shared/http/configure-swagger';
 import { ListUsersUseCase } from './application/list-users.use-case';
-import { SoftDeleteUserUseCase } from './application/soft-delete-user.use-case';
 import { ReactivateUserUseCase } from './application/reactivate-user.use-case';
 import { PatchUserDto } from './http/patch-user.dto';
+import { DeleteUserUseCase } from './application/delete-user.use-case';
+import type { AuthUserContext } from './domain/auth-user.types';
 
 @ApiTags('users')
 @ApiCookieAuth(COOKIE_AUTH_NAME)
@@ -22,7 +25,7 @@ import { PatchUserDto } from './http/patch-user.dto';
 export class UsersController {
   constructor(
     private readonly listUsers: ListUsersUseCase,
-    private readonly softDelete: SoftDeleteUserUseCase,
+    private readonly deleteUser: DeleteUserUseCase,
     private readonly reactivate: ReactivateUserUseCase,
   ) {}
 
@@ -40,7 +43,12 @@ export class UsersController {
 
   @Delete(':id')
   @HttpCode(200)
-  delete(@Param('id') id: string) {
-    return this.softDelete.execute(id);
+  delete(
+    @Param('id') id: string,
+    @Query('purge') purgeRaw: string | undefined,
+    @CurrentUser() user: AuthUserContext,
+  ) {
+    const purge = purgeRaw === 'true';
+    return this.deleteUser.execute(id, user, { purge });
   }
 }
