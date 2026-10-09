@@ -1,0 +1,99 @@
+services:
+  ai-provider-gateway:
+    build:
+      context: .
+      dockerfile: apps/ai-provider-gateway/deployment/docker/Dockerfile
+      target: production
+    container_name: cc-ai-gateway
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3100:3100"
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: production
+      PORT: 3100
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3100/api/v1/health/ready', (r) => { let body = ''; r.on('data', (c) => body += c); r.on('end', () => { try { const j = JSON.parse(body); process.exit(r.statusCode === 200 && j.status === 'ready' ? 0 : 1); } catch { process.exit(1); } }); }).on('error', () => process.exit(1));",
+        ]
+      interval: 30s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+    networks:
+      - cc-network
+      - main_network
+    volumes:
+      - ./apps/ai-provider-gateway/gateway.config.yaml:/app/gateway.config.yaml:ro
+      - ./apps/ai-provider-gateway/logs:/app/logs
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: production
+    container_name: cc-api
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - api-sqlite:/app/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3001/api/v1/health/ready', (r) => { let body = ''; r.on('data', (c) => body += c); r.on('end', () => { try { const j = JSON.parse(body); process.exit(r.statusCode === 200 && j.status === 'ready' ? 0 : 1); } catch { process.exit(1); } }); }).on('error', () => process.exit(1));",
+        ]
+      interval: 30s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+    depends_on:
+      ai-provider-gateway:
+        condition: service_healthy
+    networks:
+      - cc-network
+      - main_network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      target: production
+    container_name: cc-frontend
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: production
+      PORT: 3004
+    ports:
+      - "127.0.0.1:3004:3004"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - cc-network
+      - main_network
+
+networks:
+  cc-network:
+    name: cc-network
+  main_network:
+    external: true
+    name: main_network
+
+volumes:
+  api-sqlite:

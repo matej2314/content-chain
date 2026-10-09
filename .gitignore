@@ -21,7 +21,10 @@ dist/
 
 graphify-out/cache/
 graphify-out/2026-*
-# users-management-plan.md
+deployment-fix-plan.md
+Jenkinsfile.lab
+Jenkinsfile
+
 
 .DS_Store
 Thumbs.db

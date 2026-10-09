@@ -1,60 +1,51 @@
-# Stage 1: Dependencies
-FROM node:20-alpine AS deps
+# syntax=docker/dockerfile:1
+# Context: monorepo root
+#   docker build -f apps/ai-provider-gateway/deployment/docker/Dockerfile .
+
+FROM node:24.19.0-alpine AS base
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY tsconfig*.json ./
-# COPY gateway.config.yaml ./gateway.config.yaml
+FROM base AS build
+RUN apk add --no-cache libc6-compat
 
-# Install dependencies (including devDependencies for build)
-RUN npm ci
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.json .npmrc ./
+COPY apps/ai-provider-gateway ./apps/ai-provider-gateway
 
-# Stage 2: Builder
-FROM node:20-alpine AS builder
+RUN pnpm install --frozen-lockfile --filter ai-provider-gateway...
+RUN pnpm --filter ai-provider-gateway build
+RUN pnpm --filter ai-provider-gateway deploy --prod /prod/gateway \
+  && test -f /prod/gateway/dist/src/main.js
+
+FROM node:24.19.0-alpine AS production
 WORKDIR /app
 
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-COPY package*.json ./
-COPY tsconfig*.json ./
-COPY nest-cli.json ./
-COPY src ./src
-# COPY gateway.config.yaml ./gateway.config.yaml
-
-# Build TypeScript
-RUN npm run build
-
-# Stage 3: Production
-FROM node:20-alpine AS production
-WORKDIR /app
-
-# Set NODE_ENV
 ENV NODE_ENV=production
+ENV PORT=3100
 
-# Create non-root user first
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S gateway -u 1001
+RUN apk add --no-cache libc6-compat \
+  && addgroup -g 1001 -S nodejs \
+  && adduser -S gateway -u 1001 \
+  && mkdir -p /app/logs \
+  && chown gateway:nodejs /app/logs
 
-# Copy package files and install production dependencies as root
-COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+COPY --from=build --chown=gateway:nodejs /prod/gateway ./
 
-# Copy built app with correct ownership (avoids chown layer duplication)
-COPY --chown=gateway:nodejs --from=builder /app/dist ./dist
-# COPY --chown=gateway:nodejs --from=builder /app/gateway.config.yaml ./gateway.config.yaml
-COPY --chown=gateway:nodejs --from=builder /app/src/config/system-prompt ./src/config/system-prompt
+# Default config baked into image; host volume mount overrides at runtime
+COPY --chown=gateway:nodejs apps/ai-provider-gateway/gateway.config.yaml ./gateway.config.yaml
 
-# Switch to non-root user (node_modules remain root:root, readable by all)
+# Nest assets used at runtime (prompts) — not always present in deploy packlist
+COPY --from=build --chown=gateway:nodejs \
+  /app/apps/ai-provider-gateway/src/config/system-prompt \
+  ./src/config/system-prompt
+
 USER gateway
 
-# Expose port
-EXPOSE 3000
+EXPOSE 3100
 
-# Health check (readiness: HTTP 200 + body.status === 'ready')
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD node -e "\
-    require('http').get('http://localhost:3000/api/v1/health/ready', (r) => { \
+    require('http').get('http://localhost:3100/api/v1/health/ready', (r) => { \
       let body = ''; \
       r.on('data', (c) => body += c); \
       r.on('end', () => { \
@@ -66,5 +57,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
     }).on('error', () => process.exit(1)); \
   "
 
-# Start application
-CMD ["node", "dist/main"]
+CMD ["node", "dist/src/main.js"]

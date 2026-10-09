@@ -1,7 +1,63 @@
+# Dependencies & package managers
+**/node_modules
+**/.pnpm-store
+.npm
+.yarn
+
+# VCS / IDE
+.git
+.gitignore
+.cursor
+.vscode
+.idea
+**/.DS_Store
+
+# Secrets — never bake into image context
+.env
+.env.*
+!**/.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local databases & runtime data
+**/*.db
+**/*.db-*
+**/chain.db
+**/data/
+
+# Build artifacts (produced inside the image)
+**/dist
+**/.next
+**/coverage
+**/build
+**/*.tsbuildinfo
+
+# Logs & temp
+**/logs
+**/*.log
+tmp
+temp
+**/tmp
+**/temp
+
+# Docs / plans / agent artifacts (not required for image builds)
 docs/
 spec/
+graphify-out/
+**/.agents
+**/AGENTS.md
+**/CLAUDE.md
+**/graphify-out
+deployment-fix-plan.md
 content-chain_brief.md
-content-chain-backend_major_plan.md
-content-chain-frontend_major_plan.md
-.graphifyignore
-README.md
+*_major_plan.md
+*_major_plan_*.md
+feature-plans/
+
+# Frontend / gateway / api local noise
+apps/frontend/public/vercel.svg
+apps/ai-provider-gateway/deployment/scripts
+apps/ai-provider-gateway/test
+apps/api/test
+apps/api/content-chain.postman-collection.json

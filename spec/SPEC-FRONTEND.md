@@ -1,7 +1,7 @@
 ---
-wersja: 38
+wersja: 39
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-07
+data_modyfikacji: 2026-10-09
 ---
 
 # SPEC — Frontend
@@ -35,6 +35,8 @@ Zmiana względem wersji 33 / cel: chip „Agenci aktywni” = wyłącznie comple
 Zmiana względem wersji 34 / cel: DEMO chip / locki `guest` poza SPEC. Od tej wersji F-10 + F-8 nawigacja guest; F-4b **bez** warunku `demoMode`.
 Zmiana względem wersji 36 / F-10: locki `guest` ∧ demo — bez jawnej ścieżki invite. Od tej wersji po accept+login przy demo on obowiązują te same locki co po register→guest (`SPEC-AUTH.md` A-7b); predykat F-10 **bez zmian**.
 
+Zmiana względem wersji 38 / F-2: `API_BASE_URL` bez pinu wartości compose / portu UI prod. Od tej wersji kanon production: `API_BASE_URL=http://api:3001` (hostname serwisu compose); port startu UI **3004** — `docs/deployment.md`.
+
 ## Powiązanie ze stylem z docs / wyjątek
 
 Wiążące (`docs/architektura.md`): Next.js jako UI; pobieranie i mutacje wyłącznie przez `apps/api`; sekrety LLM nigdy w bundlu.
@@ -47,9 +49,10 @@ Zmiana względem wersji 2: katalog modułów UI to `modules/` (wcześniej `featu
 
 F-1. App Router: **Server Components domyślnie**; `"use client"` tylko tam, gdzie potrzeba interakcji, formularzy, SSE, floating boxa lub stanu przeglądarki. Chronione dane **wolno** czytać w RSC (cookie na originie FE — F-2).
 
-F-2. Przeglądarka woła **same-origin** `/api/v1/...` (BFF Next). Natywny `fetch` z `credentials: 'include'` / `'same-origin'`. Next proxy’uje do `apps/api` (`API_BASE_URL` tylko na serwerze). **Zakaz** `NEXT_PUBLIC_API_BASE_URL` jako URL-a, pod który idzie przeglądarka. Proxy **musi** przekazywać `Cookie` / `Set-Cookie` i **strumieniować** SSE (bez pełnego bufora). Bez wymogu React Query / SWR w MVP.
+F-2. Przeglądarka woła **same-origin** `/api/v1/...` (BFF Next). Natywny `fetch` z `credentials: 'include'` / `'same-origin'`. Next proxy’uje do `apps/api` — **`API_BASE_URL` wyłącznie na serwerze Next** (nigdy `NEXT_PUBLIC_*` na ten URL). W **compose / production** wartość kanoniczna: **`API_BASE_URL=http://api:3001`** (hostname serwisu compose — **nie** `http://localhost:3001` wewnątrz kontenera FE). Port startu UI production: **3004** (`next start -p 3004` / `PORT=3004`). **Zakaz** `NEXT_PUBLIC_API_BASE_URL` jako URL-a, pod który idzie przeglądarka. Proxy **musi** przekazywać `Cookie` / `Set-Cookie` i **strumieniować** SSE (bez pełnego bufora). Bez wymogu React Query / SWR w MVP.
 
 Zmiana względem wersji 19 / F-2: fetch z `credentials` **wprost** na origin `apps/api` (`NEXT_PUBLIC_API_BASE_URL`). Od tej wersji BFF; cookie na originie FE (`docs/deployment.md`, `docs/security.md`).
+Zmiana względem wersji 38 / F-2: bez pinu wartości `API_BASE_URL` / portu 3004 w production. Od tej wersji kanon compose `http://api:3001` + port UI **3004**.
 
 F-3. Typy request/response / enumy / brand types z **`@content-chain/shared`** na granicy FE — bez duplikacji DTO „na piechotę”.
 
@@ -222,7 +225,7 @@ apps/frontend/src/
 | Organizacja | **Moduły UI** pod `modules/` + `app/` na routing |
 | Dane | `fetch` → `apps/api`; brak Prisma / gateway / LangGraph w FE |
 | UI | **shadcn** + **Iconify** (`@iconify/react`) tam, gdzie ikony są potrzebne |
-| Env publiczne | **brak** URL-a api w `NEXT_PUBLIC_*`; `API_BASE_URL` tylko serwer Next |
+| Env publiczne | **brak** URL-a api w `NEXT_PUBLIC_*`; `API_BASE_URL` tylko serwer Next (prod compose: `http://api:3001`); port UI prod **3004** |
 
 ### Wolno
 
@@ -260,6 +263,7 @@ apps/frontend/src/
 
 - Sekretów LLM, `X-Gateway-Key`, JWT w `NEXT_PUBLIC_*` / localStorage.
 - `NEXT_PUBLIC_API_BASE_URL` i bezpośredniego fetcha przeglądarki na origin api.
+- `API_BASE_URL=http://localhost:3001` (lub inny loopback hosta) jako URL BFF **wewnątrz** kontenera / procesu FE w compose production (obowiązuje hostname serwisu `api` — F-2).
 - Wołania `apps/ai-provider-gateway` z FE (w tym `/health`, `/health/ready`, chat) — wyłącznie BFF → `apps/api`.
 - Interval pollingu completeness albo `/health/ready` (obowiązuje mount + refetch przy okazji — F-6).
 - Liczenia **chipa** wyłącznie z completeness (bez `gatewayAlive`) albo wyłącznie z `/health/ready` (bez completeness).
@@ -360,7 +364,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Strona główna: karta logowania + **aktywny** „Zarejestruj się!” (gdy bootstrap niedostępny); first-run = tryb tej karty; **`/invite/accept?token=`** → logowanie; deep link aktywacji → login + toast; chrome po polsku; dashboard tylko po sesji.
 - [ ] Register: **409** `Email already in use` → błąd na formularzu; **201** `verifiedAt === null` lub **503** → thank-you + resend (email ze stanu klienta); **201** z `verifiedAt` → login; **bez** sesji z register/activate/resend.
 - [ ] Header: do prawej; login → „Wyloguj się”; modal → logout → `/`.
-- [ ] Fetch same-origin `/api/v1`; **401** `UNAUTHORIZED` → refresh → retry; cookie httpOnly na originie FE; **401** `INVALID_PASSWORD` **bez** refresh/wylogowania.
+- [ ] Fetch same-origin `/api/v1`; BFF → `API_BASE_URL` tylko serwer (prod: `http://api:3001`); UI prod na porcie **3004**; **401** `UNAUTHORIZED` → refresh → retry; cookie httpOnly na originie FE; **401** `INVALID_PASSWORD` **bez** refresh/wylogowania.
 - [ ] **Runy** = archiwum `completed` \| `failed` \| `cancelled` (15 min + wejście) **oraz** CTA/modal **„Uruchom agenta”**; **Konto** = start inline + Moje runy live (paginacja UI 10) + Stop; po `202` widok źródłowy.
 - [ ] Layout zalogowany: `h-dvh`, scroll tylko w `main`; chipy w sidebarze widoczne bez scrolla treści.
 - [ ] N× SSE tylko własne `running` / `awaiting_hitl` / `interrupted`; `close()` na `completed`/`failed`/`cancelled`; `queued` bez socketa; floating box poza Kontem **bez** Stop; po cancel: „Anulowany” → ukrycie po 200 ms.

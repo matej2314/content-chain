@@ -9,26 +9,27 @@ name: ai-provider-gateway
 services:
   gateway:
     build:
-      context: ../..
-      dockerfile: deployment/docker/Dockerfile
+      # Monorepo root (Compose file lives in apps/ai-provider-gateway/deployment/docker/)
+      context: ../../..
+      dockerfile: apps/ai-provider-gateway/deployment/docker/Dockerfile
       target: production
     container_name: ai-gateway
     restart: unless-stopped
     ports:
-      - "0.0.0.0:3000:3000"
+      - "0.0.0.0:3100:3100"
     env_file:
       - ../../.env
     environment:
       # Server
       NODE_ENV: production
-      PORT: 3000
+      PORT: 3100
     healthcheck:
       test:
         [
           "CMD",
           "node",
           "-e",
-          "require('http').get('http://localhost:3000/api/v1/health/ready', (r) => { let body = ''; r.on('data', (c) => body += c); r.on('end', () => { try { const j = JSON.parse(body); process.exit(r.statusCode === 200 && j.status === 'ready' ? 0 : 1); } catch { process.exit(1); } }); }).on('error', () => process.exit(1));",
+          "require('http').get('http://localhost:3100/api/v1/health/ready', (r) => { let body = ''; r.on('data', (c) => body += c); r.on('end', () => { try { const j = JSON.parse(body); process.exit(r.statusCode === 200 && j.status === 'ready' ? 0 : 1); } catch { process.exit(1); } }); }).on('error', () => process.exit(1));",
         ]
       interval: 30s
       timeout: 3s

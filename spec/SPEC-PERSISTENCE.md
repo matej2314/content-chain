@@ -1,7 +1,7 @@
 ---
-wersja: 17
+wersja: 18
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-07
+data_modyfikacji: 2026-10-09
 ---
 
 # SPEC — Persistence
@@ -17,6 +17,7 @@ Zmiana względem wersji 11: kanon Auth bez `verifiedAt` / `AccountActivation`. O
 Zmiana względem wersji 13 / P-5: `User.role` przy register zawsze `user`. Od tej wersji String `admin`\|`user`\|`guest` (bez Prisma enum); sloty guest = COUNT `Run`.
 Zmiana względem wersji 14 / D16: `users.create(role=user)` przy accept-invite. Od tej wersji `role` z use-case (`guest` \| `user` vs `DEMO_MODE`) — `SPEC-AUTH.md` A-7b; **bez** migracji / backfill istniejących ról.
 Zmiana względem wersji 16 / P-5: DELETE Users = zawsze soft; brak normy hard/purge tree. Od tej wersji soft vs hard/purge; zakaz orphan Feedback; jedna tx delete tree; **bez** obowiązku migracji Cascade; abort **poza** tx — `SPEC-AUTH.md` A-10, `users-management-plan.md` Faza 2.
+Zmiana względem wersji 17 / P-6: ścieżka pliku SQLite w production bez pinu volume. Od tej wersji P-6a — `docs/deployment.md`.
 
 ## Powiązanie ze stylem z docs
 
@@ -131,6 +132,10 @@ Zmiana względem wersji 3: kanon nie rozdzielał liczników refine — Content m
 
 P-6. W MVP `datasource.provider = "sqlite"`. Wprowadzenie PostgreSQL jako providera aplikacji = sygnał wejścia w fazę **V1 — rozbudowa** (patrz tabela wyżej), z nową historią migracji.
 
+P-6a. **Ścieżka pliku SQLite w production (Compose):** `DATABASE_URL=file:/app/data/chain.db`; named volume **`api-sqlite`** montowany jako **`/app/data`** w kontenerze api. Plik DB **nie** może żyć wyłącznie na efemerycznym filesystemie kontenera. DX lokalny: dowolna ścieżka pliku zgodna z `.env` / Prisma — byle provider = sqlite. Ops volume / entrypoint migracji: `docs/deployment.md`.
+
+Zmiana względem wersji 17 / P-6: brak pinu ścieżki / volume w SPEC. Od tej wersji P-6a (kanon prod + odwołanie do deployment).
+
 P-7. `schema.prisma` w MVP utrzymywać **przenośnie** (unikać zbędnych atrybutów `@db.*` / typów tylko pod jeden silnik), żeby modele dało się przenieść przy cutoverze na PostgreSQL przy minimalnych poprawkach. Partial unique zaproszeń (`UNIQUE (email) WHERE status = 'pending'`) jest SQL w migracji — **ten sam wzorzec** przenosi się na PostgreSQL przy cutoverze (nowa historia migracji, ten sam predykat).
 
 P-8. Drugi ORM obok Prisma — zakazany w MVP i przy cutoverze (nadal Prisma, inny provider).
@@ -156,6 +161,7 @@ Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/
 | Port persistence | interfejsy per potrzeba BC (users, **invitations**, **account-activation**, sessions, context, runs, logs, wyniki SM, feedback) |
 | Adapter | Prisma implementuje porty; lokalizacja = `<bc>/infrastructure/` **albo** `<bc>/infrastructure/persistence/` (gdy BC ma kilka I/O) |
 | SQLite ops (WAL, busy_timeout) | **poza** sztywną normą SPEC — decyzja implementacyjna pod współbieżność runów |
+| Plik SQLite (production) | volume `api-sqlite` → `/app/data/chain.db` (P-6a); szczegóły compose — `docs/deployment.md` |
 | Kolumny kontekstu firmy | per sekcja — `SPEC-KONTEKST-FIRMY.md` |
 | Sesje refresh (hash) | `SPEC-AUTH.md` |
 
@@ -165,6 +171,7 @@ Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/
 - Trzymać adapter Prisma w `infrastructure/persistence/`, gdy BC ma kilka granic I/O (Runs, Auth; wzorzec Social/Content).
 - Archiwizować katalog migracji SQLite przy starcie historii PostgreSQL.
 - Traktować cutover na PostgreSQL jako zaplanowany krok fazy V1 — rozbudowa (nie jako wymóg dnia 1 MVP).
+- W DX lokalnym używać innej ścieżki pliku SQLite niż `/app/data/chain.db` (P-6a pinuje **production** Compose).
 
 ### Nie wolno
 
@@ -172,6 +179,7 @@ Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/
 - Prisma w `infrastructure/sse` \| `quota` \| `mail` \| `session` \| `graph` (te podkatalogi = inne I/O; ORM wyłącznie w `infrastructure/` lub `infrastructure/persistence/`).
 - Cichego odczytu kontekstu z `.md` przy dziurawej DB.
 - PostgreSQL jako providera **w MVP**.
+- Trzymania kanonicznego pliku SQLite **wyłącznie** na efemerycznym FS kontenera w production (bez volume `api-sqlite` / równoważnego trwałego mounta — P-6a).
 - Pozostawania przy SQLite jako kanonie po wejściu w V1 — rozbudowę (ops/skala; **nie** mylić z „po dodaniu Content” — Content jest w MVP na SQLite).
 - Obiecywać w kodzie/docs wewnętrznych, że te same pliki migracji SQLite zadziałają na PostgreSQL bez nowej historii.
 - Drugiego ORM równolegle do Prisma.
@@ -218,7 +226,7 @@ Zmiana względem wersji 11 / „Nie wolno”: dopisano zakazy pending przez `isA
 
 ## Kryteria akceptacji
 
-- [ ] MVP: `provider = sqlite`, migracje w repo, aplikacja wstaje na pliku SQLite.
+- [ ] MVP: `provider = sqlite`, migracje w repo, aplikacja wstaje na pliku SQLite; w production Compose: `DATABASE_URL=file:/app/data/chain.db` + volume `api-sqlite` (P-6a).
 - [ ] Żaden plik w `domain/` nie importuje `@prisma/client`.
 - [ ] ID w DB mają prefiksy brandów z docs.
 - [ ] Brak ścieżki runtime fallbacku kontekstu z `.md`.
@@ -233,7 +241,7 @@ Zmiana względem wersji 11 / „Nie wolno”: dopisano zakazy pending przez `isA
 ## Poza zakresem
 
 - Konkretny skrypt ETL danych SQLite → PostgreSQL.
-- Backup/restore volume (docs deployment / ops).
+- Backup/restore volume (docs deployment / ops) — poza pinem ścieżki P-6a.
 - Eksport kontekstu do `.md` / checksum (tuż po MVP wg docs produktowych — nie ten SPEC).
 - Konfiguracja WAL/busy_timeout (implementacja).
 - Szczegóły schematu każdej tabeli BC (doprecyzowują Auth / Kontekst / Runy / Social / Content / Feedback przy implementacji, byle norma port/adapter i silników była zachowana).

@@ -1,7 +1,7 @@
 ---
-wersja: 12
+wersja: 13
 data_utworzenia: 2026-09-29
-data_modyfikacji: 2026-10-07
+data_modyfikacji: 2026-10-09
 ---
 
 # Bezpieczeństwo — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-07
 Norma self-host dla `local` i `production`: auth, sekrety, ekspozycja powierzchni, bootstrap. Bez pełnego modelu STRIDE.
 
 Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, `architektura.md`.
+
+Zmiana względem: ekspozycja production bez pinu bind localhost dla FE/api/gateway; sekrety tylko „env per app”. Od tej wersji: w `production` publish FE / api / gateway na **`127.0.0.1`** (nie `0.0.0.0` jako kanon); gateway nadal **nie** na internet; sekrety runtime = **jeden** root `.env` z Vault (Jenkins) — zakaz commitowania i bake w obrazie (`deployment.md`).
 
 Zmiana względem: pkt 7 „DELETE zawsze soft”; cancel wyłącznie `startedBy`; „czyszczenie guest = osobny plan”; access bez checku DB; reaktywacja bez filtra roli / UI poza MVP. Od tej wersji: DELETE **rozgałęziony** po `target.role` (soft `user` / hard+purge `guest`); cancel admin→`guest`; per-konto hard/purge **w kanonie**; validate access: brak User **lub** `!isActive` → **401**; A-10a tylko `user` **z UI**. Reset / bulk / wipe **poza** zakresem Users.
 
@@ -160,23 +162,24 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 
 | Element | Norma |
 |---------|--------|
-| `.env` | tylko lokalnie / w runtime; w repo wyłącznie `.env.example` |
+| `.env` | **production:** jeden root `.env` generowany z Vault (Jenkins) — zakaz commitowania, zakaz bake w warstwach obrazu; DX: per-app `.env` lokalnie. W repo wyłącznie `.env.example` (per-app + root) — `deployment.md` |
 | `X-Gateway-Key`, klucze vendorów, `JWT_*`, **hasło SMTP** (`SMTP_PASS`) | nigdy w obrazie FE, nigdy `NEXT_PUBLIC_*`; w stdout dumpie hopu (tylko `development`) wartość klucza → `[REDACTED]` (`observability.md`) |
 | Raw token zaproszenia / aktywacji | **nie** w logach `production`; **nie** w JSON-ie odpowiedzi admina / publicznych sukcesów. W `development` wolno zalogować URL (odpowiednik treści maila / DX) |
-| `apps/ai-provider-gateway` w `production` | **nie** publikować na internet; tylko sieć wewnętrzna (compose) |
+| Publish FE / api / gateway w `production` | bind **`127.0.0.1`** (nie `0.0.0.0` jako kanon); dostęp z internetu tylko przez edge na hoście / `main_network` |
+| `apps/ai-provider-gateway` w `production` | **nie** publikować na internet; tylko localhost + sieć wewnętrzna compose (`cc-network` / ops) |
 | `GET /metrics` (`apps/api`) | scrape z sieci ops / localhost; **nie** jako publiczny endpoint internetowy w `production` |
-| `GET /api/v1/health` | może być dostępny do probe; bez wrażliwych danych |
+| `GET /api/v1/health` | może być dostępny do probe (localhost / edge); bez wrażliwych danych |
 | `GET /api/v1/health/ready` | publiczny jak liveness (probe FE / ops); body = skrót statusów checków (`api`, `gateway`); **bez** sekretów, `X-Gateway-Key`, wartości env, hostname’ów z kluczami |
 
 ## Checklist operatora (`production`)
 
-1. Silne sekrety w env (JWT, gateway key, vendor keys, **`SMTP_PASS`**).  
-2. Gateway i `/metrics` niewystawione publicznie.  
-3. HTTPS przed FE/api (reverse proxy) — cookie Secure.  
+1. Silne sekrety w root `.env` z Vault (JWT, gateway key, vendor keys, **`SMTP_PASS`**) — nie w obrazie.  
+2. FE / api / gateway na **`127.0.0.1`**; gateway i `/metrics` niewystawione publicznie na internet.  
+3. HTTPS przed FE (reverse proxy na `main_network` / hoście) — cookie Secure.  
 4. Bootstrap → jeden admin → wyłączenie bootstrapu zweryfikowane.  
 5. Próba utworzenia drugiego admina → odrzucona.  
 6. W `production`: **SMTP** (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`) + **`MAIL_FROM`** + **`APP_PUBLIC_URL`** — fail-fast przy starcie; bez nich zaproszenia i maile aktywacji nie działają.  
-7. Volume SQLite z ograniczonymi uprawnieniami hosta + backup.  
+7. Volume SQLite (`api-sqlite`) z ograniczonymi uprawnieniami hosta + backup.  
 8. Brak sekretów w logach stdout / `run.log`. Pełna treść hopu chat **nie** trafia na stdout w `production`. Raw token zaproszenia / aktywacji **nie** w logach `production`.
 
 ## Do / Don’t
@@ -193,7 +196,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 | Pending = `isActive=true` + `verifiedAt=null` + `AccountActivation` | Pending przez samo `isActive=false`; wymaganie aktywacji poza `production`; register bramkowany `DEMO_MODE` |
 | **409** na register przy zajętym emailu (świadomy UX) | Maskowany **201** przy kolizji na register („sukces” bez konta / bez maila) |
 | Stały sukces resend; wspólny **401** na loginie (pending / soft-delete / złe hasło / guest przy demo off) | `ACCOUNT_NOT_ACTIVATED` / różnicowanie stanu konta na loginie lub resendzie |
-| Wewnętrzny gateway + ograniczony metrics | Publiczny gateway z kluczami vendorów |
+| Gateway / FE / api na `127.0.0.1` + ograniczony metrics | Publiczny bind `0.0.0.0` FE/api/gateway lub gateway z kluczami vendorów na internet |
 | Dump hopu chat na stdout wyłącznie przy `NODE_ENV=development`, z redakcją `GATEWAY_KEY`; w `development` wolno logować URL akceptacji / aktywacji | Pełne prompty / `output.text` hopu w logach procesu w `production`; raw token w logach `production` |
 
 ## Poza zakresem MVP

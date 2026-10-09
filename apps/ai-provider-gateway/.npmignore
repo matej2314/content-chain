@@ -1,0 +1,2 @@
+# Empty on purpose: presence of .npmignore makes pnpm deploy ignore .gitignore,
+# so build artifacts listed in package.json "files" (dist) are included.

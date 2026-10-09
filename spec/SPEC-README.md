@@ -1,7 +1,7 @@
 ---
-wersja: 17
+wersja: 18
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-07
+data_modyfikacji: 2026-10-09
 ---
 
 # SPEC — README
@@ -26,7 +26,7 @@ SPEC **uszczegóławia** docs; nie zastępuje ich i nie tworzy równoległej dok
 
 | Plik | Obszar |
 |------|--------|
-| `SPEC-MONOREPO.md` | Granice apps/*, `packages/shared`, pnpm, importy |
+| `SPEC-MONOREPO.md` | Granice apps/*, `packages/shared`, pnpm, importy; **M-9** build obrazów = kontekst **root** + **pnpm** |
 | `SPEC-KOMUNIKACJA.md` | HTTP/SSE api + klient → gateway; snapshot TTL; publiczne auth: register / activate / resend; **`GET /config`**; **`GET /health` + `/health/ready`**; lista user; **Users DELETE + `purge`**; **`GUEST_HAS_ACTIVE_RUN`**; cancel authz admin→guest; **`startedBy.role` na detail** |
 | `SPEC-AUTH.md` | Auth, cookie `cc_access`/`cc_refresh`, role `admin`\|`user`\|**`guest`**; **otwarta rejestracja** i **accept-invite** (rola vs `DEMO_MODE`) + aktywacja e-mail; GuestGuard; **DELETE Users wg roli** (soft `user` / hard+purge `guest`); **A-10a tylko `user` (z UI)**; **A-3c `isActive`/brak User na access** |
 | `SPEC-KONTEKST-FIRMY.md` | Company context, bramka kompletności (`isComplete` **bez** sieci / gateway); GET dla guest; zapis tylko admin |
@@ -34,10 +34,10 @@ SPEC **uszczegóławia** docs; nie zastępuje ich i nie tworzy równoległej dok
 | `SPEC-CONTENT.md` | Pipeline Content (page copy / outline), LangGraph, HITL model B |
 | `SPEC-RUNY.md` | Cykl życia runu (`completed` / `failed` / **`cancelled`**), logi, SSE, kolejka, recovery, anulowanie (R-11 — **admin→guest**), **`startedBy.role` na detail**, **przegląd z `REVIEW_TTL` / sweeper auto-finalize (R-10)**, **GuestRunPolicy (R-12)** + Redis **`REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`**, ocena / edycja outputu, composite executor, unia `SocialBrief` / `ContentBrief` na `RunRecord`; R-3c pełna lista HTTP |
 | `SPEC-FEEDBACK.md` | Opinie tekstowe (zapis MVP; panel odczytu = V1; okno `cancelled`+wynik; **nie** blokowane TTL przeglądu; guest: application/agent + run własny; **Fbk-9 wyjątek append-only przy hard guest**) |
-| `SPEC-PERSISTENCE.md` | Prisma; SQLite w MVP; PostgreSQL od V1 — rozbudowa; pola Run `cancelledAt` / `cancelRequested` / **`pipelineFinishedAt`** (+ indeks sweepera, backfill B); **`User.verifiedAt`** + **`AccountActivation`**; `User.role` String (`guest`); **D21 soft vs hard/purge tree** |
-| `SPEC-FRONTEND.md` | Next.js, modules/, shadcn, SSE UI, Stop + modal (**admin→guest na detail**), archiwum z `cancelled`, disable przeglądu po `reviewExpiresAt`; **signup / thank-you / deep link aktywacji**; **F-6 `agentsActive`**; **F-10 DEMO chip / locki guest**; **viewport shell** + **paginacja UI Moje runy (10)**; **F-8 Users toggle/Usuń/purge** |
+| `SPEC-PERSISTENCE.md` | Prisma; SQLite w MVP; PostgreSQL od V1 — rozbudowa; **P-6a** prod: volume `api-sqlite` → `/app/data/chain.db`; pola Run `cancelledAt` / `cancelRequested` / **`pipelineFinishedAt`** (+ indeks sweepera, backfill B); **`User.verifiedAt`** + **`AccountActivation`**; `User.role` String (`guest`); **D21 soft vs hard/purge tree** |
+| `SPEC-FRONTEND.md` | Next.js, modules/, shadcn, SSE UI, Stop + modal (**admin→guest na detail**), archiwum z `cancelled`, disable przeglądu po `reviewExpiresAt`; **signup / thank-you / deep link aktywacji**; **F-6 `agentsActive`**; **F-10 DEMO chip / locki guest**; **viewport shell** + **paginacja UI Moje runy (10)**; **F-8 Users toggle/Usuń/purge**; **F-2** prod BFF `API_BASE_URL=http://api:3001`, port UI **3004** |
 | `SPEC-TESTY.md` | Jest, supertest, piramida, DoD (w tym D-30…D-34 cancel, **D-35…D-40 TTL / sweeper**, **D-41…D-46 register / activate / resend**, **D-47…D-49 health/ready**, **D-50…D-62 guest / DEMO**, **D-63…D-72 Users delete/purge / cancel admin→guest / isActive**) |
-| `SPEC-BEZPIECZENSTWO.md` | Env, ekspozycja, Helmet, CORS, metrics/logi bez sekretów; anti-enum (409 register / stały resend / wspólny 401 login w tym guest przy demo off); GuestGuard; Redis fail modes + połączenie **`REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`** (bez `REDIS_URL`); publiczny health **i** ready bez wycieku `GATEWAY_KEY`; **B-12 Users/cancel/sesja/Redis ratings SCAN** |
+| `SPEC-BEZPIECZENSTWO.md` | Env, ekspozycja, Helmet, CORS, metrics/logi bez sekretów; **Compose-first**: publish **`127.0.0.1`**, root `.env` z Vault, Redis **external** (nie compose); anti-enum (409 register / stały resend / wspólny 401 login w tym guest przy demo off); GuestGuard; Redis fail modes + połączenie **`REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`** (bez `REDIS_URL`); publiczny health **i** ready bez wycieku `GATEWAY_KEY`; **B-12 Users/cancel/sesja/Redis ratings SCAN** |
 
 ## Terminologia faz (skrót)
 
@@ -58,6 +58,7 @@ Zmiana względem wersji 13: Redis guest bez nazw env w indeksie. Od tej wersji B
 Zmiana względem wersji 14: mapa bez viewport shell / paginacji UI Moje runy. Od tej wersji FRONTEND / KOMUNIKACJA / RUNY wskazują shell `h-dvh` + paginację UI 10 przy pełnej liście HTTP R-3c.
 Zmiana względem wersji 15 / AUTH: „rola vs `DEMO_MODE`” tylko przy register. Od tej wersji obejmuje **register i accept-invite**.
 Zmiana względem wersji 16: mapa bez Users DELETE/purge / cancel admin→guest / isActive / Fbk-9 / D-63+. Od tej wersji AUTH A-10/A-10a/A-3c, RUNY R-11, KOMUNIKACJA K-2j/`GUEST_HAS_ACTIVE_RUN`, FRONTEND F-8/F-5b, TESTY D-63…D-72, BEZPIECZENSTWO B-12 — `users-management-plan.md` Faza 2.
+Zmiana względem wersji 17: mapa bez kontraktu Compose-first. Od tej wersji BEZPIECZENSTWO (B-2/B-6/B-11 + Deploy), FRONTEND F-2, MONOREPO M-9, PERSISTENCE P-6a — bind localhost, root `.env`, volume SQLite, external Redis, build root+pnpm (`docs/deployment.md`, plan naprawy deployu Faza 1).
 
 Szczegóły: `docs/dictionary.md`, `SPEC-PERSISTENCE.md`.
 

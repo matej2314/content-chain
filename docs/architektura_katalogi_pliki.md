@@ -1,12 +1,14 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-09
 ---
 
 # Architektura katalogów i plików — Content Chain
 
 Propozycja **docelowego drzewa** monorepo (greenfield). Odzwierciedla style i granice z `architektura.md`: trzy aplikacje pod `apps/`, wspólne typy w `packages/shared`, `docs/` w rootcie. **Bez** rootowego katalogu `src/` opakowującego aplikacje.
+
+Zmiana względem: drzewo bez jawnego „źródła prawdy” deployu. Od tej wersji w szkielecie: root `docker-compose.yml`, `Jenkinsfile`, Dockerfile’e usług (build context = **root** monorepo + pnpm), entrypoint api (migracje → start) — szczegóły ops: `deployment.md`.
 
 Zmiana względem: płaskie `runs/infrastructure/` i `auth/infrastructure/` oraz płaski kernel w `runs/application/`. Od tej wersji: podkatalogi w warstwie po **granicy I/O / kernel** (analogicznie do Social/Content: `graph/` / `prompts/` / `persistence/`); **zakaz** `helpers/` / `adapters/` / `mappers/` jako kanonu warstwy. Mapowania wiersza Prisma zostają przy adapterze persistence. Bez zmiany kontraktu HTTP, ról, runów, guest ani silnika Prisma.
 
@@ -25,6 +27,8 @@ Zmiana względem wcześniejszej wersji (bez frontmatteru): jedna linia o cancel 
 content-chain/
 ├── apps/
 │   ├── api/                         # NestJS + LangGraph — domena i orchestracja
+│   │   ├── Dockerfile               # build: context = root monorepo + pnpm
+│   │   ├── docker-entrypoint…       # prisma migrate deploy → start procesu (production)
 │   │   ├── prisma/                  # schema Prisma (SQLite MVP)
 │   │   ├── test/
 │   │   │   ├── *.e2e-spec.ts        # Jest e2e (supertest; fake LLM w happy path pipeline)
@@ -44,9 +48,12 @@ content-chain/
 │   │       ├── llm/                 # port LLM + adapter HTTP do gateway
 │   │       └── shared/              # cross-cutting tylko w api (nie packages/shared)
 │   ├── frontend/                    # Next.js — cienki klient
+│   │   ├── Dockerfile               # build: context = root + pnpm; port prod 3004
 │   │   ├── package.json
 │   │   └── src/                     # App Router, moduły UI
 │   └── ai-provider-gateway/         # gateway LLM — bez domeny Content Chain
+│       ├── Dockerfile               # (ścieżka w root compose; port 3100)
+│       ├── gateway.config.yaml      # w repo; COPY do obrazu + volume mount (host wygrywa)
 │       ├── package.json
 │       └── src/
 ├── packages/
@@ -54,9 +61,14 @@ content-chain/
 │       ├── package.json
 │       └── src/
 ├── docs/
+├── docker-compose.yml               # Źródło prawdy runtime production (Compose-first)
+├── Jenkinsfile                      # Job deploy: Vault → root .env → compose up → smoke
+├── .env.example                     # Suma kluczy prod (placeholdery); runtime = root .env z Vault
 ├── package.json
 └── pnpm-workspace.yaml
 ```
+
+**Deployables (skrót):** kanon ops = root `docker-compose.yml` + `Jenkinsfile` + Dockerfile’e w `apps/{api,frontend,ai-provider-gateway}/` budowane z **kontekstu roota**. Porty, sieci (`cc-network` + `main_network`), volume `api-sqlite`, sekrety i smoke — `deployment.md`.
 
 
 ## Mapowanie stylów → katalogi

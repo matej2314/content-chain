@@ -1,7 +1,7 @@
 ---
-wersja: 17
+wersja: 18
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-07
+data_modyfikacji: 2026-10-09
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -19,6 +19,7 @@ Zmiana względem wersji 13 / cel: brak GuestGuard / DEMO env. Od tej wersji B-11
 Zmiana względem wersji 14 / B-8 + B-11: Redis guest bez hasła połączenia w normie. Od tej wersji opcjonalne **`REDIS_PASSWORD`** (HOST/PORT) jako sekret; przy `REDIS_URL` hasło w URL — `docs/deployment.md` / `docs/security.md`.
 Zmiana względem wersji 15 / B-8 + B-11: kanon URL **albo** HOST/PORT. Od tej wersji wyłącznie **`REDIS_HOST`+`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); **`REDIS_URL` usunięte**.
 Zmiana względem wersji 16: brak B-12 (Users DELETE / cancel / sesja isActive / Redis ratings SCAN). Od tej wersji B-12 — `docs/security.md`, `users-management-plan.md` Faza 2.
+Zmiana względem wersji 17 / B-2 + B-6 + Deploy: sekrety ops = „env per app”; publish production bez pinu `127.0.0.1` dla FE/api. Od tej wersji: **jeden** root `.env` z Vault (Jenkins) w production; publish FE/api/gateway na **`127.0.0.1`**; Redis **nie** jest usługą compose w MVP stacku CC — `docs/deployment.md`.
 
 ## Powiązanie ze stylem z docs
 
@@ -30,7 +31,9 @@ Wiążące: jedna instalacja = jedna firma; zagrożenia głównie konfiguracja i
 
 B-1. **Fail-fast:** procesy `apps/api` i `apps/ai-provider-gateway` nie startują przy braku wymaganych zmiennych env (JWT, `GATEWAY_*`, klucze vendorów po stronie gateway, `DATABASE_URL` itd. wg `.env.example`). W **`production`** dodatkowo wymagane: **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`**, **`MAIL_FROM`**, **`APP_PUBLIC_URL`** (`docs/deployment.md`). W `development` / `test` SMTP nie jest wymagane (adapter logujący).
 
-B-2. W repozytorium: **`.env.example`** per aplikacja (`api`, `frontend`, `ai-provider-gateway`) z placeholderami — **bez** sekretów. Pliki `.env` poza gitem.
+B-2. W repozytorium: **`.env.example`** per aplikacja (`api`, `frontend`, `ai-provider-gateway`) z placeholderami — **bez** sekretów — jako **DX / dokumentacja kluczy**. W **`production`**: sekrety runtime = **jeden** root `.env` (Vault → Jenkins w katalogu projektu); compose podaje go wszystkim trzem usługom (`env_file` / równoważne). **Zakaz** commitowania `.env` oraz bake sekretów w warstwach obrazu. Opcjonalny root `.env.example` (suma kluczy) — `docs/deployment.md`. Pliki `.env` poza gitem.
+
+Zmiana względem wersji 17 / B-2: jedyny model ops = per-app `.env`. Od tej wersji production = root `.env` z Vault; per-app `.env.example` zostaje jako dokumentacja kluczy / DX.
 
 B-3. Na `apps/api`: **Helmet** (lub równoważny zestaw security headers) włączony od MVP.
 
@@ -43,7 +46,9 @@ B-5a. **BFF:** przeglądarka wyłącznie origin `apps/frontend` (`/api/v1/...`).
 Zmiana względem wersji 6 / B-4–B-5: FE wołał api bezpośrednio (`NEXT_PUBLIC_API_BASE_URL`); SameSite „sensowny” bez BFF.
 Zmiana względem wersji 7: „Nie wolno” dopisuje wprost URL api w `NEXT_PUBLIC_*` (B-5a) — wcześniej tylko w B-5a i tabeli env.
 
-B-6. W `production`: `apps/ai-provider-gateway` **nie** jest publikowany do internetu (tylko sieć wewnętrzna compose / równoważna). `GET /metrics` api — scrape z sieci ops / localhost, nie publiczny endpoint internetowy.
+B-6. W `production` publish FE / api / gateway wyłącznie na **`127.0.0.1:<port>:<port>`** (nie `0.0.0.0` jako kanon). Gateway **nie** jest publicznym originem internetowym — dostęp z internetu tylko przez edge na hoście / `main_network` (reverse proxy). `GET /metrics` api — scrape z **localhost** / sieci ops, nie publiczny endpoint internetowy. Porty kanoniczne: gateway `3100`, api `3001`, frontend `3004` — `docs/deployment.md`.
+
+Zmiana względem wersji 17 / B-6: norma mówiła tylko „gateway nie na internet” + metrics z sieci ops. Od tej wersji jawny bind **`127.0.0.1`** dla **wszystkich trzech** usług oraz scrape metrics z localhost / ops.
 
 B-7. `GET /api/v1/health` oraz `GET /api/v1/health/ready` mogą być bez auth do probe — **bez** wrażliwych danych w odpowiedzi (skrót statusów checków; **zakaz** `GATEWAY_KEY` / `X-Gateway-Key` / wartości env / hostname’ów z kluczami w body). Semantyka ready / probe: `SPEC-KOMUNIKACJA.md` K-10.
 
@@ -81,11 +86,12 @@ B-9. Minimalny zestaw `/metrics` (proces `apps/api`) zgodny z `docs/observabilit
 
 B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/security.md` (ten SPEC nie dubluje szczegółów, ale uznaje je za obowiązujące przy review security).
 
-B-11. **DEMO MODE / guest (authz):** `DEMO_MODE` (bool string, default **`false`**) ładowane przy **starcie procesu** — zmiana wymaga restartu; **brak** switcha w UI. `GuestGuard` + `@AllowGuest` — `SPEC-AUTH.md` A-6a. Redis keys: `content-chain:guest:daily:runs:{UTC-date}`, `content-chain:guest:daily:ratings:{userId}:{UTC-date}`. Przy `DEMO_MODE=true` Redis potrzebny pod cap + soft rating. Przy `false` Redis **opcjonalny**. `GET /health` i `GET /health/ready` **nie** failują z braku Redis. Pad Redis: `POST /runs` guest → fail closed; rating guest → fail open (`SPEC-RUNY.md` R-12). Env capów: `GUEST_GLOBAL_CAP_PER_DAY` (default 30), `GUEST_RATING_CAP_PER_DAY` (default 10) — walidowane przy starcie. Połączenie Redis (przy `DEMO_MODE=true` wymagane): **`REDIS_HOST`**+**`REDIS_PORT`**; opcjonalne **`REDIS_PASSWORD`**. **Zakaz** `REDIS_URL`. Dump SQLite przenosi role (w tym `guest`); `DEMO_MODE` **nie** degraduje ról w DB.
+B-11. **DEMO MODE / guest (authz):** `DEMO_MODE` (bool string, default **`false`**) ładowane przy **starcie procesu** — zmiana wymaga restartu; **brak** switcha w UI. `GuestGuard` + `@AllowGuest` — `SPEC-AUTH.md` A-6a. Redis keys: `content-chain:guest:daily:runs:{UTC-date}`, `content-chain:guest:daily:ratings:{userId}:{UTC-date}`. Przy `DEMO_MODE=true` Redis potrzebny pod cap + soft rating. Przy `false` Redis **opcjonalny**. `GET /health` i `GET /health/ready` **nie** failują z braku Redis. Pad Redis: `POST /runs` guest → fail closed; rating guest → fail open (`SPEC-RUNY.md` R-12). Env capów: `GUEST_GLOBAL_CAP_PER_DAY` (default 30), `GUEST_RATING_CAP_PER_DAY` (default 10) — walidowane przy starcie. Połączenie Redis (przy `DEMO_MODE=true` wymagane): **`REDIS_HOST`**+**`REDIS_PORT`**; opcjonalne **`REDIS_PASSWORD`** (semantyka env **bez zmian** — wartości z Vault / root `.env`). **Zakaz** `REDIS_URL`. W MVP stacku Compose CC Redis jest **external** (instancja na serwerze) — **nie** usługa w bazowym `docker-compose.yml` (`docs/deployment.md`). Dump SQLite przenosi role (w tym `guest`); `DEMO_MODE` **nie** degraduje ról w DB.
 
 Zmiana względem wersji 13: brak normy DEMO/Redis guest. Od tej wersji B-11.
 Zmiana względem wersji 14 / B-11: brak nazw env połączenia Redis / `REDIS_PASSWORD`. Od tej wersji kanon URL vs HOST/PORT + opcjonalne hasło HOST/PORT (`docs/deployment.md`).
 Zmiana względem wersji 15 / B-11: `REDIS_URL` **albo** HOST/PORT. Od tej wersji wyłącznie HOST/PORT + opcjonalne `REDIS_PASSWORD`.
+Zmiana względem wersji 17 / B-11: semantyka HOST/PORT/PASSWORD **bez unieważnienia**; dopisek: Redis **nie** jest usługą compose w MVP stacku CC (external + Vault).
 
 B-12. **Zarządzanie kontami / sesja / cancel (authz + audyt):**
 
@@ -107,18 +113,19 @@ Zmiana względem wersji 16: brak normy Users DELETE rozgałęzionego / cancel ad
 | FE | Brak URL-a api w `NEXT_PUBLIC_*`; `API_BASE_URL` tylko serwer Next |
 | Auth transport | Cookie-only MVP — `SPEC-AUTH.md` / `SPEC-FRONTEND.md` |
 | Logi vs metrics | Logi procesu: **Pino** / `nestjs-pino` (stdout); logi runu = DB/SSE; metrics = ops procesu — bez mieszania i bez sekretów (`docs/observability.md`) |
-| Deploy | Compose: volume SQLite, sekrety z env, HTTPS przed FE/api w production; lokalnie api **PORT=3001** (`docs/deployment.md`) |
+| Deploy | Compose-first: trzy usługi; publish **`127.0.0.1`**; sekrety = root `.env` (Vault); volume SQLite `api-sqlite` → `/app/data/chain.db`; Redis external; HTTPS / edge przed FE na `main_network`; lokalnie api **PORT=3001** (`docs/deployment.md`) |
 
 ### Wolno
 
 - Ograniczać `/metrics` reverse proxy / firewallem zamiast auth w aplikacji (MVP).
-- Trzymać osobne `.env.example` per workspace package.
-- Opcjonalnie scrape metrics gateway w sieci ops (upstream) — bez ekspozycji publicznej.
+- Trzymać osobne `.env.example` per workspace package (DX) **oraz** opcjonalny root `.env.example` (dokumentacja sumy kluczy Vault).
+- Opcjonalnie scrape metrics gateway w sieci ops (upstream) / z localhost — bez ekspozycji publicznej.
 - Dump hopu chat na stdout wyłącznie w `development`, z redakcją `GATEWAY_KEY`.
 
 ### Nie wolno
 
-- Commitowania `.env` z sekretami.
+- Commitowania `.env` z sekretami; bake sekretów w warstwach obrazu Docker.
+- Publicznego bind `0.0.0.0` dla FE / api / gateway jako kanonu `production` (obowiązuje **`127.0.0.1`** — B-6).
 - Publicznego gateway z kluczami vendorów w production.
 - Publicznego `/metrics` na internet w production.
 - Sekretów LLM / gateway w FE.
@@ -168,9 +175,9 @@ Zmiana względem wersji 4: B-1 fail-fast SMTP/`MAIL_FROM`/`APP_PUBLIC_URL` w `pr
 
 ## Kryteria akceptacji
 
-- [ ] Api/gateway padają przy starcie bez wymaganych env; `.env.example` istnieje i nie zawiera sekretów.
+- [ ] Api/gateway padają przy starcie bez wymaganych env; `.env.example` (per-app; opcjonalnie root) istnieje i nie zawiera sekretów.
 - [ ] Helmet (lub równoważne) aktywne na api; CORS czyta allowlistę z env.
-- [ ] W production: gateway i metrics nie są publiczne; cookie Secure.
+- [ ] W production: FE/api/gateway na **`127.0.0.1`**; gateway i metrics nie są publiczne na internet; sekrety z root `.env` (Vault), nie z obrazu; cookie Secure; Redis external (nie compose).
 - [ ] `GET /api/v1/health` i `GET /api/v1/health/ready` bez wrażliwych danych / bez wycieku `GATEWAY_KEY`.
 - [ ] Brak sekretów w logach runu, SSE, envelope, treści opinii, labelach metrics i stdout (w `development` dump hopu z `[REDACTED]` zamiast `GATEWAY_KEY`; w `production` bez dumpa treści chat; raw invite / activation token nie w logach `production`).
 - [ ] Publiczne auth: register kolizja → **409**; resend = stały sukces; login pending / soft-delete / złe hasło / guest przy demo off = wspólny **401**; activate-fail = wspólny **401**; accept-invite kolizja = **401** (nie 409).

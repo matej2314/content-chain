@@ -1,7 +1,7 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-09
 ---
 
 # SPEC — Monorepo
@@ -11,6 +11,8 @@ data_modyfikacji: 2026-10-06
 Norma **granic procesów, workspaces i zależności** w monorepo Content Chain przy pisaniu kodu. Uszczegóławia (bez przepisywania) ustalenia z `docs/architektura.md`, `docs/architektura_katalogi_pliki.md` oraz pułapki granic z `docs/anty_patterny.md`.
 
 Ten SPEC **nie** opisuje reguł domenowych BC, kontraktów HTTP/SSE ani schematu Prisma — tylko układ repo i dozwolone powiązania między pakietami.
+
+Zmiana względem wersji 8: brak normy buildu obrazów Docker. Od tej wersji M-9 — kontekst **root** monorepo + **pnpm** (`docs/deployment.md`).
 
 ## Powiązanie ze stylem z docs
 
@@ -42,6 +44,10 @@ M-8. `apps/api/src/shared/` (jeśli używany) służy wyłącznie cross-cuttingo
 
 Zmiana względem wersji 5 / M-8: wcześniejsze brzmienie dopuszczało cross-cutting bez dublowania `packages/shared` regułami domenowymi, ale **nie** wymieniało jawnie helpera `parse-with-zod.ts`. Od tej wersji lokalizacja wspólnego `parseWithZod` w api shared jest legalna i kanoniczna.
 
+M-9. Obrazy Docker usług workspace (`api`, `frontend`; gateway gdy zależy od `workspace:` / shared) buduje się z **kontekstu roota** monorepo przez **pnpm** (zachowanie protokołu `workspace:` / `pnpm-lock.yaml`). Dockerfile wskazuje ścieżkę `apps/<svc>/Dockerfile` (lub równoważną), `context: .` (root). **Zakaz** zakładania samodzielnego `npm ci` / `npm install` w izolowanym `apps/<svc>` jako kanonu produkcji przy zależnościach `workspace:` — łamie shared / lockfile (`docs/deployment.md`).
+
+Zmiana względem wersji 8: brak normy Docker/pnpm przy buildzie obrazów. Od tej wersji M-9.
+
 ## Norma implementacji
 
 ### Wzorce / struktura
@@ -54,10 +60,12 @@ Zmiana względem wersji 5 / M-8: wcześniejsze brzmienie dopuszczało cross-cutt
 | Komunikacja FE↔API | wyłącznie HTTP/SSE (klient sieciowy), bez importu źródeł api |
 | Komunikacja API↔gateway | wyłącznie klient HTTP (adapter portu LLM), bez importu źródeł gateway |
 | Lint / format | ESLint + Prettier w **rootcie** (wspólna konfiguracja dla workspace) |
+| Build obrazów | Kontekst **root** + **pnpm** (M-9); ścieżki Dockerfile w `apps/*` |
 
 ### Wolno
 
 - Deklarować `@content-chain/shared` jako zależność `apps/api` i `apps/frontend` przez `workspace:`.
+- Budować obrazy z `docker build -f apps/<svc>/Dockerfile .` (context = root) albo równoważnym `docker compose build`.
 - Trzymać w `packages/shared` typy request/response, enumy ról (`UserRole` = `admin` \| `user` \| **`guest`**) / statusów runu / `RunTaskType` (post_*, reel_*, page_*) / `SocialPlatform` / `RunPlatform` / `ContentKind` / języków oraz brand types zgodne z `docs/brand_types.md`.
 - Trzymać `SocialBrief` / `ContentBrief` w BC Runs (`run.types.ts`) — to payload agregatu, nie publiczny enum FE/BE.
 - Uruchamiać pakiety skryptami root (`pnpm --filter api …`, `pnpm -r …`).
@@ -81,10 +89,12 @@ Zmiana względem wersji 7 / Wolno: drzewo warstw bez normy podkatalogów I/O. Od
 - Opakowywać aplikacje w rootowy katalog `src/apps/`.
 - Wprowadzać Nx lub Turborepo jako wymóg DX w MVP.
 - Przenosić domenę Content Chain (kontekst firmy, Social, Content, auth produktu, Feedback, przegląd runu) do `apps/ai-provider-gateway` lub do `apps/frontend`.
+- Samodzielnego `npm ci` / `npm install` w obrazie `apps/<svc>` przy zależnościach `workspace:` / bez kontekstu roota monorepo (M-9).
 
 Zmiana względem wersji 4 / „Nie wolno”: dopisano zakaz briefów kanałowych w shared (M-8).
 Zmiana względem wersji 1: lista zakazu obejmuje Feedback i przegląd runu.
 Zmiana względem wersji 3: folder `apps/api/src/content/` nie łamie M-1; shared obejmuje `ContentKind` / `RunPlatform` / pełne `RunTaskType` (bez Zod).
+Zmiana względem wersji 8 / „Nie wolno”: dopisano zakaz `npm` w izolowanym app context przy pnpm workspace (M-9).
 
 ### Zatwierdzony stack (obszar)
 
@@ -106,11 +116,12 @@ Zmiana względem wersji 3: folder `apps/api/src/content/` nie łamie M-1; shared
 - [ ] Brak importów TS między `apps/api` a `apps/ai-provider-gateway` oraz z `apps/frontend` do źródeł `apps/api`.
 - [ ] Każdy pakiet ma własny `tsconfig`; start DX idzie ze skryptów root (bez Nx/Turborepo).
 - [ ] ESLint i Prettier są skonfigurowane w rootcie workspace.
+- [ ] Dockerfile’e usług workspace zakładają kontekst **root** + **pnpm** (M-9); brak kanonu `npm ci` w izolowanym `apps/<svc>` przy `workspace:`.
 
 ## Poza zakresem
 
 - Treść i wzorce BC: Auth, Company Context, Social, Content, Runs → osobne `SPEC-*.md`.
 - Kontrakt HTTP/SSE i klient gateway → `SPEC-KOMUNIKACJA.md` / `docs/dokumentacja_komunikacji.md`.
 - Schema Prisma, adaptery persistence → `SPEC-PERSISTENCE.md`.
-- Docker Compose, env produkcyjne → docs deployment / `SPEC-BEZPIECZENSTWO.md`.
+- Szczegóły Compose (porty, sieci, Vault, entrypoint migracji) → `docs/deployment.md` / `SPEC-BEZPIECZENSTWO.md` (M-9 pinuje tylko kontekst buildu + pnpm).
 - Pin konkretnej major pnpm oraz wybór konkretnych pluginów ESLint — decyzja implementacyjna przy scaffoldzie (byle norma root + pnpm została zachowana).

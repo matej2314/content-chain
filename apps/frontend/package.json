@@ -2,10 +2,15 @@
 	"name": "frontend",
 	"version": "0.1.0",
 	"private": true,
+	"files": [
+		".next",
+		"public",
+		"next.config.ts"
+	],
 	"scripts": {
-		"dev": "pnpm --filter @content-chain/shared build && next dev",
+		"dev": "pnpm --filter @content-chain/shared build && next dev -p 3004",
 		"build": "next build",
-		"start": "next start",
+		"start": "next start -p 3004",
 		"lint": "eslint"
 	},
 	"dependencies": {
