@@ -42,13 +42,13 @@ EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD node -e "\
-    require('http').get('http://localhost:3001/api/v1/health/ready', (r) => { \
+    require('http').get('http://localhost:3001/api/v1/health', (r) => { \
       let body = ''; \
       r.on('data', (c) => body += c); \
       r.on('end', () => { \
         try { \
           const j = JSON.parse(body); \
-          process.exit(r.statusCode === 200 && j.status === 'ready' ? 0 : 1); \
+          process.exit(r.statusCode === 200 && j.status === 'healthy' ? 0 : 1); \
         } catch { process.exit(1); } \
       }); \
     }).on('error', () => process.exit(1)); \
