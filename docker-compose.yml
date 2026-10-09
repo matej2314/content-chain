@@ -29,7 +29,6 @@ services:
       - cc-network
       - main_network
     volumes:
-      - ./apps/ai-provider-gateway/gateway.config.yaml:/app/gateway.config.yaml:ro
       - ./apps/ai-provider-gateway/logs:/app/logs
 
   api:
