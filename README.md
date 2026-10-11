@@ -1,7 +1,7 @@
 # Content Chain
 
-![Project Status](https://img.shields.io/badge/status-work%20in%20progress-f59e0b) ![License](https://img.shields.io/badge/license-MIT-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white) ![pnpm](https://img.shields.io/badge/pnpm-9-F69220?logo=pnpm&logoColor=white)
-![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white) ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs&logoColor=white) ![Docker Compose](https://img.shields.io/badge/Deploy-Docker%20Compose-2496ED?logo=docker&logoColor=white) ![Jenkins](https://img.shields.io/badge/CI-Jenkins-D24939?logo=jenkins&logoColor=white)
+![Project Status](https://img.shields.io/static/v1?label=Status&message=WIP&color=f59e0b) ![License](https://img.shields.io/badge/license-MIT-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white) ![pnpm](https://img.shields.io/badge/pnpm-9-F69220?logo=pnpm&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white) ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs&logoColor=white) ![Docker Compose](https://img.shields.io/static/v1?label=Deploy&message=Docker%20Compose&color=2496ED&logo=docker&logoColor=white) ![Jenkins](https://img.shields.io/static/v1?label=CI&message=Jenkins&color=D24939&logo=jenkins&logoColor=white)
 
 **Content Chain** is a self-hosted AI content generation dashboard powered by agent pipelines, a shared company context, and a dedicated LLM gateway.
 
