@@ -1,7 +1,7 @@
 ---
-wersja: 21
+wersja: 23
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-07
+data_modyfikacji: 2026-10-11
 ---
 
 # SPEC — Auth
@@ -62,8 +62,9 @@ Zmiana względem wersji 20 / tabela ról: DELETE = soft (API; UI poza); reaktywa
 
 A-1. `POST /api/v1/auth/bootstrap-admin` działa **tylko**, gdy w DB nie ma użytkownika z `role = admin`. Po sukcesie: ustawia sesję cookie jak login oraz **`User.verifiedAt = now()`**; endpoint jest trwale niedostępny (`CONFLICT` / `FORBIDDEN`).
 
-A-1a. `GET /api/v1/auth/bootstrap-status` (bez auth) zwraca `{ "available": boolean }` — `true` wyłącznie gdy wolno wykonać bootstrap. Pod **stronę główną** FE (tryb submitu karty logowania, nie osobny ekran) — `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`.
+A-1a. `GET /api/v1/auth/bootstrap-status` (bez auth) zwraca `{ "available": boolean }` — `true` wyłącznie gdy wolno wykonać bootstrap. Pod **stronę główną** FE: status steruje **przyciskiem + osobnym formularzem bootstrap** (tryb `bootstrap_admin` na `/`, nie osobna trasa; **nie** tryb submitu karty logowania) — `SPEC-FRONTEND.md` F-4a / F-8, `docs/ux_dashboard.md`. Semantyka HTTP A-1 **bez zmian**.
 
+Zmiana względem wersji 21 / A-1a: odsyłacz UX = „tryb submitu karty logowania”. Od tej wersji odsyłacz = przycisk + osobny formularz bootstrap na stronie głównej (tryb `bootstrap_admin` na `/`) — egzekucja API nadal serwerowa (A-1); UI = `SPEC-FRONTEND.md` F-4a / F-8, `docs/ux_dashboard.md`.
 Zmiana względem wersji 8 / A-1a: „pod ekran first-run”. Od tej wersji ten sam widok co logowanie (`docs/ux_dashboard.md`).
 
 Zmiana względem wersji 2: dopisano publiczny status bootstrapu oraz sesję cookie po udanym bootstrapie (wcześniej: sam fakt utworzenia admina bez normy first-run / Set-Cookie).
@@ -348,8 +349,9 @@ Zmiana względem wersji 14 / „Nie wolno”: zakaz otwartego signup unieważnio
 
 ## Poza zakresem
 
-- Widoki UI (first-run, login, rejestracja, thank-you, aktywacja→login+toast, użytkownicy toggle/Usuń, konto, akceptacja zaproszenia, Cancel admin→guest na detail) — **MVP dashboardu** → `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`. Ten SPEC nie wymaga ekranów jako DoD API (Postman zostaje).
+- Widoki UI (trzy tryby strony głównej: `login` \| `register` \| `bootstrap_admin`; thank-you; aktywacja→login+toast; użytkownicy toggle/Usuń; konto; akceptacja zaproszenia; Cancel admin→guest na detail) — **MVP dashboardu** → `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`. Ten SPEC nie wymaga ekranów jako DoD API (Postman zostaje).
 
+Zmiana względem wersji 21 / poza zakresem: „first-run, login, rejestracja” jako lista widoków. Od tej wersji jawne trzy tryby na `/` (bez DoD ekranów w AUTH).
 Zmiana względem wersji 7 / poza zakresem: doprecyzowano, że ekrany Users i accept-invite są w zakresie MVP FE, nie „przyszłe”.
 Zmiana względem wersji 14 / poza zakresem: dopisano rejestrację / thank-you / deep link aktywacji jako widoki FE.
 Zmiana względem wersji 20 / poza zakresem: *„Soft-delete / reaktywacja w UI admina (API tak; UI MVP nie)”* oraz *„Zarządzanie / czyszczenie kont guest (osobny plan)”* — **unieważnione** dla per-konto soft/hard/purge + UI toggle/Usuń; reset / bulk / wipe **zostaje** poza.

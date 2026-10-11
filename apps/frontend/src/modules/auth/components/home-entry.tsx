@@ -9,6 +9,7 @@ import {
   fetchBootstrapStatus,
 } from '@/modules/auth/api/auth.api';
 import { ACTIVATION_FAILED_HINT } from '@/modules/auth/activation-error';
+import { BootstrapAdminForm } from '@/modules/auth/components/bootstrap-admin-form';
 import { LoginCard } from '@/modules/auth/components/login-card';
 import {
   RegisterForm,
@@ -25,6 +26,7 @@ export type GuestView =
       readonly activationError?: string | null;
     }
   | { readonly mode: 'register' }
+  | { readonly mode: 'bootstrap_admin' }
   | { readonly mode: 'thank_you'; readonly email: string };
 
 function HomeEntryInner() {
@@ -125,10 +127,13 @@ function HomeEntryInner() {
           onSuccess={handleRegisterSuccess}
           onBackToLogin={() => setView({ mode: 'login' })}
         />
+      ) : view.mode === 'bootstrap_admin' ? (
+        <BootstrapAdminForm onBackToLogin={() => setView({ mode: 'login' })} />
       ) : (
         <LoginCard
           bootstrapAvailable={bootstrapAvailable}
           onGoRegister={() => setView({ mode: 'register' })}
+          onGoBootstrapAdmin={() => setView({ mode: 'bootstrap_admin' })}
           successHint={view.successHint ?? null}
           activationError={view.activationError ?? null}
         />

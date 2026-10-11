@@ -1,18 +1,20 @@
 ---
-wersja: 39
+wersja: 41
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-09
+data_modyfikacji: 2026-10-11
 ---
 
 # SPEC — Frontend
 
 ## Cel / zakres względem dokumentacji
 
-Norma `apps/frontend`: cienki klient self-host (**strona główna = karta logowania**, **otwarta rejestracja**, **thank-you + resend** w `production`, deep link aktywacji → login + toast, akceptacja zaproszenia jako deep link, dashboard **po sesji** w tym widok **Konto**, flow’y Social i Content, HITL, logi, **zapis opinii / oceny / edycji wyniku**, **Users: toggle soft `user` / Usuń+purge `guest`**, **Cancel admin→guest na detail**), spójny z `docs/ux_dashboard.md` i kontraktem `SPEC-KOMUNIKACJA.md` / `SPEC-AUTH.md` / `SPEC-FEEDBACK.md` / `SPEC-RUNY.md`.
+Norma `apps/frontend`: cienki klient self-host (**strona główna = trzy tryby na `/`**: `login` \| `register` \| `bootstrap_admin` — **bez** osobnej trasy first-run; **otwarta rejestracja**, **thank-you + resend** w `production`, deep link aktywacji → login + toast, akceptacja zaproszenia jako deep link, dashboard **po sesji** w tym widok **Konto**, flow’y Social i Content, HITL, logi, **zapis opinii / oceny / edycji wyniku**, **Users: toggle soft `user` / Usuń+purge `guest`**, **Cancel admin→guest na detail**), spójny z `docs/ux_dashboard.md` i kontraktem `SPEC-KOMUNIKACJA.md` / `SPEC-AUTH.md` / `SPEC-FEEDBACK.md` / `SPEC-RUNY.md`.
 
 Aplikacja `apps/frontend` **już istnieje** w monorepo jako cienki klient Next (App Router, `modules/`). Ten SPEC dotyczy **ekranów i zachowania produktowego** na tym kliencie — bez ponownego bootstrapu aplikacji.
 
 Bez reguł domenowych pipeline’u, bez bramki kompletności jako jedynej egzekucji, bez sekretów LLM.
+
+Zmiana względem wersji 39 / cel / F-4a / F-8: first-run = tryb submitu tej samej karty logowania. Od tej wersji trzy tryby na `/`; login zawsze `POST /auth/login`; bootstrap admina = osobny formularz po CTA gdy `available === true` — `docs/ux_dashboard.md`.
 
 Zmiana względem wersji 37 / F-8 / F-5b: Users bez akcji na koncie; Stop wyłącznie własny run; UI soft-delete / reaktywacja poza MVP. Od tej wersji: kolumna Akcje (toggle `user` / Usuń+purge `guest`); Cancel admin gdy `startedBy.role=guest` **tylko** na detail — `docs/ux_dashboard.md`, `users-management-plan.md` Faza 2.
 
@@ -58,8 +60,9 @@ F-3. Typy request/response / enumy / brand types z **`@content-chain/shared`** n
 
 F-4. Auth web: wyłącznie cookie **`cc_access`** i **`cc_refresh`** (httpOnly) — patrz `SPEC-AUTH.md`. FE **nie** przechowuje JWT w `localStorage`, memory jako store tokenu ani zmiennych `NEXT_PUBLIC_*`. Brak nagłówka `Authorization: Bearer` jako modelu MVP (także Postman — cookie jar).
 
-F-4a. Probe sesji **oraz każde** produktowe wywołanie do `/api/v1`: przy **401** `UNAUTHORIZED` → `POST /auth/refresh` → **jednorazowy** retry żądania; kolejny **401** `UNAUTHORIZED` → **strona główna (karta logowania)**. Start / reload: `GET /auth/me` → (**401** `UNAUTHORIZED`) refresh → `GET /auth/me`. Gdy `GET /auth/bootstrap-status` → `available: true`, **ten sam** formularz submituje `POST /auth/bootstrap-admin` zamiast `POST /auth/login`. Dashboard (sidebar) wyłącznie po sesji. Na stronie głównej przycisk **„Nie masz konta? Zarejestruj się!”** jest **aktywny**, gdy bootstrap **niedostępny**; przy first-run (bootstrap available) — ukryty / disabled. Cykl refresh → retry → karta logowania dotyczy wyłącznie **401** `UNAUTHORIZED` (sesja). **401** `INVALID_PASSWORD` (re-auth) **nie** uruchamia refresh ani `unauthorizedHandler` — błąd pod polem hasła, sesja zostaje.
+F-4a. Probe sesji **oraz każde** produktowe wywołanie do `/api/v1`: przy **401** `UNAUTHORIZED` → `POST /auth/refresh` → **jednorazowy** retry żądania; kolejny **401** `UNAUTHORIZED` → **strona główna (widok logowania)**. Start / reload: `GET /auth/me` → (**401** `UNAUTHORIZED`) refresh → `GET /auth/me`. Na stronie głównej (`/`) trzy tryby: `login` \| `register` \| `bootstrap_admin` (**bez** osobnej trasy). Submit karty logowania → **zawsze** `POST /auth/login` (**zakaz** mode-hijack: CTA logowania **nigdy** nie woła `POST /auth/bootstrap-admin`, także gdy `available === true`). Gdy `GET /auth/bootstrap-status` → `available: true` — widoczny przycisk **„Zarejestruj admina”** (lub równoważne copy PL) → osobny formularz (tryb `bootstrap_admin`: email + hasło; opcjonalnie powtórz hasło tylko UI, jak register) → `POST /auth/bootstrap-admin` → sesja cookie → dashboard. Na stronie głównej przycisk **„Nie masz konta? Zarejestruj się!”** jest **aktywny**, gdy bootstrap **niedostępny** (`available === false`); przy `available === true` — ukryty / disabled. Z formularza admina i register — jawny powrót do karty logowania. Dashboard (sidebar) wyłącznie po sesji. Cykl refresh → retry → karta logowania dotyczy wyłącznie **401** `UNAUTHORIZED` (sesja). **401** `INVALID_PASSWORD` (re-auth) **nie** uruchamia refresh ani `unauthorizedHandler` — błąd pod polem hasła, sesja zostaje.
 
+Zmiana względem wersji 39 / F-4a: *gdy `available: true`, ten sam formularz submituje `bootstrap-admin` zamiast login* — **unieważnione**. Od tej wersji login zawsze `/auth/login`; bootstrap = osobny formularz po CTA gdy `available === true` — `docs/ux_dashboard.md`.
 Zmiana względem wersji 19 / F-4a: refresh tylko przy starcie aplikacji. Od tej wersji ten sam cykl na każdym fetchu (TTL access ~15 min).
 Zmiana względem wersji 14 / F-4a: osobny ekran first-run albo logowanie. Od tej wersji jeden widok główny = logowanie; first-run = tryb submitu; rejestracja wizualna, nieaktywna (`docs/ux_dashboard.md`).
 Zmiana względem: F-4a traktowało każdy **401** jak wygaśnięcie sesji — od tej wersji wyłącznie `UNAUTHORIZED` (decyzja A1 / `docs/dokumentacja_komunikacji.md`).
@@ -135,12 +138,12 @@ Zmiana względem: toast sukcesu mutacji bez wyjątku dla zmiany emaila — od te
 
 F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 
-- Strona główna: tło + karta logowania + **aktywny** **„Nie masz konta? Zarejestruj się!”** (gdy bootstrap niedostępny; przy first-run ukryty/disabled); first-run = tryb submitu tej karty; formularz rejestracji (F-4b); thank-you + resend po **201** w prod; **akceptacja zaproszenia** na **`/invite/accept?token=`** (tożsame z URL w mailu `{APP_PUBLIC_URL}/invite/accept?token=…`) → `POST /auth/accept-invite` → strona główna — dashboard dopiero po loginie; deep link aktywacji → widok logowania + activate w tle + toast (F-4b). Błędy wyłącznie `message` z envelope na karcie (bez Toastera na login/register/accept-invite — toast aktywacji **dozwolony** po sukcesie activate). Kolizja email na accept-invite i nieważny token = ten sam **401** — UI **bez** osobnego copy „email zajęty” i **bez** gałęzi na **409** `CONFLICT` z tej trasy. Kolizja na **register** = **409** → błąd przy polu email (F-4b). Opcjonalnie stała pomocnicza na accept-invite (bez leak z API): ogólne „Nie można dokończyć zaproszenia. Skontaktuj się z administratorem.” — **tylko** jeśli mapowana z tego samego 401 (bez rozróżniania przyczyn po `code`);
+- Strona główna: tło + karta na `/` w jednym z trzech trybów `login` \| `register` \| `bootstrap_admin` (**bez** osobnej trasy first-run). Widok `login`: submit → **zawsze** `POST /auth/login`. Przy `available === true` — CTA **„Zarejestruj admina”** → tryb `bootstrap_admin` (osobny formularz → `POST /auth/bootstrap-admin` → sesja → dashboard); karta logowania **nadal** loguje. **Aktywny** **„Nie masz konta? Zarejestruj się!”** gdy bootstrap niedostępny (`available === false`; przy `available === true` ukryty/disabled); formularz rejestracji (F-4b); thank-you + resend po **201** w prod; **akceptacja zaproszenia** na **`/invite/accept?token=`** (tożsame z URL w mailu `{APP_PUBLIC_URL}/invite/accept?token=…`) → `POST /auth/accept-invite` → strona główna — dashboard dopiero po loginie; deep link aktywacji → widok logowania + activate w tle + toast (F-4b). Błędy wyłącznie `message` z envelope na karcie (bez Toastera na login/register/bootstrap/accept-invite — toast aktywacji **dozwolony** po sukcesie activate). Kolizja email na accept-invite i nieważny token = ten sam **401** — UI **bez** osobnego copy „email zajęty” i **bez** gałęzi na **409** `CONFLICT` z tej trasy. Kolizja na **register** = **409** → błąd przy polu email (F-4b). Opcjonalnie stała pomocnicza na accept-invite (bez leak z API): ogólne „Nie można dokończyć zaproszenia. Skontaktuj się z administratorem.” — **tylko** jeśli mapowana z tego samego 401 (bez rozróżniania przyczyn po `code`);
 - Kontekst firmy: **sześć zakładek** — Tożsamość (domyślnie otwarta), Oferta, Głos SM, CTA / kanały, Odbiorca, Dodatki (`extras` w jednym panelu, bez podzakładek). Na triggerach zakładek bramki indykator z `completeness.missing` ostatniego **udanego** GET/PUT (zielona = kompletna, czerwona = brak); zakładka Dodatki **bez** kropki bramki. Zapis = jeden `PUT` całości. Submit **nie** wysyła, gdy draft nie spełnia bramki (puste wymagane pole albo kaleka oferta); lokalny predykat identyczny z C-1 **wyłącznie** do disable CTA zapisu i błędów pól — **kropki** nadal wyłącznie z `missing` odpowiedzi (**nie** gateway); **chip** „Agenci aktywni” = F-6 (`agentsActive`, nie sam `missing`). Placeholdery pustej oferty stripowane; kalekiej usługi nie stripujemy. Nie da się usunąć ostatniej kompletnej usługi tak, by PUT poszedł z `items: []`. Szczegóły: `docs/ux_dashboard.md` (Widok: Kontekst firmy);
 - **Runy** = archiwum instancji `completed` \| `failed` \| `cancelled` (`GET /runs?status=completed,failed,cancelled`, strona 10, odświeżanie przy wejściu i co **15 min**). **Bez** SSE, **bez** runów w toku na liście (także cudzych). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). Po **202** z modalu — zostajemy na Runach, modal zamknięty, toast „Run wystartował”; live = floating box;
 - **Konto**: email — formularz → modal re-auth (email **disabled** + `currentPassword`) → `PATCH /auth/me/email` `{ email, currentPassword }` (każdy Potwierdź z obu pól); złe hasło (`INVALID_PASSWORD`) / `VALIDATION_FAILED` pod polem hasła (email zostaje disabled; **bez** cyklu F-4a); **409** → modal otwarty, clear pól, odblokowanie emaila, błąd pod polem email; sukces bez toastu + `GET /auth/me`; Anuluj bez API (draft formularza bez zmian względem otwarcia); **Moje runy** (`GET /runs/user/:userId` — **pełna** lista HTTP; **paginacja UI** stałe `pageSize = 10` jak archiwum Runy — Poprzednia / `strona / totalPages (total)` / Następna; wszystkie statusy; **Stop** + modal na własnym nieterminalnym — F-5b); formularz **startu inline** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId` z wiersza „Moje runy”); opinia. Po **202** startu **z Konta** — zostajemy na Koncie **oraz** toast „Run wystartował”;
 - `PUT` kontekstu **200** → toast „Kontekst zapisany”; **400** → envelope przy formularzu, **zero** toasta (lokalny predykat / envelope); `POST .../cancel` **200** → toast **„Run anulowany”** (F-5b);
-- Layout **zalogowany**: root **`h-dvh`** + overflow ukryty; **scroll tylko w `main`**; sidebar (desktop) = wysokość viewportu — DemoChip (gdy demo) + chip agentów **zawsze w viewportcie**; Toaster (warstwa `--z-toast`); pozycja **nie** gryzie się z floating boxem (toast `top-right`; box `bottom-right`). **Brak** Toastera na karcie logowania / first-run / accept-invite / formularzu register (toast po sukcesie activate — wyjątek F-4b);
+- Layout **zalogowany**: root **`h-dvh`** + overflow ukryty; **scroll tylko w `main`**; sidebar (desktop) = wysokość viewportu — DemoChip (gdy demo) + chip agentów **zawsze w viewportcie**; Toaster (warstwa `--z-toast`); pozycja **nie** gryzie się z floating boxem (toast `top-right`; box `bottom-right`). **Brak** Toastera na karcie logowania / formularzu bootstrap admina / accept-invite / formularzu register (toast po sukcesie activate — wyjątek F-4b);
 - Run szczegóły: HITL / wynik **post vs rolka vs strona** / przegląd (bez `conversationId` w UI); **Stop** + modal (F-5b) gdy owner **lub** (admin ∧ `startedBy.role=guest`) i nieterminalny; po `cancelled` HITL znika, przegląd niedostępny, partial wynik jak przy `failed`; live SSE tylko własny `running` \| `awaiting_hitl` \| `interrupted` (ten sam rejestr co box);
 - HITL Social: **multi-select** (min. 1); Content: `[outline.id]`;
 - Wynik dwuetapowy Social = listy `contents[]` / `reelScripts[]`; `characterCount` / `cta?` / `role?` jak UX;
@@ -151,7 +154,9 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 - **Header**: zawartość do prawej; login → „Wyloguj się” → modal → `POST /auth/logout` → `/`;
 - Globalny CTA opinii; na szczegółach: Edytuj (`result` + flaga), gwiazdki, finalize — **tylko** gdy snapshot `completed` \| `failed` (nie na `cancelled`) **oraz** przegląd otwarty (`reviewFinalizedAt === null` **i** nie minął serwerowy `reviewExpiresAt`); po zamknięciu copy **„Przegląd zamknięty”** (bez rozróżnienia auto vs ręczne); **bez** widocznego deadline / countdown / wiersza „dostępne do…”;
 - Chip „Agenci aktywni” wg F-6 (`agentsActive`); **`DemoModeChipSlot` nad CompletenessChip** — **tylko dashboard**, gdy `demoMode === true` (F-10); **floating box** własnych runów w toku poza Kontem (zwijany; **bez** Stop). Po `cancelled`: krótko **„Anulowany”**, ukrycie pozycji po **200 ms**. **Nie** chip/stos „w toku” w chrome.
-- Nawigacja F-8 wg roli: `admin` — Users + zaproszenia; `user` — bez Users; `guest` (demo on) — bez Users / bez zapisu kontekstu / bez Edytuj / finalize; archiwum lista OK; **zakaz** nawigacji do cudzego `/runs/:id` (403 z API). Istniejący `GuestView` w home-entry = stan **anonimowy** (login/register) — **nie** mylić z rolą `guest`.
+- Nawigacja F-8 wg roli: `admin` — Users + zaproszenia; `user` — bez Users; `guest` (demo on) — bez Users / bez zapisu kontekstu / bez Edytuj / finalize; archiwum lista OK; **zakaz** nawigacji do cudzego `/runs/:id` (403 z API). Istniejący `GuestView` w home-entry = stan **anonimowy** (tryby `login` / `register` / `bootstrap_admin`) — **nie** mylić z rolą `guest`.
+
+Zmiana względem wersji 39 / F-8: *first-run = tryb submitu tej karty*; `GuestView` = login/register. Od tej wersji trzy tryby na `/` + formularz `bootstrap_admin`; `GuestView` obejmuje też bootstrap — `docs/ux_dashboard.md`.
 
 Zmiana względem wersji 19 / F-8: Runy = cała instancja + start; po starcie szczegóły; chip „w toku”. Od tej wersji: Runy = archiwum; start+live = Konto; box; trasa invite jak mailer.
 
@@ -242,7 +247,8 @@ apps/frontend/src/
 - Kompozycję `agentsActive` z `GET .../completeness` **oraz** `GET /api/v1/health/ready` (F-6) — bez zanieczyszczania lokalnego `isComplete` ani `isComplete` domeny siecią.
 - Copy nieaktywnego chipa kanoniczne; dodatkowo `missing` + link `/context` tylko gdy `complete === false`.
 - Refetch completeness / `/health/ready` przy mount i przy okazji (np. po udanym PUT kontekstu) — **bez** interval.
-- First-run jako tryb submitu **tej samej** karty logowania.
+- Trzy tryby na `/` (`login` \| `register` \| `bootstrap_admin`); CTA „Zarejestruj admina” gdy `available === true` → osobny formularz → `POST /auth/bootstrap-admin`.
+  Zmiana względem wersji 39 / „Wolno”: *„First-run jako tryb submitu tej samej karty logowania”* — **unieważnione**; obowiązuje F-4a (osobny formularz bootstrap).
 - **Aktywny** przycisk „Zarejestruj się!” gdy bootstrap niedostępny; formularz register; thank-you + resend gdy **201** `verifiedAt === null` (lub **503** po utworzeniu pending); deep link aktywacji → login + activate w tle + toast (F-4b).
 - Header: zawartość **do prawej**; login → „Wyloguj się”; modal; `POST /auth/logout` → `/`.
 - Widok **Konto**: email z modalem re-auth (`PATCH /auth/me/email` + `currentPassword`; recovery **409**; `INVALID_PASSWORD` bez wylogowania), Moje runy (live; **paginacja UI** 10), **start inline**, opinia; po starcie **z Konta** zostajemy tutaj.
@@ -304,11 +310,14 @@ apps/frontend/src/
 - UI create użytkownika z hasłem; dwóch przycisków Soft+Hard na `user`; soft/toggle na `guest`; reaktywacji `guest` z UI; braku modala przed toggle/Usuń/purge.
 - Pomijania Users albo `/invite/accept` w MVP.
   Zmiana względem wersji 37 / „Nie wolno”: *„UI soft-delete w MVP”* — **unieważnione**; obowiązuje F-8 Akcje (toggle / Usuń / purge).
-- Pokazywania dashboardu bez sesji; osobnej strony first-run.
+- Pokazywania dashboardu bez sesji; osobnej strony / trasy first-run (bootstrap zostaje na `/`).
+- Mode-hijack: submitu karty logowania → `POST /auth/bootstrap-admin` (także gdy `available === true`) — obowiązuje F-4a (login zawsze `/auth/login`).
+  Zmiana względem wersji 39 / „Nie wolno”: first-run jako tryb submitu tej samej karty był **wolny** — od tej wersji **zakazany**.
 - Wylogowania bez modala albo „Wyloguj się” w sidebarze.
 - Headera z zawartością nie do prawej.
 - Nieaktywnego „Zarejestruj się!” gdy bootstrap niedostępny; bramkowania signup przez `DEMO_MODE` w UI.
   Zmiana względem wersji 30 / „Nie wolno”: „Aktywnego «Zarejestruj się!» / otwartego signup” — **unieważnione**; obowiązuje F-4a / F-4b.
+- Pokazywania CTA „Zarejestruj admina” gdy `available === false`; ukrywania / disable tego CTA gdy `available === true`.
 - Maskowania sukcesu rejestracji przy **409** (thank-you bez konta) albo pomijania błędu przy polu email.
 - Osobnego trwałego ekranu „Aktywacja…” / dashboardu po samym activate (obowiązuje login + toast).
 - Traktowania thank-you jako obowiązkowego poza `production`.
@@ -361,7 +370,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 
 ## Kryteria akceptacji
 
-- [ ] Strona główna: karta logowania + **aktywny** „Zarejestruj się!” (gdy bootstrap niedostępny); first-run = tryb tej karty; **`/invite/accept?token=`** → logowanie; deep link aktywacji → login + toast; chrome po polsku; dashboard tylko po sesji.
+- [ ] Strona główna: trzy tryby na `/` (`login` \| `register` \| `bootstrap_admin`); submit logowania **zawsze** `POST /auth/login`; CTA „Zarejestruj admina” iff `available === true` → osobny formularz → `bootstrap-admin`; **aktywny** „Zarejestruj się!” gdy bootstrap niedostępny; **`/invite/accept?token=`** → logowanie; deep link aktywacji → login + toast; chrome po polsku; dashboard tylko po sesji.
 - [ ] Register: **409** `Email already in use` → błąd na formularzu; **201** `verifiedAt === null` lub **503** → thank-you + resend (email ze stanu klienta); **201** z `verifiedAt` → login; **bez** sesji z register/activate/resend.
 - [ ] Header: do prawej; login → „Wyloguj się”; modal → logout → `/`.
 - [ ] Fetch same-origin `/api/v1`; BFF → `API_BASE_URL` tylko serwer (prod: `http://api:3001`); UI prod na porcie **3004**; **401** `UNAUTHORIZED` → refresh → retry; cookie httpOnly na originie FE; **401** `INVALID_PASSWORD` **bez** refresh/wylogowania.

@@ -7,13 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
 import { EnvelopeError, FormField } from '@/shared/ui/form-field';
 import { ApiError } from '@/shared/api/envelope';
-import { bootstrapAdmin, loginWithPassword } from '@/modules/auth/api/auth.api';
+import { loginWithPassword } from '@/modules/auth/api/auth.api';
 import { useSession } from '@/modules/auth/components/session-provider';
 
 type LoginCardProps = {
   readonly bootstrapAvailable: boolean;
-  readonly onBootstrapAvailableChange?: (available: boolean) => void;
   readonly onGoRegister?: () => void;
+  readonly onGoBootstrapAdmin?: () => void;
   readonly successHint?: string | null;
   readonly activationError?: string | null;
 };
@@ -21,6 +21,7 @@ type LoginCardProps = {
 export function LoginCard({
   bootstrapAvailable,
   onGoRegister,
+  onGoBootstrapAdmin,
   successHint = null,
   activationError = null,
 }: LoginCardProps) {
@@ -36,9 +37,7 @@ export function LoginCard({
     setPending(true);
     setError(null);
     try {
-      const user = bootstrapAvailable
-        ? await bootstrapAdmin({ email, password })
-        : await loginWithPassword({ email, password });
+      const user = await loginWithPassword({ email, password });
       setAuthenticated(user);
       router.replace('/account');
     } catch (reason: unknown) {
@@ -56,11 +55,7 @@ export function LoginCard({
     <Card className="w-full max-w-md border bg-card shadow-none">
       <CardHeader className="gap-1">
         <CardTitle className="text-center text-2xl font-semibold">Content Chain</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          {bootstrapAvailable
-            ? 'Pierwsza instalacja. To konto zostanie administratorem.'
-            : 'Zaloguj się w aplikacji.'}
-        </p>
+        <p className="text-sm text-muted-foreground">Zaloguj się w aplikacji.</p>
       </CardHeader>
       <CardContent>
         <form className="flex flex-col gap-4" onSubmit={onSubmit}>
@@ -75,20 +70,12 @@ export function LoginCard({
               required
             />
           </FormField>
-          <FormField
-            label="Hasło"
-            htmlFor="login-password"
-            hint={
-              bootstrapAvailable
-                ? 'Min. 12 znaków, wielka litera, cyfra i znak specjalny.'
-                : undefined
-            }
-          >
+          <FormField label="Hasło" htmlFor="login-password">
             <Input
               id="login-password"
               name="password"
               type="password"
-              autoComplete={bootstrapAvailable ? 'new-password' : 'current-password'}
+              autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
@@ -96,7 +83,7 @@ export function LoginCard({
           </FormField>
           {error ? <EnvelopeError code={error.code} message={error.message} /> : null}
           <Button type="submit" disabled={pending} className="w-full">
-            {pending ? 'Zapisywanie…' : 'Zaloguj się'}
+            {pending ? 'Logowanie…' : 'Zaloguj się'}
           </Button>
           {successHint ? (
             <p className="text-sm text-muted-foreground" role="status">
@@ -108,7 +95,17 @@ export function LoginCard({
               {activationError}
             </p>
           ) : null}
-          {!bootstrapAvailable ? (
+          {bootstrapAvailable ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={onGoBootstrapAdmin === undefined}
+              onClick={onGoBootstrapAdmin}
+            >
+              Zarejestruj admina
+            </Button>
+          ) : (
             <Button
               type="button"
               variant="outline"
@@ -118,7 +115,7 @@ export function LoginCard({
             >
               Nie masz konta? Zarejestruj się!
             </Button>
-          ) : null}
+          )}
         </form>
       </CardContent>
     </Card>

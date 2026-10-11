@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-07
+data_modyfikacji: 2026-10-11
 ---
 
 # Dokumentacja koncepcyjna — Content Chain
@@ -30,7 +30,7 @@ Zmiana względem: Faza 18 — zaproszenie zawsze `user` / invite nadal user przy
 
 | Segment | Potrzeba |
 |---------|----------|
-| **Administrator** | Bootstrap własnego konta (email + hasło, bez maila), **zapraszanie** e-mailem (podaje tylko adres — nie hasło; przy demo on = kolejny gość sandboxu, nie członkostwo zespołu), **wyłączna** edycja kontekstu firmy, **zarządzanie kontami** (dezaktywacja/reaktywacja `user`, usunięcie trwałe / purge `guest`, cancel runów gościa na szczegółach); może też generować treści jak zwykły użytkownik. |
+| **Administrator** | Bootstrap własnego konta przez **dedykowany formularz first-run** na stronie głównej (email + hasło, bez maila; nie tryb submitu logowania), **zapraszanie** e-mailem (podaje tylko adres — nie hasło; przy demo on = kolejny gość sandboxu, nie członkostwo zespołu), **wyłączna** edycja kontekstu firmy, **zarządzanie kontami** (dezaktywacja/reaktywacja `user`, usunięcie trwałe / purge `guest`, cancel runów gościa na szczegółach); może też generować treści jak zwykły użytkownik. |
 | **Użytkownik** | Self-register (`DEMO_MODE=false` → `user`) albo akceptacja zaproszenia przy demo off; uruchamianie runów produktowych (Social i Content) na wspólnym kontekście firmy, przegląd wyników i logów; bez edycji kontekstu. Soft-delete zachowuje jego runy. |
 | **Gość (`guest`)** | Self-register **lub** accept-invite gdy instancja ma `DEMO_MODE=true`. Showcase z limitami slotów i capem dziennym; locki mutacji; **brak** awansu do `user`/`admin`. Admin może **trwale** usunąć konto i artefakty gościa (hard/purge) — **nie** mylić z resetem całej instancji. |
 | **Zespół wewnętrzny (self-host)** | Jedna firma / niewielki zespół: wspólny kontekst, generowanie treści bez multi-tenant SaaS. |

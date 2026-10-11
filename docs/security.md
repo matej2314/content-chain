@@ -1,7 +1,7 @@
 ---
-wersja: 13
+wersja: 14
 data_utworzenia: 2026-09-29
-data_modyfikacji: 2026-10-09
+data_modyfikacji: 2026-10-11
 ---
 
 # Bezpieczeństwo — Content Chain
@@ -25,6 +25,8 @@ Zmiana względem: Redis guest bez normy hasła połączenia. Od tej wersji: opcj
 Zmiana względem: kanon `REDIS_URL` **albo** HOST/PORT. Od tej wersji wyłącznie **`REDIS_HOST`+`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); **`REDIS_URL` usunięte**.
 
 Zmiana względem: Faza 18 / demo — *„invite nigdy nie tworzy `guest` (także przy demo on)”*; `guest` wyłącznie self-register. Od tej wersji accept-invite **mirror register**: `DEMO_MODE=true` → **`guest`**, `false` → **`user`**. Sens: przy demo off invite = pełnoprawny członek zespołu; przy demo on = kolejny gość sandboxu (rekruterzy / zaciekawieni), **nie** członkostwo zespołu — te same limity co register→guest. Body nadal bez `role`; invite **nigdy** → `admin`. Register **bez zmian**.
+
+Zmiana względem: surface FE first-run = tryb submitu karty logowania. Od tej wersji FE = osobny formularz bootstrap sterowany `bootstrap-status`; reguły API (jeden admin, brak maila, `verifiedAt`, trwałe wyłączenie) **bez zmian**.
 
 ## Założenia
 
@@ -50,7 +52,7 @@ Zmiana względem: Faza 18 / demo — *„invite nigdy nie tworzy `guest` (także
 | Zaproszenia: create / lista pending / resend / revoke | tak | nie | **nie** → **403** |
 | `DELETE /users/:id` (soft `user` / hard+purge `guest`) | tak | nie | **nie** → **403** |
 | Reaktywacja `PATCH /users/:id` (tylko target `user`) | tak | nie | **nie** → **403** |
-| Bootstrap pierwszego admina | jednorazowy (API + tryb strony głównej / karta logowania) | — | — |
+| Bootstrap pierwszego admina | jednorazowy (API + formularz bootstrap na stronie głównej) | — | — |
 
 **403** przy naruszeniu (`FORBIDDEN`). Egzekucja zawsze w `apps/api`, nie tylko w UI. Nowe trasy: **GuestGuard** — brak `@AllowGuest()` → guest **403** (default deny). `admin`/`user`: `@Roles` jak dotychczas.
 
@@ -58,8 +60,10 @@ Gdy `DEMO_MODE=false`: JWT z `role=guest` na **każdej** chronionej trasie (w ty
 
 ## Bootstrap i konta admin
 
-1. **`GET /api/v1/auth/bootstrap-status`** (publiczny) — `{ available }` pod stronę główną (czy submit karty logowania to bootstrap, czy `POST /auth/login`).
-2. **`POST /api/v1/auth/bootstrap-admin`** działa **wyłącznie**, gdy w DB **nie ma** żadnego użytkownika z `role = admin`. Po sukcesie ustawia sesję cookie (jak login) oraz **`User.verifiedAt = now()`** (admin gotowy do loginu bez aktywacji linkiem).
+Surface FE: `{ available }` z **`GET /api/v1/auth/bootstrap-status`** steruje widocznością CTA i **osobnego formularza** bootstrap na stronie głównej (`ux_dashboard.md`). Widoczność przycisku = wyłącznie UX — egzekucja nadal serwerowa (`admin count === 0`). Submit karty logowania **nigdy** nie woła bootstrap (mode-hijack zabroniony).
+
+1. **`GET /api/v1/auth/bootstrap-status`** (publiczny) — `{ available }` pod stronę główną (czy pokazać CTA / formularz bootstrap admina; karta logowania zawsze → `POST /auth/login`).
+2. **`POST /api/v1/auth/bootstrap-admin`** działa **wyłącznie**, gdy w DB **nie ma** żadnego użytkownika z `role = admin`. Po sukcesie ustawia sesję cookie (jak login) oraz **`User.verifiedAt = now()`** (admin gotowy do loginu bez aktywacji linkiem). **Bez** maila i bez Invitation.
 3. Po utworzeniu pierwszego admina endpoint bootstrap jest **trwale niedostępny** (np. **409** `CONFLICT` / **403**); `bootstrap-status.available === false`.
 4. **Twarda blokada:** tworzenie / awans kolejnych użytkowników z `role = admin` jest **zabronione** w MVP (API odrzuca). W systemie jest **co najwyżej jeden** admin — ten z bootstrapu. Register / activate / resend **nigdy** nie tworzą `admin`.
 5. **Dwie drogi na konto nie-admin:** (a) **zaproszenie** — admin podaje tylko email; aktywne konto powstaje przy `POST /auth/accept-invite` (gotowe do loginu; **`verifiedAt = now()`**); **rola vs `DEMO_MODE`** jak register: **`true` → `guest`**, **`false` → `user`**. Body invite / accept **bez** `role`; invite **nigdy** → `admin`. **Sens:** demo off = pełnoprawny członek zespołu; demo on = gość sandboxu (nie członkostwo zespołu). (b) **otwarta rejestracja** — publiczny `POST /auth/register` (zawsze dostępny; **nie** zależy od `DEMO_MODE`). **Zmiana względem:** po planie register serwer **zawsze** ustawiał **`role = user`**. **Refaktor register:** `DEMO_MODE=true` → **`guest`**; `DEMO_MODE=false` → **`user`**. Body **bez** `role`. Register **nigdy** → `admin`. Przed utworzeniem `User` register **unieważnia** (`revoked`) ewentualne **`Invitation` `pending`** na ten sam email. **Nie** przez `POST /users` z hasłem. **Zakaz permanentny** awansu `guest` → `user` / `admin`.

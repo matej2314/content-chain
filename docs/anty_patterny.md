@@ -1,7 +1,7 @@
 ---
-wersja: 15
+wersja: 16
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-07
+data_modyfikacji: 2026-10-11
 ---
 
 # Anty-patterny — Content Chain
@@ -161,6 +161,7 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | Access JWT bez checku `isActive` / braku wiersza User | Soft/hard zostawia ważną sesję do wygaśnięcia TTL | `JwtCookieStrategy.validate`: brak User **lub** `isActive !== true` → **401**; bez blacklisty |
 | Multi-tenant „przy okazji” (kontekst per user) | Inny produkt niż self-host jednej firmy | Jeden kontekst na instancję |
 | Drugi `admin` / awans user→admin **lub** `guest`→`user`/`admin` w MVP | Łamie `security.md` | Tylko bootstrap jednego admina; `user` = invite **lub** register przy demo off; `guest` = register **lub** accept-invite przy demo on; **brak** ścieżki promocji |
+| Submit karty logowania wywołuje `POST /auth/bootstrap-admin` (mode-hijack przy `available === true`) | Mylenie logowania z tworzeniem admina; CTA „Zaloguj się” nie tworzy konta | Login zawsze → `POST /auth/login`; bootstrap = osobny formularz po CTA gdy `available` (`ux_dashboard.md`, `security.md`) |
 | Accept-invite zawsze `role=user` przy `DEMO_MODE=true` | Omija limity demo; niespójne z register; invite w sandboxie wygląda jak członkostwo zespołu | Rola vs `DEMO_MODE` jak register; demo invite = gość sandboxu (`security.md`) |
 | Osobny endpoint „register-as-guest” albo `role` w body register / invite / accept | Druga powierzchnia; klient wybiera rolę | Jedna trasa `POST /auth/register` / accept bez `role` w body; rola wyłącznie z `DEMO_MODE` |
 | Register bramkowany `DEMO_MODE` / aktywacja wymagana poza `production` | Łamie kanon: register zawsze; activate tylko w prod | Register zawsze; `verifiedAt` od razu poza prod |
