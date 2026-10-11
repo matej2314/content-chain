@@ -1,7 +1,7 @@
 # Content Chain
 
-![Project Status](https://img.shields.io/static/v1?label=Status&message=WIP&color=f59e0b) ![License](https://img.shields.io/badge/license-MIT-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white) ![pnpm](https://img.shields.io/badge/pnpm-9-F69220?logo=pnpm&logoColor=white)
-![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white) ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs&logoColor=white) ![Docker Compose](https://img.shields.io/static/v1?label=Deploy&message=Docker%20Compose&color=2496ED&logo=docker&logoColor=white) ![Jenkins](https://img.shields.io/static/v1?label=CI&message=Jenkins&color=D24939&logo=jenkins&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white) ![pnpm](https://img.shields.io/badge/pnpm-9-F69220?logo=pnpm&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white) ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs&logoColor=white)
 
 **Content Chain** is a self-hosted AI content generation dashboard powered by agent pipelines, a shared company context, and a dedicated LLM gateway.
 
@@ -63,22 +63,25 @@ The repository is a TypeScript monorepo with three runtime applications and one 
 | `packages/shared` | Lightweight shared contracts and public API-facing types. |
 
 ```mermaid
-%%{init: {"themeVariables": {"fontSize": "18px"}, "flowchart": {"nodeSpacing": 70, "rankSpacing": 95}}}%%
-flowchart LR
+%%{init: {"themeVariables": {"fontSize": "18px"}, "flowchart": {"nodeSpacing": 60, "rankSpacing": 110}}}%%
+flowchart TD
   User["Admin / User / Guest"]
 
   subgraph Frontend["apps/frontend"]
+    direction TB
     FE["Next.js dashboard"]
     BFF["same-origin /api/v1 proxy"]
   end
 
   subgraph Backend["apps/api"]
+    direction TB
     API["NestJS API"]
     Runs["Runs + SSE + HITL"]
     Agents["Social / Content pipelines"]
   end
 
   subgraph Gateway["apps/ai-provider-gateway"]
+    direction TB
     GW["LLM gateway"]
     Providers["Provider adapters"]
   end
