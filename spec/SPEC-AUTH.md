@@ -1,5 +1,5 @@
 ---
-wersja: 23
+wersja: 24
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-10-11
 ---
@@ -62,8 +62,9 @@ Zmiana względem wersji 20 / tabela ról: DELETE = soft (API; UI poza); reaktywa
 
 A-1. `POST /api/v1/auth/bootstrap-admin` działa **tylko**, gdy w DB nie ma użytkownika z `role = admin`. Po sukcesie: ustawia sesję cookie jak login oraz **`User.verifiedAt = now()`**; endpoint jest trwale niedostępny (`CONFLICT` / `FORBIDDEN`).
 
-A-1a. `GET /api/v1/auth/bootstrap-status` (bez auth) zwraca `{ "available": boolean }` — `true` wyłącznie gdy wolno wykonać bootstrap. Pod **stronę główną** FE: status steruje **przyciskiem + osobnym formularzem bootstrap** (tryb `bootstrap_admin` na `/`, nie osobna trasa; **nie** tryb submitu karty logowania) — `SPEC-FRONTEND.md` F-4a / F-8, `docs/ux_dashboard.md`. Semantyka HTTP A-1 **bez zmian**.
+A-1a. `GET /api/v1/auth/bootstrap-status` (bez auth) zwraca `{ "available": boolean }` — `true` wyłącznie gdy wolno wykonać bootstrap. Pod **stronę główną** FE: status steruje **wyłącznie** opcjonalnym CTA + osobnym formularzem bootstrap (tryb `bootstrap_admin` na `/`, nie osobna trasa; **nie** tryb submitu karty logowania; **nie** bramka widoczności „Zarejestruj się!”) — `SPEC-FRONTEND.md` F-4a / F-8, `docs/ux_dashboard.md`. Semantyka HTTP A-1 **bez zmian**.
 
+Zmiana względem wersji 23 / A-1a: status „steruje przyciskiem + formularzem bootstrap” bez jawnego rozdzielenia od CTA register. Od tej wersji `available` **nie** bramkuje register — tylko opcjonalne CTA admina (`docs/ux_dashboard.md`).
 Zmiana względem wersji 21 / A-1a: odsyłacz UX = „tryb submitu karty logowania”. Od tej wersji odsyłacz = przycisk + osobny formularz bootstrap na stronie głównej (tryb `bootstrap_admin` na `/`) — egzekucja API nadal serwerowa (A-1); UI = `SPEC-FRONTEND.md` F-4a / F-8, `docs/ux_dashboard.md`.
 Zmiana względem wersji 8 / A-1a: „pod ekran first-run”. Od tej wersji ten sam widok co logowanie (`docs/ux_dashboard.md`).
 

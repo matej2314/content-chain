@@ -1,7 +1,7 @@
 ---
-wersja: 17
+wersja: 19
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-07
+data_modyfikacji: 2026-10-11
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -125,13 +125,15 @@ Publiczny (**`@Public()`**), **bez** sesji. V1: **wyłącznie** flaga trybu demo
 
 #### `GET /api/v1/auth/bootstrap-status`
 
-Publiczny (bez sesji) sygnał, czy strona główna ma submitować bootstrap zamiast loginu (`docs/ux_dashboard.md`).
+Publiczny (bez sesji) sygnał, czy na stronie głównej pokazać **opcjonalne** CTA / formularz bootstrap admina (`docs/ux_dashboard.md`). **Nie** przełącza submitu karty logowania (login zawsze → `POST /auth/login`) i **nie** bramkuje CTA „Zarejestruj się!”.
 
 **200** — `{ "available": boolean }` — `true`, gdy w DB **nie ma** jeszcze użytkownika `admin` (wolno wywołać bootstrap); `false` po utworzeniu admina.
 
+Zmiana względem: opis statusu jako „czy submitować bootstrap zamiast loginu”. Od tej wersji status = wyłącznie widoczność opcjonalnego CTA admina.
+
 #### `POST /api/v1/auth/bootstrap-admin`
 
-Jednorazowy bootstrap **pierwszego i jedynego** admina self-host. Działa tylko, gdy w DB nie ma admina — norma: `security.md`. Po sukcesie api ustawia sesję cookie jak przy loginie. W UI to **ten sam** formularz strony głównej (nie osobny ekran) — `docs/ux_dashboard.md`.
+Jednorazowy bootstrap **pierwszego i jedynego** admina self-host. Działa tylko, gdy w DB nie ma admina — norma: `security.md`. Po sukcesie api ustawia sesję cookie jak przy loginie. W UI: **osobny** formularz trybu `bootstrap_admin` na `/` (po CTA „Zarejestruj admina”) — **nie** submit karty logowania — `docs/ux_dashboard.md`.
 
 | Pole | Typ | Wymagane |
 |------|-----|----------|
@@ -194,7 +196,9 @@ Zmiana względem: body tylko `{ "email" }` bez re-auth.
 Zmiana względem: self-service email poza MVP; brak tej trasy.
 Zmiana względem: flow FE wymagał `code` + `message` pod polem hasła. Od tej wersji pod polem obowiązuje wyłącznie **`message`** (kształt envelope HTTP z `code` bez zmian).
 
-**Flow FE (norma produktowa):** po starcie aplikacji → `GET /auth/me`; przy **401** `UNAUTHORIZED` → `POST /auth/refresh`; potem ponownie `GET /auth/me`; przy kolejnym **401** `UNAUTHORIZED` → **strona główna (karta logowania)**. Ten sam cykl na produktowych wywołaniach przy sesyjnym **401** `UNAUTHORIZED`. **401** `INVALID_PASSWORD` (re-auth przy `PATCH /auth/me/email`) **nie** wchodzi w ten cykl — `message` pod polem hasła, sesja zostaje. Gdy `bootstrap-status.available === true`, submit tej karty woła bootstrap zamiast loginu. Dashboard tylko po sesji. Przycisk „Zarejestruj się!” aktywny, gdy bootstrap niedostępny (`docs/ux_dashboard.md`). Deep link `/?activationToken=…` → widok logowania + `POST /auth/activate` w tle + toast.
+**Flow FE (norma produktowa):** po starcie aplikacji → `GET /auth/me`; przy **401** `UNAUTHORIZED` → `POST /auth/refresh`; potem ponownie `GET /auth/me`; przy kolejnym **401** `UNAUTHORIZED` → **strona główna (karta logowania)**. Ten sam cykl na produktowych wywołaniach przy sesyjnym **401** `UNAUTHORIZED`. **401** `INVALID_PASSWORD` (re-auth przy `PATCH /auth/me/email`) **nie** wchodzi w ten cykl — `message` pod polem hasła, sesja zostaje. Submit karty logowania **zawsze** → `POST /auth/login` (**zakaz** mode-hijack → bootstrap). Dashboard tylko po sesji. Na karcie **zawsze** CTA „Nie masz konta? Zarejestruj się!”; opcjonalne CTA „Zarejestruj admina” wyłącznie gdy `bootstrap-status.available === true` (`docs/ux_dashboard.md`). Deep link `/?activationToken=…` → widok logowania + `POST /auth/activate` w tle + toast.
+
+Zmiana względem: *submit karty woła bootstrap gdy `available`*; *register tylko gdy bootstrap niedostępny*. Od tej wersji login zawsze `/auth/login`; register zawsze na karcie; bootstrap = osobny formularz / opcjonalne CTA.
 
 #### `POST /api/v1/auth/register` (publiczny)
 

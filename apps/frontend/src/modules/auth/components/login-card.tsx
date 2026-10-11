@@ -95,6 +95,15 @@ export function LoginCard({
               {activationError}
             </p>
           ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={onGoRegister === undefined}
+            onClick={onGoRegister}
+          >
+            Nie masz konta? Zarejestruj się!
+          </Button>
           {bootstrapAvailable ? (
             <Button
               type="button"
@@ -105,17 +114,7 @@ export function LoginCard({
             >
               Zarejestruj admina
             </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              disabled={onGoRegister === undefined}
-              onClick={onGoRegister}
-            >
-              Nie masz konta? Zarejestruj się!
-            </Button>
-          )}
+          ) : null}
         </form>
       </CardContent>
     </Card>

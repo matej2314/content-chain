@@ -1,5 +1,5 @@
 ---
-wersja: 19
+wersja: 20
 data_utworzenia: 2026-09-17
 data_modyfikacji: 2026-10-11
 ---
@@ -30,6 +30,8 @@ Zmiana względem: Faza 18 — invite → zawsze `user` także przy demo. Od tej 
 
 Zmiana względem: first-run = tryb submitu tej samej karty logowania (`available === true` → submit → `bootstrap-admin`; register ukryty jako jedyna ścieżka first-run). Od tej wersji na `/` są **trzy tryby** (`login` \| `register` \| `bootstrap_admin`): karta logowania **zawsze** submituje `POST /auth/login`; bootstrap admina = osobny formularz po CTA „Zarejestruj admina” gdy `available === true` (bez osobnej trasy).
 
+Zmiana względem: CTA register ukryte / disabled gdy `available === true` (XOR z „Zarejestruj admina”). Od tej wersji na karcie logowania **zawsze** dwa stałe CTA: **„Zaloguj się”** + **„Nie masz konta? Zarejestruj się!”**; trzeci przycisk **„Zarejestruj admina”** tylko gdy `available === true` (nie zastępuje register).
+
 ## Założenia UX
 
 - Cienki klient: reguły i pipeline w `apps/api`.
@@ -44,8 +46,8 @@ Zmiana względem: first-run = tryb submitu tej samej karty logowania (`available
 **Strona główna** (brak ważnej sesji): tło + karta na **tej samej** trasie `/` w jednym z trzech trybów: `login` \| `register` \| `bootstrap_admin` (**bez** osobnej trasy first-run).
 
 - **Logowanie** — baza widoku: email, hasło, CTA „Zaloguj się”. Submit **zawsze** → `POST /auth/login` → dashboard. **Zakaz** mode-hijack: CTA logowania **nigdy** nie woła `POST /auth/bootstrap-admin`, także gdy `bootstrap-status.available === true`.
-- **Rejestracja** — przycisk **„Nie masz konta? Zarejestruj się!”** **aktywny**, gdy `available === false` (produkcja pełna i DEMO — **nie** zależy od `demoMode` / `DEMO_MODE`). Przy `available === true` CTA register jest **ukryte / disabled** (jak Faza 12).
-- **Bootstrap admin** — przycisk **„Zarejestruj admina”** (lub równoważne copy PL) **widoczny wyłącznie** gdy `available === true` → przełącza na formularz admina (email + hasło; opcjonalnie powtórz hasło tylko UI) → `POST /auth/bootstrap-admin` → sesja cookie → dashboard (`/account`). Z formularza admina i register — jawny powrót do karty logowania.
+- **Rejestracja** — przycisk **„Nie masz konta? Zarejestruj się!”** **zawsze aktywny / widoczny** na karcie logowania (produkcja pełna i DEMO — **nie** zależy od `available`, `demoMode` / `DEMO_MODE`). **Zakaz** ukrywania register tylko dlatego, że bootstrap jest dostępny.
+- **Bootstrap admin** — opcjonalny trzeci przycisk **„Zarejestruj admina”** (lub równoważne copy PL) **widoczny wyłącznie** gdy `available === true` → przełącza na formularz admina (email + hasło; opcjonalnie powtórz hasło tylko UI) → `POST /auth/bootstrap-admin` → sesja cookie → dashboard (`/account`). **Nie** zastępuje ani nie wyłącza CTA register. Z formularza admina i register — jawny powrót do karty logowania.
 
 Dashboard (sidebar) **tylko** po udanej sesji — nigdy jako pierwsza treść niezalogowanego.
 
@@ -53,9 +55,9 @@ Komponent home-entry **`GuestView`** = widok **anonimowy** (tryby `login` / `reg
 
 | Ekran / krok | Kiedy | Zachowanie |
 |--------------|-------|------------|
-| **Strona główna — logowanie** | Brak ważnej sesji; widok `login` | Submit → **zawsze** `POST /auth/login` → dashboard. Przy `available === true` nadal loguje (nie tworzy admina). CTA „Zarejestruj admina” widoczne iff `available === true`; CTA „Zarejestruj się!” aktywne iff `available === false` |
+| **Strona główna — logowanie** | Brak ważnej sesji; widok `login` | Submit → **zawsze** `POST /auth/login` → dashboard. Przy `available === true` nadal loguje (nie tworzy admina). Stałe CTA: „Zaloguj się” + „Nie masz konta? Zarejestruj się!”. Opcjonalne CTA „Zarejestruj admina” iff `available === true` |
 | **Strona główna — bootstrap admin** | Klik „Zarejestruj admina” gdy `available === true` | Widok `bootstrap_admin` na `/` (nie osobna trasa). Formularz: email + hasło (+ opcjonalnie powtórz hasło tylko UI). Submit → `POST /auth/bootstrap-admin` → sesja cookie jak po loginie → dashboard. Powrót → widok logowania |
-| **Rejestracja** | Klik „Zarejestruj się!” (tylko gdy `available === false`) | Formularz: email, hasło, **powtórz hasło** (confirm tylko UI — API dostaje `{ email, password }`). Submit → `POST /auth/register`. Powrót → widok logowania |
+| **Rejestracja** | Klik „Zarejestruj się!” (zawsze z karty logowania) | Formularz: email, hasło, **powtórz hasło** (confirm tylko UI — API dostaje `{ email, password }`). Submit → `POST /auth/register`. Powrót → widok logowania |
 | **Po register — `production`** | Udany **201** z `verifiedAt: null` **lub** **503** `MAIL_DELIVERY_FAILED` po utworzeniu pending User (`NODE_ENV=production`) | **Bez** sesji / Set-Cookie. Przejście / **pozostanie** na **stronie podziękowań**: copy sukcesu + „Nie otrzymałeś wiadomości e-mail?” + button **„Wyślij ponownie”** → `POST /auth/resend-activation` z `{ email }` ze **stanu formularza / klienta** (nie z body **201**). Sygnał thank-you po **201**: `user.verifiedAt === null`. Opcjonalne copy o ograniczeniach gościa (gdy demo) **nie** zmienia flow aktywacji |
 | **Po register — poza `production`** | Udany **201** z `verifiedAt` ustawionym (ISO) | Konto gotowe od razu; krótki sukces → widok logowania (**bez** obligatoryjnego thank-you + resend pod mail) |
 | **Kolizja email (409)** | `POST /auth/register` → **409** `CONFLICT`, `message`: **`Email already in use`** | **Zostajemy na formularzu rejestracji**; jawny błąd przy polu email (zmiana adresu + ponowny submit). **Bez** thank-you, **bez** udawania sukcesu |
@@ -65,7 +67,9 @@ Komponent home-entry **`GuestView`** = widok **anonimowy** (tryby `login` / `reg
 
 Zmiana względem: first-run = tryb submitu tej samej karty logowania (submit → `bootstrap-admin`; register ukryty jako jedyna ścieżka first-run). Od tej wersji trzy tryby na `/`; login zawsze `/auth/login`; bootstrap = osobny formularz po CTA gdy `available === true`.
 
-Zmiana względem: osobne ekrany first-run vs logowanie; wejście na dashboard bez przejścia przez kartę logowania jako stronę główną. Od wcześniejszej legalizacji: jeden widok główny = logowanie (+ rejestracja gdy bootstrap niedostępny) — **bez** osobnej trasy first-run; mapping submitu unieważniony powyżej.
+Zmiana względem: register widoczny tylko gdy `available === false` (XOR z CTA admina). Od tej wersji register **zawsze** na karcie logowania; CTA admina wyłącznie warunkowe — nie wyłącza register.
+
+Zmiana względem: osobne ekrany first-run vs logowanie; wejście na dashboard bez przejścia przez kartę logowania jako stronę główną. Od wcześniejszej legalizacji: jeden widok główny = logowanie (+ rejestracja **zawsze** + opcjonalny bootstrap) — **bez** osobnej trasy first-run; mapping submitu unieważniony powyżej.
 
 Zmiana względem: nieaktywne „Zarejestruj się!” / zakaz signup. Invite `/invite/accept?token=` **bez zmian sensu**. Confirm e-mail przy zmianie adresu (`PATCH /auth/me/email`) pozostaje **V1** — **nie** mylić z aktywacją przy rejestracji. Probe / deep link aktywacji / thank-you — **bez** zmiany sensu (nadal wracają na widok logowania).
 
@@ -335,7 +339,7 @@ Zmiana względem: założenie, że FE może rozróżnić kolizję email (**409**
 
 ## Stany puste i błędy
 
-- Brak admina: strona główna → CTA „Zarejestruj admina” → osobny formularz → bootstrap → dashboard (karta logowania nadal loguje).
+- Brak admina: strona główna → opcjonalne CTA „Zarejestruj admina” (obok stałego „Zarejestruj się!”) → osobny formularz → bootstrap → dashboard (karta logowania nadal loguje; register nadal dostępny).
 - Pusty kontekst / po pierwszym wejściu admina: onboarding → uzupełnij kontekst → (przy żywym gateway) „Agenci aktywni”.
 - Błędy API (MVP): pokazać **wyłącznie `message` z envelope** (jak zwraca API; komunikaty są po angielsku). **`code` nie jest treścią UI** — służy logice klienta (gałęzie HTTP), nie etykiecie przy polu. **Bez** stack trace. Chrome i etykiety poza envelope — po polsku. Tłumaczenie UI (np. next-intl) = **V1 — rozbudowa**, nie MVP. Przy formularzu / błędzie GET bloku: `message` **w miejscu błędu** — **nie** toast (sekcja „Feedback zdarzeń”).
   Zmiana względem: wcześniejsza norma wymagała pokazywania **`code` i `message`**. Od tej wersji w UI obowiązuje tylko **`message`**.

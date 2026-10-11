@@ -1,7 +1,7 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-09-30
-data_modyfikacji: 2026-10-09
+data_modyfikacji: 2026-10-11
 ---
 
 # Deployment — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-09
 Self-host MVP: jak uruchamiać, konfigurować i utrzymywać jedną instalację (jedna firma = jedna instancja).
 
 Powiązane: `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `testy.md`, `security.md`, `observability.md`.
+
+Zmiana względem: first-run w checklistcie DX = submit karty logowania → `bootstrap-admin`. Od tej wersji: karta logowania zawsze → `POST /auth/login`; first-run = opcjonalne CTA „Zarejestruj admina” + osobny formularz gdy `bootstrap-status.available === true`; CTA register zawsze na karcie — `ux_dashboard.md`, `security.md`.
 
 Zmiana względem: compose / publish / sekrety bez modelu Compose-first. Od tej wersji kanon production: **trzy usługi** (`ai-provider-gateway` + `api` + `frontend`); **jeden** root `.env` (Vault → Jenkins); publish **`127.0.0.1`**; sieci **`cc-network`** + **`main_network`**; Redis **external** (env, nie usługa compose); volume SQLite `api-sqlite` → `/app/data/chain.db`; migracje w entrypoint api; build z **roota** monorepo + **pnpm**; FE `API_BASE_URL=http://api:3001`, port **3004**; api→gateway po hostname serwisu compose `:3100`.
 
@@ -43,7 +45,7 @@ Bez osobnego „SaaS multi-tenant cloud” w MVP. Staging opcjonalny później =
 2. Skopiować **per-app** `.env.example` → `.env` dla `apps/api`, `apps/ai-provider-gateway`, `apps/frontend` (DX / dokumentacja kluczy). W `production` te same klucze lądują w **jednym** root `.env` — patrz niżej.
 3. Migracje Prisma (api) na SQLite (`prisma migrate deploy` / skrypt DX).
 4. Uruchomić procesy: gateway → api → frontend (kolejność: najpierw gateway, potem api zależne od niego).
-5. First-run w UI: strona główna (karta logowania) przy `bootstrap-status.available` submituje `POST /api/v1/auth/bootstrap-admin`; równoważnie ten sam endpoint z Postmana przy pustej DB (ops).
+5. First-run w UI: na stronie głównej przy `bootstrap-status.available === true` — opcjonalne CTA **„Zarejestruj admina”** → osobny formularz → `POST /api/v1/auth/bootstrap-admin` (karta logowania nadal submituje wyłącznie `POST /auth/login`; CTA **„Nie masz konta? Zarejestruj się!”** zawsze widoczne). Równoważnie bootstrap z Postmana przy pustej DB (ops).
 
 Skrypty dokładne (`pnpm dev` / `pnpm --filter …`) doprecyzuje root `package.json` przy implementacji.
 

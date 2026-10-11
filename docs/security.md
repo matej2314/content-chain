@@ -1,5 +1,5 @@
 ---
-wersja: 14
+wersja: 15
 data_utworzenia: 2026-09-29
 data_modyfikacji: 2026-10-11
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-11
 Norma self-host dla `local` i `production`: auth, sekrety, ekspozycja powierzchni, bootstrap. Bez pełnego modelu STRIDE.
 
 Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, `architektura.md`.
+
+Zmiana względem: surface FE sugerował, że `bootstrap-status.available` steruje wyłącznie first-run bez jawnego rozdzielenia od CTA register. Od tej wersji: `available` **nie** bramkuje „Zarejestruj się!” — tylko opcjonalne CTA / formularz bootstrap; register zawsze na karcie logowania (`ux_dashboard.md`).
 
 Zmiana względem: ekspozycja production bez pinu bind localhost dla FE/api/gateway; sekrety tylko „env per app”. Od tej wersji: w `production` publish FE / api / gateway na **`127.0.0.1`** (nie `0.0.0.0` jako kanon); gateway nadal **nie** na internet; sekrety runtime = **jeden** root `.env` z Vault (Jenkins) — zakaz commitowania i bake w obrazie (`deployment.md`).
 
@@ -60,9 +62,9 @@ Gdy `DEMO_MODE=false`: JWT z `role=guest` na **każdej** chronionej trasie (w ty
 
 ## Bootstrap i konta admin
 
-Surface FE: `{ available }` z **`GET /api/v1/auth/bootstrap-status`** steruje widocznością CTA i **osobnego formularza** bootstrap na stronie głównej (`ux_dashboard.md`). Widoczność przycisku = wyłącznie UX — egzekucja nadal serwerowa (`admin count === 0`). Submit karty logowania **nigdy** nie woła bootstrap (mode-hijack zabroniony).
+Surface FE: `{ available }` z **`GET /api/v1/auth/bootstrap-status`** steruje **wyłącznie** widocznością opcjonalnego CTA **„Zarejestruj admina”** i **osobnego formularza** bootstrap na stronie głównej (`ux_dashboard.md`). **Nie** bramkuje CTA **„Nie masz konta? Zarejestruj się!”** (zawsze na karcie logowania). Widoczność CTA admina = wyłącznie UX — egzekucja nadal serwerowa (`admin count === 0`). Submit karty logowania **nigdy** nie woła bootstrap (mode-hijack zabroniony).
 
-1. **`GET /api/v1/auth/bootstrap-status`** (publiczny) — `{ available }` pod stronę główną (czy pokazać CTA / formularz bootstrap admina; karta logowania zawsze → `POST /auth/login`).
+1. **`GET /api/v1/auth/bootstrap-status`** (publiczny) — `{ available }` pod stronę główną (czy pokazać opcjonalne CTA / formularz bootstrap admina; karta logowania zawsze → `POST /auth/login`; register zawsze widoczny).
 2. **`POST /api/v1/auth/bootstrap-admin`** działa **wyłącznie**, gdy w DB **nie ma** żadnego użytkownika z `role = admin`. Po sukcesie ustawia sesję cookie (jak login) oraz **`User.verifiedAt = now()`** (admin gotowy do loginu bez aktywacji linkiem). **Bez** maila i bez Invitation.
 3. Po utworzeniu pierwszego admina endpoint bootstrap jest **trwale niedostępny** (np. **409** `CONFLICT` / **403**); `bootstrap-status.available === false`.
 4. **Twarda blokada:** tworzenie / awans kolejnych użytkowników z `role = admin` jest **zabronione** w MVP (API odrzuca). W systemie jest **co najwyżej jeden** admin — ten z bootstrapu. Register / activate / resend **nigdy** nie tworzą `admin`.

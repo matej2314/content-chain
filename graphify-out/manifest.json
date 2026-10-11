@@ -2148,9 +2148,9 @@
     "semantic_hash": "7a69357bb31830d407c539fe9b9eab6d"
   },
   "docs/anty_patterny.md": {
-    "mtime": 1791715847.0183325,
-    "seen": 1791717202.8418317,
-    "ast_hash": "c98509fee1b5fbb7fb8899bb36334ba9",
+    "mtime": 1791721500.4199624,
+    "seen": 1791721985.2985113,
+    "ast_hash": "16c2d2215b44293323bce08b61908611",
     "semantic_hash": ""
   },
   "docs/architektura.md": {
@@ -2190,9 +2190,9 @@
     "semantic_hash": ""
   },
   "docs/dokumentacja_komunikacji.md": {
-    "mtime": 1791479576.5167186,
-    "seen": 1791542444.835926,
-    "ast_hash": "bec87cd5d03a96dc200de60c3a436695",
+    "mtime": 1791721488.3080583,
+    "seen": 1791721985.2985172,
+    "ast_hash": "3df9a7972c61e094a1f20e23c6f655a6",
     "semantic_hash": ""
   },
   "docs/dokumentacja_koncepcyjna.md": {
@@ -2220,15 +2220,15 @@
     "semantic_hash": ""
   },
   "docs/ux_dashboard.md": {
-    "mtime": 1791715882.163047,
-    "seen": 1791717202.84184,
-    "ast_hash": "c3eb8c6ceb7652bc4b73fe5d41fdaead",
+    "mtime": 1791721476.850149,
+    "seen": 1791721985.298521,
+    "ast_hash": "84784e332684d37d5a54bb5ea000d37a",
     "semantic_hash": ""
   },
   "spec/SPEC-AUTH.md": {
-    "mtime": 1791716488.418896,
-    "seen": 1791717202.841841,
-    "ast_hash": "5785e96cebf96b1549e45ff8ded08c60",
+    "mtime": 1791721498.1309807,
+    "seen": 1791721985.2985218,
+    "ast_hash": "d2c622d8ed8bb51b7b2451a8b0c66890",
     "semantic_hash": ""
   },
   "spec/SPEC-BEZPIECZENSTWO.md": {
@@ -2244,9 +2244,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-FRONTEND.md": {
-    "mtime": 1791716482.662947,
-    "seen": 1791717202.8418434,
-    "ast_hash": "ad8b79bc371a06048907907e6eb7480f",
+    "mtime": 1791721537.538669,
+    "seen": 1791721985.2985246,
+    "ast_hash": "be7d5d5fd79eeb16de22f6b26ce95fa7",
     "semantic_hash": ""
   },
   "spec/SPEC-KOMUNIKACJA.md": {
@@ -3234,9 +3234,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/login-card.tsx": {
-    "mtime": 1791717170.2243388,
-    "seen": 1791717202.8417578,
-    "ast_hash": "260546e2b3b7da9ac736375e32a36ad5",
+    "mtime": 1791721978.9108918,
+    "seen": 1791721985.298428,
+    "ast_hash": "26a7bb3a0fcb5c572d60d3c795aae693",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/session-provider.tsx": {

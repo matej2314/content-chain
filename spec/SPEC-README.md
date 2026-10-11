@@ -1,7 +1,7 @@
 ---
-wersja: 18
+wersja: 19
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-09
+data_modyfikacji: 2026-10-11
 ---
 
 # SPEC — README
@@ -35,7 +35,7 @@ SPEC **uszczegóławia** docs; nie zastępuje ich i nie tworzy równoległej dok
 | `SPEC-RUNY.md` | Cykl życia runu (`completed` / `failed` / **`cancelled`**), logi, SSE, kolejka, recovery, anulowanie (R-11 — **admin→guest**), **`startedBy.role` na detail**, **przegląd z `REVIEW_TTL` / sweeper auto-finalize (R-10)**, **GuestRunPolicy (R-12)** + Redis **`REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`**, ocena / edycja outputu, composite executor, unia `SocialBrief` / `ContentBrief` na `RunRecord`; R-3c pełna lista HTTP |
 | `SPEC-FEEDBACK.md` | Opinie tekstowe (zapis MVP; panel odczytu = V1; okno `cancelled`+wynik; **nie** blokowane TTL przeglądu; guest: application/agent + run własny; **Fbk-9 wyjątek append-only przy hard guest**) |
 | `SPEC-PERSISTENCE.md` | Prisma; SQLite w MVP; PostgreSQL od V1 — rozbudowa; **P-6a** prod: volume `api-sqlite` → `/app/data/chain.db`; pola Run `cancelledAt` / `cancelRequested` / **`pipelineFinishedAt`** (+ indeks sweepera, backfill B); **`User.verifiedAt`** + **`AccountActivation`**; `User.role` String (`guest`); **D21 soft vs hard/purge tree** |
-| `SPEC-FRONTEND.md` | Next.js, modules/, shadcn, SSE UI, Stop + modal (**admin→guest na detail**), archiwum z `cancelled`, disable przeglądu po `reviewExpiresAt`; **signup / thank-you / deep link aktywacji**; **F-6 `agentsActive`**; **F-10 DEMO chip / locki guest**; **viewport shell** + **paginacja UI Moje runy (10)**; **F-8 Users toggle/Usuń/purge**; **F-2** prod BFF `API_BASE_URL=http://api:3001`, port UI **3004** |
+| `SPEC-FRONTEND.md` | Next.js, modules/, shadcn, SSE UI, Stop + modal (**admin→guest na detail**), archiwum z `cancelled`, disable przeglądu po `reviewExpiresAt`; **karta logowania: zawsze login + „Zarejestruj się!”; opcjonalne „Zarejestruj admina”**; **signup / thank-you / deep link aktywacji**; **F-6 `agentsActive`**; **F-10 DEMO chip / locki guest**; **viewport shell** + **paginacja UI Moje runy (10)**; **F-8 Users toggle/Usuń/purge**; **F-2** prod BFF `API_BASE_URL=http://api:3001`, port UI **3004** |
 | `SPEC-TESTY.md` | Jest, supertest, piramida, DoD (w tym D-30…D-34 cancel, **D-35…D-40 TTL / sweeper**, **D-41…D-46 register / activate / resend**, **D-47…D-49 health/ready**, **D-50…D-62 guest / DEMO**, **D-63…D-72 Users delete/purge / cancel admin→guest / isActive**) |
 | `SPEC-BEZPIECZENSTWO.md` | Env, ekspozycja, Helmet, CORS, metrics/logi bez sekretów; **Compose-first**: publish **`127.0.0.1`**, root `.env` z Vault, Redis **external** (nie compose); anti-enum (409 register / stały resend / wspólny 401 login w tym guest przy demo off); GuestGuard; Redis fail modes + połączenie **`REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`** (bez `REDIS_URL`); publiczny health **i** ready bez wycieku `GATEWAY_KEY`; **B-12 Users/cancel/sesja/Redis ratings SCAN** |
 
@@ -59,6 +59,7 @@ Zmiana względem wersji 14: mapa bez viewport shell / paginacji UI Moje runy. Od
 Zmiana względem wersji 15 / AUTH: „rola vs `DEMO_MODE`” tylko przy register. Od tej wersji obejmuje **register i accept-invite**.
 Zmiana względem wersji 16: mapa bez Users DELETE/purge / cancel admin→guest / isActive / Fbk-9 / D-63+. Od tej wersji AUTH A-10/A-10a/A-3c, RUNY R-11, KOMUNIKACJA K-2j/`GUEST_HAS_ACTIVE_RUN`, FRONTEND F-8/F-5b, TESTY D-63…D-72, BEZPIECZENSTWO B-12 — `users-management-plan.md` Faza 2.
 Zmiana względem wersji 17: mapa bez kontraktu Compose-first. Od tej wersji BEZPIECZENSTWO (B-2/B-6/B-11 + Deploy), FRONTEND F-2, MONOREPO M-9, PERSISTENCE P-6a — bind localhost, root `.env`, volume SQLite, external Redis, build root+pnpm (`docs/deployment.md`, plan naprawy deployu Faza 1).
+Zmiana względem wersji 18 / FRONTEND w mapie: indeks bez jawnego „register zawsze + opcjonalny bootstrap CTA”. Od tej wersji mapa wskazuje F-4a / F-8 po unieważnieniu XOR register↔admin (`SPEC-FRONTEND.md`, `docs/ux_dashboard.md`).
 
 Szczegóły: `docs/dictionary.md`, `SPEC-PERSISTENCE.md`.
 
