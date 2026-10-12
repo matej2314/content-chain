@@ -120,6 +120,14 @@ function toInput(draft: StartRunDraft): StartRunInput | null {
 
 type StartRunFormHeading = 'visible' | 'none';
 
+type StartState =
+  | { readonly status: 'idle' }
+  | { readonly status: 'pending' }
+  | { readonly status: 'error'; readonly code: string; readonly message: string }
+  | { readonly status: 'quota'; readonly code: string; readonly message: string };
+
+const INITIAL_START_STATE: StartState = { status: 'idle' };
+
 type StartRunFormProps = {
   readonly draft: StartRunDraft;
   readonly onDraftChange: (next: StartRunDraft) => void;
@@ -138,9 +146,7 @@ export function StartRunForm({
   const { refresh } = useOwnRuns();
   const { agentsActive, disableReason } = useStartRunGate();
   const guestLocked = useGuestLocked();
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<{ code: string; message: string } | null>(null);
-  const [quota, setQuota] = useState<{ code: string; message: string } | null>(null);
+  const [startState, setStartState] = useState<StartState>(INITIAL_START_STATE);
   const pageTask = isContentTaskType(draft.taskType);
 
   const inputReady = useMemo(() => toInput(draft) !== null, [draft]);
@@ -150,27 +156,35 @@ export function StartRunForm({
     const input = toInput(draft);
     if (!input || !agentsActive) return;
     if (guestLocked && !isGuestAllowedTaskType(draft.taskType)) return;
-    setPending(true);
-    setError(null);
-    setQuota(null);
+    setStartState({ status: 'pending' });
     try {
       await startRun(input);
       await refresh();
       notifyProduct({ kind: 'success', title: 'Run wystartował' });
+      setStartState({ status: 'idle' });
       onSuccess?.();
     } catch (reason: unknown) {
       if (reason instanceof ApiError) {
         if (isGuestQuotaCode(reason.envelope.code)) {
-          setQuota({ code: reason.envelope.code, message: reason.envelope.message });
-          setError(null);
+          setStartState({
+            status: 'quota',
+            code: reason.envelope.code,
+            message: reason.envelope.message,
+          });
           return;
         }
-        setError({ code: reason.envelope.code, message: reason.envelope.message });
-      } else {
-        setError({ code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' });
+        setStartState({
+          status: 'error',
+          code: reason.envelope.code,
+          message: reason.envelope.message,
+        });
+        return;
       }
-    } finally {
-      setPending(false);
+      setStartState({
+        status: 'error',
+        code: 'INTERNAL_ERROR',
+        message: 'Nie udało się odczytać odpowiedzi.',
+      });
     }
   }
 
@@ -303,24 +317,26 @@ export function StartRunForm({
           />
         </FormField>
       )}
-      {error ? <EnvelopeError code={error.code} message={error.message} /> : null}
+      {startState.status === 'error' ? (
+        <EnvelopeError code={startState.code} message={startState.message} />
+      ) : null}
       {disableReason ? <p className="text-xs text-muted-foreground">{disableReason}</p> : null}
       <AgentsGateTooltip reason={disableReason}>
         <Button
           type="submit"
-          disabled={pending || !agentsActive || !inputReady}
+          disabled={startState.status === 'pending' || !agentsActive || !inputReady}
           className="self-start"
         >
-          {pending ? 'Uruchamianie…' : 'Uruchom agenta'}
+          {startState.status === 'pending' ? 'Uruchamianie…' : 'Uruchom agenta'}
         </Button>
       </AgentsGateTooltip>
       <GuestLimitModal
-        open={quota !== null}
+        open={startState.status === 'quota'}
         onOpenChange={(next) => {
-          if (!next) setQuota(null);
+          if (!next) setStartState({ status: 'idle' });
         }}
-        code={quota?.code ?? null}
-        message={quota?.message ?? null}
+        code={startState.status === 'quota' ? startState.code : null}
+        message={startState.status === 'quota' ? startState.message : null}
       />
     </form>
   );

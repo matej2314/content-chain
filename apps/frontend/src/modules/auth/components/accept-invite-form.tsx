@@ -19,13 +19,25 @@ type AcceptInviteFormProps = {
   readonly token: string;
 };
 
+type AcceptInviteFormState = {
+  readonly password: string;
+  readonly pending: boolean;
+  readonly error: AcceptInviteFormError | null;
+  readonly localHint: string | undefined;
+  readonly showDemoHint: boolean;
+};
+
+const initialState: AcceptInviteFormState = {
+  password: '',
+  pending: false,
+  error: null,
+  localHint: undefined,
+  showDemoHint: false,
+};
+
 export function AcceptInviteForm({ token }: AcceptInviteFormProps) {
   const router = useRouter();
-  const [password, setPassword] = useState('');
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<AcceptInviteFormError | null>(null);
-  const [localHint, setLocalHint] = useState<string | undefined>(undefined);
-  const [showDemoHint, setShowDemoHint] = useState(false);
+  const [state, setState] = useState<AcceptInviteFormState>(initialState);
   const configRequestIdRef = useRef(0);
 
   useEffect(() => {
@@ -34,11 +46,10 @@ export function AcceptInviteForm({ token }: AcceptInviteFormProps) {
       try {
         const config = await fetchAppConfig();
         if (requestId !== configRequestIdRef.current) return;
-        setShowDemoHint(config.demoMode);
+        setState((prev) => ({ ...prev, showDemoHint: config.demoMode }));
       } catch {
         if (requestId !== configRequestIdRef.current) return;
-        // Fail-silent: brak hintu; formularz accept działa bez /config.
-        setShowDemoHint(false);
+        setState((prev) => ({ ...prev, showDemoHint: false }));
       }
     })();
     return () => {
@@ -48,20 +59,22 @@ export function AcceptInviteForm({ token }: AcceptInviteFormProps) {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    setError(null);
-    if (!passwordMeetsPolicy(password)) {
-      setLocalHint('Hasło nie spełnia polityki (12 znaków, wielka litera, cyfra, znak specjalny).');
+    setState((prev) => ({ ...prev, error: null }));
+    if (!passwordMeetsPolicy(state.password)) {
+      setState((prev) => ({
+        ...prev,
+        localHint: 'Hasło nie spełnia polityki (12 znaków, wielka litera, cyfra, znak specjalny).',
+      }));
       return;
     }
-    setLocalHint(undefined);
-    setPending(true);
+    setState((prev) => ({ ...prev, localHint: undefined, pending: true }));
     try {
-      await acceptInvite({ token, password });
+      await acceptInvite({ token, password: state.password });
       router.replace('/');
     } catch (reason: unknown) {
-      setError(toAcceptInviteFormError(reason));
+      setState((prev) => ({ ...prev, error: toAcceptInviteFormError(reason) }));
     } finally {
-      setPending(false);
+      setState((prev) => ({ ...prev, pending: false }));
     }
   }
 
@@ -85,7 +98,7 @@ export function AcceptInviteForm({ token }: AcceptInviteFormProps) {
         <p className="text-sm text-muted-foreground">
           Po zapisaniu wrócisz na kartę logowania. Dashboard otworzy się dopiero po zalogowaniu.
         </p>
-        {showDemoHint ? (
+        {state.showDemoHint ? (
           <p className="text-sm text-muted-foreground" data-slot="accept-invite-demo-hint">
             {ACCEPT_INVITE_DEMO_HINT}
           </p>
@@ -97,21 +110,23 @@ export function AcceptInviteForm({ token }: AcceptInviteFormProps) {
             label="Hasło"
             htmlFor="invite-password"
             hint="Min. 12 znaków, wielka litera, cyfra i znak specjalny."
-            error={localHint}
+            error={state.localHint}
           >
             <Input
               id="invite-password"
               name="password"
               type="password"
               autoComplete="new-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              value={state.password}
+              onChange={(event) => setState((prev) => ({ ...prev, password: event.target.value }))}
               required
             />
           </FormField>
-          {error ? <EnvelopeError code={error.code} message={error.message} /> : null}
-          <Button type="submit" disabled={pending} className="w-full">
-            {pending ? 'Zapisywanie…' : 'Zapisz hasło'}
+          {state.error ? (
+            <EnvelopeError code={state.error.code} message={state.error.message} />
+          ) : null}
+          <Button type="submit" disabled={state.pending} className="w-full">
+            {state.pending ? 'Zapisywanie…' : 'Zapisz hasło'}
           </Button>
         </form>
       </CardContent>

@@ -1,156 +1,36 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { createRunId, isRunId, type RunId } from '@content-chain/shared';
-import { ApiError } from '@/shared/api/envelope';
+import { useState } from 'react';
+import { createRunId, isRunId } from '@content-chain/shared';
 import { Button } from '@/shared/ui/button';
 import { EnvelopeError } from '@/shared/ui/form-field';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { useSession } from '@/modules/auth/components/session-provider';
 import { useGuestLocked } from '@/modules/demo/lib/use-guest-locked';
-import { fetchRunLogs, fetchRunSnapshot } from '@/modules/runs/api/runs.api';
 import {
   CONTENT_KIND_LABELS,
   LANGUAGE_LABELS,
   RUN_PLATFORM_LABELS,
   RUN_TASK_TYPE_LABELS,
 } from '@/modules/runs/api/run-labels';
-import {
-  isLiveRunStatus,
-  type RunLogItem,
-  type RunSnapshot,
-} from '@/modules/runs/api/runs.types';
 import { CancelRunDialog } from '@/modules/runs/components/cancel-run-dialog';
 import { HitlPanel } from '@/modules/runs/components/hitl-panel';
 import { RunLogMessage } from '@/modules/runs/components/run-log-message';
 import { RunResultSection } from '@/modules/runs/components/run-result-section';
 import { RunReviewPanel } from '@/modules/runs/components/run-review-panel';
 import { RunStatusView } from '@/modules/runs/components/run-status';
-import { useRunEventSource } from '@/modules/runs/components/use-run-event-source';
-import { useOwnRuns } from '@/modules/runs/components/own-runs-provider';
+import { runLogKey, useRunDetails } from '@/modules/runs/components/use-run-details';
 import { canCancelRunSnapshot } from '@/modules/runs/lib/can-cancel-run-snapshot';
 import { IsoDateTime } from '@/shared/datetime/iso-date-time';
-
-type DetailsState =
-  | { readonly status: 'loading' }
-  | {
-      readonly status: 'error';
-      readonly envelope: { code: string; message: string };
-      readonly forRunId: RunId;
-    }
-  | {
-      readonly status: 'ready';
-      readonly snapshot: RunSnapshot;
-      readonly logs: readonly RunLogItem[];
-    };
-
-const FALLBACK = { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' };
-
-function logKey(item: RunLogItem): string {
-  return `${item.at}|${item.level}|${item.message}|${item.step ?? ''}`;
-}
-
-function envelopeFromUnknown(reason: unknown): { code: string; message: string } {
-  if (reason instanceof ApiError) return reason.envelope;
-  return FALLBACK;
-}
 
 export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) {
   const { state: session } = useSession();
   const guestLocked = useGuestLocked();
-  const { patchStatus, refresh } = useOwnRuns();
-  const [view, setView] = useState<DetailsState>({ status: 'loading' });
   const [resultEditing, setResultEditing] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
 
   const runId = isRunId(runIdParam) ? createRunId(runIdParam) : null;
-  const runIdRef = useRef(runId);
-  const hadHitlRef = useRef(false);
-  const detailsEpochRef = useRef(0);
-
-  const reloadDetails = useCallback(
-    async (requestedId: RunId, isCancelled?: () => boolean): Promise<RunSnapshot | undefined> => {
-      const epoch = ++detailsEpochRef.current;
-      const isStale = (): boolean =>
-        epoch !== detailsEpochRef.current ||
-        Boolean(isCancelled?.()) ||
-        runIdRef.current !== requestedId;
-      try {
-        const [snapshot, logs] = await Promise.all([
-          fetchRunSnapshot(requestedId),
-          fetchRunLogs(requestedId),
-        ]);
-        if (isStale()) return undefined;
-        hadHitlRef.current = snapshot.hitl !== null;
-        setView({ status: 'ready', snapshot, logs });
-        return snapshot;
-      } catch (reason: unknown) {
-        if (isStale()) return undefined;
-        hadHitlRef.current = false;
-        setView({
-          status: 'error',
-          envelope: envelopeFromUnknown(reason),
-          forRunId: requestedId,
-        });
-        return undefined;
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    runIdRef.current = runId;
-    if (!runId) return;
-    const requestedId = runId;
-    let cancelled = false;
-    const loadDetails = () => {
-      void reloadDetails(requestedId, () => cancelled);
-    };
-    loadDetails();
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadDetails, runId]);
-
-  const own =
-    view.status === 'ready' &&
-    session.status === 'authenticated' &&
-    view.snapshot.startedBy !== null &&
-    view.snapshot.startedBy.id === session.user.id;
-  const live =
-    view.status === 'ready' &&
-    own &&
-    runId !== null &&
-    view.snapshot.runId === runId &&
-    isLiveRunStatus(view.snapshot.status);
-
-  useRunEventSource(runId, live, {
-    onStatus: (status) => {
-      setView((current) => {
-        if (current.status !== 'ready') return current;
-        if (runId === null || current.snapshot.runId !== runId) return current;
-        return { ...current, snapshot: { ...current.snapshot, status } };
-      });
-      if (runId) patchStatus(runId, status);
-      if (runId !== null && (status === 'awaiting_hitl' || hadHitlRef.current)) {
-        void reloadDetails(runId);
-      }
-    },
-    onLog: (item) => {
-      setView((current) => {
-        if (current.status !== 'ready') return current;
-        if (runId === null || current.snapshot.runId !== runId) return current;
-        if (current.logs.some((existing) => logKey(existing) === logKey(item))) return current;
-        return { ...current, logs: [...current.logs, item] };
-      });
-    },
-    onTerminal: () => {
-      const requestedId = runId;
-      if (!requestedId) return;
-      void reloadDetails(requestedId);
-      void refresh();
-    },
-  });
+  const { view, reloadDetails, applySnapshot, patchStatus, refresh } = useRunDetails(runId);
 
   if (runId === null) {
     return <EnvelopeError code="VALIDATION_FAILED" message="Invalid runId" />;
@@ -210,11 +90,7 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
         onOpenChange={setCancelOpen}
         runId={canCancel ? snapshot.runId : null}
         onCancelled={(next) => {
-          setView((current) => {
-            if (current.status !== 'ready') return current;
-            if (current.snapshot.runId !== next.runId) return current;
-            return { ...current, snapshot: next };
-          });
+          applySnapshot(next);
           patchStatus(next.runId, next.status);
           void refresh();
         }}
@@ -226,7 +102,7 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
         ) : (
           <ol className="divide-y divide-border text-sm">
             {logs.map((item) => (
-              <li key={logKey(item)} className="flex flex-col gap-0.5 py-2">
+              <li key={runLogKey(item)} className="flex flex-col gap-0.5 py-2">
                 <p className="text-muted-foreground">
                   <IsoDateTime iso={item.at} kind="log" />
                   {item.step ? ` · ${item.step}` : ''}

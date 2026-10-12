@@ -8,11 +8,12 @@ type FormFieldProps = {
   readonly children: ReactNode;
   readonly hint?: string;
   readonly error?: string;
+  readonly className?: string;
 };
 
-export function FormField({ label, htmlFor, children, hint, error }: FormFieldProps) {
+export function FormField({ label, htmlFor, children, hint, error, className }: FormFieldProps) {
   return (
-    <div className="flex flex-col gap-2 mb-2">
+    <div className={cn('flex flex-col gap-2 mb-2', className)}>
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
       {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}

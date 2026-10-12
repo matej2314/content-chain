@@ -37,7 +37,7 @@ export function parseAuthUserWrapper(value: unknown): SessionUser {
   return parseSessionUser(value.user);
 }
 
-/** Odpowiedź `POST /auth/register` — `verifiedAt: null` = thank-you (prod). */
+/** Response from `POST /auth/register` — `verifiedAt: null` = thank-you (prod). */
 export type RegisteredUser = {
   readonly id: UserId;
   readonly email: string;

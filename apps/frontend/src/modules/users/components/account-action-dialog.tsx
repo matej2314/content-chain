@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import type { UserListItem } from '@/modules/users/api/users.types';
 import {
   deleteUser,
   GUEST_HAS_ACTIVE_RUN,
@@ -18,23 +17,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog';
+import type { UserListItem } from '@/modules/users/api/users.types';
 
 export type AccountAction =
   | { readonly kind: 'deactivate'; readonly user: UserListItem }
   | { readonly kind: 'activate'; readonly user: UserListItem }
   | { readonly kind: 'delete-guest'; readonly user: UserListItem }
   | {
-      readonly kind: 'purge-guest';
-      readonly user: UserListItem;
-      readonly message: string;
-    };
+    readonly kind: 'purge-guest';
+    readonly user: UserListItem;
+    readonly message: string;
+  };
 
 type AccountActionDialogProps = {
   readonly action: AccountAction | null;
   readonly onOpenChange: (open: boolean) => void;
-  /** Po sukcesie API — parent robi `reload()` listy. */
   readonly onSuccess: () => Promise<void>;
-  /** Po 409 na Usuń — parent ustawia akcję `purge-guest`. */
   readonly onNeedsPurge: (user: UserListItem, message: string) => void;
 };
 

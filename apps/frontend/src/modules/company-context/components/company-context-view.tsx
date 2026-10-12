@@ -22,27 +22,32 @@ import { isComplete } from '@/modules/company-context/lib/is-complete';
 import { notifyProduct } from '@/modules/notifications/notify-product';
 import { StartAgentDialog } from '@/modules/runs/components/start-agent-dialog';
 
-type ViewState =
+type SubmitEnvelope = { readonly code: string; readonly message: string };
+
+type ContextViewState =
   | { readonly status: 'loading' }
   | {
     readonly status: 'error';
-    readonly envelope: { readonly code: string; readonly message: string };
+    readonly envelope: SubmitEnvelope;
   }
   | {
     readonly status: 'ready';
     readonly context: CompanyContext;
     readonly completeness: Completeness;
+    readonly pending: boolean;
+    readonly submitError: SubmitEnvelope | null;
   };
 
-const FALLBACK = { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' };
+const FALLBACK: SubmitEnvelope = {
+  code: 'INTERNAL_ERROR',
+  message: 'Nie udało się odczytać odpowiedzi.',
+};
 
 export function CompanyContextView() {
   const { state: session } = useSession();
   const { refetch: refetchCompleteness } = useCompleteness();
   const { refetch: refetchGatewayAlive } = useGatewayAlive();
-  const [view, setView] = useState<ViewState>({ status: 'loading' });
-  const [pending, setPending] = useState(false);
-  const [submitError, setSubmitError] = useState<{ code: string; message: string } | null>(null);
+  const [contextState, setContextState] = useState<ContextViewState>({ status: 'loading' });
 
   const readOnly = session.status === 'authenticated' && session.user.role !== 'admin';
 
@@ -52,18 +57,20 @@ export function CompanyContextView() {
       try {
         const payload = await fetchCompanyContext();
         if (cancelled) return;
-        setView({
+        setContextState({
           status: 'ready',
           context: withDraftRows(payload),
           completeness: payload.completeness,
+          pending: false,
+          submitError: null,
         });
       } catch (reason: unknown) {
         if (cancelled) return;
         if (reason instanceof ApiError) {
-          setView({ status: 'error', envelope: reason.envelope });
+          setContextState({ status: 'error', envelope: reason.envelope });
           return;
         }
-        setView({ status: 'error', envelope: FALLBACK });
+        setContextState({ status: 'error', envelope: FALLBACK });
       }
     })();
     return () => {
@@ -72,27 +79,30 @@ export function CompanyContextView() {
   }, []);
 
   async function onSubmit(): Promise<void> {
-    if (view.status !== 'ready' || readOnly) return;
-    if (!isComplete(companyContextForPut(view.context)).complete) return;
-    setPending(true);
-    setSubmitError(null);
+    if (contextState.status !== 'ready' || readOnly) return;
+    if (!isComplete(companyContextForPut(contextState.context)).complete) return;
+    setContextState((prev) =>
+      prev.status === 'ready' ? { ...prev, pending: true, submitError: null } : prev,
+    );
     try {
-      const payload = await putCompanyContext(view.context);
-      setView({
+      const payload = await putCompanyContext(contextState.context);
+      setContextState({
         status: 'ready',
         context: withDraftRows(payload),
         completeness: payload.completeness,
+        pending: true,
+        submitError: null,
       });
       await Promise.all([refetchCompleteness(), refetchGatewayAlive()]);
       notifyProduct({ kind: 'success', title: 'Kontekst zapisany' });
     } catch (reason: unknown) {
-      if (reason instanceof ApiError) {
-        setSubmitError({ code: reason.envelope.code, message: reason.envelope.message });
-      } else {
-        setSubmitError(FALLBACK);
-      }
+      const submitError: SubmitEnvelope =
+        reason instanceof ApiError
+          ? { code: reason.envelope.code, message: reason.envelope.message }
+          : FALLBACK;
+      setContextState((prev) => (prev.status === 'ready' ? { ...prev, submitError } : prev));
     } finally {
-      setPending(false);
+      setContextState((prev) => (prev.status === 'ready' ? { ...prev, pending: false } : prev));
     }
   }
 
@@ -105,26 +115,28 @@ export function CompanyContextView() {
             Uzupełnij wszystkie obowiązkowe pola. Dodatki są opcjonalne.
           </p>
         </div>
-        <StartAgentDialog />
+        <div className="self-start">
+          <StartAgentDialog />
+        </div>
       </div>
-      {view.status === 'loading' ? (
+      {contextState.status === 'loading' ? (
         <div className="flex max-w-3xl flex-col gap-3">
           <Skeleton className="h-8 w-full" />
           <Skeleton className="h-40 w-full" />
         </div>
       ) : null}
-      {view.status === 'error' ? (
-        <EnvelopeError code={view.envelope.code} message={view.envelope.message} />
+      {contextState.status === 'error' ? (
+        <EnvelopeError code={contextState.envelope.code} message={contextState.envelope.message} />
       ) : null}
-      {view.status === 'ready' ? (
+      {contextState.status === 'ready' ? (
         <CompanyContextForm
-          value={view.context}
-          completeness={view.completeness}
+          value={contextState.context}
+          completeness={contextState.completeness}
           readOnly={readOnly}
-          pending={pending}
-          error={submitError}
+          pending={contextState.pending}
+          error={contextState.submitError}
           onChange={(context) =>
-            setView({ status: 'ready', context, completeness: view.completeness })
+            setContextState((current) => (current.status === 'ready' ? { ...current, context } : current))
           }
           onSubmit={() => {
             void onSubmit();

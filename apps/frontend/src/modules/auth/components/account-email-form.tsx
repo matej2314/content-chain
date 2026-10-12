@@ -19,20 +19,33 @@ import { useGuestLocked } from '@/modules/demo/lib/use-guest-locked';
 
 const FALLBACK_MESSAGE = 'Nie udało się odczytać odpowiedzi.';
 
+type AccountEmailFormState = {
+  email: string;
+  open: boolean;
+  modalEmail: string;
+  modalPassword: string;
+  emailLocked: boolean;
+  pending: boolean;
+  emailError: string | null;
+  passwordError: string | null;
+  openedDraft: string;
+};
+
 export function AccountEmailForm() {
   const { state, setAuthenticated } = useSession();
   const guestLocked = useGuestLocked();
   const current = state.status === 'authenticated' ? state.user.email : '';
-  const [email, setEmail] = useState(current);
-  const [open, setOpen] = useState(false);
-  const [modalEmail, setModalEmail] = useState('');
-  const [modalPassword, setModalPassword] = useState('');
-  const [emailLocked, setEmailLocked] = useState(true);
-  const [pending, setPending] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  /** Draft Konta w momencie otwarcia — Anuluj / close bez Potwierdź wraca do niego. */
-  const [openedDraft, setOpenedDraft] = useState(current);
+  const [form, setForm] = useState<AccountEmailFormState>({
+    email: current,
+    open: false,
+    modalEmail: '',
+    modalPassword: '',
+    emailLocked: true,
+    pending: false,
+    emailError: null,
+    passwordError: null,
+    openedDraft: current,
+  });
 
   if (state.status !== 'authenticated') return null;
 
@@ -50,69 +63,84 @@ export function AccountEmailForm() {
   }
 
   function openReauthModal(draft: string): void {
-    setOpenedDraft(draft);
-    setModalEmail(draft);
-    setModalPassword('');
-    setEmailLocked(true);
-    setEmailError(null);
-    setPasswordError(null);
-    setOpen(true);
+    setForm((prev) => ({
+      ...prev,
+      openedDraft: draft,
+      modalEmail: draft,
+      modalPassword: '',
+      emailLocked: true,
+      emailError: null,
+      passwordError: null,
+      open: true,
+    }));
   }
 
   function closeWithoutApi(): void {
-    setOpen(false);
-    setModalPassword('');
-    setEmailError(null);
-    setPasswordError(null);
-    setEmail(openedDraft);
+    setForm((prev) => ({
+      ...prev,
+      open: false,
+      modalPassword: '',
+      emailError: null,
+      passwordError: null,
+      email: prev.openedDraft,
+    }));
   }
 
   function onAccountSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    openReauthModal(email.trim());
+    openReauthModal(form.email.trim());
   }
 
   function onModalSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    if (pending) return;
+    if (form.pending) return;
     void onConfirm();
   }
 
   async function onConfirm(): Promise<void> {
-    setPending(true);
-    setEmailError(null);
-    setPasswordError(null);
+    setForm((prev) => ({
+      ...prev,
+      pending: true,
+      emailError: null,
+      passwordError: null,
+    }));
     try {
       await patchOwnEmail({
-        email: modalEmail.trim(),
-        currentPassword: modalPassword,
+        email: form.modalEmail.trim(),
+        currentPassword: form.modalPassword,
       });
       const user = await fetchUserSession();
       setAuthenticated(user);
-      setEmail(user.email);
-      setOpen(false);
-      setModalPassword('');
+      setForm((prev) => ({
+        ...prev,
+        email: user.email,
+        open: false,
+        modalPassword: '',
+      }));
     } catch (reason: unknown) {
       if (!(reason instanceof ApiError)) {
-        setPasswordError(FALLBACK_MESSAGE);
+        setForm((prev) => ({ ...prev, passwordError: FALLBACK_MESSAGE }));
         return;
       }
       const { code, message } = reason.envelope;
       if (reason.status === 409 || code === 'CONFLICT') {
-        setModalEmail('');
-        setModalPassword('');
-        setEmailLocked(false);
-        setEmailError(message);
-        setPasswordError(null);
+        setForm((prev) => ({
+          ...prev,
+          modalEmail: '',
+          modalPassword: '',
+          emailLocked: false,
+          emailError: message,
+          passwordError: null,
+        }));
         return;
       }
       if (code === 'INVALID_PASSWORD' || code === 'VALIDATION_FAILED') {
-        setPasswordError(message);
+        setForm((prev) => ({ ...prev, passwordError: message }));
         return;
       }
-      setPasswordError(message);
+      setForm((prev) => ({ ...prev, passwordError: message }));
     } finally {
-      setPending(false);
+      setForm((prev) => ({ ...prev, pending: false }));
     }
   }
 
@@ -124,8 +152,10 @@ export function AccountEmailForm() {
             id="account-email"
             type="email"
             autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            value={form.email}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, email: event.target.value }))
+            }
             required
           />
         </FormField>
@@ -133,11 +163,11 @@ export function AccountEmailForm() {
       </form>
 
       <Dialog
-        open={open}
+        open={form.open}
         onOpenChange={(next) => {
-          if (pending) return;
+          if (form.pending) return;
           if (!next) closeWithoutApi();
-          else setOpen(true);
+          else setForm((prev) => ({ ...prev, open: true }));
         }}
       >
         <DialogContent className="z-(--z-modal) sm:max-w-md">
@@ -155,15 +185,20 @@ export function AccountEmailForm() {
                   id="reauth-email"
                   type="email"
                   autoComplete="email"
-                  value={modalEmail}
-                  disabled={emailLocked || pending}
-                  onChange={(event) => setModalEmail(event.target.value)}
+                  value={form.modalEmail}
+                  disabled={form.emailLocked || form.pending}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      modalEmail: event.target.value,
+                    }))
+                  }
                   required
                 />
               </FormField>
-              {emailError ? (
+              {form.emailError ? (
                 <p className="text-sm text-destructive" role="alert">
-                  {emailError}
+                  {form.emailError}
                 </p>
               ) : null}
 
@@ -172,15 +207,20 @@ export function AccountEmailForm() {
                   id="reauth-password"
                   type="password"
                   autoComplete="current-password"
-                  value={modalPassword}
-                  disabled={pending}
-                  onChange={(event) => setModalPassword(event.target.value)}
+                  value={form.modalPassword}
+                  disabled={form.pending}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      modalPassword: event.target.value,
+                    }))
+                  }
                   required
                 />
               </FormField>
-              {passwordError ? (
+              {form.passwordError ? (
                 <p className="text-sm text-destructive" role="alert">
-                  {passwordError}
+                  {form.passwordError}
                 </p>
               ) : null}
             </div>
@@ -189,12 +229,12 @@ export function AccountEmailForm() {
               <Button
                 type="button"
                 variant="outline"
-                disabled={pending}
+                disabled={form.pending}
                 onClick={() => closeWithoutApi()}
               >
                 Anuluj
               </Button>
-              <Button type="submit" disabled={pending}>
+              <Button type="submit" disabled={form.pending}>
                 Potwierdź
               </Button>
             </DialogFooter>

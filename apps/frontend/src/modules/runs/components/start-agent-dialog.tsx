@@ -40,7 +40,7 @@ export function StartAgentDialog() {
         </Button>
       </AgentsGateTooltip>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="z-(--z-modal) max-h-[min(90dvh,44rem)] overflow-y-auto sm:max-w-xl">
+        <DialogContent className="z-(--z-modal) max-h-[min(90dvh,44rem)] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Uruchom agenta</DialogTitle>
             <DialogDescription>

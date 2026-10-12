@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Icon } from '@iconify/react';
 import { Button } from '@/shared/ui/button';
 import {
   Dialog,
@@ -15,8 +16,15 @@ export function FeedbackCta() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
-        Zostaw opinię
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+        aria-label="Zostaw opinię"
+      >
+        <Icon icon="lucide:message-circle" className="size-4 shrink-0" aria-hidden />
+        <span className="sr-only lg:not-sr-only lg:ml-1">Zostaw opinię</span>
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="z-(--z-modal) sm:max-w-lg">

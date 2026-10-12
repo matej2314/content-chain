@@ -14,6 +14,18 @@ type HitlPanelProps = {
   readonly onStaleStatus: () => Promise<void>;
 };
 
+type HitlPanelState = {
+  readonly selected: readonly string[];
+  readonly pending: boolean;
+  readonly envelope: { code: string; message: string } | null;
+};
+
+const INITIAL_STATE: HitlPanelState = {
+  selected: [],
+  pending: false,
+  envelope: null,
+};
+
 const FALLBACK = { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' };
 
 function toggleId(current: readonly string[], id: string): readonly string[] {
@@ -68,31 +80,29 @@ function OutlinePreview({ outline }: { readonly outline: PageOutline }) {
 }
 
 export function HitlPanel({ snapshot, onSubmitted, onStaleStatus }: HitlPanelProps) {
-  const [selected, setSelected] = useState<readonly string[]>([]);
-  const [pending, setPending] = useState(false);
-  const [envelope, setEnvelope] = useState<{ code: string; message: string } | null>(null);
+  const [hitlState, setHitlState] = useState<HitlPanelState>(INITIAL_STATE);
 
   if (snapshot.status !== 'awaiting_hitl' || snapshot.hitl === null) {
     return null;
   }
 
   async function send(ids: readonly string[]): Promise<void> {
-    setPending(true);
-    setEnvelope(null);
+    setHitlState((current) => ({ ...current, pending: true, envelope: null }));
     try {
       await submitHitl(snapshot.runId, ids);
       await onSubmitted();
     } catch (reason: unknown) {
       if (reason instanceof ApiError) {
-        setEnvelope(reason.envelope);
+        const { envelope } = reason;
+        setHitlState((current) => ({ ...current, envelope }));
         if (reason.status === 409) {
           await onStaleStatus();
         }
       } else {
-        setEnvelope(FALLBACK);
+        setHitlState((current) => ({ ...current, envelope: FALLBACK }));
       }
     } finally {
-      setPending(false);
+      setHitlState((current) => ({ ...current, pending: false }));
     }
   }
 
@@ -110,7 +120,9 @@ export function HitlPanel({ snapshot, onSubmitted, onStaleStatus }: HitlPanelPro
       <section data-slot="run-hitl" className="flex flex-col gap-3">
         <h2 className="text-sm font-medium">Akceptacja outline</h2>
         <OutlinePreview outline={outline} />
-        {envelope ? <EnvelopeError code={envelope.code} message={envelope.message} /> : null}
+        {hitlState.envelope ? (
+          <EnvelopeError code={hitlState.envelope.code} message={hitlState.envelope.message} />
+        ) : null}
         <form
           className="flex flex-col gap-2"
           onSubmit={(event: FormEvent<HTMLFormElement>) => {
@@ -118,7 +130,7 @@ export function HitlPanel({ snapshot, onSubmitted, onStaleStatus }: HitlPanelPro
             void send([outline.id]);
           }}
         >
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" disabled={hitlState.pending}>
             Akceptuj outline
           </Button>
         </form>
@@ -127,7 +139,7 @@ export function HitlPanel({ snapshot, onSubmitted, onStaleStatus }: HitlPanelPro
   }
 
   const options = snapshot.hitl.options;
-  const canSubmit = selected.length >= 1;
+  const canSubmit = hitlState.selected.length >= 1;
 
   return (
     <section data-slot="run-hitl" className="flex flex-col gap-3">
@@ -140,7 +152,7 @@ export function HitlPanel({ snapshot, onSubmitted, onStaleStatus }: HitlPanelPro
         onSubmit={(event: FormEvent<HTMLFormElement>) => {
           event.preventDefault();
           if (!canSubmit) return;
-          void send(selected);
+          void send(hitlState.selected);
         }}
       >
         <fieldset className="min-w-0">
@@ -153,8 +165,13 @@ export function HitlPanel({ snapshot, onSubmitted, onStaleStatus }: HitlPanelPro
                 <SocialOption
                   key={idea.id}
                   idea={idea}
-                  checked={selected.includes(idea.id)}
-                  onToggle={(id) => setSelected((current) => toggleId(current, id))}
+                  checked={hitlState.selected.includes(idea.id)}
+                  onToggle={(id) =>
+                    setHitlState((current) => ({
+                      ...current,
+                      selected: toggleId(current.selected, id),
+                    }))
+                  }
                 />
               ))}
             </ul>
@@ -163,8 +180,10 @@ export function HitlPanel({ snapshot, onSubmitted, onStaleStatus }: HitlPanelPro
         {!canSubmit ? (
           <p className="text-xs text-muted-foreground">Wybierz co najmniej jeden pomysł.</p>
         ) : null}
-        {envelope ? <EnvelopeError code={envelope.code} message={envelope.message} /> : null}
-        <Button type="submit" disabled={pending || !canSubmit}>
+        {hitlState.envelope ? (
+          <EnvelopeError code={hitlState.envelope.code} message={hitlState.envelope.message} />
+        ) : null}
+        <Button type="submit" disabled={hitlState.pending || !canSubmit}>
           Kontynuuj
         </Button>
       </form>

@@ -32,7 +32,29 @@ type FeedbackFormProps = {
   readonly idPrefix: string;
 };
 
+type FeedbackFormState = {
+  readonly targetType: FeedbackTargetType;
+  readonly agentKey: FeedbackAgentKey;
+  readonly runId: RunId | '';
+  readonly body: string;
+  readonly pending: boolean;
+  readonly saved: boolean;
+  readonly envelope: { readonly code: string; readonly message: string } | null;
+  readonly runOptions: readonly UserRunItem[];
+};
+
 const FALLBACK = { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' };
+
+const INITIAL_STATE: FeedbackFormState = {
+  targetType: 'application',
+  agentKey: 'IdeationAgent',
+  runId: '',
+  body: '',
+  pending: false,
+  saved: false,
+  envelope: null,
+  runOptions: [],
+};
 
 function toInput(
   targetType: FeedbackTargetType,
@@ -50,46 +72,44 @@ function toInput(
 
 export function FeedbackForm({ idPrefix }: FeedbackFormProps) {
   const { state } = useOwnRuns();
-  const [targetType, setTargetType] = useState<FeedbackTargetType>('application');
-  const [agentKey, setAgentKey] = useState<FeedbackAgentKey>('IdeationAgent');
-  const [runId, setRunId] = useState<RunId | ''>('');
-  const [body, setBody] = useState('');
-  const [pending, setPending] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [envelope, setEnvelope] = useState<{ code: string; message: string } | null>(null);
-  const [runOptions, setRunOptions] = useState<readonly UserRunItem[]>([]);
+  const [formState, setFormState] = useState<FeedbackFormState>(INITIAL_STATE);
 
   useEffect(() => {
+    if (formState.targetType !== 'run' || state.status !== 'ready') return;
     let cancelled = false;
-    if (targetType !== 'run' || state.status !== 'ready') {
-      setRunOptions([]);
-      return;
-    }
     void filterFeedbackRunOptions(state.items).then((options) => {
-      if (!cancelled) setRunOptions(options);
+      if (!cancelled) setFormState((current) => ({ ...current, runOptions: options }));
     });
     return () => {
       cancelled = true;
     };
-  }, [state, targetType]);
+  }, [state, formState.targetType]);
 
-  const input = toInput(targetType, agentKey, runId, body);
+  const runOptions =
+    formState.targetType === 'run' && state.status === 'ready' ? formState.runOptions : [];
+  const input = toInput(formState.targetType, formState.agentKey, formState.runId, formState.body);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!input) return;
-    setPending(true);
-    setEnvelope(null);
-    setSaved(false);
+    setFormState((current) => ({
+      ...current,
+      pending: true,
+      envelope: null,
+      saved: false,
+    }));
     try {
       await createFeedback(input);
-      setBody('');
-      setSaved(true);
+      setFormState((current) => ({ ...current, body: '', saved: true }));
     } catch (reason: unknown) {
-      if (reason instanceof ApiError) setEnvelope(reason.envelope);
-      else setEnvelope(FALLBACK);
+      if (reason instanceof ApiError) {
+        const { envelope } = reason;
+        setFormState((current) => ({ ...current, envelope }));
+      } else {
+        setFormState((current) => ({ ...current, envelope: FALLBACK }));
+      }
     } finally {
-      setPending(false);
+      setFormState((current) => ({ ...current, pending: false }));
     }
   }
 
@@ -98,11 +118,15 @@ export function FeedbackForm({ idPrefix }: FeedbackFormProps) {
       <FormField label="Co oceniasz" htmlFor={`${idPrefix}-target`}>
         <NativeSelect
           id={`${idPrefix}-target`}
-          value={targetType}
+          value={formState.targetType}
           onChange={(event) => {
-            if (!isFeedbackTargetType(event.target.value)) return;
-            setTargetType(event.target.value);
-            setSaved(false);
+            const nextTarget = event.target.value;
+            if (!isFeedbackTargetType(nextTarget)) return;
+            setFormState((current) => ({
+              ...current,
+              targetType: nextTarget,
+              saved: false,
+            }));
           }}
         >
           {FEEDBACK_TARGET_TYPES.map((item) => (
@@ -112,14 +136,18 @@ export function FeedbackForm({ idPrefix }: FeedbackFormProps) {
           ))}
         </NativeSelect>
       </FormField>
-      {targetType === 'agent' ? (
+      {formState.targetType === 'agent' ? (
         <FormField label="Agent" htmlFor={`${idPrefix}-agent`}>
           <NativeSelect
             id={`${idPrefix}-agent`}
-            value={agentKey}
+            value={formState.agentKey}
             onChange={(event) => {
-              if (!isFeedbackAgentKey(event.target.value)) return;
-              setAgentKey(event.target.value);
+              const nextAgent = event.target.value;
+              if (!isFeedbackAgentKey(nextAgent)) return;
+              setFormState((current) => ({
+                ...current,
+                agentKey: nextAgent,
+              }));
             }}
           >
             {FEEDBACK_AGENT_KEYS.map((item) => (
@@ -130,7 +158,7 @@ export function FeedbackForm({ idPrefix }: FeedbackFormProps) {
           </NativeSelect>
         </FormField>
       ) : null}
-      {targetType === 'run' ? (
+      {formState.targetType === 'run' ? (
         <FormField
           label="Run"
           htmlFor={`${idPrefix}-run`}
@@ -138,15 +166,18 @@ export function FeedbackForm({ idPrefix }: FeedbackFormProps) {
         >
           <NativeSelect
             id={`${idPrefix}-run`}
-            value={runId}
+            value={formState.runId}
             disabled={state.status !== 'ready'}
             onChange={(event) => {
               if (event.target.value === '') {
-                setRunId('');
+                setFormState((current) => ({ ...current, runId: '' }));
                 return;
               }
               if (!isRunId(event.target.value)) return;
-              setRunId(createRunId(event.target.value));
+              setFormState((current) => ({
+                ...current,
+                runId: createRunId(event.target.value),
+              }));
             }}
           >
             <option value="">Wybierz run</option>
@@ -161,18 +192,22 @@ export function FeedbackForm({ idPrefix }: FeedbackFormProps) {
       <FormField label="Treść opinii" htmlFor={`${idPrefix}-body`}>
         <Textarea
           id={`${idPrefix}-body`}
-          value={body}
+          value={formState.body}
           maxLength={FEEDBACK_BODY_MAX}
-          onChange={(event) => setBody(event.target.value)}
+          onChange={(event) =>
+            setFormState((current) => ({ ...current, body: event.target.value }))
+          }
           required
         />
       </FormField>
-      {state.status === 'error' && targetType === 'run' ? (
+      {state.status === 'error' && formState.targetType === 'run' ? (
         <EnvelopeError code={state.envelope.code} message={state.envelope.message} />
       ) : null}
-      {envelope ? <EnvelopeError code={envelope.code} message={envelope.message} /> : null}
-      {saved ? <p className="text-xs text-muted-foreground">Zapisano opinię.</p> : null}
-      <Button type="submit" disabled={pending || input === null}>
+      {formState.envelope ? (
+        <EnvelopeError code={formState.envelope.code} message={formState.envelope.message} />
+      ) : null}
+      {formState.saved ? <p className="text-xs text-muted-foreground">Zapisano opinię.</p> : null}
+      <Button type="submit" disabled={formState.pending || input === null}>
         Zapisz opinię
       </Button>
     </form>

@@ -23,50 +23,77 @@ type RegisterFormProps = {
   readonly onBackToLogin: () => void;
 };
 
+type RegisterFormState = {
+  readonly email: string;
+  readonly password: string;
+  readonly confirm: string;
+  readonly pending: boolean;
+  readonly fieldErrors: RegisterFieldErrors;
+  readonly localHint: string | undefined;
+};
+
+const INITIAL_STATE: RegisterFormState = {
+  email: '',
+  password: '',
+  confirm: '',
+  pending: false,
+  fieldErrors: {},
+  localHint: undefined,
+};
+
 export function RegisterForm({ onSuccess, onBackToLogin }: RegisterFormProps) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [pending, setPending] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
-  const [localHint, setLocalHint] = useState<string | undefined>(undefined);
+  const [registerState, setRegisterState] = useState<RegisterFormState>(INITIAL_STATE);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    setFieldErrors({});
-    setLocalHint(undefined);
+    setRegisterState((current) => ({
+      ...current,
+      fieldErrors: {},
+      localHint: undefined,
+    }));
 
-    if (password !== confirm) {
-      setLocalHint('Hasła muszą być identyczne.');
+    if (registerState.password !== registerState.confirm) {
+      setRegisterState((current) => ({
+        ...current,
+        localHint: 'Hasła muszą być identyczne.',
+      }));
       return;
     }
-    if (!passwordMeetsPolicy(password)) {
-      setLocalHint(
-        'Hasło nie spełnia polityki (12 znaków, wielka litera, cyfra, znak specjalny).',
-      );
+    if (!passwordMeetsPolicy(registerState.password)) {
+      setRegisterState((current) => ({
+        ...current,
+        localHint:
+          'Hasło nie spełnia polityki (12 znaków, wielka litera, cyfra, znak specjalny).',
+      }));
       return;
     }
 
-    setPending(true);
+    setRegisterState((current) => ({ ...current, pending: true }));
     try {
-      const user: RegisteredUser = await registerAccount({ email, password });
+      const user: RegisteredUser = await registerAccount({
+        email: registerState.email,
+        password: registerState.password,
+      });
       if (user.verifiedAt === null) {
-        onSuccess({ kind: 'pending', email });
+        onSuccess({ kind: 'pending', email: registerState.email });
         return;
       }
-      onSuccess({ kind: 'ready', email });
+      onSuccess({ kind: 'ready', email: registerState.email });
     } catch (reason: unknown) {
       if (
         reason instanceof ApiError &&
         reason.status === 503 &&
         reason.envelope.code === 'MAIL_DELIVERY_FAILED'
       ) {
-        onSuccess({ kind: 'pending', email });
+        onSuccess({ kind: 'pending', email: registerState.email });
         return;
       }
-      setFieldErrors(toRegisterFieldErrors(reason));
+      setRegisterState((current) => ({
+        ...current,
+        fieldErrors: toRegisterFieldErrors(reason),
+      }));
     } finally {
-      setPending(false);
+      setRegisterState((current) => ({ ...current, pending: false }));
     }
   }
 
@@ -78,14 +105,20 @@ export function RegisterForm({ onSuccess, onBackToLogin }: RegisterFormProps) {
       </CardHeader>
       <CardContent>
         <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-          <FormField label="E-mail" htmlFor="register-email" error={fieldErrors.email}>
+          <FormField
+            label="E-mail"
+            htmlFor="register-email"
+            error={registerState.fieldErrors.email}
+          >
             <Input
               id="register-email"
               name="email"
               type="email"
               autoComplete="username"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={registerState.email}
+              onChange={(event) =>
+                setRegisterState((current) => ({ ...current, email: event.target.value }))
+              }
               required
             />
           </FormField>
@@ -93,15 +126,17 @@ export function RegisterForm({ onSuccess, onBackToLogin }: RegisterFormProps) {
             label="Hasło"
             htmlFor="register-password"
             hint="Min. 12 znaków, wielka litera, cyfra i znak specjalny."
-            error={fieldErrors.password ?? localHint}
+            error={registerState.fieldErrors.password ?? registerState.localHint}
           >
             <Input
               id="register-password"
               name="password"
               type="password"
               autoComplete="new-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              value={registerState.password}
+              onChange={(event) =>
+                setRegisterState((current) => ({ ...current, password: event.target.value }))
+              }
               required
             />
           </FormField>
@@ -111,16 +146,21 @@ export function RegisterForm({ onSuccess, onBackToLogin }: RegisterFormProps) {
               name="confirmPassword"
               type="password"
               autoComplete="new-password"
-              value={confirm}
-              onChange={(event) => setConfirm(event.target.value)}
+              value={registerState.confirm}
+              onChange={(event) =>
+                setRegisterState((current) => ({ ...current, confirm: event.target.value }))
+              }
               required
             />
           </FormField>
-          {fieldErrors.form ? (
-            <EnvelopeError code={fieldErrors.form.code} message={fieldErrors.form.message} />
+          {registerState.fieldErrors.form ? (
+            <EnvelopeError
+              code={registerState.fieldErrors.form.code}
+              message={registerState.fieldErrors.form.message}
+            />
           ) : null}
-          <Button type="submit" disabled={pending} className="w-full">
-            {pending ? 'Zapisywanie…' : 'Zarejestruj się'}
+          <Button type="submit" disabled={registerState.pending} className="w-full">
+            {registerState.pending ? 'Zapisywanie…' : 'Zarejestruj się'}
           </Button>
           <Button type="button" variant="outline" className="w-full" onClick={onBackToLogin}>
             Mam już konto — zaloguj się

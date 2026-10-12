@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import type { InvitationId } from '@content-chain/shared';
 import { ApiError } from '@/shared/api/envelope';
 import { useSession } from '@/modules/auth/components/session-provider';
 import { Button } from '@/shared/ui/button';
@@ -19,7 +18,7 @@ import {
 } from '@/shared/ui/dialog';
 import { fetchUsers } from '@/modules/users/api/users.api';
 import { USER_ROLE_LABELS } from '@/modules/users/api/users-labels';
-import type { UserListItem } from '@/modules/users/api/users.types';
+import { IsoDateTime } from '@/shared/datetime/iso-date-time';
 import {
   createInvitation,
   fetchInvitations,
@@ -34,9 +33,41 @@ import {
   AccountActionDialog,
   type AccountAction,
 } from '@/modules/users/components/account-action-dialog';
-import { IsoDateTime } from '@/shared/datetime/iso-date-time';
+import type { UserListItem } from '@/modules/users/api/users.types';
+import type { InvitationId } from '@content-chain/shared';
+
+interface ErrorObject {
+  code: string;
+  message: string;
+}
+
+type AdminListsState = {
+  users: readonly UserListItem[] | null;
+  invites: readonly InvitationListItem[] | null;
+  loadError: ErrorObject | null;
+};
+
+type InviteFormState = {
+  email: string;
+  formError: ErrorObject | null;
+  pending: boolean;
+  revokeId: InvitationId | null;
+};
 
 const FALLBACK = { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' };
+
+const INITIAL_ADMIN_LISTS: AdminListsState = {
+  users: null,
+  invites: null,
+  loadError: null,
+};
+
+const INITIAL_INVITE_FORM: InviteFormState = {
+  email: '',
+  formError: null,
+  pending: false,
+  revokeId: null,
+};
 
 export function UsersView() {
   const { state } = useSession();
@@ -56,24 +87,21 @@ export function UsersView() {
 }
 
 function UsersAdminView() {
-  const [users, setUsers] = useState<readonly UserListItem[] | null>(null);
-  const [invites, setInvites] = useState<readonly InvitationListItem[] | null>(null);
-  const [loadError, setLoadError] = useState<{ code: string; message: string } | null>(null);
-  const [formError, setFormError] = useState<{ code: string; message: string } | null>(null);
-  const [email, setEmail] = useState('');
-  const [pending, setPending] = useState(false);
-  const [revokeId, setRevokeId] = useState<InvitationId | null>(null);
+  const [lists, setLists] = useState<AdminListsState>(INITIAL_ADMIN_LISTS);
+  const [inviteForm, setInviteForm] = useState<InviteFormState>(INITIAL_INVITE_FORM);
   const [accountAction, setAccountAction] = useState<AccountAction | null>(null);
 
+  const { users, invites, loadError } = lists;
+  const { email, formError, pending, revokeId } = inviteForm;
+
   const reload = useCallback(async (): Promise<void> => {
-    setLoadError(null);
+    setLists((prev) => ({ ...prev, loadError: null }));
     try {
       const [nextUsers, nextInvites] = await Promise.all([fetchUsers(), fetchInvitations()]);
-      setUsers(nextUsers);
-      setInvites(nextInvites);
+      setLists({ users: nextUsers, invites: nextInvites, loadError: null });
     } catch (reason: unknown) {
-      if (reason instanceof ApiError) setLoadError(reason.envelope);
-      else setLoadError(FALLBACK);
+      const nextError = reason instanceof ApiError ? reason.envelope : FALLBACK;
+      setLists((prev) => ({ ...prev, loadError: nextError }));
     }
   }, []);
 
@@ -86,55 +114,46 @@ function UsersAdminView() {
 
   async function onInvite(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    setPending(true);
-    setFormError(null);
+    setInviteForm((prev) => ({ ...prev, pending: true, formError: null }));
     try {
       await createInvitation(email.trim());
-      setEmail('');
+      setInviteForm((prev) => ({ ...prev, email: '' }));
       await reload();
     } catch (reason: unknown) {
-      if (reason instanceof ApiError) {
-        setFormError(reason.envelope);
-        if (reason.status === 503) await reload();
-      } else {
-        setFormError(FALLBACK);
-      }
+      const nextError = reason instanceof ApiError ? reason.envelope : FALLBACK;
+      setInviteForm((prev) => ({ ...prev, formError: nextError }));
+      if (reason instanceof ApiError && reason.status === 503) await reload();
     } finally {
-      setPending(false);
+      setInviteForm((prev) => ({ ...prev, pending: false }));
     }
   }
 
   async function onResend(id: InvitationId): Promise<void> {
-    setPending(true);
-    setFormError(null);
+    setInviteForm((prev) => ({ ...prev, pending: true, formError: null }));
     try {
       await resendInvitation(id);
       await reload();
     } catch (reason: unknown) {
-      if (reason instanceof ApiError) {
-        setFormError(reason.envelope);
-        if (reason.status === 503) await reload();
-      } else {
-        setFormError(FALLBACK);
-      }
+      const nextError = reason instanceof ApiError ? reason.envelope : FALLBACK;
+      setInviteForm((prev) => ({ ...prev, formError: nextError }));
+      if (reason instanceof ApiError && reason.status === 503) await reload();
     } finally {
-      setPending(false);
+      setInviteForm((prev) => ({ ...prev, pending: false }));
     }
   }
 
   async function onRevokeConfirm(): Promise<void> {
     if (revokeId === null) return;
-    setPending(true);
-    setFormError(null);
+    setInviteForm((prev) => ({ ...prev, pending: true, formError: null }));
     try {
       await revokeInvitation(revokeId);
-      setRevokeId(null);
+      setInviteForm((prev) => ({ ...prev, revokeId: null }));
       await reload();
     } catch (reason: unknown) {
-      if (reason instanceof ApiError) setFormError(reason.envelope);
-      else setFormError(FALLBACK);
+      const nextError = reason instanceof ApiError ? reason.envelope : FALLBACK;
+      setInviteForm((prev) => ({ ...prev, formError: nextError }));
     } finally {
-      setPending(false);
+      setInviteForm((prev) => ({ ...prev, pending: false }));
     }
   }
 
@@ -170,7 +189,9 @@ function UsersAdminView() {
               type="email"
               autoComplete="off"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) =>
+                setInviteForm((prev) => ({ ...prev, email: event.target.value }))
+              }
               required
             />
           </FormField>
@@ -226,7 +247,7 @@ function UsersAdminView() {
                           variant="destructive"
                           size="sm"
                           disabled={pending}
-                          onClick={() => setRevokeId(item.id)}
+                          onClick={() => setInviteForm((prev) => ({ ...prev, revokeId: item.id }))}
                         >
                           Unieważnij
                         </Button>
@@ -301,7 +322,10 @@ function UsersAdminView() {
         )}
       </section>
 
-      <Dialog open={revokeId !== null} onOpenChange={(open) => !open && setRevokeId(null)}>
+      <Dialog
+        open={revokeId !== null}
+        onOpenChange={(open) => !open && setInviteForm((prev) => ({ ...prev, revokeId: null }))}
+      >
         <DialogContent className="z-(--z-modal) sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Unieważnić zaproszenie?</DialogTitle>
@@ -311,7 +335,11 @@ function UsersAdminView() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setRevokeId(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setInviteForm((prev) => ({ ...prev, revokeId: null }))}
+            >
               Nie
             </Button>
             <Button

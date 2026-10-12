@@ -16,9 +16,7 @@ export async function filterFeedbackRunOptions(
         if (runResultHasArtifacts(snapshot.result)) {
           withResult.push(item);
         }
-      } catch {
-        /* pomiń — API i tak odrzuci przy submit */
-      }
+      } catch {}
     }),
   );
   return [...reviewable, ...withResult];

@@ -120,7 +120,7 @@ export function CompanyContextForm({
       <Tabs defaultValue={DEFAULT_CONTEXT_TAB} className="gap-4">
         <TabsList
           variant="line"
-          className="h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0"
+          className="w-full flex-wrap justify-start gap-x-1 gap-y-3 bg-transparent p-0"
         >
           {GATE_SECTIONS.map((section) => (
             <TabsTrigger

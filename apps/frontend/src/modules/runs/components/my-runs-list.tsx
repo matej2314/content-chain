@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import type { RunId } from '@content-chain/shared';
 import { Button } from '@/shared/ui/button';
@@ -27,12 +27,7 @@ export function MyRunsList({ onPrefill }: MyRunsListProps) {
 
   const total = state.status === 'ready' ? state.items.length : 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [page, totalPages]);
+  const safePage = Math.min(page, totalPages);
 
   if (state.status === 'loading') {
     return (
@@ -53,7 +48,6 @@ export function MyRunsList({ onPrefill }: MyRunsListProps) {
     );
   }
 
-  const safePage = Math.min(page, totalPages);
   const pageItems = state.items.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
@@ -117,7 +111,7 @@ export function MyRunsList({ onPrefill }: MyRunsListProps) {
           variant="outline"
           size="sm"
           disabled={safePage <= 1}
-          onClick={() => setPage((current) => Math.max(1, current - 1))}
+          onClick={() => setPage(Math.max(1, safePage - 1))}
         >
           Poprzednia
         </Button>
@@ -129,7 +123,7 @@ export function MyRunsList({ onPrefill }: MyRunsListProps) {
           variant="outline"
           size="sm"
           disabled={safePage >= totalPages}
-          onClick={() => setPage((current) => current + 1)}
+          onClick={() => setPage(Math.min(totalPages, safePage + 1))}
         >
           Następna
         </Button>

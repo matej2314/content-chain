@@ -74,9 +74,11 @@ export function OwnRunsProvider({ children }: { readonly children: ReactNode }) 
   const itemsSnapshotRef = useRef<readonly UserRunItem[]>([]);
   const graceTimersRef = useRef<Map<RunId, number>>(new Map());
 
-  if (state.status === 'ready') {
-    itemsSnapshotRef.current = state.items;
-  }
+  useEffect(() => {
+    if (state.status === 'ready') {
+      itemsSnapshotRef.current = state.items;
+    }
+  }, [state]);
 
   const refresh = useCallback(async () => {
     if (!userId) return;

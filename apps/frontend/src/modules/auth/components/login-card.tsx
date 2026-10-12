@@ -9,6 +9,7 @@ import { EnvelopeError, FormField } from '@/shared/ui/form-field';
 import { ApiError } from '@/shared/api/envelope';
 import { loginWithPassword } from '@/modules/auth/api/auth.api';
 import { useSession } from '@/modules/auth/components/session-provider';
+import type { ApiErrorEnvelope } from '@/shared/api/envelope';
 
 type LoginCardProps = {
   readonly bootstrapAvailable: boolean;
@@ -16,6 +17,20 @@ type LoginCardProps = {
   readonly onGoBootstrapAdmin?: () => void;
   readonly successHint?: string | null;
   readonly activationError?: string | null;
+};
+
+type LoginCardState = {
+  readonly email: string;
+  readonly password: string;
+  readonly pending: boolean;
+  readonly error: ApiErrorEnvelope | null;
+};
+
+const INITIAL_LOGIN_CARD_STATE: LoginCardState = {
+  email: '',
+  password: '',
+  pending: false,
+  error: null,
 };
 
 export function LoginCard({
@@ -27,27 +42,30 @@ export function LoginCard({
 }: LoginCardProps) {
   const router = useRouter();
   const { setAuthenticated } = useSession();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<{ code: string; message: string } | null>(null);
+  const [loginState, setLoginState] = useState<LoginCardState>(INITIAL_LOGIN_CARD_STATE);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    setPending(true);
-    setError(null);
+    setLoginState((prev) => ({ ...prev, pending: true, error: null }));
     try {
-      const user = await loginWithPassword({ email, password });
+      const user = await loginWithPassword({ email: loginState.email, password: loginState.password });
       setAuthenticated(user);
       router.replace('/account');
     } catch (reason: unknown) {
       if (reason instanceof ApiError) {
-        setError({ code: reason.envelope.code, message: reason.envelope.message });
+        const { envelope } = reason;
+        setLoginState((prev) => ({
+          ...prev,
+          error: envelope,
+        }));
       } else {
-        setError({ code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' });
+        setLoginState((prev) => ({
+          ...prev,
+          error: { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' },
+        }));
       }
     } finally {
-      setPending(false);
+      setLoginState((prev) => ({ ...prev, pending: false }));
     }
   }
 
@@ -65,8 +83,8 @@ export function LoginCard({
               name="email"
               type="email"
               autoComplete="username"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={loginState.email}
+              onChange={(event) => setLoginState((prev) => ({ ...prev, email: event.target.value }))}
               required
             />
           </FormField>
@@ -76,14 +94,16 @@ export function LoginCard({
               name="password"
               type="password"
               autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              value={loginState.password}
+              onChange={(event) => setLoginState((prev) => ({ ...prev, password: event.target.value }))}
               required
             />
           </FormField>
-          {error ? <EnvelopeError code={error.code} message={error.message} /> : null}
-          <Button type="submit" disabled={pending} className="w-full">
-            {pending ? 'Logowanie…' : 'Zaloguj się'}
+          {loginState.error ? (
+            <EnvelopeError code={loginState.error.code} message={loginState.error.message} />
+          ) : null}
+          <Button type="submit" disabled={loginState.pending} className="w-full">
+            {loginState.pending ? 'Logowanie…' : 'Zaloguj się'}
           </Button>
           {successHint ? (
             <p className="text-sm text-muted-foreground" role="status">

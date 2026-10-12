@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import Link from 'next/link';
 import {
   RUN_PLATFORMS,
@@ -40,60 +40,126 @@ const REFRESH_MS = 15 * 60 * 1000;
 
 type StatusFilter = 'all' | 'completed' | 'failed' | 'cancelled';
 
+type ArchiveQueryState = {
+  page: number;
+  statusFilter: StatusFilter;
+  taskType: RunTaskType | '';
+  platform: RunPlatform | '';
+  userId: UserId | '';
+};
+
+type ArchiveQueryAction =
+  | { type: 'setPage'; page: number }
+  | { type: 'setStatusFilter'; statusFilter: StatusFilter }
+  | { type: 'setTaskType'; taskType: RunTaskType | '' }
+  | { type: 'setPlatform'; platform: RunPlatform | '' }
+  | { type: 'setUserId'; userId: UserId | '' };
+
+const INITIAL_ARCHIVE_QUERY: ArchiveQueryState = {
+  page: 1,
+  statusFilter: 'all',
+  taskType: '',
+  platform: '',
+  userId: '',
+};
+
+function archiveQueryReducer(
+  state: ArchiveQueryState,
+  action: ArchiveQueryAction,
+): ArchiveQueryState {
+  switch (action.type) {
+    case 'setPage':
+      return { ...state, page: action.page };
+    case 'setStatusFilter':
+      return { ...state, statusFilter: action.statusFilter, page: 1 };
+    case 'setTaskType':
+      return { ...state, taskType: action.taskType, page: 1 };
+    case 'setPlatform':
+      return { ...state, platform: action.platform, page: 1 };
+    case 'setUserId':
+      return { ...state, userId: action.userId, page: 1 };
+    default: {
+      const _exhaustive: never = action;
+      return _exhaustive;
+    }
+  }
+}
+
+type InitiatorsState = {
+  options: readonly InitiatorOption[];
+  error: { code: string; message: string } | null;
+};
+
+const INITIAL_INITIATORS: InitiatorsState = {
+  options: [],
+  error: null,
+};
+
+type ArchiveListState = {
+  data: ArchiveRunsPage | null;
+  error: { code: string; message: string } | null;
+  loading: boolean;
+};
+
+const INITIAL_ARCHIVE_LIST: ArchiveListState = {
+  data: null,
+  error: null,
+  loading: true,
+};
+
 export function ArchiveRunsView() {
   const { state: session } = useSession();
   const guestLocked = useGuestLocked();
   const isAdmin = session.status === 'authenticated' && session.user.role === 'admin';
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [taskType, setTaskType] = useState<RunTaskType | ''>('');
-  const [platform, setPlatform] = useState<RunPlatform | ''>('');
-  const [userId, setUserId] = useState<UserId | ''>('');
-  const [initiators, setInitiators] = useState<readonly InitiatorOption[]>([]);
-  const [initiatorsError, setInitiatorsError] = useState<{
-    code: string;
-    message: string;
-  } | null>(null);
-  const [result, setResult] = useState<ArchiveRunsPage | null>(null);
-  const [error, setError] = useState<{ code: string; message: string } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [query, dispatchQuery] = useReducer(archiveQueryReducer, INITIAL_ARCHIVE_QUERY);
+  const [initiators, setInitiators] = useState<InitiatorsState>(INITIAL_INITIATORS);
+  const [list, setList] = useState<ArchiveListState>(INITIAL_ARCHIVE_LIST);
+
+  const { page, statusFilter, taskType, platform, userId } = query;
+  const { data: result, error, loading } = list;
+  const visibleInitiators = isAdmin ? initiators : INITIAL_INITIATORS;
 
   useEffect(() => {
-    const setInitiatorsState = async () => {
-      setInitiators([]);
-      setInitiatorsError(null);
-    };
     if (!isAdmin) {
-      void setInitiatorsState();
       return;
     }
+    let cancelled = false;
     void fetchInitiatorOptions()
       .then((options) => {
-        setInitiators(options);
-        setInitiatorsError(null);
+        if (!cancelled) {
+          setInitiators({ options, error: null });
+        }
       })
       .catch((reason: unknown) => {
-        setInitiators([]);
+        if (cancelled) return;
         if (reason instanceof ApiError && reason.status === 403) {
-          setInitiatorsError(null);
+          setInitiators(INITIAL_INITIATORS);
           return;
         }
         if (reason instanceof ApiError) {
-          setInitiatorsError({ code: reason.envelope.code, message: reason.envelope.message });
+          setInitiators({
+            options: [],
+            error: { code: reason.envelope.code, message: reason.envelope.message },
+          });
           return;
         }
-        setInitiatorsError({
-          code: 'INTERNAL_ERROR',
-          message: 'Nie udało się odczytać odpowiedzi.',
+        setInitiators({
+          options: [],
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Nie udało się odczytać odpowiedzi.',
+          },
         });
       });
+    return () => {
+      cancelled = true;
+    };
   }, [isAdmin]);
 
   useEffect(() => {
     let cancelled = false;
     async function load(): Promise<void> {
-      setLoading(true);
-      setError(null);
+      setList((current) => ({ ...current, loading: true, error: null }));
       try {
         const data = await fetchArchiveRuns({
           page,
@@ -105,17 +171,16 @@ export function ArchiveRunsView() {
           ...(platform === '' ? {} : { platform }),
           ...(userId === '' ? {} : { userId }),
         });
-        if (!cancelled) setResult(data);
+        if (!cancelled) {
+          setList({ data, error: null, loading: false });
+        }
       } catch (reason: unknown) {
         if (cancelled) return;
-        if (reason instanceof ApiError) {
-          setError({ code: reason.envelope.code, message: reason.envelope.message });
-        } else {
-          setError({ code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' });
-        }
-        setResult(null);
-      } finally {
-        if (!cancelled) setLoading(false);
+        const nextError =
+          reason instanceof ApiError
+            ? { code: reason.envelope.code, message: reason.envelope.message }
+            : { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' };
+        setList({ data: null, error: nextError, loading: false });
       }
     }
     void load();
@@ -142,7 +207,7 @@ export function ArchiveRunsView() {
         <StartAgentDialog />
       </div>
       <div className="flex flex-wrap gap-3">
-        <FormField label="Status" htmlFor="archive-status">
+        <FormField label="Status" htmlFor="archive-status" className="min-w-36 flex-1 sm:flex-none">
           <NativeSelect
             id="archive-status"
             value={statusFilter}
@@ -154,8 +219,7 @@ export function ArchiveRunsView() {
                 value === 'failed' ||
                 value === 'cancelled'
               ) {
-                setStatusFilter(value);
-                setPage(1);
+                dispatchQuery({ type: 'setStatusFilter', statusFilter: value });
               }
             }}
           >
@@ -165,20 +229,18 @@ export function ArchiveRunsView() {
             <option value="cancelled">Anulowane</option>
           </NativeSelect>
         </FormField>
-        <FormField label="Typ" htmlFor="archive-task">
+        <FormField label="Typ" htmlFor="archive-task" className="min-w-36 flex-1 sm:flex-none">
           <NativeSelect
             id="archive-task"
             value={taskType}
             onChange={(event) => {
               const value = event.target.value;
               if (value === '') {
-                setTaskType('');
-                setPage(1);
+                dispatchQuery({ type: 'setTaskType', taskType: '' });
                 return;
               }
               if (isRunTaskType(value)) {
-                setTaskType(value);
-                setPage(1);
+                dispatchQuery({ type: 'setTaskType', taskType: value });
               }
             }}
           >
@@ -190,20 +252,18 @@ export function ArchiveRunsView() {
             ))}
           </NativeSelect>
         </FormField>
-        <FormField label="Platforma" htmlFor="archive-platform">
+        <FormField label="Platforma" htmlFor="archive-platform" className="min-w-36 flex-1 sm:flex-none">
           <NativeSelect
             id="archive-platform"
             value={platform}
             onChange={(event) => {
               const value = event.target.value;
               if (value === '') {
-                setPlatform('');
-                setPage(1);
+                dispatchQuery({ type: 'setPlatform', platform: '' });
                 return;
               }
               if (isRunPlatform(value)) {
-                setPlatform(value);
-                setPage(1);
+                dispatchQuery({ type: 'setPlatform', platform: value });
               }
             }}
           >
@@ -215,26 +275,24 @@ export function ArchiveRunsView() {
             ))}
           </NativeSelect>
         </FormField>
-        {isAdmin && initiators.length > 0 ? (
-          <FormField label="Inicjator" htmlFor="archive-user">
+        {isAdmin && visibleInitiators.options.length > 0 ? (
+          <FormField label="Inicjator" htmlFor="archive-user" className="min-w-36 flex-1 sm:flex-none">
             <NativeSelect
               id="archive-user"
               value={userId}
               onChange={(event) => {
                 const value = event.target.value;
                 if (value === '') {
-                  setUserId('');
-                  setPage(1);
+                  dispatchQuery({ type: 'setUserId', userId: '' });
                   return;
                 }
                 if (isUserId(value)) {
-                  setUserId(createUserId(value));
-                  setPage(1);
+                  dispatchQuery({ type: 'setUserId', userId: createUserId(value) });
                 }
               }}
             >
               <option value="">Wszyscy</option>
-              {initiators.map((item) => (
+              {visibleInitiators.options.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.email}
                 </option>
@@ -244,8 +302,11 @@ export function ArchiveRunsView() {
         ) : null}
       </div>
       {error ? <EnvelopeError code={error.code} message={error.message} /> : null}
-      {initiatorsError ? (
-        <EnvelopeError code={initiatorsError.code} message={initiatorsError.message} />
+      {visibleInitiators.error ? (
+        <EnvelopeError
+          code={visibleInitiators.error.code}
+          message={visibleInitiators.error.message}
+        />
       ) : null}
       {loading && result === null ? (
         <div className="flex flex-col gap-2">
@@ -276,9 +337,9 @@ export function ArchiveRunsView() {
                 <tr key={item.runId}>
                   <td className="py-2 pr-3">
                     {guestLocked &&
-                    (session.status !== 'authenticated' ||
-                      item.startedBy === null ||
-                      item.startedBy.id !== session.user.id) ? (
+                      (session.status !== 'authenticated' ||
+                        item.startedBy === null ||
+                        item.startedBy.id !== session.user.id) ? (
                       <span>{RUN_TASK_TYPE_LABELS[item.taskType]}</span>
                     ) : (
                       <Link
@@ -314,7 +375,7 @@ export function ArchiveRunsView() {
             variant="outline"
             size="sm"
             disabled={page <= 1}
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            onClick={() => dispatchQuery({ type: 'setPage', page: Math.max(1, page - 1) })}
           >
             Poprzednia
           </Button>
@@ -326,7 +387,7 @@ export function ArchiveRunsView() {
             variant="outline"
             size="sm"
             disabled={page >= totalPages}
-            onClick={() => setPage((current) => current + 1)}
+            onClick={() => dispatchQuery({ type: 'setPage', page: page + 1 })}
           >
             Następna
           </Button>

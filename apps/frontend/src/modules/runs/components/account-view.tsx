@@ -13,9 +13,14 @@ import {
 } from '@/modules/runs/components/start-run-form';
 import { MyRunsList } from '@/modules/runs/components/my-runs-list';
 
+interface PrefillErrorState {
+  code: string;
+  message: string;
+}
+
 export function AccountView() {
   const [draft, setDraft] = useState(EMPTY_START_DRAFT);
-  const [prefillError, setPrefillError] = useState<{ code: string; message: string } | null>(null);
+  const [prefillError, setPrefillError] = useState<PrefillErrorState | null>(null);
   const prefillRequestRef = useRef(0);
 
   async function onPrefill(runId: RunId): Promise<void> {

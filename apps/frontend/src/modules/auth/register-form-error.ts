@@ -6,11 +6,6 @@ export type RegisterFieldErrors = {
   readonly form?: { readonly code: string; readonly message: string };
 };
 
-/**
- * Mapuje błąd register na pola formularza.
- * Kolizja email (409 CONFLICT) → wyłącznie pole email (F-4b).
- * 400 VALIDATION_FAILED → envelope przy haśle / formie (as-is).
- */
 export function toRegisterFieldErrors(reason: unknown): RegisterFieldErrors {
   if (reason instanceof ApiError) {
     if (reason.status === 409 || reason.envelope.code === 'CONFLICT') {

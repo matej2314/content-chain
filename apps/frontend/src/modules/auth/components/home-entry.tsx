@@ -64,8 +64,6 @@ function HomeEntryInner() {
     if (raw === null || raw.length === 0) return;
 
     activationStarted.current = true;
-    // Natychmiast login + strip tokenu (F-4b); activate w tle.
-    setView({ mode: 'login', activationError: null, successHint: null });
     router.replace('/');
 
     void activateAccount(raw)

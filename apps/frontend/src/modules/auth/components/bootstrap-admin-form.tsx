@@ -18,41 +18,67 @@ type BootstrapAdminFormProps = {
   readonly onBackToLogin: () => void;
 };
 
+type BootstrapAdminFormState = {
+  readonly email: string;
+  readonly password: string;
+  readonly confirm: string;
+  readonly pending: boolean;
+  readonly fieldErrors: RegisterFieldErrors;
+  readonly localHint: string | undefined;
+};
+
+const INITIAL_STATE: BootstrapAdminFormState = {
+  email: '',
+  password: '',
+  confirm: '',
+  pending: false,
+  fieldErrors: {},
+  localHint: undefined,
+};
+
 export function BootstrapAdminForm({ onBackToLogin }: BootstrapAdminFormProps) {
   const router = useRouter();
   const { setAuthenticated } = useSession();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [pending, setPending] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
-  const [localHint, setLocalHint] = useState<string | undefined>(undefined);
+  const [bootstrapState, setBootstrapState] = useState<BootstrapAdminFormState>(INITIAL_STATE);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    setFieldErrors({});
-    setLocalHint(undefined);
+    setBootstrapState((current) => ({
+      ...current,
+      fieldErrors: {},
+      localHint: undefined,
+    }));
 
-    if (password !== confirm) {
-      setLocalHint('Hasła muszą być identyczne.');
+    if (bootstrapState.password !== bootstrapState.confirm) {
+      setBootstrapState((current) => ({
+        ...current,
+        localHint: 'Hasła muszą być identyczne.',
+      }));
       return;
     }
-    if (!passwordMeetsPolicy(password)) {
-      setLocalHint(
-        'Hasło nie spełnia polityki (12 znaków, wielka litera, cyfra, znak specjalny).',
-      );
+    if (!passwordMeetsPolicy(bootstrapState.password)) {
+      setBootstrapState((current) => ({
+        ...current,
+        localHint: 'Hasło nie spełnia polityki (12 znaków, wielka litera, cyfra, znak specjalny).',
+      }));
       return;
     }
 
-    setPending(true);
+    setBootstrapState((current) => ({ ...current, pending: true }));
     try {
-      const user = await bootstrapAdmin({ email, password });
+      const user = await bootstrapAdmin({
+        email: bootstrapState.email,
+        password: bootstrapState.password,
+      });
       setAuthenticated(user);
       router.replace('/account');
     } catch (reason: unknown) {
-      setFieldErrors(toRegisterFieldErrors(reason));
+      setBootstrapState((current) => ({
+        ...current,
+        fieldErrors: toRegisterFieldErrors(reason),
+      }));
     } finally {
-      setPending(false);
+      setBootstrapState((current) => ({ ...current, pending: false }));
     }
   }
 
@@ -66,14 +92,16 @@ export function BootstrapAdminForm({ onBackToLogin }: BootstrapAdminFormProps) {
       </CardHeader>
       <CardContent>
         <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-          <FormField label="E-mail" htmlFor="bootstrap-admin-email" error={fieldErrors.email}>
+          <FormField label="E-mail" htmlFor="bootstrap-admin-email" error={bootstrapState.fieldErrors.email}>
             <Input
               id="bootstrap-admin-email"
               name="email"
               type="email"
               autoComplete="username"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={bootstrapState.email}
+              onChange={(event) =>
+                setBootstrapState((current) => ({ ...current, email: event.target.value }))
+              }
               required
             />
           </FormField>
@@ -81,15 +109,17 @@ export function BootstrapAdminForm({ onBackToLogin }: BootstrapAdminFormProps) {
             label="Hasło"
             htmlFor="bootstrap-admin-password"
             hint="Min. 12 znaków, wielka litera, cyfra i znak specjalny."
-            error={fieldErrors.password ?? localHint}
+            error={bootstrapState.fieldErrors.password ?? bootstrapState.localHint}
           >
             <Input
               id="bootstrap-admin-password"
               name="password"
               type="password"
               autoComplete="new-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              value={bootstrapState.password}
+              onChange={(event) =>
+                setBootstrapState((current) => ({ ...current, password: event.target.value }))
+              }
               required
             />
           </FormField>
@@ -99,16 +129,21 @@ export function BootstrapAdminForm({ onBackToLogin }: BootstrapAdminFormProps) {
               name="confirmPassword"
               type="password"
               autoComplete="new-password"
-              value={confirm}
-              onChange={(event) => setConfirm(event.target.value)}
+              value={bootstrapState.confirm}
+              onChange={(event) =>
+                setBootstrapState((current) => ({ ...current, confirm: event.target.value }))
+              }
               required
             />
           </FormField>
-          {fieldErrors.form ? (
-            <EnvelopeError code={fieldErrors.form.code} message={fieldErrors.form.message} />
+          {bootstrapState.fieldErrors.form ? (
+            <EnvelopeError
+              code={bootstrapState.fieldErrors.form.code}
+              message={bootstrapState.fieldErrors.form.message}
+            />
           ) : null}
-          <Button type="submit" disabled={pending} className="w-full">
-            {pending ? 'Zapisywanie…' : 'Utwórz administratora'}
+          <Button type="submit" disabled={bootstrapState.pending} className="w-full">
+            {bootstrapState.pending ? 'Zapisywanie…' : 'Utwórz administratora'}
           </Button>
           <Button type="button" variant="outline" className="w-full" onClick={onBackToLogin}>
             Wróć do logowania

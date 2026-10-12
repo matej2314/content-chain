@@ -51,7 +51,10 @@ export function DemoModeProvider({ children }: { readonly children: ReactNode })
   }, []);
 
   useEffect(() => {
-    void refetch();
+    const refetchFn = async () => {
+      void refetch();
+    }
+    refetchFn();
     return () => {
       requestIdRef.current += 1;
     };
