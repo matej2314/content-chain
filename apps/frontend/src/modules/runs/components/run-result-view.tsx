@@ -1,5 +1,4 @@
 import { PAGE_OUTLINE_ROLE_LABELS } from '@/modules/runs/api/run-labels';
-import type { RunSnapshot } from '@/modules/runs/api/runs.types';
 import {
   runResultHasArtifacts,
   type PageDocument,
@@ -9,6 +8,9 @@ import {
   type SocialContent,
   type SocialIdea,
 } from '@/modules/runs/api/runs-result.types';
+import { PageDocumentBody } from '@/modules/runs/components/page-document-body';
+import type { ReactNode } from 'react';
+import type { RunSnapshot } from '@/modules/runs/api/runs.types';
 
 type RunResultViewProps = {
   readonly snapshot: RunSnapshot;
@@ -19,10 +21,53 @@ function ideaTitle(ideas: readonly SocialIdea[] | readonly ReelIdea[], id: strin
   return match === undefined ? id : match.title;
 }
 
-function IdeaBlock({ idea }: { readonly idea: SocialIdea }) {
+function CollapsibleBlock({
+  label,
+  children,
+}: {
+  readonly label: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <details className="group flex flex-col gap-2">
+      <summary className="cursor-pointer list-none text-sm text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden">
+        <span className="underline-offset-4 hover:underline group-open:no-underline">{label}</span>
+        <span className="ml-1 group-open:hidden">(pokaż)</span>
+        <span className="ml-1 hidden group-open:inline">(ukryj)</span>
+      </summary>
+      {children}
+    </details>
+  );
+}
+
+function SelectionBadge({ selection }: { readonly selection: 'selected' | 'unselected' }) {
+  if (selection === 'selected') {
+    return (
+      <span className="rounded-md bg-primary/15 px-1.5 py-0.5 text-xs text-primary">
+        Wybrany
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+      Niewybrany
+    </span>
+  );
+}
+
+function IdeaBlock({
+  idea,
+  selection,
+}: {
+  readonly idea: SocialIdea;
+  readonly selection?: 'selected' | 'unselected';
+}) {
   return (
     <article className="flex flex-col gap-1 py-2">
-      <h3 className="text-sm font-medium">{idea.title}</h3>
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h3 className="text-sm font-medium">{idea.title}</h3>
+        {selection !== undefined ? <SelectionBadge selection={selection} /> : null}
+      </div>
       <p className="text-sm">{idea.hook}</p>
       <p className="text-xs text-muted-foreground">{idea.angle}</p>
       {idea.cta ? <p className="text-xs">CTA: {idea.cta}</p> : null}
@@ -30,10 +75,19 @@ function IdeaBlock({ idea }: { readonly idea: SocialIdea }) {
   );
 }
 
-function ReelIdeaBlock({ idea }: { readonly idea: ReelIdea }) {
+function ReelIdeaBlock({
+  idea,
+  selection,
+}: {
+  readonly idea: ReelIdea;
+  readonly selection?: 'selected' | 'unselected';
+}) {
   return (
     <article className="flex flex-col gap-1 py-2">
-      <h3 className="text-sm font-medium">{idea.title}</h3>
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h3 className="text-sm font-medium">{idea.title}</h3>
+        {selection !== undefined ? <SelectionBadge selection={selection} /> : null}
+      </div>
       <p className="text-sm">{idea.hook}</p>
       <p className="text-xs text-muted-foreground">{idea.description}</p>
       <p className="font-mono text-xs tabular-nums">{idea.durationSeconds} s</p>
@@ -102,16 +156,31 @@ function OutlineBlock({ outline }: { readonly outline: PageOutline }) {
 }
 
 function DocumentBlock({ document }: { readonly document: PageDocument }) {
+  const hasMeta =
+    (document.metaTitle !== undefined && document.metaTitle.length > 0) ||
+    (document.metaDescription !== undefined && document.metaDescription.length > 0);
+
   return (
-    <article className="flex max-w-[65ch] flex-col gap-2 py-2 text-sm">
-      <h3 className="font-medium">{document.title}</h3>
-      <p>{document.lead}</p>
-      <p className="whitespace-pre-wrap">{document.body}</p>
-      {document.metaTitle ? (
-        <p className="text-xs text-muted-foreground">Meta title: {document.metaTitle}</p>
-      ) : null}
-      {document.metaDescription ? (
-        <p className="text-xs text-muted-foreground">Meta: {document.metaDescription}</p>
+    <article className="flex max-w-[65ch] flex-col gap-3 py-2 text-sm">
+      <h3 className="text-base font-medium">{document.title}</h3>
+      <p className="leading-relaxed text-muted-foreground">{document.lead}</p>
+      <PageDocumentBody body={document.body} />
+      {hasMeta ? (
+        <div className="flex flex-col gap-1 border-t border-border pt-3">
+          <p className="text-xs font-medium">Meta SEO</p>
+          {document.metaTitle ? (
+            <p className="text-xs">
+              <span className="text-muted-foreground">Tytuł: </span>
+              {document.metaTitle}
+            </p>
+          ) : null}
+          {document.metaDescription ? (
+            <p className="text-xs">
+              <span className="text-muted-foreground">Opis: </span>
+              {document.metaDescription}
+            </p>
+          ) : null}
+        </div>
       ) : null}
     </article>
   );
@@ -132,19 +201,19 @@ export function RunResultView({ snapshot }: RunResultViewProps) {
 
   const { result, taskType } = snapshot;
   const failed = snapshot.status === 'failed';
+  const selectedIdeaIds = new Set(result.contents.map((item) => item.sourceIdeaId));
+  const selectedReelIdeaIds = new Set(result.reelScripts.map((item) => item.sourceIdeaId));
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
       {!runResultHasArtifacts(result) ? <EmptyResult failed={failed} /> : null}
 
-      {taskType === 'post_ideas' || taskType === 'post_ideas_then_content' ? (
-        result.ideas.length > 0 ? (
-          <div className="divide-y divide-border">
-            {result.ideas.map((idea) => (
-              <IdeaBlock key={idea.id} idea={idea} />
-            ))}
-          </div>
-        ) : null
+      {taskType === 'post_ideas' && result.ideas.length > 0 ? (
+        <div className="divide-y divide-border">
+          {result.ideas.map((idea) => (
+            <IdeaBlock key={idea.id} idea={idea} />
+          ))}
+        </div>
       ) : null}
 
       {taskType === 'post_content' && result.content ? (
@@ -152,28 +221,49 @@ export function RunResultView({ snapshot }: RunResultViewProps) {
       ) : null}
 
       {taskType === 'post_ideas_then_content' ? (
-        result.contents.length > 0 ? (
-          <div className="divide-y divide-border">
-            {result.contents.map((item) => (
-              <div key={item.sourceIdeaId} className="flex flex-col gap-1 py-2">
-                <h2 className="text-sm font-medium">
-                  Pomysł: {ideaTitle(result.ideas, item.sourceIdeaId)}
-                </h2>
-                <ContentBlock content={item} />
+        <>
+          {result.contents.length > 0 ? (
+            <div className="divide-y divide-border">
+              {result.contents.map((item) => (
+                <div key={item.sourceIdeaId} className="flex flex-col gap-1 py-2">
+                  <p className="text-xs text-muted-foreground">
+                    Pomysł: {ideaTitle(result.ideas, item.sourceIdeaId)}
+                  </p>
+                  <ContentBlock content={item} />
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {result.ideas.length > 0 ? (
+            result.contents.length > 0 ? (
+              <CollapsibleBlock label="Pomysły">
+                <div className="divide-y divide-border">
+                  {result.ideas.map((idea) => (
+                    <IdeaBlock
+                      key={idea.id}
+                      idea={idea}
+                      selection={selectedIdeaIds.has(idea.id) ? 'selected' : 'unselected'}
+                    />
+                  ))}
+                </div>
+              </CollapsibleBlock>
+            ) : (
+              <div className="divide-y divide-border">
+                {result.ideas.map((idea) => (
+                  <IdeaBlock key={idea.id} idea={idea} />
+                ))}
               </div>
-            ))}
-          </div>
-        ) : null
+            )
+          ) : null}
+        </>
       ) : null}
 
-      {taskType === 'reel_ideas' || taskType === 'reel_ideas_then_scripts' ? (
-        result.reelIdeas.length > 0 ? (
-          <div className="divide-y divide-border">
-            {result.reelIdeas.map((idea) => (
-              <ReelIdeaBlock key={idea.id} idea={idea} />
-            ))}
-          </div>
-        ) : null
+      {taskType === 'reel_ideas' && result.reelIdeas.length > 0 ? (
+        <div className="divide-y divide-border">
+          {result.reelIdeas.map((idea) => (
+            <ReelIdeaBlock key={idea.id} idea={idea} />
+          ))}
+        </div>
       ) : null}
 
       {taskType === 'reel_script' && result.reelScript ? (
@@ -181,28 +271,61 @@ export function RunResultView({ snapshot }: RunResultViewProps) {
       ) : null}
 
       {taskType === 'reel_ideas_then_scripts' ? (
-        result.reelScripts.length > 0 ? (
-          <div className="divide-y divide-border">
-            {result.reelScripts.map((item) => (
-              <div key={item.sourceIdeaId} className="flex flex-col gap-1 py-2">
-                <p className="text-xs text-muted-foreground">
-                  Pomysł: {ideaTitle(result.reelIdeas, item.sourceIdeaId)}
-                </p>
-                <ScriptBlock script={item} />
+        <>
+          {result.reelScripts.length > 0 ? (
+            <div className="divide-y divide-border">
+              {result.reelScripts.map((item) => (
+                <div key={item.sourceIdeaId} className="flex flex-col gap-1 py-2">
+                  <p className="text-xs text-muted-foreground">
+                    Pomysł: {ideaTitle(result.reelIdeas, item.sourceIdeaId)}
+                  </p>
+                  <ScriptBlock script={item} />
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {result.reelIdeas.length > 0 ? (
+            result.reelScripts.length > 0 ? (
+              <CollapsibleBlock label="Pomysły">
+                <div className="divide-y divide-border">
+                  {result.reelIdeas.map((idea) => (
+                    <ReelIdeaBlock
+                      key={idea.id}
+                      idea={idea}
+                      selection={selectedReelIdeaIds.has(idea.id) ? 'selected' : 'unselected'}
+                    />
+                  ))}
+                </div>
+              </CollapsibleBlock>
+            ) : (
+              <div className="divide-y divide-border">
+                {result.reelIdeas.map((idea) => (
+                  <ReelIdeaBlock key={idea.id} idea={idea} />
+                ))}
               </div>
-            ))}
-          </div>
-        ) : null
+            )
+          ) : null}
+        </>
       ) : null}
 
-      {(taskType === 'page_outline_then_copy' || taskType === 'page_copy') && result.pageOutline ? (
-        <OutlineBlock outline={result.pageOutline} />
-      ) : null}
-
-      {(taskType === 'page_outline_then_copy' || taskType === 'page_copy') &&
-        result.pageDocument ? (
+      {taskType === 'page_copy' && result.pageDocument ? (
         <DocumentBlock document={result.pageDocument} />
       ) : null}
-    </>
+
+      {taskType === 'page_outline_then_copy' ? (
+        <>
+          {result.pageDocument ? <DocumentBlock document={result.pageDocument} /> : null}
+          {result.pageOutline ? (
+            result.pageDocument !== null ? (
+              <CollapsibleBlock label="Outline">
+                <OutlineBlock outline={result.pageOutline} />
+              </CollapsibleBlock>
+            ) : (
+              <OutlineBlock outline={result.pageOutline} />
+            )
+          ) : null}
+        </>
+      ) : null}
+    </div>
   );
 }

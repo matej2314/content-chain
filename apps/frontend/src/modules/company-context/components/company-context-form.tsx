@@ -47,6 +47,21 @@ function listToLines(value: readonly string[]): string {
   return value.join('\n');
 }
 
+function benefitCountLabel(count: number): string {
+  if (count === 1) return '1 korzyść';
+  return `${count} korzyści`;
+}
+
+function offerItemHeading(name: string, index: number): string {
+  const trimmed = name.trim();
+  return trimmed.length > 0 ? trimmed : `Usługa ${index + 1}`;
+}
+
+function ctaItemHeading(label: string, index: number): string {
+  const trimmed = label.trim();
+  return trimmed.length > 0 ? trimmed : `CTA ${index + 1}`;
+}
+
 function commaToList(value: string): string[] {
   return value
     .split(',')
@@ -57,6 +72,18 @@ function commaToList(value: string): string[] {
 function extrasOrEmpty(extras: CompanyContextExtras | null): CompanyContextExtras {
   return extras ?? {};
 }
+
+const EXTRAS_SUB_TABS = ['hashtags', 'notes', 'caseStudies', 'objections'] as const;
+type ExtrasSubTab = (typeof EXTRAS_SUB_TABS)[number];
+
+const EXTRAS_SUB_TAB_LABELS: Record<ExtrasSubTab, string> = {
+  hashtags: 'Hashtagi',
+  notes: 'Notatki',
+  caseStudies: 'Case studies',
+  objections: 'Obiekcje',
+};
+
+const DEFAULT_EXTRAS_SUB_TAB: ExtrasSubTab = 'hashtags';
 
 function FormActions({
   readOnly,
@@ -177,14 +204,74 @@ export function CompanyContextForm({
         <TabsContent value="offer" className="flex flex-col gap-3">
           <p className="text-xs text-muted-foreground">
             Minimum jedna kompletna usługa: nazwa, opis i co najmniej jedna korzyść. Każda pozycja
-            na liście musi być kompletna.
+            na liście musi być kompletna. Korzyści: jedna na linię.
           </p>
+          {readOnly ? null : (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  patch({
+                    ...value,
+                    offer: {
+                      items: [{ name: '', benefit: [], description: '' }, ...value.offer.items],
+                    },
+                  })
+                }
+              >
+                <Icon icon="lucide:plus" className="size-3.5" />
+                Dodaj usługę
+              </Button>
+            </div>
+          )}
           <div className="flex flex-col divide-y divide-border">
             {value.offer.items.map((item, index) => {
               const fieldErrors = offerItemFieldErrors(item);
               const removeAllowed = canRemoveOfferItem(value.offer.items, index);
+              const benefitCount = item.benefit.filter((line) => line.trim().length > 0).length;
               return (
-                <div key={`offer-${index}`} className="flex flex-col gap-3 py-3 first:pt-0">
+                <div key={`offer-${index}`} className="flex flex-col gap-3 py-4 first:pt-0">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 lg:flex lg:flex-wrap lg:justify-between">
+                    <h3
+                      className="min-w-0 truncate text-sm font-medium lg:overflow-visible lg:text-clip"
+                      title={offerItemHeading(item.name, index)}
+                    >
+                      {offerItemHeading(item.name, index)}
+                    </h3>
+                    {readOnly ? null : (
+                      <span
+                        className="shrink-0 justify-self-end"
+                        title={
+                          removeAllowed
+                            ? undefined
+                            : 'Nie można usunąć ostatniej kompletnej usługi.'
+                        }
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={!removeAllowed}
+                          onClick={() => {
+                            if (!removeAllowed) return;
+                            patch({
+                              ...value,
+                              offer: {
+                                items: value.offer.items.filter(
+                                  (_, currentIndex) => currentIndex !== index,
+                                ),
+                              },
+                            });
+                          }}
+                        >
+                          <Icon icon="lucide:trash-2" className="size-3.5" />
+                          Usuń usługę
+                        </Button>
+                      </span>
+                    )}
+                  </div>
                   <FormField
                     label="Nazwa"
                     htmlFor={`offer-name-${index}`}
@@ -207,34 +294,13 @@ export function CompanyContextForm({
                     />
                   </FormField>
                   <FormField
-                    label="Korzyści"
-                    htmlFor={`offer-benefit-${index}`}
-                    hint="Jedna korzyść na linię."
-                    error={fieldErrors.benefit ?? undefined}
-                  >
-                    <Textarea
-                      id={`offer-benefit-${index}`}
-                      value={listToLines(item.benefit)}
-                      disabled={readOnly}
-                      aria-required
-                      aria-invalid={fieldErrors.benefit !== null}
-                      onChange={(event) => {
-                        const items = value.offer.items.map((current, currentIndex) =>
-                          currentIndex === index
-                            ? { ...current, benefit: linesToList(event.target.value) }
-                            : current,
-                        );
-                        patch({ ...value, offer: { items } });
-                      }}
-                    />
-                  </FormField>
-                  <FormField
                     label="Opis"
                     htmlFor={`offer-description-${index}`}
                     error={fieldErrors.description ?? undefined}
                   >
                     <Textarea
                       id={`offer-description-${index}`}
+                      className="min-h-24"
                       value={item.description}
                       disabled={readOnly}
                       aria-required
@@ -249,58 +315,33 @@ export function CompanyContextForm({
                       }}
                     />
                   </FormField>
-                  {readOnly ? null : (
-                    <span
-                      className="self-start"
-                      title={
-                        removeAllowed ? undefined : 'Nie można usunąć ostatniej kompletnej usługi.'
-                      }
-                    >
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={!removeAllowed}
-                        onClick={() => {
-                          if (!removeAllowed) return;
-                          patch({
-                            ...value,
-                            offer: {
-                              items: value.offer.items.filter(
-                                (_, currentIndex) => currentIndex !== index,
-                              ),
-                            },
-                          });
-                        }}
-                      >
-                        <Icon icon="lucide:trash-2" className="size-3.5" />
-                        Usuń usługę
-                      </Button>
-                    </span>
-                  )}
+                  <FormField
+                    label="Korzyści"
+                    htmlFor={`offer-benefit-${index}`}
+                    hint={benefitCountLabel(benefitCount)}
+                    error={fieldErrors.benefit ?? undefined}
+                  >
+                    <Textarea
+                      id={`offer-benefit-${index}`}
+                      className="min-h-24"
+                      value={listToLines(item.benefit)}
+                      disabled={readOnly}
+                      aria-required
+                      aria-invalid={fieldErrors.benefit !== null}
+                      onChange={(event) => {
+                        const items = value.offer.items.map((current, currentIndex) =>
+                          currentIndex === index
+                            ? { ...current, benefit: linesToList(event.target.value) }
+                            : current,
+                        );
+                        patch({ ...value, offer: { items } });
+                      }}
+                    />
+                  </FormField>
                 </div>
               );
             })}
           </div>
-          {readOnly ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="self-start"
-              onClick={() =>
-                patch({
-                  ...value,
-                  offer: {
-                    items: [...value.offer.items, { name: '', benefit: [], description: '' }],
-                  },
-                })
-              }
-            >
-              <Icon icon="lucide:plus" className="size-3.5" />
-              Dodaj usługę
-            </Button>
-          )}
           <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
         </TabsContent>
 
@@ -331,9 +372,60 @@ export function CompanyContextForm({
         </TabsContent>
 
         <TabsContent value="cta" className="flex flex-col gap-3">
+          <p className="text-xs text-muted-foreground">
+            Minimum jedno CTA z niepustą etykietą. Cel (np. kanał lub URL) jest opcjonalny.
+          </p>
+          {readOnly ? null : (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  patch({
+                    ...value,
+                    cta: { items: [{ label: '' }, ...value.cta.items] },
+                  })
+                }
+              >
+                <Icon icon="lucide:plus" className="size-3.5" />
+                Dodaj CTA
+              </Button>
+            </div>
+          )}
           <div className="flex flex-col divide-y divide-border">
             {value.cta.items.map((item, index) => (
-              <div key={`cta-${index}`} className="flex flex-col gap-3 py-3 first:pt-0">
+              <div key={`cta-${index}`} className="flex flex-col gap-3 py-4 first:pt-0">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 lg:flex lg:flex-wrap lg:justify-between">
+                  <h3
+                    className="min-w-0 truncate text-sm font-medium lg:overflow-visible lg:text-clip"
+                    title={ctaItemHeading(item.label, index)}
+                  >
+                    {ctaItemHeading(item.label, index)}
+                  </h3>
+                  {readOnly ? null : (
+                    <span className="shrink-0 justify-self-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          patch({
+                            ...value,
+                            cta: {
+                              items: value.cta.items.filter(
+                                (_, currentIndex) => currentIndex !== index,
+                              ),
+                            },
+                          })
+                        }
+                      >
+                        <Icon icon="lucide:trash-2" className="size-3.5" />
+                        Usuń CTA
+                      </Button>
+                    </span>
+                  )}
+                </div>
                 <FormField label="Etykieta CTA" htmlFor={`cta-label-${index}`}>
                   <Input
                     id={`cta-label-${index}`}
@@ -365,44 +457,9 @@ export function CompanyContextForm({
                     }}
                   />
                 </FormField>
-                {readOnly ? null : (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="self-start"
-                    onClick={() =>
-                      patch({
-                        ...value,
-                        cta: {
-                          items: value.cta.items.filter(
-                            (_, currentIndex) => currentIndex !== index,
-                          ),
-                        },
-                      })
-                    }
-                  >
-                    <Icon icon="lucide:trash-2" className="size-3.5" />
-                    Usuń CTA
-                  </Button>
-                )}
               </div>
             ))}
           </div>
-          {readOnly ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="self-start"
-              onClick={() =>
-                patch({ ...value, cta: { items: [...value.cta.items, { label: '' }] } })
-              }
-            >
-              <Icon icon="lucide:plus" className="size-3.5" />
-              Dodaj CTA
-            </Button>
-          )}
           <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
         </TabsContent>
 
@@ -473,228 +530,249 @@ export function CompanyContextForm({
         </TabsContent>
 
         <TabsContent value="extras" className="flex flex-col gap-3">
-          <p className="text-xs text-muted-foreground">
-            Nie blokują sygnału Agenci aktywni. Puste pola nie są zapisywane.
-          </p>
-          <FormField label="Hashtagi" htmlFor="extras-hashtags" hint="Oddzielone przecinkami.">
-            <Input
-              id="extras-hashtags"
-              value={(extras.hashtags ?? []).join(', ')}
-              disabled={readOnly}
-              onChange={(event) =>
-                patch({
-                  ...value,
-                  extras: { ...extras, hashtags: commaToList(event.target.value) },
-                })
-              }
-            />
-          </FormField>
-          <FormField label="Notatki katalogowe" htmlFor="extras-catalog">
-            <Textarea
-              id="extras-catalog"
-              value={extras.catalogNotes ?? ''}
-              disabled={readOnly}
-              onChange={(event) =>
-                patch({
-                  ...value,
-                  extras: { ...extras, catalogNotes: event.target.value },
-                })
-              }
-            />
-          </FormField>
-          <FormField label="Notatki performance" htmlFor="extras-performance">
-            <Textarea
-              id="extras-performance"
-              value={extras.performanceNotes ?? ''}
-              disabled={readOnly}
-              onChange={(event) =>
-                patch({
-                  ...value,
-                  extras: { ...extras, performanceNotes: event.target.value },
-                })
-              }
-            />
-          </FormField>
-          <div className="flex flex-col gap-3">
-            <p className="text-sm font-medium">Case studies</p>
-            {(extras.caseStudies ?? []).map((item, index) => (
-              <div
-                key={`case-${index}`}
-                className="flex flex-col gap-3 border-t border-border pt-3"
-              >
-                <FormField label="Tytuł" htmlFor={`case-title-${index}`}>
-                  <Input
-                    id={`case-title-${index}`}
-                    value={item.title}
-                    disabled={readOnly}
-                    onChange={(event) => {
-                      const caseStudies = (extras.caseStudies ?? []).map((current, currentIndex) =>
-                        currentIndex === index
-                          ? { ...current, title: event.target.value }
-                          : current,
-                      );
-                      patch({ ...value, extras: { ...extras, caseStudies } });
-                    }}
-                  />
-                </FormField>
-                <FormField label="Streszczenie" htmlFor={`case-summary-${index}`}>
-                  <Textarea
-                    id={`case-summary-${index}`}
-                    value={item.summary}
-                    disabled={readOnly}
-                    onChange={(event) => {
-                      const caseStudies = (extras.caseStudies ?? []).map((current, currentIndex) =>
-                        currentIndex === index
-                          ? { ...current, summary: event.target.value }
-                          : current,
-                      );
-                      patch({ ...value, extras: { ...extras, caseStudies } });
-                    }}
-                  />
-                </FormField>
-                <FormField
-                  label="Metryki (opcjonalnie)"
-                  htmlFor={`case-metrics-${index}`}
-                  hint="Oddzielone przecinkami."
+          <Tabs defaultValue={DEFAULT_EXTRAS_SUB_TAB} className="gap-3">
+            <TabsList
+              variant="line"
+              className="w-full flex-wrap justify-start gap-x-1 gap-y-2 bg-transparent p-0"
+            >
+              {EXTRAS_SUB_TABS.map((subTab) => (
+                <TabsTrigger key={subTab} value={subTab} className="flex-none">
+                  {EXTRAS_SUB_TAB_LABELS[subTab]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <TabsContent value="hashtags" className="flex flex-col gap-3">
+              <FormField label="Hashtagi" htmlFor="extras-hashtags" hint="Oddzielone przecinkami.">
+                <Input
+                  id="extras-hashtags"
+                  value={(extras.hashtags ?? []).join(', ')}
+                  disabled={readOnly}
+                  onChange={(event) =>
+                    patch({
+                      ...value,
+                      extras: { ...extras, hashtags: commaToList(event.target.value) },
+                    })
+                  }
+                />
+              </FormField>
+            </TabsContent>
+
+            <TabsContent value="notes" className="flex flex-col gap-3">
+              <FormField label="Notatki katalogowe" htmlFor="extras-catalog">
+                <Textarea
+                  id="extras-catalog"
+                  value={extras.catalogNotes ?? ''}
+                  disabled={readOnly}
+                  onChange={(event) =>
+                    patch({
+                      ...value,
+                      extras: { ...extras, catalogNotes: event.target.value },
+                    })
+                  }
+                />
+              </FormField>
+              <FormField label="Notatki performance" htmlFor="extras-performance">
+                <Textarea
+                  id="extras-performance"
+                  value={extras.performanceNotes ?? ''}
+                  disabled={readOnly}
+                  onChange={(event) =>
+                    patch({
+                      ...value,
+                      extras: { ...extras, performanceNotes: event.target.value },
+                    })
+                  }
+                />
+              </FormField>
+            </TabsContent>
+
+            <TabsContent value="caseStudies" className="flex flex-col gap-3">
+              {(extras.caseStudies ?? []).map((item, index) => (
+                <div
+                  key={`case-${index}`}
+                  className="flex flex-col gap-3 border-t border-border pt-3"
                 >
-                  <Input
-                    id={`case-metrics-${index}`}
-                    value={(item.metrics ?? []).join(', ')}
-                    disabled={readOnly}
-                    onChange={(event) => {
-                      const caseStudies = (extras.caseStudies ?? []).map((current, currentIndex) =>
-                        currentIndex === index
-                          ? { ...current, metrics: commaToList(event.target.value) }
-                          : current,
-                      );
-                      patch({ ...value, extras: { ...extras, caseStudies } });
-                    }}
-                  />
-                </FormField>
-                {readOnly ? null : (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="self-start"
-                    onClick={() =>
-                      patch({
-                        ...value,
-                        extras: {
-                          ...extras,
-                          caseStudies: (extras.caseStudies ?? []).filter(
-                            (_, currentIndex) => currentIndex !== index,
-                          ),
-                        },
-                      })
-                    }
+                  <FormField label="Tytuł" htmlFor={`case-title-${index}`}>
+                    <Input
+                      id={`case-title-${index}`}
+                      value={item.title}
+                      disabled={readOnly}
+                      onChange={(event) => {
+                        const caseStudies = (extras.caseStudies ?? []).map(
+                          (current, currentIndex) =>
+                            currentIndex === index
+                              ? { ...current, title: event.target.value }
+                              : current,
+                        );
+                        patch({ ...value, extras: { ...extras, caseStudies } });
+                      }}
+                    />
+                  </FormField>
+                  <FormField label="Streszczenie" htmlFor={`case-summary-${index}`}>
+                    <Textarea
+                      id={`case-summary-${index}`}
+                      value={item.summary}
+                      disabled={readOnly}
+                      onChange={(event) => {
+                        const caseStudies = (extras.caseStudies ?? []).map(
+                          (current, currentIndex) =>
+                            currentIndex === index
+                              ? { ...current, summary: event.target.value }
+                              : current,
+                        );
+                        patch({ ...value, extras: { ...extras, caseStudies } });
+                      }}
+                    />
+                  </FormField>
+                  <FormField
+                    label="Metryki (opcjonalnie)"
+                    htmlFor={`case-metrics-${index}`}
+                    hint="Oddzielone przecinkami."
                   >
-                    <Icon icon="lucide:trash-2" className="size-3.5" />
-                    Usuń case study
-                  </Button>
-                )}
-              </div>
-            ))}
-            {readOnly ? null : (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="self-start"
-                onClick={() =>
-                  patch({
-                    ...value,
-                    extras: {
-                      ...extras,
-                      caseStudies: [...(extras.caseStudies ?? []), { title: '', summary: '' }],
-                    },
-                  })
-                }
-              >
-                <Icon icon="lucide:plus" className="size-3.5" />
-                Dodaj case study
-              </Button>
-            )}
-          </div>
-          <div className="flex flex-col gap-3">
-            <p className="text-sm font-medium">Obiekcje</p>
-            {(extras.objections ?? []).map((item, index) => (
-              <div key={`obj-${index}`} className="flex flex-col gap-3 border-t border-border pt-3">
-                <FormField label="Obiekcja" htmlFor={`obj-label-${index}`}>
-                  <Input
-                    id={`obj-label-${index}`}
-                    value={item.label}
-                    disabled={readOnly}
-                    onChange={(event) => {
-                      const objections = (extras.objections ?? []).map((current, currentIndex) =>
-                        currentIndex === index
-                          ? { ...current, label: event.target.value }
-                          : current,
-                      );
-                      patch({ ...value, extras: { ...extras, objections } });
-                    }}
-                  />
-                </FormField>
-                <FormField label="Odpowiedź" htmlFor={`obj-response-${index}`}>
-                  <Textarea
-                    id={`obj-response-${index}`}
-                    value={item.response}
-                    disabled={readOnly}
-                    onChange={(event) => {
-                      const objections = (extras.objections ?? []).map((current, currentIndex) =>
-                        currentIndex === index
-                          ? { ...current, response: event.target.value }
-                          : current,
-                      );
-                      patch({ ...value, extras: { ...extras, objections } });
-                    }}
-                  />
-                </FormField>
-                {readOnly ? null : (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="self-start"
-                    onClick={() =>
-                      patch({
-                        ...value,
-                        extras: {
-                          ...extras,
-                          objections: (extras.objections ?? []).filter(
-                            (_, currentIndex) => currentIndex !== index,
-                          ),
-                        },
-                      })
-                    }
-                  >
-                    <Icon icon="lucide:trash-2" className="size-3.5" />
-                    Usuń obiekcję
-                  </Button>
-                )}
-              </div>
-            ))}
-            {readOnly ? null : (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="self-start"
-                onClick={() =>
-                  patch({
-                    ...value,
-                    extras: {
-                      ...extras,
-                      objections: [...(extras.objections ?? []), { label: '', response: '' }],
-                    },
-                  })
-                }
-              >
-                <Icon icon="lucide:plus" className="size-3.5" />
-                Dodaj obiekcję
-              </Button>
-            )}
-          </div>
+                    <Input
+                      id={`case-metrics-${index}`}
+                      value={(item.metrics ?? []).join(', ')}
+                      disabled={readOnly}
+                      onChange={(event) => {
+                        const caseStudies = (extras.caseStudies ?? []).map(
+                          (current, currentIndex) =>
+                            currentIndex === index
+                              ? { ...current, metrics: commaToList(event.target.value) }
+                              : current,
+                        );
+                        patch({ ...value, extras: { ...extras, caseStudies } });
+                      }}
+                    />
+                  </FormField>
+                  {readOnly ? null : (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="self-start"
+                      onClick={() =>
+                        patch({
+                          ...value,
+                          extras: {
+                            ...extras,
+                            caseStudies: (extras.caseStudies ?? []).filter(
+                              (_, currentIndex) => currentIndex !== index,
+                            ),
+                          },
+                        })
+                      }
+                    >
+                      <Icon icon="lucide:trash-2" className="size-3.5" />
+                      Usuń case study
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {readOnly ? null : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                  onClick={() =>
+                    patch({
+                      ...value,
+                      extras: {
+                        ...extras,
+                        caseStudies: [...(extras.caseStudies ?? []), { title: '', summary: '' }],
+                      },
+                    })
+                  }
+                >
+                  <Icon icon="lucide:plus" className="size-3.5" />
+                  Dodaj case study
+                </Button>
+              )}
+            </TabsContent>
+
+            <TabsContent value="objections" className="flex flex-col gap-3">
+              {(extras.objections ?? []).map((item, index) => (
+                <div
+                  key={`obj-${index}`}
+                  className="flex flex-col gap-3 border-t border-border pt-3"
+                >
+                  <FormField label="Obiekcja" htmlFor={`obj-label-${index}`}>
+                    <Input
+                      id={`obj-label-${index}`}
+                      value={item.label}
+                      disabled={readOnly}
+                      onChange={(event) => {
+                        const objections = (extras.objections ?? []).map((current, currentIndex) =>
+                          currentIndex === index
+                            ? { ...current, label: event.target.value }
+                            : current,
+                        );
+                        patch({ ...value, extras: { ...extras, objections } });
+                      }}
+                    />
+                  </FormField>
+                  <FormField label="Odpowiedź" htmlFor={`obj-response-${index}`}>
+                    <Textarea
+                      id={`obj-response-${index}`}
+                      value={item.response}
+                      disabled={readOnly}
+                      onChange={(event) => {
+                        const objections = (extras.objections ?? []).map((current, currentIndex) =>
+                          currentIndex === index
+                            ? { ...current, response: event.target.value }
+                            : current,
+                        );
+                        patch({ ...value, extras: { ...extras, objections } });
+                      }}
+                    />
+                  </FormField>
+                  {readOnly ? null : (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="self-start"
+                      onClick={() =>
+                        patch({
+                          ...value,
+                          extras: {
+                            ...extras,
+                            objections: (extras.objections ?? []).filter(
+                              (_, currentIndex) => currentIndex !== index,
+                            ),
+                          },
+                        })
+                      }
+                    >
+                      <Icon icon="lucide:trash-2" className="size-3.5" />
+                      Usuń obiekcję
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {readOnly ? null : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                  onClick={() =>
+                    patch({
+                      ...value,
+                      extras: {
+                        ...extras,
+                        objections: [...(extras.objections ?? []), { label: '', response: '' }],
+                      },
+                    })
+                  }
+                >
+                  <Icon icon="lucide:plus" className="size-3.5" />
+                  Dodaj obiekcję
+                </Button>
+              )}
+            </TabsContent>
+          </Tabs>
           <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
         </TabsContent>
       </Tabs>

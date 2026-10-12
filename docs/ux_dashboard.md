@@ -1,7 +1,7 @@
 ---
-wersja: 20
+wersja: 25
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-10-11
+data_modyfikacji: 2026-10-12
 ---
 
 # UX Dashboard — Content Chain
@@ -9,6 +9,16 @@ data_modyfikacji: 2026-10-11
 Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / design systemu — widoki, stany i zachowanie względem API/SSE.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`.
+
+Zmiana względem: zakładka **Dodatki** = całe `extras` w jednym panelu, **bez** podzakładek; hint „Nie blokują sygnału Agenci aktywni…”. Od tej wersji: cztery zagnieżdżone podzakładki (Hashtagi / Notatki / Case studies / Obiekcje); **bez** tego hicie — „Widok: Kontekst firmy”.
+
+Zmiana względem: zakładka **CTA / kanały** = płaska lista (Etykieta → Cel), **Dodaj CTA** pod listą (append), **Usuń** pod polami; bez nagłówka pozycji. Od tej wersji: prezentacja listy CTA jak Oferta (hint, Dodaj nad listą / prepend, nagłówek + Usuń, responsive poniżej `lg`) — „Widok: Kontekst firmy”.
+
+Zmiana względem: zakładka **Oferta** = płaska lista pól (Nazwa → Korzyści → Opis), **Dodaj usługę** pod listą (append na końcu), **Usuń** pod polami; bez nagłówka pozycji. Od tej wersji: prezentacja listy usług jak w „Widok: Kontekst firmy” / Oferta (kolejność pól, nagłówek + Usuń, Dodaj nad listą / prepend, hint + licznik, responsive poniżej `lg`).
+
+Zmiana względem: etykiety **Wybrany** / **Niewybrany** przy pomysłach etapu 1 = zwykły muted tekst. Od tej wersji: **badge** (tło + `rounded-md` + kolor tekstu z tokenów) — wiersz **Wynik**.
+
+Zmiana względem: prezentacja **Wyniku** na szczegółach runu = płaska lista (etap 1 nad etapem 2; surowy markdown w `pageDocument.body`; drugi nagłówek pod „Wynik”). Od tej wersji: kolejność etapów, zwijany kontekst etapu 1, formatowanie body strony, Meta SEO, **bez** drugiego nagłówka typu/etapu pod „Wynik” — wiersz **Wynik** w „Run (szczegóły)”.
 
 Zmiana względem: „Brak UI edycji / soft-delete / reaktywacji w MVP”; Stop wyłącznie własny run; brak Cancel admin→guest. Od tej wersji: kolumna **Akcje** na Kontach — toggle soft `user` / **Usuń** hard+purge `guest`; Cancel/Stop admina na **szczegółach** gdy `startedBy.role=guest`; **bez** Cancel admina na cudzych `user` i **bez** Cancel admin→guest na liście archiwum. Lock nawigacji guest **bez zmian**.
 
@@ -210,28 +220,53 @@ Zmiana względem wersji 12: wyjątek Toastera na `/` po sukcesie activate; sygna
 
 ## Widok: Kontekst firmy
 
-Formularze w **zakładkach** (nie jeden ciąg sekcji na stronie). Dokładnie **sześć** zakładek, **bez** zagnieżdżeń i **bez** podzakładek:
+Formularze w **zakładkach** (nie jeden ciąg sekcji na stronie). Dokładnie **sześć** zakładek głównych. Podzakładki **wyłącznie** w **Dodatki** (pozostałe zakładki bez zagnieżdżeń):
 
 | Zakładka | Zawartość | Indykator bramki |
 |----------|-----------|------------------|
 | **Tożsamość** | Sekcja bramki `identity` | tak |
-| **Oferta** | Sekcja bramki `offer`: ≥ 1 kompletna usługa (nazwa + opis + ≥ 1 korzyść); hint formularza zgodny z tym minimum | tak |
+| **Oferta** | Sekcja bramki `offer`: ≥ 1 kompletna usługa (nazwa + opis + ≥ 1 korzyść). **Prezentacja listy** (UI): hint globalny (minimum + „Korzyści: jedna na linię”); **Dodaj usługę** nad listą, wyrównane do prawej; nowa pozycja **na początku** listy (prepend); każda pozycja: nagłówek (wypełniona nazwa albo „Usługa N”) + **Usuń usługę** po prawej w tym samym wierszu; pola w kolejności **Nazwa → Opis → Korzyści**; pod Korzyściami muted licznik („N korzyść/korzyści”); Opis/Korzyści z większą min-wysokością textarea; bez dekoracyjnych kart (`divide-y`). Responsive: poniżej `lg` (1024px) nagłówek pozycji = siatka z `truncate` tytułu (Usuń zawsze w prawej kolumnie); od `lg` — flex + wrap jak wcześniej. Reguły zapisu / strip / ostatnia kompletna — bez zmiany | tak |
 | **Głos SM** | Sekcja bramki `voice` | tak |
-| **CTA / kanały** | Sekcja bramki `cta` | tak |
+| **CTA / kanały** | Sekcja bramki `cta`: ≥ 1 pozycja z niepustą etykietą; `target` opcjonalny. **Prezentacja listy** (UI, analogicznie do Oferty): hint globalny; **Dodaj CTA** nad listą, wyrównane do prawej; nowa pozycja **prepend**; każda pozycja: nagłówek (wypełniona etykieta albo „CTA N”) + **Usuń CTA** po prawej; pola **Etykieta CTA → Cel (opcjonalnie)**; `divide-y`. Responsive: poniżej `lg` siatka + `truncate` tytułu; od `lg` flex + wrap. Reguły bramki / zapis — bez zmiany | tak |
 | **Odbiorca** | Sekcja bramki `audience` | tak |
-| **Dodatki** | Całe **`extras`** (case studies, obiekcje, hashtagi, catalogNotes, performanceNotes) w **jednym** panelu | **nie** |
+| **Dodatki** | Całe **`extras`** w **czterech** zagnieżdżonych podzakładkach (bez hicie o „Agenci aktywni” / pustych polach w panelu) | **nie** |
 
 - Wejście na widok: otwarta zakładka **Tożsamość**.
-- Dodatki: admin może edytować; **nie** blokują „Agenci aktywni”.
+- Dodatki: admin może edytować; **nie** blokują „Agenci aktywni” (sygnał = chip w chrome, nie copy w zakładce).
 - Na triggerze każdej zakładki **bramki**: indykator kompletności — **zielona** kropka, gdy klucz sekcji **nie** jest w `missing`; **czerwona**, gdy jest. Źródło: **wyłącznie** `completeness.missing` z ostatniego **udanego** `GET` / `PUT` kontekstu — **nie** stan gateway / `health/ready`. Kropki = kompletność sekcji; chip „Agenci aktywni” = completeness **∧** `gatewayAlive`. **Nie** z niezapisanego draftu i **nie** z lokalnej kopii `isComplete` jako źródła kropek / chipa.
-- Zakładka Dodatki: **bez** kropki bramki.
+- Zakładka Dodatki: **bez** kropki bramki; podzakładki **bez** kropek.
 - Kolor nie jest jedynym sygnałem (etykieta dostępności: kompletna / niekompletna).
 - Zapis: jeden `PUT` całego kontekstu (wszystkie zakładki, także nieaktywna); tylko admin; `user` i `guest` — read-only z komunikatem. CTA zapisu dostępne na każdej zakładce.
 - CTA zapisu **nie** przechodzi, gdy którekolwiek wymagane pole bramki jest puste albo oferta zawiera kaleką usługę (pozycja częściowo wypełniona). Placeholder pustej oferty **nie** jest usługą — strip przed PUT; kalekiej pozycji **nie** stripujemy (blokada submitu + błąd przy pozycji).
 - Nie da się usunąć ostatniej kompletnej usługi tak, by lista spadła do 0 i poszła w PUT.
-- Copy / hint oferty: minimum = nazwa + opis + ≥ 1 korzyść biznesowa (każda pozycja kompletna).
+- Copy / hint oferty: minimum = nazwa + opis + ≥ 1 korzyść biznesowa (każda pozycja kompletna); w hicie globalnym także reguła „Korzyści: jedna na linię” (bez powielania tego samego hicie pod każdym polem Korzyści).
+- **Oferta — lista usług (UI):**
+  - Kolejność pól w pozycji: **Nazwa → Opis → Korzyści** (kontrakt API `name` / `description` / `benefit[]` bez zmian).
+  - Nagłówek pozycji: nazwa gdy niepusta, inaczej „Usługa N” (1-based); **Usuń usługę** w tym samym wierszu po prawej (gdy nie read-only).
+  - **Dodaj usługę** nad listą, `justify-end`; klik = prepend pustej pozycji na początek `offer.items`.
+  - Pod polem Korzyści: licznik niepustych linii korzyści (PL: „1 korzyść” / „N korzyści”).
+  - Viewport poniżej `lg` (1024px): tytuł nagłówka z ellipsis (`truncate` + `title` z pełnym tekstem), Usuń w prawej kolumnie siatki — wspólna prawa krawędź z **Dodaj usługę**. Od `lg`: układ flex z wrap bez wymuszania truncate.
+- **CTA / kanały — lista CTA (UI):**
+  - Hint globalny: minimum jedno CTA z niepustą etykietą; cel (kanał / URL) opcjonalny.
+  - Kolejność pól: **Etykieta CTA → Cel (opcjonalnie)** (kontrakt `label` / `target?` bez zmian).
+  - Nagłówek pozycji: etykieta gdy niepusta, inaczej „CTA N” (1-based); **Usuń CTA** w tym samym wierszu po prawej (gdy nie read-only).
+  - **Dodaj CTA** nad listą, `justify-end`; klik = prepend pustej pozycji `{ label: '' }` na początek `cta.items`.
+  - Viewport poniżej `lg`: jak Oferta (siatka + `truncate`); od `lg`: flex + wrap.
+- **Dodatki — podzakładki (UI):**
+  - Cztery podzakładki (kolejność): **Hashtagi** (domyślna) → **Notatki** → **Case studies** → **Obiekcje**.
+  - **Hashtagi:** pole `hashtags` (przecinki).
+  - **Notatki:** `catalogNotes` + `performanceNotes`.
+  - **Case studies** / **Obiekcje:** listy jak dotychczas (Dodaj / Usuń, pola pozycji) — bez wzorca nagłówka Oferty/CTA w tej wersji.
+  - CTA zapisu **pod** podzakładkami (zawsze widoczne w zakładce Dodatki).
+  - **Bez** hicie w panelu Dodatki o „Agenci aktywni” / „puste pola nie są zapisywane”.
 
 Zmiana względem: jeden widok ciągiem z tekstem „Kompletna” / „Niekompletna” przy nagłówku sekcji. Od zakładek: kropki na triggerach bramki; extras w jednej zakładce Dodatki bez kropki. Od tej wersji: zapis zablokowany przy pustym wymaganym polu / kalekiej ofercie; źródło kropek i chipa **bez zmiany** (ostatni udany GET/PUT, nie draft).
+
+Zmiana względem: Oferta bez kanonu prezentacji listy (kolejność Nazwa→Korzyści→Opis, Dodaj pod listą / append, Usuń pod polami). Od tej wersji obowiązuje prezentacja listy powyżej (w tym prepend, responsive poniżej `lg`).
+
+Zmiana względem: CTA / kanały bez kanonu prezentacji listy. Od tej wersji obowiązuje prezentacja listy CTA powyżej (analogicznie do Oferty).
+
+Zmiana względem: Dodatki = jeden panel `extras` bez podzakładek (+ hint o Agenci aktywni). Od tej wersji obowiązują cztery podzakładki powyżej; bez tego hicie.
 
 ## Widok: Runy (archiwum firmy)
 
@@ -279,7 +314,7 @@ Wejście: z listy **Moje runy** na Koncie, z archiwum **Runy**, z floating boxa,
 | **Status live** | Gdy run jest własny i w `running` \| `awaiting_hitl` \| `interrupted`: ten sam `EventSource` co rejestr layoutu (nie drugie połączenie na ten `runId`). Prezentacja **animowana / atrakcyjna**. `queued` / `completed` / `failed` / `cancelled` / cudzy run: **bez** nowej subskrypcji — GET snapshot |
 | **Logi** | Przyrostowo z SSE `run.log` + możliwość dociągnięcia historii GET logs |
 | **HITL** | Panel wyboru: pomysły postu, pomysły rolek albo outline strony — wg `taskType` i `hitl.options`. Social dwuetapowy: **multi-select** (min. 1 unikalne id ⊆ options; np. checkboxy / chipy); Content: akceptacja outline’u (**bez** zmian — nadal `[outline.id]`). Submit → `POST .../hitl`. Po `cancelled` panel **nie** jest pokazywany |
-| **Wynik** | Po `completed`: widok **listy postów** (`ideas` / `contents[]` z `sourceIdeaId`; na liście pomysłów `cta` gdy jest; przy każdym content pokaż `characterCount`) albo **jednego** posta (`content` — task jednoetapowy `post_content`), **listy scenariuszy** (`reelIdeas` / `reelScripts[]`) albo **jednej** rolki (`reelScript` — `reel_script`), albo **strony** (`pageOutline` / `pageDocument` — etykieta `role` przy sekcji, gdy ustawione); przy `failed` **albo** `cancelled` — to, co zdążyło się zapisać (partial jak przy `failed`). Dwuetapowy Social: **nie** jeden blok copy. Po zapisie Edytuj — **ta** treść (nie output agentów sprzed edycji). |
+| **Wynik** | Po `completed` (oraz partial przy `failed` / `cancelled` — to, co zdążyło się zapisać): sekcja UI z jednym nagłówkiem **„Wynik”**, potem od razu treść artefaktów. **Zakaz** drugiego nagłówka pod „Wynik” powtarzającego nazwę typu tasku albo etykietę etapu (np. „Copy strony”, „Treści”, „Scenariusze”) — spójnie dla **wszystkich** `taskType`. **Jednoetapowe:** `post_ideas` → lista pomysłów (`cta` gdy jest); `post_content` → jeden `content` (`characterCount`, hashtags, `cta?`); `reel_ideas` → lista; `reel_script` → jeden scenariusz; `page_copy` → `pageDocument`. **Dwuetapowe** (`post_ideas_then_content` / `reel_ideas_then_scripts` / `page_outline_then_copy`): **najpierw** artefakty etapu 2 (`contents[]` / `reelScripts[]` / `pageDocument`); **potem** etap 1 (`ideas` / `reelIdeas` / `pageOutline`). Gdy etap 2 jest niepusty — etap 1 w **zwijanym** bloku (domyślnie zwinięty; sterowanie PL „Pomysły” / „Outline” + pokaż/ukryj, muted — **nie** jako drugi `h3` pod „Wynik”). Przy pozycji `contents[]` / `reelScripts[]`: podpis „Pomysł: {title}” z `sourceIdeaId` + `characterCount` / `cta?` / hashtags jak wcześniej. Na liście pomysłów etapu 1 (gdy jest etap 2): obok tytułu **badge** **Wybrany** / **Niewybrany** wg obecności id w `sourceIdeaId` artefaktów etapu 2 — to samo miejsce co wcześniej; styl: `rounded-md` + padding; **Wybrany** = tło `primary/15` + tekst `primary`; **Niewybrany** = tło `muted` + tekst `muted-foreground` (tokeny motywu). **`pageDocument` (odczyt):** `title` → `lead` (wyróżniony) → `body` jako **sformatowany markdown** (subset: nagłówki `##`/`###`, pogrubienie `**…**`, listy `-`/`*`, akapity); na końcu opcjonalny blok **„Meta SEO”** z etykietami „Tytuł” / „Opis” (`metaTitle` / `metaDescription`). **Edytuj** = surowy tekst pól (bez live preview markdown w MVP). Outline: etykieta `role` przy sekcji, gdy ustawione. Dwuetapowy Social: **nie** jeden blok copy. Po zapisie Edytuj — **ta** treść (nie output agentów sprzed edycji). |
 | **Edytuj** | Po zakończeniu pracy agenta (`completed` albo `failed`, gdy jest wynik): przycisk **Edytuj** dla autora (`startedBy`), dopóki przegląd otwarty. **Niedostępne** przy `cancelled`, po `reviewFinalizedAt` **oraz** gdy minął serwerowy `reviewExpiresAt` (deadline z API — **bez** lokalnego wyliczania z `pipelineFinishedAt` + stałej). Użytkownik **może, ale nie musi** z niego skorzystać. Edytowalna jest **każda treść wyniku** tego runu (post / lista postów, pomysły, scenariusz / lista scenariuszy, outline, dokument strony — wg tego, co jest w snapshotcie). **Zapis** → api przyjmuje nową treść (kształt jak `result` w snapshotcie), **zastępuje** kanoniczny wynik w DB **oraz** ustawia `outputEdited: true`. Od tego momentu GET/UI pokazują treść użytkownika jako wynik runu. Pipeline / verifier **nie** startują ponownie. Bez diff / % i bez osobnej kopii „oryginału agenta” w MVP. Wielokrotny zapis do finalize / w oknie TTL. |
 | **Ocena gwiazdkowa (1–5)** | Po `completed` **albo** `failed`, tylko autor runu. **Niedostępna** przy `cancelled`, po finalize **oraz** po expiry (`reviewExpiresAt` z API). Dobrowolna: brak wyboru = w DB zostaje `userRating: null`. Do zatwierdzenia można zmieniać wybór (w tym wrócić do braku oceny). Czytelne gwiazdki, nie sam numeric input |
 | **Zamknij / zapisz przegląd** | Zatwierdza aktualną ocenę (`null` albo `1–5`) i flagę edycji. Po sukcesie kontrolki oceny i Edytuj są zablokowane. Po expiry (serwerowy `reviewExpiresAt`) albo gdy `reviewFinalizedAt` już ustawione — te same kontrolki niedostępne; copy **„Przegląd zamknięty”** (bez rozróżnienia auto vs ręczne). **Bez** widocznego deadline / countdown / wiersza „dostępne do…”. **Niedostępne** przy `cancelled` |
@@ -293,6 +328,10 @@ Reconnect SSE: odtworzyć subskrypcję wyłącznie po nieoczekiwanym zerwaniu, g
 Zmiana względem wcześniejszego zapisu: reconnect był ogólny, bez rozróżnienia terminal vs. awaria i bez obowiązku `close()` / braku subskrypcji skończonego runu.
 
 Zmiana względem: HITL Social jako **single select** / jeden blok wyniku. Obowiązuje multi-select (min. 1) i lista postów / scenariuszy (`contents[]` / `reelScripts[]`). Content: akceptacja outline bez zmian.
+
+Zmiana względem: wynik dwuetapowy = płaska lista (etap 1 nad etapem 2); `pageDocument.body` jako surowy tekst z widoczną składnią markdown; dopuszczalny drugi nagłówek pod „Wynik”. Od tej wersji: etap 2 pierwszy, etap 1 zwijany gdy jest wynik końcowy; body strony sformatowane; Meta SEO; **bez** drugiego nagłówka typu/etapu pod „Wynik”.
+
+Zmiana względem: **Wybrany** / **Niewybrany** jako zwykły `text-muted-foreground`. Od tej wersji badge z tłem i radiusem (tokeny powyżej).
 
 Ocena i Edytuj **nie** są HITL (HITL = wybór z listy w trakcie pipeline).
 

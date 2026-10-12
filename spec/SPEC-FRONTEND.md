@@ -1,7 +1,7 @@
 ---
-wersja: 42
+wersja: 47
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-11
+data_modyfikacji: 2026-10-12
 ---
 
 # SPEC — Frontend
@@ -13,6 +13,16 @@ Norma `apps/frontend`: cienki klient self-host (**strona główna = trzy tryby n
 Aplikacja `apps/frontend` **już istnieje** w monorepo jako cienki klient Next (App Router, `modules/`). Ten SPEC dotyczy **ekranów i zachowania produktowego** na tym kliencie — bez ponownego bootstrapu aplikacji.
 
 Bez reguł domenowych pipeline’u, bez bramki kompletności jako jedynej egzekucji, bez sekretów LLM.
+
+Zmiana względem wersji 46 / cel / F-8: Dodatki = jeden panel `extras` bez podzakładek (zakaz zagnieżdżeń). Od tej wersji F-8 + „Nie wolno” + DoD jak `docs/ux_dashboard.md` (Kontekst firmy / Dodatki — cztery podzakładki).
+
+Zmiana względem wersji 45 / cel / F-8: zakładka CTA / kanały bez kanonu prezentacji listy. Od tej wersji F-8 + „Nie wolno” + DoD jak `docs/ux_dashboard.md` (Kontekst firmy / CTA).
+
+Zmiana względem wersji 44 / cel / F-8: zakładka Oferta bez kanonu prezentacji listy usług. Od tej wersji F-8 + „Nie wolno” + DoD jak `docs/ux_dashboard.md` (Kontekst firmy / Oferta).
+
+Zmiana względem wersji 43 / cel / F-8: **Wybrany** / **Niewybrany** bez formy badge. Od tej wersji badge (tokeny) jak `docs/ux_dashboard.md` (Wynik).
+
+Zmiana względem wersji 42 / cel / F-8: prezentacja wyniku na szczegółach bez kanonu kolejności etapów / markdown `pageDocument` / zakazu drugiego nagłówka. Od tej wersji F-8 + „Nie wolno” + DoD jak `docs/ux_dashboard.md` (Wynik).
 
 Zmiana względem wersji 39 / cel / F-4a / F-8: first-run = tryb submitu tej samej karty logowania. Od tej wersji trzy tryby na `/`; login zawsze `POST /auth/login`; bootstrap admina = osobny formularz po CTA gdy `available === true` — `docs/ux_dashboard.md`.
 
@@ -142,14 +152,14 @@ Zmiana względem: toast sukcesu mutacji bez wyjątku dla zmiany emaila — od te
 F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 
 - Strona główna: tło + karta na `/` w jednym z trzech trybów `login` \| `register` \| `bootstrap_admin` (**bez** osobnej trasy first-run). Widok `login`: submit → **zawsze** `POST /auth/login`. Stałe CTA: **„Zaloguj się”** + **„Nie masz konta? Zarejestruj się!”** (zawsze). Przy `available === true` — **dodatkowo** opcjonalne CTA **„Zarejestruj admina”** → tryb `bootstrap_admin` (osobny formularz → `POST /auth/bootstrap-admin` → sesja → dashboard); karta logowania **nadal** loguje; register **nie** jest ukrywany. Formularz rejestracji (F-4b); thank-you + resend po **201** w prod; **akceptacja zaproszenia** na **`/invite/accept?token=`** (tożsame z URL w mailu `{APP_PUBLIC_URL}/invite/accept?token=…`) → `POST /auth/accept-invite` → strona główna — dashboard dopiero po loginie; deep link aktywacji → widok logowania + activate w tle + toast (F-4b). Błędy wyłącznie `message` z envelope na karcie (bez Toastera na login/register/bootstrap/accept-invite — toast aktywacji **dozwolony** po sukcesie activate). Kolizja email na accept-invite i nieważny token = ten sam **401** — UI **bez** osobnego copy „email zajęty” i **bez** gałęzi na **409** `CONFLICT` z tej trasy. Kolizja na **register** = **409** → błąd przy polu email (F-4b). Opcjonalnie stała pomocnicza na accept-invite (bez leak z API): ogólne „Nie można dokończyć zaproszenia. Skontaktuj się z administratorem.” — **tylko** jeśli mapowana z tego samego 401 (bez rozróżniania przyczyn po `code`);
-- Kontekst firmy: **sześć zakładek** — Tożsamość (domyślnie otwarta), Oferta, Głos SM, CTA / kanały, Odbiorca, Dodatki (`extras` w jednym panelu, bez podzakładek). Na triggerach zakładek bramki indykator z `completeness.missing` ostatniego **udanego** GET/PUT (zielona = kompletna, czerwona = brak); zakładka Dodatki **bez** kropki bramki. Zapis = jeden `PUT` całości. Submit **nie** wysyła, gdy draft nie spełnia bramki (puste wymagane pole albo kaleka oferta); lokalny predykat identyczny z C-1 **wyłącznie** do disable CTA zapisu i błędów pól — **kropki** nadal wyłącznie z `missing` odpowiedzi (**nie** gateway); **chip** „Agenci aktywni” = F-6 (`agentsActive`, nie sam `missing`). Placeholdery pustej oferty stripowane; kalekiej usługi nie stripujemy. Nie da się usunąć ostatniej kompletnej usługi tak, by PUT poszedł z `items: []`. Szczegóły: `docs/ux_dashboard.md` (Widok: Kontekst firmy);
+- Kontekst firmy: **sześć zakładek** — Tożsamość (domyślnie otwarta), Oferta, Głos SM, CTA / kanały, Odbiorca, Dodatki. Na triggerach zakładek bramki indykator z `completeness.missing` ostatniego **udanego** GET/PUT (zielona = kompletna, czerwona = brak); zakładka Dodatki **bez** kropki bramki. Zapis = jeden `PUT` całości. Submit **nie** wysyła, gdy draft nie spełnia bramki (puste wymagane pole albo kaleka oferta); lokalny predykat identyczny z C-1 **wyłącznie** do disable CTA zapisu i błędów pól — **kropki** nadal wyłącznie z `missing` odpowiedzi (**nie** gateway); **chip** „Agenci aktywni” = F-6 (`agentsActive`, nie sam `missing`). Placeholdery pustej oferty stripowane; kalekiej usługi nie stripujemy. Nie da się usunąć ostatniej kompletnej usługi tak, by PUT poszedł z `items: []`. **Oferta (UI listy):** hint globalny (minimum + „Korzyści: jedna na linię”); **Dodaj usługę** nad listą (`justify-end`), nowa pozycja **prepend**; pozycja = nagłówek (nazwa albo „Usługa N”) + **Usuń** po prawej; pola **Nazwa → Opis → Korzyści**; licznik korzyści pod polem; poniżej `lg` nagłówek = siatka + `truncate` tytułu (Usuń w prawej kolumnie); od `lg` flex + wrap. **CTA / kanały (UI listy):** hint globalny; **Dodaj CTA** nad listą (`justify-end`), **prepend**; pozycja = nagłówek (etykieta albo „CTA N”) + **Usuń CTA** po prawej; pola **Etykieta CTA → Cel (opcjonalnie)**; poniżej `lg` jak Oferta. **Dodatki (podzakładki):** wyłącznie tu zagnieżdżenia — **Hashtagi** (domyślna) / **Notatki** (`catalogNotes` + `performanceNotes`) / **Case studies** / **Obiekcje**; CTA zapisu pod podzakładkami; **bez** hicie o „Agenci aktywni” / pustych polach w panelu; podzakładki bez kropek. Szczegóły: `docs/ux_dashboard.md` (Widok: Kontekst firmy);
 - **Runy** = archiwum instancji `completed` \| `failed` \| `cancelled` (`GET /runs?status=completed,failed,cancelled`, strona 10, odświeżanie przy wejściu i co **15 min**). **Bez** SSE, **bez** runów w toku na liście (także cudzych). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). Po **202** z modalu — zostajemy na Runach, modal zamknięty, toast „Run wystartował”; live = floating box;
 - **Konto**: email — formularz → modal re-auth (email **disabled** + `currentPassword`) → `PATCH /auth/me/email` `{ email, currentPassword }` (każdy Potwierdź z obu pól); złe hasło (`INVALID_PASSWORD`) / `VALIDATION_FAILED` pod polem hasła (email zostaje disabled; **bez** cyklu F-4a); **409** → modal otwarty, clear pól, odblokowanie emaila, błąd pod polem email; sukces bez toastu + `GET /auth/me`; Anuluj bez API (draft formularza bez zmian względem otwarcia); **Moje runy** (`GET /runs/user/:userId` — **pełna** lista HTTP; **paginacja UI** stałe `pageSize = 10` jak archiwum Runy — Poprzednia / `strona / totalPages (total)` / Następna; wszystkie statusy; **Stop** + modal na własnym nieterminalnym — F-5b); formularz **startu inline** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId` z wiersza „Moje runy”); opinia. Po **202** startu **z Konta** — zostajemy na Koncie **oraz** toast „Run wystartował”;
 - `PUT` kontekstu **200** → toast „Kontekst zapisany”; **400** → envelope przy formularzu, **zero** toasta (lokalny predykat / envelope); `POST .../cancel` **200** → toast **„Run anulowany”** (F-5b);
 - Layout **zalogowany**: root **`h-dvh`** + overflow ukryty; **scroll tylko w `main`**; sidebar (desktop) = wysokość viewportu — DemoChip (gdy demo) + chip agentów **zawsze w viewportcie**; Toaster (warstwa `--z-toast`); pozycja **nie** gryzie się z floating boxem (toast `top-right`; box `bottom-right`). **Brak** Toastera na karcie logowania / formularzu bootstrap admina / accept-invite / formularzu register (toast po sukcesie activate — wyjątek F-4b);
 - Run szczegóły: HITL / wynik **post vs rolka vs strona** / przegląd (bez `conversationId` w UI); **Stop** + modal (F-5b) gdy owner **lub** (admin ∧ `startedBy.role=guest`) i nieterminalny; po `cancelled` HITL znika, przegląd niedostępny, partial wynik jak przy `failed`; live SSE tylko własny `running` \| `awaiting_hitl` \| `interrupted` (ten sam rejestr co box);
 - HITL Social: **multi-select** (min. 1); Content: `[outline.id]`;
-- Wynik dwuetapowy Social = listy `contents[]` / `reelScripts[]`; `characterCount` / `cta?` / `role?` jak UX;
+- Wynik (odczyt) wg `docs/ux_dashboard.md`: pod „Wynik” **bez** drugiego nagłówka typu/etapu; dwuetapowe = **najpierw** etap 2 (`contents[]` / `reelScripts[]` / `pageDocument`), potem etap 1 (zwijany gdy etap 2 niepusty; label „Pomysły” / „Outline”); przy pozycji etapu 2 podpis „Pomysł: {title}”; na liście pomysłów etapu 1 obok tytułu **badge** Wybrany / Niewybrany (Wybrany: `primary/15` + `primary`; Niewybrany: `muted` + `muted-foreground`; `rounded-md`); `characterCount` / `cta?` / `role?` jak UX; `pageDocument.body` w odczycie = sformatowany markdown (subset) + blok „Meta SEO”; Edytuj = surowy tekst;
 - Użytkownicy (admin): lista + zaproszenie email; pending w tym wygasłe; resend/revoke; **kolumna Akcje** (jeden slot / wiersz):
   - `role=admin`: **brak** przycisku;
   - `role=user`: przycisk **toggle** — aktywny → Dezaktywuj (`DELETE` soft); nieaktywny → Aktywuj (`PATCH` `{ isActive: true }`); **każda** akcja z modalem potwierdzenia; copy = dezaktywacja / aktywacja (**nie** mylić z aktywacją e-mail);
@@ -159,6 +169,11 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 - Chip „Agenci aktywni” wg F-6 (`agentsActive`); **`DemoModeChipSlot` nad CompletenessChip** — **tylko dashboard**, gdy `demoMode === true` (F-10); **floating box** własnych runów w toku poza Kontem (zwijany; **bez** Stop). Po `cancelled`: krótko **„Anulowany”**, ukrycie pozycji po **200 ms**. **Nie** chip/stos „w toku” w chrome.
 - Nawigacja F-8 wg roli: `admin` — Users + zaproszenia; `user` — bez Users; `guest` (demo on) — bez Users / bez zapisu kontekstu / bez Edytuj / finalize; archiwum lista OK; **zakaz** nawigacji do cudzego `/runs/:id` (403 z API). Istniejący `GuestView` w home-entry = stan **anonimowy** (tryby `login` / `register` / `bootstrap_admin`) — **nie** mylić z rolą `guest`.
 
+Zmiana względem wersji 46 / F-8: Dodatki = jeden panel bez podzakładek (zakaz zagnieżdżeń extras). Od tej wersji cztery podzakładki + bez hicie — `docs/ux_dashboard.md`.
+Zmiana względem wersji 45 / F-8: CTA / kanały bez prezentacji listy. Od tej wersji kanon CTA jak Oferta — `docs/ux_dashboard.md`.
+Zmiana względem wersji 44 / F-8: Oferta bez prezentacji listy (kolejność / Dodaj / prepend / nagłówek / responsive). Od tej wersji kanon Oferty z `docs/ux_dashboard.md`.
+Zmiana względem wersji 43 / F-8: Wybrany / Niewybrany = zwykły muted tekst. Od tej wersji **badge** z tokenami — `docs/ux_dashboard.md`.
+Zmiana względem wersji 42 / F-8: wynik = listy then_* / pola `characterCount` / `cta` / `role` bez kolejności etapów, bez markdown body, bez zakazu drugiego nagłówka. Od tej wersji pełny kanon prezentacji Wyniku z `docs/ux_dashboard.md`.
 Zmiana względem wersji 41 / F-8: register ukryty gdy `available === true`. Od tej wersji register zawsze; CTA admina tylko warunkowo — `docs/ux_dashboard.md`.
 Zmiana względem wersji 39 / F-8: *first-run = tryb submitu tej karty*; `GuestView` = login/register. Od tej wersji trzy tryby na `/` + formularz `bootstrap_admin`; `GuestView` obejmuje też bootstrap — `docs/ux_dashboard.md`.
 
@@ -300,9 +315,14 @@ apps/frontend/src/
 - Doklejania stanu gateway / `/health/ready` do kropek zakładek kontekstu (kropki **tylko** `completeness.missing` — F-8).
 - Polegania na samym atrybucie `required` HTML jako bramce zapisu.
 - Zapisywania kalekiej oferty (PUT z niepełną pozycją albo `items: []`).
+- Zakładki Oferta: **Dodaj usługę** pod listą; append nowej pozycji na koniec; kolejności pól Nazwa → Korzyści → Opis; **Usuń** poza wierszem nagłówka pozycji; wrapu nagłówka poniżej `lg`, który zostawia Usuń po lewej przy prawej **Dodaj** (obowiązuje siatka + `truncate` poniżej `lg` — `docs/ux_dashboard.md`).
+- Zakładki CTA / kanały: **Dodaj CTA** pod listą; append na koniec; **Usuń CTA** poza wierszem nagłówka; wrapu nagłówka poniżej `lg` rozjeżdżającego Usuń względem Dodaj (obowiązuje ten sam wzorzec co Oferta — `docs/ux_dashboard.md`).
 - `PATCH` per zakładka w MVP (zapis kontekstu = jeden `PUT` całości).
-- Indykatora bramki (kropki) na zakładce Dodatki.
-- Zagnieżdżonych zakładek / podzakładek `extras`.
+- Indykatora bramki (kropki) na zakładce Dodatki **oraz** na jej podzakładkach.
+- Płaskiego jednego panelu `extras` bez podzakładek (obowiązują cztery podzakładki — F-8 / `docs/ux_dashboard.md`).
+  Zmiana względem wersji 21 / „Nie wolno”: *„Zagnieżdżonych zakładek / podzakładek `extras`”* — **unieważnione**; od tej wersji podzakładki w Dodatki są **wymagane**; zakaz dotyczy płaskiego panelu.
+- Podzakładek / zagnieżdżeń w zakładkach bramki (Tożsamość, Oferta, Głos SM, CTA / kanały, Odbiorca) — zagnieżdżenia **tylko** w Dodatki.
+- Hicitu w panelu Dodatki o „Agenci aktywni” / „puste pola nie są zapisywane” (sygnał agentów = chip w chrome).
 - Logiki pipeline Social / Content / verifiera / promptów w FE.
 - Płaskiego `components/` bez `modules/`.
 - Bearer access jako modelu MVP.
@@ -334,6 +354,10 @@ apps/frontend/src/
 - Nowego chrome deadline / countdown / wiersza „dostępne do…” na panelu przeglądu w MVP tej zmiany.
 - Rozróżnienia copy auto vs ręczne zamknięcie przeglądu (obowiązuje „Przegląd zamknięty”).
 - Wyniku dwuetapowego Social jako jednego bloku; single-select HITL Social.
+- Drugiego nagłówka (typu tasku / etykiety etapu) bezpośrednio pod sekcją UI „Wynik” — obowiązuje jeden nagłówek „Wynik”, potem treść (`docs/ux_dashboard.md`).
+- Prezentacji etapu 1 nad etapem 2, gdy oba są w snapshotcie dwuetapowym (obowiązuje: etap 2 pierwszy; etap 1 zwijany gdy etap 2 niepusty).
+- Surowego `pageDocument.body` z widoczną składnią markdown w **odczycie** (obowiązuje sformatowany subset + „Meta SEO”; Edytuj = surowy tekst).
+- Etykiet Wybrany / Niewybrany przy pomysłach etapu 1 jako zwykłego tekstu bez badge (obowiązuje forma badge z tokenami — `docs/ux_dashboard.md`).
 - Mapowania `message` błędów na PL w MVP (obowiązuje `message` z API). Pokazywania `code` jako treści UI błędu (`code` zostaje w envelope HTTP do logiki klienta).
 - Toasta na walidację pól / 400 / 409 formularza, przy którym operator stoi.
 - Toasta na `run.log`, `running`, heartbeat.
@@ -390,9 +414,9 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Konto: email — modal re-auth (`PATCH /auth/me/email` `{ email, currentPassword }`); `INVALID_PASSWORD` / `VALIDATION_FAILED` pod hasłem (bez F-4a); **409** → clear + odblokowanie emaila + błąd pod emailem; sukces bez toastu + `GET /auth/me`; Anuluj bez API; moje runy (paginacja UI 10) → szczegóły; start (prefill ze snapshotu); opinia.
 - [ ] Admin: Users + zaproszenie + kolumna Akcje (toggle `user` / Usuń+purge `guest` / brak na admin); flow 409→`purge=true`; `message` w dialogu; accept-invite → `/` → login (flow bez zmian; przy demo on sesja `guest` → locki F-10); błąd kolizji / złego tokenu = ten sam envelope **401** na karcie (bez UI „email zajęty” / bez gałęzi **409**).
 - [ ] `app/` + `modules/`; typy z shared; brak sekretów LLM; brak `NEXT_PUBLIC_` URL-a api.
-- [ ] Opinia / gwiazdki / Edytuj / finalize wg kontraktu; disable po `reviewFinalizedAt` **lub** po serwerowym `reviewExpiresAt`; copy „Przegląd zamknięty”; **bez** countdown / „dostępne do…”; HITL Social multi-select; wynik then_* = listy.
+- [ ] Opinia / gwiazdki / Edytuj / finalize wg kontraktu; disable po `reviewFinalizedAt` **lub** po serwerowym `reviewExpiresAt`; copy „Przegląd zamknięty”; **bez** countdown / „dostępne do…”; HITL Social multi-select; wynik then_* = listy; kolejność etapów + zwijany etap 1; **bez** drugiego nagłówka pod „Wynik”; badge Wybrany / Niewybrany; `pageDocument` odczyt = markdown + Meta SEO.
 - [ ] Envelope błędu w UI: `message` z API (bez `code` w treści).
-- [ ] Kontekst firmy: sześć zakładek (default Tożsamość); kropki bramki z `missing` ostatniego GET/PUT; Dodatki bez kropki; jeden `PUT`; `user` read-only.
+- [ ] Kontekst firmy: sześć zakładek (default Tożsamość); kropki bramki z `missing` ostatniego GET/PUT; Dodatki bez kropki; jeden `PUT`; `user` read-only; Oferta: Dodaj nad listą + prepend, pola Nazwa→Opis→Korzyści, nagłówek+Usuń, licznik korzyści, poniżej `lg` truncate tytułu; CTA / kanały: Dodaj nad listą + prepend, Etykieta→Cel, nagłówek+Usuń, poniżej `lg` truncate; Dodatki: cztery podzakładki (Hashtagi domyślna / Notatki / Case studies / Obiekcje), Zapisz pod nimi, bez hicite o Agenci aktywni.
 - [ ] Admin nie utrwali pustej nazwy firmy ani kalekiej usługi (submit zablokowany; 400 z api gdy UI ominięte); `user` read-only.
 - [ ] Po 202 na Koncie: wiersz **oraz** toast „Run wystartował”.
 - [ ] Po 202 na Runach: toast „Run wystartował”, modal zamknięty, floating box; lista archiwum **bez** nowego wiersza dopóki run nie jest `completed` \| `failed` \| `cancelled`.
