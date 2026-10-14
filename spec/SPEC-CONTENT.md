@@ -1,7 +1,7 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-08-31
-data_modyfikacji: 2026-09-11
+data_modyfikacji: 2026-10-13
 ---
 
 # SPEC — Content (BC)
@@ -13,6 +13,8 @@ Norma bounded contextu **Content** w `apps/api`: generowanie copy stron / long-f
 Uszczegóławia BC Content z `docs/architektura.md`, przepływy z `docs/data_flow.md` (§4d / §4e) oraz unię startu z `docs/dokumentacja_komunikacji.md`. **Nie** mylić z nazwą produktu Content Chain (`docs/dictionary.md`).
 
 Content jest **jednym bounded contextem** pipeline’u stron w monoliticie — nie orkiestratorem cyklu życia runu (to Runs) i **nie** częścią Social.
+
+Zmiana względem wersji 6 / Ctn-4 / LoadContext: fallback „brak `brief.audience` → pełny katalog `audience.profiles`”. Od tej wersji **effective** audience (scoped) przed LLM i verifierem — `docs/data_flow.md`, jak Social S-10.
 
 ## Powiązanie ze stylem z docs / wyjątek
 
@@ -47,7 +49,9 @@ Ctn-3. Każdy węzeł LLM produkuje **structured output** walidowany schemą Zod
 
 Zmiana względem wersji 4 / Ctn-3: sekcje outline bez pola narracyjnego — od tej wersji opcjonalne `role` (`docs/data_flow.md` §4e).
 
-Ctn-4. `ConsistencyVerifier` — **jeden** węzeł, dwa obszary: (1) fakty firmy z kontekstu, (2) język (`pl`/`en`). Osobny `LanguageQualityVerifier` — **poza** tym SPEC. Refine* z twardym limitem **`max N=2`**, potem `failed`.
+Ctn-4. `ConsistencyVerifier` — **jeden** węzeł, dwa obszary: (1) fakty firmy z **effective** kontekstu (w tym scoped audience — Ctn-12), (2) język (`pl`/`en`). Osobny `LanguageQualityVerifier` — **poza** tym SPEC. Refine* z twardym limitem **`max N=2`**, potem `failed`. Gdy effective `profiles` puste (omit / custom), verifier **nie** ocenia faktów audience względem pełnego katalogu DB; przy custom może odnosić się do `brief.audience`.
+
+Zmiana względem wersji 6 / Ctn-4: obszar (1) = surowy kontekst / pełny katalog. Od tej wersji **effective** audience jak Social S-4 / S-10.
 
 Ctn-5. HITL (**model B**):
 
@@ -69,11 +73,15 @@ Ctn-9. Port `ContentResultStore` jest **osobny** od Social. Tabele kanoniczne: `
 
 Ctn-10. Liczniki refine Content na `Run`: kolumny `outlineRefineCount` i `copyRefineCount` (`Int`, default `0`). `savePipelineState` / `getPipelineState` mapują domain **1:1** na te kolumny (update tylko `pipelinePhase` + te dwa pola — bez zapisu `ideasRefineCount` / `contentRefineCount`). Analogia do Ctn-6: osobny słownik stanu, bez reuse etykiet Social.
 
-Ctn-11. Wejście pipeline’u: **`ContentBrief`** (`docs/dictionary.md`, `docs/dokumentacja_komunikacji.md`) — `topic` wymagane; `audience?`, `goal?` (string), `angle?`, `targetLength?` (integer ≥ 1). Import typu z `runs/domain/run.types` — **nie** `RunBrief`. `NormalizeBrief`: `topic.trim()` i ewent. trim `angle`; **zakaz** defaultu `ideaCount`. CTA **nie** jest polem briefu (`cta.items` kontekstu). `contentKind` na runie, nie w briefie.
+Ctn-11. Wejście pipeline’u: **`ContentBrief`** (`docs/dictionary.md`, `docs/dokumentacja_komunikacji.md`) — `topic` wymagane; `audience?`, `goal?` (string), `angle?`, `targetLength?` (integer ≥ 1). Import typu z `runs/domain/run.types` — **nie** `RunBrief`. `NormalizeBrief`: `topic.trim()` i ewent. trim `angle`; **zakaz** defaultu `ideaCount`. CTA **nie** jest polem briefu (`cta.items` kontekstu). `contentKind` na runie, nie w briefie. Semantyka `audience?` = trzy tryby (omit / name katalogu / custom) — jak `SPEC-KOMUNIKACJA.md` K-2; scoping = Ctn-12.
 
 Zmiana względem wersji 3 / „Nie wolno — wystarczą `brief.topic` + kontekst”: to było jedyne dozwolone wejście poza kontekstem. Od tej wersji kanon pól to `ContentBrief`; nadal **zakaz** folderu `Materiały/` i CTA w briefie. `brief.topic` + kontekst pozostają minimum szkieletu (topic wymagane).
 
 Zmiana względem wersji 1: SPEC milczał o kolumnach refine; szkic feature planu 4.2 zakładał reuse `ideasRefineCount` = outline i `contentRefineCount` = copy. Ta norma to unieważnia (`SPEC-PERSISTENCE.md` P-5 od v4).
+
+Ctn-12. **Effective audience (scoping)** — po `LoadContext` / przed hopami LLM **oraz** przed `ConsistencyVerifier` (ten sam effective dla OutlineAgent / PageWriter i verifiera): jak Social **S-10** — omit → `profiles: []`; `brief.audience` = `name` katalogu → jeden profil; custom opis → `profiles: []` + opis w briefie (**bez** auto-match). **Zakaz** traktować pełny katalog DB jako domyślny audience runu przy pustym briefie.
+
+Zmiana względem wersji 6: reguły typu „Grupa: `brief.audience` albo `audience.profiles`” / „brak briefu → profiles z kontekstu” — **unieważnione**. Od tej wersji Ctn-12 (`docs/data_flow.md`).
 
 ## Norma implementacji
 
@@ -135,6 +143,8 @@ page_copy:
 - Rejestrować controller HTTP w `ContentModule`.
 - Wołać LangGraph / ładować prompty z controllera.
 - Pomijać `ConsistencyVerifier`.
+- Wstrzykiwać pełny katalog `audience.profiles` z DB do payloadu LLM/verifier przy omit lub custom `brief.audience` (obowiązuje Ctn-12).
+- Auto-match custom `brief.audience` do `profiles[].name` w pipeline Content.
 - Refine bez limitu `max N=2`.
 - Checkpoinetera LangGraph jako store HITL.
 - Traktować `'web'` jako `SocialPlatform`.

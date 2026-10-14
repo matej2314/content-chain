@@ -1,7 +1,7 @@
 ---
-wersja: 25
+wersja: 26
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-07
+data_modyfikacji: 2026-10-13
 ---
 
 # SPEC — Runy / logi
@@ -21,6 +21,7 @@ Zmiana względem wersji 17: dwa terminale (`completed` / `failed`); brak HTTP ca
 Zmiana względem wersji 18: przegląd otwarty do ręcznego finalize **bez limitu czasu**. Od tej wersji okno = `REVIEW_TTL` od `pipelineFinishedAt`; lock w DB poza ręcznym finalize = wyłącznie sweeper — `docs/dictionary.md`, `docs/data_flow.md`.
 Zmiana względem wersji 19 / cel: brak GuestRunPolicy. Od tej wersji R-12 + ownership odczytu dla `guest`.
 Zmiana względem wersji 24 / R-11 / R-3b: cancel wyłącznie `startedBy`; `startedBy` na detail bez `role`; hard guest poza Runy. Od tej wersji: admin cancel gdy `startedBy.role === guest`; `startedBy.role` w detail; hard/purge usuwa Run+dzieci (port dla Auth A-10) — `docs/security.md`, `users-management-plan.md` Faza 2.
+Zmiana względem wersji 25 / R-3d: `brief.audience?` bez semantyki trzech trybów. Od tej wersji omit / name katalogu / custom — bez FK; scoping = Social/Content — `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`.
 
 ## Powiązanie ze stylem z docs
 
@@ -91,9 +92,13 @@ Zmiana względem wersji 18 / R-3b: snapshot bez `pipelineFinishedAt` / `reviewEx
 
 R-3d. `POST /runs` — unia dyskryminowana (`taskType`): Social wymaga `platform` i **zakazuje** `contentKind`; Content wymaga `contentKind` i **zakazuje** `platform` (zapis kolumny `platform='web'`). **Kształt `brief` XOR:** Social → `SocialBrief` (`ideaCount?`; zakaz `angle` / `targetLength`); Content → `ContentBrief` (`angle?` / `targetLength?`; zakaz `ideaCount`). Pola: `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`. Walidacja Zod `discriminatedUnion` w application + `.strict()` na gałęzi briefu — przez wspólny `parseWithZod` z `apps/api/src/shared/parse-with-zod.ts` (refaktor względem wcześniejszej lokalizacji `runs/application/parse-with-zod.ts`). DTO HTTP może mieć sumę kluczy briefu; prawda = Zod. `taskType` spoza enumu → HTTP **400** `VALIDATION_FAILED` (composite **nie** wołany). Page + `brief.ideaCount` albo Social + `brief.angle` → **400** `VALIDATION_FAILED`.
 
+`brief.audience?` — opcjonalny string w obu briefach (**bez** nowego wymaganego pola / FK / `audienceProfileId`). Trzy semantyki (R-3 / komunikacja; **scoping effective context** = `SPEC-SOCIAL.md` / `SPEC-CONTENT.md`, nie Runs): (1) **omit** — brak audience w payloadzie agentów; **zakaz** interpretacji w Runs „omit = użyj wszystkich profili z kontekstu”; (2) string = `name` profilu z katalogu; (3) string = custom opis (bez matcha do katalogu w warstwie komunikacji). Runs **zapisuje** brief jak w body; nie rozszerza kształtu API.
+
 Zmiana względem wersji 10 / R-3d: unia dotyczyła `platform` XOR `contentKind` przy **jednym** obiekcie briefu SM (`RunBrief` z `ideaCount`). Od tej wersji brief jest kanałowy; `RunRecord` = `SocialRunRecord` | `ContentRunRecord` (`taskType` dyskryminuje `brief`). Definicje `SocialBrief` / `ContentBrief` w `runs/domain` — **nie** w `packages/shared` ani `apps/api/src/shared/`.
 
 Zmiana względem wersji 12 / R-3d: `parseWithZod` importowany z `apps/api/src/shared/parse-with-zod.ts` (nie lokalny plik w `runs/application/`).
+
+Zmiana względem wersji 25 / R-3d: milczenie o semantyce `audience?`. Od tej wersji trzy tryby + zakaz FK / „omit = wszystkie profile” w Runs.
 
 R-3d1. Odczyt `Run.brief` (Json) w adapterze: parse Zod **wg `taskType`**. Zakaz `as RunRecord['brief']` / `as SocialBrief`. Śmieć w JSON → błąd adaptera (jak nielegalny `taskType`), nie cichy cast. Kolumna Json **bez** nowej migracji (`SPEC-PERSISTENCE.md`).
 
@@ -339,6 +344,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Zależności grafu od **klasy** `RunLifecycleService` zamiast portu (token + interfejs `appendLog` / `transition`).
 - Umieszczania portu lifecycle / executora w `packages/shared`.
 - Umieszczania `SocialBrief` / `ContentBrief` w `packages/shared` albo `apps/api/src/shared/` (M-8; `docs/brand_types.md`).
+- Nowego wymaganego pola briefu / FK profilu (`audienceProfileId`) na `POST /runs`; interpretacji omit `brief.audience` jako „użyj wszystkich `audience.profiles`” w BC Runs (scoping = Social/Content).
 - Płaskiego `RunBrief` (jeden kształt SM) jako jedynego typu `Run.brief` / `StartRunCommand.brief`.
 - Drugiego limitu współbieżności execute „dla guest” (obowiązuje R-6 + R-12 Redis cap).
 - Tabeli slotów guest w DB (COUNT z `Run`; Redis tylko cap dzienny).

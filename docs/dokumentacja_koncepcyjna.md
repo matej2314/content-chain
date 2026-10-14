@@ -1,7 +1,7 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-11
+data_modyfikacji: 2026-10-13
 ---
 
 # Dokumentacja koncepcyjna — Content Chain
@@ -65,7 +65,11 @@ Udany **PUT/PATCH** kontekstu oraz start runów (Social i Content) wymagają, by
 | **Oferta** | ≥ 1 **kompletna** usługa/produkt; **każda** pozycja na liście: nazwa + opis + ≥ 1 korzyść biznesowa **i** bez pustych wpisów w tablicy korzyści; kalekich obiektów w zapisanym kontekście **nie ma** |
 | **Głos SM** | Ton komunikacji (jak mówimy / jak nie mówimy) |
 | **CTA / kanały** | ≥ 1 CTA; **każda** pozycja z niepustą etykietą; kierunek (`target`) opcjonalny |
-| **Odbiorca** | ≥ 1 profil grupy docelowej; **każdy** z niepustym opisem (stanowisko / branża / kontekst) |
+| **Odbiorca** | ≥ 1 profil grupy docelowej; **każdy** z niepustym **`name`** (nazwa) **oraz** niepustym **`description`** (stanowisko / branża / kontekst w opisie) |
+
+Katalog `audience.profiles` w kontekście firmy to **biblioteka** pod wybór grupy przy starcie runu (oraz bramkę ≥ 1 profil). **Nie** jest automatycznie wstrzykiwany w całości do każdego runu: brak wskazania grupy w briefie (`brief.audience` omit) **nie** oznacza „pisz do wszystkich profili naraz” — w payloadzie agentów wtedy **brak** profili audience. Szczegóły trybów: `dokumentacja_komunikacji.md`, `data_flow.md`, `ux_dashboard.md`.
+
+Zmiana względem: bramka Odbiorca wymagała tylko niepustego opisu profilu; narracja dopuszczała odczyt „pusty brief audience = wszystkie profile w generacji”. Od tej wersji wymagane są **`name` + `description`**; katalog ≠ input każdego runu.
 
 Jakość merytoryczna treści kontekstu pozostaje po stronie użytkownika (admina); programowo egzekwowana jest kompletność wymaganych sekcji — przy **każdym** udanym zapisie oraz przy starcie runu (ta sama tabela).
 

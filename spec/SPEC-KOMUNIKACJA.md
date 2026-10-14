@@ -1,7 +1,7 @@
 ---
-wersja: 37
+wersja: 38
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-07
+data_modyfikacji: 2026-10-13
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -30,6 +30,7 @@ Zmiana względem wersji 28 / cel: publiczne surface auth = bootstrap / accept-in
 Zmiana względem wersji 31 / cel: powierzchnia health = wyłącznie liveness api. Od tej wersji także publiczny `GET /api/v1/health/ready` (agregat api + gateway **liveness**); probe upstream **bez** konsumpcji gateway `/health/ready` — `docs/dokumentacja_komunikacji.md`.
 Zmiana względem wersji 32 / cel: K-2g = zawsze `role = user`. Od tej wersji **refaktor** `user.role` w odpowiedzi register (`guest` \| `user`) + `GET /config` + kody quota guest.
 Zmiana względem wersji 35 / K-2f: happy path 201 bez jawnej normy roli vs demo. Od tej wersji `role` w 201 accept-invite vs `DEMO_MODE` (odsyłacz A-7b).
+Zmiana względem wersji 37 / K-2: `brief.audience` bez semantyki trzech trybów. Od tej wersji omit / name katalogu / custom opis — bez nowego klucza body — `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`.
 
 ## Powiązanie ze stylem z docs
 
@@ -91,6 +92,18 @@ K-1. Każda odpowiedź błędu HTTP z `apps/api` ma envelope:
 Zmiana względem wersji 28 / K-1: `MAIL_DELIVERY_FAILED` tylko przy Invitation. Od tej wersji także id User przy register / resend aktywacji.
 
 K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId` i statusem `queued` | `running` — bez synchronicznego czekania na wynik LLM. `interrupted` **nie** jest statusem odpowiedzi POST. Body: unia dyskryminowana `taskType` (`platform` XOR `contentKind` **oraz** kształt `brief` XOR: `SocialBrief` vs `ContentBrief`) — `docs/dokumentacja_komunikacji.md`. Walidacja Zod `discriminatedUnion` w application + `.strict()` na gałęzi briefu. DTO HTTP może deklarować sumę kluczy briefu (`topic`, `audience`, `goal`, `ideaCount`, `angle`, `targetLength`); prawda = Zod. `taskType` spoza enumu → **400** `VALIDATION_FAILED`. Page + `brief.ideaCount` / Social + `brief.angle` → **400** `VALIDATION_FAILED`. Dla `guest`: najpierw `GuestRunPolicy` (R-12 / K-12) — quota **przed** 202.
+
+`brief.audience?` pozostaje **opcjonalnym stringiem** (kształt JSON **bez** nowego klucza / FK / `audienceProfileId`). Semantyka trzech trybów (kontrakt docs; scoping payloadu = `SPEC-SOCIAL.md` / `SPEC-CONTENT.md`, nie warstwa HTTP):
+
+| Tryb | Body | Znaczenie |
+|------|------|-----------|
+| Bez wskazania grupy | klucz `audience` **omit** | brak audience w payloadzie agentów — **zakaz** interpretacji „omit = użyj wszystkich `audience.profiles` z kontekstu” w komunikacji / Runs |
+| Wybór z katalogu | `audience` = `name` wybranego profilu | fokus = ten profil (effective = jeden profil w pipeline) |
+| Wpisz własną grupę… | `audience` = custom opis | opis w briefie; katalog poza payloadem; **bez** auto-match do `profiles[].name` |
+
+**Zakaz** nowego wymaganego pola briefu pod audience. Pełna tabela + przykłady: `docs/dokumentacja_komunikacji.md`.
+
+Zmiana względem wersji 37 / K-2: pole `audience` wymienione w sumie kluczy bez trzech semantyki. Od tej wersji kanon omit / name / custom + zakaz „omit = wszystkie profile”.
 
 K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry w tym `taskType` i `platform=web`, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`. Query `status`: **jeden** `RunStatus` **albo** lista unikalnych wartości rozdzielona przecinkiem (archiwum UI: `completed,failed,cancelled`). Brak parametru = wszystkie statusy. Nieznana wartość → **400** `VALIDATION_FAILED`.
 

@@ -1,7 +1,7 @@
 ---
-wersja: 12
+wersja: 13
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-09-11
+data_modyfikacji: 2026-10-13
 ---
 
 # SPEC — Social
@@ -13,6 +13,7 @@ Norma bounded contextu **Social** w `apps/api`: pipeline post ideas / post conte
 Uszczegóławia wyjątek orchestracji z `docs/architektura.md`, przepływy z `docs/data_flow.md` oraz taski/platformy z `docs/dokumentacja_komunikacji.md`. Social jest **jednym bounded contextem** pipeline’u SM w monoliticie — nie uniwersalnym orkiestratorem firmowym i **nie** orkiestratorem cyklu życia runu (to Runs). Blog / page copy **nie** należą do tego SPEC (`SPEC-CONTENT.md`).
 
 Zmiana względem wersji 5: **zakaz** „rolki w tym SPEC” unieważniony — rolki **są** w Social (MVP). YouTube i blog nadal nie w tym pliku.
+Zmiana względem wersji 12 / S-4 / LoadContext: fallback „brak `brief.audience` → pełny katalog `audience.profiles`”. Od tej wersji **effective** audience (scoped) przed LLM i verifierem — `docs/data_flow.md`.
 
 ## Powiązanie ze stylem z docs / wyjątek
 
@@ -53,9 +54,10 @@ S-3. Każdy węzeł LLM produkuje **structured output** walidowany schemą (Zod 
 
 Zmiana względem wersji 4 / S-3: dotychczas wyłącznie `z.array(z.string())` — żywy model często zwraca obiekty zarzutów; preprocess nie zmienia kontraktu domeny.
 
-S-4. `ConsistencyVerifier` — **jeden** węzeł, dwa obszary: (1) spójność z kontekstem firmy, (2) język (gramatyka, interpunkcja, składnia dla `pl`/`en`). Osobny `LanguageQualityVerifier` — **poza MVP**. Na (1): oceniaj **znaczenie** (ten sam claim / ta sama akcja / ta sama grupa / ten sam ton), nie cytat 1:1. Fakty i **liczby wyłącznie z JSON kontekstu** — parafraza sformułowania wolna; nowa liczba, nowy case jako wynik firmy albo odwrócony sens metryki → odrzut. Gdy obecne, wolno korzystać z `extras.caseStudies` / `extras.objections` (nadal tylko JSON kontekstu). CTA: ta sama akcja co `cta.items[].label` (dowolny case, odmiana, parafraza tej akcji); odrzut gdy to inna akcja albo dwie sprzeczne. Fakty z `audience.profiles` wolno wpleść w hook / title / angle (liczba wewnątrz zakresu profilu jest OK); odrzut dopiero przy sprzeczności z profilem albo gdy treść opisuje inną grupę. Na (2): brak kropki na końcu haczyka / tytułu, pytanie retoryczne, pauza albo wielokropek oraz wielkość liter w CTA **nie** są same w sobie podstawą odrzutu; interpunkcja w `languageIssues` tylko gdy utrudnia odczyt.
+S-4. `ConsistencyVerifier` — **jeden** węzeł, dwa obszary: (1) spójność z kontekstem firmy, (2) język (gramatyka, interpunkcja, składnia dla `pl`/`en`). Osobny `LanguageQualityVerifier` — **poza MVP**. Na (1): oceniaj **znaczenie** (ten sam claim / ta sama akcja / ta sama grupa / ten sam ton), nie cytat 1:1. Fakty i **liczby wyłącznie z JSON kontekstu** — parafraza sformułowania wolna; nowa liczba, nowy case jako wynik firmy albo odwrócony sens metryki → odrzut. Gdy obecne, wolno korzystać z `extras.caseStudies` / `extras.objections` (nadal tylko JSON kontekstu). CTA: ta sama akcja co `cta.items[].label` (dowolny case, odmiana, parafraza tej akcji); odrzut gdy to inna akcja albo dwie sprzeczne. Fakty z **effective** `audience.profiles` (scoped — S-10) wolno wpleść w hook / title / angle (liczba wewnątrz zakresu profilu jest OK); odrzut dopiero przy sprzeczności z profilem albo gdy treść opisuje inną grupę. Gdy effective `profiles` jest puste (omit albo custom w briefie), verifier **nie** ocenia faktów audience względem pełnego katalogu DB — przy custom może odnosić się do opisu w `brief.audience`. Na (2): brak kropki na końcu haczyka / tytułu, pytanie retoryczne, pauza albo wielokropek oraz wielkość liter w CTA **nie** są same w sobie podstawą odrzutu; interpunkcja w `languageIssues` tylko gdy utrudnia odczyt.
 
 Zmiana względem wersji 7 / S-4: dotychczas obszar (1) nie rozstrzygał CTA vs exact string — żywy sędzia odrzucał case i parafrazę tej samej akcji. Teraz: ten sam claim, nie 1:1; liczby nadal tylko z kontekstu. Treść copy promptu nadal poza tym SPEC (`verifier.prompt.md`). Zmiana względem wersji 4 / S-4 (dwa obszary, audience.profiles, interpunkcja SM) zostaje w mocy.
+Zmiana względem wersji 12 / S-4: fakty z surowego katalogu `audience.profiles`. Od tej wersji wyłącznie **effective** profiles (S-10); puste effective ≠ pełny katalog DB.
 
 S-5. Po fail verifiera: Refine* z twardym limitem **`max N=2`**, potem `failed`. Zakaz nieskończonej pętli.
 
@@ -102,6 +104,18 @@ S-7c. Persistence rolek: **nie** reuse tabeli `SocialContent` na skrypt. Modele 
 S-8. Każdy hop LLM: ten sam `ConversationId` runu w body gateway; `requestId` z odpowiedzi gateway → log kroku (`SPEC-KOMUNIKACJA.md`).
 
 S-9. W MVP **zakaz** checkpoinetera LangGraph (`SqliteSaver` / MemorySaver jako store HITL). Persistence pauzy = model B powyżej. (Natywny checkpointer = świadoma decyzja później, poza tym SPEC.)
+
+S-10. **Effective audience (scoping)** — po `LoadContext` / przed hopami LLM **oraz** przed `ConsistencyVerifier` (ten sam effective context dla generatora i verifiera):
+
+| `brief.audience` | Effective `audience.profiles` w payloadzie agentów |
+|------------------|-----------------------------------------------------|
+| **omit** | `[]` — **zakaz** wrzucania całego katalogu z DB |
+| string = `name` wybranego profilu z katalogu (trim, case-insensitive; źródło = wybór katalogu / FE zapisuje `name`) | **jeden** profil `{ name, description }` |
+| string = custom opis (tryb „Wpisz własną grupę…”) | `[]` — opis wyłącznie w briefie; **zakaz** auto-match do `profiles[].name` w pipeline |
+
+Pozostałe sekcje kontekstu firmy bez zmian. Katalog w DB pozostaje biblioteką pod bramkę / select — **nie** domyślnym audience runu.
+
+Zmiana względem wersji 12: narracja / praktyka „Grupa: `brief.audience` albo pełne `audience.profiles`” / „brak briefu → profiles z kontekstu” — **unieważniona**. Od tej wersji exclusively S-10 (`docs/data_flow.md`).
 
 ## Norma implementacji
 
@@ -164,6 +178,8 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 - Wołać LangGraph / ładować prompty z controllera.
 - Rejestrować controller HTTP w `SocialModule`.
 - Pomijać `ConsistencyVerifier`.
+- Wstrzykiwać pełny katalog `audience.profiles` z DB do payloadu LLM/verifier przy omit lub custom `brief.audience` (obowiązuje S-10).
+- Auto-match custom `brief.audience` do `profiles[].name` w pipeline Social.
 - Refine bez limitu `max N=2`.
 - Synchronicznie blokować HTTP na cały pipeline LLM.
 - Trzymać stan HITL w pliku JSON ani wyłącznie w pamięci procesu.

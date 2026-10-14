@@ -1,7 +1,7 @@
 ---
-wersja: 25
+wersja: 26
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-10-12
+data_modyfikacji: 2026-10-13
 ---
 
 # UX Dashboard — Content Chain
@@ -41,6 +41,8 @@ Zmiana względem: Faza 18 — invite → zawsze `user` także przy demo. Od tej 
 Zmiana względem: first-run = tryb submitu tej samej karty logowania (`available === true` → submit → `bootstrap-admin`; register ukryty jako jedyna ścieżka first-run). Od tej wersji na `/` są **trzy tryby** (`login` \| `register` \| `bootstrap_admin`): karta logowania **zawsze** submituje `POST /auth/login`; bootstrap admina = osobny formularz po CTA „Zarejestruj admina” gdy `available === true` (bez osobnej trasy).
 
 Zmiana względem: CTA register ukryte / disabled gdy `available === true` (XOR z „Zarejestruj admina”). Od tej wersji na karcie logowania **zawsze** dwa stałe CTA: **„Zaloguj się”** + **„Nie masz konta? Zarejestruj się!”**; trzeci przycisk **„Zarejestruj admina”** tylko gdy `available === true` (nie zastępuje register).
+
+Zmiana względem: zakładka Odbiorca bez wymaganego pola Nazwa; start runu = wolny input „grupa”. Od tej wersji: profil = **Nazwa** + opis (oba wymagane); **Grupa** przy starcie = **select** (Bez wskazania / nazwy z katalogu / „Wpisz własną grupę…” + pole opisu) — mapowanie do `brief.audience` wg trzech trybów (`dokumentacja_komunikacji.md`).
 
 ## Założenia UX
 
@@ -228,7 +230,7 @@ Formularze w **zakładkach** (nie jeden ciąg sekcji na stronie). Dokładnie **s
 | **Oferta** | Sekcja bramki `offer`: ≥ 1 kompletna usługa (nazwa + opis + ≥ 1 korzyść). **Prezentacja listy** (UI): hint globalny (minimum + „Korzyści: jedna na linię”); **Dodaj usługę** nad listą, wyrównane do prawej; nowa pozycja **na początku** listy (prepend); każda pozycja: nagłówek (wypełniona nazwa albo „Usługa N”) + **Usuń usługę** po prawej w tym samym wierszu; pola w kolejności **Nazwa → Opis → Korzyści**; pod Korzyściami muted licznik („N korzyść/korzyści”); Opis/Korzyści z większą min-wysokością textarea; bez dekoracyjnych kart (`divide-y`). Responsive: poniżej `lg` (1024px) nagłówek pozycji = siatka z `truncate` tytułu (Usuń zawsze w prawej kolumnie); od `lg` — flex + wrap jak wcześniej. Reguły zapisu / strip / ostatnia kompletna — bez zmiany | tak |
 | **Głos SM** | Sekcja bramki `voice` | tak |
 | **CTA / kanały** | Sekcja bramki `cta`: ≥ 1 pozycja z niepustą etykietą; `target` opcjonalny. **Prezentacja listy** (UI, analogicznie do Oferty): hint globalny; **Dodaj CTA** nad listą, wyrównane do prawej; nowa pozycja **prepend**; każda pozycja: nagłówek (wypełniona etykieta albo „CTA N”) + **Usuń CTA** po prawej; pola **Etykieta CTA → Cel (opcjonalnie)**; `divide-y`. Responsive: poniżej `lg` siatka + `truncate` tytułu; od `lg` flex + wrap. Reguły bramki / zapis — bez zmiany | tak |
-| **Odbiorca** | Sekcja bramki `audience` | tak |
+| **Odbiorca** | Sekcja bramki `audience`: ≥ 1 profil; każdy z wymaganym polem **Nazwa** (`name`) **oraz** opisem (`description`). Lista profili czytelna po **nazwie** (nagłówek pozycji = wypełniona nazwa albo „Profil N”). Katalog służy selectowi **Grupa** przy starcie runu — nie jest automatycznie „wszystkie profile w każdym runie” | tak |
 | **Dodatki** | Całe **`extras`** w **czterech** zagnieżdżonych podzakładkach (bez hicie o „Agenci aktywni” / pustych polach w panelu) | **nie** |
 
 - Wejście na widok: otwarta zakładka **Tożsamość**.
@@ -252,6 +254,10 @@ Formularze w **zakładkach** (nie jeden ciąg sekcji na stronie). Dokładnie **s
   - Nagłówek pozycji: etykieta gdy niepusta, inaczej „CTA N” (1-based); **Usuń CTA** w tym samym wierszu po prawej (gdy nie read-only).
   - **Dodaj CTA** nad listą, `justify-end`; klik = prepend pustej pozycji `{ label: '' }` na początek `cta.items`.
   - Viewport poniżej `lg`: jak Oferta (siatka + `truncate`); od `lg`: flex + wrap.
+- **Odbiorca — lista profili (UI):**
+  - Kolejność pól w pozycji: **Nazwa → Opis** (oba wymagane; etykieta UI **„Nazwa”**, nie „Tytuł”).
+  - Nagłówek pozycji: nazwa gdy niepusta, inaczej „Profil N” (1-based); Usuń w tym samym wierszu po prawej (gdy nie read-only).
+  - Lokalny predykat kompletności / blokada zapisu uwzględnia niepuste `name` i `description` (jak bramka).
 - **Dodatki — podzakładki (UI):**
   - Cztery podzakładki (kolejność): **Hashtagi** (domyślna) → **Notatki** → **Case studies** → **Obiekcje**.
   - **Hashtagi:** pole `hashtags` (przecinki).
@@ -292,7 +298,7 @@ Osobna pozycja sidebara (admin, `user`, `guest`). **Nie** zastępuje widoku Runy
 |------|------------|
 | **Email** | Formularz nowego adresu → **Zapisz email** → **zawsze** modal: pole email (prefill = draft, **disabled**) + pole aktualnego hasła + Anuluj / Potwierdź. Potwierdź **zawsze** → `PATCH /api/v1/auth/me/email` `{ email, currentPassword }` (brak stanu „już zweryfikowany”). **Guest (`role === guest` i demo on):** blok **zablokowany** (brak PATCH — API **403**). Złe hasło (**401** `INVALID_PASSWORD`) / `VALIDATION_FAILED` hasła → `message` **pod polem hasła**; stan disabled emaila **bez zmian** (przed 409: zostaje **disabled**; **po 409**: zostaje **odblokowany**); **bez** toastu; **bez** refresh/wylogowania przy `INVALID_PASSWORD`. **409** `CONFLICT` → modal **otwarty**; **czyszczenie** pól email + hasło; **odblokowanie** inputu email; błąd **pod polem email**; ponowny Potwierdź znowu z hasłem. Sukces → zamknięcie modala, odświeżenie sesji (`GET /auth/me`), aktualizacja wyświetlanego emaila, **bez** toastu. Anuluj → zamknięcie modala, **zero** API; draft na formularzu Konta bez zmian względem otwarcia (edycja w modalu po 409 nie wraca na formularz). CTA „Zapisz email” **nie** jest disabled wyłącznie dlatego, że adres = obecny (re-auth i tak wymagany). **Bez** self-service zmiany hasła i **bez** usuwania konta na tym widoku |
 | **Moje runy** | Źródło: `GET /api/v1/runs/user/:userId` (`:userId` z `/auth/me`) — **wszystkie** statusy zalogowanego (**pełna** lista z API; **bez** `page` / `pageSize` na HTTP). **Paginacja UI:** stałe **`pageSize = 10`** (jak archiwum Runy), kontrolki **Poprzednia** / `strona / totalPages (total)` / **Następna** — slice po stronie FE; API i rejestr SSE / floating box nadal widzą pełny zbiór. Live: SSE per `runId` wyłącznie dla `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu). `queued` i terminalne: snapshot GET (wejście na Konto, po `POST /runs`, po evencie SSE innego własnego runu, focus okna). Przycisk **Stop** na wierszu **własnego** runu w statusie nieterminalnym (`queued` \| `running` \| `awaiting_hitl` \| `interrupted`) → modal **„Czy na pewno?”** → **Tak** = `POST .../cancel`; **Nie** = zamknięcie modala, **zero** API. Po sukcesie: odświeżenie wiersza (`cancelled`); `queued` bez SSE. Klik wiersza → **Run (szczegóły)**. Pełny wynik / HITL / przegląd na szczegółach, nie na liście |
-| **Start runu** | Formularz startu **inline** (ten sam brief co modal **„Uruchom agenta”** na Runach — nie drugi kontrakt). Select `taskType` obejmuje rolki i page_*; **`contentKind` gdy page_***; **platforma ukryta/disabled gdy page_***; język. **Guest:** typy poza `post_ideas` / `page_copy` / `page_outline_then_copy` **disabled**. Brief **zależny od `taskType`**: post_* / reel_* — temat + opcjonalnie grupa, cel, **liczba pomysłów** (bez kąta/długości); `page_*` — temat + opcjonalnie grupa, cel, **kąt**, **długość słów** (bez liczby pomysłów). CTA nie jest polem briefu. **Bez** `selectedIdeaIds`. Start disabled + wyjaśnienie, gdy agenci nieaktywni. Z wiersza **Moje runy**: **nowy** run z prefill `taskType` + brief + platforma/`contentKind` **ze snapshotu** `GET /runs/:runId` (lista user **nie** niesie `brief` / `contentKind`). Prefill **nie** dotyczy wiersza archiwum Runy. Po **202** **z tego widoku**: zostajemy na Koncie (nowy wiersz); nie wymuszamy od razu szczegółów |
+| **Start runu** | Formularz startu **inline** (ten sam brief co modal **„Uruchom agenta”** na Runach — nie drugi kontrakt). Select `taskType` obejmuje rolki i page_*; **`contentKind` gdy page_***; **platforma ukryta/disabled gdy page_***; język. **Guest:** typy poza `post_ideas` / `page_copy` / `page_outline_then_copy` **disabled**. Brief **zależny od `taskType`**: post_* / reel_* — temat + opcjonalnie **Grupa**, cel, **liczba pomysłów** (bez kąta/długości); `page_*` — temat + opcjonalnie **Grupa**, cel, **kąt**, **długość słów** (bez liczby pomysłów). Pole **Grupa** = **select** (nie wolny input jako kanon): (1) domyślnie **„Bez wskazania grupy”** → omit `brief.audience`; (2) opcje = `name` profili z odczytu kontekstu firmy; wybór → `brief.audience` = ten `name`; (3) ostatnia opcja **„Wpisz własną grupę…”** → dodatkowe pole tekstowe (opis odbiorcy) → `brief.audience` = ten opis; **bez** dopasowania do katalogu. CTA nie jest polem briefu. **Bez** `selectedIdeaIds`. Start disabled + wyjaśnienie, gdy agenci nieaktywni. Z wiersza **Moje runy**: **nowy** run z prefill `taskType` + brief + platforma/`contentKind` **ze snapshotu** `GET /runs/:runId` (lista user **nie** niesie `brief` / `contentKind`). Prefill **nie** dotyczy wiersza archiwum Runy. Po **202** **z tego widoku**: zostajemy na Koncie (nowy wiersz); nie wymuszamy od razu szczegółów |
 | **Opinia tekstowa** | Na Koncie dostępny zapis opinii (`POST /feedback`) — ten sam kanon co globalny CTA „Zostaw opinię” (aplikacja / agent / run; select runów: własne `completed` \| `failed` \| (`cancelled` **z** nie-`null` polem wyniku w snapshotcie)). Globalny CTA w layoutcie **zostaje** |
 
 Wylogowanie **nie** żyje na widoku Konto — header: przycisk loginu → „Wyloguj się” + modal, od pierwszego layoutu.

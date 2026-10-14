@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-07
+data_modyfikacji: 2026-10-13
 ---
 
 # Przepływy danych — Content Chain
@@ -22,13 +22,19 @@ Zmiana względem: Faza 18 — *„Invite / bootstrap nie tworzą `guest`”*. Od
 
 Zmiana względem: Redis admit bez nazw env połączenia. Od tej wersji: klient guest quota = **`REDIS_HOST`** + **`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); **bez** `REDIS_URL` — `deployment.md`.
 
+Zmiana względem: brak `brief.audience` → pełny katalog `audience.profiles` w prompcie / verifierze. Od tej wersji pipeline operuje na **effective** audience (scoped) **przed** hopami LLM — ten sam effective context dla generatora i verifiera (Social i Content).
+
 ## Zasady wspólne
 
 - **DB kanoniczna** (Prisma/SQLite): kontekst firmy, użytkownicy, runy, wyniki, logi runu, **opinie tekstowe**, metadane oceny/edycji runu.
 - **LLM wyłącznie** przez `apps/ai-provider-gateway`.
 - **Korelacja runu agentowego:** jeden `RunId` + jeden `ConversationId`; `RequestId` HTTP z odpowiedzi `apps/api`; `RequestId` hopu LLM z odpowiedzi gateway (zapisywany w `run.log`).
 - **Live UI:** SSE; snapshot logów i health/metrics — GET (patrz komunikacja).
-- **Verifier:** węzeł `ConsistencyVerifier` — obowiązkowy; checklista: (1) kontekst firmy, (2) język (gramatyka, interpunkcja, składnia). Fail → Refine* z **`max N=2`**, potem z powrotem do **tego samego** `ConsistencyVerifier` (ocena poprawionego materiału). Nie wraca do `IdeationAgent` / `ContentWriterAgent`.
+- **Effective audience (scoping):** po `LoadContext` / przed hopami LLM kontekst firmy dla agentów jest **scoped** wg `brief.audience` (ten sam effective context dla generatora i `ConsistencyVerifier`, Social i Content):
+  - **omit** `brief.audience` → w payloadzie `audience.profiles: []` (pozostałe sekcje kontekstu bez zmian); **nie** wrzucaj całego katalogu;
+  - wartość = `name` profilu z katalogu (wybór UX z selecta) → w payloadzie **jeden** profil (`name` + `description`);
+  - wartość = custom opis (tryb „Wpisz własną grupę…”) → opis w briefie; `profiles: []` w payloadzie (katalog poza payloadem; **bez** auto-match do `profiles[].name`).
+- **Verifier:** węzeł `ConsistencyVerifier` — obowiązkowy; checklista: (1) kontekst firmy (**effective** — w tym scoped audience), (2) język (gramatyka, interpunkcja, składnia). Fail → Refine* z **`max N=2`**, potem z powrotem do **tego samego** `ConsistencyVerifier` (ocena poprawionego materiału). Nie wraca do `IdeationAgent` / `ContentWriterAgent`.
 
 ---
 
@@ -119,10 +125,10 @@ flowchart TB
 
 | Węzeł | Dane in | Dane out | LLM |
 |-------|---------|----------|-----|
-| `LoadContext` | — | kontekst z DB | nie |
+| `LoadContext` | — | kontekst z DB → **effective** (audience scoped wg `brief.audience`; patrz zasady wspólne) | nie |
 | `NormalizeBrief` | `SocialBrief` z HTTP | brief znormalizowany (`topic.trim()`, `ideaCount` default 5 gdy puste) | nie / lekko |
-| `IdeationAgent` | kontekst + brief | lista pomysłów | tak → gateway |
-| `ConsistencyVerifier` | pomysły + kontekst | ok / lista poprawek (kontekst **i** język) | tak → gateway |
+| `IdeationAgent` | **effective** kontekst + brief | lista pomysłów | tak → gateway |
+| `ConsistencyVerifier` | pomysły + **effective** kontekst | ok / lista poprawek (kontekst **i** język) | tak → gateway |
 | `RefineIdeas` | pomysły + feedback | poprawione pomysły | tak → gateway |
 | `PersistIdeas` | pomysły OK | rekord wyniku + logi | nie |
 
@@ -207,12 +213,12 @@ Zmiana względem: „dokładnie 1 id z reelIdeas” / jeden scenariusz (kanon Fa
 
 BC **Content** (`apps/api/src/content/`). Wejście: **`ContentBrief`** + `contentKind` (`blog` \| `service_page` \| `landing`); **bez** `platform` (kolumna DB = sentinel `'web'`). Faza: `'copy'`. Wynik: `result.pageDocument`.
 
-`NormalizeBrief` (Content): `topic.trim()` oraz ewent. trim `angle` — **bez** defaultu `ideaCount` (to pole nie należy do `ContentBrief`). CTA z kontekstu firmy, nie z briefu.
+`NormalizeBrief` (Content): `topic.trim()` oraz ewent. trim `angle` — **bez** defaultu `ideaCount` (to pole nie należy do `ContentBrief`). CTA z kontekstu firmy, nie z briefu. Scoping audience (effective context) — jak w zasadach wspólnych; ten sam effective dla `PageWriterAgent` / `OutlineAgent` i `ConsistencyVerifier`.
 
 Zmiana względem: wcześniejsze „brief + `contentKind`” bez rozróżnienia kształtu od `SocialBrief` (jeden obiekt SM z `ideaCount`).
 
 ```text
-LoadContext → NormalizeBrief → PageWriterAgent → ConsistencyVerifier
+LoadContext (effective audience) → NormalizeBrief → PageWriterAgent → ConsistencyVerifier
   → Refine* (max N=2, z powrotem do verifiera) → PersistDocument → completed | failed
 ```
 
@@ -434,7 +440,7 @@ Werdykt: `ok` albo konkretne poprawki dla Refine*. W logu / SSE rozróżnialne p
 
 Domena: `contextIssues` i `languageIssues` to **`string[]`**. Parser Zod (`verifierOutputSchema`) dodatkowo **spłaszcza** element w kształcie `{ itemId | item, quote?, issue }` do jednego stringa (`itemId — quote — issue`). Liczba, pusta `{}` albo obiekt bez tych pól → `STRUCTURED_OUTPUT_INVALID` (nie cichy tekst).
 
-Na obszarze kontekstu: fakty z `audience.profiles` (np. seed, wielkość zespołu) **wolno** wpleść w hook / title / angle jako perspektywę czytelnika — to nie jest wymyślony case firmy. Liczba wewnątrz zakresu profilu jest OK. Odrzut, gdy treść **przeczy** profilowi albo opisuje inną grupę.
+Na obszarze kontekstu: fakty z **effective** `audience.profiles` w payloadzie runu (np. seed, wielkość zespołu) **wolno** wpleść w hook / title / angle jako perspektywę czytelnika — to nie jest wymyślony case firmy. Liczba wewnątrz zakresu profilu jest OK. Odrzut, gdy treść **przeczy** profilowi albo opisuje inną grupę. Gdy effective `profiles` jest puste (omit albo custom w briefie), verifier **nie** ocenia faktów audience względem pełnego katalogu DB — przy custom może odnosić się do opisu w `brief.audience`.
 
 Na obszarze języka: **nie** odrzucać haczyka ani tytułu za brak kropki na końcu, pytanie retoryczne albo pauzę / wielokropek zamiast kropki. Interpunkcja w `languageIssues` tylko gdy **utrudnia odczyt**.
 

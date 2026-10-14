@@ -1,7 +1,7 @@
 ---
-wersja: 19
+wersja: 20
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-11
+data_modyfikacji: 2026-10-13
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -46,6 +46,8 @@ Zmiana względem: Faza 18 — accept-invite zawsze `role = user`; *„Nigdy `gue
 Zmiana względem wiersza PATCH Users („Aktualizacja (np. reaktywacja)” bez body; API „pod późniejsze V1” / UI poza MVP): `PATCH /api/v1/users/:id` jest **obowiązkowy** i **wyłącznie** reaktywacją targetu `role = user` — body `{ "isActive": true }`; target `guest` → **403**; dezaktywacja `user` = `DELETE`; UI toggle **w zakresie** (`ux_dashboard.md`).
 
 Zmiana względem: komunikacja opisywała tylko transport SSE; nie mówiła, że UI dashboardu może z `run.completed` / `run.failed` zrobić sygnał poza widokiem szczegółów. Payloady eventów, statusy runu i kody HTTP PUT/POST (**200** / **202** / **400** / **409**) **bez zmian**.
+
+Zmiana względem: `brief.audience` = luźna „grupa docelowa” bez semantyki omit / katalog / custom. Od tej wersji to samo opcjonalne pole string (kształt JSON briefu **bez** nowego klucza): omit = brak audience w payloadzie agentów; wartość = `name` profilu z katalogu **albo** custom opis (bez auto-match do katalogu). **Bez** `audienceProfileId` / FK.
 
 ---
 
@@ -332,7 +334,7 @@ Mail zawiera jednorazowy token (link + ten sam token jako tekst pod Postman). **
 **UI dashboard (MVP):** admin podaje **email** (nie hasło) przy zaproszeniu; ekran akceptacji = publiczny formularz pierwszego hasła, potem osobne logowanie. Weryfikacja samego API = Postman (poniżej) — **nie** zastępuje ekranów w `ux_dashboard.md`.
 
 ### Company context
-Bramka kompletności: sekcje z dokumentacji koncepcyjnej (tożsamość, oferta, głos SM, CTA/kanały, odbiorca). Opcjonalnie **`extras`** (`CompanyContextExtras`) — poza bramką **i** poza warunkiem udanego PUT/PATCH.
+Bramka kompletności: sekcje z dokumentacji koncepcyjnej (tożsamość, oferta, głos SM, CTA/kanały, odbiorca — ≥ 1 profil z niepustym `name` i `description`; unikalność `name` trim/case-insensitive). Opcjonalnie **`extras`** (`CompanyContextExtras`) — poza bramką **i** poza warunkiem udanego PUT/PATCH.
 
 #### `GET /api/v1/company-context`
 
@@ -452,13 +454,21 @@ Przy chronionej sesji zapisuje **inicjatora** (`startedBy` = bieżący użytkown
 | Pole | Typ | Wymagane | Opis |
 |------|-----|----------|------|
 | `topic` | string | tak | temat |
-| `audience` | string | nie | grupa docelowa |
+| `audience` | string | nie | fokus grupy: **omit** = brak audience w payloadzie agentów; string = `name` profilu z katalogu kontekstu **albo** custom opis odbiorcy (nie katalog). **Bez** nowego klucza body / FK |
 | `goal` | string | nie | cel |
 | `ideaCount` | integer ≥ 1 | nie | liczba pomysłów (ideation / reel ideas) |
 
 Klucze `angle`, `targetLength`, `contentKind` na tym obiekcie → **400** `VALIDATION_FAILED` (`.strict()`).
 
-Przykład Social:
+Semantyka `brief.audience` (Social **i** Content — ten sam kontrakt stringa):
+
+| Tryb startu (UX) | Body | Effective audience w pipeline |
+|------------------|------|-------------------------------|
+| Bez wskazania grupy (domyślny) | klucz `audience` **omit** | `profiles: []` w payloadzie LLM/verifier — **nie** „użyj wszystkich `audience.profiles`” |
+| Wybór z katalogu | `audience` = `name` wybranego profilu | w payloadzie **tylko ten jeden** profil (`name` + `description`) |
+| Wpisz własną grupę… | `audience` = wolny opis | opis w briefie; katalog **poza** payloadem; **bez** matcha do `profiles[].name` |
+
+Przykład Social (wybór z katalogu — `audience` = `name` profilu):
 
 ```json
 {
@@ -469,19 +479,41 @@ Przykład Social:
 }
 ```
 
+Przykład Social (bez wskazania grupy — omit `audience`):
+
+```json
+{
+  "taskType": "post_ideas",
+  "platform": "linkedin",
+  "language": "pl",
+  "brief": { "topic": "Q3 launch", "goal": "lead", "ideaCount": 5 }
+}
+```
+
+Przykład Social (custom opis — nie katalog):
+
+```json
+{
+  "taskType": "post_ideas",
+  "platform": "linkedin",
+  "language": "pl",
+  "brief": { "topic": "Q3 launch", "audience": "CTO w firmach 50–200 osób, B2B SaaS", "ideaCount": 5 }
+}
+```
+
 `brief` — **Content** (`taskType` ∈ page_*), `ContentBrief`:
 
 | Pole | Typ | Wymagane | Opis |
 |------|-----|----------|------|
 | `topic` | string | tak | temat |
-| `audience` | string | nie | odbiorca |
+| `audience` | string | nie | jak w Social: omit / `name` katalogu / custom opis (tabela trybów powyżej) |
 | `goal` | string | nie | cel (np. edukacja / lead / autorytet / sprzedaż — string, bez enumu w shared) |
 | `angle` | string | nie | kąt / Challenger |
 | `targetLength` | integer ≥ 1 | nie | orientacyjna długość w słowach |
 
 `contentKind` jest **obok** briefu, nie w środku. CTA **nie** jest polem briefu (źródło: `cta.items` kontekstu firmy). Klucz `ideaCount` na tym obiekcie → **400** `VALIDATION_FAILED` (`.strict()`).
 
-Przykład page:
+Przykład page (bez wskazania grupy):
 
 ```json
 {

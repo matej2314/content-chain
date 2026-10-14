@@ -1,7 +1,7 @@
 ---
-wersja: 20
+wersja: 21
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-11
+data_modyfikacji: 2026-10-13
 ---
 
 # Słownik — Content Chain
@@ -49,6 +49,8 @@ Zmiana względem: kanon milczał o toaście dashboardu. Od tej wersji **Toast (d
 
 Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez startu): od tej wersji **dwie** powierzchnie tego samego formularza (Konto inline + modal **„Uruchom agenta”** na Runach). Archiwum nadal bez SSE i bez wierszy w toku. Po `POST /runs` operator zostaje na widoku źródłowym. Powód: pierwsze testy UI w przeglądarce (`ux_dashboard.md`).
 
+Zmiana względem: profil odbiorcy bez kanonicznego `name`; `brief.audience` bez rozróżnienia katalog / custom / omit. Od tej wersji **`AudienceProfile`** = `{ name, description }` (oba wymagane w bramce; unikalność `name`); opcjonalne `audience?` w briefie ma **trzy** semantyki (omit / name katalogu / custom opis) — nie „fallback do wszystkich profili”.
+
 ---
 
 ## Produkt i domena
@@ -59,7 +61,8 @@ Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez start
 | **Kontekst firmy** (`Company Context`) | Kanoniczny zestaw informacji o organizacji w DB (jedna instancja = jedna firma); wejście do generowania i weryfikacji spójności. |
 | **Bramka kontekstu** / kompletność | Programowy warunek: wymagane sekcje kontekstu uzupełnione. Udany `PUT` / `PATCH` kontekstu tylko gdy bramka spełniona (inaczej **400** `VALIDATION_FAILED`). Start **każdego** `POST /runs` odblokowany przy kompletności **w DB** (Social i Content); inaczej start runu zablokowany (`409` `CONTEXT_INCOMPLETE`). Werdykt: `isComplete`. Jedna bramka na cały produkt w MVP (w tym głos SM dla page_* — świadome). |
 | **`isComplete`** | Czysta funkcja domeny kontekstu: `{ complete, missing }` (`missing` = klucze niespełnionych sekcji bramki). Ten sam werdykt dla GET completeness, PUT/PATCH i twardej bramki `POST /runs` (`409` `CONTEXT_INCOMPLETE`). Unit-testowalna bez DB/HTTP. **Nie** obejmuje sieci, procesu gateway ani konfiguracji LLM. |
-| **Sekcje bramki** | Tożsamość, oferta (≥ 1 **kompletna** usługa: nazwa + opis + ≥ 1 korzyść, bez kalekich pozycji), głos SM, CTA/kanały, odbiorca — patrz docs koncepcyjne. |
+| **Sekcje bramki** | Tożsamość, oferta (≥ 1 **kompletna** usługa: nazwa + opis + ≥ 1 korzyść, bez kalekich pozycji), głos SM, CTA/kanały, odbiorca (≥ 1 profil z niepustym `name` i `description`) — patrz docs koncepcyjne. |
+| **`AudienceProfile`** | Element katalogu `audience.profiles` w kontekście firmy: `{ name: string; description: string }` — **oba** wymagane w bramce kompletności. `name` po `trim`, unikalność w katalogu **case-insensitive**; kolizja przy zapisie kontekstu → **400** `VALIDATION_FAILED`. Katalog = biblioteka pod select przy starcie runu **oraz** bramkę; **nie** jest automatycznie wstrzykiwany w całości do payloadu LLM każdego runu. |
 | **`CompanyContextExtras`** | Opcjonalny obiekt `extras` kontekstu firmy **poza bramką** i **poza** warunkiem PUT/PATCH: `caseStudies?`, `objections?`, `hashtags?`, `catalogNotes?`, `performanceNotes?`. Walidacja kształtu (Zod `.strict()`); **nie** wchodzi do `missing` / `isComplete`. Brak danych = `null` / omit całego `extras` (preferowane względem pustych tablic). |
 | **Post ideas** | Lista pomysłów na posty SM (`result.ideas`; `SocialIdea`: `id`, `title`, `angle`, `hook`, **`cta?`** — sugerowane CTA). |
 | **Post content** | Gotowe copy posta (`SocialContent`: `body`, `hashtags`, `cta?`, **`characterCount`** — integer ≥ 0; kanon: pipeline ustawia z `body.length` po sukcesie writer/refine; wartość z LLM ignorowana / nadpisywana). Jednoetapowy `post_content`: skalar `result.content`. Dwuetapowy `post_ideas_then_content` po fazie 2: kanon **`result.contents[]`** (długość = `selectedIdeaIds.length`; każdy element = kształt `SocialContent` + **`sourceIdeaId`**); skalar `result.content` = **`null`** (nie alias pierwszego). |
@@ -71,6 +74,7 @@ Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez start
 | **`ContentKind`** | Rodzaj dokumentu Content: `blog` \| `service_page` \| `landing`. Wymagane przy taskach `page_*`; **zakazane** przy taskach Social. |
 | **`SocialBrief`** | Brief runu Social (post_* / reel_*): `topic` (wymagane), `audience?`, `goal?`, `ideaCount?` (integer ≥ 1). **Nie** zawiera `angle` / `targetLength`. Definicja TypeScript: `apps/api/src/runs/domain/run.types.ts` — **nie** `packages/shared`. |
 | **`ContentBrief`** | Brief runu Content (page_*): `topic` (wymagane), `audience?`, `goal?` (string, bez enumu w shared), `angle?` (kąt / Challenger), `targetLength?` (słowa, integer ≥ 1). **Nie** zawiera `ideaCount`. CTA **nie** jest polem briefu — źródło akcji: `cta.items` kontekstu firmy. `contentKind` jest na runie, nie w briefie. Definicja: ten sam plik `run.types.ts`. |
+| **`brief.audience`** | Opcjonalny string w `SocialBrief` / `ContentBrief` (**bez** nowego klucza API). **Trzy** semantyki: (1) **omit** — brak audience w payloadzie agentów (`profiles: []` w effective context); (2) string = **`name`** wybranego profilu z katalogu — w payloadzie **tylko ten jeden** profil (`name` + `description`); (3) string = **custom opis** odbiorcy (tryb „Wpisz własną grupę…”) — katalog **poza** payloadem; custom **nie** jest matchowany do `profiles[].name` nawet przy identycznym stringu. **Nie** mylić katalogu `AudienceProfile` z tym polem. |
 | **`Run.brief`** | Kolumna JSON na agregacie Run: **unia** `SocialBrief` \| `ContentBrief` rozróżniana `taskType` (nie jeden kształt SM). Jeden byt runtime; dwa kontrakty TypeScript / Zod. |
 | **Brief SM** | Potocznie = **`SocialBrief`** + platforma + język na starcie runu Social. Zmiana względem: wcześniejsze hasło mieszało platformę/język z polami briefu i sugerowało jeden brief na wszystkie `taskType`. |
 | **Weryfikacja spójności** | Krok pipeline’u sprawdzający treść względem kontekstu firmy przed uznaniem wyniku. W MVP = węzeł `ConsistencyVerifier` (także język). |

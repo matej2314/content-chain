@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-13
 ---
 
 # SPEC — Kontekst firmy
@@ -14,6 +14,7 @@ Uszczegóławia bramkę i sekcje z `docs/dokumentacja_koncepcyjna.md`, endpointy
 
 Zmiana względem wersji 5 / cel: milczenie o granicach względem sieci. Od tej wersji jawnie: `isComplete` / C-1…C-5 **bez** gateway; wskaźnik UX „Agenci aktywni” → `SPEC-FRONTEND.md` F-6.
 Zmiana względem wersji 6 / C-4: `user` → 403 na zapis. Od tej wersji także `guest`; GET z `@AllowGuest`.
+Zmiana względem wersji 7 / wiersz `audience` + C-1 / C-4: kompletność profilu = tylko niepusty `description`; brak normy unikalności `name`. Od tej wersji: **`name` + `description`** w bramce; unikalność `name` (trim, case-insensitive) przy zapisie → **400** `VALIDATION_FAILED` — `docs/dokumentacja_koncepcyjna.md`, `docs/dictionary.md`.
 
 ## Powiązanie ze stylem z docs
 
@@ -31,11 +32,15 @@ Start **każdego** `POST /runs` (Social i Content) **oraz** udany PUT/PATCH kont
 | `offer` (oferta) | ≥ 1 **kompletna** usługa: nazwa + opis + ≥ 1 korzyść; brak kalekich pozycji | `items.length ≥ 1` ∧ `items.every(isCompleteOfferItem)` |
 | `voice` (głos SM) | Ton: jak mówimy / jak nie mówimy | niepuste: `weDo` + `weDont` |
 | `cta` (CTA / kanały) | ≥ 1 CTA; każda pozycja z niepustą etykietą; `target` opcjonalny | `items.length ≥ 1` ∧ każdy `label` niepusty |
-| `audience` (odbiorca) | ≥ 1 profil; każdy z niepustym opisem | `profiles.length ≥ 1` ∧ każdy `description` niepusty |
+| `audience` (odbiorca) | ≥ 1 profil; każdy z niepustym **`name`** oraz **`description`** | `profiles.length ≥ 1` ∧ każdy profil: niepusty `name` ∧ niepusty `description` |
 
 Kompletna usługa (`isCompleteOfferItem`): niepuste `name`, `description` oraz `benefit` z ≥ 1 niepustym stringiem **i** bez pustych wpisów w tablicy.
 
+Kompletny profil odbiorcy (`isCompleteAudienceProfile`): niepuste `name` **oraz** niepuste `description` (trim). Katalog = biblioteka pod select przy starcie runu; **nie** jest automatycznie wstrzykiwany w całości do payloadu LLM (`SPEC-SOCIAL.md` / `SPEC-CONTENT.md`).
+
 Zmiana względem wersji 4 / wiersz `offer`: kompletność oferty = `.some` (jedna pozycja z nazwą i korzyścią; `description` **poza** minimum; kalekie rodzeństwo legalne w JSON). Od tej wersji `every` + `description` w minimum — zgodnie z `docs/dokumentacja_koncepcyjna.md`.
+
+Zmiana względem wersji 7 / wiersz `audience`: kompletność = wyłącznie niepusty `description`. Od tej wersji **`name` + `description`** — zgodnie z `docs/dokumentacja_koncepcyjna.md`.
 
 **Poza bramką — `CompanyContextExtras` (`extras`):** opcjonalny typowany obiekt:
 
@@ -59,7 +64,11 @@ C-1. W domain istnieje czysta funkcja (lub równoważny serwis domenowy bez I/O)
 
 Predykat oferty: `items.length ≥ 1` ∧ `items.every(isCompleteOfferItem)`; kompletna usługa = niepuste `name`, `description`, `benefit` (bez pustych stringów i z ≥ 1 wpisem).
 
+Predykat audience: `profiles.length ≥ 1` ∧ `profiles.every(isCompleteAudienceProfile)`; kompletny profil = niepuste `name` **i** `description`. `collectGateItemPaths` (lub równoważnik w `details` przy 400): ścieżki m.in. `audience.profiles.{i}.name`, `audience.profiles.{i}.description` (jak `offer.items.{i}.*`).
+
 Zmiana względem wersji 5 / C-1: milczenie o sieci. Od tej wersji jawny zakaz doklejania gateway do werdyktu domenowego.
+
+Zmiana względem wersji 7 / C-1: `isCompleteAudienceProfile` = tylko `description`. Od tej wersji także niepusty `name`; ścieżki gate obejmują `audience.profiles.{i}.name`.
 
 C-2. `GET /api/v1/company-context` zwraca aktualny kontekst (w tym `extras`: obiekt albo `null`) + informację o kompletności (flaga / obiekt spójny z docs). Pusta instancja (same `""` / `[]`) jest legalnym odczytem. Trasa **dozwolona** dla `guest` (`@AllowGuest`, read-only).
 
@@ -67,11 +76,15 @@ C-3. `GET /api/v1/company-context/completeness` zwraca `{ complete, missing }` �
 
 C-4. Zapis kontekstu: **`PUT` oraz `PATCH`** `/api/v1/company-context` w MVP — **tylko `admin`**. `user` **oraz** `guest` → `403` `FORBIDDEN`. Body może zawierać `extras`; nieznane klucze w `extras` → **400** `VALIDATION_FAILED` (Zod `.strict()` przez wspólny `parseWithZod` z `apps/api/src/shared/parse-with-zod.ts` — nie lokalna kopia w module).
 
-Poza authz i Zod extras: **PUT i PATCH zapisują wyłącznie gdy `isComplete(wynik).complete === true`**. PUT: `wynik` = zmapowane body. PATCH: werdykt na **merge** z aktualnym stanem w DB. Niekompletny wynik (w tym kaleka / pusta oferta, pusta nazwa firmy) → **400** `VALIDATION_FAILED`, `details` z brakującymi sekcjami i/lub ścieżkami pozycji (np. `offer.items.1.description`); **brak** `put` / upsert. **Nie** reuse `409` `CONTEXT_INCOMPLETE` na zapisie (ten kod zostaje na C-5).
+Poza authz i Zod extras: **PUT i PATCH zapisują wyłącznie gdy `isComplete(wynik).complete === true`**. PUT: `wynik` = zmapowane body. PATCH: werdykt na **merge** z aktualnym stanem w DB. Niekompletny wynik (w tym kaleka / pusta oferta, pusta nazwa firmy, profil bez `name` / z pustym `name`) → **400** `VALIDATION_FAILED`, `details` z brakującymi sekcjami i/lub ścieżkami pozycji (np. `offer.items.1.description`, `audience.profiles.0.name`); **brak** `put` / upsert. **Nie** reuse `409` `CONTEXT_INCOMPLETE` na zapisie (ten kod zostaje na C-5).
+
+Dodatkowo (poza `missing` sekcji): **unikalność `audience.profiles[].name`** — po `trim`, porównanie **case-insensitive**; dwa profile z tą samą nazwą (różniącą się tylko wielkością liter) → **400** `VALIDATION_FAILED` (jak inne błędy zapisu); **brak** persist. Unikalność **nie** jest osobnym kluczem w `missing` C-1 — to twarda reguła zapisu w domain / application przed `put`.
 
 Zmiana względem wersji 4 / C-4: zapis był **niezależny od kompletności** bramki (`isComplete` informował GET i blokował wyłącznie `POST /runs`). Od tej wersji udany persist wymaga `complete === true`. Stara reguła („zapis niezależny od kompletności”) **unieważniona**. Walidacja extras / helper `parseWithZod` (v3) **bez zmiany sensu**.
 
 Zmiana względem wersji 3 / C-4: walidacja extras przez wspólny helper api shared (refaktor względem lokalnej kopii w `company-context/application/`).
+
+Zmiana względem wersji 7 / C-4: brak normy unikalności nazw profili. Od tej wersji kolizja `name` (trim, case-insensitive) → **400** `VALIDATION_FAILED`.
 
 C-5. Start runu (`POST /api/v1/runs`) w `apps/api` **musi** sprawdzić bramkę — **każdy** taskType (post_*, reel_*, page_*); przy `complete === false` → `409` `CONTEXT_INCOMPLETE` z `details` (np. brakujące sekcje). UI nie jest jedyną bramką. Jedna bramka na cały produkt (w tym głos SM dla page_* — świadome).
 
@@ -117,6 +130,7 @@ apps/api/src/company-context/
 - Pozwalać `user` **ani** `guest` na PUT/PATCH kontekstu.
 - Egzekwować kompletność **tylko** w `apps/frontend`.
 - Cicho stripować kalekie `offer.items` w adapterze / use-case (kaleka pozycja → 400, nie `filter`).
+- Traktować profil audience bez `name` / z pustym `name` jako kompletny; zapisywać katalog z zduplikowanymi `name` (case-insensitive po trim).
 - Startować runa w api bez sprawdzenia bramki.
 - Cichego fallbacku kontekstu z `.md` / plików przy pustej lub niespójnej DB.
 - Umieszczać regułę bramki w controllerze lub w grafie Social / Content (graf **odczytuje** kompletny kontekst; decyzja „czy wolno zapisać” = use-case PUT/PATCH; „czy wolno startować” = use-case startu runu — przed grafem).
@@ -141,6 +155,8 @@ apps/api/src/company-context/
 
 - [ ] Unit test: niekompletny kontekst → `complete: false` + poprawne `missing`; kompletny → `complete: true`, `missing: []`; obecność `extras` nie zmienia werdyktu.
 - [ ] Unit: kaleka oferta (brak opisu / pusta korzyść / druga niepełna pozycja / whitespace) → `missing` zawiera `offer`.
+- [ ] Unit: profil bez `name` / z pustym `name` → `missing` zawiera `audience`; `collectGateItemPaths` niesie `audience.profiles.{i}.name`.
+- [ ] Unit / HTTP: dwa profile z `name` różniącymi się tylko wielkością liter → **400** `VALIDATION_FAILED` (brak persist).
 - [ ] Unit parse Zod `extras` (znany kształt OK; nieznany klucz → fail).
 - [ ] `user` **i** `guest` nie zapiszą kontekstu (`FORBIDDEN`); `admin` tak — **tylko** przy kompletnej bramce.
 - [ ] `GET .../completeness` zgodne z `isComplete`.
