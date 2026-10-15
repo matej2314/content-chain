@@ -15,7 +15,9 @@ const complete = {
   },
   voice: { weDo: 'konkretnie', weDont: 'żargon' },
   cta: { items: [{ label: 'Napisz do nas', target: '/kontakt' }] },
-  audience: { profiles: [{ description: 'Founder SaaS B2B' }] },
+  audience: {
+    profiles: [{ name: 'Founder SaaS', description: 'Founder SaaS B2B' }],
+  },
   extras: { hashtags: ['#acme'] },
 };
 
@@ -24,6 +26,30 @@ describe('assertCompanyContextWritable', () => {
     expect(() =>
       assertCompanyContextWritable({ ...complete, extras: null }),
     ).not.toThrow();
+  });
+
+  it('rejects duplicate audience names case-insensitively', () => {
+    try {
+      assertCompanyContextWritable({
+        ...complete,
+        audience: {
+          profiles: [
+            { name: 'Founder', description: 'A' },
+            { name: ' founder ', description: 'B' },
+          ],
+        },
+      });
+      fail('expected DomainException');
+    } catch (error) {
+      expect(error).toBeInstanceOf(DomainException);
+      expect(error).toMatchObject({
+        code: 'VALIDATION_FAILED',
+        httpStatus: 400,
+      });
+      expect((error as DomainException).details).toEqual(
+        expect.arrayContaining([{ path: 'audience.profiles' }]),
+      );
+    }
   });
 
   it('throws 400 VALIDATION_FAILED with section and offer path', () => {

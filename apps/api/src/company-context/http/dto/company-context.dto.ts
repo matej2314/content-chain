@@ -37,6 +37,10 @@ export class CtaItemDto {
 export class AudienceProfileDto {
   @ApiProperty()
   @IsString()
+  name!: string;
+
+  @ApiProperty()
+  @IsString()
   description!: string;
 }
 

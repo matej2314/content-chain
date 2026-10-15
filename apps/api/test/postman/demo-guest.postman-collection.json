@@ -1638,7 +1638,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"identity\": { \"name\": \"Nope\", \"description\": \"x\" },\n  \"offer\": { \"items\": [{ \"name\": \"A\", \"benefit\": [\"b\"], \"description\": \"d\" }] },\n  \"voice\": { \"weDo\": \"a\", \"weDont\": \"b\" },\n  \"cta\": { \"items\": [{ \"label\": \"L\", \"target\": \"/t\" }] },\n  \"audience\": { \"profiles\": [{ \"description\": \"p\" }] }\n}\n"
+              "raw": "{\n  \"identity\": { \"name\": \"Nope\", \"description\": \"x\" },\n  \"offer\": { \"items\": [{ \"name\": \"A\", \"benefit\": [\"b\"], \"description\": \"d\" }] },\n  \"voice\": { \"weDo\": \"a\", \"weDont\": \"b\" },\n  \"cta\": { \"items\": [{ \"label\": \"L\", \"target\": \"/t\" }] },\n  \"audience\": { \"profiles\": [{ \"name\": \"P\", \"description\": \"p\" }] }\n}\n"
             },
             "url": "{{baseUrl}}/company-context"
           }

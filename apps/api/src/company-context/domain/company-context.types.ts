@@ -7,7 +7,7 @@ export type OfferItem = {
 };
 
 export type CtaItem = { label: string; target?: string };
-export type AudienceProfile = { description: string };
+export type AudienceProfile = { name: string;description: string };
 
 export type CompanyContextCaseStudy = {
   title: string;

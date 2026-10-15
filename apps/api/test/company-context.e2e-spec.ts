@@ -27,7 +27,7 @@ const completeBody = {
   },
   voice: { weDo: 'konkretnie', weDont: 'żargon' },
   cta: { items: [{ label: 'Napisz do nas', target: '/kontakt' }] },
-  audience: { profiles: [{ description: 'Founder SaaS B2B' }] },
+  audience: { profiles: [{ name: 'Founder SaaS', description: 'Founder SaaS B2B' }] },
   extras: { hashtags: ['#acme'] },
 };
 
@@ -371,5 +371,76 @@ describe('Company context (e2e)', () => {
 
     const stored = await agent.get('/api/v1/company-context').expect(200);
     expect(stored.body.cta).toEqual(completeBody.cta);
+  });
+
+  it('D-73 PUT profile without name → 400; DB unchanged', async () => {
+    await agent.put('/api/v1/company-context').send(completeBody).expect(200);
+
+    const response = await agent
+      .put('/api/v1/company-context')
+      .send({
+        ...completeBody,
+        audience: {
+          profiles: [{ name: '  ', description: 'Founder SaaS B2B' }],
+        },
+      })
+      .expect(400);
+
+    expect(response.body.code).toBe('VALIDATION_FAILED');
+    expect(response.body.details).toEqual(
+      expect.arrayContaining([
+        { section: 'audience' },
+        { path: 'audience.profiles.0.name' },
+      ]),
+    );
+    const context = await agent.get('/api/v1/company-context').expect(200);
+    expect(context.body.audience).toEqual(completeBody.audience);
+  });
+
+  it('D-74 PUT duplicate names case-insensitive → 400; no persist', async () => {
+    await agent.put('/api/v1/company-context').send(completeBody).expect(200);
+
+    const response = await agent
+      .put('/api/v1/company-context')
+      .send({
+        ...completeBody,
+        audience: {
+          profiles: [
+            { name: 'Founder', description: 'A' },
+            { name: 'FOUNDER', description: 'B' },
+          ],
+        },
+      })
+      .expect(400);
+
+    expect(response.body.code).toBe('VALIDATION_FAILED');
+    expect(response.body.details).toEqual(
+      expect.arrayContaining([{ path: 'audience.profiles' }]),
+    );
+    const context = await agent.get('/api/v1/company-context').expect(200);
+    expect(context.body.audience).toEqual(completeBody.audience);
+  });
+
+  it('PATCH audience with duplicate names → 400; singleton unchanged', async () => {
+    await agent.put('/api/v1/company-context').send(completeBody).expect(200);
+
+    const response = await agent
+      .patch('/api/v1/company-context')
+      .send({
+        audience: {
+          profiles: [
+            { name: 'Founder', description: 'A' },
+            { name: ' founder ', description: 'B' },
+          ],
+        },
+      })
+      .expect(400);
+
+    expect(response.body.code).toBe('VALIDATION_FAILED');
+    expect(response.body.details).toEqual(
+      expect.arrayContaining([{ path: 'audience.profiles' }]),
+    );
+    const context = await agent.get('/api/v1/company-context').expect(200);
+    expect(context.body.audience).toEqual(completeBody.audience);
   });
 });

@@ -18,7 +18,9 @@ const complete = {
   },
   voice: { weDo: 'konkretnie', weDont: 'żargon' },
   cta: { items: [{ label: 'Napisz do nas', target: '/kontakt' }] },
-  audience: { profiles: [{ description: 'Founder SaaS B2B' }] },
+  audience: {
+    profiles: [{ name: 'Founder SaaS', description: 'Founder SaaS B2B' }],
+  },
   extras: { hashtags: ['#acme'] },
 };
 
@@ -135,11 +137,34 @@ describe('isComplete', () => {
     const kalekaAudience = isComplete({
       ...complete,
       audience: {
-        profiles: [{ description: 'Founder SaaS B2B' }, { description: '   ' }],
+        profiles: [
+          { name: 'Founder SaaS', description: 'Founder SaaS B2B' },
+          { name: 'Other', description: '   ' },
+        ],
       },
     });
     expect(kalekaAudience.complete).toBe(false);
     expect(kalekaAudience.missing).toContain('audience');
+  });
+
+  it('rejects audience profile without name / whitespace name', () => {
+    expect(
+      isComplete({
+        ...complete,
+        audience: {
+          profiles: [{ name: '', description: 'ok' }],
+        },
+      }).missing,
+    ).toContain('audience');
+
+    expect(
+      collectGateItemPaths({
+        ...complete,
+        audience: {
+          profiles: [{ name: '  ', description: 'ok' }],
+        },
+      }),
+    ).toEqual([{ path: 'audience.profiles.0.name' }]);
   });
 });
 

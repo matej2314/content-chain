@@ -23,7 +23,7 @@ export function isCompleteCtaItem(item: CtaItem): boolean {
 }
 
 export function isCompleteAudienceProfile(profile: AudienceProfile): boolean {
-  return nonEmpty(profile.description);
+  return nonEmpty(profile.name) && nonEmpty(profile.description);
 }
 
 const sectionFilled: Record<GateSection, (context: CompanyContext) => boolean> =
@@ -82,7 +82,13 @@ export function collectGateItemPaths(
   });
 
   context.audience.profiles.forEach((profile, index) => {
-    if (!isCompleteAudienceProfile(profile)) {
+    if (isCompleteAudienceProfile(profile)) {
+      return;
+    }
+    if (!nonEmpty(profile.name)) {
+      details.push({ path: `audience.profiles.${index}.name` });
+    }
+    if (!nonEmpty(profile.description)) {
       details.push({ path: `audience.profiles.${index}.description` });
     }
   });

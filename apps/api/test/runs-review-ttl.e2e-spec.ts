@@ -54,7 +54,7 @@ const completeContextBody = {
   },
   voice: { weDo: 'konkretnie', weDont: 'żargon' },
   cta: { items: [{ label: 'Napisz do nas', target: '/kontakt' }] },
-  audience: { profiles: [{ description: 'Founder SaaS B2B' }] },
+  audience: { profiles: [{ name: 'Founder SaaS', description: 'Founder SaaS B2B' }] },
   extras: { hashtags: ['#acme'] },
 };
 

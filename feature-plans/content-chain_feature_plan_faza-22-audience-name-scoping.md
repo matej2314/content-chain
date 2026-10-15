@@ -65,7 +65,7 @@ Odpowiada major Faza 22 (część company-context). Status startowy kroków: `NI
 
 ### KROK 1 — Domain: typ, `isComplete`, unikalność przed persist
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Domain egzekwuje `SPEC-KONTEKST-FIRMY.md` C-1 / C-4: kompletny profil = niepusty `name` **i** `description`; ścieżki gate obejmują `audience.profiles.{i}.name`; kolizja nazw (trim, CI) → **400** `VALIDATION_FAILED` bez `put`. Major Faza 22 HOW 1–2.
 
@@ -303,7 +303,7 @@ Popraw też kalekie audience w istniejącym teście (`{ description: '…' }` �
 
 ### KROK 2 — DTO, fixture’y e2e/Postman, e2e D-73 / D-74
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** HTTP DTO wymaga `name`; wszystkie body PUT kontekstu w testach/Postman mają `name`; e2e D-73/D-74 obserwowalne (`SPEC-TESTY.md`). Major Faza 22 HOW 1–2 (powierzchnia HTTP + regresja fixture).
 
