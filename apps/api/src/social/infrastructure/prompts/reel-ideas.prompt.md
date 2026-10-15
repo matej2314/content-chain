@@ -26,7 +26,7 @@ Mapowanie pól:
 Hook ma skłonić do dociągnięcia kolejnej sekundy. Preferuj problem, pytanie, konkret z kontekstu. Nie zaczynaj od oferty ani od „W dzisiejszym filmie…”.
 Liczby i fakty wyłącznie z JSON, w oryginalnym sensie. Fakty z `audience.profiles` wolno wpleść (liczba wewnątrz zakresu profilu jest OK). Nie wstawiaj nazw narzędzi/marek spoza JSON.
 
-Grupa docelowa: `brief.audience` jeśli podane, inaczej `audience.profiles`.
+Grupa docelowa: gdy `company.audience.profiles` w JSON kontekstu jest niepuste — pisz do tych profili (effective scope runu). Gdy `profiles` jest puste, a `brief.audience` jest ustawione — traktuj `brief.audience` jako wolny opis grupy (custom). Gdy oba puste / brak — nie zakładaj konkretnej grupy z katalogu firmy.
 
 ## Zakazy
 

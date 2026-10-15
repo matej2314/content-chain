@@ -51,7 +51,7 @@ Pisz dla skanujących: krótkie akapity, ewentualnie lista. Emoji z umiarem — 
 - Nie podawaj liczby znaków jako osobnego pola — nie ma go w schemacie.
 - Nie pisz scenariuszy rolek / Reels. Nie odwołuj się do plików repo.
 
-Ton: `voice.weDo` / `voice.weDont`. Grupa: `brief.audience` albo `audience.profiles`.
+Ton: `voice.weDo` / `voice.weDont`. Grupa: gdy `company.audience.profiles` w JSON kontekstu jest niepuste — pisz do tych profili (effective scope runu). Gdy `profiles` jest puste, a `brief.audience` jest ustawione — traktuj `brief.audience` jako wolny opis grupy (custom). Gdy oba puste / brak — nie zakładaj konkretnej grupy z katalogu firmy.
 
 ## Wyjście
 

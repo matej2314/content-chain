@@ -439,7 +439,7 @@ Odpowiada major Faza 22 (scoping S-10 / Ctn-12). Status startowy kroków: `NIE_R
 
 ### KROK 1 — Helper `withEffectiveAudience`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jedna czysta funkcja domain mapuje katalog + opcjonalny `brief.audience` na effective `CompanyContext` wg `SPEC-SOCIAL.md` S-10 / `SPEC-CONTENT.md` Ctn-12. Major Faza 22 HOW 3.
 
@@ -553,7 +553,7 @@ describe('withEffectiveAudience', () => {
 
 ### KROK 2 — LoadContext Social + Content
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Po `get()` kontekstu, przed hopami LLM, `state.company` = effective scope z `state.brief.audience` — wspólne dla generatora i verifiera (`docs/data_flow.md`, S-10, Ctn-12). Major Faza 22 HOW 3–4.
 
@@ -636,7 +636,7 @@ it('scopes company before returning (omit → [])', async () => {
 
 ### KROK 3 — Prompty: usunąć fallback „pełny katalog”
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Instrukcje LLM nie nakazują „brak `brief.audience` → użyj wszystkich `audience.profiles`”. Payload już niesie effective `company`; prompty opisują **effective** profiles + opcjonalny opis w briefie. Major Faza 22 + `SPEC-SOCIAL` / `SPEC-CONTENT` zakazy.
 
@@ -693,7 +693,7 @@ Dopisz / zastąp fragment o audience (obok istniejących reguł faktów):
 
 ### KROK 4 — Testy D-75…D-77 na LoadContext + regresja / graphify
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Kotwice `SPEC-TESTY.md` D-75…D-77 domknięte na poziomie unit/kontrakt (helper + LoadContext); regresja e2e pipeline bez wymogu E2E LLM; `graphify update .` po zmianach TS.
 

@@ -33,7 +33,7 @@ Pola:
 - `body` — pełny tekst; akapity albo listy. Szanuj `brief.targetLength`, gdy podane (to wskazówka długości, nie osobne pole JSON).
 - `metaTitle` / `metaDescription` — opcjonalnie; fakty tylko z kontekstu i briefu.
 
-Ton: `voice.weDo` / `voice.weDont`. Grupa: `brief.audience` albo `audience.profiles`.
+Ton: `voice.weDo` / `voice.weDont`. Grupa: gdy `company.audience.profiles` w JSON kontekstu jest niepuste — pisz do tych profili (effective scope runu). Gdy `profiles` jest puste, a `brief.audience` jest ustawione — traktuj `brief.audience` jako wolny opis grupy (custom). Gdy oba puste / brak — nie zakładaj konkretnej grupy z katalogu firmy.
 
 ## Zakazy
 

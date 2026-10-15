@@ -1,9 +1,6 @@
 import { DomainException } from '../../shared/exceptions/domain.exception';
+import { normalizeAudienceName } from './normalize-audience-name';
 import type { CompanyContext } from './company-context.types';
-
-function normalizeAudienceName(value: string): string {
-  return value.trim().toLowerCase();
-}
 
 export function assertAudienceProfileNamesUnique(
   context: CompanyContext,

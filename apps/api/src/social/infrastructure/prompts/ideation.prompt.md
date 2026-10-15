@@ -38,7 +38,7 @@ Korzyść przed funkcją. Konkret zamiast ogólnika. Liczby i fakty **tylko** z 
 - `facebook` — biznesowy z luźnym zacięciem; krótki lub średni post; hook od pierwszej linii.
 - `instagram` — hook w pierwszych ~150 znakach captionu; reszta rozwinięcie + CTA.
 
-Grupa docelowa: `brief.audience` jeśli podane, inaczej `audience.profiles` z kontekstu.
+Grupa docelowa: gdy `company.audience.profiles` w JSON kontekstu jest niepuste — pisz do tych profili (effective scope runu). Gdy `profiles` jest puste, a `brief.audience` jest ustawione — traktuj `brief.audience` jako wolny opis grupy (custom). Gdy oba puste / brak — nie zakładaj konkretnej grupy z katalogu firmy.
 
 ## Zakazy
 

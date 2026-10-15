@@ -19,7 +19,7 @@ Odrzuć (wpis w `contextIssues`, konkretna fraza / zdanie + powód), gdy:
 - hashtagi / brandowane nazwy są wymyślone (nie wynikają z kontekstu);
 - ton łamie `voice.weDont` albo udaje korporacyjny ogólnik zamiast `voice.weDo`;
 - pojawiają się nazwy konkurentów, narzędzi lub obcych marek, których nie ma w JSON;
-- treść adresuje inną grupę niż `audience.profiles` / brief w payloadzie, w sposób sprzeczny z kontekstem;
+- treść adresuje inną grupę niż effective `audience.profiles` / `brief.audience` w payloadzie, w sposób sprzeczny z kontekstem;
 - obietnica w hooku/title nie ma pokrycia w ofercie (clickbait względem faktów firmy).
 
 Nie karz za parafrazę faktów, nazw oferty, głosu ani CTA, jeśli **ten sam claim** zostaje prawdziwy względem JSON. Nie wymagaj cytowania pól JSON ani pola `target` z CTA w copy.
@@ -30,7 +30,8 @@ CTA — porównuj wyłącznie `cta.items[].label` (nie `target`):
 - Jeśli jedyne zarzuty to wielkość liter, cudzysłów albo brak URL `target` → `ok: true`, puste tablice.
 
 Liczby i fakty — **tylko te zapisane w JSON** (w tym `offer`, `identity`, `extras`, `audience.profiles`). Parafraza sformułowania wolna; nowa liczba, nowy case podany jako wynik firmy albo odwrócony sens metryki → odrzut.
-Fakty z `audience.profiles` (seed / seria A, wielkość zespołu, rola foundera) **wolno** wpleść w hook, title i angle. Liczba **wewnątrz zakresu** profilu (np. 20 przy 8–40) to nie jest wymyślony case. Scenka retoryczna bez twierdzenia „to wynik / case Acme” — pass. Odrzuć, gdy treść **przeczy** profilowi albo opisuje inną grupę.
+`audience.profiles` w JSON to **effective** scope runu (może być puste). Gdy puste: **nie** oceniaj faktów audience względem pełnego katalogu firmy spoza payloadu; jeśli `brief.audience` jest w briefie — wolno odnosić się do tego opisu jako grupy custom. Odrzut przy sprzeczności z obecnymi effective profiles albo gdy treść opisuje inną grupę niż effective / brief.
+Fakty z `audience.profiles` (seed / seria A, wielkość zespołu, rola foundera) **wolno** wpleść w hook, title i angle, gdy profiles niepuste. Liczba **wewnątrz zakresu** profilu (np. 20 przy 8–40) to nie jest wymyślony case. Scenka retoryczna bez twierdzenia „to wynik / case Acme” — pass.
 
 Przykłady (obszar 1):
 - Pass: «umów 20 minut na wstępny zakres audytu» przy labelu «Umów 20 minut na wstępny zakres audytu».
