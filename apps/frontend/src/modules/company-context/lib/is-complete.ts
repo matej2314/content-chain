@@ -1,3 +1,4 @@
+import { isDuplicateAudienceProfileName } from '@/modules/company-context/lib/audience-profile-names';
 import {
   GATE_SECTIONS,
   type AudienceProfile,
@@ -23,7 +24,7 @@ export function isCompleteCtaItem(item: CtaItem): boolean {
 }
 
 export function isCompleteAudienceProfile(profile: AudienceProfile): boolean {
-  return nonEmpty(profile.description);
+  return nonEmpty(profile.name) && nonEmpty(profile.description);
 }
 
 /** W pełni pusty wiersz UI — nie jest usługą; strip przed PUT. */
@@ -79,5 +80,28 @@ export function offerItemFieldErrors(item: OfferItem): OfferItemFieldErrors {
       item.benefit.length >= 1 && item.benefit.every(nonEmpty)
         ? null
         : 'Podaj co najmniej jedną korzyść.',
+  };
+}
+
+export type AudienceProfileFieldErrors = {
+  readonly name: string | null;
+  readonly description: string | null;
+};
+
+export function audienceProfileFieldErrors(
+  profile: AudienceProfile,
+  profiles: readonly AudienceProfile[],
+  index: number,
+): AudienceProfileFieldErrors {
+  const nameEmpty = !nonEmpty(profile.name);
+  const descriptionEmpty = !nonEmpty(profile.description);
+  const duplicate = isDuplicateAudienceProfileName(profiles, index);
+  return {
+    name: nameEmpty
+      ? 'Podaj nazwę profilu.'
+      : duplicate
+        ? 'Nazwa profilu musi być unikalna.'
+        : null,
+    description: descriptionEmpty ? 'Podaj opis profilu.' : null,
   };
 }

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import type { RunId } from '@content-chain/shared';
 import { ApiError } from '@/shared/api/envelope';
 import { EnvelopeError } from '@/shared/ui/form-field';
+import { fetchCompanyContext } from '@/modules/company-context/api/company-context.api';
 import { fetchRunSnapshot } from '@/modules/runs/api/runs.api';
 import { AccountEmailForm } from '@/modules/auth/components/account-email-form';
 import {
@@ -27,9 +28,15 @@ export function AccountView() {
     const requestId = ++prefillRequestRef.current;
     setPrefillError(null);
     try {
-      const snapshot = await fetchRunSnapshot(runId);
+      const [snapshot, context] = await Promise.all([
+        fetchRunSnapshot(runId),
+        fetchCompanyContext(),
+      ]);
       if (requestId !== prefillRequestRef.current) return;
-      setDraft(draftFromSnapshot(snapshot));
+      const profileNames = context.audience.profiles
+        .map((profile) => profile.name.trim())
+        .filter((name) => name.length > 0);
+      setDraft(draftFromSnapshot(snapshot, profileNames));
     } catch (reason: unknown) {
       if (requestId !== prefillRequestRef.current) return;
       if (reason instanceof ApiError) {

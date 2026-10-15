@@ -20,7 +20,9 @@ import {
   GateCompletenessDot,
   gateTabAriaLabel,
 } from '@/modules/company-context/components/gate-completeness-dot';
+import { areAudienceProfileNamesUnique } from '@/modules/company-context/lib/audience-profile-names';
 import {
+  audienceProfileFieldErrors,
   canRemoveOfferItem,
   isComplete,
   offerItemFieldErrors,
@@ -57,6 +59,11 @@ function offerItemHeading(name: string, index: number): string {
   return trimmed.length > 0 ? trimmed : `Usługa ${index + 1}`;
 }
 
+function audienceProfileHeading(name: string, index: number): string {
+  const trimmed = name.trim();
+  return trimmed.length > 0 ? trimmed : `Profil ${index + 1}`;
+}
+
 function ctaItemHeading(label: string, index: number): string {
   const trimmed = label.trim();
   return trimmed.length > 0 ? trimmed : `CTA ${index + 1}`;
@@ -89,11 +96,13 @@ function FormActions({
   readOnly,
   pending,
   canSubmit,
+  gateComplete,
   error,
 }: {
   readonly readOnly: boolean;
   readonly pending: boolean;
   readonly canSubmit: boolean;
+  readonly gateComplete: boolean;
   readonly error: { readonly code: string; readonly message: string } | null;
 }) {
   const submitBlocked = !readOnly && !canSubmit && !pending;
@@ -109,7 +118,9 @@ function FormActions({
           </Button>
           {submitBlocked ? (
             <p className="text-xs text-muted-foreground">
-              Kontekst firmy nie jest kompletny. Uzupełnij wszystkie wymagane pola.
+              {!gateComplete
+                ? 'Kontekst firmy nie jest kompletny. Uzupełnij wszystkie wymagane pola.'
+                : 'Nazwy profili odbiorców muszą być unikalne.'}
             </p>
           ) : null}
         </>
@@ -128,7 +139,10 @@ export function CompanyContextForm({
   onSubmit,
 }: CompanyContextFormProps) {
   const extras = extrasOrEmpty(value.extras);
-  const canSubmit = isComplete(companyContextForPut(value)).complete;
+  const putPayload = companyContextForPut(value);
+  const gateComplete = isComplete(putPayload).complete;
+  const canSubmit =
+    gateComplete && areAudienceProfileNamesUnique(putPayload.audience.profiles);
 
   function patch(next: CompanyContext): void {
     onChange(next);
@@ -198,7 +212,13 @@ export function CompanyContextForm({
               }
             />
           </FormField>
-          <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
+          <FormActions
+            readOnly={readOnly}
+            pending={pending}
+            canSubmit={canSubmit}
+            gateComplete={gateComplete}
+            error={error}
+          />
         </TabsContent>
 
         <TabsContent value="offer" className="flex flex-col gap-3">
@@ -342,7 +362,13 @@ export function CompanyContextForm({
               );
             })}
           </div>
-          <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
+          <FormActions
+            readOnly={readOnly}
+            pending={pending}
+            canSubmit={canSubmit}
+            gateComplete={gateComplete}
+            error={error}
+          />
         </TabsContent>
 
         <TabsContent value="voice" className="flex flex-col gap-3">
@@ -368,7 +394,13 @@ export function CompanyContextForm({
               }
             />
           </FormField>
-          <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
+          <FormActions
+            readOnly={readOnly}
+            pending={pending}
+            canSubmit={canSubmit}
+            gateComplete={gateComplete}
+            error={error}
+          />
         </TabsContent>
 
         <TabsContent value="cta" className="flex flex-col gap-3">
@@ -460,73 +492,129 @@ export function CompanyContextForm({
               </div>
             ))}
           </div>
-          <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
+          <FormActions
+            readOnly={readOnly}
+            pending={pending}
+            canSubmit={canSubmit}
+            gateComplete={gateComplete}
+            error={error}
+          />
         </TabsContent>
 
         <TabsContent value="audience" className="flex flex-col gap-3">
-          <div className="flex flex-col divide-y divide-border">
-            {value.audience.profiles.map((profile, index) => (
-              <div key={`audience-${index}`} className="flex flex-col gap-3 py-3 first:pt-0">
-                <FormField
-                  label="Profil odbiorcy"
-                  htmlFor={`audience-${index}`}
-                  hint="Stanowisko, branża albo kontekst."
-                >
-                  <Textarea
-                    id={`audience-${index}`}
-                    value={profile.description}
-                    disabled={readOnly}
-                    aria-required
-                    onChange={(event) => {
-                      const profiles = value.audience.profiles.map((current, currentIndex) =>
-                        currentIndex === index ? { description: event.target.value } : current,
-                      );
-                      patch({ ...value, audience: { profiles } });
-                    }}
-                  />
-                </FormField>
-                {readOnly ? null : (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="self-start"
-                    onClick={() =>
-                      patch({
-                        ...value,
-                        audience: {
-                          profiles: value.audience.profiles.filter(
-                            (_, currentIndex) => currentIndex !== index,
-                          ),
-                        },
-                      })
-                    }
-                  >
-                    <Icon icon="lucide:trash-2" className="size-3.5" />
-                    Usuń profil
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
           {readOnly ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="self-start"
-              onClick={() =>
-                patch({
-                  ...value,
-                  audience: { profiles: [...value.audience.profiles, { description: '' }] },
-                })
-              }
-            >
-              <Icon icon="lucide:plus" className="size-3.5" />
-              Dodaj profil
-            </Button>
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  patch({
+                    ...value,
+                    audience: {
+                      profiles: [{ name: '', description: '' }, ...value.audience.profiles],
+                    },
+                  })
+                }
+              >
+                <Icon icon="lucide:plus" className="size-3.5" />
+                Dodaj profil
+              </Button>
+            </div>
           )}
-          <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
+          <div className="flex flex-col divide-y divide-border">
+            {value.audience.profiles.map((profile, index) => {
+              const fieldErrors = audienceProfileFieldErrors(
+                profile,
+                value.audience.profiles,
+                index,
+              );
+              return (
+                <div key={`audience-${index}`} className="flex flex-col gap-3 py-4 first:pt-0">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 lg:flex lg:flex-wrap lg:justify-between">
+                    <h3
+                      className="min-w-0 truncate text-sm font-medium lg:overflow-visible lg:text-clip"
+                      title={audienceProfileHeading(profile.name, index)}
+                    >
+                      {audienceProfileHeading(profile.name, index)}
+                    </h3>
+                    {readOnly ? null : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0 justify-self-end"
+                        onClick={() =>
+                          patch({
+                            ...value,
+                            audience: {
+                              profiles: value.audience.profiles.filter(
+                                (_, currentIndex) => currentIndex !== index,
+                              ),
+                            },
+                          })
+                        }
+                      >
+                        <Icon icon="lucide:trash-2" className="size-3.5" />
+                        Usuń profil
+                      </Button>
+                    )}
+                  </div>
+                  <FormField
+                    label="Nazwa"
+                    htmlFor={`audience-name-${index}`}
+                    error={fieldErrors.name ?? undefined}
+                  >
+                    <Input
+                      id={`audience-name-${index}`}
+                      value={profile.name}
+                      disabled={readOnly}
+                      aria-required
+                      aria-invalid={fieldErrors.name !== null}
+                      onChange={(event) => {
+                        const profiles = value.audience.profiles.map((current, currentIndex) =>
+                          currentIndex === index
+                            ? { ...current, name: event.target.value }
+                            : current,
+                        );
+                        patch({ ...value, audience: { profiles } });
+                      }}
+                    />
+                  </FormField>
+                  <FormField
+                    label="Opis"
+                    htmlFor={`audience-description-${index}`}
+                    hint="Stanowisko, branża albo kontekst."
+                    error={fieldErrors.description ?? undefined}
+                  >
+                    <Textarea
+                      id={`audience-description-${index}`}
+                      className="min-h-24"
+                      value={profile.description}
+                      disabled={readOnly}
+                      aria-required
+                      aria-invalid={fieldErrors.description !== null}
+                      onChange={(event) => {
+                        const profiles = value.audience.profiles.map((current, currentIndex) =>
+                          currentIndex === index
+                            ? { ...current, description: event.target.value }
+                            : current,
+                        );
+                        patch({ ...value, audience: { profiles } });
+                      }}
+                    />
+                  </FormField>
+                </div>
+              );
+            })}
+          </div>
+          <FormActions
+            readOnly={readOnly}
+            pending={pending}
+            canSubmit={canSubmit}
+            gateComplete={gateComplete}
+            error={error}
+          />
         </TabsContent>
 
         <TabsContent value="extras" className="flex flex-col gap-3">
@@ -773,7 +861,13 @@ export function CompanyContextForm({
               )}
             </TabsContent>
           </Tabs>
-          <FormActions readOnly={readOnly} pending={pending} canSubmit={canSubmit} error={error} />
+          <FormActions
+            readOnly={readOnly}
+            pending={pending}
+            canSubmit={canSubmit}
+            gateComplete={gateComplete}
+            error={error}
+          />
         </TabsContent>
       </Tabs>
     </form>

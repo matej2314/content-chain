@@ -49,6 +49,7 @@ export type CtaItem = {
 };
 
 export type AudienceProfile = {
+  readonly name: string;
   readonly description: string;
 };
 
@@ -125,10 +126,14 @@ function parseCtaItem(value: unknown): CtaItem {
 }
 
 function parseAudienceProfile(value: unknown): AudienceProfile {
-  if (!isRecord(value) || typeof value.description !== 'string') {
+  if (
+    !isRecord(value) ||
+    typeof value.name !== 'string' ||
+    typeof value.description !== 'string'
+  ) {
     throw new Error('Invalid audience profile');
   }
-  return { description: value.description };
+  return { name: value.name, description: value.description };
 }
 
 function parseCaseStudy(value: unknown): CompanyContextCaseStudy {
@@ -327,6 +332,7 @@ export function companyContextForPut(context: CompanyContext): CompanyContext {
     },
     audience: {
       profiles: context.audience.profiles.map((profile) => ({
+        name: profile.name,
         description: profile.description,
       })),
     },
@@ -348,7 +354,9 @@ export function withDraftRows(context: CompanyContext): CompanyContext {
     },
     audience: {
       profiles:
-        context.audience.profiles.length > 0 ? context.audience.profiles : [{ description: '' }],
+        context.audience.profiles.length > 0
+          ? context.audience.profiles
+          : [{ name: '', description: '' }],
     },
   };
 }

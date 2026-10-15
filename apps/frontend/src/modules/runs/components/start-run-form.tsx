@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   CONTENT_KINDS,
   CONTENT_LANGUAGES,
@@ -21,6 +21,7 @@ import { Input } from '@/shared/ui/input';
 import { NativeSelect } from '@/shared/ui/native-select';
 import { EnvelopeError, FormField } from '@/shared/ui/form-field';
 import { ApiError } from '@/shared/api/envelope';
+import { fetchCompanyContext } from '@/modules/company-context/api/company-context.api';
 import { useOwnRuns } from '@/modules/runs/components/own-runs-provider';
 import { AgentsGateTooltip, useStartRunGate } from '@/modules/runs/components/start-run-gate';
 import { GuestLimitModal } from '@/modules/demo/components/guest-limit-modal';
@@ -34,6 +35,16 @@ import {
   RUN_PLATFORM_LABELS,
   RUN_TASK_TYPE_LABELS,
 } from '@/modules/runs/api/run-labels';
+import {
+  AUDIENCE_GROUP_CUSTOM_VALUE,
+  AUDIENCE_GROUP_NONE_VALUE,
+  audienceGroupFromSelectValue,
+  audienceGroupSelectValue,
+  audienceGroupToBriefAudience,
+  emptyAudienceGroup,
+  resolveAudienceGroupMode,
+  type AudienceGroupMode,
+} from '@/modules/runs/lib/audience-group';
 import type { RunSnapshot, StartRunInput } from '@/modules/runs/api/runs.types';
 
 export type StartRunDraft = {
@@ -42,7 +53,7 @@ export type StartRunDraft = {
   readonly contentKind: ContentKind;
   readonly language: ContentLanguage;
   readonly topic: string;
-  readonly audience: string;
+  readonly audienceGroup: AudienceGroupMode;
   readonly goal: string;
   readonly ideaCount: string;
   readonly angle: string;
@@ -55,14 +66,17 @@ export const EMPTY_START_DRAFT: StartRunDraft = {
   contentKind: 'blog',
   language: 'pl',
   topic: '',
-  audience: '',
+  audienceGroup: emptyAudienceGroup(),
   goal: '',
   ideaCount: '',
   angle: '',
   targetLength: '',
 };
 
-export function draftFromSnapshot(snapshot: RunSnapshot): StartRunDraft {
+export function draftFromSnapshot(
+  snapshot: RunSnapshot,
+  profileNames: readonly string[],
+): StartRunDraft {
   const brief = snapshot.brief;
   return {
     taskType: snapshot.taskType,
@@ -70,7 +84,7 @@ export function draftFromSnapshot(snapshot: RunSnapshot): StartRunDraft {
     contentKind: snapshot.contentKind ?? 'blog',
     language: snapshot.language,
     topic: brief.topic,
-    audience: brief.audience ?? '',
+    audienceGroup: resolveAudienceGroupMode(brief.audience, profileNames),
     goal: brief.goal ?? '',
     ideaCount: 'ideaCount' in brief && brief.ideaCount !== undefined ? String(brief.ideaCount) : '',
     angle: 'angle' in brief ? (brief.angle ?? '') : '',
@@ -81,6 +95,7 @@ export function draftFromSnapshot(snapshot: RunSnapshot): StartRunDraft {
 
 function toInput(draft: StartRunDraft): StartRunInput | null {
   if (draft.topic.trim().length === 0) return null;
+  const audience = audienceGroupToBriefAudience(draft.audienceGroup);
   if (isContentTaskType(draft.taskType)) {
     const targetLength = draft.targetLength.trim();
     const parsedLength = targetLength.length === 0 ? undefined : Number(targetLength);
@@ -93,7 +108,7 @@ function toInput(draft: StartRunDraft): StartRunInput | null {
       language: draft.language,
       brief: {
         topic: draft.topic,
-        ...(draft.audience.trim() ? { audience: draft.audience } : {}),
+        ...(audience !== undefined ? { audience } : {}),
         ...(draft.goal.trim() ? { goal: draft.goal } : {}),
         ...(draft.angle.trim() ? { angle: draft.angle } : {}),
         ...(parsedLength !== undefined ? { targetLength: parsedLength } : {}),
@@ -111,7 +126,7 @@ function toInput(draft: StartRunDraft): StartRunInput | null {
     language: draft.language,
     brief: {
       topic: draft.topic,
-      ...(draft.audience.trim() ? { audience: draft.audience } : {}),
+      ...(audience !== undefined ? { audience } : {}),
       ...(draft.goal.trim() ? { goal: draft.goal } : {}),
       ...(parsedCount !== undefined ? { ideaCount: parsedCount } : {}),
     },
@@ -147,7 +162,29 @@ export function StartRunForm({
   const { agentsActive, disableReason } = useStartRunGate();
   const guestLocked = useGuestLocked();
   const [startState, setStartState] = useState<StartState>(INITIAL_START_STATE);
+  const [profileNames, setProfileNames] = useState<readonly string[]>([]);
   const pageTask = isContentTaskType(draft.taskType);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const payload = await fetchCompanyContext();
+        if (cancelled) return;
+        setProfileNames(
+          payload.audience.profiles
+            .map((profile) => profile.name.trim())
+            .filter((name) => name.length > 0),
+        );
+      } catch {
+        if (cancelled) return;
+        setProfileNames([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const inputReady = useMemo(() => toInput(draft) !== null, [draft]);
 
@@ -276,12 +313,47 @@ export function StartRunForm({
         />
       </FormField>
       <FormField label="Grupa (opcjonalnie)" htmlFor={`${idPrefix}-audience`}>
-        <Input
+        <NativeSelect
           id={`${idPrefix}-audience`}
-          value={draft.audience}
-          onChange={(event) => onDraftChange({ ...draft, audience: event.target.value })}
-        />
+          value={audienceGroupSelectValue(draft.audienceGroup)}
+          onChange={(event) =>
+            onDraftChange({
+              ...draft,
+              audienceGroup: audienceGroupFromSelectValue(
+                event.target.value,
+                draft.audienceGroup,
+                profileNames,
+              ),
+            })
+          }
+        >
+          <option value={AUDIENCE_GROUP_NONE_VALUE}>Bez wskazania grupy</option>
+          {profileNames.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+          <option value={AUDIENCE_GROUP_CUSTOM_VALUE}>Wpisz własną grupę…</option>
+        </NativeSelect>
       </FormField>
+      {draft.audienceGroup.kind === 'custom' ? (
+        <FormField
+          label="Opis grupy"
+          htmlFor={`${idPrefix}-audience-custom`}
+          hint="Opis odbiorcy w briefie — bez dopasowania do katalogu."
+        >
+          <Input
+            id={`${idPrefix}-audience-custom`}
+            value={draft.audienceGroup.description}
+            onChange={(event) =>
+              onDraftChange({
+                ...draft,
+                audienceGroup: { kind: 'custom', description: event.target.value },
+              })
+            }
+          />
+        </FormField>
+      ) : null}
       <FormField label="Cel (opcjonalnie)" htmlFor={`${idPrefix}-goal`}>
         <Input
           id={`${idPrefix}-goal`}

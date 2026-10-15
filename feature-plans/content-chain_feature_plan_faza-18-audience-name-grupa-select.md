@@ -68,7 +68,7 @@ Odpowiada major Faza 18 (część kontekst / Odbiorca). Status startowy kroków:
 
 ### KROK 1 — Typ `AudienceProfile.name`: parser, PUT, draft wierszy
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Kontrakt FE egzekwuje `AudienceProfile = { name, description }` przy GET/PUT i w draftcie formularza. Major Faza 18 HOW 1; `SPEC-KONTEKST-FIRMY.md` C-1; `docs/dictionary.md`.
 
@@ -178,7 +178,7 @@ function parseAudienceProfile(value: unknown): AudienceProfile {
 
 ### KROK 2 — `isComplete` + unikalność nazw + błędy pól
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Lokalna kopia C-1 wymaga niepustego `name`; kolizja nazw (trim, CI) blokuje submit przed PUT; błędy pól Nazwa/Opis jak w ofercie. Major Faza 18 HOW 2; `SPEC-FRONTEND.md` F-8; `SPEC-KONTEKST-FIRMY.md` C-1 / C-4 (unikalność jako reguła zapisu, nie klucz `missing`).
 
@@ -302,7 +302,7 @@ export function audienceProfileFieldErrors(
 
 ### KROK 3 — Formularz Odbiorca: Nazwa + Opis, nagłówek po nazwie
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Zakładka Odbiorca jak kanon Oferty (lista `divide-y`, nagłówek + Usuń, pola **Nazwa → Opis**); etykieta **„Nazwa”**; lista czytelna po nazwie. Major Faza 18 HOW 1 + 6; `docs/ux_dashboard.md`; `content-chain-product-ui` (dziedziczenie).
 
@@ -464,7 +464,7 @@ Odpowiada major Faza 18 (część start runu / Faza 7 reuse). Status startowy kr
 
 ### KROK 1 — Model trybu Grupy + mapowanie do `brief.audience`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jedna unia dyskryminowana dla trzech trybów; czyste funkcje mapujące do opcjonalnego `brief.audience` i odwrotnie (prefill z katalogiem). Major Faza 18 HOW 3–5; `SPEC-FRONTEND.md` F-7.
 
@@ -573,7 +573,7 @@ export function audienceGroupFromSelectValue(
 
 ### KROK 2 — `StartRunForm`: select + fetch katalogu + pole custom; prefill ze snapshotu
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Wspólny formularz (Konto + modal Fazy 7): **Grupa** = `NativeSelect` z trzema trybami; opcje z GET kontekstu; mapowanie POST wg F-7; prefill na Koncie z katalogiem nazw. Major Faza 18 HOW 3–5; `docs/ux_dashboard.md`.
 
