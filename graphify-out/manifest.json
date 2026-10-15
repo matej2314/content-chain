@@ -1896,8 +1896,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/company-context/domain/is-complete.ts": {
-    "mtime": 1792053523.292345,
-    "seen": 1792053530.86408,
+    "mtime": 1792059933.6106534,
+    "seen": 1792060283.6614685,
     "ast_hash": "b370148f3564be197a04f1e3f3d03c20",
     "semantic_hash": ""
   },
@@ -1908,9 +1908,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/company-context/infrastructure/prisma-company-context.adapter.ts": {
-    "mtime": 1791367829.3657737,
-    "seen": 1791372753.0098586,
-    "ast_hash": "581471f3566cf0449bb9ab6eb81cd9ed",
+    "mtime": 1792060259.7197044,
+    "seen": 1792060283.6614747,
+    "ast_hash": "00e2fd537ff5ecb4e8bce5e91dcde3ba",
     "semantic_hash": ""
   },
   "apps/api/src/health/health.controller.ts": {
@@ -4215,6 +4215,12 @@
     "mtime": 1792058512.3285153,
     "seen": 1792058582.5410838,
     "ast_hash": "df07d26542425489309068f4494ed09a",
+    "semantic_hash": ""
+  },
+  "apps/api/src/company-context/infrastructure/normalize-audience-profiles-from-json.ts": {
+    "mtime": 1792060250.5943391,
+    "seen": 1792060283.6614733,
+    "ast_hash": "6c870eae74c37eaeebe81d2a568278d1",
     "semantic_hash": ""
   }
 }

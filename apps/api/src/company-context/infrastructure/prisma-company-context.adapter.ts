@@ -8,12 +8,12 @@ import type {
 } from '../domain/company-context.port';
 import {
   emptyCompanyContext,
-  type AudienceProfile,
   type CompanyContext,
   type CompanyContextExtras,
   type CtaItem,
   type OfferItem,
 } from '../domain/company-context.types';
+import { normalizeAudienceProfilesFromJson } from './normalize-audience-profiles-from-json';
 
 type CompanyContextRow = {
   identityName: string;
@@ -82,7 +82,10 @@ export class PrismaCompanyContextAdapter implements CompanyContextRepository {
       offer: { items: jsonArray<OfferItem>(row.offerItems) },
       voice: { weDo: row.voiceWeDo, weDont: row.voiceWeDont },
       cta: { items: jsonArray<CtaItem>(row.ctaItems) },
-      audience: { profiles: jsonArray<AudienceProfile>(row.audienceProfiles) },
+      audience: {
+        profiles: normalizeAudienceProfilesFromJson(row.audienceProfiles),
+      },
+
       extras: jsonRecord(row.extras),
     };
   }
