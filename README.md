@@ -297,7 +297,28 @@ cp apps/api/.env.example apps/api/.env
 cp apps/frontend/.env.example apps/frontend/.env
 ```
 
-Configure the AI provider gateway according to your provider setup, then run the three development processes:
+Configure the AI provider gateway from the repository root through the gateway CLI:
+
+```bash
+cp apps/ai-provider-gateway/deployment/templates/gateway.config.example.yaml apps/ai-provider-gateway/gateway.config.yaml
+pnpm gateway:cli config:init
+```
+
+The copied `gateway.config.yaml` starts with the example structure from `apps/ai-provider-gateway/deployment/templates/gateway.config.example.yaml`, including placeholder provider, client, and model entries. The gateway CLI runs in the `apps/ai-provider-gateway` workspace context. Do not edit that YAML file by hand during setup; use CLI commands such as:
+
+```bash
+pnpm gateway:cli config:show
+pnpm gateway:cli provider:add
+pnpm gateway:cli model:add
+pnpm gateway:cli client:add
+pnpm gateway:cli config:validate
+pnpm gateway:cli config:secrets-status
+pnpm gateway:cli provider:test
+```
+
+The CLI owns changes to `gateway.config.yaml` and the gateway `.env` values, so provider keys, gateway keys, providers, models, and clients stay configured through one path.
+
+Then run the three development processes:
 
 ```bash
 pnpm dev:gateway
