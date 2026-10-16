@@ -1,7 +1,7 @@
 ---
-wersja: 21
+wersja: 22
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-13
+data_modyfikacji: 2026-10-16
 ---
 
 # Słownik — Content Chain
@@ -10,8 +10,9 @@ Kanoniczne definicje pojęć domenowych i technicznych. Identyfikatory typów, k
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `observability.md`.
 
-Zmiana względem: first-run / bootstrap w UI bez jawnego „register zawsze na karcie”. Od tej wersji: `available` steruje tylko opcjonalnym CTA admina; „Zarejestruj się!” zawsze — `ux_dashboard.md`.
+Zmiana względem: po `POST /runs` (**202**) operator zostawał na widoku źródłowym (Konto / Runy). Od tej wersji: po **202** z Konta **oraz** z modalu na Runach → nawigacja na szczegóły tego runu (`/runs/:runId`) — `ux_dashboard.md`.
 
+Zmiana względem: first-run / bootstrap w UI bez jawnego „register zawsze na karcie”. Od tej wersji: `available` steruje tylko opcjonalnym CTA admina; „Zarejestruj się!” zawsze — `ux_dashboard.md`.
 Zmiana względem: `DELETE /users/:id` = zawsze soft; reaktywacja bez filtra roli; cancel wyłącznie `startedBy`; access JWT bez checku `isActive` / braku wiersza. Od tej wersji: **dezaktywacja** tylko `user`; **usunięcie trwałe / purge** tylko `guest`; **reaktywacja** tylko `user` (z UI); **cancel admin→guest**; sesja nieważna przy soft/hard. Reset instancji **poza** tym wycinkiem. Norma: `security.md`, `dokumentacja_komunikacji.md`, `ux_dashboard.md`.
 
 Zmiana względem: adapter Prisma wyłącznie jako „w `infrastructure`” bez normy podkatalogów I/O. Od tej wersji: adapter Prisma (i mapowanie wiersza) w `infrastructure/` **albo** `infrastructure/persistence/` BC; inne I/O (SSE, Redis quota, SMTP, cookie/JWT) w osobnych podkatalogach tej samej warstwy, gdy katalog puchnie. Dopisano hasło **Podkatalog warstwy (I/O / kernel)**. Sens **Portu**, BC, modułu Nest i kleju procesu — bez zmiany.
@@ -47,7 +48,9 @@ Zmiana względem: Faza 18 — `guest` wyłącznie z register; invite zawsze → 
 
 Zmiana względem: kanon milczał o toaście dashboardu. Od tej wersji **Toast (dashboard MVP)** jest osobnym hasłem — **nie** envelope HTTP i **nie** kanał live (`ux_dashboard.md`).
 
-Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez startu): od tej wersji **dwie** powierzchnie tego samego formularza (Konto inline + modal **„Uruchom agenta”** na Runach). Archiwum nadal bez SSE i bez wierszy w toku. Po `POST /runs` operator zostaje na widoku źródłowym. Powód: pierwsze testy UI w przeglądarce (`ux_dashboard.md`).
+Zmiana względem Fazy 3 (**Konto** = jedyny start; **Runy** = archiwum bez startu): od tej wersji **dwie** powierzchnie tego samego formularza (Konto inline + modal **„Uruchom agenta”** na Runach). Archiwum nadal bez SSE i bez wierszy w toku. Powód: pierwsze testy UI w przeglądarce (`ux_dashboard.md`).
+
+Zmiana względem: po `POST /runs` operator zostaje na widoku źródłowym. Od tej wersji po **202** → szczegóły tego `runId` (obie powierzchnie).
 
 Zmiana względem: profil odbiorcy bez kanonicznego `name`; `brief.audience` bez rozróżnienia katalog / custom / omit. Od tej wersji **`AudienceProfile`** = `{ name, description }` (oba wymagane w bramce; unikalność `name`); opcjonalne `audience?` w briefie ma **trzy** semantyki (omit / name katalogu / custom opis) — nie „fallback do wszystkich profili”.
 
@@ -83,8 +86,8 @@ Zmiana względem: profil odbiorcy bez kanonicznego `name`; `brief.audience` bez 
 | **Full-auto** | Wykonanie tasku jednoetapowego bez wymuszonej pauzy selekcji. |
 | **Self-host** | Uruchomienie we własnej infrastrukturze operatora; licencja MIT. |
 | **First-run** | Stan pustej instancji: `GET /api/v1/auth/bootstrap-status` → `available: true` → jednorazowy `POST .../bootstrap-admin`. W UI **nie** jest osobną trasą ani trybem submitu logowania — na `/` opcjonalny przycisk „Zarejestruj admina” otwiera **osobny formularz** (`bootstrap_admin`); karta logowania nadal woła `POST /auth/login`; CTA „Zarejestruj się!” **zawsze** na karcie (nie XOR z adminem). Potem endpoint bootstrap trwale niedostępny. Zmiana względem: „first-run = tryb karty logowania (submit)” oraz „register tylko gdy `available === false`”. |
-| **Konto (widok)** | Osobna pozycja sidebara (admin i `user`): zmiana własnego emaila (**modal re-auth**: email disabled → hasło; przy **409** clear + odblokowanie emaila → `PATCH /auth/me/email` `{ email, currentPassword }`; złe hasło → **401** `INVALID_PASSWORD` pod polem, bez wylogowania), lista **własnych** runów (**live** dla `running` / `awaiting_hitl` / `interrupted`; **paginacja UI** 10 jak Runy — slice FE po `GET /runs/user/:userId` bez pageSize HTTP), **start** runu (**inline**, ten sam brief co modal na Runach), **Stop** na własnym runie nieterminalnym (modal potwierdzenia → `POST .../cancel`), opinia tekstowa. Prefill startu wyłącznie z wiersza „Moje runy” (snapshot `GET /runs/:runId`). **Nie** mylić z widokiem **Runy** (archiwum `completed` \| `failed` \| `cancelled` instancji, **paginacja HTTP** `pageSize=10` + CTA/modal startu). Wylogowanie jest w **headerze**. Po `POST /runs` **z Konta** użytkownik zostaje na Koncie. |
-| **Runy (widok)** | Archiwum firmy: tylko `completed` \| `failed` \| `cancelled`, `GET /runs?status=completed,failed,cancelled`, odświeżanie przy wejściu i co **15 min**. CTA **„Uruchom agenta”** otwiera modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). **Bez** SSE i **bez** runów w toku na liście. Po `POST /runs` **z modalu** operator zostaje na Runach; live nowego runu = floating box. |
+| **Konto (widok)** | Osobna pozycja sidebara (admin i `user`): zmiana własnego emaila (**modal re-auth**: email disabled → hasło; przy **409** clear + odblokowanie emaila → `PATCH /auth/me/email` `{ email, currentPassword }`; złe hasło → **401** `INVALID_PASSWORD` pod polem, bez wylogowania), lista **własnych** runów (**live** dla `running` / `awaiting_hitl` / `interrupted`; **paginacja UI** 10 jak Runy — slice FE po `GET /runs/user/:userId` bez pageSize HTTP), **start** runu (**inline**, ten sam brief co modal na Runach), **Stop** na własnym runie nieterminalnym (modal potwierdzenia → `POST .../cancel`), opinia tekstowa. Prefill startu wyłącznie z wiersza „Moje runy” (snapshot `GET /runs/:runId`). **Nie** mylić z widokiem **Runy** (archiwum `completed` \| `failed` \| `cancelled` instancji, **paginacja HTTP** `pageSize=10` + CTA/modal startu). Wylogowanie jest w **headerze**. Po `POST /runs` **202** **z Konta** → nawigacja na szczegóły tego runu (`/runs/:runId`); błąd startu bez nawigacji. Zmiana względem: „po `POST /runs` z Konta użytkownik zostaje na Koncie”. |
+| **Runy (widok)** | Archiwum firmy: tylko `completed` \| `failed` \| `cancelled`, `GET /runs?status=completed,failed,cancelled`, odświeżanie przy wejściu i co **15 min**. CTA **„Uruchom agenta”** otwiera modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). **Bez** SSE i **bez** runów w toku na liście. Po `POST /runs` **202** **z modalu** → modal zamknięty + nawigacja na szczegóły tego runu; live poza Kontem = floating box. Zmiana względem: „po `POST /runs` z modalu operator zostaje na Runach”. |
 | **Floating box** | Sygnał własnych runów w toku poza widokiem Konto; zwiniecie/rozwinięcie. N× EventSource per `runId` (bez nowego hubu). `queued` poza boxem. **Bez** przycisku Stop (Stop tylko na Moich runach / szczegółach). Po `cancelled` — krótko label „Anulowany”, potem ukrycie pozycji (delay **200 ms**). |
 | **Agenci aktywni** (`agentsActive`) | Sygnał UX + disable CTA startu: `completeness.complete === true` **∧** `gatewayAlive` (api `GET /api/v1/health/ready` → `checks.gateway` healthy; upstream = liveness procesu gateway). **Nie** oznacza „run w toku”, „konfiguracja gateway OK” ani „hop LLM na pewno się uda”. Odwrotnie: agenci nieaktywni = brak kontekstu **i/lub** gateway unreachable / nie odpowiada w timeoutcie. Copy nieaktywnego: „Agenci nieaktywni. Sprawdź kontekst i stan gatewaya.” Norma UX: `ux_dashboard.md`. |
 | **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, gateway, **SQLite**, logi, SSE, fundament feedbacku, **Social (posty i rolki)** oraz **Content (BC) w podstawowej formie**; w kontrakcie slice’u także typowane `extras`, HITL Social dwuetapowy (min. 1 unikalne id ⊆ draftu, N→N), pola wyniku SM (`cta?`, `characterCount`, `contents[]` / `reelScripts[]`, `sourceIdeaId`) oraz opcjonalne `role` outline — **nie** kolejne workflowy. Zmiana względem: „HITL SM = 1 id” jako kanon slice’u. |

@@ -1,7 +1,7 @@
 ---
-wersja: 17
+wersja: 18
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-11
+data_modyfikacji: 2026-10-16
 ---
 
 # Anty-patterny — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-11
 Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego źle → zamiast tego. Ogólny podręcznik Nest/Next — poza zakresem.
 
 Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `security.md`.
+
+Zmiana względem: kanon „po `202` widok źródłowy” jako część antypatternu startu na archiwum. Od tej wersji po `202` obowiązuje nawigacja na szczegóły; „zostań na Koncie/Runach po udanym starcie” jest antypatternem — `ux_dashboard.md`.
 
 Zmiana względem: zakaz „admin cancel cudzego runu” bez wyjątku; soft/hard bez rozróżnienia roli; brak checku `isActive` na access. Od tej wersji: cancel admin→`guest` **legalny**; soft tylko `user`; hard/purge tylko `guest`; zakaz Soft+Hard na `user`, soft `guest`, reaktywacji `guest`, DEL globalnego daily runs, mylenia z resetem instancji, `PATCH` `isActive: false`, osobnych canceli zamiast `purge` jako skrótu Users, braku checku `isActive`/braku wiersza na access.
 
@@ -93,7 +95,8 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | Zostawianie `EventSource` po `completed`/`failed`/`cancelled` (auto-reconnect) | Pętla GET `.../events` na skończonym runie | `close()` po evencie terminalnym; nie otwierać SSE, gdy snapshot już terminalny (`ux_dashboard.md`) |
 | Buforowanie SSE w BFF Next (rewrite zbiera cały stream) | Live „stoi”, potem wali się naraz | Proxy strumieniowe; `text/event-stream` bez pełnego bufora |
 | `NEXT_PUBLIC_API_BASE_URL` i bezpośredni fetch przeglądarki na port api | Cookie na złym originie; psuje `SameSite=strict` | BFF: same-origin `/api/v1`; `API_BASE_URL` tylko na serwerze Next |
-| Start runu jako live na archiwum / chip „w toku” instancji / inny brief niż na Koncie | Rozjazd z kanonem: archiwum terminalne + dwie powierzchnie **tego samego** formularza + floating box | Konto = start inline + Moje runy live; Runy = archiwum `completed` \| `failed` \| `cancelled` **oraz** modal **„Uruchom agenta”** (ten sam brief, pusty draft); po `202` widok źródłowy; live poza Kontem = box. **Nie** SSE / wiersze w toku na liście Runy; **nie** chip w chrome; **nie** drugi kontrakt startu. Zmiana względem: „Start runu na widoku Runy” jako zakaz samej powierzchni (`ux_dashboard.md`) |
+| Start runu jako live na archiwum / chip „w toku” instancji / inny brief niż na Koncie | Rozjazd z kanonem: archiwum terminalne + dwie powierzchnie **tego samego** formularza + floating box | Konto = start inline + Moje runy live; Runy = archiwum `completed` \| `failed` \| `cancelled` **oraz** modal **„Uruchom agenta”** (ten sam brief, pusty draft); po `202` nawigacja na szczegóły tego `runId` (obie powierzchnie); live poza Kontem = box. **Nie** SSE / wiersze w toku na liście Runy; **nie** chip w chrome; **nie** drugi kontrakt startu. Zmiana względem: (1) „Start runu na widoku Runy” jako zakaz samej powierzchni; (2) „po `202` widok źródłowy” jako kanon — od tej wersji szczegóły po `202` (`ux_dashboard.md`) |
+| Po udanym `POST /runs` (**202**) zostawianie operatora na Koncie / Runach bez przejścia na `/runs/:runId` | Chaos UX zaraz po starcie; rozjazd z kanonem nawigacji | Zawsze nawigacja na szczegóły tego runu; toast „Run wystartował” zostaje; modal na Runach zamyka się; błąd startu **bez** nawigacji (`ux_dashboard.md`) |
 | Stop we floating boxie | Box ma być sygnałem informacyjnym, nie powierzchnią mutacji | Stop tylko na Moich runach / szczegółach; box **bez** Stop |
 | Cancel bez potwierdzenia modalnego | Przypadkowe anulowanie | Modal **„Czy na pewno?”** → Tak = API; Nie = close, zero API (`ux_dashboard.md`) |
 | Natychmiastowe usunięcie pozycji floating boxa po `cancelled` bez krótkiego labelu „Anulowany” | Operator nie widzi skutku Stop | Krótko **„Anulowany”**, potem ukrycie po **200 ms** |

@@ -1,5 +1,5 @@
 ---
-wersja: 27
+wersja: 28
 data_utworzenia: 2026-09-17
 data_modyfikacji: 2026-10-16
 ---
@@ -10,8 +10,9 @@ Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / desi
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`.
 
-Zmiana względem: Case studies / Obiekcje = listy jak dotychczas (Dodaj / Usuń, pola pozycji) — bez wzorca nagłówka Oferty/CTA. Od tej wersji: prezentacja list jak Oferta (Dodaj nad listą / prepend, nagłówek + Usuń, `divide-y`, responsive poniżej `lg`; nagłówki „Case {title}” / „Case N”, „Obiekcja {label}” / „Obiekcja N”; **bez** hicie globalnego nad tymi listami) — „Widok: Kontekst firmy”.
+Zmiana względem: po udanym `POST /runs` (**202**) operator zostawał na widoku źródłowym (Konto albo Runy); nawigacja na szczegóły nie była wymuszana. Od tej wersji: **zawsze** nawigacja na **Run (szczegóły)** tego `runId` (`/runs/:runId`) z obu powierzchni startu; toast „Run wystartował” zostaje; modal na Runach zamyka się; błąd startu **bez** nawigacji. Powód: mniej chaosu UX po testach manualnych.
 
+Zmiana względem: Case studies / Obiekcje = listy jak dotychczas (Dodaj / Usuń, pola pozycji) — bez wzorca nagłówka Oferty/CTA. Od tej wersji: prezentacja list jak Oferta (Dodaj nad listą / prepend, nagłówek + Usuń, `divide-y`, responsive poniżej `lg`; nagłówki „Case {title}” / „Case N”, „Obiekcja {label}” / „Obiekcja N”; **bez** hicie globalnego nad tymi listami) — „Widok: Kontekst firmy”.
 Zmiana względem: zakładka **Dodatki** = całe `extras` w jednym panelu, **bez** podzakładek; hint „Nie blokują sygnału Agenci aktywni…”. Od tej wersji: cztery zagnieżdżone podzakładki (Hashtagi / Notatki / Case studies / Obiekcje); **bez** tego hicie — „Widok: Kontekst firmy”.
 
 Zmiana względem: zakładka **CTA / kanały** = płaska lista (Etykieta → Cel), **Dodaj CTA** pod listą (append), **Usuń** pod polami; bez nagłówka pozycji. Od tej wersji: prezentacja listy CTA jak Oferta (hint, Dodaj nad listą / prepend, nagłówek + Usuń, responsive poniżej `lg`) — „Widok: Kontekst firmy”.
@@ -122,9 +123,9 @@ Zmiana względem: **jedyny** formularz startu wyłącznie na Koncie (kanon Fazy 
 | Widok | Kto | Cel |
 |-------|-----|-----|
 | **Kontekst firmy** | admin: edycja; user i guest: podgląd | Uzupełnienie sekcji bramki (tylko admin); podgląd completeness |
-| **Runy** | admin, user, guest (demo) | **Archiwum firmy:** tylko runy instancji w `completed` \| `failed` \| `cancelled` (paginacja 10, najnowsze pierwsze). Klik wiersza → szczegóły (snapshot; **bez** SSE) — **guest: tylko własne**. CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (guest: typy poza allowlistą disabled). Cudzy run w toku **nie** jest na tej liście. Nowy run po starcie **nie** wpadnie na listę, dopóki nie jest terminalny (live = floating box) |
-| **Run (szczegóły)** | admin, user; guest tylko `startedBy === self` | Podstrona po kliknięciu w **Moich runach** (Konto) albo w archiwum Runy: logi, HITL, wynik, przegląd; **Stop** gdy owner **lub** (`session.role=admin` ∧ `startedBy.role=guest`) na nieterminalnym. Guest: **bez** Edytuj / finalize. Live SSE tylko gdy run jest własny i w `running` / `awaiting_hitl` / `interrupted`. **Bez** CTA startu |
-| **Konto** | każdy zalogowany | Własny email (**guest: lock** — bez `PATCH /auth/me/email`); **Moje runy** (wszystkie statusy, live; **paginacja UI** 10 jak Runy; **Stop** na własnym nieterminalnym); **start** nowego runu (**inline**, ten sam brief co modal na Runach; guest: allowlista); opinia tekstowa. Po udanym `POST /runs` **z tego widoku** — **ten** widok (nie od razu pojedyncze szczegóły) |
+| **Runy** | admin, user, guest (demo) | **Archiwum firmy:** tylko runy instancji w `completed` \| `failed` \| `cancelled` (paginacja 10, najnowsze pierwsze). Klik wiersza → szczegóły (snapshot; **bez** SSE) — **guest: tylko własne**. CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (guest: typy poza allowlistą disabled). Po udanym `POST /runs` (**202**) z modalu → nawigacja na **Run (szczegóły)** tego `runId` (modal zamknięty). Cudzy run w toku **nie** jest na tej liście. Nowy run po starcie **nie** wpadnie na listę archiwum, dopóki nie jest terminalny |
+| **Run (szczegóły)** | admin, user; guest tylko `startedBy === self` | Podstrona po kliknięciu w **Moich runach** (Konto), w archiwum Runy **albo** zaraz po udanym `POST /runs` (**202**): logi, HITL, wynik, przegląd; **Stop** gdy owner **lub** (`session.role=admin` ∧ `startedBy.role=guest`) na nieterminalnym. Guest: **bez** Edytuj / finalize. Live SSE tylko gdy run jest własny i w `running` / `awaiting_hitl` / `interrupted`. **Bez** CTA startu |
+| **Konto** | każdy zalogowany | Własny email (**guest: lock** — bez `PATCH /auth/me/email`); **Moje runy** (wszystkie statusy, live; **paginacja UI** 10 jak Runy; **Stop** na własnym nieterminalnym); **start** nowego runu (**inline**, ten sam brief co modal na Runach; guest: allowlista); opinia tekstowa. Po udanym `POST /runs` (**202**) **z tego widoku** → nawigacja na **Run (szczegóły)** tego `runId` |
 | **Użytkownicy** | tylko admin | Lista kont + kolumna **Akcje** (toggle soft `user` / Usuń hard `guest`) + **zaproszenie (email)**; lista pending (w tym wygasłe); resend/revoke. **Guest: brak nawigacji** (lock) |
 
 **Wyloguj się** nie jest pozycją sidebara — wyłącznie hierarchia przycisku loginu w headerze (wyżej).
@@ -132,6 +133,8 @@ Zmiana względem: **jedyny** formularz startu wyłącznie na Koncie (kanon Fazy 
 Zmiana względem: **Runy** = cała instancja (wszystkie statusy) + start; po starcie → szczegóły tego `runId`; sygnał „w toku” = chip w chrome. Od Fazy 3: Runy = archiwum terminalne; start i live = Konto; chrome = floating box (niżej).
 
 Zmiana względem Fazy 3 („Bez formularza startu” na Runach; jedyny start = Konto): od tej wersji Runy zostają archiwum **oraz** mają CTA/modal **„Uruchom agenta”**; Konto **zostaje** powierzchnią startu. Live własnych runów nadal = Konto + box, nie lista archiwum.
+
+Zmiana względem: po `202` z Konta / Run — widok źródłowy (bez wymuszania szczegółów). Od tej wersji po `202` z obu powierzchni → **Run (szczegóły)** tego `runId`.
 
 **Globalny CTA (po zalogowaniu):** przycisk **„Zostaw opinię”** (równoważny label: „Oceń aplikację”) — dostępny z layoutu (np. sidebar / header), nie tylko ze szczegółów runu. Otwiera formularz opinii tekstowej (niżej). Panel administracyjny odczytu opinii = **V1 — rozbudowa** (MVP = zapis).
 
@@ -202,7 +205,7 @@ Sukces toasta: **polski**, krótki tytuł. Błąd w toaście **tylko** gdy na ty
 |-----------|--------|----------------------------|
 | `PUT /company-context` **200** | tak | „Kontekst zapisany” |
 | `PUT /company-context` **400** (walidacja / bramka) | **nie** | envelope + `details` przy formularzu |
-| `POST /runs` **202** | tak | „Run wystartował” (zostajemy na widoku, z którego wystartowano: Konto albo Runy; modal na Runach się zamyka). Live nowego runu: na Koncie = wiersz „Moje runy”; na Runach = floating box (lista archiwum **bez** nowego wiersza) |
+| `POST /runs` **202** | tak | „Run wystartował” **oraz** nawigacja na `/runs/:runId` (Konto inline **i** modal na Runach; modal zamyka się przed / przy przejściu). Live nowego runu = szczegóły (+ floating box gdy operator później zejdzie poza Konto). Lista archiwum Runy **bez** nowego wiersza, dopóki run nie jest terminalny |
 | `POST /runs` **409** `CONTEXT_INCOMPLETE` / **400** | **nie** | envelope na formularzu startu (także w modalu na Runach) |
 | `POST /runs` **403** quota guest (`GUEST_*`) | **nie** (toast) | **GuestLimitModal** + kontakty (po odpowiedzi API) |
 | `POST /runs` **403** quota guest (`GUEST_*`) | **nie** (toast) | **GuestLimitModal** + kontakty (po odpowiedzi API) |
@@ -296,14 +299,16 @@ Zmiana względem: Case studies / Obiekcje = „listy jak dotychczas (Dodaj / Usu
 - Paginacja: **10** na stronę, najnowsze pierwsze; stały rozmiar strony.
 - Filtry MVP na archiwum: `taskType` (post_*, reel_*, page_*), platforma (w tym `web`), użytkownik inicjujący (`userId`). Filtr statusu **tylko** w zbiorze `completed` \| `failed` \| `cancelled` (albo dowolny podzbiór — domyślnie cały trójkąt).
 - CTA **„Uruchom agenta”** (admin, `user` i `guest` przy demo) otwiera **modal** z tym samym formularzem briefu co na Koncie (pola wg `taskType`; bez `selectedIdeaIds`). Guest: typy poza allowlistą **disabled**. Draft w modalu jest **pusty** — **bez** prefillu z wiersza archiwum (prefill zostaje na Koncie, z „Moich runów”). Tytuł modalu: **„Uruchom agenta”**.
-- Po **202** z modalu: zostajemy na Runach, modal się zamyka, toast „Run wystartował”; live nowego runu = **floating box**. Lista archiwum **nie** dostaje nowego wiersza, dopóki run nie jest `completed` \| `failed` \| `cancelled`.
+- Po **202** z modalu: modal się zamyka, toast „Run wystartował”, nawigacja na **Run (szczegóły)** tego `runId`. Lista archiwum **nie** dostaje nowego wiersza, dopóki run nie jest `completed` \| `failed` \| `cancelled`. Błąd startu (4xx / envelope) — **bez** nawigacji; modal / formularz zostaje.
 - **Bez** SSE i **bez** pokazywania `queued` / `running` / `awaiting_hitl` / `interrupted` na tej liście.
 - Odświeżanie: przy **wejściu** na widok oraz co **15 minut**, gdy widok jest otwarty. To **nie** jest kanał live statusu (`SPEC-FRONTEND.md`).
 - **Nawigacja:** klik wiersza → **Run (szczegóły)** — snapshot GET; EventSource **nie** otwierać (status terminalny). Szczegóły **bez** CTA startu. **Guest:** klik cudzego wiersza **zablokowany** (brak nawigacji + API 403).
 
 Zmiana względem: Runy = wszystkie statusy instancji + start + wejście w live z tej listy. Od Fazy 3: archiwum terminalne **bez** startu.
 
-Zmiana względem Fazy 3 („Bez formularza startu na tym widoku (start = Konto)”): od tej wersji archiwum **zostaje** terminalne (bez SSE / bez w toku na liście) **oraz** ma CTA/modal **„Uruchom agenta”**. Ten sam brief co Konto; po `202` widok źródłowy. Powód: pierwsze testy UI w przeglądarce.
+Zmiana względem Fazy 3 („Bez formularza startu na tym widoku (start = Konto)”): od tej wersji archiwum **zostaje** terminalne (bez SSE / bez w toku na liście) **oraz** ma CTA/modal **„Uruchom agenta”**. Ten sam brief co Konto. Powód: pierwsze testy UI w przeglądarce.
+
+Zmiana względem: po `202` z modalu — widok źródłowy (Runy). Od tej wersji po `202` → szczegóły tego `runId` (modal zamknięty).
 
 ## Widok: Konto
 
@@ -313,7 +318,7 @@ Osobna pozycja sidebara (admin, `user`, `guest`). **Nie** zastępuje widoku Runy
 |------|------------|
 | **Email** | Formularz nowego adresu → **Zapisz email** → **zawsze** modal: pole email (prefill = draft, **disabled**) + pole aktualnego hasła + Anuluj / Potwierdź. Potwierdź **zawsze** → `PATCH /api/v1/auth/me/email` `{ email, currentPassword }` (brak stanu „już zweryfikowany”). **Guest (`role === guest` i demo on):** blok **zablokowany** (brak PATCH — API **403**). Złe hasło (**401** `INVALID_PASSWORD`) / `VALIDATION_FAILED` hasła → `message` **pod polem hasła**; stan disabled emaila **bez zmian** (przed 409: zostaje **disabled**; **po 409**: zostaje **odblokowany**); **bez** toastu; **bez** refresh/wylogowania przy `INVALID_PASSWORD`. **409** `CONFLICT` → modal **otwarty**; **czyszczenie** pól email + hasło; **odblokowanie** inputu email; błąd **pod polem email**; ponowny Potwierdź znowu z hasłem. Sukces → zamknięcie modala, odświeżenie sesji (`GET /auth/me`), aktualizacja wyświetlanego emaila, **bez** toastu. Anuluj → zamknięcie modala, **zero** API; draft na formularzu Konta bez zmian względem otwarcia (edycja w modalu po 409 nie wraca na formularz). CTA „Zapisz email” **nie** jest disabled wyłącznie dlatego, że adres = obecny (re-auth i tak wymagany). **Bez** self-service zmiany hasła i **bez** usuwania konta na tym widoku |
 | **Moje runy** | Źródło: `GET /api/v1/runs/user/:userId` (`:userId` z `/auth/me`) — **wszystkie** statusy zalogowanego (**pełna** lista z API; **bez** `page` / `pageSize` na HTTP). **Paginacja UI:** stałe **`pageSize = 10`** (jak archiwum Runy), kontrolki **Poprzednia** / `strona / totalPages (total)` / **Następna** — slice po stronie FE; API i rejestr SSE / floating box nadal widzą pełny zbiór. Live: SSE per `runId` wyłącznie dla `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu). `queued` i terminalne: snapshot GET (wejście na Konto, po `POST /runs`, po evencie SSE innego własnego runu, focus okna). Przycisk **Stop** na wierszu **własnego** runu w statusie nieterminalnym (`queued` \| `running` \| `awaiting_hitl` \| `interrupted`) → modal **„Czy na pewno?”** → **Tak** = `POST .../cancel`; **Nie** = zamknięcie modala, **zero** API. Po sukcesie: odświeżenie wiersza (`cancelled`); `queued` bez SSE. Klik wiersza → **Run (szczegóły)**. Pełny wynik / HITL / przegląd na szczegółach, nie na liście |
-| **Start runu** | Formularz startu **inline** (ten sam brief co modal **„Uruchom agenta”** na Runach — nie drugi kontrakt). Select `taskType` obejmuje rolki i page_*; **`contentKind` gdy page_***; **platforma ukryta/disabled gdy page_***; język. **Guest:** typy poza `post_ideas` / `page_copy` / `page_outline_then_copy` **disabled**. Brief **zależny od `taskType`**: post_* / reel_* — temat + opcjonalnie **Grupa**, cel, **liczba pomysłów** (bez kąta/długości); `page_*` — temat + opcjonalnie **Grupa**, cel, **kąt**, **długość słów** (bez liczby pomysłów). Pole **Grupa** = **select** (nie wolny input jako kanon): (1) domyślnie **„Bez wskazania grupy”** → omit `brief.audience`; (2) opcje = `name` profili z odczytu kontekstu firmy; wybór → `brief.audience` = ten `name`; (3) ostatnia opcja **„Wpisz własną grupę…”** → dodatkowe pole tekstowe (opis odbiorcy) → `brief.audience` = ten opis; **bez** dopasowania do katalogu. CTA nie jest polem briefu. **Bez** `selectedIdeaIds`. Start disabled + wyjaśnienie, gdy agenci nieaktywni. Z wiersza **Moje runy**: **nowy** run z prefill `taskType` + brief + platforma/`contentKind` **ze snapshotu** `GET /runs/:runId` (lista user **nie** niesie `brief` / `contentKind`). Prefill **nie** dotyczy wiersza archiwum Runy. Po **202** **z tego widoku**: zostajemy na Koncie (nowy wiersz); nie wymuszamy od razu szczegółów |
+| **Start runu** | Formularz startu **inline** (ten sam brief co modal **„Uruchom agenta”** na Runach — nie drugi kontrakt). Select `taskType` obejmuje rolki i page_*; **`contentKind` gdy page_***; **platforma ukryta/disabled gdy page_***; język. **Guest:** typy poza `post_ideas` / `page_copy` / `page_outline_then_copy` **disabled**. Brief **zależny od `taskType`**: post_* / reel_* — temat + opcjonalnie **Grupa**, cel, **liczba pomysłów** (bez kąta/długości); `page_*` — temat + opcjonalnie **Grupa**, cel, **kąt**, **długość słów** (bez liczby pomysłów). Pole **Grupa** = **select** (nie wolny input jako kanon): (1) domyślnie **„Bez wskazania grupy”** → omit `brief.audience`; (2) opcje = `name` profili z odczytu kontekstu firmy; wybór → `brief.audience` = ten `name`; (3) ostatnia opcja **„Wpisz własną grupę…”** → dodatkowe pole tekstowe (opis odbiorcy) → `brief.audience` = ten opis; **bez** dopasowania do katalogu. CTA nie jest polem briefu. **Bez** `selectedIdeaIds`. Start disabled + wyjaśnienie, gdy agenci nieaktywni. Z wiersza **Moje runy**: **nowy** run z prefill `taskType` + brief + platforma/`contentKind` **ze snapshotu** `GET /runs/:runId` (lista user **nie** niesie `brief` / `contentKind`). Prefill **nie** dotyczy wiersza archiwum Runy. Po **202** **z tego widoku**: toast „Run wystartował” **oraz** nawigacja na **Run (szczegóły)** tego `runId`. Błąd startu (4xx / envelope) — **bez** nawigacji; formularz zostaje |
 | **Opinia tekstowa** | Na Koncie dostępny zapis opinii (`POST /feedback`) — ten sam kanon co globalny CTA „Zostaw opinię” (aplikacja / agent / run; select runów: własne `completed` \| `failed` \| (`cancelled` **z** nie-`null` polem wyniku w snapshotcie)). Globalny CTA w layoutcie **zostaje** |
 
 Wylogowanie **nie** żyje na widoku Konto — header: przycisk loginu → „Wyloguj się” + modal, od pierwszego layoutu.
@@ -322,7 +327,9 @@ Zmiana względem: Moje runy = pełna tabela bez paginacji UI. Od tej wersji tabe
 
 Zmiana względem: Konto = tylko logout / brak podstrony; zmiana email poza MVP; własne runy tylko jako select w formularzu opinii; start na widoku Runy; po starcie → szczegóły. Od Fazy 3: Konto = **jedyny** start + Moje runy; po `202` Konto.
 
-Zmiana względem Fazy 3 („**Jedyny** formularz startu w MVP”): od tej wersji Konto **zostaje** powierzchnią startu (inline + prefill z „Moich runów”); druga powierzchnia = modal na Runach. Po `202` z Konta — nadal Konto.
+Zmiana względem Fazy 3 („**Jedyny** formularz startu w MVP”): od tej wersji Konto **zostaje** powierzchnią startu (inline + prefill z „Moich runów”); druga powierzchnia = modal na Runach.
+
+Zmiana względem: po `202` z Konta — nadal Konto (bez wymuszania szczegółów). Od tej wersji po `202` → szczegóły tego `runId`.
 
 ## Widok: Run (szczegóły) — obowiązkowy live
 

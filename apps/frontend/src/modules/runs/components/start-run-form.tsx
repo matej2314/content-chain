@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   CONTENT_KINDS,
   CONTENT_LANGUAGES,
@@ -158,6 +159,7 @@ export function StartRunForm({
   heading,
   onSuccess,
 }: StartRunFormProps) {
+  const router = useRouter();
   const { refresh } = useOwnRuns();
   const { agentsActive, disableReason } = useStartRunGate();
   const guestLocked = useGuestLocked();
@@ -195,11 +197,12 @@ export function StartRunForm({
     if (guestLocked && !isGuestAllowedTaskType(draft.taskType)) return;
     setStartState({ status: 'pending' });
     try {
-      await startRun(input);
+      const accepted = await startRun(input);
       await refresh();
       notifyProduct({ kind: 'success', title: 'Run wystartował' });
       setStartState({ status: 'idle' });
       onSuccess?.();
+      router.push(`/runs/${accepted.runId}`);
     } catch (reason: unknown) {
       if (reason instanceof ApiError) {
         if (isGuestQuotaCode(reason.envelope.code)) {
