@@ -17,7 +17,7 @@ RUN pnpm install --frozen-lockfile --filter frontend...
 RUN pnpm --filter @content-chain/shared build
 # API_BASE_URL is runtime-only (BFF); not baked as a secret. Non-secret placeholder
 # satisfies any build-time server evaluation without pinning production origin into layers.
-ENV API_BASE_URL=http://api:3300
+ENV API_BASE_URL=http://api:3001
 RUN pnpm --filter frontend build
 RUN pnpm --filter frontend deploy --prod /prod/frontend \
   && test -d /prod/frontend/.next \
