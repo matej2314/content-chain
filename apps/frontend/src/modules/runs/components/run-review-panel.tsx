@@ -37,14 +37,18 @@ export function RunReviewPanel({
   const reviewable = canReviewSnapshot(snapshot, userId, nowMs);
   const [pending, setPending] = useState(false);
   const [envelope, setEnvelope] = useState<{ code: string; message: string } | null>(null);
+  const [hoverRating, setHoverRating] = useState<UserRating | null>(null);
 
   if (!author || (snapshot.status !== 'completed' && snapshot.status !== 'failed')) {
     return null;
   }
 
+  const displayRating = hoverRating ?? snapshot.userRating;
+
   async function runAction(action: () => Promise<void>): Promise<void> {
     setPending(true);
     setEnvelope(null);
+    setHoverRating(null);
     try {
       await action();
       await onReload();
@@ -67,21 +71,30 @@ export function RunReviewPanel({
       {locked ? (
         <p className="text-sm text-muted-foreground">
           <span>Przegląd zamknięty.</span>
-          {snapshot.userRating !== null ? <span> Ocena {snapshot.userRating} z 5.</span> : null}
+          {snapshot.userRating !== null ? <span> Ocena {snapshot.userRating} na 5.</span> : null}
         </p>
       ) : null}
-      <div role="group" aria-label="Ocena gwiazdkowa" className="flex items-center gap-1">
+      <div
+        role="group"
+        aria-label="Ocena gwiazdkowa"
+        className="flex items-center gap-1"
+        onMouseLeave={() => setHoverRating(null)}
+      >
         {STARS.map((value) => {
-          const active = snapshot.userRating !== null && snapshot.userRating >= value;
+          const filled = displayRating !== null && displayRating >= value;
           return (
-            <Button
+            <button
               key={value}
               type="button"
-              variant="ghost"
-              size="icon-sm"
               disabled={!reviewable || pending}
-              aria-label={`Ocena ${value} z 5`}
+              aria-label={`Ocena ${value} na 5`}
               aria-pressed={snapshot.userRating === value}
+              className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg bg-transparent outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
+              onMouseEnter={() => {
+                if (reviewable && !pending) {
+                  setHoverRating(value);
+                }
+              }}
               onClick={() => {
                 void runAction(async () => {
                   await patchRunRating(snapshot.runId, value);
@@ -89,10 +102,11 @@ export function RunReviewPanel({
               }}
             >
               <Icon
-                icon="lucide:star"
-                className={active ? 'size-4 text-foreground' : 'size-4 text-muted-foreground'}
+                icon={filled ? 'mdi:star' : 'mdi:star-outline'}
+                className={filled ? 'size-4 text-amber-500' : 'size-4 text-muted-foreground'}
+                aria-hidden
               />
-            </Button>
+            </button>
           );
         })}
         {reviewable ? (

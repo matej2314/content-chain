@@ -24375,7 +24375,7 @@
       "file_type": "code",
       "norm_label": "runaction()",
       "source_file": "apps/frontend/src/modules/runs/components/run-review-panel.tsx",
-      "source_location": "L45"
+      "source_location": "L48"
     },
     {
       "id": "apps_frontend_src_modules_runs_components_run_review_window_isreviewexpired",
@@ -77828,6 +77828,18 @@
     },
     {
       "source": "apps_frontend_src_modules_runs_components_run_review_panel_runreviewpanel",
+      "target": "apps_frontend_src_modules_runs_api_runs_api_patchrunrating",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "apps/frontend/src/modules/runs/components/run-review-panel.tsx",
+      "source_location": "L100",
+      "weight": 1.0
+    },
+    {
+      "source": "apps_frontend_src_modules_runs_components_run_review_panel_runreviewpanel",
       "target": "apps_frontend_src_modules_runs_api_runs_api_finalizerunreview",
       "relation": "calls",
       "_origin": "ast",
@@ -77835,7 +77847,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/frontend/src/modules/runs/components/run-review-panel.tsx",
-      "source_location": "L121",
+      "source_location": "L135",
       "weight": 1.0
     },
     {
@@ -77872,18 +77884,6 @@
       "context": "call",
       "source_file": "apps/frontend/src/modules/runs/components/run-review-panel.tsx",
       "source_location": "L37",
-      "weight": 1.0
-    },
-    {
-      "source": "apps_frontend_src_modules_runs_components_run_review_panel_runreviewpanel",
-      "target": "apps_frontend_src_modules_runs_api_runs_api_patchrunrating",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "apps/frontend/src/modules/runs/components/run-review-panel.tsx",
-      "source_location": "L87",
       "weight": 1.0
     },
     {
@@ -79971,7 +79971,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "apps/frontend/src/modules/runs/components/run-review-panel.tsx",
-      "source_location": "L45",
+      "source_location": "L48",
       "weight": 1.0
     },
     {
@@ -220386,5 +220386,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "480c931e6b6657782db0f8e930537eda3c98cdbe"
+  "built_at_commit": "e25971be8578f88009104a297575ab450a23e54f"
 }

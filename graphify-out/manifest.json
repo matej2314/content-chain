@@ -2220,8 +2220,8 @@
     "semantic_hash": ""
   },
   "docs/ux_dashboard.md": {
-    "mtime": 1792151624.1661682,
-    "seen": 1792152642.7371187,
+    "mtime": 1792153030.5740983,
+    "seen": 1792154005.0267553,
     "ast_hash": "fab01b7a53ee6bef0cdcd35f91d5fccc",
     "semantic_hash": ""
   },
@@ -2244,8 +2244,8 @@
     "semantic_hash": ""
   },
   "spec/SPEC-FRONTEND.md": {
-    "mtime": 1792151657.7539086,
-    "seen": 1792152642.737122,
+    "mtime": 1792153030.5967164,
+    "seen": 1792154005.0267594,
     "ast_hash": "b95711fbf24cc9c45fa73b4f54316532",
     "semantic_hash": ""
   },
@@ -3330,9 +3330,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/chrome-slots.tsx": {
-    "mtime": 1791367876.3766208,
-    "seen": 1791372753.0102353,
-    "ast_hash": "3a36052381856b0861513212198133d6",
+    "mtime": 1792154000.497721,
+    "seen": 1792154005.0267205,
+    "ast_hash": "1d2bd99e44e74afb19e2b5200e44d3f2",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/dashboard-shell.tsx": {
@@ -3378,8 +3378,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/company-context/components/company-context-form.tsx": {
-    "mtime": 1792152629.7772923,
-    "seen": 1792152642.7370415,
+    "mtime": 1792153030.573272,
+    "seen": 1792154005.0266733,
     "ast_hash": "63603ca6c56e1b7cd94b665a5ea610f8",
     "semantic_hash": ""
   },
@@ -3588,9 +3588,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/run-review-panel.tsx": {
-    "mtime": 1791367876.3765538,
-    "seen": 1791372753.0102198,
-    "ast_hash": "fa4e62c9e6612d7decf0458302c1447f",
+    "mtime": 1792154682.380046,
+    "seen": 1792154709.8406575,
+    "ast_hash": "5501956f284025c849217bf9ee11d5ff",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/feedback/api/feedback-labels.ts": {

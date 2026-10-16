@@ -25,6 +25,6 @@ export function FeedbackCtaSlot() {
 
 export function FloatingBoxSlot() {
   const pathname = usePathname();
-  if (pathname === '/account') return null;
+  if (pathname === '/account' || pathname.startsWith('/runs/')) return null;
   return <FloatingRunsBox />;
 }
