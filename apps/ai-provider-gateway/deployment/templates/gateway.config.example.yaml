@@ -1,3 +1,5 @@
+# Example Gateway Configuration
+
 schemaVersion: 1
 masterKeyRef: MASTER_KEY_PLACEHOLDER
 
