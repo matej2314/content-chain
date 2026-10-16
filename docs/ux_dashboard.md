@@ -1,7 +1,7 @@
 ---
-wersja: 26
+wersja: 27
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-10-13
+data_modyfikacji: 2026-10-16
 ---
 
 # UX Dashboard — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-13
 Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / design systemu — widoki, stany i zachowanie względem API/SSE.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`.
+
+Zmiana względem: Case studies / Obiekcje = listy jak dotychczas (Dodaj / Usuń, pola pozycji) — bez wzorca nagłówka Oferty/CTA. Od tej wersji: prezentacja list jak Oferta (Dodaj nad listą / prepend, nagłówek + Usuń, `divide-y`, responsive poniżej `lg`; nagłówki „Case {title}” / „Case N”, „Obiekcja {label}” / „Obiekcja N”; **bez** hicie globalnego nad tymi listami) — „Widok: Kontekst firmy”.
 
 Zmiana względem: zakładka **Dodatki** = całe `extras` w jednym panelu, **bez** podzakładek; hint „Nie blokują sygnału Agenci aktywni…”. Od tej wersji: cztery zagnieżdżone podzakładki (Hashtagi / Notatki / Case studies / Obiekcje); **bez** tego hicie — „Widok: Kontekst firmy”.
 
@@ -262,7 +264,18 @@ Formularze w **zakładkach** (nie jeden ciąg sekcji na stronie). Dokładnie **s
   - Cztery podzakładki (kolejność): **Hashtagi** (domyślna) → **Notatki** → **Case studies** → **Obiekcje**.
   - **Hashtagi:** pole `hashtags` (przecinki).
   - **Notatki:** `catalogNotes` + `performanceNotes`.
-  - **Case studies** / **Obiekcje:** listy jak dotychczas (Dodaj / Usuń, pola pozycji) — bez wzorca nagłówka Oferty/CTA w tej wersji.
+  - **Case studies — lista (UI, jak Oferta):**
+    - **Bez** hicie globalnego nad listą.
+    - Kolejność pól: **Tytuł → Streszczenie → Metryki**.
+    - Nagłówek pozycji: wypełniony `title` → „Case {title}”; pusty → „Case N” (1-based); numer tylko w UI (nie trafia do API / zapisu). **Usuń** w tym samym wierszu po prawej (gdy nie read-only).
+    - **Dodaj** nad listą, `justify-end`; klik = prepend pustej pozycji.
+    - Lista: `divide-y` (bez dekoracyjnych kart). Responsive: poniżej `lg` jak Oferta (siatka + `truncate`); od `lg` — flex + wrap.
+  - **Obiekcje — lista (UI, jak Oferta):**
+    - **Bez** hicie globalnego nad listą.
+    - Kolejność pól: **Obiekcja → Odpowiedź**.
+    - Nagłówek pozycji: wypełniony `label` → „Obiekcja {label}”; pusty → „Obiekcja N” (1-based); numer tylko w UI (nie trafia do API / zapisu). **Usuń** w tym samym wierszu po prawej (gdy nie read-only).
+    - **Dodaj** nad listą, `justify-end`; klik = prepend pustej pozycji.
+    - Lista: `divide-y` (bez dekoracyjnych kart). Responsive: poniżej `lg` jak Oferta (siatka + `truncate`); od `lg` — flex + wrap.
   - CTA zapisu **pod** podzakładkami (zawsze widoczne w zakładce Dodatki).
   - **Bez** hicie w panelu Dodatki o „Agenci aktywni” / „puste pola nie są zapisywane”.
 
@@ -273,6 +286,8 @@ Zmiana względem: Oferta bez kanonu prezentacji listy (kolejność Nazwa→Korzy
 Zmiana względem: CTA / kanały bez kanonu prezentacji listy. Od tej wersji obowiązuje prezentacja listy CTA powyżej (analogicznie do Oferty).
 
 Zmiana względem: Dodatki = jeden panel `extras` bez podzakładek (+ hint o Agenci aktywni). Od tej wersji obowiązują cztery podzakładki powyżej; bez tego hicie.
+
+Zmiana względem: Case studies / Obiekcje = „listy jak dotychczas (Dodaj / Usuń, pola pozycji) — bez wzorca nagłówka Oferty/CTA”. Od tej wersji obowiązuje prezentacja list Case studies i Obiekcje powyżej (jak Oferta: Dodaj nad listą / prepend, nagłówek + Usuń, `divide-y`, responsive poniżej `lg`; bez hicie globalnego nad tymi listami).
 
 ## Widok: Runy (archiwum firmy)
 

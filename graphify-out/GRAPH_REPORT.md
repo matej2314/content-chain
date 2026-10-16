@@ -1,95 +1,95 @@
-# Graph Report - content-chain  (2026-10-15)
+# Graph Report - content-chain  (2026-10-16)
 
 ## Corpus Check
-- 704 files · ~240,970 words
+- 704 files · ~241,659 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 1 file(s) not represented in the graph (top: .css 1)
 
 ## Summary
-- 4577 nodes · 14068 edges · 140 communities (126 shown, 13 thin omitted)
+- 4579 nodes · 14072 edges · 147 communities (130 shown, 16 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 419 edges (avg confidence: 0.81)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b106170d`
+- Built from commit: `480c931e`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - DomainException
-- get-run.use-case.ts
-- api/company-context.types.ts
+- social.types.ts
+- company-context-form.tsx
 - chat-completions.adapter.ts
 - asProviderInstanceId
 - start-run-form.tsx
 - provider-error.mapper.ts
-- logging.module.ts
+- LogContext
 - AuthUserContext
 - anthropic/anthropic-tools.mapper.ts
-- chat.service.ts
-- asClientId
+- ChatRequestDto
+- EnvPatchService
 - ConfigInitCommand
 - cli.module.ts
 - ChatMessageDto
 - ChatParamsDto
-- ai-provider.interface.ts
+- branded.types.ts
 - app-metrics.service.ts
 - archive-runs-view.tsx
-- isRecord
+- apiFetch
 - Env
 - GatewayKey
-- users-view.tsx
 - auth.module.ts
+- UserRepository
 - redis-vector-store.adapter.ts
 - feedback-form.tsx
 - PrometheusAppMetricsAdapter
 - wizard-orchestrator.service.ts
 - LoggingService
 - .getOne
-- ai-provider-gateway/src/app.module.ts
+- configuration.types.ts
 - HealthService
-- run-review-panel.tsx
+- .constructor
 - cache.module.ts
 - AnthropicMessagesRequestDto
 - google-tools.mapper.ts
 - runs.types.ts
 - enums.ts
-- runs-result.types.ts
-- llm-hop.ts
+- run-result-view.tsx
+- parse-llm-json.ts
 - sentry-ai-metrics.adapter.ts
 - prisma-run.adapter.ts
 - openai-models.controller.ts
 - ids.ts
-- response-cache.service.ts
-- PageDocument
+- semantic-cache.service.ts
+- PageOutline
 - save-output-edited.use-case.ts
-- GuestQuotaPort
+- rate-run.use-case.ts
 - swagger.setup.ts
 - anthropic-response.mapper.ts
 - ListRunsQueryDto
 - ModelAlias
-- semantic-cache.module.ts
-- provider-registry.service.ts
+- RunRepository
+- ai-provider-gateway/src/app.module.ts
 - content.graph.ts
-- config-generator.service.ts
+- FileManagerService
 - prisma-invitation.adapter.ts
 - domain/company-context.types.ts
 - responses.adapter.ts
-- branded.types.ts
+- provider-registry.service.ts
 - metrics.ts
-- .info
-- RunRepository
-- api-error.code.ts
+- exitWithAgentReport
+- runs.controller.ts
+- types/index.ts
 - anthropic-models.controller.ts
 - ModelEditCommand
-- AppMetricsService
-- RedisConnectionService
+- MetricsController
+- RefreshSessionRepository
 - OpenAiChatCompletionRequestDto
-- .execute
-- semantic-cache.constants.ts
-- dashboard-shell.tsx
-- invite-user.use-case.ts
-- openai-params-provider.mapper.ts
+- start-run.use-case.ts
+- InProcessRunWorker
+- demo-mode-provider.tsx
+- invitations.controller.ts
+- configuration.ts
 - InMemoryRunSseHub
 - parse-verifier-log-message.ts
 - company-context.mapper.ts
@@ -101,50 +101,54 @@
 - provider-instances.bootstrap.ts
 - SPEC — README
 - ChatResponseDto
-- assert-audience-profile-names-unique.ts
+- notify-product.tsx
 - model-manager.service.ts
 - company-context.dto.ts
 - ClientRemoveCommand
 - ModelAddCommand
-- UsersController
-- PublicConfigController
+- users.controller.ts
+- invitations.api.ts
 - anthropic-messages.controller.ts
 - social.graph.ts
-- CompanyContextRepository
+- CompanyContext
 - StartRunDto
 - ProviderEditCommand
 - route.ts
 - KeyGenerateCommand
-- GatewayToolDefinitionDto
+- ChatToolingDto
 - CompanyContextController
-- configuration.ts
+- configuration-validation.service.ts
 - GatewayModelDto
 - ProviderAddCommand
 - openai-messages-provider.mapper.ts
 - PrismaService
 - api/src/main.ts
-- VectorStore
+- guest.guard.ts
 - .getOne
-- GatewayNamedToolChoiceFunctionDto
+- HealthController
 - should-include-redis-stack.ts
-- envelope.ts
-- openai-thinking-provider.mapper.ts
+- users-view.tsx
+- openai-params-provider.mapper.ts
 - ModelRemoveCommand
 - ProviderRemoveCommand
 - HttpExceptionFilter
 - EnvironmentVariables
-- company-context.controller.ts
+- CompanyContextRepository
 - .getOne
-- ErrorEnvelopeDto
+- HttpMetricsMiddleware
+- CreateFeedbackDto
+- page-document-body.tsx
 - api/src/app.module.ts
+- ConfigValidateCommand
 - Architektura
 - brand
 - ClientEditCommand
 - health.api.ts
 - ai-provider-gateway/src/health/health.service.ts
-- openai-chat-completion-response.dto.ts
+- gateway-key.guard.branded-types.test-d.ts
 - GatewayModelsCatalogService
 - openai-stream.mapper.ts
+- HitlDto
 - Anty-patterny
 - Brand types
 - Przepływy danych
@@ -155,6 +159,9 @@
 - Bezpieczeństwo
 - Testy
 - UX Dashboard — Content Chain
+- PatchRunRatingDto
+- ParseRunIdPipe
+- RunsModule
 
 ## God Nodes (most connected - your core abstractions)
 1. `ModelAlias` - 88 edges
@@ -169,157 +176,157 @@
 10. `Env` - 59 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `toChatResponseDto()` --indirect_call--> `toGatewayToolCallDto()`  [INFERRED]
-  apps/ai-provider-gateway/src/chat/dto/chat-response.dto.ts → apps/ai-provider-gateway/src/common/dtos/gateway-tool-call.dto.ts
 - `mapGatewayResponseToAnthropicFormat()` --indirect_call--> `fromGatewayToolCallDto()`  [INFERRED]
   apps/ai-provider-gateway/src/integrations/anthropic/mappers/anthropic-response.mapper.ts → apps/ai-provider-gateway/src/common/dtos/gateway-tool-call.dto.ts
-- `RedisCacheAdapter` --implements--> `CacheBackend`  [EXTRACTED]
-  apps/ai-provider-gateway/src/cache/adapters/redis-cache/redis-cache.adapter.ts → apps/ai-provider-gateway/src/cache/interfaces/cache-backend-interface.ts
 - `RedisCacheAdapter` --references--> `LoggingService`  [EXTRACTED]
   apps/ai-provider-gateway/src/cache/adapters/redis-cache/redis-cache.adapter.ts → apps/ai-provider-gateway/src/logging/logging.service.ts
 - `RedisConnectionService` --references--> `LoggingService`  [EXTRACTED]
   apps/ai-provider-gateway/src/cache/adapters/redis-cache/redis-connection.service.ts → apps/ai-provider-gateway/src/logging/logging.service.ts
+- `CacheRegistryService` --references--> `LoggingService`  [EXTRACTED]
+  apps/ai-provider-gateway/src/cache/cache-registry.service.ts → apps/ai-provider-gateway/src/logging/logging.service.ts
+- `parseKnnHits()` --calls--> `isUnservableCachedReply()`  [EXTRACTED]
+  apps/ai-provider-gateway/src/cache/semantic/parse-knn-hits.ts → apps/ai-provider-gateway/src/cache/helpers/is-unservable-cached-reply.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (140 total, 13 thin omitted)
+## Communities (147 total, 16 thin omitted)
 
 ### Community 0 - "DomainException"
-Cohesion: 0.05
-Nodes (60): AcceptInviteResult, acceptInviteSchema, AcceptInviteUseCase, Injectable, ActivateAccountOutput, ActivateAccountUseCase, Injectable, comparePassword() (+52 more)
+Cohesion: 0.08
+Nodes (43): AcceptInviteResult, acceptInviteSchema, ActivateAccountOutput, comparePassword(), generateRefreshToken(), hashPassword(), hashRefreshToken(), parseTtlMs() (+35 more)
 
-### Community 1 - "get-run.use-case.ts"
+### Community 1 - "social.types.ts"
 Cohesion: 0.06
-Nodes (28): PageOutline, CompositeRunResultReader, GetRunOutput, orderItemsBySelectedIds(), RunResultReader, ContentBrief, SocialBrief, EmptyRunResultReader (+20 more)
+Nodes (26): CompositeRunResultReader, GetRunOutput, RunResultReader, SocialBrief, EmptyRunResultReader, Injectable, SocialResultStore, PipelineState (+18 more)
 
-### Community 2 - "api/company-context.types.ts"
-Cohesion: 0.05
-Nodes (81): metadata, fetchCompleteness(), putCompanyContext(), AudienceProfile, CompanyContext, CompanyContextCaseStudy, CompanyContextExtras, companyContextForPut() (+73 more)
+### Community 2 - "company-context-form.tsx"
+Cohesion: 0.04
+Nodes (91): metadata, fetchCompleteness(), putCompanyContext(), AudienceProfile, CompanyContext, CompanyContextCaseStudy, CompanyContextExtras, companyContextForPut() (+83 more)
 
 ### Community 3 - "chat-completions.adapter.ts"
-Cohesion: 0.19
-Nodes (20): toHttpException(), asSystemFingerprint(), ProviderToolDefinition, ChatCompletionsAdapterOptions, createChatCompletionsAdapter(), textStream(), mapTurnsToOpenAiMessages(), accumulateOpenAiStreamToolCallDeltas() (+12 more)
+Cohesion: 0.21
+Nodes (19): toHttpException(), asSystemFingerprint(), ChatCompletionsAdapterOptions, createChatCompletionsAdapter(), textStream(), mapTurnsToOpenAiMessages(), accumulateOpenAiStreamToolCallDeltas(), extractOpenAiStreamDeltaText() (+11 more)
 
 ### Community 4 - "asProviderInstanceId"
-Cohesion: 0.08
-Nodes (34): DEFAULT_MODELS, convertProvider(), CliAiProvider, ProviderPromptResult, ProviderManagerService, Injectable, ProviderTestService, Injectable (+26 more)
+Cohesion: 0.12
+Nodes (27): DEFAULT_MODELS, InitAnswers, ProviderPromptResult, ProviderPromptService, Injectable, EditProviderInput, validateProviderApiKey(), countActiveModelsAfterProviderChange() (+19 more)
 
 ### Community 5 - "start-run-form.tsx"
 Cohesion: 0.09
-Nodes (36): metadata, fetchCompanyContext(), GuestLimitModal(), GUEST_ALLOWED_TASK_TYPES, GUEST_CONTACTS, GUEST_QUOTA_CODES, GuestAllowedTaskType, GuestContact (+28 more)
+Nodes (35): metadata, fetchCompanyContext(), GuestLimitModal(), GUEST_ALLOWED_TASK_TYPES, GUEST_CONTACTS, GUEST_QUOTA_CODES, GuestAllowedTaskType, GuestContact (+27 more)
 
 ### Community 6 - "provider-error.mapper.ts"
-Cohesion: 0.18
-Nodes (20): ApiErrorPayload, MappedProviderError, isAuthError(), isClientError(), isInvalidRequestStatus(), isRateLimitStatus(), isServerError(), isTimeoutStatus() (+12 more)
+Cohesion: 0.21
+Nodes (19): MappedProviderError, isAuthError(), isClientError(), isInvalidRequestStatus(), isRateLimitStatus(), isServerError(), isTimeoutStatus(), nameLooksLikeTimeout() (+11 more)
 
-### Community 7 - "logging.module.ts"
-Cohesion: 0.06
-Nodes (24): ConsoleLoggerAdapter, LEVEL_ORDER, Injectable, NoopErrorReportingAdapter, Injectable, LEVEL_RANK, PinoLoggerAdapter, Injectable (+16 more)
+### Community 7 - "LogContext"
+Cohesion: 0.07
+Nodes (25): ConsoleLoggerAdapter, LEVEL_ORDER, Injectable, NoopErrorReportingAdapter, Injectable, LEVEL_RANK, PinoLoggerAdapter, Injectable (+17 more)
 
 ### Community 8 - "AuthUserContext"
 Cohesion: 0.10
-Nodes (27): Body, HttpCode, Post, CreateFeedbackDto, IsIn, IsOptional, IsString, MaxLength (+19 more)
+Nodes (25): Body, HttpCode, Post, orderItemsBySelectedIds(), computeReviewExpiresAt(), isTerminalStatus(), RunsController, ApiCookieAuth (+17 more)
 
 ### Community 9 - "anthropic/anthropic-tools.mapper.ts"
 Cohesion: 0.11
-Nodes (35): ANTHROPIC_EFFORT_LEVELS, AnthropicEffortLevel, extractAnthropicThinkingContent(), isAnthropicEffortLevel(), mapThinkingBudgetToAnthropicEffort(), mapThinkingToAnthropic(), resolveAnthropicOutputConfig(), ContentBlockParam (+27 more)
+Nodes (34): ANTHROPIC_EFFORT_LEVELS, AnthropicEffortLevel, extractAnthropicThinkingContent(), isAnthropicEffortLevel(), mapThinkingBudgetToAnthropicEffort(), mapThinkingToAnthropic(), resolveAnthropicOutputConfig(), ContentBlockParam (+26 more)
 
-### Community 10 - "chat.service.ts"
-Cohesion: 0.07
-Nodes (39): EMBED_NOT_ATTEMPTED, SemanticLookupResult, SemanticStoreEmbedState, ChatRequestDto, ApiProperty, ApiPropertyOptional, ArrayMaxSize, ArrayMinSize (+31 more)
+### Community 10 - "ChatRequestDto"
+Cohesion: 0.06
+Nodes (38): ChatRequestDto, ApiProperty, ApiPropertyOptional, ArrayMaxSize, ArrayMinSize, IsArray, IsObject, IsOptional (+30 more)
 
-### Community 11 - "asClientId"
-Cohesion: 0.09
-Nodes (36): PendingSecretsItem, WIZARD_INIT_STEPS, WIZARD_STEPS, WizardStep, CliAiModelSchema, CliAiProviderSchema, CliRateLimitSchema, convertClient() (+28 more)
+### Community 11 - "EnvPatchService"
+Cohesion: 0.06
+Nodes (17): PendingSecretsItem, ConfigSecretsStatusCommand, Command, Option, ClientManagerService, Injectable, ConfigPersistenceService, normalizeGatewayConfigForWrite() (+9 more)
 
 ### Community 12 - "ConfigInitCommand"
 Cohesion: 0.31
 Nodes (3): ConfigInitCommand, Command, Option
 
 ### Community 13 - "cli.module.ts"
-Cohesion: 0.06
-Nodes (67): AgentReport, AgentReportStatus, emitAgentReport(), exitCodeForReport(), exitWithAgentReport(), loadAnswers(), assertAgentHasAnswers(), CliMode (+59 more)
+Cohesion: 0.05
+Nodes (69): AgentReport, AgentReportStatus, emitAgentReport(), exitCodeForReport(), loadAnswers(), collectPendingSecrets(), assertAgentHasAnswers(), CliMode (+61 more)
 
 ### Community 14 - "ChatMessageDto"
 Cohesion: 0.08
-Nodes (28): ChatMessageDto, ApiProperty, ApiPropertyOptional, IsIn, IsOptional, IsString, MaxLength, Type (+20 more)
+Nodes (27): ChatMessageDto, ApiProperty, ApiPropertyOptional, IsIn, IsOptional, IsString, MaxLength, Type (+19 more)
 
 ### Community 15 - "ChatParamsDto"
 Cohesion: 0.12
 Nodes (17): ChatParamsDto, ApiPropertyOptional, IsBoolean, IsInt, IsNumber, IsOptional, Max, Min (+9 more)
 
-### Community 16 - "ai-provider.interface.ts"
-Cohesion: 0.12
-Nodes (38): VectorStorePartition, CachedChatResponse, CachedChatWarning, CachedFinishReason, ChatCacheSource, ChatResponseData, SseMetaPayload, SseMetaPayloadDto (+30 more)
+### Community 16 - "branded.types.ts"
+Cohesion: 0.07
+Nodes (63): CachedChatResponseSchema, ChatWarningSchema, FinishReasonSchema, SemanticStoreEmbedState, CachedChatResponse, CachedChatWarning, CachedFinishReason, CacheIdentityMessage (+55 more)
 
 ### Community 17 - "app-metrics.service.ts"
-Cohesion: 0.18
-Nodes (12): healthStatusToGaugeValue(), AppRequestLabels, AppRequestMethod, AppRequestStatus, HealthComponent, HealthMetricsSnapshot, HealthStatus, HttpMethod (+4 more)
+Cohesion: 0.14
+Nodes (15): healthStatusToGaugeValue(), APP_METRICS_BACKEND, AppRequestMethod, AppRequestStatus, HealthComponent, HealthMetricsSnapshot, HealthStatus, HttpMethod (+7 more)
 
 ### Community 18 - "archive-runs-view.tsx"
-Cohesion: 0.06
-Nodes (46): metadata, metadata, useSession(), CONTENT_KIND_LABELS, LANGUAGE_LABELS, RUN_PLATFORM_LABELS, RUN_STATUS_LABELS, RUN_STATUS_SHORT_LABELS (+38 more)
+Cohesion: 0.07
+Nodes (43): metadata, metadata, metadata, useSession(), useGuestLocked(), CONTENT_KIND_LABELS, LANGUAGE_LABELS, RUN_PLATFORM_LABELS (+35 more)
 
-### Community 19 - "isRecord"
-Cohesion: 0.05
-Nodes (63): geistMono, geistSans, metadata, ACTIVATION_FAILED_HINT, activateAccount(), Credentials, fetchBootstrapStatus(), fetchUserSession() (+55 more)
+### Community 19 - "apiFetch"
+Cohesion: 0.06
+Nodes (46): geistMono, geistSans, metadata, ACTIVATION_FAILED_HINT, activateAccount(), Credentials, fetchBootstrapStatus(), fetchUserSession() (+38 more)
 
 ### Community 20 - "Env"
 Cohesion: 0.05
-Nodes (55): AuthController, ApiCookieAuth, ApiTags, Body, Controller, Get, HttpCode, Patch (+47 more)
+Nodes (57): AuthController, ApiCookieAuth, ApiTags, Body, Controller, Get, HttpCode, Patch (+49 more)
 
 ### Community 21 - "GatewayKey"
 Cohesion: 0.10
-Nodes (23): ChatService, Injectable, ChatErrorHandlerService, Injectable, ChatIngressProfile, isProviderRateLimitError(), ClientId, GatewayKey (+15 more)
+Nodes (21): ChatService, Injectable, isCachedChatAllowedForModelAlias(), toChatCacheIdentity(), isToolingRequest(), ChatCachePipelineService, Injectable, ChatErrorHandlerService (+13 more)
 
-### Community 22 - "users-view.tsx"
-Cohesion: 0.10
-Nodes (38): metadata, AccountEmailFormState, GuestLimitModalProps, CancelRunDialogProps, FALLBACK, LogoutDialogProps, deleteUser(), fetchUsers() (+30 more)
+### Community 22 - "auth.module.ts"
+Cohesion: 0.09
+Nodes (26): RESEND_ACTIVATION_RATE_LIMITER, ResendActivationOutput, ResendActivationUseCase, SUCCESS, Inject, Injectable, ResendInvitationUseCase, Inject (+18 more)
 
-### Community 23 - "auth.module.ts"
-Cohesion: 0.04
-Nodes (50): Inject, BootstrapStatusUseCase, Inject, Injectable, DeleteUserResult, DeleteUserUseCase, Inject, Injectable (+42 more)
+### Community 23 - "UserRepository"
+Cohesion: 0.06
+Nodes (20): Inject, Inject, AccountActivationRecord, AccountActivationRepository, CreatePendingUser, RotateActivationTokenInput, AuthUser, CreateAdminIfNoneData (+12 more)
 
 ### Community 24 - "redis-vector-store.adapter.ts"
-Cohesion: 0.16
-Nodes (15): RedisVectorStoreAdapter, Injectable, escapeRedisSearchTag(), asString(), parseKnnHits(), isRedisSearchIndexAlreadyExistsError(), isRedisSearchMissingIndexError(), isRedisSearchModuleMissingError() (+7 more)
+Cohesion: 0.06
+Nodes (29): RedisConnectionService, Injectable, RedisVectorStoreAdapter, Injectable, EmbeddingCircuitBreaker, escapeRedisSearchTag(), normalizeEmbeddingModelForIndex(), semanticIndexName() (+21 more)
 
 ### Community 25 - "feedback-form.tsx"
-Cohesion: 0.15
+Cohesion: 0.16
 Nodes (18): createFeedback(), FEEDBACK_AGENT_LABELS, FEEDBACK_TARGET_LABELS, filterFeedbackRunOptions(), CreateFeedbackInput, FEEDBACK_BODY_MAX, FeedbackCreated, feedbackRequestBody() (+10 more)
 
 ### Community 26 - "PrometheusAppMetricsAdapter"
-Cohesion: 0.12
-Nodes (5): PrometheusAppMetricsAdapter, Injectable, AppProviderCallContext, AppProviderStreamScope, AppTokenUsage
+Cohesion: 0.09
+Nodes (7): PrometheusAppMetricsAdapter, Injectable, resolveAppMetricsBackend(), AppProviderCallContext, AppProviderStreamScope, AppRequestLabels, AppTokenUsage
 
 ### Community 27 - "wizard-orchestrator.service.ts"
-Cohesion: 0.08
-Nodes (31): isRedisSearchTagSafeId(), REDIS_SEARCH_TAG_ID_FORBIDDEN, REDIS_SEARCH_TAG_ID_MESSAGE, REDIS_SEARCH_TAG_SPECIAL_CHARS, assertInteractiveAllowed(), InitAnswers, CliAiModel, KeyGeneratorService (+23 more)
+Cohesion: 0.06
+Nodes (75): isRedisSearchTagSafeId(), REDIS_SEARCH_TAG_ID_FORBIDDEN, REDIS_SEARCH_TAG_ID_MESSAGE, REDIS_SEARCH_TAG_SPECIAL_CHARS, assertInteractiveAllowed(), WIZARD_INIT_STEPS, WIZARD_STEPS, WizardStep (+67 more)
 
 ### Community 28 - "LoggingService"
 Cohesion: 0.08
-Nodes (16): Inject, OllamaEmbeddingAdapter, Injectable, EmbeddingBackend, embeddingProbeTimeoutMs(), Inject, ChatProviderCooldownService, Injectable (+8 more)
+Nodes (13): Inject, Inject, ChatProviderCooldownService, Injectable, StreamCacheReplayService, Injectable, GatewayModelConfig, LoggingService (+5 more)
 
 ### Community 29 - ".getOne"
 Cohesion: 0.19
 Nodes (11): ApiGatewayModelsErrorResponses(), ModelsController, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiSecurity, ApiTags (+3 more)
 
-### Community 30 - "ai-provider-gateway/src/app.module.ts"
-Cohesion: 0.05
-Nodes (47): ChatModule, Module, resolveClientIdFromKey(), GatewayKeyRuntimeConfig, ResolvedGatewayClient, getAppConfig(), _badRuntimeConfig, GatewayKeyGuard (+39 more)
+### Community 30 - "configuration.types.ts"
+Cohesion: 0.07
+Nodes (34): ChatModule, Module, resolveClientIdFromKey(), ResolvedGatewayClient, getAppConfig(), GatewayKeyGuard, Injectable, enrichRequestWithClientId() (+26 more)
 
 ### Community 31 - "HealthService"
-Cohesion: 0.11
-Nodes (13): HealthLivenessResponseDto, ApiProperty, HealthReadinessResponseDto, HealthController, ApiOkResponse, ApiOperation, ApiTags, Controller (+5 more)
+Cohesion: 0.15
+Nodes (6): HealthReadinessResponseDto, ApiProperty, HealthService, Inject, Injectable, Optional
 
-### Community 32 - "run-review-panel.tsx"
-Cohesion: 0.09
-Nodes (29): useGuestLocked(), canEditResult(), finalizeRunReview(), isUserRating(), patchRunRating(), saveOutputEdited(), UserRating, isReviewableRunStatus() (+21 more)
+### Community 32 - ".constructor"
+Cohesion: 0.06
+Nodes (22): AcceptInviteUseCase, Inject, Injectable, ActivateAccountUseCase, Inject, Injectable, BootstrapStatusUseCase, Inject (+14 more)
 
 ### Community 33 - "cache.module.ts"
-Cohesion: 0.12
-Nodes (13): NoOpCacheBackend, Injectable, NoopCacheModule, Module, CacheModule, CacheModuleOptions, Module, CacheRegistryService (+5 more)
+Cohesion: 0.10
+Nodes (17): NoOpCacheBackend, Injectable, NoopCacheModule, Module, RedisCacheAdapter, Injectable, RedisCacheModule, Module (+9 more)
 
 ### Community 34 - "AnthropicMessagesRequestDto"
 Cohesion: 0.07
@@ -331,59 +338,55 @@ Nodes (21): buildGenerationConfig(), createGoogleProvider(), getFinalToolCalls()
 
 ### Community 36 - "runs.types.ts"
 Cohesion: 0.05
-Nodes (72): assertNever(), notifyProduct(), notifyRunCancelled(), notifyRunTerminal(), EnvelopeRef, ProductToast, RunTerminalInput, RunTerminalOutcome (+64 more)
+Nodes (92): ArchiveRunsQuery, fetchRunLogs(), fetchUserRuns(), InitiatorOption, isUserRating(), patchRunRating(), HitlAccepted, isPageOutlineSectionRole() (+84 more)
 
 ### Community 37 - "enums.ts"
 Cohesion: 0.06
 Nodes (22): CONTENT_KINDS, CONTENT_LANGUAGES, CONTENT_TASK_TYPES, ContentKind, ContentLanguage, ContentTaskType, FEEDBACK_AGENT_KEYS, FEEDBACK_TARGET_TYPES (+14 more)
 
-### Community 38 - "runs-result.types.ts"
+### Community 38 - "run-result-view.tsx"
 Cohesion: 0.04
-Nodes (70): buildOutputEditedBody(), contentPayload(), documentPayload(), ideaPayload(), omitEmptyCta(), outlinePayload(), reelIdeaPayload(), RESULT_KEYS_BY_TASK_TYPE (+62 more)
-
-### Community 39 - "llm-hop.ts"
-Cohesion: 0.19
-Nodes (13): LLM_GATEWAY_PORT, isRetryable(), RetryReason, isAbortError(), ChatJsonInput, hopErrorLogMessage(), hopUserContent(), isHopRetryable() (+5 more)
+Nodes (68): buildOutputEditedBody(), canEditResult(), contentPayload(), documentPayload(), ideaPayload(), omitEmptyCta(), outlinePayload(), reelIdeaPayload() (+60 more)
 
 ### Community 40 - "sentry-ai-metrics.adapter.ts"
 Cohesion: 0.10
 Nodes (28): CostUsd, ToolCallId, NoopAiMetricsAdapter, Injectable, applyGenAiConversationIdToSpan(), applyGenAiMessagesToSpan(), applyObservationToSpan(), applyRequestMetadataContext() (+20 more)
 
 ### Community 41 - "prisma-run.adapter.ts"
-Cohesion: 0.05
-Nodes (29): contentBriefSchema, hitlSelectedIdeaIdsSchema, pageStartRunSchema, ParsedHitlSelectedIdeaIds, ParsedRunId, ParsedSocialBrief, ParsedStartRunCommand, socialBriefSchema (+21 more)
+Cohesion: 0.07
+Nodes (19): LightRunItem, ListRunsResult, RunSnapshot, RunLogEntry, RunRecordBase, ALLOWED_RUN_STATES, assertTransition(), CANCELABLE_RUN_STATUSES (+11 more)
 
 ### Community 42 - "openai-models.controller.ts"
-Cohesion: 0.27
-Nodes (10): ApiOpenAiErrorResponses(), OpenAiErrorBodyDto, OpenAiErrorResponseDto, ApiProperty, ApiPropertyOptional, OpenAiModelDto, OpenAiModelsListResponseDto, ApiProperty (+2 more)
+Cohesion: 0.21
+Nodes (12): ApiOpenAiErrorResponses(), ANTHROPIC_INTEGRATION_PATH, OPENAI_INTEGRATION_PATH, OpenAiErrorBodyDto, OpenAiErrorResponseDto, ApiProperty, ApiPropertyOptional, OpenAiModelDto (+4 more)
 
 ### Community 43 - "ids.ts"
 Cohesion: 0.10
 Nodes (23): ACCOUNT_ACTIVATION_ID_RE, AccountActivationId, CONV_ID_RE, ConversationId, createConversationId(), createFeedbackId(), createGatewayModelAlias(), createRunId() (+15 more)
 
-### Community 44 - "response-cache.service.ts"
-Cohesion: 0.11
-Nodes (22): computeSystemSignature(), hashCallParams(), serializeCallParamsForCache(), isUnservableCachedReply(), ResponseCacheService, Injectable, CachedChatResponseSchema, ChatWarningSchema (+14 more)
+### Community 44 - "semantic-cache.service.ts"
+Cohesion: 0.09
+Nodes (25): computeSystemSignature(), hashCallParams(), serializeCallParamsForCache(), isUnservableCachedReply(), ResponseCacheService, Injectable, parseCachedChatResponse(), OllamaEmbeddingAdapter (+17 more)
 
-### Community 45 - "PageDocument"
+### Community 45 - "PageOutline"
 Cohesion: 0.10
-Nodes (13): ContentPipelineState, PageDocument, VerifierVerdict, PrismaContentResultAdapter, toContentPipelinePhase(), Injectable, Inject, OutputEditedWrite (+5 more)
+Nodes (11): ContentPipelineState, PageOutline, PrismaContentResultAdapter, toContentPipelinePhase(), Injectable, OutputEditedWrite, OutputEditedWriter, applyWrite() (+3 more)
 
 ### Community 46 - "save-output-edited.use-case.ts"
-Cohesion: 0.13
-Nodes (22): pageDocumentOutputSchema, contentsArraySchema, editedContentItemSchema, editedContentSchema, editedPageDocumentSchema, editedPageOutlineSchema, editedReelScriptItemSchema, ideaPersistedSchema (+14 more)
+Cohesion: 0.08
+Nodes (36): pageDocumentOutputSchema, contentsArraySchema, editedContentItemSchema, editedContentSchema, editedPageDocumentSchema, editedPageOutlineSchema, editedReelScriptItemSchema, ideaPersistedSchema (+28 more)
 
-### Community 47 - "GuestQuotaPort"
-Cohesion: 0.10
-Nodes (16): isGuestTaskType(), GUEST_QUOTA, GuestQuotaAdmitResult, GuestQuotaPort, GuestQuotaModule, Module, createRedis(), IoredisGuestQuotaAdapter (+8 more)
+### Community 47 - "rate-run.use-case.ts"
+Cohesion: 0.08
+Nodes (22): GUEST_TASK_TYPES, GuestRunAdmit, isGuestTaskType(), ratingSchema, assertRunReviewable(), ReviewWindowParams, GUEST_QUOTA, GuestQuotaAdmitResult (+14 more)
 
 ### Community 48 - "swagger.setup.ts"
-Cohesion: 0.12
-Nodes (19): AppModule, Module, SseDeltaPayloadDto, ApiProperty, bootstrap(), API_GLOBAL_PREFIX, PORT, setupApp() (+11 more)
+Cohesion: 0.10
+Nodes (21): AppModule, Module, ChatUsageDto, ApiPropertyOptional, SseDeltaPayloadDto, ApiProperty, bootstrap(), API_GLOBAL_PREFIX (+13 more)
 
 ### Community 49 - "anthropic-response.mapper.ts"
-Cohesion: 0.15
-Nodes (23): asMessageId(), MessageId, AnthropicContentBlock, AnthropicContentBlockDto, AnthropicMessagesResponseDto, AnthropicMessagesUsageDto, AnthropicTextContentBlockDto, AnthropicThinkingContentBlockDto (+15 more)
+Cohesion: 0.13
+Nodes (25): SseDoneEvent, asMessageId(), MessageId, AnthropicContentBlock, AnthropicContentBlockDto, AnthropicMessagesResponseDto, AnthropicMessagesUsageDto, AnthropicTextContentBlockDto (+17 more)
 
 ### Community 50 - "ListRunsQueryDto"
 Cohesion: 0.17
@@ -391,98 +394,98 @@ Nodes (10): ListRunsQueryDto, IsArray, IsIn, IsInt, IsOptional, IsString, Min, T
 
 ### Community 51 - "ModelAlias"
 Cohesion: 0.06
-Nodes (6): ProviderTestOptions, ModelAlias, ProviderInstanceId, NoopAppMetricsAdapter, Injectable, AppMetricsBackend
+Nodes (9): ProviderTestOptions, ModelAlias, ProviderInstanceId, NoopAppMetricsAdapter, Injectable, AppMetricsService, Inject, Injectable (+1 more)
 
-### Community 52 - "semantic-cache.module.ts"
-Cohesion: 0.28
-Nodes (7): SemanticCacheModule, Module, EMBEDDING_BACKEND, VECTOR_STORE, AppMetricsModule, Global, Module
+### Community 52 - "RunRepository"
+Cohesion: 0.06
+Nodes (10): Inject, Inject, Inject, Inject, Inject, Inject, Inject, Inject (+2 more)
 
-### Community 53 - "provider-registry.service.ts"
-Cohesion: 0.12
-Nodes (15): CompleteOnceResult, ChatValidationService, Injectable, UnsupportedProviderException, ModelId, GatewayCapabilitiesConfig, GatewayModelConfig, GatewayParamsConfig (+7 more)
+### Community 53 - "ai-provider-gateway/src/app.module.ts"
+Cohesion: 0.08
+Nodes (21): CacheModule, Module, HealthModule, Module, IntegrationsModule, Module, AiMetricsModule, Global (+13 more)
 
 ### Community 54 - "content.graph.ts"
 Cohesion: 0.08
-Nodes (49): ContentPipelineFacade, Inject, Injectable, Inject, coerceVerifierIssue(), isPlainRecord(), PageDocumentOutput, PageOutlineOutput (+41 more)
+Nodes (45): Inject, coerceVerifierIssue(), isPlainRecord(), PageDocumentOutput, PageOutlineOutput, pageOutlineOutputSchema, pageOutlineSectionRoleSchema, pageOutlineSectionSchema (+37 more)
 
-### Community 55 - "config-generator.service.ts"
-Cohesion: 0.10
-Nodes (18): WizardState, ConfigGeneratorService, Injectable, FileManagerService, Injectable, Injectable, WizardOrchestratorService, WizardRunResult (+10 more)
+### Community 55 - "FileManagerService"
+Cohesion: 0.14
+Nodes (9): WizardState, ConfigGeneratorService, Injectable, FileManagerService, Injectable, Injectable, WizardOrchestratorService, Injectable (+1 more)
 
 ### Community 56 - "prisma-invitation.adapter.ts"
-Cohesion: 0.17
-Nodes (15): AcceptInviteAndCreateUserInput, AcceptInviteAndCreateUserResult, CreateInvitationInput, CreatePendingResult, InvitationListRecord, InvitationPurpose, InvitationRecord, InvitationStatus (+7 more)
+Cohesion: 0.14
+Nodes (18): InvitationListItem, AcceptInviteAndCreateUserInput, AcceptInviteAndCreateUserResult, CreateInvitationInput, CreatePendingResult, INVITATION_REPOSITORY, InvitationListRecord, InvitationPurpose (+10 more)
 
 ### Community 57 - "domain/company-context.types.ts"
 Cohesion: 0.15
 Nodes (21): COMPANY_CONTEXT_SINGLETON_ID, GATE_SECTIONS, GateSection, AudienceProfile, CompanyContextCaseStudy, CompanyContextExtras, CompanyContextObjection, CompanyContextWriteDetail (+13 more)
 
 ### Community 58 - "responses.adapter.ts"
-Cohesion: 0.26
-Nodes (15): asToolCallId(), buildResponsesCreateParams(), createResponsesAdapter(), textStream(), mapGatewayMetadataToOpenAi(), extractResponsesToolCalls(), mapResponsesStopReason(), parseOpenAiResponse() (+7 more)
+Cohesion: 0.22
+Nodes (19): asInputTokens(), asOutputTokens(), asToolCallId(), getUsageMetadata(), getUsageMetadata(), buildResponsesCreateParams(), createResponsesAdapter(), textStream() (+11 more)
 
-### Community 59 - "branded.types.ts"
-Cohesion: 0.07
-Nodes (51): buildRetryPolicyFromResolved(), ModelRetrySource, resolveMaxAttempts(), resolveTimeoutMs(), assertNoFallbackCycle(), isRetryableHttpError(), AttemptResult, ResilientExecutionOptions (+43 more)
+### Community 59 - "provider-registry.service.ts"
+Cohesion: 0.10
+Nodes (26): buildRetryPolicyFromResolved(), ModelRetrySource, resolveMaxAttempts(), resolveTimeoutMs(), assertNoFallbackCycle(), isRetryableHttpError(), AttemptResult, ResilientExecutionOptions (+18 more)
 
 ### Community 60 - "metrics.ts"
-Cohesion: 0.12
-Nodes (26): getClientConversationId(), getOrCreateConversationIdForResponse(), buildAppProviderMetricsContext(), buildLlmMetricsContext(), mapProviderResponseToAiObservation(), mapProviderResponseToUsage(), toMetricsMessages(), buildProviderInputForAlias() (+18 more)
+Cohesion: 0.11
+Nodes (25): getClientConversationId(), getOrCreateConversationIdForResponse(), buildAppProviderMetricsContext(), buildLlmMetricsContext(), mapProviderResponseToAiObservation(), mapProviderResponseToUsage(), toMetricsMessages(), buildProviderInputForAlias() (+17 more)
 
-### Community 61 - ".info"
+### Community 61 - "exitWithAgentReport"
 Cohesion: 0.18
-Nodes (7): toSafeClientList(), toSafeConfigSnapshot(), toSafeModelList(), toSafeProviderList(), ProviderTestCommand, Command, Option
+Nodes (7): exitWithAgentReport(), resolveCliMode(), ProviderTestCommand, Command, Option, ProviderTestService, Injectable
 
-### Community 62 - "RunRepository"
-Cohesion: 0.03
-Nodes (76): AutoFinalizeExpiredReviewsUseCase, Inject, Injectable, CancelRunUseCase, Inject, Injectable, FinalizeReviewUseCase, Inject (+68 more)
+### Community 62 - "runs.controller.ts"
+Cohesion: 0.07
+Nodes (50): AutoFinalizeExpiredReviewsUseCase, Injectable, CancelRunUseCase, Inject, Injectable, FinalizeReviewUseCase, Injectable, GetRunLogsOutput (+42 more)
 
-### Community 63 - "api-error.code.ts"
-Cohesion: 0.09
-Nodes (26): ChatToolingDto, IsArray, Type, ValidateNested, ApiErrorCode, DEFAULT_HTTP_STATUS_TO_CODE, GlobalExceptionFilter, isPayloadTooLargeError() (+18 more)
+### Community 63 - "types/index.ts"
+Cohesion: 0.11
+Nodes (28): GlobalExceptionFilter, isPayloadTooLargeError(), Catch, Injectable, RequestIdMiddleware, Injectable, CONVERSATION_ID_PATTERN, createRequestId() (+20 more)
 
 ### Community 64 - "anthropic-models.controller.ts"
-Cohesion: 0.22
-Nodes (12): ApiAnthropicErrorResponses(), AnthropicErrorBodyDto, AnthropicErrorResponseDto, ApiProperty, AnthropicModelDto, AnthropicModelsListResponseDto, ApiProperty, mapGatewayModelsListToAnthropic() (+4 more)
+Cohesion: 0.28
+Nodes (10): ApiAnthropicErrorResponses(), AnthropicErrorBodyDto, AnthropicErrorResponseDto, ApiProperty, AnthropicModelDto, AnthropicModelsListResponseDto, ApiProperty, mapGatewayModelsListToAnthropic() (+2 more)
 
 ### Community 65 - "ModelEditCommand"
 Cohesion: 0.39
 Nodes (3): ModelEditCommand, Command, Option
 
-### Community 66 - "AppMetricsService"
-Cohesion: 0.06
-Nodes (19): HttpMetricsMiddleware, Injectable, Inject, Optional, resolveAppMetricsBackend(), AppMetricsService, Inject, Injectable (+11 more)
+### Community 66 - "MetricsController"
+Cohesion: 0.18
+Nodes (7): MetricsController, ApiOperation, ApiResponse, ApiTags, Controller, Get, Header
 
-### Community 67 - "RedisConnectionService"
-Cohesion: 0.16
-Nodes (7): RedisCacheAdapter, Injectable, RedisCacheModule, Module, RedisConnectionService, Injectable, isRedisRequiredFromConfig()
+### Community 67 - "RefreshSessionRepository"
+Cohesion: 0.10
+Nodes (11): BootstrapAdminUseCase, Inject, Injectable, LoginUseCase, Inject, Injectable, RefreshSessionRecord, RefreshSessionRepository (+3 more)
 
 ### Community 68 - "OpenAiChatCompletionRequestDto"
 Cohesion: 0.07
 Nodes (31): IsStringOrArrayOfStrings(), OpenAiChatCompletionRequestDto, OpenAiStreamOptionsDto, ApiProperty, ApiPropertyOptional, ArrayMaxSize, ArrayMinSize, IsArray (+23 more)
 
-### Community 69 - ".execute"
-Cohesion: 0.16
-Nodes (14): isContentStartCommand(), isPlainRecord(), omitUndefinedDeep(), makeContentRun(), makeSocialRun(), makeSocialSnapshot(), SocialRunSnapshot, ErrorEnvelope (+6 more)
+### Community 69 - "start-run.use-case.ts"
+Cohesion: 0.11
+Nodes (23): contentBriefSchema, hitlSelectedIdeaIdsSchema, pageStartRunSchema, ParsedHitlSelectedIdeaIds, ParsedRunId, ParsedSocialBrief, ParsedStartRunCommand, socialBriefSchema (+15 more)
 
-### Community 70 - "semantic-cache.constants.ts"
+### Community 70 - "InProcessRunWorker"
+Cohesion: 0.11
+Nodes (5): InProcessRunWorker, Injectable, Inject, StubRunExecutor, Injectable
+
+### Community 71 - "demo-mode-provider.tsx"
+Cohesion: 0.22
+Nodes (10): fetchAppConfig(), AppConfig, parseAppConfig(), DemoChip(), DemoModeContext, DemoModeContextValue, DemoModeProvider(), DemoModeState (+2 more)
+
+### Community 72 - "invitations.controller.ts"
+Cohesion: 0.08
+Nodes (22): InviteUserUseCase, Inject, Injectable, ListInvitationsUseCase, Inject, Injectable, RevokeInvitationUseCase, Inject (+14 more)
+
+### Community 73 - "configuration.ts"
 Cohesion: 0.14
-Nodes (11): EmbeddingCircuitBreaker, normalizeEmbeddingModelForIndex(), semanticIndexName(), SemanticIndexNameOptions, canonicalSemanticSchema(), EMBEDDING_CIRCUIT_COOLDOWN_MS, EMBEDDING_CIRCUIT_OPEN_AFTER, EMBEDDING_PROBE_TIMEOUT_MS (+3 more)
-
-### Community 71 - "dashboard-shell.tsx"
-Cohesion: 0.07
-Nodes (35): CompletenessChip(), useCompleteness(), DemoChip(), DemoModeContext, DemoModeContextValue, DemoModeProvider(), DemoModeState, FALLBACK_ENVELOPE (+27 more)
-
-### Community 72 - "invite-user.use-case.ts"
-Cohesion: 0.04
-Nodes (48): Inject, InviteUserResult, inviteUserSchema, InviteUserUseCase, Inject, Injectable, InvitationListItem, ListInvitationsUseCase (+40 more)
-
-### Community 73 - "openai-params-provider.mapper.ts"
-Cohesion: 0.24
-Nodes (11): mapCallOptionsToChatCompletionParams(), mapCallOptionsToResponsesParams(), mapMaxOutputTokensForChatCompletions(), mapResponseFormatToChatCompletion(), mapResponseFormatToResponses(), mapStopSequences(), OpenAiSharedChatCompletionParams, OpenAiSharedResponsesParams (+3 more)
+Nodes (21): asCacheTtlSeconds(), asSemanticCacheTtlSeconds(), AppConfiguration, CacheRuntimeConfig, RateLimitRuntimeConfig, RedisRuntimeConfig, SemanticCacheRuntimeConfig, buildAppConfiguration() (+13 more)
 
 ### Community 74 - "InMemoryRunSseHub"
-Cohesion: 0.29
+Cohesion: 0.27
 Nodes (4): RunSseEvent, InMemoryRunSseHub, Inject, Injectable
 
 ### Community 75 - "parse-verifier-log-message.ts"
@@ -490,8 +493,8 @@ Cohesion: 0.19
 Nodes (12): isStringArray(), parseStringArrayAt(), parseVerifierIssuesSuffix(), parseVerifierLogMessage(), PlainLog, RunLogMessageView, scanJsonArrayEnd(), TEMPLATES (+4 more)
 
 ### Community 76 - "company-context.mapper.ts"
-Cohesion: 0.15
-Nodes (11): toCompanyContext(), toPartialCompanyContext(), companyContextCaseStudySchema, companyContextExtrasInputSchema, CompanyContextExtrasParsed, companyContextExtrasSchema, companyContextObjectionSchema, Body (+3 more)
+Cohesion: 0.10
+Nodes (15): toCompanyContext(), toPartialCompanyContext(), companyContextCaseStudySchema, companyContextExtrasInputSchema, CompanyContextExtrasParsed, companyContextExtrasSchema, companyContextObjectionSchema, Body (+7 more)
 
 ### Community 77 - "api/src/health/health.service.ts"
 Cohesion: 0.08
@@ -510,28 +513,28 @@ Cohesion: 0.21
 Nodes (3): PrometheusService, Injectable, PrometheusMetrics
 
 ### Community 81 - "cn"
-Cohesion: 0.08
-Nodes (33): AppHeader(), AppHeaderProps, AppSidebar(), AppSidebarProps, CompletenessChipSlot(), APP_NAV, AppNavItem, navItemsForRole() (+25 more)
+Cohesion: 0.05
+Nodes (50): FeedbackCta(), AppHeader(), AppHeaderProps, AppSidebar(), AppSidebarProps, CompletenessChipSlot(), FeedbackCtaSlot(), FloatingBoxSlot() (+42 more)
 
 ### Community 82 - "provider-instances.bootstrap.ts"
-Cohesion: 0.27
-Nodes (10): GatewayProviderInstanceConfig, assertOpenAiProviderType(), adaptApiKeyProviderFactory(), createOpenAiCompatibleProviderInstance(), createOpenAiProviderCore(), createOpenAiProvider(), ApiKeyProviderFactoryFn, ProviderFactoryFn (+2 more)
+Cohesion: 0.22
+Nodes (12): GatewayProviderInstanceConfig, assertOpenAiProviderType(), adaptApiKeyProviderFactory(), createOpenAiCompatibleProviderInstance(), createOpenAiProviderCore(), createOpenAiProvider(), ApiKeyProviderFactoryFn, ProviderFactoryFn (+4 more)
 
 ### Community 83 - "SPEC — README"
 Cohesion: 0.15
 Nodes (13): SPEC — Auth, SPEC — Bezpieczeństwo i self-host ops, SPEC — Content (BC), SPEC — Feedback (opinie tekstowe), SPEC — Frontend, SPEC — Komunikacja (HTTP / SSE / gateway), SPEC — Kontekst firmy, SPEC — Monorepo (+5 more)
 
 ### Community 84 - "ChatResponseDto"
-Cohesion: 0.17
-Nodes (10): ChatOutputTextDto, ApiProperty, ChatResponseDto, ChatUsageDetailsDto, ApiProperty, ApiPropertyOptional, IsOptional, IsString (+2 more)
+Cohesion: 0.22
+Nodes (8): ChatOutputTextDto, ApiProperty, ChatResponseDto, ChatUsageDetailsDto, ApiProperty, ApiPropertyOptional, IsOptional, IsString
 
-### Community 85 - "assert-audience-profile-names-unique.ts"
-Cohesion: 0.60
-Nodes (3): assertAudienceProfileNamesUnique(), normalizeAudienceName(), withEffectiveAudience()
+### Community 85 - "notify-product.tsx"
+Cohesion: 0.17
+Nodes (15): assertNever(), notifyProduct(), notifyRunCancelled(), notifyRunTerminal(), EnvelopeRef, ProductToast, RunTerminalInput, RunTerminalOutcome (+7 more)
 
 ### Community 86 - "model-manager.service.ts"
-Cohesion: 0.10
-Nodes (28): DEFAULT_MODEL_ALLOW_OVERRIDES, getRecommendedMaxOutputTokens(), isThinkingCapableModel(), THINKING_CAPABLE_MODEL_PATTERNS, convertModel(), ConfigPersistenceService, Injectable, defaultModelPolicy() (+20 more)
+Cohesion: 0.11
+Nodes (28): DEFAULT_MODEL_ALLOW_OVERRIDES, getRecommendedMaxOutputTokens(), isThinkingCapableModel(), THINKING_CAPABLE_MODEL_PATTERNS, convertModel(), defaultModelPolicy(), ModelEditField, ModelManagerService (+20 more)
 
 ### Community 87 - "company-context.dto.ts"
 Cohesion: 0.26
@@ -545,25 +548,25 @@ Nodes (3): ClientRemoveCommand, Command, Option
 Cohesion: 0.39
 Nodes (3): ModelAddCommand, Command, Option
 
-### Community 90 - "UsersController"
-Cohesion: 0.12
-Nodes (15): PatchUserDto, ApiProperty, IsBoolean, ApiCookieAuth, ApiTags, Body, Controller, Delete (+7 more)
+### Community 90 - "users.controller.ts"
+Cohesion: 0.10
+Nodes (18): ListUsersUseCase, Inject, Injectable, PatchUserDto, ApiProperty, IsBoolean, ApiCookieAuth, ApiTags (+10 more)
 
-### Community 91 - "PublicConfigController"
-Cohesion: 0.22
-Nodes (7): PublicConfigController, ApiOkResponse, ApiOperation, ApiTags, Controller, Get, Inject
+### Community 91 - "invitations.api.ts"
+Cohesion: 0.23
+Nodes (14): createInvitation(), fetchInvitations(), resendInvitation(), revokeInvitation(), InvitationListItem, InviteCreated, isInvitationExpired(), parseInvitationList() (+6 more)
 
 ### Community 92 - "anthropic-messages.controller.ts"
 Cohesion: 0.04
 Nodes (60): ApiHeader, GATEWAY_CACHE_HEADER, ChatController, ApiBody, ApiOperation, ApiResponse, ApiSecurity, ApiTags (+52 more)
 
 ### Community 93 - "social.graph.ts"
-Cohesion: 0.08
-Nodes (47): loadPromptFromDir(), coercePassNoteVerdict(), isPassOnlyIssue(), coerceVerifierIssue(), ContentOutput, IdeasOutput, ideasOutputSchema, isPlainRecord() (+39 more)
+Cohesion: 0.12
+Nodes (34): hopErrorLogMessage(), throwIfAborted(), coercePassNoteVerdict(), isPassOnlyIssue(), ideasOutputSchema, reelIdeasOutputSchema, isReelTaskType(), ReelTaskType (+26 more)
 
-### Community 94 - "CompanyContextRepository"
-Cohesion: 0.13
-Nodes (10): Inject, Inject, Inject, Inject, CompanyContextRepository, CompanyContext, jsonArray(), jsonRecord() (+2 more)
+### Community 94 - "CompanyContext"
+Cohesion: 0.18
+Nodes (8): assertAudienceProfileNamesUnique(), CompanyContext, normalizeAudienceName(), withEffectiveAudience(), jsonArray(), jsonRecord(), PrismaCompanyContextAdapter, Injectable
 
 ### Community 95 - "StartRunDto"
 Cohesion: 0.21
@@ -578,20 +581,20 @@ Cohesion: 0.14
 Nodes (16): DELETE, dynamic, GET, handle(), HEAD, OPTIONS, PATCH, POST (+8 more)
 
 ### Community 98 - "KeyGenerateCommand"
-Cohesion: 0.27
+Cohesion: 0.33
 Nodes (3): KeyGenerateCommand, Command, Option
 
-### Community 99 - "GatewayToolDefinitionDto"
-Cohesion: 0.29
-Nodes (6): GatewayToolDefinitionDto, ApiProperty, ApiPropertyOptional, IsObject, IsOptional, IsString
+### Community 99 - "ChatToolingDto"
+Cohesion: 0.16
+Nodes (15): ChatToolingDto, GatewayNamedToolChoiceDto, GatewayNamedToolChoiceFunctionDto, ApiPropertyOptional, IsArray, IsOptional, IsString, Type (+7 more)
 
 ### Community 100 - "CompanyContextController"
 Cohesion: 0.22
 Nodes (6): CompanyContextController, ApiCookieAuth, ApiOkResponse, ApiTags, Controller, Get
 
-### Community 101 - "configuration.ts"
-Cohesion: 0.07
-Nodes (45): collectPendingSecrets(), CliValidateOptions, normalizeGatewayConfigForWrite(), ValidationFormatter, asPort(), asSemanticCacheTtlSeconds(), collectInactiveProviderWarnings(), formatZodIssues() (+37 more)
+### Community 101 - "configuration-validation.service.ts"
+Cohesion: 0.14
+Nodes (18): collectInactiveProviderWarnings(), formatZodIssues(), validateGatewayConfig(), ValidationOptions, buildEffectiveGatewayConfig(), assertEnabledProviderSecretsPresent(), assertMasterKeyPresent(), configurationValidation (+10 more)
 
 ### Community 102 - "GatewayModelDto"
 Cohesion: 0.36
@@ -607,31 +610,35 @@ Nodes (6): ProviderAssistantTurn, ProviderToolResultTurn, ChatCompletionMessageP
 
 ### Community 105 - "PrismaService"
 Cohesion: 0.04
-Nodes (44): RefreshSessionRecord, RotateRefreshSessionResult, PrismaRefreshSessionAdapter, Injectable, CreateFeedbackUseCase, Inject, Injectable, agentKeySchema (+36 more)
+Nodes (44): DeleteUserResult, DeleteUserUseCase, Inject, Injectable, CreateFeedbackUseCase, Inject, Injectable, agentKeySchema (+36 more)
 
 ### Community 106 - "api/src/main.ts"
 Cohesion: 0.33
 Nodes (6): AppModule, Module, bootstrap(), parseCorsOrigins(), configureHttpApp(), buildSwaggerConfig()
 
+### Community 107 - "guest.guard.ts"
+Cohesion: 0.17
+Nodes (7): ALLOW_GUEST_KEY, IS_PUBLIC_KEY, GuestGuard, Inject, Injectable, JwtAuthGuard, Injectable
+
 ### Community 108 - ".getOne"
 Cohesion: 0.19
 Nodes (10): AnthropicModelsController, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiSecurity, ApiTags, Controller (+2 more)
 
-### Community 109 - "GatewayNamedToolChoiceFunctionDto"
-Cohesion: 0.50
-Nodes (5): GatewayNamedToolChoiceDto, GatewayNamedToolChoiceFunctionDto, ApiPropertyOptional, IsOptional, IsString
+### Community 109 - "HealthController"
+Cohesion: 0.31
+Nodes (6): HealthController, ApiOkResponse, ApiOperation, ApiTags, Controller, Get
 
 ### Community 110 - "should-include-redis-stack.ts"
 Cohesion: 0.18
 Nodes (12): CACHE_BACKEND_TYPE, getRedisConsumers(), getRedisConsumersFromConfig(), isRedisRequired(), isRedisRequiredFromEnv(), isSemanticCacheEnabledFromEnv(), RedisRequirementSnapshot, resolveCacheForRequirement() (+4 more)
 
-### Community 111 - "envelope.ts"
-Cohesion: 0.08
-Nodes (45): AcceptInvitePage(), metadata, tokenFromSearchParam(), ACCEPT_INVITE_DEMO_HINT, ACCEPT_INVITE_UNAUTHORIZED_HINT, AcceptInviteFormError, toAcceptInviteFormError(), acceptInvite() (+37 more)
+### Community 111 - "users-view.tsx"
+Cohesion: 0.05
+Nodes (80): AcceptInvitePage(), metadata, tokenFromSearchParam(), ACCEPT_INVITE_DEMO_HINT, ACCEPT_INVITE_UNAUTHORIZED_HINT, AcceptInviteFormError, toAcceptInviteFormError(), acceptInvite() (+72 more)
 
-### Community 112 - "openai-thinking-provider.mapper.ts"
-Cohesion: 0.23
-Nodes (13): buildGenerationWarnings(), OPENAI_RESPONSES_UNSUPPORTED_PARAMS, asWarningCode(), ChatCompletionThinkingParam, isOpenAiEffortLevel(), isOpenAiReasoningRequested(), mapThinkingBudgetToEffort(), mapThinkingToResponsesReasoning() (+5 more)
+### Community 112 - "openai-params-provider.mapper.ts"
+Cohesion: 0.12
+Nodes (24): buildGenerationWarnings(), OPENAI_RESPONSES_UNSUPPORTED_PARAMS, asWarningCode(), mapCallOptionsToChatCompletionParams(), mapCallOptionsToResponsesParams(), mapMaxOutputTokensForChatCompletions(), mapResponseFormatToChatCompletion(), mapResponseFormatToResponses() (+16 more)
 
 ### Community 113 - "ModelRemoveCommand"
 Cohesion: 0.39
@@ -641,25 +648,37 @@ Nodes (3): ModelRemoveCommand, Command, Option
 Cohesion: 0.39
 Nodes (3): ProviderRemoveCommand, Command, Option
 
+### Community 115 - "HttpExceptionFilter"
+Cohesion: 0.20
+Nodes (6): ErrorEnvelope, HttpExceptionFilter, Catch, newRequestId(), RequestIdMiddleware, Injectable
+
 ### Community 116 - "EnvironmentVariables"
 Cohesion: 0.18
 Nodes (11): EnvironmentVariables, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Max (+3 more)
 
-### Community 117 - "company-context.controller.ts"
-Cohesion: 0.22
-Nodes (14): toPublicCompanyContext(), GetCompanyContextUseCase, Injectable, GetCompletenessUseCase, Injectable, PatchCompanyContextUseCase, Injectable, PutCompanyContextUseCase (+6 more)
+### Community 117 - "CompanyContextRepository"
+Cohesion: 0.15
+Nodes (19): toPublicCompanyContext(), GetCompanyContextUseCase, Inject, Injectable, GetCompletenessUseCase, Inject, Injectable, PatchCompanyContextUseCase (+11 more)
 
 ### Community 118 - ".getOne"
 Cohesion: 0.19
 Nodes (10): OpenAiModelsController, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiSecurity, ApiTags, Controller (+2 more)
 
-### Community 119 - "ErrorEnvelopeDto"
-Cohesion: 0.50
-Nodes (3): ErrorEnvelopeDto, ApiProperty, ApiPropertyOptional
+### Community 120 - "CreateFeedbackDto"
+Cohesion: 0.33
+Nodes (6): CreateFeedbackDto, IsIn, IsOptional, IsString, MaxLength, MinLength
+
+### Community 121 - "page-document-body.tsx"
+Cohesion: 0.47
+Nodes (5): MdBlock, PageDocumentBody(), PageDocumentBodyProps, parseMarkdownBlocks(), renderInline()
 
 ### Community 122 - "api/src/app.module.ts"
-Cohesion: 0.06
-Nodes (49): AuthModule, Module, CompanyContextModule, Module, toOutcome(), ContentRunExecutor, isCanonicalOutlineSelection(), isMissingContentKind() (+41 more)
+Cohesion: 0.05
+Nodes (57): AuthModule, Module, CompanyContextModule, Module, ContentPipelineFacade, toOutcome(), Injectable, ContentRunExecutor (+49 more)
+
+### Community 123 - "ConfigValidateCommand"
+Cohesion: 0.50
+Nodes (3): ConfigValidateCommand, Command, Option
 
 ### Community 124 - "Architektura"
 Cohesion: 0.67
@@ -674,40 +693,44 @@ Cohesion: 0.39
 Nodes (3): ClientEditCommand, Command, Option
 
 ### Community 127 - "health.api.ts"
-Cohesion: 0.30
-Nodes (10): fetchGatewayAlive(), fetchHealthReady(), HealthCheck, HealthCheckStatus, HealthReadyAggregate, HealthReadyResponse, isGatewayAlive(), isRecord() (+2 more)
+Cohesion: 0.27
+Nodes (11): fetchGatewayAlive(), fetchHealthReady(), HealthCheck, HealthCheckStatus, HealthReadyAggregate, HealthReadyResponse, isGatewayAlive(), isRecord() (+3 more)
 
 ### Community 128 - "ai-provider-gateway/src/health/health.service.ts"
-Cohesion: 0.24
-Nodes (11): RedisConsumer, HealthCheckItemDto, ApiProperty, HealthReadinessChecksDto, ApiProperty, ApiPropertyOptional, HealthRedisCheckItemDto, ApiProperty (+3 more)
-
-### Community 129 - "openai-chat-completion-response.dto.ts"
-Cohesion: 0.39
-Nodes (8): OpenAiChatCompletionChoiceDto, OpenAiChatCompletionMessageDto, OpenAiChatCompletionResponseDto, OpenAiChatCompletionUsageDto, OpenAiToolCallDto, OpenAiToolCallFunctionDto, ApiProperty, ApiPropertyOptional
+Cohesion: 0.13
+Nodes (17): EMBEDDING_BACKEND, VECTOR_STORE, RedisConsumer, HealthCheckItemDto, ApiProperty, HealthLivenessResponseDto, ApiProperty, HealthReadinessChecksDto (+9 more)
 
 ### Community 131 - "openai-stream.mapper.ts"
-Cohesion: 0.28
-Nodes (13): SseDoneEvent, fromGatewayToolCallDto(), mapChatResponseToOpenAi(), mapFinishReasontoOpenAI(), mapGatewayToolCallsToOpenAi(), mapSystemFingerprintToOpenAi(), toOpenAiCompletionId(), baseChunkFields() (+5 more)
+Cohesion: 0.18
+Nodes (20): fromGatewayToolCallDto(), OpenAiChatCompletionChoiceDto, OpenAiChatCompletionMessageDto, OpenAiChatCompletionResponseDto, OpenAiChatCompletionUsageDto, OpenAiToolCallDto, OpenAiToolCallFunctionDto, ApiProperty (+12 more)
+
+### Community 132 - "HitlDto"
+Cohesion: 0.50
+Nodes (3): HitlDto, IsArray, IsString
+
+### Community 144 - "PatchRunRatingDto"
+Cohesion: 0.50
+Nodes (3): PatchRunRatingDto, IsIn, ValidateIf
 
 ## Knowledge Gaps
 - **468 isolated node(s):** `CacheModuleOptions`, `ChatWarningSchema`, `FinishReasonSchema`, `CachedChatResponseSchema`, `REDIS_SEARCH_TAG_SPECIAL_CHARS` (+463 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1247 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **13 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **16 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `ModelAlias` connect `ModelAlias` to `GatewayModelsCatalogService`, `AppMetricsService`, `asProviderInstanceId`, `wizard-orchestrator.service.ts`, `sentry-ai-metrics.adapter.ts`, `chat.service.ts`, `asClientId`, `response-cache.service.ts`, `ai-provider.interface.ts`, `app-metrics.service.ts`, `provider-registry.service.ts`, `model-manager.service.ts`, `config-generator.service.ts`, `PrometheusAppMetricsAdapter`, `branded.types.ts`, `metrics.ts`, `api-error.code.ts`?**
+- **Why does `ModelAlias` connect `ModelAlias` to `wizard-orchestrator.service.ts`, `sentry-ai-metrics.adapter.ts`, `ChatRequestDto`, `semantic-cache.service.ts`, `cli.module.ts`, `branded.types.ts`, `app-metrics.service.ts`, `GatewayKey`, `model-manager.service.ts`, `PrometheusAppMetricsAdapter`, `provider-registry.service.ts`, `metrics.ts`, `configuration.types.ts`, `types/index.ts`?**
   _High betweenness centrality (0.018) - this node is a cross-community bridge._
-- **Why does `ProviderInstanceId` connect `ModelAlias` to `GatewayModelsCatalogService`, `asProviderInstanceId`, `logging.module.ts`, `asClientId`, `cli.module.ts`, `ai-provider.interface.ts`, `app-metrics.service.ts`, `GatewayKey`, `PrometheusAppMetricsAdapter`, `wizard-orchestrator.service.ts`, `LoggingService`, `ai-provider-gateway/src/app.module.ts`, `sentry-ai-metrics.adapter.ts`, `provider-registry.service.ts`, `config-generator.service.ts`, `branded.types.ts`, `metrics.ts`, `.info`, `api-error.code.ts`, `AppMetricsService`, `model-manager.service.ts`, `configuration.ts`?**
+- **Why does `ProviderInstanceId` connect `ModelAlias` to `asProviderInstanceId`, `LogContext`, `ChatRequestDto`, `EnvPatchService`, `cli.module.ts`, `branded.types.ts`, `app-metrics.service.ts`, `GatewayKey`, `PrometheusAppMetricsAdapter`, `wizard-orchestrator.service.ts`, `configuration.types.ts`, `sentry-ai-metrics.adapter.ts`, `provider-registry.service.ts`, `metrics.ts`, `exitWithAgentReport`, `types/index.ts`, `configuration.ts`, `model-manager.service.ts`, `configuration-validation.service.ts`?**
   _High betweenness centrality (0.016) - this node is a cross-community bridge._
-- **Why does `LoggingService` connect `LoggingService` to `ai-provider-gateway/src/health/health.service.ts`, `chat-completions.adapter.ts`, `logging.module.ts`, `anthropic/anthropic-tools.mapper.ts`, `chat.service.ts`, `ai-provider.interface.ts`, `GatewayKey`, `redis-vector-store.adapter.ts`, `ai-provider-gateway/src/app.module.ts`, `HealthService`, `cache.module.ts`, `google-tools.mapper.ts`, `response-cache.service.ts`, `swagger.setup.ts`, `provider-registry.service.ts`, `responses.adapter.ts`, `branded.types.ts`, `api-error.code.ts`, `AppMetricsService`, `RedisConnectionService`, `provider-instances.bootstrap.ts`?**
+- **Why does `LoggingService` connect `LoggingService` to `ai-provider-gateway/src/health/health.service.ts`, `cache.module.ts`, `google-tools.mapper.ts`, `chat-completions.adapter.ts`, `LogContext`, `anthropic/anthropic-tools.mapper.ts`, `ChatRequestDto`, `semantic-cache.service.ts`, `branded.types.ts`, `swagger.setup.ts`, `provider-instances.bootstrap.ts`, `GatewayKey`, `redis-vector-store.adapter.ts`, `responses.adapter.ts`, `provider-registry.service.ts`, `HealthService`, `configuration.types.ts`, `types/index.ts`?**
   _High betweenness centrality (0.013) - this node is a cross-community bridge._
 - **Are the 2 inferred relationships involving `asProviderInstanceId()` (e.g. with `cached-chat-response.schema.ts` and `gateway-config.schema.ts`) actually correct?**
   _`asProviderInstanceId()` has 2 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `CacheModuleOptions`, `ChatWarningSchema`, `FinishReasonSchema` to the rest of the system?**
   _468 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `DomainException` be split into smaller, more focused modules?**
-  _Cohesion score 0.04811353409484251 - nodes in this community are weakly interconnected._
-- **Should `get-run.use-case.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.05621500559910415 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08168147641831852 - nodes in this community are weakly interconnected._
+- **Should `social.types.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.057967313585291114 - nodes in this community are weakly interconnected._

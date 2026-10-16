@@ -69,6 +69,16 @@ function ctaItemHeading(label: string, index: number): string {
   return trimmed.length > 0 ? trimmed : `CTA ${index + 1}`;
 }
 
+function caseStudyHeading(title: string, index: number): string {
+  const trimmed = title.trim();
+  return trimmed.length > 0 ? `Case ${trimmed}` : `Case ${index + 1}`;
+}
+
+function objectionHeading(label: string, index: number): string {
+  const trimmed = label.trim();
+  return trimmed.length > 0 ? `Obiekcja ${trimmed}` : `Obiekcja ${index + 1}`;
+}
+
 function commaToList(value: string): string[] {
   return value
     .split(',')
@@ -676,189 +686,215 @@ export function CompanyContextForm({
             </TabsContent>
 
             <TabsContent value="caseStudies" className="flex flex-col gap-3">
-              {(extras.caseStudies ?? []).map((item, index) => (
-                <div
-                  key={`case-${index}`}
-                  className="flex flex-col gap-3 border-t border-border pt-3"
-                >
-                  <FormField label="Tytuł" htmlFor={`case-title-${index}`}>
-                    <Input
-                      id={`case-title-${index}`}
-                      value={item.title}
-                      disabled={readOnly}
-                      onChange={(event) => {
-                        const caseStudies = (extras.caseStudies ?? []).map(
-                          (current, currentIndex) =>
-                            currentIndex === index
-                              ? { ...current, title: event.target.value }
-                              : current,
-                        );
-                        patch({ ...value, extras: { ...extras, caseStudies } });
-                      }}
-                    />
-                  </FormField>
-                  <FormField label="Streszczenie" htmlFor={`case-summary-${index}`}>
-                    <Textarea
-                      id={`case-summary-${index}`}
-                      value={item.summary}
-                      disabled={readOnly}
-                      onChange={(event) => {
-                        const caseStudies = (extras.caseStudies ?? []).map(
-                          (current, currentIndex) =>
-                            currentIndex === index
-                              ? { ...current, summary: event.target.value }
-                              : current,
-                        );
-                        patch({ ...value, extras: { ...extras, caseStudies } });
-                      }}
-                    />
-                  </FormField>
-                  <FormField
-                    label="Metryki (opcjonalnie)"
-                    htmlFor={`case-metrics-${index}`}
-                    hint="Oddzielone przecinkami."
-                  >
-                    <Input
-                      id={`case-metrics-${index}`}
-                      value={(item.metrics ?? []).join(', ')}
-                      disabled={readOnly}
-                      onChange={(event) => {
-                        const caseStudies = (extras.caseStudies ?? []).map(
-                          (current, currentIndex) =>
-                            currentIndex === index
-                              ? { ...current, metrics: commaToList(event.target.value) }
-                              : current,
-                        );
-                        patch({ ...value, extras: { ...extras, caseStudies } });
-                      }}
-                    />
-                  </FormField>
-                  {readOnly ? null : (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="self-start"
-                      onClick={() =>
-                        patch({
-                          ...value,
-                          extras: {
-                            ...extras,
-                            caseStudies: (extras.caseStudies ?? []).filter(
-                              (_, currentIndex) => currentIndex !== index,
-                            ),
-                          },
-                        })
-                      }
-                    >
-                      <Icon icon="lucide:trash-2" className="size-3.5" />
-                      Usuń case study
-                    </Button>
-                  )}
-                </div>
-              ))}
               {readOnly ? null : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="self-start"
-                  onClick={() =>
-                    patch({
-                      ...value,
-                      extras: {
-                        ...extras,
-                        caseStudies: [...(extras.caseStudies ?? []), { title: '', summary: '' }],
-                      },
-                    })
-                  }
-                >
-                  <Icon icon="lucide:plus" className="size-3.5" />
-                  Dodaj case study
-                </Button>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      patch({
+                        ...value,
+                        extras: {
+                          ...extras,
+                          caseStudies: [
+                            { title: '', summary: '' },
+                            ...(extras.caseStudies ?? []),
+                          ],
+                        },
+                      })
+                    }
+                  >
+                    <Icon icon="lucide:plus" className="size-3.5" />
+                    Dodaj case study
+                  </Button>
+                </div>
               )}
+              <div className="flex flex-col divide-y divide-border">
+                {(extras.caseStudies ?? []).map((item, index) => (
+                  <div key={`case-${index}`} className="flex flex-col gap-3 py-4 first:pt-0">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 lg:flex lg:flex-wrap lg:justify-between">
+                      <h3
+                        className="min-w-0 truncate text-sm font-medium lg:overflow-visible lg:text-clip"
+                        title={caseStudyHeading(item.title, index)}
+                      >
+                        {caseStudyHeading(item.title, index)}
+                      </h3>
+                      {readOnly ? null : (
+                        <span className="shrink-0 justify-self-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              patch({
+                                ...value,
+                                extras: {
+                                  ...extras,
+                                  caseStudies: (extras.caseStudies ?? []).filter(
+                                    (_, currentIndex) => currentIndex !== index,
+                                  ),
+                                },
+                              })
+                            }
+                          >
+                            <Icon icon="lucide:trash-2" className="size-3.5" />
+                            Usuń case study
+                          </Button>
+                        </span>
+                      )}
+                    </div>
+                    <FormField label="Tytuł" htmlFor={`case-title-${index}`}>
+                      <Input
+                        id={`case-title-${index}`}
+                        value={item.title}
+                        disabled={readOnly}
+                        onChange={(event) => {
+                          const caseStudies = (extras.caseStudies ?? []).map(
+                            (current, currentIndex) =>
+                              currentIndex === index
+                                ? { ...current, title: event.target.value }
+                                : current,
+                          );
+                          patch({ ...value, extras: { ...extras, caseStudies } });
+                        }}
+                      />
+                    </FormField>
+                    <FormField label="Streszczenie" htmlFor={`case-summary-${index}`}>
+                      <Textarea
+                        id={`case-summary-${index}`}
+                        value={item.summary}
+                        disabled={readOnly}
+                        onChange={(event) => {
+                          const caseStudies = (extras.caseStudies ?? []).map(
+                            (current, currentIndex) =>
+                              currentIndex === index
+                                ? { ...current, summary: event.target.value }
+                                : current,
+                          );
+                          patch({ ...value, extras: { ...extras, caseStudies } });
+                        }}
+                      />
+                    </FormField>
+                    <FormField
+                      label="Metryki (opcjonalnie)"
+                      htmlFor={`case-metrics-${index}`}
+                      hint="Oddzielone przecinkami."
+                    >
+                      <Input
+                        id={`case-metrics-${index}`}
+                        value={(item.metrics ?? []).join(', ')}
+                        disabled={readOnly}
+                        onChange={(event) => {
+                          const caseStudies = (extras.caseStudies ?? []).map(
+                            (current, currentIndex) =>
+                              currentIndex === index
+                                ? { ...current, metrics: commaToList(event.target.value) }
+                                : current,
+                          );
+                          patch({ ...value, extras: { ...extras, caseStudies } });
+                        }}
+                      />
+                    </FormField>
+                  </div>
+                ))}
+              </div>
             </TabsContent>
 
             <TabsContent value="objections" className="flex flex-col gap-3">
-              {(extras.objections ?? []).map((item, index) => (
-                <div
-                  key={`obj-${index}`}
-                  className="flex flex-col gap-3 border-t border-border pt-3"
-                >
-                  <FormField label="Obiekcja" htmlFor={`obj-label-${index}`}>
-                    <Input
-                      id={`obj-label-${index}`}
-                      value={item.label}
-                      disabled={readOnly}
-                      onChange={(event) => {
-                        const objections = (extras.objections ?? []).map((current, currentIndex) =>
-                          currentIndex === index
-                            ? { ...current, label: event.target.value }
-                            : current,
-                        );
-                        patch({ ...value, extras: { ...extras, objections } });
-                      }}
-                    />
-                  </FormField>
-                  <FormField label="Odpowiedź" htmlFor={`obj-response-${index}`}>
-                    <Textarea
-                      id={`obj-response-${index}`}
-                      value={item.response}
-                      disabled={readOnly}
-                      onChange={(event) => {
-                        const objections = (extras.objections ?? []).map((current, currentIndex) =>
-                          currentIndex === index
-                            ? { ...current, response: event.target.value }
-                            : current,
-                        );
-                        patch({ ...value, extras: { ...extras, objections } });
-                      }}
-                    />
-                  </FormField>
-                  {readOnly ? null : (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="self-start"
-                      onClick={() =>
-                        patch({
-                          ...value,
-                          extras: {
-                            ...extras,
-                            objections: (extras.objections ?? []).filter(
-                              (_, currentIndex) => currentIndex !== index,
-                            ),
-                          },
-                        })
-                      }
-                    >
-                      <Icon icon="lucide:trash-2" className="size-3.5" />
-                      Usuń obiekcję
-                    </Button>
-                  )}
-                </div>
-              ))}
               {readOnly ? null : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="self-start"
-                  onClick={() =>
-                    patch({
-                      ...value,
-                      extras: {
-                        ...extras,
-                        objections: [...(extras.objections ?? []), { label: '', response: '' }],
-                      },
-                    })
-                  }
-                >
-                  <Icon icon="lucide:plus" className="size-3.5" />
-                  Dodaj obiekcję
-                </Button>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      patch({
+                        ...value,
+                        extras: {
+                          ...extras,
+                          objections: [
+                            { label: '', response: '' },
+                            ...(extras.objections ?? []),
+                          ],
+                        },
+                      })
+                    }
+                  >
+                    <Icon icon="lucide:plus" className="size-3.5" />
+                    Dodaj obiekcję
+                  </Button>
+                </div>
               )}
+              <div className="flex flex-col divide-y divide-border">
+                {(extras.objections ?? []).map((item, index) => (
+                  <div key={`obj-${index}`} className="flex flex-col gap-3 py-4 first:pt-0">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 lg:flex lg:flex-wrap lg:justify-between">
+                      <h3
+                        className="min-w-0 truncate text-sm font-medium lg:overflow-visible lg:text-clip"
+                        title={objectionHeading(item.label, index)}
+                      >
+                        {objectionHeading(item.label, index)}
+                      </h3>
+                      {readOnly ? null : (
+                        <span className="shrink-0 justify-self-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              patch({
+                                ...value,
+                                extras: {
+                                  ...extras,
+                                  objections: (extras.objections ?? []).filter(
+                                    (_, currentIndex) => currentIndex !== index,
+                                  ),
+                                },
+                              })
+                            }
+                          >
+                            <Icon icon="lucide:trash-2" className="size-3.5" />
+                            Usuń obiekcję
+                          </Button>
+                        </span>
+                      )}
+                    </div>
+                    <FormField label="Obiekcja" htmlFor={`obj-label-${index}`}>
+                      <Input
+                        id={`obj-label-${index}`}
+                        value={item.label}
+                        disabled={readOnly}
+                        onChange={(event) => {
+                          const objections = (extras.objections ?? []).map(
+                            (current, currentIndex) =>
+                              currentIndex === index
+                                ? { ...current, label: event.target.value }
+                                : current,
+                          );
+                          patch({ ...value, extras: { ...extras, objections } });
+                        }}
+                      />
+                    </FormField>
+                    <FormField label="Odpowiedź" htmlFor={`obj-response-${index}`}>
+                      <Textarea
+                        id={`obj-response-${index}`}
+                        value={item.response}
+                        disabled={readOnly}
+                        onChange={(event) => {
+                          const objections = (extras.objections ?? []).map(
+                            (current, currentIndex) =>
+                              currentIndex === index
+                                ? { ...current, response: event.target.value }
+                                : current,
+                          );
+                          patch({ ...value, extras: { ...extras, objections } });
+                        }}
+                      />
+                    </FormField>
+                  </div>
+                ))}
+              </div>
             </TabsContent>
           </Tabs>
           <FormActions
