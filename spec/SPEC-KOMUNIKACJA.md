@@ -1,5 +1,5 @@
 ---
-wersja: 39
+wersja: 41
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-10-17
 ---
@@ -14,6 +14,8 @@ Norma **implementacji obu powierzchni I/O** Content Chain:
 2. klient `apps/api` → `apps/ai-provider-gateway` (natywny chat **oraz** probe liveness health).
 
 Uszczegóławia `docs/dokumentacja_komunikacji.md` oraz korelację ID z `docs/brand_types.md` / `docs/dictionary.md`. **Nie** redefiniuje listy endpointów ani payloadów — odwołuje się do docs; tu obowiązują wzorce warstw, walidacja, envelope, SSE i adapter LLM.
+
+Zmiana względem wersji 39 / cel: brak endpointu agregacji KPI. Od tej wersji **K-2k** — `GET /api/v1/runs/summary` (rolling 30d, scope admin/user/guest∧demo, TTL cache 60 s, shape KPI) — `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-13, `SPEC-FRONTEND.md` F-16.
 
 Zmiana względem wersji 36 / cel: Users DELETE = soft; cancel wyłącznie `startedBy`; `startedBy` na detail bez `role`; brak `GUEST_HAS_ACTIVE_RUN`. Od tej wersji: DELETE wg roli + `?purge=true`; cancel admin→guest; `startedBy.role` na detail; kod **`GUEST_HAS_ACTIVE_RUN`** (K-2j / K-8) — `docs/dokumentacja_komunikacji.md`, `users-management-plan.md` Faza 2.
 
@@ -50,6 +52,7 @@ Wiążące (`docs/architektura.md`):
 |--------------|-------------------|--------|
 | Publiczne API CC | `/api/v1` | JSON |
 | Lista runów | `GET /api/v1/runs` | JSON (paginacja stała 10) |
+| Agregacja KPI (Konto) | `GET /api/v1/runs/summary` | JSON (rolling 30d; TTL cache 60 s) |
 | Runy użytkownika (select opinii + Konto) | `GET /api/v1/runs/user/:userId` | JSON (wszystkie, bez pageSize HTTP; paginacja UI Moje runy = FE) |
 | Live run | `GET /api/v1/runs/:runId/events` | SSE (`text/event-stream`) |
 | Anulowanie runu | `POST /api/v1/runs/:runId/cancel` | JSON (body puste; snapshot) |
@@ -151,6 +154,31 @@ K-2j. Users (admin) — skrót I/O; pełna semantyka `SPEC-AUTH.md` A-10 / A-10a
 
 - `DELETE /api/v1/users/:id` — body puste; opcjonalny query **`purge=true`** (skutek tylko przy `guest` + live). Semantyka po `target.role`: soft `user` / hard `guest`. **200** `{ "ok": true }` (soft / hard / purge). **403** target admin; **404** brak wiersza; **400** złe `UserId`; **409** `GUEST_HAS_ACTIVE_RUN` + `message` (guest + live + **bez** `purge`; bez listy `runId`).
 - `PATCH /api/v1/users/:id` — body `{ "isActive": true }`; sukces tylko target `role = user`; target `guest` → **403**; **nie** `PATCH` z `role` / `isActive: false`.
+
+K-2k. `GET /api/v1/runs/summary` — agregacja KPI pod widok Konto (`docs/ux_dashboard.md`, `SPEC-FRONTEND.md` F-16). Sesja cookie `cc_access` (jak inne chronione trasy Runs). **Query: brak** — okno zawsze rolling **ostatnie 30 dni** od „teraz” serwera. **Bez** body request. **Bez** migracji schematu.
+
+**Scope** (filtr zbioru przed agregacją):
+
+| Rola | Scope |
+|------|--------|
+| `admin` | cała instancja |
+| `user` | wyłącznie runy `startedBy` = sesja |
+| `guest` | wyłącznie własne; endpoint **dostępny** gdy `DEMO_MODE=true`; gdy demo off — jak pozostałe trasy guest (norma auth/demo); UI i tak ukrywa KPI |
+
+**200** — pola (DTO w `@content-chain/shared`):
+
+| Pole | Typ | Semantyka |
+|------|-----|-----------|
+| `windowFrom` | ISO8601 | początek okna (włącznie) |
+| `windowTo` | ISO8601 | koniec okna (zwykle „teraz”) |
+| `totalLast30d` | number | liczba runów z `createdAt` w oknie |
+| `successRateLast30d` | number | % `completed` wśród terminalnych w oknie (`completed` \| `failed` \| `cancelled`); brak terminalnych → **`0`** (nie `null`) |
+| `activeNow` | number | count status ∈ `{running, awaiting_hitl, queued}` — **bez** limitu 30 dni |
+| `topTaskTypeLast30d` | `taskType` string \| `null` | max count w oknie; remis → typ z najnowszym `createdAt` wśród remisujących; brak runów → `null` |
+
+**Cache:** odpowiedź wolno cache’ować **TTL 60 s** (norma świeżości w kontrakcie; HOW = serwer / CDN / in-process). **401** bez sesji (`UNAUTHORIZED`). Envelope błędów jak K-1. Trasa statyczna `summary` **przed** `:runId` (obok `user/:userId`). Semantyka domenowa metryk: `SPEC-RUNY.md` R-13. Pełny kontrakt: `docs/dokumentacja_komunikacji.md`.
+
+Zmiana względem wersji 39: brak tej trasy w kanonie HTTP. Od tej wersji K-2k.
 
 K-2f. `POST /api/v1/auth/accept-invite` — publiczny; body `{ token, password }` (bez `role`). Happy path: **201** `{ user: { id, email, role } }` — **bez** Set-Cookie; **`user.role`:** `guest` gdy `DEMO_MODE=true`, `user` gdy `false` (`SPEC-AUTH.md` A-7b). Token zły / zużyty / `revoked` / wygasły → **401** `UNAUTHORIZED` (wspólny `message`). Hasło poza polityką → **400** `VALIDATION_FAILED`. Kolizja `User.email` (w tym soft-deleted) przy ważnym tokenie → **401** `UNAUTHORIZED`, **identyczny** `code` + `message` co zły token; Invitation → `revoked`; **zakaz** **409** `CONFLICT` / „email zajęty” na tej trasie. Pełna tabela: `docs/dokumentacja_komunikacji.md`. Semantyka Auth: `SPEC-AUTH.md` A-7b.
 
@@ -323,6 +351,7 @@ Zmiana względem wersji 8 / wiersz Application: odczyt snapshotu był milcząco 
 - Nowego eventu SSE wyłącznie dla auto-finalize przeglądu (UI bierze stan z GET / sukcesu mutacji).
 - Fail `health` / `ready` z powodu braku Redis (K-10 / K-12).
 - Pól poza `demoMode` w `GET /config` V1.
+- Migracji schematu Prisma wyłącznie pod `GET /runs/summary` (agregacja na istniejącej tabeli `Run` — K-2k / R-13).
 
 Zmiana względem wersji 23 / „Nie wolno”: dopisano zakaz zastępowania `SPEC-RUNY.md` R-2 payloadem `run.failed`.
 Zmiana względem wersji 26 / „Nie wolno”: dopisano zakazy side-effect GET / SSE auto-finalize / CAS przy TTL.
@@ -351,6 +380,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - [ ] Błędy HTTP mają envelope z `code`, `message`, `requestId` (format `req_<uuid>`).
 - [ ] `POST /api/v1/runs` kończy się 202 z `runId` + `conversationId` bez czekania na LLM; unia `platform` / `contentKind` egzekwowana (400 przy konflikcie).
 - [ ] `GET /api/v1/runs` listuje runy instancji zgodnie z docs (paginacja 10, filtry, `startedBy`).
+- [ ] `GET /api/v1/runs/summary`: sesja cookie; scope admin/user/guest∧demo; shape `windowFrom`/`windowTo`/`totalLast30d`/`successRateLast30d`/`activeNow`/`topTaskTypeLast30d`; TTL cache 60 s; **401** bez sesji; envelope K-1; DTO w shared; **bez** migracji (K-2k / R-13).
 - [ ] `GET /api/v1/runs/user/:userId` i `POST /feedback` oraz rating/edit/finalize istnieją w kontrakcie docs; kody `REVIEW_LOCKED` / `RUN_NOT_REVIEWABLE` / `RUN_NOT_CANCELABLE` w envelope; snapshot + sukcesy mutacji przeglądu niosą `pipelineFinishedAt` / `reviewExpiresAt`; lista usera **bez** tych pól; GET bez side-effect finalize.
 - [ ] `POST /api/v1/runs/:runId/cancel`: 200 (owner + admin gdy `startedBy.role=guest` + idempotencja), 403 (cudzy `user`), 404, 409 `RUN_NOT_CANCELABLE`; body puste; bez await execute.
 - [ ] `GET /runs/:id` niesie `startedBy.role`; `DELETE /users/:id` (+ opcjonalny `purge`) / `PATCH` reaktywacja — jak K-2j; **409** `GUEST_HAS_ACTIVE_RUN` w K-8.

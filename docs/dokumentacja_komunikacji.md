@@ -1,5 +1,5 @@
 ---
-wersja: 21
+wersja: 22
 data_utworzenia: 2026-09-18
 data_modyfikacji: 2026-10-17
 ---
@@ -12,6 +12,8 @@ Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
 2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
 
 **Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+
+Zmiana względem: brak endpointu agregacji runów pod KPI. Od tej wersji: **`GET /api/v1/runs/summary`** (rolling 30 dni; scope admin/user/guest∧demo; TTL cache 60 s; shape KPI; **bez** migracji schematu) — UI: `docs/ux_dashboard.md`.
 
 Zmiana względem: `DELETE /users/:id` = zawsze soft; PATCH reaktywacja bez filtra roli / UI poza MVP; cancel wyłącznie `startedBy`; `startedBy` na detail bez `role`. Od tej wersji: DELETE wg roli + opcjonalny `?purge=true`; PATCH tylko target `user` (UI toggle); cancel admin→`guest`; `startedBy.role` na **`GET /runs/:id`**; kod **`GUEST_HAS_ACTIVE_RUN`**. Lista archiwum: `startedBy` bez wymogu `role`.
 
@@ -663,6 +665,55 @@ Przykład `result` po `completed` `post_ideas_then_content` (użytkownik wybrał
 Zmiana względem: wynik SM bez `cta` / `characterCount`; sekcje outline bez `role`.
 
 Zmiana względem kanonu Fazy 4.3 (jeden skalar `content` / `reelScript` po HITL 1 id): dwuetapowy Social ma kanon tablicy (`contents[]` / `reelScripts[]` + `sourceIdeaId`); skalar na then_* po fazie 2 = `null`.
+
+#### `GET /api/v1/runs/summary`
+
+Agregacja KPI pod blok **Statystyki** na widoku Konto (`docs/ux_dashboard.md`). **Bez** migracji schematu Prisma — agregacja na istniejącej tabeli `Run`.
+
+| Element | Norma |
+|---------|--------|
+| Auth | sesja cookie `cc_access` (jak inne chronione trasy Runs) |
+| Query | **brak** — okno zawsze rolling **ostatnie 30 dni** od „teraz” serwera |
+| Body request | brak |
+| Cache | odpowiedź wolno cache’ować **TTL 60 s** (serwer / CDN / in-process = HOW; norma kontraktu = max świeżość **60 s**) |
+| Migracja DB | **nie** |
+
+**Scope odpowiedzi** (filtr zbioru runów przed agregacją):
+
+| Rola sesji | Scope |
+|------------|--------|
+| `admin` | cała instancja |
+| `user` | wyłącznie runy `startedBy` = sesja |
+| `guest` | wyłącznie własne; endpoint **dostępny** gdy `DEMO_MODE=true`; gdy demo off — zachowanie jak pozostałe trasy guest (norma auth/demo); UI i tak ukrywa KPI |
+
+**200** — kształt:
+
+```json
+{
+  "windowFrom": "2026-06-15T00:00:00.000Z",
+  "windowTo": "2026-07-14T12:00:00.000Z",
+  "totalLast30d": 42,
+  "successRateLast30d": 75.5,
+  "activeNow": 2,
+  "topTaskTypeLast30d": "post_ideas"
+}
+```
+
+| Pole | Typ | Semantyka |
+|------|-----|-----------|
+| `windowFrom` | string (ISO8601) | początek okna (włącznie) |
+| `windowTo` | string (ISO8601) | koniec okna (zwykle „teraz” serwera) |
+| `totalLast30d` | number | liczba runów z `createdAt` w oknie |
+| `successRateLast30d` | number | procent `completed` wśród runów w oknie o statusie ∈ `{completed, failed, cancelled}`; gdy **brak** terminalnych w oknie → **`0`** (nie `null`) |
+| `activeNow` | number | count status ∈ `{running, awaiting_hitl, queued}` — **bez** limitu 30 dni („teraz”) |
+| `topTaskTypeLast30d` | `taskType` string \| `null` | typ z max count w oknie; przy **remisie** count → wariant z **najnowszym** `createdAt` wśród remisujących; brak runów w oknie → `null` |
+
+**401** — brak / nieważna sesja (`UNAUTHORIZED`, envelope jak pozostałe).  
+Inne błędy: envelope jak pozostałe chronione trasy.
+
+Trasa statyczna `summary` **przed** parametrem `:runId` w routerze Nest (obok `user/:userId`).
+
+DTO odpowiedzi: `@content-chain/shared` (norma FE / BE przy implementacji).
 
 #### `GET /api/v1/runs/user/:userId`
 

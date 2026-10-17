@@ -1,5 +1,5 @@
 ---
-wersja: 27
+wersja: 29
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-10-17
 ---
@@ -8,9 +8,11 @@ data_modyfikacji: 2026-10-17
 
 ## Cel / zakres względem dokumentacji
 
-Norma bounded contextu **Runs / Logs** w `apps/api`: cykl życia async runu, **lista runów instancji** (paginacja / filtry), polityka statusów, **anulowanie (`cancelled`)**, kanoniczne logi w DB, emisja SSE, kolejka współbieżności, recovery po przerwaniu procesu, **przegląd runu z TTL** (`pipelineFinishedAt` + `REVIEW_TTL`, sweeper auto-finalize) oraz **`GuestRunPolicy`** (sloty / Redis admit — `docs/dokumentacja_komunikacji.md`).
+Norma bounded contextu **Runs / Logs** w `apps/api`: cykl życia async runu, **lista runów instancji** (paginacja / filtry), **agregacja KPI (`GET /runs/summary`)**, polityka statusów, **anulowanie (`cancelled`)**, kanoniczne logi w DB, emisja SSE, kolejka współbieżności, recovery po przerwaniu procesu, **przegląd runu z TTL** (`pipelineFinishedAt` + `REVIEW_TTL`, sweeper auto-finalize) oraz **`GuestRunPolicy`** (sloty / Redis admit — `docs/dokumentacja_komunikacji.md`).
 
-Uszczegóławia `docs/architektura.md` (async run, klej composite, cancel v1), `docs/dokumentacja_komunikacji.md` (lista / SSE / GET / cancel / ocena / lista user / unia startu), `docs/data_flow.md` (ścieżka cancel, recovery + `cancelRequested`, TTL przeglądu), `docs/observability.md` (pola logów vs metrics) oraz współpracę z `SPEC-SOCIAL.md`, `SPEC-CONTENT.md` i `SPEC-FEEDBACK.md`.
+Uszczegóławia `docs/architektura.md` (async run, klej composite, cancel v1), `docs/dokumentacja_komunikacji.md` (lista / SSE / GET / cancel / ocena / lista user / summary / unia startu), `docs/data_flow.md` (ścieżka cancel, recovery + `cancelRequested`, TTL przeglądu), `docs/observability.md` (pola logów vs metrics) oraz współpracę z `SPEC-SOCIAL.md`, `SPEC-CONTENT.md` i `SPEC-FEEDBACK.md`.
+
+Zmiana względem wersji 27 / cel: brak agregacji KPI w BC Runs. Od tej wersji **R-13** — `GET /api/v1/runs/summary` (metryki 30d, scope, remis topTaskType, cache TTL 60 s, DTO shared, bez migracji) — `SPEC-KOMUNIKACJA.md` K-2k, `SPEC-FRONTEND.md` F-16.
 
 Zmiana względem wersji 22 / R-3c: doprecyzowano, że **paginacja UI** „Moje runy” (FE, `pageSize = 10`) **nie** zmienia kontraktu HTTP R-3c — pełna lista nadal z API (`docs/ux_dashboard.md`, `SPEC-FRONTEND.md` F-8).
 
@@ -34,7 +36,7 @@ Zmiana względem wersji 8: LangGraph pozostaje poza Runs — w Social **i** Cont
 
 | BC | Odpowiedzialność |
 |----|------------------|
-| **Runs** | Utworzenie runu, lista kolekcji, statusy, **anulowanie (`cancelled`)**, kolejka slotów, append logów, SSE, recovery, HITL HTTP jako zmiana stanu runu, zapis inicjatora, **ocena gwiazdkowa, zapis edycji wyniku (`result` + `outputEdited`), finalize przeglądu, kotwica `pipelineFinishedAt`, sweeper auto-finalize**, lista `GET /runs/user/:userId`. Porty: lifecycle, **composite** executor, odczyt wycinka wyniku do snapshotu, `attemptCancel` |
+| **Runs** | Utworzenie runu, lista kolekcji, **agregacja KPI (`GET /runs/summary`)**, statusy, **anulowanie (`cancelled`)**, kolejka slotów, append logów, SSE, recovery, HITL HTTP jako zmiana stanu runu, zapis inicjatora, **ocena gwiazdkowa, zapis edycji wyniku (`result` + `outputEdited`), finalize przeglądu, kotwica `pipelineFinishedAt`, sweeper auto-finalize**, lista `GET /runs/user/:userId`. Porty: lifecycle, **composite** executor, odczyt wycinka wyniku do snapshotu, `attemptCancel` |
 | **Social** | Węzły pipeline’u post/reel; woła **port** lifecycle Runs; wynik we własnym store |
 | **Content** | Węzły pipeline’u page; woła **port** lifecycle Runs; wynik we własnym store (`SPEC-CONTENT.md`) |
 | **Feedback** | Opinie tekstowe — nie statusy runu |
@@ -231,6 +233,22 @@ Zmiana względem wersji 20 / R-12: brak punktu o env połączenia Redis. Od tej 
 Zmiana względem wersji 21 / R-12.7: `REDIS_URL` **albo** HOST/PORT. Od tej wersji wyłącznie HOST/PORT + opcjonalne `REDIS_PASSWORD`.
 Zmiana względem wersji 26 / R-12.4: *„detail / logs / HITL / cancel / events / SSE: tylko self”*. Od tej wersji detail/logs — wyjątek statusów archiwalnych; HITL/cancel/events/SSE bez zmian (self).
 
+R-13. Agregacja KPI — `GET /api/v1/runs/summary` (kontrakt HTTP: `SPEC-KOMUNIKACJA.md` K-2k, `docs/dokumentacja_komunikacji.md`):
+
+1. **Źródło:** istniejąca tabela `Run` — **bez** migracji schematu Prisma.
+2. **Okno:** rolling **ostatnie 30 dni** od „teraz” serwera; odpowiedź niesie `windowFrom` / `windowTo` (ISO8601).
+3. **Scope** (filtr przed agregacją): `admin` = cała instancja; `user` = wyłącznie `startedBy` = sesja; `guest` = wyłącznie własne **i** tylko gdy `DEMO_MODE=true` (gdy demo off — jak pozostałe trasy guest / auth).
+4. **Metryki:**
+   - `totalLast30d` — count runów z `createdAt` w oknie;
+   - `successRateLast30d` — procent `completed` wśród runów w oknie o statusie ∈ `{completed, failed, cancelled}`; brak terminalnych w oknie → **`0`** (nie `null`);
+   - `activeNow` — count status ∈ `{running, awaiting_hitl, queued}` w scope — **bez** limitu 30 dni („teraz”);
+   - `topTaskTypeLast30d` — `taskType` z max count w oknie; przy **remisie** count → wariant z **najnowszym** `createdAt` wśród remisujących; brak runów w oknie → `null`.
+5. **Cache:** odpowiedź wolno cache’ować **TTL 60 s** (norma świeżości; HOW poza tym SPEC).
+6. **DTO** odpowiedzi w `@content-chain/shared` (F-3 / M-*).
+7. Trasa statyczna `summary` w controllerze Runs **przed** parametrem `:runId` (obok `user/:userId`).
+
+Zmiana względem wersji 27: brak normy agregacji w BC Runs. Od tej wersji R-13.
+
 ## Norma implementacji
 
 ### Wzorce / struktura
@@ -240,7 +258,7 @@ apps/api/src/runs/
 ├── runs.module.ts
 ├── run-lifecycle.module.ts
 ├── guest-quota.module.ts
-├── runs.controller.ts           # list, snapshot, logs, events SSE, hitl, cancel, user/:userId, rating, output-edited, finalize
+├── runs.controller.ts           # list, summary, snapshot, logs, events SSE, hitl, cancel, user/:userId, rating, output-edited, finalize
 ├── run-record.test-helpers.ts   # unit fixture; korzeń BC; nie adapter
 ├── http/                        # dto, pipe — bez zmian układu
 ├── application/
@@ -295,6 +313,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Trzymać `SocialBrief` / `ContentBrief` w `runs/domain/run.types.ts` (payload Run, nie shared kernel).
 - Importować `parseWithZod` z `apps/api/src/shared/parse-with-zod.ts` dla walidacji komend application (start / HITL / id) — bez lokalnej kopii w `runs/application/`.
 - Admit Redis **przed** create dla guest (R-12); DECR przy rollbacku create.
+- Agregację KPI na tabeli `Run` bez nowej tabeli / migracji (R-13); cache odpowiedzi summary do TTL 60 s.
 
 ### Nie wolno
 
@@ -352,6 +371,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Tabeli slotów guest w DB (COUNT z `Run`; Redis tylko cap dzienny).
 - Fail open Redis na `POST /runs` guest; fail closed Redis na rating guest (odwrotnie: start = closed, rating = open).
 - Output-edited / finalize dla `guest`; HITL/cancel/SSE cudzego runu dla `guest`; detail/logs cudzego **nieterminalnego** dla `guest` (cudzy terminalny detail/logs — dozwolone, R-12.4).
+- Migracji Prisma wyłącznie pod summary KPI; zwracania `null` dla `successRateLast30d` przy braku terminalnych (obowiązuje **`0`** — R-13); remisu `topTaskType` rozstrzyganego inaczej niż najnowszy `createdAt` wśród remisujących.
 
 Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz jednego `RunBrief` i `as` na JSON briefu (`docs/dokumentacja_komunikacji.md`).
 Zmiana względem wersji 13 / „Nie wolno”: zakaz `length !== 1` na Social zastąpiony zakazem pustej / duplikat / obcy id; dopisano zakaz aliasu skalar = `contents[0]`.
@@ -402,6 +422,7 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 - [ ] HITL Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): 0 id / duplikat / obcy id → 400 `HITL_INVALID_SELECTION`; K≥1 legalnych ⊆ options → K artefaktów (`contents[]` / `reelScripts[]`); 1 id → tablica długości 1. Page HITL bez zmian.
 - [ ] Snapshot: brak `characterCount` w starym JSON → mapper ustawia `body.length`; brak `cta` / `role` nie crashuje readera; dwuetapowy po fazie 2: `contents` / `reelScripts` + `sourceIdeaId`, skalar `content` / `reelScript` = `null`.
 - [ ] `guest` (demo on): lista `GET /runs` = instancja; cudzy detail/logs **terminalny** → 200; cudzy detail/logs **nieterminalny** → 403; HITL/cancel/events cudzy → 403; drugi start tego samego allowlist typu → `GUEST_TYPE_QUOTA_EXCEEDED`; Redis admit przed create; output-edited/finalize → 403; rating ponad soft cap → 429.
+- [ ] `GET /runs/summary`: agregacja na `Run` bez migracji; scope admin/user/guest∧demo; metryki jak R-13 (successRate wśród terminalnych → 0 gdy brak; remis topTaskType → max `createdAt`; `activeNow` bez okna 30d); TTL cache 60 s; DTO w shared (K-2k).
 
 ## Poza zakresem
 
@@ -412,6 +433,6 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 - Checkpointer LangGraph.
 - Limit współbieżności per użytkownik.
 - Abort na `apps/ai-provider-gateway` / providerze; admin cancel; `reason` w body cancel; resume / rollback.
-- Panel odczytu ocen / analityka (V1 — rozbudowa).
+- Panel odczytu ocen / analityka (V1 — rozbudowa). **Nie** mylić z KPI `GET /runs/summary` (R-13) — to osobny endpoint agregacji pod Konto, nie panel admina.
 - TTL / auto-akcja dla `awaiting_hitl`; blokada `POST /feedback` po TTL przeglądu; `reviewFinalizedBy`; multi-instance api / distributed lock sweepera.
 - Opinie tekstowe → `SPEC-FEEDBACK.md`.

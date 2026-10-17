@@ -11,11 +11,11 @@ Zamiast landingowej sekcji 14 taste v2. Odpal przed oddaniem pracy wizualnej. Je
 
 ## Locki wizualne
 
-- [ ] Jeden akcent, jedna rodzina szarości, jedna skala radiusu.
-- [ ] Brak AI-purple / neon glow / stock-fiolet shadcn na primary/sidebar po locku.
+- [ ] Jeden akcent brand (po Fazie 22: indigo/violet z tokenów), jedna rodzina szarości, jedna skala radiusu; tokeny statusowe + `@theme` (F-11).
+- [ ] Brak neon glow / stock-fiolet shadcn „z pudełka”; primary indigo/violet z kanonu docs **dozwolony**; sidebar ciemny ≠ dark mode.
 - [ ] Typografia Geist; bez serifu; bez display `text-6xl` w chrome.
-- [ ] Motyw spójny w całym widoku (bez flipu sekcji).
-- [ ] Karty tylko tam, gdzie elewacja ma sens (logowanie, modal, box) — nie każda metryka.
+- [ ] Motyw spójny w całym widoku (bez flipu sekcji); `/` = split-panel `lg+` (F-15); unikalne badge per `RunStatus` (F-12).
+- [ ] Karty tam, gdzie elewacja ma sens (formularz na `/`, modal, box, **KPI cards** F-16) — nie dekoracyjny bento na wierszach runów.
 
 ## Stany i a11y
 

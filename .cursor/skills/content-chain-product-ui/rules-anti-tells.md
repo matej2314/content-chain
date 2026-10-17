@@ -4,10 +4,10 @@ Adaptacja taste-skill sekcji AI Tells. Landingowe bany (hero stack, logo wall, s
 
 ## Zakazane w `apps/frontend`
 
-- Fiolet/neon glow, mesh gradient „AI”, glassmorphism na cały chrome.
+- Neon glow, mesh gradient „AI”, glassmorphism na cały chrome; stock-fiolet shadcn bez tokenów. Primary indigo/violet z docs/F-11 **nie** jest tym zakazem.
 - Inter jako nowy default; serif; kinetic headline.
-- Trzy równe karty-feature jako „dashboard home”.
-- Podmiana sidebara, usunięcie karty logowania, hero na `/`.
+- Trzy równe karty-feature jako „dashboard home” (KPI cards F-16 na Koncie = kanon, nie bento marketingowe).
+- Podmiana sidebara na top-nav; marketingowy hero/landing na `/` zamiast split-panelu F-15; dark mode całego UI zamiast samego ciemnego sidebara.
 - Div-based fake screenshot / fake terminal / fake tabela „dla klimatu”.
 - Ręczne SVG-ikony zamiast Iconify (poza ewentualnym logo).
 - Emoji w UI.

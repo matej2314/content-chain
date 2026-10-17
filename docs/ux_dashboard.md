@@ -1,5 +1,5 @@
 ---
-wersja: 29
+wersja: 30
 data_utworzenia: 2026-09-17
 data_modyfikacji: 2026-10-17
 ---
@@ -8,7 +8,9 @@ data_modyfikacji: 2026-10-17
 
 Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / design systemu — widoki, stany i zachowanie względem API/SSE.
 
-Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`.
+Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`, `brand_types.md`.
+
+Zmiana względem: status live = „animowany / atrakcyjny” bez kanonu formy; sidebar jasny; strona główna = wyśrodkowana karta; brak bloku KPI na Koncie. Od tej wersji: **Normy wizualne** (paleta indigo/violet, ciemny sidebar ≠ dark mode, unikalne badge-pille per `RunStatus`, hero banner tylko `running` \| `awaiting_hitl`, split-panel logowania, KPI z `GET /api/v1/runs/summary`, lifting chipów / invite-accept / floating box).
 
 Zmiana względem: po udanym `POST /runs` (**202**) operator zostawał na widoku źródłowym (Konto albo Runy); nawigacja na szczegóły nie była wymuszana. Od tej wersji: **zawsze** nawigacja na **Run (szczegóły)** tego `runId` (`/runs/:runId`) z obu powierzchni startu; toast „Run wystartował” zostaje; modal na Runach zamyka się; błąd startu **bez** nawigacji. Powód: mniej chaosu UX po testach manualnych.
 
@@ -55,12 +57,91 @@ Zmiana względem: Faza DEMO / F-10 — *„archiwum: klik cudzego wiersza zablok
 - Język **UI: polski** (generowane treści SM: PL/EN wg briefu runu).
 - Nawigacja: **sidebar** + **header** + obszar roboczy (po zalogowaniu). Sidebar = widoki. Header = tożsamość sesji (login) i wylogowanie.
 - **Layout dashboardu (po sesji):** wysokość = viewport (`h-dvh`); root **bez** scrolla dokumentu; **scroll wyłącznie w `main`** (obszar roboczy). Sidebar (desktop) = wysokość viewportu — nawigacja u góry, **DemoChip** (gdy demo on) + chip agentów u dołu sidebara **zawsze w viewportcie** (bez konieczności scrollowania treści widoku). Mobile: sidebar w sheet; scroll treści jak na desktopie w obszarze roboczym.
-- Live run: status **na żywo (SSE)**, wizualnie **animowany / czytelnie atrakcyjny** (nie suchy sam tekst „running”).
+- Live run: status **na żywo (SSE)**. Na **szczegółach** status „w toku” (`running` \| `awaiting_hitl`) = **prominentny hero banner** (gradient + animacja). **Wszędzie indziej** (listy, floating box, compact) status = **kolorowy badge-pill** (mapa 1:1 w „Normy wizualne”). `interrupted` = **osobny** badge **bez** hero.
 - Sesja: wyłącznie cookie httpOnly (`cc_access` / `cc_refresh`); probe tożsamości: `GET /api/v1/auth/me`.
+
+## Normy wizualne
+
+Obowiązujące decyzje projektowe szaty graficznej dashboardu. Wartości `oklch` i klasy Tailwind = HOW feature-planu; **przypisanie status→token** i forma = norma tutaj. Tokeny CSS: `brand_types.md`.
+
+### Paleta
+
+- **Primary** = żywy **indigo/violet** (wysoka chroma).
+- **Sidebar** ciemny (`--sidebar` / `--sidebar-foreground`) — **nie** dark mode: obszar roboczy (`main`) pozostaje jasny; dual-mode z przełącznikiem = **V1** (bez zmian).
+- Zmiana względem: sidebar jasny (ten sam motyw co main).
+
+### Tokeny semantyczne CSS
+
+Pełny zestaw z mapy `RunStatus` poniżej (`--success`, `--warning`, `--completed`, `--interrupted`, `--cancelled`, `--queued` + istniejące `--destructive` / `--muted`; warianty `-foreground` gdzie potrzeba). Lokalizacja + most `@theme inline` — `brand_types.md`.
+
+### Status runów (badge)
+
+| `RunStatus` | Token (rodzina) | Hero banner |
+|-------------|-----------------|-------------|
+| `running` | `--success` | tak |
+| `awaiting_hitl` | `--warning` | tak |
+| `completed` | `--completed` | nie |
+| `failed` | `--destructive` | nie |
+| `interrupted` | `--interrupted` (osobny sygnał) | **nie** |
+| `cancelled` | `--cancelled` | nie |
+| `queued` | `--queued` | nie |
+
+- Forma: **pill** (`rounded-full border px-2 py-0.5`) — tło / tekst / border z rodziny tokenu.
+- Compact (listy, floating box) = **te same** kolory i forma (nie osobna mapa).
+- **Każdy** `RunStatus` ma **inny** kolor (mapa 1:1).
+- Zmiana względem: kropka (dot) + plain muted text; kilka statusów dzielących jeden „muted”; `completed` dzielący kolor z `running`.
+
+### Run w toku — hero banner
+
+- Wyłącznie na **szczegółach** `/runs/:runId`, gdy `status ∈ {running, awaiting_hitl}`.
+- Gradient z tokenów `--success` / `--warning` + animacja.
+- **Ukryty** dla `interrupted`, `queued` oraz statusów terminalnych (`completed` \| `failed` \| `cancelled`).
+
+### `interrupted` — osobny sygnał
+
+- Badge z `--interrupted`; widoczny w listach / detail / floating box.
+- **Bez** hero banneru (nie traktować jak „w toku” wizualnie równoważnego `running`).
+
+### Strona główna — split-panel
+
+- Na `lg+`: **lewa** strona dekoracyjna (gradient primary + brand + **1–2 krótkie akapity korzyści** + krótka CTA/zachęta) + **prawa** — formularz (`login` / `register` / `bootstrap_admin` / thank-you).
+- Mobile: **tylko** formularz (bez lewego panelu).
+- Zmiana względem: wyśrodkowana karta na pełnej szerokości tła.
+
+### Sidebar — logo i aktywny item
+
+- Logo-area: `h-14` + `border-b`.
+- Aktywny item nawigacji: `bg-primary text-primary-foreground`.
+
+### KPI — karty statystyk
+
+- Pozycja: widok **Konto**, **powyżej** sekcji „Start runu”.
+- Forma: **karty** (border / tło / radius) z metrykami: `totalLast30d`, `successRateLast30d`, `activeNow`, `topTaskTypeLast30d` oraz widoczny zakres dat z `windowFrom` / `windowTo` (prezentacja np. `15.06.2026–14.07.2026`).
+- Źródło: `GET /api/v1/runs/summary` (`dokumentacja_komunikacji.md`).
+- Widoczność:
+  - `admin` — zawsze (scope: cała instancja);
+  - `user` — zawsze (scope: własne runy);
+  - `guest` — **tylko** gdy `DEMO_MODE=true` / `demoMode === true` (scope: własne); gdy demo off — blok **nie** jest pokazywany.
+- Błąd HTTP / brak endpointu → blok **ukryty** (bez pustych kart z błędem jako treścią KPI).
+
+### Lifting chipów (Demo / Agenci)
+
+- Kolorowy **lewy border** z tokenów semantycznych.
+- Pozycja i semantyka (DemoChip nad CompletenessChip; predykat `agentsActive`) **bez zmian**.
+
+### Lifting invite-accept
+
+- Kosmetyka tokenów / gęstości na `/invite/accept`.
+- Flow i copy produktowe **bez zmian**.
+
+### Lifting floating box
+
+- Kosmetyka (w tym badge statusów wg mapy powyżej).
+- Pozycjonowanie / copy statusów / zachowanie Stop (**bez** Stop w boxie) **bez zmian**.
 
 ## Wejście: strona główna (logowanie), rejestracja, bootstrap admin, sesja
 
-**Strona główna** (brak ważnej sesji): tło + karta na **tej samej** trasie `/` w jednym z trzech trybów: `login` \| `register` \| `bootstrap_admin` (**bez** osobnej trasy first-run).
+**Strona główna** (brak ważnej sesji): na `lg+` **split-panel** (lewa dekoracja + prawa formularz); mobile = tylko formularz — na **tej samej** trasie `/` w jednym z trzech trybów: `login` \| `register` \| `bootstrap_admin` (**bez** osobnej trasy first-run). Szczegóły layoutu: „Normy wizualne”.
 
 - **Logowanie** — baza widoku: email, hasło, CTA „Zaloguj się”. Submit **zawsze** → `POST /auth/login` → dashboard. **Zakaz** mode-hijack: CTA logowania **nigdy** nie woła `POST /auth/bootstrap-admin`, także gdy `bootstrap-status.available === true`.
 - **Rejestracja** — przycisk **„Nie masz konta? Zarejestruj się!”** **zawsze aktywny / widoczny** na karcie logowania (produkcja pełna i DEMO — **nie** zależy od `available`, `demoMode` / `DEMO_MODE`). **Zakaz** ukrywania register tylko dlatego, że bootstrap jest dostępny.
@@ -319,9 +400,12 @@ Osobna pozycja sidebara (admin, `user`, `guest`). **Nie** zastępuje widoku Runy
 | Blok | Zachowanie |
 |------|------------|
 | **Email** | Formularz nowego adresu → **Zapisz email** → **zawsze** modal: pole email (prefill = draft, **disabled**) + pole aktualnego hasła + Anuluj / Potwierdź. Potwierdź **zawsze** → `PATCH /api/v1/auth/me/email` `{ email, currentPassword }` (brak stanu „już zweryfikowany”). **Guest (`role === guest` i demo on):** blok **zablokowany** (brak PATCH — API **403**). Złe hasło (**401** `INVALID_PASSWORD`) / `VALIDATION_FAILED` hasła → `message` **pod polem hasła**; stan disabled emaila **bez zmian** (przed 409: zostaje **disabled**; **po 409**: zostaje **odblokowany**); **bez** toastu; **bez** refresh/wylogowania przy `INVALID_PASSWORD`. **409** `CONFLICT` → modal **otwarty**; **czyszczenie** pól email + hasło; **odblokowanie** inputu email; błąd **pod polem email**; ponowny Potwierdź znowu z hasłem. Sukces → zamknięcie modala, odświeżenie sesji (`GET /auth/me`), aktualizacja wyświetlanego emaila, **bez** toastu. Anuluj → zamknięcie modala, **zero** API; draft na formularzu Konta bez zmian względem otwarcia (edycja w modalu po 409 nie wraca na formularz). CTA „Zapisz email” **nie** jest disabled wyłącznie dlatego, że adres = obecny (re-auth i tak wymagany). **Bez** self-service zmiany hasła i **bez** usuwania konta na tym widoku |
-| **Moje runy** | Źródło: `GET /api/v1/runs/user/:userId` (`:userId` z `/auth/me`) — **wszystkie** statusy zalogowanego (**pełna** lista z API; **bez** `page` / `pageSize` na HTTP). **Paginacja UI:** stałe **`pageSize = 10`** (jak archiwum Runy), kontrolki **Poprzednia** / `strona / totalPages (total)` / **Następna** — slice po stronie FE; API i rejestr SSE / floating box nadal widzą pełny zbiór. Live: SSE per `runId` wyłącznie dla `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu). `queued` i terminalne: snapshot GET (wejście na Konto, po `POST /runs`, po evencie SSE innego własnego runu, focus okna). Przycisk **Stop** na wierszu **własnego** runu w statusie nieterminalnym (`queued` \| `running` \| `awaiting_hitl` \| `interrupted`) → modal **„Czy na pewno?”** → **Tak** = `POST .../cancel`; **Nie** = zamknięcie modala, **zero** API. Po sukcesie: odświeżenie wiersza (`cancelled`); `queued` bez SSE. Klik wiersza → **Run (szczegóły)**. Pełny wynik / HITL / przegląd na szczegółach, nie na liście |
+| **Moje runy** | Źródło: `GET /api/v1/runs/user/:userId` (`:userId` z `/auth/me`) — **wszystkie** statusy zalogowanego (**pełna** lista z API; **bez** `page` / `pageSize` na HTTP). **Paginacja UI:** stałe **`pageSize = 10`** (jak archiwum Runy), kontrolki **Poprzednia** / `strona / totalPages (total)` / **Następna** — slice po stronie FE; API i rejestr SSE / floating box nadal widzą pełny zbiór. Live: SSE per `runId` wyłącznie dla `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu). `queued` i terminalne: snapshot GET (wejście na Konto, po `POST /runs`, po evencie SSE innego własnego runu, focus okna). Przycisk **Stop** na wierszu **własnego** runu w statusie nieterminalnym (`queued` \| `running` \| `awaiting_hitl` \| `interrupted`) → modal **„Czy na pewno?”** → **Tak** = `POST .../cancel`; **Nie** = zamknięcie modala, **zero** API. Po sukcesie: odświeżenie wiersza (`cancelled`); `queued` bez SSE. Klik wiersza → **Run (szczegóły)**. Status w wierszu = **badge-pill** wg mapy w „Normy wizualne”. Pełny wynik / HITL / przegląd na szczegółach, nie na liście |
+| **Statystyki (KPI)** | Blok **powyżej** „Start runu”. Karty z `GET /api/v1/runs/summary`: `totalLast30d`, `successRateLast30d`, `activeNow`, `topTaskTypeLast30d` + zakres dat (`windowFrom` / `windowTo` → np. `15.06.2026–14.07.2026`). Widoczność: `admin` / `user` — zawsze (w swoim scope HTTP); `guest` — **tylko** gdy `demoMode === true`. Błąd / brak endpointu → blok **ukryty**. Szczegóły: „Normy wizualne” / `dokumentacja_komunikacji.md` |
 | **Start runu** | Formularz startu **inline** (ten sam brief co modal **„Uruchom agenta”** na Runach — nie drugi kontrakt). Select `taskType` obejmuje rolki i page_*; **`contentKind` gdy page_***; **platforma ukryta/disabled gdy page_***; język. **Guest:** typy poza `post_ideas` / `page_copy` / `page_outline_then_copy` **disabled**. Brief **zależny od `taskType`**: post_* / reel_* — temat + opcjonalnie **Grupa**, cel, **liczba pomysłów** (bez kąta/długości); `page_*` — temat + opcjonalnie **Grupa**, cel, **kąt**, **długość słów** (bez liczby pomysłów). Pole **Grupa** = **select** (nie wolny input jako kanon): (1) domyślnie **„Bez wskazania grupy”** → omit `brief.audience`; (2) opcje = `name` profili z odczytu kontekstu firmy; wybór → `brief.audience` = ten `name`; (3) ostatnia opcja **„Wpisz własną grupę…”** → dodatkowe pole tekstowe (opis odbiorcy) → `brief.audience` = ten opis; **bez** dopasowania do katalogu. CTA nie jest polem briefu. **Bez** `selectedIdeaIds`. Start disabled + wyjaśnienie, gdy agenci nieaktywni. Z wiersza **Moje runy**: **nowy** run z prefill `taskType` + brief + platforma/`contentKind` **ze snapshotu** `GET /runs/:runId` (lista user **nie** niesie `brief` / `contentKind`). Prefill **nie** dotyczy wiersza archiwum Runy. Po **202** **z tego widoku**: toast „Run wystartował” **oraz** nawigacja na **Run (szczegóły)** tego `runId`. Błąd startu (4xx / envelope) — **bez** nawigacji; formularz zostaje |
 | **Opinia tekstowa** | Na Koncie dostępny zapis opinii (`POST /feedback`) — ten sam kanon co globalny CTA „Zostaw opinię” (aplikacja / agent / run; select runów: własne `completed` \| `failed` \| (`cancelled` **z** nie-`null` polem wyniku w snapshotcie)). Globalny CTA w layoutcie **zostaje** |
+
+Zmiana względem: brak bloku KPI na Koncie. Od tej wersji **Statystyki** powyżej „Start runu” (warunki guest ∧ demo — wyżej).
 
 Wylogowanie **nie** żyje na widoku Konto — header: przycisk loginu → „Wyloguj się” + modal, od pierwszego layoutu.
 
@@ -341,7 +425,7 @@ Wejście: z listy **Moje runy** na Koncie, z archiwum **Runy**, z floating boxa,
 |---------|------------|
 | **Nagłówek / meta** | Te same podstawowe pola co wiersz listy. **`conversationId` poza MVP UI** (zostaje w API / logach / snapshotcie — dashboard go nie pokazuje) |
 | **Stop** | Przycisk **Stop** / Cancel gdy: owner **lub** (`session.role=admin` ∧ `startedBy.role=guest`) i status nieterminalny → modal **„Czy na pewno?”** → Tak = `POST .../cancel`; Nie = close, zero API. **Bez** Stop admina na cudzym `role=user`. **Bez** Cancel admin→guest na liście archiwum (tylko ten widok szczegółów). Po `cancelled` panel HITL **znika**; przegląd (gwiazdki / Edytuj / finalize) **niedostępny**. Parse `startedBy.role` ze snapshotu `GET /runs/:id` |
-| **Status live** | Gdy run jest własny i w `running` \| `awaiting_hitl` \| `interrupted`: ten sam `EventSource` co rejestr layoutu (nie drugie połączenie na ten `runId`). Prezentacja **animowana / atrakcyjna**. `queued` / `completed` / `failed` / `cancelled` / cudzy run: **bez** nowej subskrypcji — GET snapshot |
+| **Status live** | Gdy run jest własny i w `running` \| `awaiting_hitl` \| `interrupted`: ten sam `EventSource` co rejestr layoutu (nie drugie połączenie na ten `runId`). Forma: **hero banner** tylko przy `running` \| `awaiting_hitl`; `interrupted` = badge `--interrupted` **bez** hero; pozostałe statusy = badge-pill wg mapy („Normy wizualne”). `queued` / `completed` / `failed` / `cancelled` / cudzy run: **bez** nowej subskrypcji — GET snapshot |
 | **Logi** | Przyrostowo z SSE `run.log` + możliwość dociągnięcia historii GET logs |
 | **HITL** | Panel wyboru: pomysły postu, pomysły rolek albo outline strony — wg `taskType` i `hitl.options`. Social dwuetapowy: **multi-select** (min. 1 unikalne id ⊆ options; np. checkboxy / chipy); Content: akceptacja outline’u (**bez** zmian — nadal `[outline.id]`). Submit → `POST .../hitl`. Po `cancelled` panel **nie** jest pokazywany |
 | **Wynik** | Po `completed` (oraz partial przy `failed` / `cancelled` — to, co zdążyło się zapisać): sekcja UI z jednym nagłówkiem **„Wynik”**, potem od razu treść artefaktów. **Zakaz** drugiego nagłówka pod „Wynik” powtarzającego nazwę typu tasku albo etykietę etapu (np. „Copy strony”, „Treści”, „Scenariusze”) — spójnie dla **wszystkich** `taskType`. **Jednoetapowe:** `post_ideas` → lista pomysłów (`cta` gdy jest); `post_content` → jeden `content` (`characterCount`, hashtags, `cta?`); `reel_ideas` → lista; `reel_script` → jeden scenariusz; `page_copy` → `pageDocument`. **Dwuetapowe** (`post_ideas_then_content` / `reel_ideas_then_scripts` / `page_outline_then_copy`): **najpierw** artefakty etapu 2 (`contents[]` / `reelScripts[]` / `pageDocument`); **potem** etap 1 (`ideas` / `reelIdeas` / `pageOutline`). Gdy etap 2 jest niepusty — etap 1 w **zwijanym** bloku (domyślnie zwinięty; sterowanie PL „Pomysły” / „Outline” + pokaż/ukryj, muted — **nie** jako drugi `h3` pod „Wynik”). Przy pozycji `contents[]` / `reelScripts[]`: podpis „Pomysł: {title}” z `sourceIdeaId` + `characterCount` / `cta?` / hashtags jak wcześniej. Na liście pomysłów etapu 1 (gdy jest etap 2): obok tytułu **badge** **Wybrany** / **Niewybrany** wg obecności id w `sourceIdeaId` artefaktów etapu 2 — to samo miejsce co wcześniej; styl: `rounded-md` + padding; **Wybrany** = tło `primary/15` + tekst `primary`; **Niewybrany** = tło `muted` + tekst `muted-foreground` (tokeny motywu). **`pageDocument` (odczyt):** `title` → `lead` (wyróżniony) → `body` jako **sformatowany markdown** (subset: nagłówki `##`/`###`, pogrubienie `**…**`, listy `-`/`*`, akapity); na końcu opcjonalny blok **„Meta SEO”** z etykietami „Tytuł” / „Opis” (`metaTitle` / `metaDescription`). **Edytuj** = surowy tekst pól (bez live preview markdown w MVP). Outline: etykieta `role` przy sekcji, gdy ustawione. Dwuetapowy Social: **nie** jeden blok copy. Po zapisie Edytuj — **ta** treść (nie output agentów sprzed edycji). |

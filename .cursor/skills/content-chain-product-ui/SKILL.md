@@ -19,10 +19,10 @@ Cienki klient `apps/frontend` to **dashboard operatora**, nie landing. Ten skill
 
 ## Hierarchia (wygrywa wyższy)
 
-1. `docs/` (w tym `docs/ux_dashboard.md`) i `spec/SPEC-*.md` — IA, labelki PL, trasy, role, stany produktu, BFF.
-2. `content-chain-frontend_major_plan.md` — kolejność i DoD faz.
+1. `docs/` (w tym `docs/ux_dashboard.md` — „Normy wizualne”) i `spec/SPEC-*.md` (w tym `SPEC-FRONTEND` **F-11…F-19**) — IA, labelki PL, trasy, role, stany produktu, BFF, kanon wizualny.
+2. `content-chain-frontend_major_plan.md` — kolejność i DoD faz (w tym Faza 22 = drugi visual lock).
 3. Ten katalog — jakość wizualna wewnątrz tej struktury.
-4. Istniejący kod `apps/frontend` — dziedzicz tokeny po visual locku; nie wymyślaj drugiej palety.
+4. Istniejący kod `apps/frontend` — dziedzicz tokeny **obowiązującego** visual locku; nie wymyślaj trzeciej palety poza kanonem docs/SPEC.
 
 Konflikt docs/SPEC ↔ ten skill → **docs/SPEC**. Ten skill nie zmienia sidebara na top-nav, nie rusza ścieżek, nie podmienia Iconify/shadcn.
 
@@ -51,11 +51,12 @@ Nie pytaj o estetykę, jeśli brief jest jasny. Jedno pytanie tylko gdy użytkow
 
 | Moment | Co robić |
 |--------|----------|
-| Faza 1, chrome (karta + layout po sesji) | **Lock:** ustaw tokeny, radius, akcent, typografię, stany kontrolek. Pliki: `apps/frontend/src/app/globals.css`, `layout.tsx` (fonty), `shared/ui/*`. |
-| Fazy 2–6 | **Dziedzicz** lock. Nowy widok = te same tokeny i gęstość. Zakaz nowej palety „na ten ekran”. |
+| Faza 1, chrome (karta + layout po sesji) | **Pierwszy lock (historia):** tokeny, radius, akcent, typografia, stany kontrolek. |
+| Fazy 2–21 | **Dziedziczyły** lock Fazy 1. Zakaz nowej palety „na ten ekran” obowiązywał do Fazy 21 włącznie. |
+| **Faza 22** (major FE) | **Drugi visual lock** — obowiązujący kanon. Primary indigo/violet (wysoka chroma); ciemny sidebar (nie dark mode); split-panel na `/`; unikalne badge per `RunStatus`; KPI cards; lifting chipów / invite-accept / floating box. Pliki: `globals.css` (`:root` / `.dark` / `@theme`), powierzchnie z F-11…F-19. |
 | Milestone FE | Pre-flight z [preflight.md](preflight.md). |
 
-Lock jest jednorazowy. Późniejszy „redesign całego dashboardu” nie jest tym skillem.
+**Nota (Faza 22):** po legalizacji Fazy 22 w majorze FE obowiązuje **drugi visual lock**. Stare zakazy tego skilla („AI purple”, „brak split-hero”, „dziedzicz lock Fazy 1 bez nowej palety”, „lock jednorazowy”) **nie** blokują Fazy 22 ani F-11…F-19 — źródło prawdy = zaktualizowane `docs/` („Normy wizualne”) + `SPEC-FRONTEND`. Po Fazie 22 dziedzicz **ten** lock; nie wymyślaj trzeciej palety.
 
 ## Stack (zamknięty)
 
@@ -78,10 +79,11 @@ Przed importem paczki sprawdź `apps/frontend/package.json`. Brakującej **nie**
 
 ## Poza zakresem
 
-- Landing, portfolio, hero, bento, marquee, scroll-hijack.
+- Landing, portfolio, bento, marquee, scroll-hijack (hero banner runu „w toku” i dekoracyjny lewy panel `/` = kanon F-13 / F-15 — nie landing).
 - Wybór między estetykami taste (`minimalist` / `brutalist` / `soft`).
-- Zmiana kanonu UX (sidebar, Konto vs Runy, floating box, deep link).
+- Zmiana kanonu UX poza docs/SPEC (sidebar vs top-nav, Konto vs Runy, floating box, deep link).
 - Testy Playwright, next-intl, Docker, panel admina opinii (poza MVP).
+- Rozrost scope skilla poza język wizualny (BFF, kontrakty HTTP, logika domenowa).
 
 ## Źródło
 

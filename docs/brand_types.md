@@ -1,12 +1,14 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-03
+data_modyfikacji: 2026-10-17
 ---
 
 # Brand types — Content Chain
 
-Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time.
+Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time. Dopisek: **norma tokenów semantycznych CSS** pod szatę graficzną dashboardu (statusy runów, hero, chipy).
+
+Zmiana względem: brak sekcji tokenów CSS w tym dokumencie (kolory statusów poza kanonem docs). Od tej wersji: **Tokeny semantyczne CSS** w `globals.css` + obowiązkowy most `@theme inline`; mapa status→token w `ux_dashboard.md`.
 
 Zmiana względem wcześniejszej wersji (bez frontmatteru): `RunStatus` += **`cancelled`**.
 
@@ -82,6 +84,34 @@ Docelowe pliki (propozycja):
 
 Enumy wolno modelować jako `Brand<string, 'RunStatus'>` z whitelistą w `createRunStatus` **albo** jako wąskie string union w shared. Schemy Zod dla tych enumów — w `apps/api` (application), nie w `packages/shared`. Jedna konwencja nazw w shared; brak magicznych stringów w feature kodzie.
 
+## Tokeny semantyczne CSS (norma wizualna)
+
+Tokeny koloru statusów i sygnałów UI dashboardu **nie** żyją w `packages/shared` — wyłącznie w frontendzie.
+
+| Element | Norma |
+|---------|--------|
+| Lokalizacja | wyłącznie `apps/frontend/src/app/globals.css` |
+| Definicja | w **`:root`** **i** **`.dark`** (wartości mogą się różnić; brak przełącznika dark mode w MVP — dual-mode = V1) |
+| Most Tailwind | **obowiązkowy** blok `@theme inline` z `--color-*` analogicznie do `--color-destructive` |
+| Mapa status→token | `docs/ux_dashboard.md` („Normy wizualne” / tabela `RunStatus`) |
+
+**Obowiązkowe rodziny** (minimum; każda z wariantem `-foreground` tam, gdzie token jest tłem lub tekstem):
+
+| Token CSS | Most `@theme inline` | Typowe użycie |
+|-----------|----------------------|---------------|
+| `--success` | `--color-success` (+ foreground) | `running` |
+| `--warning` | `--color-warning` (+ foreground) | `awaiting_hitl` |
+| `--completed` | `--color-completed` (+ foreground) | `completed` |
+| `--interrupted` | `--color-interrupted` (+ foreground) | `interrupted` |
+| `--cancelled` | `--color-cancelled` (+ foreground) | `cancelled` |
+| `--queued` | `--color-queued` (+ foreground) | `queued` |
+| `--destructive` | `--color-destructive` (istniejące) | `failed` |
+| `--muted` | `--color-muted` (istniejące) | tła pomocnicze — **nie** jako jedyny kolor wielu `RunStatus` naraz |
+
+**Zakaz:** hex / rgb / nazwy kolorów „na piechotę” w badge’ach statusów, hero bannerze, chipach (Demo / Agenci), liftingu invite-accept i floating box — wyłącznie tokeny z `globals.css` / klasy Tailwind oparte o most `@theme`.
+
+Wartości `oklch` = HOW feature-planu; **przypisanie** status→rodzina tokenu = docs UX.
+
 ## Przepływ korelacji (norma)
 
 ```text
@@ -120,4 +150,4 @@ RequestId LLM₃                    ──► z odpowiedzi gateway po kolejnym a
 
 Zmiana względem: „brandowanie każdego pola briefu SM” milcząco zakładało jeden brief; kształty kanałowe nadal poza shared.
 
-Szczegóły pojęć: `dictionary.md`. Kontrakt HTTP: `dokumentacja_komunikacji.md`. Przepływy: `data_flow.md`. Bezpieczeństwo ID/sekretów: `security.md`. Norma shared: `spec/SPEC-MONOREPO.md`.
+Szczegóły pojęć: `dictionary.md`. Kontrakt HTTP: `dokumentacja_komunikacji.md`. Normy wizualne statusów: `ux_dashboard.md`. Przepływy: `data_flow.md`. Bezpieczeństwo ID/sekretów: `security.md`. Norma shared: `spec/SPEC-MONOREPO.md`.

@@ -1,5 +1,5 @@
 ---
-wersja: 34
+wersja: 35
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-10-17
 ---
@@ -19,6 +19,7 @@ Zmiana względem wersji 30 / D-23 / D-46: accept → `role=user` także przy dem
 Zmiana względem wersji 31 / D-25 / D-26 / cancel: soft bez rozróżnienia roli; reaktywacja bez filtra; cancel wyłącznie owner; brak purge / isActive na access. Od tej wersji D-25/D-26 zawężone + **D-63…D-72** (hard/purge guest, cancel admin→guest, isActive/null na access) — `users-management-plan.md` Faza 2.
 Zmiana względem wersji 32: DoD bez audience `name` / scopingu grupy. Od tej wersji **D-73…D-77** — `SPEC-KONTEKST-FIRMY.md` C-1/C-4, `SPEC-SOCIAL.md` S-10, `SPEC-CONTENT.md` Ctn-12.
 Zmiana względem wersji 33 / D-55: *„cudzy detail / HITL / cancel → 403”*. Od tej wersji D-55: cudzy detail/logs **terminalny** → **200**; cudzy **nieterminalny** → **403**; HITL/cancel cudzy → **403** (bez zmian) — `SPEC-RUNY.md` R-12, `guest-view-others-runs-plan.md`.
+Zmiana względem wersji 34: DoD bez `GET /runs/summary`. Od tej wersji **D-78…D-81** — `SPEC-KOMUNIKACJA.md` K-2k, `SPEC-RUNY.md` R-13.
 
 ## Powiązanie ze stylem z docs
 
@@ -137,7 +138,12 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-75 | Unit / kontrakt pipeline (Social **lub** Content): start runu **bez** `brief.audience` (omit) → effective `audience.profiles` = `[]` (asercja na scoped context / węźle LoadContext — **bez** wymogu E2E LLM) |
 | D-76 | Unit / kontrakt: `brief.audience` = `name` istniejącego profilu (trim, case-insensitive) → effective = **jeden** profil `{ name, description }` |
 | D-77 | Unit / kontrakt: custom string w `brief.audience` (tryb „Wpisz…”) → effective `profiles` = `[]` **mimo** niepustego katalogu w DB; **bez** auto-match do `profiles[].name` |
+| D-78 | `GET /api/v1/runs/summary` bez sesji → **401** `UNAUTHORIZED`; sesja **admin** → **200** shape K-2k (`windowFrom`, `windowTo`, `totalLast30d`, `successRateLast30d`, `activeNow`, `topTaskTypeLast30d`); scope = cała instancja (cudze runy wliczone w agregaty okna) |
+| D-79 | Sesja **user**: summary liczy wyłącznie własne (`startedBy` = sesja); cudze runy w oknie **nie** wpływają na `totalLast30d` / `successRateLast30d` / `topTaskTypeLast30d` / `activeNow` |
+| D-80 | Semantyka metryk (unit i/lub integration): brak terminalnych w oknie → `successRateLast30d = 0` (**nie** `null`); brak runów w oknie → `topTaskTypeLast30d = null`; remis count `taskType` → typ z **najnowszym** `createdAt` wśród remisujących; `activeNow` = count status ∈ `{running, awaiting_hitl, queued}` **bez** limitu 30d; cache odpowiedzi TTL **60 s** (ten sam klucz scope → ponowna agregacja dopiero po wygaśnięciu) |
+| D-81 | Guest + `DEMO_MODE=true`: `GET /runs/summary` → **200**, scope = wyłącznie własne; JWT `guest` przy demo off → **401** (jak pozostałe chronione trasy guest — GuestGuard) |
 
+Zmiana względem wersji 34: dopisano D-78…D-81 (`GET /runs/summary` — auth, scope admin/user/guest∧demo, metryki R-13, cache TTL 60 s). D-1…D-77 bez kasowania treści.
 Zmiana względem wersji 32: dopisano D-73…D-77 (audience `name` + unikalność + scoping effective). D-1…D-72 bez kasowania treści.
 Zmiana względem wersji 31: dopisano D-63…D-72; D-25 / D-26 zawężone (rola + isActive na access / PATCH guest 403). D-1…D-62 bez kasowania treści.
 Zmiana względem wersji 33 / D-55: refaktor treści (wyjątek archiwum detail+logs); D-50…D-54 / D-56…D-77 **bez kasowania** treści historycznej.
@@ -152,7 +158,7 @@ Zmiana względem wersji 19: dopisano D-29 (twardy zapis kontekstu — C-4). D-1�
 Zmiana względem wersji 18: T-5 i kryteria akceptacji obejmują też D-28 (wcześniej D-28 było w tabeli, bez jawnego pinu w T-5 / checklistcie D-1…D-28).
 Zmiana względem wersji 17: dopisano D-28 (filtr `status` wielowartościowy pod archiwum UI). D-1…D-27 bez kasowania treści.
 
-D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-23a (kolizja email na accept → 401 + revoke) **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel) **oraz** D-35…D-40 (TTL przeglądu / sweeper) **oraz** D-41…D-46 (register / activate / resend; rola vs demo) **oraz** D-47…D-49 (readiness api / probe liveness gateway) **oraz** D-50…D-62 (guest / DEMO) **oraz** D-63…D-72 (Users DELETE/purge / cancel admin→guest / isActive) **oraz** D-73…D-77 (audience `name` / unikalność / effective scoping). T-3 (cookie) **bez zmian**.
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-23a (kolizja email na accept → 401 + revoke) **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel) **oraz** D-35…D-40 (TTL przeglądu / sweeper) **oraz** D-41…D-46 (register / activate / resend; rola vs demo) **oraz** D-47…D-49 (readiness api / probe liveness gateway) **oraz** D-50…D-62 (guest / DEMO) **oraz** D-63…D-72 (Users DELETE/purge / cancel admin→guest / isActive) **oraz** D-73…D-77 (audience `name` / unikalność / effective scoping) **oraz** D-78…D-81 (`GET /runs/summary` KPI). T-3 (cookie) **bez zmian**.
 
 Zmiana względem wersji 27: dopisano D-47…D-49 (ready gdy liveness OK; unhealthy przy timeout/unreachable; regresja bez `GATEWAY_NOT_READY` na `POST /runs`). D-1…D-46 bez kasowania treści.
 Zmiana względem wersji 28: dopisano D-50…D-62; D-41/D-46 refaktor roli vs `DEMO_MODE`. D-1…D-49 bez kasowania treści.
@@ -211,7 +217,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 - Live OpenAI/Anthropic (lub innego vendora) na każdy PR.
 - Wymuszania suite automatycznego FE w v1/MVP.
 - Over-mockowania (testy tylko powtarzające implementację).
-- Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34), TTL / auto-finalize przeglądu (D-35…D-40), register / activate / resend (D-41…D-46), readiness api / probe gateway (D-47…D-49), guest / DEMO (D-50…D-62), Users delete/purge / cancel admin→guest / isActive (D-63…D-72), audience `name` / scoping (D-73…D-77) ani cyklu życia SSE (D-14) „na potem” poza DoD.
+- Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34), TTL / auto-finalize przeglądu (D-35…D-40), register / activate / resend (D-41…D-46), readiness api / probe gateway (D-47…D-49), guest / DEMO (D-50…D-62), Users delete/purge / cancel admin→guest / isActive (D-63…D-72), audience `name` / scoping (D-73…D-77), agregacji KPI `GET /runs/summary` (D-78…D-81) ani cyklu życia SSE (D-14) „na potem” poza DoD.
 - Asercji DoD opartych o konsumpcję upstream gateway `/health/ready` jako źródła `checks.gateway` (obowiązuje probe **liveness** — D-47 / D-48).
 - Maskowanego **201** przy kolizji na register w asercjach (obowiązuje D-43 = **409**).
 - `apps/api/postman/` / `src/postman/` jako pozorne BC.
@@ -231,7 +237,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-77 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23, D-23a, D-24…D-29, D-30…D-34, D-35…D-40, D-41…D-46, D-47…D-49, D-50…D-62, D-63…D-72, D-73…D-77) pokryte testami (warstwa adekwatna do przypadku). Chip/locki FE — `SPEC-FRONTEND.md` F-10 (automaty FE poza MVP — T-7).
+- [ ] Przypadki D-1…D-81 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23, D-23a, D-24…D-29, D-30…D-34, D-35…D-40, D-41…D-46, D-47…D-49, D-50…D-62, D-63…D-72, D-73…D-77, D-78…D-81) pokryte testami (warstwa adekwatna do przypadku). Chip/locki FE — `SPEC-FRONTEND.md` F-10 (automaty FE poza MVP — T-7).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.
