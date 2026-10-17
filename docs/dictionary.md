@@ -1,7 +1,7 @@
 ---
-wersja: 22
+wersja: 23
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-16
+data_modyfikacji: 2026-10-17
 ---
 
 # Słownik — Content Chain
@@ -54,6 +54,8 @@ Zmiana względem: po `POST /runs` operator zostaje na widoku źródłowym. Od te
 
 Zmiana względem: profil odbiorcy bez kanonicznego `name`; `brief.audience` bez rozróżnienia katalog / custom / omit. Od tej wersji **`AudienceProfile`** = `{ name, description }` (oba wymagane w bramce; unikalność `name`); opcjonalne `audience?` w briefie ma **trzy** semantyki (omit / name katalogu / custom opis) — nie „fallback do wszystkich profili”.
 
+Zmiana względem: hasło `guest` / `FORBIDDEN` bez wyjątku podglądu archiwum cudzego. Od tej wersji: start / mutacje / live własne; **podgląd archiwum cudzego** (detail + logs terminalne) dozwolony przy demo on — `security.md` / `ux_dashboard.md`.
+
 ---
 
 ## Produkt i domena
@@ -99,7 +101,7 @@ Zmiana względem: profil odbiorcy bez kanonicznego `name`; `brief.audience` bez 
 |---------|-----------|
 | **`admin`** | Jedyny administrator (bootstrap); wyłączne prawo edycji kontekstu firmy, zapraszania (email) oraz zarządzania kontami (soft `user` / hard+purge `guest`; cancel runów `guest` na szczegółach); może generować treści jak `user`. Na instancji z `DEMO_MODE=true` **bez** locków gościa. Norma: `security.md`. |
 | **`user`** | Rola uruchamiająca runy produktowe (Social i Content) i przeglądająca wyniki/logi; bez edycji kontekstu i bez zapraszania. Konto powstaje po akceptacji zaproszenia **gdy `DEMO_MODE=false`** (członek zespołu) **albo** po self-register **gdy `DEMO_MODE=false`** (w `production` — po aktywacji e-mail). Widok **Konto** (email, własne runy, start) jest dostępny tak samo jak dla `admin`. Przy demo on invite → **`guest`**, nie `user`. |
-| **`guest`** | Rola demonstracyjna / gość sandboxu. Powstaje przy **`POST /auth/register` lub `POST /auth/accept-invite`** gdy `DEMO_MODE=true` (body nadal **bez** `role`). **Nie** z bootstrap. Przy demo: także zaproszony = gość sandboxu, **nie** członek zespołu. Aktywacja e-mail w `production` dotyczy także `guest` (ścieżka register). **Zakaz permanentny** awansu `guest` → `user` / `admin` (brak endpointu i ścieżki produktowej). Gdy `DEMO_MODE=false`: login i chronione trasy z JWT `role=guest` → **401** jak konto nieaktywne (rola **martwa** mimo ważnego ciasteczka). |
+| **`guest`** | Rola demonstracyjna / gość sandboxu. Powstaje przy **`POST /auth/register` lub `POST /auth/accept-invite`** gdy `DEMO_MODE=true` (body nadal **bez** `role`). **Nie** z bootstrap. Przy demo: także zaproszony = gość sandboxu, **nie** członek zespołu. Aktywacja e-mail w `production` dotyczy także `guest` (ścieżka register). **Start / mutacje / live** — własne; **podgląd archiwum cudzego** (detail + logs przy statusie `completed` \| `failed` \| `cancelled`) **dozwolony** przy demo on. **Zakaz permanentny** awansu `guest` → `user` / `admin` (brak endpointu i ścieżki produktowej). Gdy `DEMO_MODE=false`: login i chronione trasy z JWT `role=guest` → **401** jak konto nieaktywne (rola **martwa** mimo ważnego ciasteczka). |
 | **DEMO MODE** | Tryb instancji sterowany env **`DEMO_MODE`** (`true` \| `false`, default **`false`**), ładowany przy **starcie procesu** (zmiana = restart). **Brak** switcha w UI admina. FE czyta publiczny `GET /config` → `{ demoMode: boolean }`; egzekucja limitów i authz **zawsze** w API. |
 | **Slot gościa** | Hardcoded allowlista startów na życie konta `guest`: `post_ideas` ×1, `page_copy` ×1, `page_outline_then_copy` ×1. Zużycie = COUNT runów `startedByUserId` + `taskType` **bez filtra statusu** (także `failed` / `cancelled` / `completed` / …). HITL **bez** osobnego limitu. **Nie** env. |
 | **Global guest cap** | Dzienny limit **wszystkich** startów `guest` na instancji (niezależnie od typu): env `GUEST_GLOBAL_CAP_PER_DAY` (default **30**); doba **UTC**; Redis INCR; admit **przed** `create` Run. Pad Redis przy `POST /runs` guest → **fail closed**. |
@@ -245,7 +247,7 @@ Pełny przebieg LLM w logach = `RunId` + `ConversationId` + seria `RequestId` **
 |--------|-----------|
 | `UNAUTHORIZED` | Brak lub nieważna sesja. **Nie** obejmuje złego hasła przy re-auth (`INVALID_PASSWORD`). |
 | `INVALID_PASSWORD` | Złe `currentPassword` przy re-auth (np. `PATCH /auth/me/email`). HTTP **401**; `message`: `Invalid password`. FE **nie** traktuje jak wygaśnięcie sesji. |
-| `FORBIDDEN` | Brak uprawnień (np. `user` edytuje kontekst; `guest` bez `@AllowGuest` albo mutacja zabroniona / cudzy detail). |
+| `FORBIDDEN` | Brak uprawnień (np. `user` edytuje kontekst; `guest` bez `@AllowGuest` albo mutacja zabroniona / cudzy **nieterminalny** detail lub logs / cudzy HITL / events). |
 | `GUEST_TYPE_NOT_ALLOWED` | `guest` startuje `taskType` poza allowlistą slotów (`post_ideas` / `page_copy` / `page_outline_then_copy`). |
 | `GUEST_TYPE_QUOTA_EXCEEDED` | `guest` wyczerpał slot danego typu (COUNT ≥ 1 bez filtra statusu). |
 | `GUEST_GLOBAL_QUOTA_EXCEEDED` | `guest` wyczerpał dzienny global cap instancji (`GUEST_GLOBAL_CAP_PER_DAY`, UTC). |

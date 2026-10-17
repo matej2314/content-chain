@@ -1,7 +1,7 @@
 ---
-wersja: 24
+wersja: 25
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-11
+data_modyfikacji: 2026-10-17
 ---
 
 # SPEC — Auth
@@ -16,6 +16,7 @@ Zmiana względem wersji 14: zakaz otwartego signup / „jedyna droga = invite”
 Zmiana względem wersji 17 / cel: A-11 = zawsze `role = user`; `guest` / DEMO poza Auth. Od tej wersji **refaktor A-11** (rola vs `DEMO_MODE`) + GuestGuard + martwa sesja guest — `docs/security.md`.
 Zmiana względem wersji 18 / A-7 / A-7b / tabela ról: accept-invite **zawsze** `role = user` (także przy demo on); zakaz invite→`guest` (Faza 18). Od tej wersji **refaktor A-7 / A-7b** — rola accept-invite vs `DEMO_MODE` (mirror A-11); sens: demo off = członek zespołu (`user`); demo on = gość sandboxu (`guest`) — `docs/security.md`.
 Zmiana względem wersji 20 / A-10 / A-10a / sesja: DELETE = wyłącznie soft; zakaz twardego DELETE w MVP; A-10a bez filtra roli targetu; UI reaktywacji poza MVP; access JWT bez checku DB. Od tej wersji **refaktor**: DELETE rozgałęziony po `target.role` (soft `user` / hard+purge `guest`); A-10a tylko target `user` (**z UI**); `JwtCookieStrategy.validate` — brak User **lub** `!isActive` → **401**. Cancel admin→guest → `SPEC-RUNY.md` R-11. Źródło: `docs/security.md`, `users-management-plan.md` Faza 2.
+Zmiana względem wersji 24 / tabela ról: *„HITL / logi / SSE / detail tylko własne”* dla guest; *„cudzy detail → FORBIDDEN”*. Od tej wersji: detail/logs — wyjątek archiwum (status terminalny); HITL / SSE / cancel cudze bez zmian — `SPEC-RUNY.md` R-12, `docs/security.md`.
 
 Uszczegóławia `docs/security.md` oraz endpointy auth/users z `docs/dokumentacja_komunikacji.md`. Egzekucja uprawnień zawsze w `apps/api`, nie tylko w UI.
 
@@ -32,10 +33,10 @@ Wiążące (`docs/architektura.md`): klasyczne warstwy Nest — HTTP → applica
 | Bootstrap pierwszego admina | jednorazowy (gdy brak admina) + status publiczny | — | — |
 | Edycja kontekstu firmy | tak (egzekucja w BC kontekstu) | nie → `FORBIDDEN` | nie → `FORBIDDEN` |
 | Odczyt kontekstu firmy (`GET`) | tak | tak | tak (`@AllowGuest`) |
-| Start runów / HITL / logi / SSE / lista `GET /runs` | tak | tak | lista **tak** (showcase); start wg `GuestRunPolicy` (`SPEC-RUNY.md` R-12); HITL / logi / SSE / detail **tylko własne** |
+| Start runów / HITL / logi / SSE / lista `GET /runs` | tak | tak | lista **tak** (showcase); start wg `GuestRunPolicy` (`SPEC-RUNY.md` R-12); HITL / SSE **tylko własne**; detail/logs — **własne zawsze** **oraz** cudze gdy status ∈ `{completed, failed, cancelled}` |
 | Ocena **własnego** runu | tak | tak | tak + soft limit (`SPEC-RUNY.md` R-12) |
 | Output-edited / finalize | tak (własny) | tak (własny) | nie → `FORBIDDEN` |
-| Cudzy detail / HITL / rating / feedback-run | nie → `FORBIDDEN` | nie → `FORBIDDEN` | nie → `FORBIDDEN` |
+| Cudzy detail / HITL / rating / feedback-run | nie → `FORBIDDEN` | nie → `FORBIDDEN` | detail/logs **terminalny** → dozwolone (R-12); detail/logs **nieterminalny** / HITL / rating / feedback-run → `FORBIDDEN` |
 | Cancel (`POST .../cancel`) | własne **oraz** gdy `startedBy.role === guest` (`SPEC-RUNY.md` R-11) | tylko własne | tylko własne; cudze → `FORBIDDEN` |
 | `GET /runs/user/:userId` tylko własny id; `POST /feedback` | tak | tak | tak (`application`/`agent`; `run` tylko własny) |
 | Lista kont (`GET /users`) | tak | nie | nie → `FORBIDDEN` |
@@ -57,6 +58,7 @@ Zmiana względem wersji 14 / tabela ról: brak publicznych tras register / activ
 Zmiana względem wersji 17 / tabela ról: dwie kolumny `admin`/`user`; `guest` poza. Od tej wersji kolumna `guest` + zakaz awansu.
 Zmiana względem wersji 18 / nota przy tabeli ról: *„Invite nigdy nie tworzy `guest` (także przy `DEMO_MODE=true`)”*. Od tej wersji invite przy demo on → `guest`; przy demo off → `user`.
 Zmiana względem wersji 20 / tabela ról: DELETE = soft (API; UI poza); reaktywacja bez filtra roli / UI poza; cancel cudzy zawsze `FORBIDDEN` dla admina. Od tej wersji: DELETE soft/hard wg targetu **z UI**; reaktywacja tylko `user` **z UI**; cancel admin→guest legalny (R-11).
+Zmiana względem wersji 24 / tabela ról (kolumna guest): detail/logs tylko self. Od tej wersji wyjątek statusów archiwalnych (R-12); HITL/SSE/cancel/mutacje **bez zmian**.
 
 ## Wymagania (egzekwowalne)
 

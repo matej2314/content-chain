@@ -1,7 +1,7 @@
 ---
-wersja: 26
+wersja: 27
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-13
+data_modyfikacji: 2026-10-17
 ---
 
 # SPEC — Runy / logi
@@ -22,6 +22,7 @@ Zmiana względem wersji 18: przegląd otwarty do ręcznego finalize **bez limitu
 Zmiana względem wersji 19 / cel: brak GuestRunPolicy. Od tej wersji R-12 + ownership odczytu dla `guest`.
 Zmiana względem wersji 24 / R-11 / R-3b: cancel wyłącznie `startedBy`; `startedBy` na detail bez `role`; hard guest poza Runy. Od tej wersji: admin cancel gdy `startedBy.role === guest`; `startedBy.role` w detail; hard/purge usuwa Run+dzieci (port dla Auth A-10) — `docs/security.md`, `users-management-plan.md` Faza 2.
 Zmiana względem wersji 25 / R-3d: `brief.audience?` bez semantyki trzech trybów. Od tej wersji omit / name katalogu / custom — bez FK; scoping = Social/Content — `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`.
+Zmiana względem wersji 26 / R-3b / R-12: *„guest: detail/logs/events tylko własne; cudze → 403”*. Od tej wersji wyjątek archiwum: `guest` — `GET /runs/:id` i logs cudzego dozwolone, gdy status ∈ `{completed, failed, cancelled}`; cudzy nieterminalny → **403**; events/SSE / HITL / cancel — nadal tylko self — `docs/security.md`, `guest-view-others-runs-plan.md`.
 
 ## Powiązanie ze stylem z docs
 
@@ -86,7 +87,7 @@ Zmiana względem wersji 16 / R-3a: `status` wyłącznie pojedynczy enum; UI Runy
 
 Zmiana względem wersji 17 / R-3a: archiwum UI `completed,failed`. Od tej wersji `completed,failed,cancelled` (`docs/ux_dashboard.md`).
 
-R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) — na **detail** `startedBy = { id, email, role }` (**`role` obowiązkowe** na detail; lista `GET /runs` **bez** wymogu `role` w tym wycinku) — **oraz** `conversationId`, `brief` (kształt zapisany: `SocialBrief` albo `ContentBrief` wg `taskType`), `userRating`, `outputEdited`, `reviewFinalizedAt`, **`pipelineFinishedAt`**, **`reviewExpiresAt`** (wyliczane), **`cancelledAt`** (`null` \| ISO8601), wynik addytywny gdy jest (`ideas` / `content` / `contents` / `reelIdeas` / `reelScript` / `reelScripts` / `pageOutline` / `pageDocument`), metadane HITL (`options` wg `taskType`). Semantyka `pipelineFinishedAt` / `reviewExpiresAt` oraz zakaz side-effect na GET — R-10. Lista `GET /runs/user/:userId` **bez** tych dwóch pól TTL. **`guest`:** `GET /runs/:id`, logi, events/SSE — **tylko** gdy `startedBy === self`; cudze → **403** `FORBIDDEN`. `admin`/`user`: odczyt detail **bez zmian** względem dotychczasowego ownership (lista instancji; mutacje nadal `startedBy`).
+R-3b. Przy starcie runu ze sesją użytkownika api **zapisuje inicjatora** (`startedBy`). Snapshot `GET /runs/:runId` zawiera te same meta pola listy (m.in. `createdAt`, `startedBy`) — na **detail** `startedBy = { id, email, role }` (**`role` obowiązkowe** na detail; lista `GET /runs` **bez** wymogu `role` w tym wycinku) — **oraz** `conversationId`, `brief` (kształt zapisany: `SocialBrief` albo `ContentBrief` wg `taskType`), `userRating`, `outputEdited`, `reviewFinalizedAt`, **`pipelineFinishedAt`**, **`reviewExpiresAt`** (wyliczane), **`cancelledAt`** (`null` \| ISO8601), wynik addytywny gdy jest (`ideas` / `content` / `contents` / `reelIdeas` / `reelScript` / `reelScripts` / `pageOutline` / `pageDocument`), metadane HITL (`options` wg `taskType`). Semantyka `pipelineFinishedAt` / `reviewExpiresAt` oraz zakaz side-effect na GET — R-10. Lista `GET /runs/user/:userId` **bez** tych dwóch pól TTL. **`guest`:** `GET /runs/:id` i logi — **własne zawsze** **oraz** cudze, gdy status ∈ `{completed, failed, cancelled}`; cudzy nieterminalny → **403** `FORBIDDEN`. Events/SSE — **tylko** `startedBy === self` (także terminalne cudze → **403**). `admin`/`user`: odczyt detail **bez zmian** względem dotychczasowego ownership (lista instancji; mutacje nadal `startedBy`).
 
 Zmiana względem wersji 18 / R-3b: snapshot bez `pipelineFinishedAt` / `reviewExpiresAt`. Od tej wersji pola meta TTL na `GET /runs/:id` (i sukcesach mutacji przeglądu) — `docs/dokumentacja_komunikacji.md`.
 
@@ -220,7 +221,7 @@ R-12. **`GuestRunPolicy`** (tylko `role === guest` **i** `DEMO_MODE=true`; `admi
 1. Allowlista `taskType` na `POST /runs`: **`post_ideas`** ×1, **`page_copy`** ×1, **`page_outline_then_copy`** ×1 — **1 start danego typu na życie konta** (hardcoded; **nie** env). Inny typ → **403** `GUEST_TYPE_NOT_ALLOWED`.
 2. Zużycie slotu: po **udanym create** `Run` w DB. COUNT = wszystkie runy `startedByUserId` + `taskType` **bez filtra statusu** (także `failed` / `cancelled` / `completed` / …). COUNT ≥ 1 → **403** `GUEST_TYPE_QUOTA_EXCEEDED`. HITL **bez** osobnego limitu.
 3. Global cap: env `GUEST_GLOBAL_CAP_PER_DAY` (default **30**, walidowany); doba **UTC**; **wszystkie** starty guest na instancji. Redis INCR na `content-chain:guest:daily:runs:{UTC-date}`. Kolejność admit: **najpierw Redis**, **potem** create; **DECR** przy rollbacku gdy create się nie uda. Wyczerpany cap → **403** `GUEST_GLOBAL_QUOTA_EXCEEDED`. Pad Redis przy `POST /runs` guest → **fail closed**. `MAX_CONCURRENT_RUNS` + FIFO (R-6) **bez zmian** — **zakaz** drugiego semafora współbieżności „dla guest”.
-4. HITL / cancel / detail / logs / events / SSE: guest **tylko** `startedBy === self`; cudze → **403**.
+4. Detail / logs: guest — własne zawsze; cudze dozwolone, gdy status ∈ `{completed, failed, cancelled}`; cudzy nieterminalny → **403**. HITL / cancel / events / SSE: guest **tylko** `startedBy === self`; cudze → **403** (także terminalne).
 5. `POST .../output-edited` oraz `POST .../finalize-review`: guest → **403** (także na własnym runie).
 6. `PATCH .../rating`: dozwolony na własnym runie (R-10 poza punktem 5) + soft limit env `GUEST_RATING_CAP_PER_DAY` (default **10**, walidowany); klucz Redis `content-chain:guest:daily:ratings:{userId}:{UTC-date}` → **429** + `message`. Pad Redis przy ratingu guest → **fail open** (ocena przechodzi). Tylko własny run.
 7. Połączenie Redis (adapter guest quota): **`REDIS_HOST`+`REDIS_PORT`**; opcjonalne **`REDIS_PASSWORD`**. **Bez** `REDIS_URL`. Szczegóły env / sekret: `SPEC-BEZPIECZENSTWO.md` B-11, `docs/deployment.md`.
@@ -228,6 +229,7 @@ R-12. **`GuestRunPolicy`** (tylko `role === guest` **i** `DEMO_MODE=true`; `admi
 Zmiana względem wersji 19: brak osobnej polityki guest na starcie / odczycie. Od tej wersji R-12; R-6 **nie** unieważnione.
 Zmiana względem wersji 20 / R-12: brak punktu o env połączenia Redis. Od tej wersji punkt 7 — `REDIS_PASSWORD` opcjonalne (HOST/PORT).
 Zmiana względem wersji 21 / R-12.7: `REDIS_URL` **albo** HOST/PORT. Od tej wersji wyłącznie HOST/PORT + opcjonalne `REDIS_PASSWORD`.
+Zmiana względem wersji 26 / R-12.4: *„detail / logs / HITL / cancel / events / SSE: tylko self”*. Od tej wersji detail/logs — wyjątek statusów archiwalnych; HITL/cancel/events/SSE bez zmian (self).
 
 ## Norma implementacji
 
@@ -349,7 +351,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Drugiego limitu współbieżności execute „dla guest” (obowiązuje R-6 + R-12 Redis cap).
 - Tabeli slotów guest w DB (COUNT z `Run`; Redis tylko cap dzienny).
 - Fail open Redis na `POST /runs` guest; fail closed Redis na rating guest (odwrotnie: start = closed, rating = open).
-- Output-edited / finalize dla `guest`; detail/HITL/cancel/SSE cudzego runu dla `guest`.
+- Output-edited / finalize dla `guest`; HITL/cancel/SSE cudzego runu dla `guest`; detail/logs cudzego **nieterminalnego** dla `guest` (cudzy terminalny detail/logs — dozwolone, R-12.4).
 
 Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz jednego `RunBrief` i `as` na JSON briefu (`docs/dokumentacja_komunikacji.md`).
 Zmiana względem wersji 13 / „Nie wolno”: zakaz `length !== 1` na Social zastąpiony zakazem pustej / duplikat / obcy id; dopisano zakaz aliasu skalar = `contents[0]`.
@@ -399,7 +401,7 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 - [ ] HITL `page_outline_then_copy` z id ≠ `outline.id` → 400 `HITL_INVALID_SELECTION`; run zostaje `awaiting_hitl`.
 - [ ] HITL Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): 0 id / duplikat / obcy id → 400 `HITL_INVALID_SELECTION`; K≥1 legalnych ⊆ options → K artefaktów (`contents[]` / `reelScripts[]`); 1 id → tablica długości 1. Page HITL bez zmian.
 - [ ] Snapshot: brak `characterCount` w starym JSON → mapper ustawia `body.length`; brak `cta` / `role` nie crashuje readera; dwuetapowy po fazie 2: `contents` / `reelScripts` + `sourceIdeaId`, skalar `content` / `reelScript` = `null`.
-- [ ] `guest` (demo on): lista `GET /runs` = instancja; detail/HITL/cancel cudzy → 403; drugi start tego samego allowlist typu → `GUEST_TYPE_QUOTA_EXCEEDED`; Redis admit przed create; output-edited/finalize → 403; rating ponad soft cap → 429.
+- [ ] `guest` (demo on): lista `GET /runs` = instancja; cudzy detail/logs **terminalny** → 200; cudzy detail/logs **nieterminalny** → 403; HITL/cancel/events cudzy → 403; drugi start tego samego allowlist typu → `GUEST_TYPE_QUOTA_EXCEEDED`; Redis admit przed create; output-edited/finalize → 403; rating ponad soft cap → 429.
 
 ## Poza zakresem
 

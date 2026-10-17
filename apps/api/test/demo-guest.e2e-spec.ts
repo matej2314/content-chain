@@ -212,19 +212,48 @@ describe('DEMO MODE guest HTTP (e2e)', () => {
     expect(finalize.body.code).toBe('FORBIDDEN');
   });
 
-  it('guest lists all instance runs but cannot read or cancel a foreign one (D-55)', async () => {
+  it('guest lists instance runs; archival foreign detail/logs OK; live/HITL/cancel forbidden (D-55)', async () => {
     const me = await admin.get('/api/v1/auth/me').expect(200);
     const adminId = me.body.id as string;
-    const foreignRunId = `run_${randomUUID()}`;
+
+    const archivalRunId = `run_${randomUUID()}`;
     await prisma.run.create({
       data: {
-        id: foreignRunId,
+        id: archivalRunId,
         conversationId: `conv_${randomUUID()}`,
         taskType: 'post_ideas',
         platform: 'linkedin',
         language: 'pl',
         status: 'completed',
-        brief: { topic: 'Admin run' },
+        brief: { topic: 'Admin archival' },
+        startedByUserId: adminId,
+      },
+    });
+
+    const liveRunId = `run_${randomUUID()}`;
+    await prisma.run.create({
+      data: {
+        id: liveRunId,
+        conversationId: `conv_${randomUUID()}`,
+        taskType: 'post_ideas',
+        platform: 'linkedin',
+        language: 'pl',
+        status: 'running',
+        brief: { topic: 'Admin live' },
+        startedByUserId: adminId,
+      },
+    });
+
+    const hitlRunId = `run_${randomUUID()}`;
+    await prisma.run.create({
+      data: {
+        id: hitlRunId,
+        conversationId: `conv_${randomUUID()}`,
+        taskType: 'post_ideas_then_content',
+        platform: 'linkedin',
+        language: 'pl',
+        status: 'awaiting_hitl',
+        brief: { topic: 'Admin hitl' },
         startedByUserId: adminId,
       },
     });
@@ -233,20 +262,39 @@ describe('DEMO MODE guest HTTP (e2e)', () => {
     const runIds = (list.body.items as Array<{ runId: string }>).map(
       (item) => item.runId,
     );
-    expect(runIds).toContain(foreignRunId);
+    expect(runIds).toContain(archivalRunId);
 
-    const detail = await guest.get(`/api/v1/runs/${foreignRunId}`).expect(403);
-    expect(detail.body.code).toBe('FORBIDDEN');
+    const detail = await guest
+      .get(`/api/v1/runs/${archivalRunId}`)
+      .expect(200);
+    expect(detail.body.runId).toBe(archivalRunId);
+    expect(detail.body.status).toBe('completed');
 
     const logs = await guest
-      .get(`/api/v1/runs/${foreignRunId}/logs`)
+      .get(`/api/v1/runs/${archivalRunId}/logs`)
+      .expect(200);
+    expect(Array.isArray(logs.body.items)).toBe(true);
+
+    const liveDetail = await guest
+      .get(`/api/v1/runs/${liveRunId}`)
       .expect(403);
-    expect(logs.body.code).toBe('FORBIDDEN');
+    expect(liveDetail.body.code).toBe('FORBIDDEN');
+
+    const liveLogs = await guest
+      .get(`/api/v1/runs/${liveRunId}/logs`)
+      .expect(403);
+    expect(liveLogs.body.code).toBe('FORBIDDEN');
 
     const cancel = await guest
-      .post(`/api/v1/runs/${foreignRunId}/cancel`)
+      .post(`/api/v1/runs/${archivalRunId}/cancel`)
       .expect(403);
     expect(cancel.body.code).toBe('FORBIDDEN');
+
+    const hitl = await guest
+      .post(`/api/v1/runs/${hitlRunId}/hitl`)
+      .send({ selectedIdeaIds: ['idea_1'] })
+      .expect(403);
+    expect(hitl.body.code).toBe('FORBIDDEN');
   });
 
   it('guest cannot start a disallowed type and cannot start the same type twice (D-54)', async () => {

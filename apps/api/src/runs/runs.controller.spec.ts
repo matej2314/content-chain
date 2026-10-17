@@ -359,6 +359,7 @@ describe('RunsController', () => {
     const events = await firstValueFrom(stream.pipe(take(1), toArray()));
 
     expect(getRun.execute).toHaveBeenCalledTimes(2);
+    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser, 'own');
     expect(sse.subscribe).toHaveBeenCalledWith(runId);
     expect(events).toEqual([
       { type: 'run.status', data: { runId, status: 'running' } },
@@ -375,6 +376,7 @@ describe('RunsController', () => {
     const collected: Array<{ type?: string; data?: unknown }> = [];
     const sub = stream.subscribe((event) => collected.push(event));
 
+    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser, 'own');
     expect(collected).toEqual([
       { type: 'run.status', data: { runId, status: 'running' } },
     ]);
@@ -413,6 +415,7 @@ describe('RunsController', () => {
     });
     hub$.complete();
 
+    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser, 'own');
     expect(completed).toBe(true);
     expect(collected).toEqual([
       { type: 'run.status', data: { runId, status: 'running' } },
@@ -446,7 +449,7 @@ describe('RunsController', () => {
     const events = await firstValueFrom(stream.pipe(take(2), toArray()));
 
     expect(getRun.execute).toHaveBeenCalledTimes(2);
-    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser);
+    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser, 'own');
     expect(sse.subscribe).toHaveBeenCalledWith(runId);
     expect(sse.complete).not.toHaveBeenCalled();
     expect(events).toEqual([
@@ -466,7 +469,7 @@ describe('RunsController', () => {
     const events = await firstValueFrom(stream.pipe(toArray()));
 
     expect(getRun.execute).toHaveBeenCalledTimes(1);
-    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser);
+    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser, 'own');
     expect(sse.subscribe).not.toHaveBeenCalled();
     expect(sse.complete).not.toHaveBeenCalled();
     expect(events).toEqual([
@@ -484,6 +487,7 @@ describe('RunsController', () => {
     const stream = await controller.events(runId, sessionUser);
     await firstValueFrom(stream.pipe(toArray()));
 
+    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser, 'own');
     expect(sse.subscribe).not.toHaveBeenCalled();
     expect(sse.complete).not.toHaveBeenCalled();
   });
@@ -498,6 +502,7 @@ describe('RunsController', () => {
 
     await controller.events(runId, sessionUser);
 
+    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser, 'own');
     expect(sse.subscribe).toHaveBeenCalledWith(runId);
     expect(sse.complete).not.toHaveBeenCalled();
   });
@@ -512,6 +517,7 @@ describe('RunsController', () => {
     const events = await firstValueFrom(stream.pipe(toArray()));
 
     expect(getRun.execute).toHaveBeenCalledTimes(2);
+    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser, 'own');
     expect(sse.subscribe).not.toHaveBeenCalled();
     expect(sse.complete).not.toHaveBeenCalled();
     expect(events).toEqual([
@@ -530,7 +536,7 @@ describe('RunsController', () => {
     const events = await firstValueFrom(stream.pipe(toArray()));
 
     expect(getRun.execute).toHaveBeenCalledTimes(1);
-    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser);
+    expect(getRun.execute).toHaveBeenCalledWith(runId, sessionUser, 'own');
     expect(sse.subscribe).not.toHaveBeenCalled();
     expect(sse.complete).not.toHaveBeenCalled();
     expect(events).toEqual([

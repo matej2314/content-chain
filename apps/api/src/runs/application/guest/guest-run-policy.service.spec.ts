@@ -267,4 +267,70 @@ describe('GuestRunPolicyService', () => {
       );
     });
   });
+
+  describe('assertGuestCanReadRun', () => {
+    it('is a no-op for non-guest actors', () => {
+      const { service } = makeService({ env: ENV_DEMO_ON });
+
+      expect(() =>
+        service.assertGuestCanReadRun(adminActor(), OTHER_ID, 'running'),
+      ).not.toThrow();
+      expect(() =>
+        service.assertGuestCanReadRun(userActor(), null, 'completed'),
+      ).not.toThrow();
+    });
+
+    it('allows a guest on own run for any status', () => {
+      const { service } = makeService({ env: ENV_DEMO_ON });
+
+      expect(() =>
+        service.assertGuestCanReadRun(guestActor(), GUEST_ID, 'running'),
+      ).not.toThrow();
+      expect(() =>
+        service.assertGuestCanReadRun(guestActor(), GUEST_ID, 'awaiting_hitl'),
+      ).not.toThrow();
+    });
+
+    it.each(['completed', 'failed', 'cancelled'] as const)(
+      'allows a guest on a foreign %s run',
+      (status) => {
+        const { service } = makeService({ env: ENV_DEMO_ON });
+
+        expect(() =>
+          service.assertGuestCanReadRun(guestActor(), OTHER_ID, status),
+        ).not.toThrow();
+      },
+    );
+
+    it.each(['queued', 'running', 'interrupted', 'awaiting_hitl'] as const)(
+      'rejects a guest on a foreign %s run',
+      (status) => {
+        const { service } = makeService({ env: ENV_DEMO_ON });
+
+        expect(() =>
+          service.assertGuestCanReadRun(guestActor(), OTHER_ID, status),
+        ).toThrow(
+          expect.objectContaining({
+            name: 'DomainException',
+            code: 'FORBIDDEN',
+            httpStatus: 403,
+          }),
+        );
+      },
+    );
+
+    it('rejects a guest when startedByUserId is null even if status is archival', () => {
+      const { service } = makeService({ env: ENV_DEMO_ON });
+
+      expect(() =>
+        service.assertGuestCanReadRun(guestActor(), null, 'completed'),
+      ).toThrow(
+        expect.objectContaining({
+          name: 'DomainException',
+          code: 'FORBIDDEN',
+          httpStatus: 403,
+        }),
+      );
+    });
+  });
 });

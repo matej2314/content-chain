@@ -6,7 +6,7 @@ Powtarzalny happy path **bez UI**:
 - **Content** — to samo Setup, potem `page_copy` i `page_outline_then_copy`
 - **Review + feedback** — `review.postman-collection.json`: login + kontekst, cienkie fixture’y runów, **Cancel** (`POST .../cancel` — D-30…D-32), ocena / finalize / feedback, **Authz druga sesja**, na końcu **Dokończ HITL** (pełny `post_ideas_then_content`)
 - **Zaproszenia** — `invitations-pipeline.postman-collection.json`: login admina → create → **token z maila** → accept (przy `DEMO_MODE=false` → konto `user` zostaje w bazie)
-- **DEMO guest** — `demo-guest.postman-collection.json`: `GET /config`, register `role=guest`, **invite→accept→`guest`**, allowlista (context GET / `POST /runs`), deny 403, login admina przy `DEMO_MODE=true`
+- **DEMO guest** — `demo-guest.postman-collection.json`: `GET /config`, register `role=guest`, **invite→accept→`guest`**, allowlista (context GET / `POST /runs` / D-55 archiwum detail+logs gdy w liście jest cudzy `completed`), deny 403, login admina przy `DEMO_MODE=true`
 
 Katalog ręcznego Send (bez asercji Collection Runnera) jest w `apps/api/content-chain.postman-collection.json` — te same endpointy review/feedback do kliknięcia na dowolnym `runId`.
 
@@ -90,7 +90,7 @@ Cel: żywy HTTP Fazy 18–19 — `DEMO_MODE`, rola `guest` (register **oraz** in
 5. **Invite guest** (D-23 / D-46 przy demo on): login admina → `POST /invitations` (unikalny `inviteGuestEmail`) → wklej raw token z logu api do `inviteGuestToken` → clear jar → `POST /auth/accept-invite` → **201** `role === guest` (bez Set-Cookie) → login zaproszonym → smoke `POST /runs` `post_ideas`: **202** albo **403** `GUEST_TYPE_QUOTA_EXCEEDED` → login `guestEmail` przywraca sesję pod Allow. Zalecany osobny runner tylko **Config + Invite guest** (bez Register), gdy chcesz pewny pierwszy slot → asercja 202.
 6. **Guest delete / purge** (przed Allow): D-26 PATCH guest 403; świeży guest + live → D-64/D-65/D-68; hard bez live + email wolny (D-63); DELETE admin → 403 (D-66). Nie kasuje konta Register guest.
 7. **Admin cancel guest**: świeży guest → `startedBy.role` (D-71) → admin cancel 200 + log (D-69); D-70 opcjonalnie przez `userCancelRunId` (pełne = Jest e2e).
-8. Allow: GET context 200, pierwszy `post_ideas` 202, drugi 403 `GUEST_TYPE_QUOTA_EXCEEDED`, `post_content` 403 `GUEST_TYPE_NOT_ALLOWED`. Deny: PATCH email / GET users / PUT context / output-edited → 403. Admin przy demo: login admin 200 (D-59); **brak** endpointu promocji roli.
+8. Allow: GET context 200, pierwszy `post_ideas` 202, drugi 403 `GUEST_TYPE_QUOTA_EXCEEDED`, `post_content` 403 `GUEST_TYPE_NOT_ALLOWED`; **D-55 archiwum** — smoke: `GET /runs?status=completed` → cudzy detail/logs **200**, cancel cudzy **403** (gdy brak cudzego `completed` w liście → skip; pełne D-55 = Jest `demo-guest.e2e-spec.ts`). Deny: PATCH email / GET users / PUT context / output-edited → 403. Admin przy demo: login admin 200 (D-59); **brak** endpointu promocji roli.
 
 Auth / invitations-pipeline zakładają `DEMO_MODE=false` — asercje `role=user` na accept tam zostają; ścieżka invite→guest jest wyłącznie tu.
 

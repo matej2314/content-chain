@@ -71,6 +71,8 @@ export interface GetRunOutput {
   } | null;
 }
 
+export type GetRunGuestAccess = 'read' | 'own';
+
 function orderItemsBySelectedIds<T extends { sourceIdeaId: string }>(
   items: T[],
   selectedIdeaIds: string[] | null,
@@ -101,14 +103,25 @@ export class GetRunUseCase {
     private readonly guestPolicy: GuestRunPolicyService,
   ) {}
 
-  async execute(runId: RunId, actor: AuthUserContext): Promise<GetRunOutput> {
+  async execute(
+    runId: RunId,
+    actor: AuthUserContext,
+    guestAccess: GetRunGuestAccess = 'read',
+  ): Promise<GetRunOutput> {
     const parsedRunId = parseWithZod(runIdSchema, runId);
     const run = await this.runs.getById(parsedRunId);
     if (!run) {
       throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
     }
-    this.guestPolicy.assertGuestOwnsRun(actor, run.startedByUserId);
-
+    if (guestAccess === 'own') {
+      this.guestPolicy.assertGuestOwnsRun(actor, run.startedByUserId);
+    } else {
+      this.guestPolicy.assertGuestCanReadRun(
+        actor,
+        run.startedByUserId,
+        run.status,
+      );
+    }
     const [
       ideas,
       reelIdeas,

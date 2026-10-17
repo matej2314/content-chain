@@ -1,7 +1,7 @@
 ---
-wersja: 15
+wersja: 16
 data_utworzenia: 2026-09-29
-data_modyfikacji: 2026-10-11
+data_modyfikacji: 2026-10-17
 ---
 
 # Bezpieczeństwo — Content Chain
@@ -30,6 +30,8 @@ Zmiana względem: Faza 18 / demo — *„invite nigdy nie tworzy `guest` (także
 
 Zmiana względem: surface FE first-run = tryb submitu karty logowania. Od tej wersji FE = osobny formularz bootstrap sterowany `bootstrap-status`; reguły API (jeden admin, brak maila, `verifiedAt`, trwałe wyłączenie) **bez zmian**.
 
+Zmiana względem: *„guest: detail/logs tylko własne; cudze → 403”* (Faza DEMO / ownership odczytu). Od tej wersji wyjątek **archiwum**: `guest` może `GET /runs/:id` oraz logs cudzego runu, gdy status ∈ `{completed, failed, cancelled}`; cudzy nieterminalny → **403**. Events / SSE — nadal tylko własne. Mutacje guest / cancel admin→guest — **bez zmian**.
+
 ## Założenia
 
 - Jedna instancja = jedna firma; zagrożenia to głównie błędna konfiguracja i wyciek sekretów, nie multi-tenant izolacja.
@@ -45,7 +47,8 @@ Zmiana względem: surface FE first-run = tryb submitu karty logowania. Od tej we
 | HITL / ocena / feedback `run` | własne (`startedBy`) | własne | **tylko własne**; cudze → **403** |
 | Cancel (`POST .../cancel`) | własne **oraz** runy z `startedBy.role === guest` | własne | **tylko własne**; cudze → **403** |
 | Lista `GET /runs` (archiwum instancji) | tak | tak | **tak** (showcase) |
-| Detail / logs / events / SSE | własne wg kanonu ownership | własne | **tylko własne**; cudze → **403** |
+| Detail / logs (`GET /runs/:id`, `.../logs`) | własne wg kanonu ownership | własne | **własne zawsze**; **cudze tylko** gdy status ∈ `{completed, failed, cancelled}`; cudze nieterminalne → **403** |
+| Events / SSE | własne wg kanonu ownership | własne | **tylko własne**; cudze → **403** (także terminalne — archiwum **bez** EventSource) |
 | `POST .../output-edited` / finalize-review | własne (okno TTL) | własne | **nie** → **403** |
 | `PATCH /auth/me/email` | tak | tak | **nie** → **403** |
 | `POST /feedback` `application` / `agent` | tak | tak | **tak** (bez limitu Redis) |

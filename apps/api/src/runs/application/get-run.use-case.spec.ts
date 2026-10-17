@@ -607,8 +607,20 @@ describe('GetRunUseCase', () => {
     });
   });
 
-  it('rejects a guest reading a foreign run with FORBIDDEN before loading results', async () => {
+  it('allows a guest to read a foreign archival run (completed)', async () => {
     const run = makeRun('completed', { startedByUserId: OTHER_ID });
+    const useCase = makeUseCase(
+      unusedRepo({ getById: async () => asSnapshot(run) }),
+    );
+
+    await expect(useCase.execute(run.id, GUEST)).resolves.toMatchObject({
+      runId: run.id,
+      status: 'completed',
+    });
+  });
+
+  it('rejects a guest reading a foreign non-terminal run before loading results', async () => {
+    const run = makeRun('running', { startedByUserId: OTHER_ID });
     const listIdeas = jest.fn(async () => ideas);
     const useCase = makeUseCase(
       unusedRepo({ getById: async () => asSnapshot(run) }),
@@ -616,6 +628,22 @@ describe('GetRunUseCase', () => {
     );
 
     await expect(useCase.execute(run.id, GUEST)).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'FORBIDDEN',
+      httpStatus: 403,
+    });
+    expect(listIdeas).not.toHaveBeenCalled();
+  });
+
+  it('rejects a guest on foreign archival run when guestAccess is own (events)', async () => {
+    const run = makeRun('completed', { startedByUserId: OTHER_ID });
+    const listIdeas = jest.fn(async () => ideas);
+    const useCase = makeUseCase(
+      unusedRepo({ getById: async () => asSnapshot(run) }),
+      fakeReader({ listIdeas }),
+    );
+
+    await expect(useCase.execute(run.id, GUEST, 'own')).rejects.toMatchObject({
       name: 'DomainException',
       code: 'FORBIDDEN',
       httpStatus: 403,

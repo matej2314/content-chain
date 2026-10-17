@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a7c4e19b-2d58-4f01-9b6e-8c0f3d5a1e44",
     "name": "Content Chain — DEMO guest",
-    "description": "Żywy HTTP DEMO MODE + rola guest (`SPEC-TESTY.md` D-50…D-62). **Nie** zastępuje Jest.\n\nWymaga `DEMO_MODE=true` oraz Redis (`REDIS_HOST`+`REDIS_PORT`, opcjonalnie `REDIS_PASSWORD`) w `apps/api/.env` — walidacja env fail-fast przy starcie. Collection Runner **nie** jest T-5 CI.\n\nKolejność folderów: **Config → Register guest → Invite guest → Allow → Deny → Admin przy demo**.\n\n`POST /runs` w Allow wymaga **kompletnego** company-context w DB (np. Setup z `social-pipeline.postman-collection.json` jako admin, zanim odpalisz tę kolekcję). Gateway jest potrzebny tylko przy starcie runu (jak inne pipeline’y).\n\nCookie jar włączony. Register **nie** stawia cookies — login guest w folderze Register. Zmienne `guestEmail` / `guestPassword`: prerequest nadpisuje email unikalnym znacznikiem czasu, żeby nie łapać 409.\n\nGdy `GET /config` wróci `demoMode: false`, reszta runnera nie ma sensu — patrz README.\n\nFolder **Invite guest**: po `POST /invitations` wklej raw token z logu api do `inviteGuestToken` (jak invite w auth). Accept przy DEMO_MODE=true → `role=guest` (D-23 / D-46). Smoke `POST /runs` asercja 202 albo 403 `GUEST_TYPE_QUOTA_EXCEEDED`. Osobny runner **Config + Invite guest** (bez Register) daje wolny pierwszy slot → zwykle 202.\n\nFolder **Guest delete / purge**: D-63…D-68 / D-26 guest PATCH / D-66 admin target. D-64/D-65 wymagają wolnego slotu `post_ideas` dla gościa (albo świeżego konta).",
+    "description": "Żywy HTTP DEMO MODE + rola guest (`SPEC-TESTY.md` D-50…D-62). **Nie** zastępuje Jest.\n\nWymaga `DEMO_MODE=true` oraz Redis (`REDIS_HOST`+`REDIS_PORT`, opcjonalnie `REDIS_PASSWORD`) w `apps/api/.env` — walidacja env fail-fast przy starcie. Collection Runner **nie** jest T-5 CI.\n\nKolejność folderów: **Config → Register guest → Invite guest → Allow → Deny → Admin przy demo**.\n\n`POST /runs` w Allow wymaga **kompletnego** company-context w DB (np. Setup z `social-pipeline.postman-collection.json` jako admin, zanim odpalisz tę kolekcję). Gateway jest potrzebny tylko przy starcie runu (jak inne pipeline’y).\n\nCookie jar włączony. Register **nie** stawia cookies — login guest w folderze Register. Zmienne `guestEmail` / `guestPassword`: prerequest nadpisuje email unikalnym znacznikiem czasu, żeby nie łapać 409.\n\nGdy `GET /config` wróci `demoMode: false`, reszta runnera nie ma sensu — patrz README.\n\nFolder **Invite guest**: po `POST /invitations` wklej raw token z logu api do `inviteGuestToken` (jak invite w auth). Accept przy DEMO_MODE=true → `role=guest` (D-23 / D-46). Smoke `POST /runs` asercja 202 albo 403 `GUEST_TYPE_QUOTA_EXCEEDED`. Osobny runner **Config + Invite guest** (bez Register) daje wolny pierwszy slot → zwykle 202.\n\nFolder **Guest delete / purge**: D-63…D-68 / D-26 guest PATCH / D-66 admin target. D-64/D-65 wymagają wolnego slotu `post_ideas` dla gościa (albo świeżego konta).\n\nAllow **D-55 archiwum**: smoke cudzy `completed` detail/logs 200 + cancel 403 gdy w `GET /runs?status=completed` jest cudzy id; pełne D-55 = Jest e2e.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -156,6 +156,14 @@
     },
     {
       "key": "cancelGuestUserId",
+      "value": ""
+    },
+    {
+      "key": "foreignArchivalRunId",
+      "value": ""
+    },
+    {
+      "key": "foreignLiveRunId",
       "value": ""
     }
   ],
@@ -1552,6 +1560,177 @@
               "raw": "{\n  \"taskType\": \"post_content\",\n  \"platform\": \"linkedin\",\n  \"language\": \"pl\",\n  \"brief\": { \"topic\": \"Guest demo\" }\n}\n"
             },
             "url": "{{baseUrl}}/runs"
+          }
+        },
+        {
+          "name": "GET runs completed — pick foreign archival (D-55)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 list completed', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const guestId = pm.collectionVariables.get('guestUserId');",
+                  "const items = pm.response.json().items || [];",
+                  "const foreign = items.find(function (item) {",
+                  "  return item.startedBy && item.startedBy.id && item.startedBy.id !== guestId;",
+                  "});",
+                  "if (!foreign) {",
+                  "  console.warn('SKIP D-55 archival: no foreign completed run in list (seed admin completed first; full D-55 = Jest e2e)');",
+                  "  pm.collectionVariables.set('foreignArchivalRunId', '');",
+                  "  return;",
+                  "}",
+                  "pm.collectionVariables.set('foreignArchivalRunId', foreign.runId);",
+                  "pm.test('picked foreign archival runId (D-55)', function () {",
+                  "  pm.expect(foreign.runId).to.match(/^run_/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs?status=completed",
+            "description": "Smoke D-55: wybiera pierwszy cudzy `completed` (startedBy.id ≠ guestUserId). Gdy brak — skip kolejnych requestów; pełne D-55 = Jest e2e."
+          }
+        },
+        {
+          "name": "GET foreign completed detail (200) — D-55",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = pm.collectionVariables.get('foreignArchivalRunId');",
+                  "if (!runId) { console.warn('SKIP D-55 detail'); return; }",
+                  "pm.test('archival foreign detail 200 (D-55)', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.runId).to.eql(runId);",
+                  "  pm.expect(body.status).to.eql('completed');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{foreignArchivalRunId}}",
+            "description": "D-55: guest czyta cudzy terminalny detail → 200."
+          }
+        },
+        {
+          "name": "GET foreign completed logs (200) — D-55",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = pm.collectionVariables.get('foreignArchivalRunId');",
+                  "if (!runId) { console.warn('SKIP D-55 logs'); return; }",
+                  "pm.test('archival foreign logs 200 (D-55)', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().items).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{foreignArchivalRunId}}/logs",
+            "description": "D-55: guest czyta cudze terminalne logs → 200."
+          }
+        },
+        {
+          "name": "POST cancel foreign archival (403) — D-55",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = pm.collectionVariables.get('foreignArchivalRunId');",
+                  "if (!runId) { console.warn('SKIP D-55 cancel'); return; }",
+                  "pm.test('cancel foreign archival FORBIDDEN (D-55)', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.json().code).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{foreignArchivalRunId}}/cancel",
+            "description": "D-55: cancel cudzego (także terminalnego) → 403."
+          }
+        },
+        {
+          "name": "GET runs running — pick foreign live (D-55 optional)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 list running', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const guestId = pm.collectionVariables.get('guestUserId');",
+                  "const items = pm.response.json().items || [];",
+                  "const foreign = items.find(function (item) {",
+                  "  return item.startedBy && item.startedBy.id && item.startedBy.id !== guestId;",
+                  "});",
+                  "if (!foreign) {",
+                  "  console.warn('SKIP D-55 live: no foreign running run (optional smoke)');",
+                  "  pm.collectionVariables.set('foreignLiveRunId', '');",
+                  "  return;",
+                  "}",
+                  "pm.collectionVariables.set('foreignLiveRunId', foreign.runId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs?status=running",
+            "description": "Opcjonalny smoke D-55: cudzy nieterminalny → detail 403 w następnym requestcie."
+          }
+        },
+        {
+          "name": "GET foreign live detail (403) — D-55 optional",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = pm.collectionVariables.get('foreignLiveRunId');",
+                  "if (!runId) { console.warn('SKIP D-55 live detail'); return; }",
+                  "pm.test('live foreign detail FORBIDDEN (D-55)', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.json().code).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/{{foreignLiveRunId}}",
+            "description": "D-55 opcjonalnie: cudzy `running` detail → 403."
           }
         }
       ]

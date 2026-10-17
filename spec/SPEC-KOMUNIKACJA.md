@@ -1,7 +1,7 @@
 ---
-wersja: 38
+wersja: 39
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-13
+data_modyfikacji: 2026-10-17
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -31,6 +31,7 @@ Zmiana względem wersji 31 / cel: powierzchnia health = wyłącznie liveness api
 Zmiana względem wersji 32 / cel: K-2g = zawsze `role = user`. Od tej wersji **refaktor** `user.role` w odpowiedzi register (`guest` \| `user`) + `GET /config` + kody quota guest.
 Zmiana względem wersji 35 / K-2f: happy path 201 bez jawnej normy roli vs demo. Od tej wersji `role` w 201 accept-invite vs `DEMO_MODE` (odsyłacz A-7b).
 Zmiana względem wersji 37 / K-2: `brief.audience` bez semantyki trzech trybów. Od tej wersji omit / name katalogu / custom opis — bez nowego klucza body — `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`.
+Zmiana względem wersji 38 / K-2c: milczenie o authz guest na detail/logs (ownership w R-12 / docs). Od tej wersji K-2c: `guest` — cudzy detail/logs dozwolone przy statusie archiwalnym; lista `GET /runs` bez zmian — `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-12.
 
 ## Powiązanie ze stylem z docs
 
@@ -111,9 +112,10 @@ Zmiana względem wersji 21 / K-2a: `status` wyłącznie jako pojedynczy enum.
 
 Zmiana względem wersji 24 / K-2a: archiwum UI `completed,failed`. Od tej wersji `completed,failed,cancelled`.
 
-K-2c. Snapshot `GET /runs/:id` — `brief` w kształcie zapisanym (unia); `result` addytywny: `ideas`, `content`, `contents`, `reelIdeas`, `reelScript`, `reelScripts`, `pageOutline`, `pageDocument`; meta m.in. **`cancelledAt`** (`null` \| ISO8601), **`pipelineFinishedAt`** (`null` \| ISO8601), **`reviewExpiresAt`** (wyliczane: `null` \| ISO8601 — semantyka `SPEC-RUNY.md` R-10 / `docs/dictionary.md`), **`startedBy: { id, email, role }`** (`role` = `admin` \| `user` \| `guest` — **tylko** na detail; lista archiwum `GET /runs` **bez** wymogu `role` w tym wycinku). HITL `options` zależne od `taskType`. Dwuetapowy Social po fazie 2: kanon tablic `contents[]` / `reelScripts[]` + `sourceIdeaId`; skalar `content` / `reelScript` = `null` (`docs/dokumentacja_komunikacji.md`). GET **bez** side-effectów (zakaz finalize / UPDATE przy odczycie). Sukcesy mutacji przeglądu (`PATCH .../rating`, `POST .../output-edited`, `POST .../finalize-review`) niosą te same pola meta TTL co snapshot. Lista `GET /runs/user/:userId` **bez** `pipelineFinishedAt` / `reviewExpiresAt`.
+K-2c. Snapshot `GET /runs/:id` — `brief` w kształcie zapisanym (unia); `result` addytywny: `ideas`, `content`, `contents`, `reelIdeas`, `reelScript`, `reelScripts`, `pageOutline`, `pageDocument`; meta m.in. **`cancelledAt`** (`null` \| ISO8601), **`pipelineFinishedAt`** (`null` \| ISO8601), **`reviewExpiresAt`** (wyliczane: `null` \| ISO8601 — semantyka `SPEC-RUNY.md` R-10 / `docs/dictionary.md`), **`startedBy: { id, email, role }`** (`role` = `admin` \| `user` \| `guest` — **tylko** na detail; lista archiwum `GET /runs` **bez** wymogu `role` w tym wycinku). HITL `options` zależne od `taskType`. Dwuetapowy Social po fazie 2: kanon tablic `contents[]` / `reelScripts[]` + `sourceIdeaId`; skalar `content` / `reelScript` = `null` (`docs/dokumentacja_komunikacji.md`). GET **bez** side-effectów (zakaz finalize / UPDATE przy odczycie). Sukcesy mutacji przeglądu (`PATCH .../rating`, `POST .../output-edited`, `POST .../finalize-review`) niosą te same pola meta TTL co snapshot. Lista `GET /runs/user/:userId` **bez** `pipelineFinishedAt` / `reviewExpiresAt`. **Authz `guest`:** `GET /runs/:id` oraz `GET .../logs` — własne zawsze; cudze, gdy status ∈ `{completed, failed, cancelled}`; cudzy nieterminalny → **403** `FORBIDDEN`. Events / HITL / cancel — nadal tylko własne (`SPEC-RUNY.md` R-12). Lista `GET /runs` — **bez zmian** (instancja / showcase).
 
 Zmiana względem wersji 36 / K-2c: `startedBy` na detail = `{ id, email }`. Od tej wersji **`startedBy.role`** na `GET /runs/:id` (Cancel UI admin→guest).
+Zmiana względem wersji 38 / K-2c: brak jawnej authz guest na detail/logs. Od tej wersji wyjątek archiwum (status terminalny).
 
 Zmiana względem wersji 12 / K-2: unia startu dotyczyła `platform` XOR `contentKind` przy jednym obiekcie briefu SM. Od tej wersji Zod rozdziela `socialBriefSchema` / `contentBriefSchema` (`SPEC-RUNY.md` R-3d).
 

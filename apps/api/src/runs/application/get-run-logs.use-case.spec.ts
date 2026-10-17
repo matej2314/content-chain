@@ -103,8 +103,37 @@ describe('GetRunLogsUseCase', () => {
     expect(listLogs).toHaveBeenCalledWith(run.id);
   });
 
-  it('rejects a guest reading logs of a foreign run before listLogs', async () => {
-    const run = makeSocialRun({ startedByUserId: OTHER_ID });
+  it('allows a guest to read logs of a foreign completed run', async () => {
+    const run = makeSocialRun({
+      startedByUserId: OTHER_ID,
+      status: 'completed',
+    });
+    const listLogs = jest.fn(async () => []);
+    const useCase = new GetRunLogsUseCase(
+      unusedRepo({
+        getById: async () => ({
+          ...run,
+          startedBy: null,
+          userRating: null,
+          outputEdited: false,
+          reviewFinalizedAt: null,
+          pipelineFinishedAt: null,
+          cancelledAt: null,
+        }),
+        listLogs,
+      }),
+      makeGuestPolicy(),
+    );
+
+    await expect(useCase.execute(run.id, GUEST)).resolves.toEqual({ items: [] });
+    expect(listLogs).toHaveBeenCalledWith(run.id);
+  });
+
+  it('rejects a guest reading logs of a foreign running run before listLogs', async () => {
+    const run = makeSocialRun({
+      startedByUserId: OTHER_ID,
+      status: 'running',
+    });
     const listLogs = jest.fn(async () => []);
     const useCase = new GetRunLogsUseCase(
       unusedRepo({

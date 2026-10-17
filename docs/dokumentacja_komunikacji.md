@@ -1,7 +1,7 @@
 ---
-wersja: 20
+wersja: 21
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-13
+data_modyfikacji: 2026-10-17
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -49,6 +49,8 @@ Zmiana względem: komunikacja opisywała tylko transport SSE; nie mówiła, że 
 
 Zmiana względem: `brief.audience` = luźna „grupa docelowa” bez semantyki omit / katalog / custom. Od tej wersji to samo opcjonalne pole string (kształt JSON briefu **bez** nowego klucza): omit = brak audience w payloadzie agentów; wartość = `name` profilu z katalogu **albo** custom opis (bez auto-match do katalogu). **Bez** `audienceProfileId` / FK.
 
+Zmiana względem: *„guest: cudzy `GET /runs/:id` / logs / events → 403”* (ownership Fazy DEMO). Od tej wersji: `guest` — cudzy **detail** i **logs** dozwolone, gdy status ∈ `{completed, failed, cancelled}`; cudzy nieterminalny → **403** `FORBIDDEN`. Lista `GET /runs` — bez zmian (instancja). Events / HITL / cancel / rating / output-edited / finalize — bez zmian (cudze / zabronione jak wcześniej).
+
 ---
 
 ## Powierzchnia 1 — HTTP API (`apps/api`)
@@ -82,7 +84,7 @@ Wybrane kody domenowe:
 |--------|-------------|-----------|
 | `UNAUTHORIZED` | 401 | Brak / nieważna sesja (wyłącznie sesja — **nie** złe hasło przy re-auth) |
 | `INVALID_PASSWORD` | 401 | Złe `currentPassword` przy re-auth (`PATCH /auth/me/email`); `message`: `Invalid password`. **Nie** mylić z `UNAUTHORIZED` ani z loginem `Invalid credentials` |
-| `FORBIDDEN` | 403 | Brak uprawnień (np. user edytuje kontekst; guest bez `@AllowGuest`; guest mutuje zabronione; guest czyta cudzy detail/HITL) |
+| `FORBIDDEN` | 403 | Brak uprawnień (np. user edytuje kontekst; guest bez `@AllowGuest`; guest mutuje zabronione; guest czyta cudzy **nieterminalny** detail/logs albo cudzy HITL / events) |
 | `GUEST_TYPE_NOT_ALLOWED` | 403 | `guest`: `taskType` poza allowlistą slotów |
 | `GUEST_TYPE_QUOTA_EXCEEDED` | 403 | `guest`: slot danego typu wyczerpany (COUNT ≥ 1, wszystkie statusy) |
 | `GUEST_GLOBAL_QUOTA_EXCEEDED` | 403 | `guest`: dzienny global cap instancji (UTC) wyczerpany |
@@ -405,7 +407,7 @@ Lista runów pod dashboard (widok tabeli → klik → szczegóły).
 
 Dashboard **Runy** (archiwum): FE woła `status=completed,failed,cancelled` (`docs/ux_dashboard.md`). Listing **bez** filtra statusu nadal zwraca całą instancję (Postman / ops) — to nie jest kanon widoku Runy w UI.
 
-**`guest`:** lista **tak** (cała instancja, showcase). Wejście w **cudzy** `GET /runs/:id` / logs / events → **403**.
+**`guest`:** lista **tak** (cała instancja, showcase). **Cudzy** `GET /runs/:id` / logs: **403**, **chyba że** status ∈ `{completed, failed, cancelled}` (snapshot archiwum). Cudzy events / SSE → **403** (także terminalne).
 
 Zmiana względem: `status` wyłącznie jako pojedynczy enum.
 
@@ -563,7 +565,7 @@ Anulowanie runu. Body **puste**. Sesja cookie jak pozostałe chronione trasy Run
 
 #### `GET /api/v1/runs/:runId`
 
-Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów (`ux_dashboard.md`). **`guest`:** wyłącznie gdy `startedBy` = sesja; cudzy → **403** `FORBIDDEN` (także logs / events / HITL / cancel).
+Snapshot runu (nie zastępuje SSE). UI: wiersz listy → podstrona szczegółów (`ux_dashboard.md`). **`guest`:** własne runy (wszystkie statusy) **oraz** cudze, gdy status ∈ `{completed, failed, cancelled}`; cudzy nieterminalny → **403** `FORBIDDEN`. Events / HITL / cancel — nadal tylko własne (cudze → **403**).
 
 **200** — kształt:
 
@@ -720,7 +722,8 @@ Idempotencja: ponowne finalize gdy już zamknięty (DB **lub** produktowo po TTL
 
 #### `GET /api/v1/runs/:runId/logs`
 
-Snapshot uporządkowanych, czytelnych wpisów logu (historia).  
+Snapshot uporządkowanych, czytelnych wpisów logu (historia). Authz jak `GET /runs/:id`: **`guest`** — własne zawsze; cudze tylko gdy status ∈ `{completed, failed, cancelled}`; cudzy nieterminalny → **403** `FORBIDDEN`.
+
 **200** — `{ "items": [ { "at", "level", "message", "step?", "requestId?", "conversationId?" } ] }`.
 
 Każdy krok LLM w historii powinien mieć własny `requestId`; `conversationId` jest wspólny dla runu.

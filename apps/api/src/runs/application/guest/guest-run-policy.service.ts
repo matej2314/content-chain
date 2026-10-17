@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { RunTaskType, UserId } from '@content-chain/shared';
+import type { RunStatus, RunTaskType, UserId } from '@content-chain/shared';
 import type { AuthUserContext } from '../../../shared/types/auth-user-context';
 import { DomainException } from '../../../shared/exceptions/domain.exception';
 import { ENV, type Env } from '../../../shared/config/env';
@@ -15,10 +15,20 @@ const GUEST_TASK_TYPES = [
   'page_outline_then_copy',
 ] as const satisfies readonly RunTaskType[];
 
+const GUEST_ARCHIVE_STATUSES = [
+  'completed',
+  'failed',
+  'cancelled',
+] as const satisfies readonly RunStatus[];
+
 function isGuestTaskType(
   taskType: RunTaskType,
 ): taskType is (typeof GUEST_TASK_TYPES)[number] {
   return (GUEST_TASK_TYPES as readonly RunTaskType[]).includes(taskType);
+}
+
+function isGuestArchiveStatus(status: RunStatus): boolean {
+  return (GUEST_ARCHIVE_STATUSES as readonly RunStatus[]).includes(status);
 }
 
 export type GuestRunAdmit = {
@@ -80,5 +90,22 @@ export class GuestRunPolicyService {
     if (startedByUserId !== actor.id) {
       throw new DomainException('FORBIDDEN', 'Access denied', 403);
     }
+  }
+
+  assertGuestCanReadRun(
+    actor: AuthUserContext,
+    startedByUserId: UserId | null,
+    status: RunStatus,
+  ): void {
+    if (actor.role !== 'guest') {
+      return;
+    }
+    if (startedByUserId === actor.id) {
+      return;
+    }
+    if (startedByUserId !== null && isGuestArchiveStatus(status)) {
+      return;
+    }
+    throw new DomainException('FORBIDDEN', 'Access denied', 403);
   }
 }

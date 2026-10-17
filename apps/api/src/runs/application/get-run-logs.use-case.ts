@@ -35,7 +35,11 @@ export class GetRunLogsUseCase {
     if (!run) {
       throw new DomainException('RUN_NOT_FOUND', 'Run not found', 404);
     }
-    this.guestPolicy.assertGuestOwnsRun(actor, run.startedByUserId);
+    this.guestPolicy.assertGuestCanReadRun(
+      actor,
+      run.startedByUserId,
+      run.status,
+    );
     const items = await this.runs.listLogs(parsedRunId);
     return {
       items: items.map((entry) => ({

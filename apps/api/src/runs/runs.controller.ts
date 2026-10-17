@@ -111,7 +111,7 @@ export class RunsController {
     @Param('runId', ParseRunIdPipe) runId: RunId,
     @CurrentUser() user: AuthUserContext,
   ): Promise<Observable<MessageEvent>> {
-    const snapshot = await this.getRun.execute(runId, user);
+    const snapshot = await this.getRun.execute(runId, user, 'own');
     const snapshotEvent: RunSseEvent = {
       event: 'run.status',
       data: { runId, status: snapshot.status },
@@ -124,7 +124,7 @@ export class RunsController {
       return of(toMessage(snapshotEvent));
     }
 
-    const latest = await this.getRun.execute(runId, user);
+    const latest = await this.getRun.execute(runId, user, 'own');
     if (isTerminalStatus(latest.status)) {
       return of(
         toMessage({

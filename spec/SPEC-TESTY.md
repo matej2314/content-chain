@@ -1,7 +1,7 @@
 ---
-wersja: 33
+wersja: 34
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-13
+data_modyfikacji: 2026-10-17
 ---
 
 # SPEC — Testy
@@ -18,6 +18,7 @@ Zmiana względem wersji 29: DoD DEMO bez env połączenia Redis. Od tej wersji D
 Zmiana względem wersji 30 / D-23 / D-46: accept → `role=user` także przy demo on. Od tej wersji invite rola vs `DEMO_MODE` (mirror register); demo on → `guest` + pokrycie smoke w `demo-guest` / równoważnym.
 Zmiana względem wersji 31 / D-25 / D-26 / cancel: soft bez rozróżnienia roli; reaktywacja bez filtra; cancel wyłącznie owner; brak purge / isActive na access. Od tej wersji D-25/D-26 zawężone + **D-63…D-72** (hard/purge guest, cancel admin→guest, isActive/null na access) — `users-management-plan.md` Faza 2.
 Zmiana względem wersji 32: DoD bez audience `name` / scopingu grupy. Od tej wersji **D-73…D-77** — `SPEC-KONTEKST-FIRMY.md` C-1/C-4, `SPEC-SOCIAL.md` S-10, `SPEC-CONTENT.md` Ctn-12.
+Zmiana względem wersji 33 / D-55: *„cudzy detail / HITL / cancel → 403”*. Od tej wersji D-55: cudzy detail/logs **terminalny** → **200**; cudzy **nieterminalny** → **403**; HITL/cancel cudzy → **403** (bez zmian) — `SPEC-RUNY.md` R-12, `guest-view-others-runs-plan.md`.
 
 ## Powiązanie ze stylem z docs
 
@@ -113,7 +114,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-52 | Chroniony request (w tym `/me`, refresh) z JWT `role=guest` przy demo off → **401** (nie 403) |
 | D-53 | `guest` + demo on, trasa bez `@AllowGuest` → **403** |
 | D-54 | `POST /runs` guest: typ poza allowlistą → `GUEST_TYPE_NOT_ALLOWED`; drugi start tego samego typu (COUNT wszystkie statusy) → `GUEST_TYPE_QUOTA_EXCEEDED`; global cap Redis (`REDIS_HOST`/`REDIS_PORT`/[opcjonalnie]`REDIS_PASSWORD`) → `GUEST_GLOBAL_QUOTA_EXCEEDED`; admit Redis **przed** create |
-| D-55 | Guest: `GET /runs` lista instancji OK; cudzy detail / HITL / cancel → **403** |
+| D-55 | Guest + demo on: `GET /runs` lista instancji OK; cudzy detail **i** logs przy statusie ∈ `{completed, failed, cancelled}` → **200**; cudzy detail/logs **nieterminalny** → **403**; HITL / cancel cudzy → **403** (bez zmian). **Zmiana względem:** D-55 v33 — *„cudzy detail / HITL / cancel → 403”* zawężone: wyjątek archiwum na detail+logs |
 | D-56 | Guest: output-edited, finalize, `PATCH /auth/me/email`, PUT/PATCH kontekstu, users, invitations → **403** |
 | D-57 | Rating guest ponad soft cap → **429**; pad Redis rating → fail open (ocena przechodzi) |
 | D-58 | Pad Redis przy `POST /runs` guest → fail closed (ten sam klient HOST/PORT/PASSWORD co D-54) |
@@ -139,6 +140,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 
 Zmiana względem wersji 32: dopisano D-73…D-77 (audience `name` + unikalność + scoping effective). D-1…D-72 bez kasowania treści.
 Zmiana względem wersji 31: dopisano D-63…D-72; D-25 / D-26 zawężone (rola + isActive na access / PATCH guest 403). D-1…D-62 bez kasowania treści.
+Zmiana względem wersji 33 / D-55: refaktor treści (wyjątek archiwum detail+logs); D-50…D-54 / D-56…D-77 **bez kasowania** treści historycznej.
 
 Zmiana względem: D-27 na `PATCH /auth/me` bez `currentPassword` / bez `INVALID_PASSWORD`. (Nota: recovery UI po 409 + brak wylogowania przy `INVALID_PASSWORD` = norma FE / `ux_dashboard.md`; D-27 pozostaje kontraktem HTTP api.)
 

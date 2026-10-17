@@ -1,7 +1,7 @@
 ---
-wersja: 28
+wersja: 29
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-10-16
+data_modyfikacji: 2026-10-17
 ---
 
 # UX Dashboard — Content Chain
@@ -46,6 +46,8 @@ Zmiana względem: first-run = tryb submitu tej samej karty logowania (`available
 Zmiana względem: CTA register ukryte / disabled gdy `available === true` (XOR z „Zarejestruj admina”). Od tej wersji na karcie logowania **zawsze** dwa stałe CTA: **„Zaloguj się”** + **„Nie masz konta? Zarejestruj się!”**; trzeci przycisk **„Zarejestruj admina”** tylko gdy `available === true` (nie zastępuje register).
 
 Zmiana względem: zakładka Odbiorca bez wymaganego pola Nazwa; start runu = wolny input „grupa”. Od tej wersji: profil = **Nazwa** + opis (oba wymagane); **Grupa** przy starcie = **select** (Bez wskazania / nazwy z katalogu / „Wpisz własną grupę…” + pole opisu) — mapowanie do `brief.audience` wg trzech trybów (`dokumentacja_komunikacji.md`).
+
+Zmiana względem: Faza DEMO / F-10 — *„archiwum: klik cudzego wiersza zablokowany; guest na szczegółach tylko `startedBy === self`”*. Od tej wersji: guest przy demo on **może** otworzyć cudzy run **archiwalny** (`completed` \| `failed` \| `cancelled`) — detail **read-only** (bez Stop / HITL / Edytuj / finalize; **bez** EventSource na cudzym). Mutacje i live cudze — bez zmian. Prefill startu z cudzego wiersza archiwum — nadal zakaz.
 
 ## Założenia UX
 
@@ -111,7 +113,7 @@ Boot zalogowanego: publiczny `GET /api/v1/config` → `{ demoMode }`. Egzekucja 
 | Completeness chip | bez zmian | Demo **nie** zastępuje bramki kontekstu ani chipa kompletności |
 | **Locki UI** | wyłącznie `session.role === 'guest'` **AND** `demoMode === true` | Sidebar (np. Użytkownicy ukryte/disabled), formy (email na Koncie, Edytuj, finalize, write kontekstu), disable `taskType` poza allowlistą (`post_ideas`, `page_copy`, `page_outline_then_copy`). Dotyczy gościa z **self-register** oraz z **accept-invite** przy demo on (ten sam predykat). **Admin** na instancji demo **bez** locków |
 | **GuestLimitModal** | po **403** quota z `POST /runs` (`GUEST_TYPE_QUOTA_EXCEEDED` / `GUEST_GLOBAL_QUOTA_EXCEEDED` / `GUEST_TYPE_NOT_ALLOWED`) | Modal **po** odpowiedzi API (nie pre-empt). CTA kontakt: tablica `{ iconName, contactData }[]` (mailto, LinkedIn, GitHub) — hardcoded FE |
-| Archiwum | `guest` + demo | Lista **całej** instancji jak admin/`user`; klik wiersza **cudzego** runu — zablokowany (FE + API **403**) |
+| Archiwum | `guest` + demo | Lista **całej** instancji jak admin/`user`; klik wiersza (własnego **i** cudzego) → detail archiwalny (snapshot; **bez** SSE). Cudzy detail = **read-only** (bez Stop / HITL / Edytuj / finalize) |
 | Rating **429** | `guest` soft cap | `message` z envelope przy kontroli oceny (nie toast walidacji) |
 
 Zmiana względem: pozycja „Konto” tylko jako wylogowanie, bez podstrony i bez zmiany email.
@@ -123,8 +125,8 @@ Zmiana względem: **jedyny** formularz startu wyłącznie na Koncie (kanon Fazy 
 | Widok | Kto | Cel |
 |-------|-----|-----|
 | **Kontekst firmy** | admin: edycja; user i guest: podgląd | Uzupełnienie sekcji bramki (tylko admin); podgląd completeness |
-| **Runy** | admin, user, guest (demo) | **Archiwum firmy:** tylko runy instancji w `completed` \| `failed` \| `cancelled` (paginacja 10, najnowsze pierwsze). Klik wiersza → szczegóły (snapshot; **bez** SSE) — **guest: tylko własne**. CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (guest: typy poza allowlistą disabled). Po udanym `POST /runs` (**202**) z modalu → nawigacja na **Run (szczegóły)** tego `runId` (modal zamknięty). Cudzy run w toku **nie** jest na tej liście. Nowy run po starcie **nie** wpadnie na listę archiwum, dopóki nie jest terminalny |
-| **Run (szczegóły)** | admin, user; guest tylko `startedBy === self` | Podstrona po kliknięciu w **Moich runach** (Konto), w archiwum Runy **albo** zaraz po udanym `POST /runs` (**202**): logi, HITL, wynik, przegląd; **Stop** gdy owner **lub** (`session.role=admin` ∧ `startedBy.role=guest`) na nieterminalnym. Guest: **bez** Edytuj / finalize. Live SSE tylko gdy run jest własny i w `running` / `awaiting_hitl` / `interrupted`. **Bez** CTA startu |
+| **Runy** | admin, user, guest (demo) | **Archiwum firmy:** tylko runy instancji w `completed` \| `failed` \| `cancelled` (paginacja 10, najnowsze pierwsze). Klik wiersza → szczegóły (snapshot; **bez** SSE) — **guest: własne oraz cudze z archiwum** (read-only na cudzym). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (guest: typy poza allowlistą disabled). Po udanym `POST /runs` (**202**) z modalu → nawigacja na **Run (szczegóły)** tego `runId` (modal zamknięty). Cudzy run w toku **nie** jest na tej liście. Nowy run po starcie **nie** wpadnie na listę archiwum, dopóki nie jest terminalny |
+| **Run (szczegóły)** | admin, user; guest: własne (wszystkie statusy) **oraz** cudze **tylko** z archiwum | Podstrona po kliknięciu w **Moich runach** (Konto), w archiwum Runy **albo** zaraz po udanym `POST /runs` (**202**): logi, HITL, wynik, przegląd; **Stop** gdy owner **lub** (`session.role=admin` ∧ `startedBy.role=guest`) na nieterminalnym. Guest: **bez** Edytuj / finalize; na **cudzym** archiwalnym — UI **read-only** (bez Stop / HITL). Live SSE tylko gdy run jest własny i w `running` / `awaiting_hitl` / `interrupted` (**bez** EventSource na cudzym). **Bez** CTA startu |
 | **Konto** | każdy zalogowany | Własny email (**guest: lock** — bez `PATCH /auth/me/email`); **Moje runy** (wszystkie statusy, live; **paginacja UI** 10 jak Runy; **Stop** na własnym nieterminalnym); **start** nowego runu (**inline**, ten sam brief co modal na Runach; guest: allowlista); opinia tekstowa. Po udanym `POST /runs` (**202**) **z tego widoku** → nawigacja na **Run (szczegóły)** tego `runId` |
 | **Użytkownicy** | tylko admin | Lista kont + kolumna **Akcje** (toggle soft `user` / Usuń hard `guest`) + **zaproszenie (email)**; lista pending (w tym wygasłe); resend/revoke. **Guest: brak nawigacji** (lock) |
 
@@ -302,7 +304,7 @@ Zmiana względem: Case studies / Obiekcje = „listy jak dotychczas (Dodaj / Usu
 - Po **202** z modalu: modal się zamyka, toast „Run wystartował”, nawigacja na **Run (szczegóły)** tego `runId`. Lista archiwum **nie** dostaje nowego wiersza, dopóki run nie jest `completed` \| `failed` \| `cancelled`. Błąd startu (4xx / envelope) — **bez** nawigacji; modal / formularz zostaje.
 - **Bez** SSE i **bez** pokazywania `queued` / `running` / `awaiting_hitl` / `interrupted` na tej liście.
 - Odświeżanie: przy **wejściu** na widok oraz co **15 minut**, gdy widok jest otwarty. To **nie** jest kanał live statusu (`SPEC-FRONTEND.md`).
-- **Nawigacja:** klik wiersza → **Run (szczegóły)** — snapshot GET; EventSource **nie** otwierać (status terminalny). Szczegóły **bez** CTA startu. **Guest:** klik cudzego wiersza **zablokowany** (brak nawigacji + API 403).
+- **Nawigacja:** klik wiersza → **Run (szczegóły)** — snapshot GET; EventSource **nie** otwierać (status terminalny). Szczegóły **bez** CTA startu. **Guest:** klik **cudzego** wiersza archiwum **dozwolony** → detail **read-only** (wynik + logi ze snapshotu; bez Stop / HITL / Edytuj / finalize; bez SSE).
 
 Zmiana względem: Runy = wszystkie statusy instancji + start + wejście w live z tej listy. Od Fazy 3: archiwum terminalne **bez** startu.
 

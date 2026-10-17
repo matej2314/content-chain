@@ -1,7 +1,7 @@
 ---
-wersja: 50
+wersja: 51
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-16
+data_modyfikacji: 2026-10-17
 ---
 
 # SPEC — Frontend
@@ -55,6 +55,8 @@ Zmiana względem wersji 36 / F-10: locki `guest` ∧ demo — bez jawnej ścież
 Zmiana względem wersji 38 / F-2: `API_BASE_URL` bez pinu wartości compose / portu UI prod. Od tej wersji kanon production: `API_BASE_URL=http://api:3001` (hostname serwisu compose); port startu UI **3004** — `docs/deployment.md`.
 
 Zmiana względem wersji 47 / F-7 / F-8: zakładka Odbiorca bez wymaganego pola Nazwa; start runu = wolny input „Grupa”. Od tej wersji: profil = **Nazwa** + opis; **Grupa** = **select** (3 tryby) — `docs/ux_dashboard.md`.
+
+Zmiana względem wersji 50 / F-8 / F-10: *„zakaz nawigacji do cudzego `/runs/:id` dla guest”* (Faza 14). Od tej wersji: klik wiersza archiwum (także cudzego) **dozwolony** → detail **read-only**; bez SSE na cudzym; locki mutacji guest ∧ demo on **bez zmian** — `docs/ux_dashboard.md`, `guest-view-others-runs-plan.md`.
 
 ## Powiązanie ze stylem z docs / wyjątek
 
@@ -174,7 +176,7 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 - **Header**: zawartość do prawej; login → „Wyloguj się” → modal → `POST /auth/logout` → `/`;
 - Globalny CTA opinii; na szczegółach: Edytuj (`result` + flaga), gwiazdki, finalize — **tylko** gdy snapshot `completed` \| `failed` (nie na `cancelled`) **oraz** przegląd otwarty (`reviewFinalizedAt === null` **i** nie minął serwerowy `reviewExpiresAt`); po zamknięciu copy **„Przegląd zamknięty”** (bez rozróżnienia auto vs ręczne); **bez** widocznego deadline / countdown / wiersza „dostępne do…”;
 - Chip „Agenci aktywni” wg F-6 (`agentsActive`); **`DemoModeChipSlot` nad CompletenessChip** — **tylko dashboard**, gdy `demoMode === true` (F-10); **floating box** własnych runów w toku poza Kontem (zwijany; **bez** Stop). Po `cancelled`: krótko **„Anulowany”**, ukrycie pozycji po **200 ms**. **Nie** chip/stos „w toku” w chrome.
-- Nawigacja F-8 wg roli: `admin` — Users + zaproszenia; `user` — bez Users; `guest` (demo on) — bez Users / bez zapisu kontekstu / bez Edytuj / finalize; archiwum lista OK; **zakaz** nawigacji do cudzego `/runs/:id` (403 z API). Istniejący `GuestView` w home-entry = stan **anonimowy** (tryby `login` / `register` / `bootstrap_admin`) — **nie** mylić z rolą `guest`.
+- Nawigacja F-8 wg roli: `admin` — Users + zaproszenia; `user` — bez Users; `guest` (demo on) — bez Users / bez zapisu kontekstu / bez Edytuj / finalize; archiwum lista OK; **klik cudzego wiersza archiwum → detail read-only** (snapshot; bez Stop / HITL / Edytuj / finalize; **bez** EventSource). Istniejący `GuestView` w home-entry = stan **anonimowy** (tryby `login` / `register` / `bootstrap_admin`) — **nie** mylić z rolą `guest`.
 
 Zmiana względem wersji 49 / F-8: po `202` z Konta / modalu Runy — widok źródłowy; „Nie wolno” zabraniało wymuszania nawigacji na szczegóły. Od tej wersji po **202** z obu powierzchni → `/runs/:runId`; toast „Run wystartował” zostaje; modal zamyka się; błąd bez nawigacji — `docs/ux_dashboard.md`.
 Zmiana względem wersji 48 / F-8: Case studies / Obiekcje = listy jak dotychczas (Dodaj / Usuń, pola pozycji) — bez wzorca nagłówka Oferty/CTA. Od tej wersji kanon list jak Oferta (Dodaj nad listą / prepend, nagłówek + Usuń, responsive poniżej `lg`, nagłówki „Case …” / „Obiekcja …”, bez hicie globalnego) — `docs/ux_dashboard.md`.
@@ -231,10 +233,12 @@ F-10. DEMO MODE (UX) — `docs/ux_dashboard.md`:
 3. Locki UI (sidebar, formy, disable `taskType` poza allowlistą, zapis kontekstu, Users, Edytuj/finalize, `PATCH /auth/me/email`): wyłącznie gdy **`session.role === 'guest'` AND `demoMode === true`**. Admin na instancji demo **bez** locków gościa. Ten sam predykat obejmuje konta `guest` z **register** oraz z **accept-invite** przy demo on (`SPEC-AUTH.md` A-7b) — po accept → `/` → login flow bez zmian; locki dopiero po sesji z `role === guest`.
 4. `GuestLimitModal` **wyłącznie** po błędzie quota z API (`GUEST_TYPE_*` / `GUEST_GLOBAL_QUOTA_EXCEEDED`); CTA kontakt `{ iconName, contactData }[]` (mailto, LinkedIn, GitHub) — hardcoded FE. **Zakaz** preemptive modalu bez odpowiedzi API.
 5. Rating: obsługa **429** (`message` z envelope). Feedback: `application`/`agent` OK; `run` tylko własny.
-6. Egzekucja limitów = API; FE tylko odzwierciedla.
+6. Archiwum (guest ∧ demo on): klik wiersza (własnego **i** cudzego) → `/runs/:id` **read-only**; **bez** SSE na cudzym; locki mutacji (pkt 3) **bez zmian**.
+7. Egzekucja limitów = API; FE tylko odzwierciedla.
 
 Zmiana względem wersji 34: chip/locki guest poza zakresem. Od tej wersji F-10.
 Zmiana względem wersji 36 / F-10: bez jawnej ścieżki invite→guest. Od tej wersji zaproszony przy demo on podlega tym samym lockom co self-register guest; predykat **bez zmian**; `GuestView` ≠ `UserRole.guest` (F-8) — bez zmian.
+Zmiana względem wersji 50 / F-10: zakaz wejścia w cudzy detail. Od tej wersji pkt 6 — nawigacja archiwum dozwolona (read-only).
 
 Zmiana względem wersji 1: Konto nie obejmuje zmiany hasła; dodano first-run; lista runów = cała instancja z nawigacją lista → szczegóły; admin users bez edycji/dezaktywacji w UI (soft-delete UI nadal poza MVP).
 
@@ -387,7 +391,8 @@ apps/frontend/src/
 - Locków guest gdy `role !== guest` albo `demoMode === false`.
 - Modalu limitu **przed** błędem quota z API.
 - Bramkowania signup / thank-you / activate przez `demoMode` (F-4b).
-- Wejścia UI w cudzy detail runu dla `guest`.
+- Wejścia UI w cudzy **nieterminalny** detail runu dla `guest`; EventSource na cudzym runie (także terminalnym) dla `guest`.
+  Zmiana względem wersji 50 / „Nie wolno”: *„Wejścia UI w cudzy detail runu dla `guest`”* — **zawężone**: archiwum (terminalne) dozwolone (F-8 / F-10); zakaz dotyczy live/nieterminalnego oraz SSE na cudzym.
 
 Zmiana względem wersji 19 / „Nie wolno”: kanon Runy+start+chip oraz fetch wprost na api — unieważnione na rzecz BFF, archiwum, Konta jako startu, boxa.
 Zmiana względem wersji 21 / „Nie wolno”: dopisano zakaz lokalnego werdyktu kompletności na zakładkach, `PATCH` per zakładka, kropki na Dodatki i zagnieżdżeń extras.
@@ -426,7 +431,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Stop + modal „Czy na pewno?” → cancel API (owner **lub** admin∧guest na detail); toast „Run anulowany”; dedup SSE; na `cancelled` brak przeglądu / HITL; parse `startedBy.role`.
 - [ ] Start zablokowany w UI przy `!agentsActive` (niekompletność **lub** gateway nie żyje) **oraz** api `409` `CONTEXT_INCOMPLETE` przy niekompletnym kontekście; **bez** osobnego kodu „gateway down” na `POST /runs`.
 - [ ] Chip F-6: copy nieaktywnego kanoniczne; przy kompletnym kontekście i martwym gateway — disable CTA **bez** fałszywego „Uzupełnij kontekst” jako jedynej remedacji; kropki zakładek **tylko** z `completeness.missing`.
-- [ ] F-10: `GET /config`; chip demo tylko dashboard gdy `demoMode`; locki tylko `guest` ∧ demo on (także po accept+login przy demo on — te same co register→guest); modal limitu po quota API; 429 rating.
+- [ ] F-10: `GET /config`; chip demo tylko dashboard gdy `demoMode`; locki tylko `guest` ∧ demo on (także po accept+login przy demo on — te same co register→guest); modal limitu po quota API; 429 rating; archiwum: klik cudzego wiersza → detail read-only (bez SSE / bez mutacji).
 - [ ] Konto: email — modal re-auth (`PATCH /auth/me/email` `{ email, currentPassword }`); `INVALID_PASSWORD` / `VALIDATION_FAILED` pod hasłem (bez F-4a); **409** → clear + odblokowanie emaila + błąd pod emailem; sukces bez toastu + `GET /auth/me`; Anuluj bez API; moje runy (paginacja UI 10) → szczegóły; start (prefill ze snapshotu); opinia.
 - [ ] Admin: Users + zaproszenie + kolumna Akcje (toggle `user` / Usuń+purge `guest` / brak na admin); flow 409→`purge=true`; `message` w dialogu; accept-invite → `/` → login (flow bez zmian; przy demo on sesja `guest` → locki F-10); błąd kolizji / złego tokenu = ten sam envelope **401** na karcie (bez UI „email zajęty” / bez gałęzi **409**).
 - [ ] `app/` + `modules/`; typy z shared; brak sekretów LLM; brak `NEXT_PUBLIC_` URL-a api.
