@@ -36,6 +36,7 @@ import { RateRunUseCase } from './application/rate-run.use-case';
 import { CancelRunUseCase } from './application/cancel-run.use-case';
 import { SaveOutputEditedUseCase } from './application/save-output-edited.use-case';
 import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
+import { GetRunsSummaryUseCase } from './application/get-runs-summary.use-case';
 import { PatchRunRatingDto } from './http/dto/patch-run-rating.dto';
 import {
   ListRunsUserUseCase,
@@ -73,6 +74,7 @@ export class RunsController {
     private readonly resumeHitl: ResumeHitlUseCase,
     private readonly listRuns: ListRunsUseCase,
     private readonly listRunsUser: ListRunsUserUseCase,
+    private readonly getRunsSummary: GetRunsSummaryUseCase,
     private readonly rateRun: RateRunUseCase,
     private readonly saveOutputEdited: SaveOutputEditedUseCase,
     private readonly finalizeReview: FinalizeReviewUseCase,
@@ -173,6 +175,11 @@ export class RunsController {
       userId: query.userId ? createUserId(query.userId) : undefined,
     };
     return this.listRuns.execute(command);
+  }
+  @AllowGuest()
+  @Get('summary')
+  getSummary(@CurrentUser() user: AuthUserContext) {
+    return this.getRunsSummary.execute(user);
   }
 
   @AllowGuest()

@@ -13,6 +13,7 @@ import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
 import { GetRunUseCase } from './application/get-run.use-case';
 import { ListRunsUseCase } from './application/list-runs.use-case';
 import { ListRunsUserUseCase } from './application/list-runs-user.use-case';
+import { GetRunsSummaryUseCase } from './application/get-runs-summary.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
 import { RateRunUseCase } from './application/rate-run.use-case';
 import { SaveOutputEditedUseCase } from './application/save-output-edited.use-case';
@@ -41,6 +42,7 @@ describe('RunsController', () => {
   let getLogs: { execute: jest.Mock };
   let listRuns: { execute: jest.Mock };
   let listRunsUser: { execute: jest.Mock };
+  let getRunsSummary: { execute: jest.Mock };
   let resumeHitl: { execute: jest.Mock };
   let rateRun: { execute: jest.Mock };
   let saveOutputEdited: { execute: jest.Mock };
@@ -54,6 +56,7 @@ describe('RunsController', () => {
     getLogs = { execute: jest.fn() };
     listRuns = { execute: jest.fn() };
     listRunsUser = { execute: jest.fn() };
+    getRunsSummary = { execute: jest.fn() };
     resumeHitl = { execute: jest.fn() };
     rateRun = { execute: jest.fn() };
     saveOutputEdited = { execute: jest.fn() };
@@ -69,6 +72,7 @@ describe('RunsController', () => {
         { provide: GetRunLogsUseCase, useValue: getLogs },
         { provide: ListRunsUseCase, useValue: listRuns },
         { provide: ListRunsUserUseCase, useValue: listRunsUser },
+        { provide: GetRunsSummaryUseCase, useValue: getRunsSummary },
         { provide: ResumeHitlUseCase, useValue: resumeHitl },
         { provide: RateRunUseCase, useValue: rateRun },
         { provide: SaveOutputEditedUseCase, useValue: saveOutputEdited },
@@ -103,6 +107,9 @@ describe('RunsController', () => {
     expect(
       Reflect.getMetadata(IS_PUBLIC_KEY, proto.getRunsByUser),
     ).toBeUndefined();
+    expect(
+      Reflect.getMetadata(IS_PUBLIC_KEY, proto.getSummary),
+    ).toBeUndefined();
     expect(Reflect.getMetadata(IS_PUBLIC_KEY, proto.get)).toBeUndefined();
     expect(
       Reflect.getMetadata(IS_PUBLIC_KEY, proto.patchRating),
@@ -121,6 +128,7 @@ describe('RunsController', () => {
     expect(Reflect.getMetadata(ROLES_KEY, proto.hitl)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.list)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.getRunsByUser)).toBeUndefined();
+    expect(Reflect.getMetadata(ROLES_KEY, proto.getSummary)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.get)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, proto.patchRating)).toBeUndefined();
     expect(
@@ -142,6 +150,7 @@ describe('RunsController', () => {
     expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.getRunsByUser)).toBe(
       true,
     );
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.getSummary)).toBe(true);
     expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.get)).toBe(true);
     expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.patchRating)).toBe(true);
     expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.cancel)).toBe(true);
@@ -162,6 +171,7 @@ describe('RunsController', () => {
     expect(names.indexOf('hitl')).toBeLessThan(names.indexOf('get'));
     expect(names.indexOf('list')).toBeLessThan(names.indexOf('get'));
     expect(names.indexOf('getRunsByUser')).toBeLessThan(names.indexOf('get'));
+    expect(names.indexOf('getSummary')).toBeLessThan(names.indexOf('get'));
 
     expect(Reflect.getMetadata('path', proto.create)).toBe('/');
     expect(Reflect.getMetadata('path', proto.logs)).toBe(':runId/logs');
@@ -171,6 +181,7 @@ describe('RunsController', () => {
     expect(Reflect.getMetadata('path', proto.getRunsByUser)).toBe(
       'user/:userId',
     );
+    expect(Reflect.getMetadata('path', proto.getSummary)).toBe('summary');
     expect(Reflect.getMetadata('path', proto.get)).toBe(':runId');
     expect(Reflect.getMetadata('path', proto.patchRating)).toBe(
       ':runId/rating',
@@ -182,6 +193,21 @@ describe('RunsController', () => {
       ':runId/finalize-review',
     );
     expect(Reflect.getMetadata('path', proto.cancel)).toBe(':runId/cancel');
+  });
+
+  it('delegates GET summary to GetRunsSummaryUseCase', async () => {
+    const summary = {
+      windowFrom: '2026-06-14T12:00:00.000Z',
+      windowTo: '2026-07-14T12:00:00.000Z',
+      totalLast30d: 0,
+      successRateLast30d: 0,
+      activeNow: 0,
+      topTaskTypeLast30d: null,
+    };
+    getRunsSummary.execute.mockResolvedValue(summary);
+
+    await expect(controller.getSummary(sessionUser)).resolves.toBe(summary);
+    expect(getRunsSummary.execute).toHaveBeenCalledWith(sessionUser);
   });
 
   it('maps list query DTO to ListRunsQuery and delegates to ListRunsUseCase', async () => {

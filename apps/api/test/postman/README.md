@@ -6,7 +6,7 @@ Powtarzalny happy path **bez UI**:
 - **Content** — to samo Setup, potem `page_copy` i `page_outline_then_copy`
 - **Review + feedback** — `review.postman-collection.json`: login + kontekst, cienkie fixture’y runów, **Cancel** (`POST .../cancel` — D-30…D-32), ocena / finalize / feedback, **Authz druga sesja**, na końcu **Dokończ HITL** (pełny `post_ideas_then_content`)
 - **Zaproszenia** — `invitations-pipeline.postman-collection.json`: login admina → create → **token z maila** → accept (przy `DEMO_MODE=false` → konto `user` zostaje w bazie)
-- **DEMO guest** — `demo-guest.postman-collection.json`: `GET /config`, register `role=guest`, **invite→accept→`guest`**, allowlista (context GET / `POST /runs` / D-55 archiwum detail+logs gdy w liście jest cudzy `completed`), deny 403, login admina przy `DEMO_MODE=true`
+- **DEMO guest** — `demo-guest.postman-collection.json`: `GET /config`, register `role=guest`, **invite→accept→`guest`**, allowlista (context GET / `GET /runs/summary` smoke / `POST /runs` / D-55 archiwum detail+logs gdy w liście jest cudzy `completed`), deny 403, login admina przy `DEMO_MODE=true`. Pełne **D-78…D-81** (`GET /runs/summary` KPI) = Jest (`runs-summary.e2e-spec.ts` + unit); Postman tylko smoke w Allow.
 
 Katalog ręcznego Send (bez asercji Collection Runnera) jest w `apps/api/content-chain.postman-collection.json` — te same endpointy review/feedback do kliknięcia na dowolnym `runId`.
 

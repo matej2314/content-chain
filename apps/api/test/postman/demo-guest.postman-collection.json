@@ -1468,6 +1468,38 @@
           }
         },
         {
+          "name": "GET runs/summary (200) — D-81 smoke",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 shape K-2k (D-81 smoke)', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.keys(",
+                  "    'windowFrom',",
+                  "    'windowTo',",
+                  "    'totalLast30d',",
+                  "    'successRateLast30d',",
+                  "    'activeNow',",
+                  "    'topTaskTypeLast30d'",
+                  "  );",
+                  "  pm.expect(body.successRateLast30d).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/runs/summary",
+            "description": "Smoke guest∧demo `GET /runs/summary` → 200 + shape K-2k. Pełne D-78…D-81 = Jest e2e (`runs-summary.e2e-spec.ts`)."
+          }
+        },
+        {
           "name": "POST runs post_ideas (202)",
           "event": [
             {

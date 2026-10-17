@@ -16,6 +16,7 @@ import { GuestRunPolicyService } from './application/guest/guest-run-policy.serv
 import { StartRunUseCase } from './application/start-run.use-case';
 import { ListRunsUseCase } from './application/list-runs.use-case';
 import { ListRunsUserUseCase } from './application/list-runs-user.use-case';
+import { GetRunsSummaryUseCase } from './application/get-runs-summary.use-case';
 import { RUN_EXECUTOR, type RunExecutorPort } from './domain/run-executor.port';
 import {
   RUN_RESULT_READER,
@@ -59,6 +60,7 @@ export type RunsModuleAsyncOptions = {
     SaveOutputEditedUseCase,
     FinalizeReviewUseCase,
     CancelRunUseCase,
+    GetRunsSummaryUseCase,
   ],
   exports: [RunLifecycleModule],
 })

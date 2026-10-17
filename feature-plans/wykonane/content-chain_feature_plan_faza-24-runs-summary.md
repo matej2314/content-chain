@@ -4,7 +4,7 @@
 **Kotwica major:** Faza 24 (cała) — `content-chain-backend_major_plan.md` (`NIE_ROZPOCZĘTY`, **bez** MILESTONE 24).  
 **Numer BE 24 ≠ FE 22** — UI KPI = `content-chain-frontend_major_plan.md` Faza 22 / `SPEC-FRONTEND.md` F-16 (poza tym wycinkiem).  
 **Źródła:** `docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md` (KPI — tylko kontrakt), `SPEC-KOMUNIKACJA.md` K-2k, `SPEC-RUNY.md` R-13, `SPEC-TESTY.md` D-78…D-81, `SPEC-AUTH.md` (role / GuestGuard), major Faza 24.  
-**Kolejność `KROK`:** shared DTO → port + Prisma → use-case + cache → HTTP/module → testy (pass rozwojowy: brak użycia przed powstaniem).
+**Kolejność** `KROK`**:** shared DTO → port + Prisma → use-case + cache → HTTP/module → testy (pass rozwojowy: brak użycia przed powstaniem).
 
 **Statusy kroków feature:** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`
 
@@ -46,10 +46,10 @@
 - `tsconfig` **bez** zmian. Typy jawne na granicach; zakaz `any` / `@ts-ignore`; `import type` dla typów.
 - Okno: rolling **30 × 24 × 60 × 60 × 1000** ms od `now` serwera; `windowTo = now`, `windowFrom = now - 30d` (oba ISO8601 w odpowiedzi).
 - Scope: `admin` → bez filtra `startedByUserId`; `user` / `guest` → `startedByUserId = actor.id`. Guest dociera do handlera tylko przy `DEMO_MODE=true` (`GuestGuard` + `@AllowGuest`) — demo off → **401** jak pozostałe trasy.
-- `successRateLast30d`: `(completed / terminal) * 100` wśród statusów ∈ `{completed, failed, cancelled}` w oknie; brak terminalnych → **`0`**; zaokrąglenie do **1** miejsca po przecinku (`Math.round(x * 10) / 10`) — spójne z przykładem docs `75.5`.
+- `successRateLast30d`: `(completed / terminal) * 100` wśród statusów ∈ `{completed, failed, cancelled}` w oknie; brak terminalnych → `0`; zaokrąglenie do **1** miejsca po przecinku (`Math.round(x * 10) / 10`) — spójne z przykładem docs `75.5`.
 - `activeNow`: count status ∈ `{running, awaiting_hitl, queued}` w scope — **bez** filtra daty (**nie** `interrupted`).
 - `topTaskTypeLast30d`: max `_count` w oknie; remis → typ z największym `_max(createdAt)` wśród remisujących; brak runów / brak legalnego `taskType` → `null`.
-- Cache: **in-process** `Map`, TTL **60_000** ms, klucz scope (`admin` \| `user:{id}` \| `guest:{id}`) — **bez** nowego npm, **bez** Redis (Redis = guest quotas).
+- Cache: **in-process** `Map`, TTL **60_000** ms, klucz scope (`admin`  `user:{id}`  `guest:{id}`) — **bez** nowego npm, **bez** Redis (Redis = guest quotas).
 - **Bez** migracji Prisma; indeksy `createdAt` / `status` / `startedByUserId` / `taskType` już istnieją.
 - Przy konflikcie praktyki ↔ SPEC → **wygrywa SPEC**.
 
@@ -73,7 +73,7 @@ Odpowiada major Faza 24 (cała). Status startowy kroków: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — Typ odpowiedzi w `@content-chain/shared`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Wspólny DTO `RunsSummaryResponse` dla api i FE (F-3 / F-16 / K-2k / R-13.6). Major Faza 24 — DTO w shared.
 
@@ -132,7 +132,7 @@ Po zmianie: `pnpm --filter @content-chain/shared build` (albo skrypt workspace r
 
 ### KROK 2 — Port `aggregateSummary` + Prisma (bez migracji)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Agregacja na tabeli `Run` przez port repository — use-case nie woła Prisma. R-13.1 / R-13.7.
 
@@ -277,7 +277,7 @@ Dopisz do `PrismaRunAdapter` (importy: `isRunTaskType`, typy `RunSummaryAggregat
       }
     }
 
-    return {
+    r& eturn {
       totalLast30d,
       completedLast30d,
       terminalLast30d,
@@ -298,7 +298,7 @@ Dopisz do `PrismaRunAdapter` (importy: `isRunTaskType`, typy `RunSummaryAggregat
 
 ### KROK 3 — `GetRunsSummaryUseCase` + cache TTL 60 s
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Scope wg roli, okno 30d, `successRate`, mapowanie na `RunsSummaryResponse`, cache in-process 60 s. K-2k / R-13.2–5.
 
@@ -411,7 +411,7 @@ export class GetRunsSummaryUseCase {
 
 ### KROK 4 — HTTP `GET summary` + wire modułu
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Trasa chroniona cookie + `@AllowGuest`, przed `:runId`. K-2k / R-13.7.
 
@@ -495,7 +495,7 @@ Import `GetRunsSummaryUseCase` jak pozostałe use-case’y.
 
 ### KROK 5 — Unit + e2e D-78…D-81 + Postman smoke
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Pokrycie `SPEC-TESTY.md` D-78…D-81 / DoD R-13. Warstwa: unit use-case + integration/e2e HTTP.
 

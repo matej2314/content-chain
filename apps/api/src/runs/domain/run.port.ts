@@ -45,6 +45,18 @@ export type ListRunsResult = {
   total: number;
 };
 
+export type RunSummaryScope = {
+  startedByUserId?: UserId;
+};
+
+export type RunSummaryAggregate = {
+  totalLast30d: number;
+  completedLast30d: number;
+  terminalLast30d: number;
+  activeNow: number;
+  topTaskTypeLast30d: RunTaskType | null;
+};
+
 export interface RunRepository {
   create(run: RunRecord): Promise<void>;
   getById(id: RunId): Promise<RunSnapshot | null>;
@@ -69,4 +81,9 @@ export interface RunRepository {
   setPipelineFinishedAt(id: RunId, at: Date): Promise<void>;
   finalizeExpiredReviews(now: Date, reviewTtlMs: number): Promise<number>;
   countByUserAndType(userId: UserId, taskType: RunTaskType): Promise<number>;
+  aggregateSummary(
+    scope: RunSummaryScope,
+    windowFrom: Date,
+    windowTo: Date,
+  ): Promise<RunSummaryAggregate>;
 }

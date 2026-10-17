@@ -7,6 +7,7 @@ import {
   isContentTaskType,
   isSocialPlatform,
   isSocialTaskType,
+  isRunTaskType,
   UserId,
   type RunId,
   type RunStatus,
@@ -21,6 +22,8 @@ import {
   type ListRunsResult,
   type RunRepository,
   type RunSnapshot,
+  type RunSummaryAggregate,
+  type RunSummaryScope,
 } from '../../domain/run.port';
 import {
   contentBriefSchema,
@@ -297,6 +300,69 @@ export class PrismaRunAdapter implements RunRepository {
     return this.prisma.run.count({
       where: { startedByUserId: userId, taskType },
     });
+  }
+
+  async aggregateSummary(
+    scope: RunSummaryScope,
+    windowFrom: Date,
+    windowTo: Date,
+  ): Promise<RunSummaryAggregate> {
+    const ownerFilter =
+      scope.startedByUserId === undefined
+        ? {}
+        : { startedByUserId: scope.startedByUserId };
+
+    const inWindow = {
+      ...ownerFilter,
+      createdAt: { gte: windowFrom, lte: windowTo },
+    };
+
+    const terminalStatuses = ['completed', 'failed', 'cancelled'] as const;
+    const activeStatuses = ['running', 'awaiting_hitl', 'queued'] as const;
+
+    const [totalLast30d, completedLast30d, terminalLast30d, activeNow, groups] =
+      await Promise.all([
+        this.prisma.run.count({ where: inWindow }),
+        this.prisma.run.count({ where: { ...inWindow, status: 'completed' } }),
+        this.prisma.run.count({
+          where: { ...inWindow, status: { in: [...terminalStatuses] } },
+        }),
+        this.prisma.run.count({
+          where: { ...ownerFilter, status: { in: [...activeStatuses] } },
+        }),
+        this.prisma.run.groupBy({
+          by: ['taskType'],
+          where: inWindow,
+          _count: { _all: true },
+          _max: { createdAt: true },
+        }),
+      ]);
+
+    let topTaskTypeLast30d: RunSummaryAggregate['topTaskTypeLast30d'] = null;
+    if (groups.length > 0) {
+      let bestCount = -1;
+      let bestCreatedAt = new Date(0);
+      for (const group of groups) {
+        if (!isRunTaskType(group.taskType)) continue;
+        const count = group._count._all;
+        const maxCreated = group._max.createdAt ?? new Date(0);
+        if (
+          count > bestCount ||
+          (count === bestCount && maxCreated > bestCreatedAt)
+        ) {
+          bestCount = count;
+          bestCreatedAt = maxCreated;
+          topTaskTypeLast30d = group.taskType;
+        }
+      }
+    }
+    return {
+      totalLast30d,
+      completedLast30d,
+      terminalLast30d,
+      activeNow,
+      topTaskTypeLast30d,
+    };
   }
 
   async setPipelineFinishedAt(id: RunId, at: Date): Promise<void> {
