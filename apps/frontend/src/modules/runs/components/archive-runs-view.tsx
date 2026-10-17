@@ -20,7 +20,6 @@ import { NativeSelect } from '@/shared/ui/native-select';
 import { IsoDateTime } from '@/shared/datetime/iso-date-time';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { useSession } from '@/modules/auth/components/session-provider';
-import { useGuestLocked } from '@/modules/demo/lib/use-guest-locked';
 import {
   fetchArchiveRuns,
   fetchInitiatorOptions,
@@ -109,7 +108,6 @@ const INITIAL_ARCHIVE_LIST: ArchiveListState = {
 
 export function ArchiveRunsView() {
   const { state: session } = useSession();
-  const guestLocked = useGuestLocked();
   const isAdmin = session.status === 'authenticated' && session.user.role === 'admin';
   const [query, dispatchQuery] = useReducer(archiveQueryReducer, INITIAL_ARCHIVE_QUERY);
   const [initiators, setInitiators] = useState<InitiatorsState>(INITIAL_INITIATORS);
@@ -336,19 +334,12 @@ export function ArchiveRunsView() {
               {result.items.map((item) => (
                 <tr key={item.runId}>
                   <td className="py-2 pr-3">
-                    {guestLocked &&
-                      (session.status !== 'authenticated' ||
-                        item.startedBy === null ||
-                        item.startedBy.id !== session.user.id) ? (
-                      <span>{RUN_TASK_TYPE_LABELS[item.taskType]}</span>
-                    ) : (
-                      <Link
-                        href={`/runs/${item.runId}`}
-                        className="underline-offset-4 hover:underline"
-                      >
-                        {RUN_TASK_TYPE_LABELS[item.taskType]}
-                      </Link>
-                    )}
+                    <Link
+                      href={`/runs/${item.runId}`}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {RUN_TASK_TYPE_LABELS[item.taskType]}
+                    </Link>
                   </td>
                   <td className="py-2 pr-3">{RUN_PLATFORM_LABELS[item.platform]}</td>
                   <td className="py-2 pr-3">

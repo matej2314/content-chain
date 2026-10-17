@@ -21,6 +21,7 @@ import { RunReviewPanel } from '@/modules/runs/components/run-review-panel';
 import { RunStatusView } from '@/modules/runs/components/run-status';
 import { runLogKey, useRunDetails } from '@/modules/runs/components/use-run-details';
 import { canCancelRunSnapshot } from '@/modules/runs/lib/can-cancel-run-snapshot';
+import { isSnapshotOwnedBy } from '@/modules/runs/lib/is-snapshot-owned-by';
 import { IsoDateTime } from '@/shared/datetime/iso-date-time';
 
 export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) {
@@ -62,6 +63,9 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
       sessionUserId: session.user.id,
       sessionRole: session.user.role,
     });
+  const isOwn =
+    session.status === 'authenticated' &&
+    isSnapshotOwnedBy(snapshot, session.user.id);
 
   return (
     <article className="flex max-w-3xl flex-col gap-6">
@@ -114,22 +118,24 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
           </ol>
         )}
       </section>
-      <HitlPanel
-        key={snapshot.runId}
-        snapshot={snapshot}
-        onSubmitted={async () => {
-          await reloadDetails(snapshot.runId);
-          patchStatus(snapshot.runId, 'running');
-          void refresh();
-        }}
-        onStaleStatus={async () => {
-          const next = await reloadDetails(snapshot.runId);
-          if (next !== undefined) {
-            patchStatus(next.runId, next.status);
-          }
-          void refresh();
-        }}
-      />
+      {isOwn ? (
+        <HitlPanel
+          key={snapshot.runId}
+          snapshot={snapshot}
+          onSubmitted={async () => {
+            await reloadDetails(snapshot.runId);
+            patchStatus(snapshot.runId, 'running');
+            void refresh();
+          }}
+          onStaleStatus={async () => {
+            const next = await reloadDetails(snapshot.runId);
+            if (next !== undefined) {
+              patchStatus(next.runId, next.status);
+            }
+            void refresh();
+          }}
+        />
+      ) : null}
       <RunResultSection
         snapshot={snapshot}
         userId={session.status === 'authenticated' ? session.user.id : null}

@@ -8,6 +8,7 @@ import { fetchRunLogs, fetchRunSnapshot } from '@/modules/runs/api/runs.api';
 import { isLiveRunStatus, type RunLogItem, type RunSnapshot } from '@/modules/runs/api/runs.types';
 import { useOwnRuns } from '@/modules/runs/components/own-runs-provider';
 import { useRunEventSource } from '@/modules/runs/components/use-run-event-source';
+import { isSnapshotOwnedBy } from '@/modules/runs/lib/is-snapshot-owned-by';
 
 export type RunDetailsState =
   | { readonly status: 'loading' }
@@ -97,8 +98,7 @@ export function useRunDetails(runId: RunId | null): UseRunDetailsResult {
   const own =
     view.status === 'ready' &&
     session.status === 'authenticated' &&
-    view.snapshot.startedBy !== null &&
-    view.snapshot.startedBy.id === session.user.id;
+    isSnapshotOwnedBy(view.snapshot, session.user.id);
   const live =
     view.status === 'ready' &&
     own &&

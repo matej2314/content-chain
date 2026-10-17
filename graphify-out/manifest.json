@@ -3456,9 +3456,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/run-details-view.tsx": {
-    "mtime": 1791815504.5409913,
-    "seen": 1791827241.7235587,
-    "ast_hash": "679ab7f8ede86dcd0d9a7f8b81b2b3ad",
+    "mtime": 1792235784.097683,
+    "seen": 1792235798.9455943,
+    "ast_hash": "0e8dac7cfdffdb7472692b76a15f76e2",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/company-context/components/gate-completeness-dot.tsx": {
@@ -3492,9 +3492,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/archive-runs-view.tsx": {
-    "mtime": 1791815504.5408106,
-    "seen": 1791827241.7235527,
-    "ast_hash": "b031a671b667d88f6291fe309c262018",
+    "mtime": 1792235778.5663931,
+    "seen": 1792235798.9455879,
+    "ast_hash": "8f62eb5a75a8c6cd7e8534adc30d6052",
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/datetime/format-iso-datetime.ts": {
@@ -4176,9 +4176,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/use-run-details.ts": {
-    "mtime": 1791815504.541118,
-    "seen": 1791827241.723569,
-    "ast_hash": "fe4d61fed1039cf0e09cb31b0b45c454",
+    "mtime": 1792235786.6580012,
+    "seen": 1792235798.9456048,
+    "ast_hash": "cb1c8042f572ae1eb52984377941b127",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/page-document-body.tsx": {
@@ -4221,6 +4221,12 @@
     "mtime": 1792138183.1664298,
     "seen": 1792152642.7369037,
     "ast_hash": "6c870eae74c37eaeebe81d2a568278d1",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/runs/lib/is-snapshot-owned-by.ts": {
+    "mtime": 1792235773.4402235,
+    "seen": 1792235798.9456086,
+    "ast_hash": "c1e568c2a610df3b9762d9f07fbff7ac",
     "semantic_hash": ""
   }
 }

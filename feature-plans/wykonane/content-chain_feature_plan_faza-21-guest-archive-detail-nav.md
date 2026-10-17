@@ -71,7 +71,7 @@ Odpowiada major FE Faza 21 (cała). Status startowy kroków: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — Helper ownership + odblokowanie Link w archiwum
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Wspólna asercja „snapshot/wiersz należy do sesji” oraz odblokowanie nawigacji z wiersza archiwum dla guest (także cudzy). Major FE Faza 21; `SPEC-FRONTEND.md` F-8 / F-10 pkt 6; `docs/ux_dashboard.md` (Widok: Runy — nawigacja). Refaktor względem Fazy 14 (blokada Link).
 
@@ -187,7 +187,7 @@ import { useSession } from '@/modules/auth/components/session-provider';
 
 ### KROK 2 — Detail: jawne read-only dla cudzego + regresja SSE own-only
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Na `/runs/:id` dla guest: cudzy (lub brak ownera) = UI bez HITL; SSE nadal tylko własne live; mutacje F-10 (Edytuj / finalize / Stop na terminalnym) bez regresji odblokowania. Major FE Faza 21; F-5 / F-5a / F-8 / F-10; `docs/ux_dashboard.md` (Run szczegóły).
 
