@@ -1,5 +1,5 @@
 ---
-wersja: 30
+wersja: 31
 data_utworzenia: 2026-09-17
 data_modyfikacji: 2026-10-17
 ---
@@ -10,7 +10,9 @@ Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / desi
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`, `brand_types.md`.
 
-Zmiana względem: status live = „animowany / atrakcyjny” bez kanonu formy; sidebar jasny; strona główna = wyśrodkowana karta; brak bloku KPI na Koncie. Od tej wersji: **Normy wizualne** (paleta indigo/violet, ciemny sidebar ≠ dark mode, unikalne badge-pille per `RunStatus`, hero banner tylko `running` \| `awaiting_hitl`, split-panel logowania, KPI z `GET /api/v1/runs/summary`, lifting chipów / invite-accept / floating box).
+Zmiana względem: status live = „animowany / atrakcyjny” bez kanonu formy; sidebar jasny; strona główna = wyśrodkowana karta; brak bloku KPI na Koncie. Od tej wersji: **Normy wizualne** (paleta indigo/violet, **pełny dark shell** — ciemny sidebar **i** ciemny `main`, unikalne badge-pille per `RunStatus`, hero banner tylko `running` \| `awaiting_hitl`, split-panel logowania, KPI z `GET /api/v1/runs/summary`, lifting chipów / invite-accept / floating box).
+
+Zmiana względem wersji 30 / „Normy wizualne”: *ciemny sidebar ≠ dark mode — `main` jasny*; MVP „motyw produktowy pozostaje jasny”. Od tej wersji: **pełny dark shell** (sidebar + `main` ciemne); dual-mode z przełącznikiem nadal **V1** (bez zmian zakresu V1).
 
 Zmiana względem: po udanym `POST /runs` (**202**) operator zostawał na widoku źródłowym (Konto albo Runy); nawigacja na szczegóły nie była wymuszana. Od tej wersji: **zawsze** nawigacja na **Run (szczegóły)** tego `runId` (`/runs/:runId`) z obu powierzchni startu; toast „Run wystartował” zostaje; modal na Runach zamyka się; błąd startu **bez** nawigacji. Powód: mniej chaosu UX po testach manualnych.
 
@@ -67,8 +69,9 @@ Obowiązujące decyzje projektowe szaty graficznej dashboardu. Wartości `oklch`
 ### Paleta
 
 - **Primary** = żywy **indigo/violet** (wysoka chroma).
-- **Sidebar** ciemny (`--sidebar` / `--sidebar-foreground`) — **nie** dark mode: obszar roboczy (`main`) pozostaje jasny; dual-mode z przełącznikiem = **V1** (bez zmian).
-- Zmiana względem: sidebar jasny (ten sam motyw co main).
+- **Pełny dark shell (MVP):** ciemny sidebar (`--sidebar` / `--sidebar-foreground`) **oraz** ciemny obszar roboczy (`--background` / `main`). Sidebar może być nieco ciemniejszy od `main` (hierarchia chrome). **Bez** przełącznika light/dark w MVP — to **nie** jest dual-mode; dual-mode z dedykowanym przełącznikiem = **V1**.
+- Zmiana względem wersji 30: *ciemny sidebar ≠ dark mode — `main` jasny*. Od tej wersji kanon = dark shell (sidebar + main).
+- Zmiana względem wcześniejszego: sidebar jasny (ten sam motyw co jasny main) — historia pierwszego locku.
 
 ### Tokeny semantyczne CSS
 
@@ -513,7 +516,8 @@ Zmiana względem: założenie, że FE może rozróżnić kolizję email (**409**
 - Stopień edycji outputu (diff / procent / historia wersji) — w MVP zapis **zastępuje** wynik i stawia flagę; bez porównywania z outputem agentów  
 - Zmiana oceny po „Zamknij / zapisz przegląd” **albo** po auto-close / expiry TTL  
 - Widoczny deadline / countdown / wiersz „review dostępne do…” na panelu przeglądu (świadomie odłożone; FE używa `reviewExpiresAt` tylko do disable)  
-- Motywy jasny / ciemny — **obowiązkowy** temat **V1 — rozbudowa**: oba tryby w produkcie oraz **dynamiczne** przełączanie przez użytkownika **dedykowanym przełącznikiem** w interfejsie (nie sam `prefers-color-scheme` bez kontrolki). W MVP motyw produktowy pozostaje jasny  
+- Motywy jasny / ciemny — **obowiązkowy** temat **V1 — rozbudowa**: oba tryby w produkcie oraz **dynamiczne** przełączanie przez użytkownika **dedykowanym przełącznikiem** w interfejsie (nie sam `prefers-color-scheme` bez kontrolki). W MVP kanon = **pełny dark shell** (ciemny sidebar **i** ciemny `main`); **bez** przełącznika — dark shell **nie** jest dual-mode  
+
 - Pipeline builder, drag-and-drop agentów  
 - Osobny trwały ekran „Aktywacja…” (świadomie pominięty — deep link od razu pokazuje logowanie + toast)  
 - Confirm e-mail przy `PATCH /auth/me/email` (**V1**; nie mylić z aktywacją przy register)  
@@ -527,4 +531,5 @@ Zmiana względem: założenie, że FE może rozróżnić kolizję email (**409**
 
 Implementacja wizualna statusu live należy do frontu; ten dokument ustala **wymaganie zachowania** (live + atrakcyjna animacja statusu), nie konkretną bibliotekę motion.
 
-Zmiana względem: „Motywy dark/light jako wymóg” na liście poza MVP, bez fazy i bez sterowania. Od tej wersji dual-mode jest **obowiązkiem V1** z dedykowanym przełącznikiem w UI; MVP bez zmiany locku jasnego.
+Zmiana względem: „Motywy dark/light jako wymóg” na liście poza MVP, bez fazy i bez sterowania. Od tej wersji dual-mode jest **obowiązkiem V1** z dedykowanym przełącznikiem w UI.
+Zmiana względem wersji 30 / poza MVP: *„W MVP motyw produktowy pozostaje jasny”* / *„MVP bez zmiany locku jasnego”*. Od tej wersji MVP = **dark shell**; V1 = przełącznik light/dark.

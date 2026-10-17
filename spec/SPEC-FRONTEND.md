@@ -1,5 +1,5 @@
 ---
-wersja: 53
+wersja: 54
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-10-17
 ---
@@ -14,7 +14,9 @@ Aplikacja `apps/frontend` **już istnieje** w monorepo jako cienki klient Next (
 
 Bez reguł domenowych pipeline’u, bez bramki kompletności jako jedynej egzekucji, bez sekretów LLM.
 
-Zmiana względem wersji 51 / cel: szata graficzna = pierwszy visual lock (jasny sidebar, statusy dot + muted, wyśrodkowana karta logowania, brak KPI). Od tej wersji **F-11…F-19** (drugi visual lock): primary indigo/violet, ciemny sidebar ≠ dark mode, unikalne badge-pille per `RunStatus`, hero tylko `running` \| `awaiting_hitl`, split-panel `/`, KPI z `GET /api/v1/runs/summary`, lifting chipów / invite-accept / floating box — `docs/ux_dashboard.md` („Normy wizualne”), `docs/brand_types.md`.
+Zmiana względem wersji 51 / cel: szata graficzna = pierwszy visual lock (jasny sidebar, statusy dot + muted, wyśrodkowana karta logowania, brak KPI). Od tej wersji **F-11…F-19** (drugi visual lock): primary indigo/violet, **pełny dark shell** (ciemny sidebar **i** ciemny `main`), unikalne badge-pille per `RunStatus`, hero tylko `running` \| `awaiting_hitl`, split-panel `/`, KPI z `GET /api/v1/runs/summary`, lifting chipów / invite-accept / floating box — `docs/ux_dashboard.md` („Normy wizualne”), `docs/brand_types.md`.
+
+Zmiana względem wersji 53 / F-14 / cel: *ciemny sidebar ≠ dark mode — `main` jasny*. Od tej wersji F-14 = **dark shell** (sidebar + `main` ciemne); dual-mode z przełącznikiem nadal V1 — `docs/ux_dashboard.md`.
 
 Zmiana względem wersji 49 / cel / F-8: po `202` z Konta / modalu Runy — widok źródłowy; zakaz wymuszania nawigacji na szczegóły. Od tej wersji F-8 + „Nie wolno” + DoD: po **202** **zawsze** nawigacja na `/runs/:runId` (obie powierzchnie); toast „Run wystartował” zostaje; modal zamyka się; błąd startu bez nawigacji — `docs/ux_dashboard.md`.
 
@@ -167,7 +169,7 @@ F-8. Widoki minimalne wg `docs/ux_dashboard.md`:
 - **Runy** = archiwum instancji `completed` \| `failed` \| `cancelled` (`GET /runs?status=completed,failed,cancelled`, strona 10, odświeżanie przy wejściu i co **15 min**). **Bez** SSE, **bez** runów w toku na liście (także cudzych). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). Po **202** z modalu — modal zamknięty, toast „Run wystartował”, nawigacja na `/runs/:runId`; błąd startu **bez** nawigacji; live poza Kontem = floating box;
 - **Konto**: email — formularz → modal re-auth (email **disabled** + `currentPassword`) → `PATCH /auth/me/email` `{ email, currentPassword }` (każdy Potwierdź z obu pól); złe hasło (`INVALID_PASSWORD`) / `VALIDATION_FAILED` pod polem hasła (email zostaje disabled; **bez** cyklu F-4a); **409** → modal otwarty, clear pól, odblokowanie emaila, błąd pod polem email; sukces bez toastu + `GET /auth/me`; Anuluj bez API (draft formularza bez zmian względem otwarcia); **Statystyki KPI** (F-16) **powyżej** „Start runu”; **Moje runy** (`GET /runs/user/:userId` — **pełna** lista HTTP; **paginacja UI** stałe `pageSize = 10` jak archiwum Runy — Poprzednia / `strona / totalPages (total)` / Następna; wszystkie statusy; status = badge-pill F-12; **Stop** + modal na własnym nieterminalnym — F-5b); formularz **startu inline** (brief wg `taskType`; bez `selectedIdeaIds`; prefill ze **snapshotu** `GET /runs/:runId` z wiersza „Moje runy”); opinia. Po **202** startu **z Konta** — toast „Run wystartował” **oraz** nawigacja na `/runs/:runId`; błąd startu **bez** nawigacji;
 - `PUT` kontekstu **200** → toast „Kontekst zapisany”; **400** → envelope przy formularzu, **zero** toasta (lokalny predykat / envelope); `POST .../cancel` **200** → toast **„Run anulowany”** (F-5b);
-- Layout **zalogowany**: root **`h-dvh`** + overflow ukryty; **scroll tylko w `main`**; sidebar (desktop) = wysokość viewportu, **ciemny** (F-14) — DemoChip (gdy demo) + chip agentów **zawsze w viewportcie** (lifting F-17); Toaster (warstwa `--z-toast`); pozycja **nie** gryzie się z floating boxem (toast `top-right`; box `bottom-right`). **Brak** Toastera na karcie logowania / formularzu bootstrap admina / accept-invite / formularzu register (toast po sukcesie activate — wyjątek F-4b);
+- Layout **zalogowany**: root **`h-dvh`** + overflow ukryty; **scroll tylko w `main`**; **dark shell** (F-14) — ciemny sidebar **i** ciemny `main` (desktop sidebar = wysokość viewportu); DemoChip (gdy demo) + chip agentów **zawsze w viewportcie** (lifting F-17); Toaster (warstwa `--z-toast`); pozycja **nie** gryzie się z floating boxem (toast `top-right`; box `bottom-right`). **Brak** Toastera na karcie logowania / formularzu bootstrap admina / accept-invite / formularzu register (toast po sukcesie activate — wyjątek F-4b);
 - Run szczegóły: HITL / wynik **post vs rolka vs strona** / przegląd (bez `conversationId` w UI); **hero banner** tylko `running` \| `awaiting_hitl` (F-13); pozostałe statusy = badge F-12 (`interrupted` **bez** hero); **Stop** + modal (F-5b) gdy owner **lub** (admin ∧ `startedBy.role=guest`) i nieterminalny; po `cancelled` HITL znika, przegląd niedostępny, partial wynik jak przy `failed`; live SSE tylko własny `running` \| `awaiting_hitl` \| `interrupted` (ten sam rejestr co box);
 - HITL Social: **multi-select** (min. 1); Content: `[outline.id]`;
 - Wynik (odczyt) wg `docs/ux_dashboard.md`: pod „Wynik” **bez** drugiego nagłówka typu/etapu; dwuetapowe = **najpierw** etap 2 (`contents[]` / `reelScripts[]` / `pageDocument`), potem etap 1 (zwijany gdy etap 2 niepusty; label „Pomysły” / „Outline”); przy pozycji etapu 2 podpis „Pomysł: {title}”; na liście pomysłów etapu 1 obok tytułu **badge** Wybrany / Niewybrany (Wybrany: `primary/15` + `primary`; Niewybrany: `muted` + `muted-foreground`; `rounded-md`); `characterCount` / `cta?` / `role?` jak UX; `pageDocument.body` w odczycie = sformatowany markdown (subset) + blok „Meta SEO”; Edytuj = surowy tekst;
@@ -254,9 +256,10 @@ Zmiana względem: status = kropka + plain muted text; kilka statusów na jednym 
 
 F-13. Hero banner „run w toku”: wyłącznie na szczegółach `/runs/:runId`, gdy `status ∈ {running, awaiting_hitl}` — gradient z tokenów success/warning + animacja. **Ukryty** dla `interrupted`, `queued` oraz terminalnych (`completed` \| `failed` \| `cancelled`). `interrupted` = osobny badge (F-12) **bez** hero.
 
-F-14. Ciemny sidebar (`AppSidebar`): wartości `--sidebar` / `--sidebar-foreground` ciemne (oklch); logo-area `h-14` + `border-b`; aktywny nav = `bg-primary text-primary-foreground`. **Nie** jest to dark mode — obszar `main` pozostaje jasny; dual-mode z przełącznikiem = V1 (poza zakresem). Primary akcent produktu = żywy **indigo/violet** (wysoka chroma).
+F-14. **Pełny dark shell:** ciemny sidebar (`AppSidebar`: `--sidebar` / `--sidebar-foreground` ciemne oklch; logo-area `h-14` + `border-b`; aktywny nav = `bg-primary text-primary-foreground`) **oraz** ciemny obszar roboczy (`--background` / `main`). Sidebar może być nieco ciemniejszy od `main`. Primary akcent produktu = żywy **indigo/violet** (wysoka chroma). **Bez** przełącznika light/dark w MVP — dark shell **nie** jest dual-mode; dual-mode z przełącznikiem = V1 (poza zakresem).
 
-Zmiana względem: sidebar jasny (ten sam motyw co main).
+Zmiana względem wersji 53 / F-14: *ciemny sidebar ≠ dark mode — `main` jasny*. Od tej wersji kanon = dark shell (sidebar + main).
+Zmiana względem wcześniejszego: sidebar jasny (ten sam motyw co jasny main) — historia pierwszego locku.
 
 F-15. Split-panel na `/` (strona główna): na `lg+` — **lewa** = gradient primary + brand + **1–2 krótkie akapity korzyści** + krótka CTA/zachęta; **prawa** = formularz (`login` \| `register` \| `bootstrap_admin` / thank-you). Mobile: **tylko** formularz (bez lewego panelu). Flow / auth (F-4a / F-4b / F-8) **bez zmian**.
 
@@ -320,7 +323,7 @@ apps/frontend/src/
 - Widok **Runy**: archiwum `completed` \| `failed` \| `cancelled`; GET co 15 min + przy wejściu; CTA/modal **„Uruchom agenta”** (ten sam brief); po **202** z Run — zamknąć modal, nawigacja na `/runs/:runId` + toast „Run wystartował”; statusy = badge F-12.
 - Client components dla modalu startu (Dialog kitu shadcn).
 - Floating box poza Kontem (zwijany) — lifting F-19; badge F-12.
-- Tokeny statusowe w `globals.css` (`:root` / `.dark` / `@theme inline`) — F-11; hero na detail tylko `running` \| `awaiting_hitl` — F-13; ciemny sidebar + logo-area — F-14; split-panel na `/` — F-15; lifting chipów / invite-accept — F-17 / F-18.
+- Tokeny statusowe w `globals.css` (`:root` / `.dark` / `@theme inline`) — F-11; hero na detail tylko `running` \| `awaiting_hitl` — F-13; **dark shell** (ciemny sidebar + ciemny `main`) + logo-area — F-14; split-panel na `/` — F-15; lifting chipów / invite-accept — F-17 / F-18.
 - Cienki wrapper `notifyProduct` / `notifyRunTerminal` (Sonner jako adapter; unia produktowa, bez `any`).
 - Odczyt pathname App Router (`usePathname` lub równoważny) do `viewingRunId` przy toaście terminalu.
 - Toaster w gałęzi authenticated layoutu; token `--z-toast`; **wyjątek:** toast po sukcesie activate na niezalogowanym `/`.
@@ -347,8 +350,8 @@ apps/frontend/src/
 - Prezentowania `interrupted` tą samą animacją / copy / hero co `running`; traktowania `cancelled` jako `failed` w copy toasta / archiwum.
 - Statusu runu jako samego kółka (dot) bez pill; dzielenia jednego koloru „muted” między kilka `RunStatus`; `completed` dzielącego token z `running` (obowiązuje F-12).
 - Hero banneru dla `interrupted` / `queued` / terminalnych (obowiązuje F-13).
-- Jasnego sidebara jako kanonu produktu; traktowania ciemnego sidebara jako dual-mode dark (obowiązuje F-14 — main jasny).
-  Zmiana względem: sidebar jasny był kanonem — od F-14 obowiązuje ciemny sidebar.
+- Jasnego sidebara **albo** jasnego `main` jako kanonu produktu; traktowania dark shellu jako dual-mode / przełącznika (obowiązuje F-14 — pełny dark shell; dual-mode = V1).
+  Zmiana względem wersji 53 / „Nie wolno”: *F-14 — main jasny*; *ciemny sidebar ≠ dual-mode przy jasnym main*. Od tej wersji zakaz jasnego `main` w MVP; dark shell = kanon.
 - Wyśrodkowanej karty logowania na `lg+` zamiast split-panelu (obowiązuje F-15).
 - Hex/rgb „na piechotę” w badge’ach statusów / hero / chipach / liftingu (obowiązuje F-11).
 - Bloku KPI poniżej „Start runu”; pustych kart KPI przy błędzie HTTP; KPI dla `guest` przy `demoMode === false` (obowiązuje F-16).
@@ -464,7 +467,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Header: do prawej; login → „Wyloguj się”; modal → logout → `/`.
 - [ ] Fetch same-origin `/api/v1`; BFF → `API_BASE_URL` tylko serwer (prod: `http://api:3001`); UI prod na porcie **3004**; **401** `UNAUTHORIZED` → refresh → retry; cookie httpOnly na originie FE; **401** `INVALID_PASSWORD` **bez** refresh/wylogowania.
 - [ ] **Runy** = archiwum `completed` \| `failed` \| `cancelled` (15 min + wejście) **oraz** CTA/modal **„Uruchom agenta”**; **Konto** = start inline + Moje runy live (paginacja UI 10) + Stop; po `202` szczegóły tego runu (Konto + modal Runy); toast „Run wystartował”; modal zamknięty; błąd startu bez nawigacji.
-- [ ] Layout zalogowany: `h-dvh`, scroll tylko w `main`; **ciemny** sidebar (F-14) + logo-area; chipy w sidebarze widoczne bez scrolla treści (lifting F-17).
+- [ ] Layout zalogowany: `h-dvh`, scroll tylko w `main`; **dark shell** (F-14) — ciemny sidebar **i** ciemny `main` + logo-area; chipy w sidebarze widoczne bez scrolla treści (lifting F-17).
 - [ ] F-11…F-19: tokeny + `@theme` w `globals.css`; unikalny badge-pill per `RunStatus` (compact = te same); hero tylko `running` \| `awaiting_hitl` na detail; KPI cards nad Start runu (`GET /runs/summary`, DTO shared, zakres dat; guest tylko demo on; błąd → ukryj); lifting invite-accept / floating box bez zmiany flow.
 - [ ] N× SSE tylko własne `running` / `awaiting_hitl` / `interrupted`; `close()` na `completed`/`failed`/`cancelled`; `queued` bez socketa; floating box poza Kontem **bez** Stop; po cancel: „Anulowany” → ukrycie po 200 ms.
 - [ ] Stop + modal „Czy na pewno?” → cancel API (owner **lub** admin∧guest na detail); toast „Run anulowany”; dedup SSE; na `cancelled` brak przeglądu / HITL; parse `startedBy.role`.
@@ -490,7 +493,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 ## Poza zakresem
 
 - Playwright / testy FE.
-- Motywy jasny / ciemny (**V1 — rozbudowa**, obowiązkowy): oba tryby w produkcie oraz **dynamiczne** przełączanie przez użytkownika **dedykowanym przełącznikiem** w UI (`docs/ux_dashboard.md`). W MVP obszar roboczy (`main`) pozostaje jasny; **ciemny sidebar (F-14) nie jest dual-mode** ani przełącznikiem.
+- Motywy jasny / ciemny (**V1 — rozbudowa**, obowiązkowy): oba tryby w produkcie oraz **dynamiczne** przełączanie przez użytkownika **dedykowanym przełącznikiem** w UI (`docs/ux_dashboard.md`). W MVP kanon = **pełny dark shell** (F-14 — ciemny sidebar **i** ciemny `main`); **bez** przełącznika — dark shell **nie** jest dual-mode.
 - i18n / next-intl (**V1 — rozbudowa**).
 - Limit per-user runów w toku (**V1 — rozbudowa**, obowiązkowy).
 - Pixel-perfect / Figma jako norma.

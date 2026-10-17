@@ -1,5 +1,5 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-09-27
 data_modyfikacji: 2026-10-17
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-17
 Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time. Dopisek: **norma tokenów semantycznych CSS** pod szatę graficzną dashboardu (statusy runów, hero, chipy).
 
 Zmiana względem: brak sekcji tokenów CSS w tym dokumencie (kolory statusów poza kanonem docs). Od tej wersji: **Tokeny semantyczne CSS** w `globals.css` + obowiązkowy most `@theme inline`; mapa status→token w `ux_dashboard.md`.
+
+Zmiana względem wersji 3 / tokeny: definicja w `:root` i `.dark` bez jawnego kanonu powierzchni. Od tej wersji: **kanon MVP = pełny dark shell w `:root`** (ciemne `--background` / `--sidebar`); `.dark` zsynchronizowane; **bez** przełącznika — dual-mode = V1 (`ux_dashboard.md`).
 
 Zmiana względem wcześniejszej wersji (bez frontmatteru): `RunStatus` += **`cancelled`**.
 
@@ -91,7 +93,7 @@ Tokeny koloru statusów i sygnałów UI dashboardu **nie** żyją w `packages/sh
 | Element | Norma |
 |---------|--------|
 | Lokalizacja | wyłącznie `apps/frontend/src/app/globals.css` |
-| Definicja | w **`:root`** **i** **`.dark`** (wartości mogą się różnić; brak przełącznika dark mode w MVP — dual-mode = V1) |
+| Definicja | w **`:root`** **i** **`.dark`** — **kanon MVP = dark shell w `:root`** (ciemne `--background` / `--card` / `--sidebar` itd.; sidebar może być nieco ciemniejszy od main); `.dark` **zsynchronizowane** z tym samym shellem (klasa może istnieć w CSS, produkt **nie** przełącza motywu). Brak przełącznika light/dark w MVP — dual-mode = V1 (`ux_dashboard.md`) |
 | Most Tailwind | **obowiązkowy** blok `@theme inline` z `--color-*` analogicznie do `--color-destructive` |
 | Mapa status→token | `docs/ux_dashboard.md` („Normy wizualne” / tabela `RunStatus`) |
 

@@ -18,7 +18,7 @@
 |------|---------|
 | Wycinek | Cała Faza 22 majoru FE: drugi visual lock (F-11…F-19) + KPI cards na Koncie (F-16) |
 | Major | Faza 22; start po Fazach 1–21 (`WYKONANY`) i Milestone 1–6 / 2.1 / 3.5 / 3.6 (`OSIĄGNIĘTY`); **bez** MILESTONE 22 |
-| Poza zakresem | Implementacja `apps/api` / BE Faza 24; dark mode / dual-mode z przełącznikiem; zmiana logiki SSE / HITL / feedbacku / autoryzacji (poza konsumentem summary); nowe pozycje nawigacyjne; **MILESTONE 22**; Playwright; trzecia paleta poza kanonem |
+| Poza zakresem | Implementacja `apps/api` / BE Faza 24; **przełącznik** light/dark / dual-mode (kanon = stały dark shell); zmiana logiki SSE / HITL / feedbacku / autoryzacji (poza konsumentem summary); nowe pozycje nawigacyjne; **MILESTONE 22**; Playwright; trzecia paleta poza kanonem |
 | Zależność BE (sesja implementacji) | Przed startem kodu FE: `RunsSummaryResponse` w `@content-chain/shared` oraz działający `GET /api/v1/runs/summary` (gate / HOW major BE Faza 24). Dostarczenie BE = poza tym plikiem |
 | Po implementacji (informacyjnie) | Major FE: Faza 22 → `WYKONANY` (DoD gate + kod). Brak `MILESTONE` 22. Faza 1 / 1.4 historia. Edycja major **poza** tym skillem |
 
@@ -28,7 +28,7 @@
 |---------------------------|---------|--------|
 | F-11 tokeny + primary + `@theme` | FAZA 1 / KROK 1 | `globals.css` |
 | F-12 badge-pill statusów | FAZA 1 / KROK 2 | `RunStatusView` |
-| F-14 ciemny sidebar + logo-area | FAZA 1 / KROK 3 | `AppSidebar` |
+| F-14 dark shell (ciemny sidebar + ciemny main) + logo-area | FAZA 1 / KROK 3 | `AppSidebar` + tokeny `:root` |
 | F-13 hero `running` \| `awaiting_hitl` | FAZA 1 / KROK 4 | detail + komponent hero |
 | F-15 split-panel `/` | FAZA 2 / KROK 1 | `HomeEntry` |
 | F-17 lifting chipów | FAZA 2 / KROK 2 | Demo / Completeness |
@@ -53,7 +53,7 @@
 - Stack FE bez zmian: Next.js **16.3**, React **19**, Tailwind **v4** (`@theme inline`), shadcn, Iconify, Geist — `apps/frontend/package.json`.
 - `tsconfig` **bez** zmian. Typy jawne; zakaz `any` / `@ts-ignore`; `import type` dla typów; DTO KPI wyłącznie z `@content-chain/shared` (F-3 / F-16).
 - Design Read (product-ui): *self-host dashboard for operator/admin, calm B2B product language, shadcn + Tailwind v4 + Iconify, dials VARIANCE 3–4 / MOTION 3–4 / DENSITY 7–8.*
-- Primary = żywy **indigo/violet** (wysoka chroma). Sidebar ciemny **≠** dark mode — `main` jasny.
+- Primary = żywy **indigo/violet** (wysoka chroma). **Pełny dark shell:** ciemny sidebar **i** ciemny `main` (jeden kanon; **bez** przełącznika light/dark / dual-mode). Zmiana względem: wcześniejsza decyzja „ciemny sidebar ≠ dark mode — main jasny”.
 - Wartości `oklch` poniżej = HOW; mapa status→token = docs (bez zmiany przypisań).
 - Flow auth / SSE / HITL / cancel / guest locki mutacji — **bez zmian** semantyki.
 - Automatyczne testy `apps/frontend` — **poza MVP** (`SPEC-TESTY.md` T-7); DoD = checklist manual / obserwowalne.
@@ -157,67 +157,42 @@ Odpowiada major FE Faza 22 (część F-11…F-14 / F-13). Status startowy krokó
 
 ```css
 :root {
-  --background: oklch(0.985 0.004 270);
-  --foreground: oklch(0.22 0.02 270);
-  --card: oklch(0.995 0.002 270);
-  --card-foreground: oklch(0.22 0.02 270);
-  --popover: oklch(0.995 0.002 270);
-  --popover-foreground: oklch(0.22 0.02 270);
-  /* Primary: żywy indigo/violet (F-14 / Normy wizualne) */
-  --primary: oklch(0.48 0.22 285);
+  /* Pełny dark shell — main + sidebar ciemne (jeden kanon; bez przełącznika) */
+  --background: oklch(0.18 0.025 285);
+  --foreground: oklch(0.93 0.01 285);
+  --card: oklch(0.23 0.03 285);
+  --card-foreground: oklch(0.93 0.01 285);
+  --popover: oklch(0.23 0.03 285);
+  --popover-foreground: oklch(0.93 0.01 285);
+  /* Primary: żywy indigo/violet — jaśniejszy pod dark canvas */
+  --primary: oklch(0.65 0.2 285);
   --primary-foreground: oklch(0.99 0.01 285);
-  --secondary: oklch(0.95 0.01 270);
-  --secondary-foreground: oklch(0.28 0.02 270);
-  --muted: oklch(0.95 0.01 270);
-  --muted-foreground: oklch(0.5 0.02 270);
-  --accent: oklch(0.94 0.03 285);
-  --accent-foreground: oklch(0.32 0.06 285);
-  --destructive: oklch(0.55 0.18 25);
-  --border: oklch(0.9 0.01 270);
-  --input: oklch(0.9 0.01 270);
-  --ring: oklch(0.48 0.22 285);
-  --chart-1: oklch(0.48 0.22 285);
-  --chart-2: oklch(0.55 0.12 250);
-  --chart-3: oklch(0.5 0.1 200);
-  --chart-4: oklch(0.55 0.14 145);
-  --chart-5: oklch(0.6 0.14 70);
+  --secondary: oklch(0.28 0.03 285);
+  --secondary-foreground: oklch(0.93 0.01 285);
+  --muted: oklch(0.28 0.025 285);
+  --muted-foreground: oklch(0.72 0.02 285);
+  --accent: oklch(0.3 0.05 285);
+  --accent-foreground: oklch(0.95 0.01 285);
+  --destructive: oklch(0.65 0.18 25);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.65 0.2 285);
+  --chart-1: oklch(0.65 0.2 285);
+  --chart-2: oklch(0.62 0.12 250);
+  --chart-3: oklch(0.58 0.1 200);
+  --chart-4: oklch(0.62 0.14 145);
+  --chart-5: oklch(0.68 0.14 70);
   --radius: 0.5rem;
-  /* Ciemny sidebar — main pozostaje jasny (≠ dark mode) */
-  --sidebar: oklch(0.22 0.035 285);
+  /* Sidebar ciemniejszy od main (hierarchia chrome) */
+  --sidebar: oklch(0.14 0.03 285);
   --sidebar-foreground: oklch(0.93 0.01 285);
-  --sidebar-primary: oklch(0.55 0.22 285);
+  --sidebar-primary: oklch(0.65 0.2 285);
   --sidebar-primary-foreground: oklch(0.99 0.01 285);
-  --sidebar-accent: oklch(0.3 0.05 285);
+  --sidebar-accent: oklch(0.26 0.045 285);
   --sidebar-accent-foreground: oklch(0.95 0.01 285);
   --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.55 0.22 285);
-  /* Statusy — unikalne rodziny (F-11 / F-12) */
-  --success: oklch(0.55 0.16 145);
-  --success-foreground: oklch(0.99 0.01 145);
-  --warning: oklch(0.72 0.15 75);
-  --warning-foreground: oklch(0.28 0.06 75);
-  --completed: oklch(0.5 0.14 230);
-  --completed-foreground: oklch(0.99 0.01 230);
-  --interrupted: oklch(0.58 0.14 45);
-  --interrupted-foreground: oklch(0.99 0.01 45);
-  --cancelled: oklch(0.55 0.04 285);
-  --cancelled-foreground: oklch(0.98 0.005 285);
-  --queued: oklch(0.55 0.08 250);
-  --queued-foreground: oklch(0.99 0.01 250);
-}
-```
-
-**teraz** (blok `.dark` — primary muted; **dopisz** te same rodziny statusowe + zsynchronizuj primary/sidebar z drugim lockiem, bez włączania dual-mode w UI):
-
-W `.dark` ustaw:
-
-- `--primary` / `--ring` / `--chart-1` na jaśniejszy indigo/violet (np. `oklch(0.72 0.16 285)`), foreground odpowiednio ciemny;
-- `--sidebar*` spójne z ciemnym chrome (już ciemne — dopasuj hue 285);
-- **dodaj** te same `--success`…`--queued` (+ `-foreground`) co w `:root` (lekko podbite lightness pod ciemne tło, bez zmiany mapy status→rodzina).
-
-Przykład dopisku statusów w `.dark` (po `--sidebar-ring`):
-
-```css
+  --sidebar-ring: oklch(0.65 0.2 285);
+  /* Statusy — unikalne rodziny (F-11 / F-12); lightness pod dark canvas */
   --success: oklch(0.68 0.15 145);
   --success-foreground: oklch(0.18 0.03 145);
   --warning: oklch(0.78 0.14 75);
@@ -227,15 +202,20 @@ Przykład dopisku statusów w `.dark` (po `--sidebar-ring`):
   --interrupted: oklch(0.7 0.12 45);
   --interrupted-foreground: oklch(0.2 0.04 45);
   --cancelled: oklch(0.65 0.04 285);
-  --cancelled-foreground: oklch(0.2 0.02 285);
+  --cancelled-foreground: oklch(0.92 0.01 285);
   --queued: oklch(0.68 0.08 250);
   --queued-foreground: oklch(0.18 0.03 250);
+}
 ```
+
+**teraz** (blok `.dark` — **zsynchronizuj** z tym samym dark shellem w `:root`, bez włączania dual-mode / przełącznika w UI):
+
+W `.dark` ustaw te same wartości co w `:root` powyżej (primary / sidebar / statusy / surfaces) — klasa `.dark` może istnieć w CSS, ale produkt **nie** przełącza motywu; kanon = dark shell z `:root`.
 
 **DoD kroku:**
 
 - Utility Tailwind `bg-success`, `text-warning-foreground`, `border-completed` itd. działają (most `@theme`).
-- Primary = indigo/violet; `--sidebar` ciemny w `:root`.
+- Primary = indigo/violet; `--background` i `--sidebar` **ciemne** w `:root` (pełny dark shell).
 - Brak hex/rgb statusów „na piechotę” w CSS poza tokenami `oklch`.
 - Komentarz z-index / reduced-motion / Sonner — **bez zmian**.
 
@@ -366,7 +346,7 @@ Usuń nieużywany import `Separator`, jeśli po usunięciu `<Separator />` nie m
 
 - Logo-area `h-14` + `border-b`.
 - Aktywny nav = `bg-primary text-primary-foreground`.
-- Sidebar wizualnie ciemny; `main` jasny; chipy na dole bez zmiany pozycji.
+- Sidebar wizualnie ciemny; `main` również ciemny (dark shell); chipy na dole bez zmiany pozycji.
 
 ---
 
@@ -548,7 +528,7 @@ function GuestBrandPanel() {
             Self-hostowy dashboard do uruchamiania agentów contentowych — od briefu po przegląd
             wyniku.
           </p>
-          <p>Jedna sesja, jasny obszar roboczy i kontrola HITL tam, gdzie decyzja należy do Ciebie.</p>
+          <p>Jedna sesja, ciemny obszar roboczy i kontrola HITL tam, gdzie decyzja należy do Ciebie.</p>
         </div>
       </div>
       <p className="relative z-10 text-sm font-medium text-primary-foreground/95">
@@ -1076,7 +1056,7 @@ Fetch GET /runs/summary for admin and user always, and for guest only when demo 
 | F-11 | Tokeny + `@theme` w `globals.css`; primary indigo/violet |
 | F-12 | Pill 1:1; brak shared muted / dot |
 | F-13 | Hero tylko `running` \| `awaiting_hitl`; `interrupted` bez hero |
-| F-14 | Ciemny sidebar; logo `h-14`; aktywny = primary; main jasny |
+| F-14 | Ciemny sidebar; logo `h-14`; aktywny = primary; main ciemny (dark shell) |
 | F-15 | Split `lg+`; mobile = formularz |
 | F-16 | KPI nad Start; DTO shared; guest∧demo; błąd → ukryj |
 | F-17…F-19 | Lewy border chipów; lifting invite + floating |
@@ -1091,7 +1071,7 @@ Fetch GET /runs/summary for admin and user always, and for guest only when demo 
 **Checklist manual (po implementacji):**
 
 1. `/` desktop: split brand \| form; mobile: tylko form.
-2. Po sesji: ciemny sidebar, jasny main, aktywna pozycja primary.
+2. Po sesji: ciemny sidebar, ciemny main (dark shell), aktywna pozycja primary.
 3. Listy / floating / detail: unikalne badge statusów.
 4. Detail `running` / `awaiting_hitl`: hero; `interrupted`: badge bez hero.
 5. Konto: KPI nad Start (admin/user); guest∧demo on → KPI; demo off → brak; wyłączony endpoint → brak bloku.

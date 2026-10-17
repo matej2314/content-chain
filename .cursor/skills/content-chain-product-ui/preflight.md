@@ -12,7 +12,7 @@ Zamiast landingowej sekcji 14 taste v2. Odpal przed oddaniem pracy wizualnej. Je
 ## Locki wizualne
 
 - [ ] Jeden akcent brand (po Fazie 22: indigo/violet z tokenów), jedna rodzina szarości, jedna skala radiusu; tokeny statusowe + `@theme` (F-11).
-- [ ] Brak neon glow / stock-fiolet shadcn „z pudełka”; primary indigo/violet z kanonu docs **dozwolony**; sidebar ciemny ≠ dark mode.
+- [ ] Brak neon glow / stock-fiolet shadcn „z pudełka”; primary indigo/violet z kanonu docs **dozwolony**; **pełny dark shell** (ciemny sidebar **i** ciemny `main`, F-14); bez przełącznika light/dark w MVP.
 - [ ] Typografia Geist; bez serifu; bez display `text-6xl` w chrome.
 - [ ] Motyw spójny w całym widoku (bez flipu sekcji); `/` = split-panel `lg+` (F-15); unikalne badge per `RunStatus` (F-12).
 - [ ] Karty tam, gdzie elewacja ma sens (formularz na `/`, modal, box, **KPI cards** F-16) — nie dekoracyjny bento na wierszach runów.

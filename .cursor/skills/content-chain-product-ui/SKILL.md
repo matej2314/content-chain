@@ -53,7 +53,7 @@ Nie pytaj o estetykę, jeśli brief jest jasny. Jedno pytanie tylko gdy użytkow
 |--------|----------|
 | Faza 1, chrome (karta + layout po sesji) | **Pierwszy lock (historia):** tokeny, radius, akcent, typografia, stany kontrolek. |
 | Fazy 2–21 | **Dziedziczyły** lock Fazy 1. Zakaz nowej palety „na ten ekran” obowiązywał do Fazy 21 włącznie. |
-| **Faza 22** (major FE) | **Drugi visual lock** — obowiązujący kanon. Primary indigo/violet (wysoka chroma); ciemny sidebar (nie dark mode); split-panel na `/`; unikalne badge per `RunStatus`; KPI cards; lifting chipów / invite-accept / floating box. Pliki: `globals.css` (`:root` / `.dark` / `@theme`), powierzchnie z F-11…F-19. |
+| **Faza 22** (major FE) | **Drugi visual lock** — obowiązujący kanon. Primary indigo/violet (wysoka chroma); **pełny dark shell** (ciemny sidebar **i** ciemny `main`; bez przełącznika — dual-mode = V1); split-panel na `/`; unikalne badge per `RunStatus`; KPI cards; lifting chipów / invite-accept / floating box. Pliki: `globals.css` (`:root` / `.dark` / `@theme`), powierzchnie z F-11…F-19. |
 | Milestone FE | Pre-flight z [preflight.md](preflight.md). |
 
 **Nota (Faza 22):** po legalizacji Fazy 22 w majorze FE obowiązuje **drugi visual lock**. Stare zakazy tego skilla („AI purple”, „brak split-hero”, „dziedzicz lock Fazy 1 bez nowej palety”, „lock jednorazowy”) **nie** blokują Fazy 22 ani F-11…F-19 — źródło prawdy = zaktualizowane `docs/` („Normy wizualne”) + `SPEC-FRONTEND`. Po Fazie 22 dziedzicz **ten** lock; nie wymyślaj trzeciej palety.

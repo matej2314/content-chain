@@ -32,7 +32,7 @@ Nie pytaj użytkownika o zmianę dials. Override tylko gdy **wprost** każe i ni
 ## Kolor
 
 - **Max 1 akcent brand** poza semantyką statusów. Po Fazie 22 / F-11: primary = żywy **indigo/violet** (wysoka chroma) — **dozwolony** w tym produkcie; to nie jest „losowy AI purple” z boilerplate shadcn.
-- **Zakaz nadal:** fioletowo-niebieski **glow**, neonowe gradienty dekoracyjne, stock-fiolet shadcn „z pudełka” bez tokenów projektu. Neutralna baza main; sidebar ciemny (`--sidebar` / `--sidebar-foreground`) — **nie** dark mode całego UI.
+- **Zakaz nadal:** fioletowo-niebieski **glow**, neonowe gradienty dekoracyjne, stock-fiolet shadcn „z pudełka” bez tokenów projektu. Po Fazie 22 / F-14: **pełny dark shell** — ciemny `--background` / `main` **oraz** ciemny sidebar (`--sidebar` / `--sidebar-foreground`); sidebar może być nieco ciemniejszy od main. To **nie** jest dual-mode / przełącznik (V1).
 - Jedna rodzina szarości (ciepła **albo** chłodna). Nie mieszaj.
 - Semantic status runu: **unikalny** kolor per `RunStatus` (mapa w docs „Normy wizualne” / F-12); tokeny + `@theme`; `interrupted` = osobny sygnał, **bez** hero. Badge-pill w listach, detail i floating boxie.
 - Po drugim locku akcent jest użyty w całym produkcie: CTA, focus ring, aktywna pozycja sidebara (`bg-primary text-primary-foreground`). Nie zmieniaj akcentu per widok poza kanonem statusów.
@@ -45,14 +45,14 @@ Ustaw tokeny w `apps/frontend/src/app/globals.css` (`:root` i ewentualnie `.dark
 
 Jeśli produkt ma jeden motyw: zablokuj go w `layout` (klasa na `html`) i nie flipuj sekcji light/dark w połowie widoku. Dual-mode tylko gdy użytkownik o to poprosi; wtedy tokeny parytet hierarchii w obu motywach.
 
-**Stan wyjściowy boilerplate:** shadcn default. Drugi visual lock (Faza 22) **musi** to spiąć: primary indigo/violet z tokenów, ciemny sidebar, pełny zestaw tokenów statusowych + `@theme`.
+**Stan wyjściowy boilerplate:** shadcn default. Drugi visual lock (Faza 22) **musi** to spiąć: primary indigo/violet z tokenów, **pełny dark shell** (ciemny sidebar + ciemny main), pełny zestaw tokenów statusowych + `@theme`.
 
 ## Layout produktu (zamiast anti-center / marketing hero)
 
 Kanon `docs/ux_dashboard.md` („Normy wizualne”) jest layoutem:
 
 - Niezalogowany `/`: na `lg+` — **split-panel** (lewa: gradient primary + brand + 1–2 akapity korzyści + krótka CTA/zachęta; prawa: formularz `login` / `register` / `bootstrap_admin` / thank-you). Mobile: tylko formularz. (F-15; stara „wyśrodkowana karta” = historia.)
-- Zalogowany: **ciemny sidebar** + header + jasny obszar roboczy (F-14). Header: zawartość do prawej; login → Wyloguj → modal. Logo-area `h-14` + `border-b`; aktywny nav = `bg-primary text-primary-foreground`.
+- Zalogowany: **pełny dark shell** (F-14) — ciemny sidebar + header + **ciemny** obszar roboczy. Header: zawartość do prawej; login → Wyloguj → modal. Logo-area `h-14` + `border-b`; aktywny nav = `bg-primary text-primary-foreground`.
 - Konto: **KPI cards** powyżej „Start runu” gdy widoczne (F-16) — karty z metrykami, nie dekoracyjny bento.
 - Nie zamieniaj sidebara na top-nav, command palette ani floating dock.
 - Viewport: pełna wysokość aplikacji `min-h-[100dvh]` / `h-full` na `html`/`body`, nie `h-screen` tam, gdzie pasek iOS zjada layout.
