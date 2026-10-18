@@ -21,13 +21,51 @@ import { notifyProduct } from '@/modules/notifications/notify-product';
 
 export type GuestView =
   | {
-      readonly mode: 'login';
-      readonly successHint?: string | null;
-      readonly activationError?: string | null;
-    }
+    readonly mode: 'login';
+    readonly successHint?: string | null;
+    readonly activationError?: string | null;
+  }
   | { readonly mode: 'register' }
   | { readonly mode: 'bootstrap_admin' }
   | { readonly mode: 'thank_you'; readonly email: string };
+
+function GuestBrandPanel() {
+  return (
+    <aside
+      data-slot="guest-brand-panel"
+      className="relative hidden w-[min(42%,28rem)] shrink-0 flex-col justify-between overflow-hidden bg-primary px-8 py-10 text-primary-foreground lg:flex"
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-linear-to-br from-primary via-primary to-primary/80"
+      />
+      <div className="relative z-10 flex flex-col gap-6">
+        <p className="text-xl font-semibold tracking-tight">Content Chain</p>
+        <div className="flex max-w-sm flex-col gap-3 text-sm leading-relaxed text-primary-foreground/90">
+          <p>
+            Self-hostowy dashboard do uruchamiania agentów contentowych — od briefu po przegląd
+            wyniku.
+          </p>
+          <p>Jedna sesja, ciemny obszar roboczy i kontrola HITL tam, gdzie decyzja należy do Ciebie.</p>
+        </div>
+      </div>
+      <p className="relative z-10 text-sm font-medium text-primary-foreground/95">
+        Zaloguj się, aby wejść do panelu operatora.
+      </p>
+    </aside>
+  );
+}
+
+function GuestFormSkeleton() {
+  return (
+    <div className="flex w-full max-w-md flex-col gap-3 rounded-lg border bg-card p-6">
+      <Skeleton className="h-6 w-40" />
+      <Skeleton className="h-9 w-full" />
+      <Skeleton className="h-9 w-full" />
+      <Skeleton className="h-8 w-full" />
+    </div>
+  );
+}
 
 function HomeEntryInner() {
   const router = useRouter();
@@ -79,10 +117,10 @@ function HomeEntryInner() {
           current.mode === 'login'
             ? { ...current, activationError: ACTIVATION_FAILED_HINT }
             : {
-                mode: 'login',
-                activationError: ACTIVATION_FAILED_HINT,
-                successHint: null,
-              },
+              mode: 'login',
+              activationError: ACTIVATION_FAILED_HINT,
+              successHint: null,
+            },
         );
       });
   }, [router, searchParams, state.status]);
@@ -101,41 +139,42 @@ function HomeEntryInner() {
 
   if (state.status === 'loading' || state.status === 'authenticated') {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-background p-4">
-        <div className="flex w-full max-w-md flex-col gap-3 rounded-lg border bg-card p-6">
-          <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-8 w-full" />
+      <div className="flex min-h-dvh bg-background">
+        <GuestBrandPanel />
+        <div className="flex flex-1 items-center justify-center p-4">
+          <GuestFormSkeleton />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background p-4">
-      <Toaster />
-      {view.mode === 'thank_you' ? (
-        <RegistrationThankYou
-          email={view.email}
-          onBackToLogin={() => setView({ mode: 'login' })}
-        />
-      ) : view.mode === 'register' ? (
-        <RegisterForm
-          onSuccess={handleRegisterSuccess}
-          onBackToLogin={() => setView({ mode: 'login' })}
-        />
-      ) : view.mode === 'bootstrap_admin' ? (
-        <BootstrapAdminForm onBackToLogin={() => setView({ mode: 'login' })} />
-      ) : (
-        <LoginCard
-          bootstrapAvailable={bootstrapAvailable}
-          onGoRegister={() => setView({ mode: 'register' })}
-          onGoBootstrapAdmin={() => setView({ mode: 'bootstrap_admin' })}
-          successHint={view.successHint ?? null}
-          activationError={view.activationError ?? null}
-        />
-      )}
+    <div className="flex min-h-dvh bg-background">
+      <GuestBrandPanel />
+      <div className="flex flex-1 items-center justify-center p-4">
+        <Toaster />
+        {view.mode === 'thank_you' ? (
+          <RegistrationThankYou
+            email={view.email}
+            onBackToLogin={() => setView({ mode: 'login' })}
+          />
+        ) : view.mode === 'register' ? (
+          <RegisterForm
+            onSuccess={handleRegisterSuccess}
+            onBackToLogin={() => setView({ mode: 'login' })}
+          />
+        ) : view.mode === 'bootstrap_admin' ? (
+          <BootstrapAdminForm onBackToLogin={() => setView({ mode: 'login' })} />
+        ) : (
+          <LoginCard
+            bootstrapAvailable={bootstrapAvailable}
+            onGoRegister={() => setView({ mode: 'register' })}
+            onGoBootstrapAdmin={() => setView({ mode: 'bootstrap_admin' })}
+            successHint={view.successHint ?? null}
+            activationError={view.activationError ?? null}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -144,12 +183,10 @@ export function HomeEntry() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-dvh items-center justify-center bg-background p-4">
-          <div className="flex w-full max-w-md flex-col gap-3 rounded-lg border bg-card p-6">
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-8 w-full" />
+        <div className="flex min-h-dvh bg-background">
+          <GuestBrandPanel />
+          <div className="flex flex-1 items-center justify-center p-4">
+            <GuestFormSkeleton />
           </div>
         </div>
       }

@@ -1,10 +1,17 @@
-import { type RunId, type RunPlatform, type RunTaskType, type UserId } from '@content-chain/shared';
+import {
+  type RunId,
+  type RunPlatform,
+  type RunTaskType,
+  type RunsSummaryResponse,
+  type UserId,
+} from '@content-chain/shared';
 import { apiFetch } from '@/shared/api/api-fetch';
 import { isRecord } from '@/shared/api/envelope';
 import {
   parseArchiveRunsPage,
   parseRunLogs,
   parseRunSnapshot,
+  parseRunsSummary,
   parseStartRunAccepted,
   parseUserRunList,
   startRunBody,
@@ -25,6 +32,11 @@ import { fetchUsers } from '@/modules/users/api/users.api';
 export async function fetchUserRuns(userId: UserId): Promise<readonly UserRunItem[]> {
   const body = await apiFetch(`/runs/user/${userId}`);
   return parseUserRunList(body);
+}
+
+export async function fetchRunsSummary(): Promise<RunsSummaryResponse> {
+  const body = await apiFetch('/runs/summary');
+  return parseRunsSummary(body);
 }
 
 export async function fetchRunSnapshot(runId: RunId): Promise<RunSnapshot> {

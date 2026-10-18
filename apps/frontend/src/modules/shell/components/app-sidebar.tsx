@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@iconify/react';
-import { Separator } from '@/shared/ui/separator';
 import { CompletenessChipSlot } from '@/modules/shell/components/chrome-slots';
 import { navItemsForRole } from '@/modules/shell/nav';
 import type { UserRole } from '@content-chain/shared';
@@ -18,11 +17,10 @@ export function AppSidebar({ role }: AppSidebarProps) {
   const items = navItemsForRole(role);
 
   return (
-    <aside className="flex h-full w-56 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
-      <div className="px-3 py-3">
-        <p className="text-sm font-medium">Content Chain</p>
+    <aside className="flex h-full w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <div className="flex h-14 items-center border-b border-sidebar-border px-3">
+        <p className="text-sm font-medium tracking-tight">Content Chain</p>
       </div>
-      <Separator />
       <nav className="flex flex-1 flex-col gap-0.5 p-2">
         {items.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -33,7 +31,7 @@ export function AppSidebar({ role }: AppSidebarProps) {
               className={cn(
                 'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
                 active
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  ? 'bg-primary text-primary-foreground'
                   : 'hover:bg-sidebar-accent/70',
               )}
             >

@@ -2,11 +2,11 @@
 
 **Lokalizacja:** `feature-plans/content-chain_feature_plan_faza-22-modernizacja-szaty.md`  
 **Kotwica major:** Faza 22 (cała) — `content-chain-frontend_major_plan.md` (`NIE_ROZPOCZĘTY`, **bez** MILESTONE 22).  
-**Refaktor względem:** **Faza 1 / Krok 1.4 / 1.4.4** (`WYKONANY`) — pierwszy visual lock (sidebar jasny, status = dot + muted, logowanie = wyśrodkowana karta, brak KPI). Od tej fazy obowiązuje **drugi visual lock** (`docs/ux_dashboard.md` „Normy wizualne” + `SPEC-FRONTEND.md` **F-11…F-19**). Faza 1 / 1.4 / 1.4.4 oraz dziedziczenie locku w Fazach 2–21 pozostają historią (`WYKONANY`).  
-**Źródła:** `docs/ux_dashboard.md`, `docs/brand_types.md`, `docs/dokumentacja_komunikacji.md` (`GET /runs/summary`), `SPEC-FRONTEND.md` F-11…F-19 / F-2 / F-3 / F-8, `SPEC-KOMUNIKACJA.md` K-2k, `SPEC-RUNY.md` R-13, `SPEC-TESTY.md` T-7, major FE Faza 22; kontrakt api (poza kodem tego wycinka) = major BE Faza 24.  
+**Refaktor względem:** **Faza 1 / Krok 1.4 / 1.4.4** (`WYKONANY`) — pierwszy visual lock (sidebar jasny, status = dot + muted, logowanie = wyśrodkowana karta, brak KPI; Geist jako sans). Od tej fazy obowiązuje **drugi visual lock** (`docs/ux_dashboard.md` „Normy wizualne” + `SPEC-FRONTEND.md` **F-11…F-19**, w tym typografia Space Grotesk + Inter). Faza 1 / 1.4 / 1.4.4 oraz dziedziczenie locku w Fazach 2–21 pozostają historią (`WYKONANY`).  
+**Źródła:** `docs/ux_dashboard.md` (w tym Typografia + Paleta CTA), `docs/brand_types.md` (tokeny fontów + tokeny CTA `default`), `docs/dokumentacja_komunikacji.md` (`GET /runs/summary`), `SPEC-FRONTEND.md` F-11…F-19 / F-2 / F-3 / F-8 (F-14 CTA-only), `SPEC-KOMUNIKACJA.md` K-2k, `SPEC-RUNY.md` R-13, `SPEC-TESTY.md` T-7, major FE Faza 22 (Krok 22.1 + Krok 22.2); kontrakt api (poza kodem tego wycinka) = major BE Faza 24.  
 **Numer FE 22 ≠ BE 24.**  
-**Skill UI:** `content-chain-product-ui` — **drugi visual lock** (nie „dziedzicz palety Fazy 1”).  
-**Kolejność `KROK`:** tokeny → badge → sidebar → hero → split-panel → chipy → invite → floating → klient summary → KPI na Koncie.
+**Skill UI:** `content-chain-product-ui` — **drugi visual lock** (nie „dziedzicz palety Fazy 1”); typografia zsynchronizowana z docs/SPEC po FAZA 4; CTA-only po FAZA 4 / KROK 4.  
+**Kolejność `KROK`:** tokeny → badge → sidebar → hero → split-panel → chipy → invite → floating → klient summary → KPI na Koncie → typografia (Space Grotesk + Inter) → CTA `Button` `default` (teal gradient + ciemny tekst).
 
 **Statusy kroków feature:** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`
 
@@ -16,11 +16,11 @@
 
 | Pole | Wartość |
 |------|---------|
-| Wycinek | Cała Faza 22 majoru FE: drugi visual lock (F-11…F-19) + KPI cards na Koncie (F-16) |
-| Major | Faza 22; start po Fazach 1–21 (`WYKONANY`) i Milestone 1–6 / 2.1 / 3.5 / 3.6 (`OSIĄGNIĘTY`); **bez** MILESTONE 22 |
-| Poza zakresem | Implementacja `apps/api` / BE Faza 24; **przełącznik** light/dark / dual-mode (kanon = stały dark shell); zmiana logiki SSE / HITL / feedbacku / autoryzacji (poza konsumentem summary); nowe pozycje nawigacyjne; **MILESTONE 22**; Playwright; trzecia paleta poza kanonem |
-| Zależność BE (sesja implementacji) | Przed startem kodu FE: `RunsSummaryResponse` w `@content-chain/shared` oraz działający `GET /api/v1/runs/summary` (gate / HOW major BE Faza 24). Dostarczenie BE = poza tym plikiem |
-| Po implementacji (informacyjnie) | Major FE: Faza 22 → `WYKONANY` (DoD gate + kod). Brak `MILESTONE` 22. Faza 1 / 1.4 historia. Edycja major **poza** tym skillem |
+| Wycinek | Cała Faza 22 majoru FE: drugi visual lock (F-11…F-19) + KPI cards na Koncie (F-16) + typografia (Krok 22.1 — Space Grotesk + Inter) + CTA `Button` `default` (Krok 22.2 — teal gradient + ciemny tekst) |
+| Major | Faza 22 (w tym Krok 22.1 + Krok 22.2); start po Fazach 1–21 (`WYKONANY`) i Milestone 1–6 / 2.1 / 3.5 / 3.6 (`OSIĄGNIĘTY`); **bez** MILESTONE 22 |
+| Poza zakresem | Implementacja `apps/api` / BE Faza 24; **przełącznik** light/dark / dual-mode (kanon = stały dark shell); zmiana logiki SSE / HITL / feedbacku / autoryzacji (poza konsumentem summary); nowe pozycje nawigacyjne; **MILESTONE 22**; Playwright; trzecia paleta poza kanonem; Inter jako default `body`; podmiana solid `--primary` chrome na teal; zmiany wariantów `outline` / `ghost` / `destructive` / `link` / `secondary` |
+| Zależność BE (sesja implementacji) | Przed startem kodu FE KPI: `RunsSummaryResponse` w `@content-chain/shared` oraz działający `GET /api/v1/runs/summary` (gate / HOW major BE Faza 24). Dostarczenie BE = poza tym plikiem. Typografia (FAZA 4 KROK 1–3) **nie** zależy od BE summary. CTA `default` (FAZA 4 / KROK 4) **nie** zależy od BE summary. |
+| Po implementacji (informacyjnie) | Major FE: Faza 22 + Krok 22.1 + Krok 22.2 → `WYKONANY` (DoD gate + kod). Brak `MILESTONE` 22. Faza 1 / 1.4 / Geist historia. Edycja major **poza** tym skillem |
 
 **Mapa major → ten plik**
 
@@ -35,6 +35,8 @@
 | F-18 invite-accept | FAZA 2 / KROK 3 | `AcceptInviteForm` |
 | F-19 floating box | FAZA 2 / KROK 4 | `FloatingRunsBox` (+ badge z F-12) |
 | F-16 KPI | FAZA 3 / KROK 1–2 | API klient + karty na Koncie |
+| Krok 22.1 / F-11 typografia | FAZA 4 / KROK 1–3 | Space Grotesk + Inter `--font-secondary` + Geist Mono |
+| Krok 22.2 / F-14 CTA-only | FAZA 4 / KROK 4 | `Button` `default` — teal gradient + `#0b1f1a`; tokeny w `globals.css` |
 
 **Pass rozwojowy (sesja planu):**
 
@@ -44,13 +46,15 @@
 4. Split-panel, chipy, invite — po tokenach; kolejność w FAZA 2 jak wyżej.
 5. `parseRunsSummary` + `fetchRunsSummary` **przed** komponentem KPI.
 6. KPI wire w `AccountView` na końcu.
-7. **Brak przesunięć między fazami major.** **Brak przesunięć poza kolejnością KROK powyżej.**
+7. Typografia (FAZA 4): `layout.tsx` + tokeny fontów **przed** zastosowaniem Inter na KPI titles / paragrafach pomocniczych.
+8. CTA `default` (FAZA 4 / KROK 4): tokeny CTA w `globals.css` **przed** mapowaniem w `button.tsx`; **bez** zmiany solid `--primary` z FAZA 1 / KROK 1.
+9. **Brak przesunięć między fazami major.** **Brak przesunięć poza kolejnością KROK powyżej.**
 
 ---
 
 ## Założenia
 
-- Stack FE bez zmian: Next.js **16.3**, React **19**, Tailwind **v4** (`@theme inline`), shadcn, Iconify, Geist — `apps/frontend/package.json`.
+- Stack FE: Next.js **16.3**, React **19**, Tailwind **v4** (`@theme inline`), shadcn, Iconify, fonty **Space Grotesk** (główny) + **Inter** (pomocniczy `--font-secondary`) + **Geist Mono** (mono) via `next/font/google` — `apps/frontend/package.json`. **Zakaz** `<link>` do Google Fonts; **zakaz** Inter jako default `body`.
 - `tsconfig` **bez** zmian. Typy jawne; zakaz `any` / `@ts-ignore`; `import type` dla typów; DTO KPI wyłącznie z `@content-chain/shared` (F-3 / F-16).
 - Design Read (product-ui): *self-host dashboard for operator/admin, calm B2B product language, shadcn + Tailwind v4 + Iconify, dials VARIANCE 3–4 / MOTION 3–4 / DENSITY 7–8.*
 - Primary = żywy **indigo/violet** (wysoka chroma). **Pełny dark shell:** ciemny sidebar **i** ciemny `main` (jeden kanon; **bez** przełącznika light/dark / dual-mode). Zmiana względem: wcześniejsza decyzja „ciemny sidebar ≠ dark mode — main jasny”.
@@ -80,7 +84,7 @@ Odpowiada major FE Faza 22 (część F-11…F-14 / F-13). Status startowy krokó
 
 ### KROK 1 — Tokeny semantyczne + primary indigo/violet + ciemny sidebar
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Drugi visual lock w CSS — F-11, F-14 (wartości sidebar), `docs/brand_types.md` (tokeny + `@theme`), `docs/ux_dashboard.md` (paleta). Refaktor względem Fazy 1 / 1.4.4.
 
@@ -223,7 +227,7 @@ W `.dark` ustaw te same wartości co w `:root` powyżej (primary / sidebar / sta
 
 ### KROK 2 — `RunStatusView`: badge-pill 1:1 per `RunStatus`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** F-12 / mapa docs. Refaktor względem prezentacji dot + muted z Fazy 1 / 3.
 
@@ -285,7 +289,7 @@ export function RunStatusView({ status, compact = false, className }: RunStatusV
 
 ### KROK 3 — `AppSidebar`: logo-area + aktywny = primary
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** F-14 (chrome). Tokeny ciemnego sidebara już z KROK 1 (`bg-sidebar`).
 
@@ -352,7 +356,7 @@ Usuń nieużywany import `Separator`, jeśli po usunięciu `<Separator />` nie m
 
 ### KROK 4 — Hero banner na detail (`running` \| `awaiting_hitl`)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** F-13. `interrupted` / queued / terminalne — **bez** hero (tylko badge z KROK 2).
 
@@ -499,7 +503,7 @@ Odpowiada major FE Faza 22 (F-15, F-17…F-19). Status startowy kroków: `NIE_RO
 
 ### KROK 1 — Split-panel na `/` (`HomeEntry`)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** F-15. Flow auth (F-4a / F-4b / F-8) **bez zmian** — tylko layout.
 
@@ -621,7 +625,7 @@ Suspense fallback — ten sam układ split (BrandPanel + skeleton), spójnie z l
 
 ### KROK 2 — Lifting chipów (Demo / Agenci)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** F-17 — kolorowy **lewy border**; pozycja / semantyka bez zmian.
 
@@ -675,7 +679,7 @@ Suspense fallback — ten sam układ split (BrandPanel + skeleton), spójnie z l
 
 ### KROK 3 — Lifting `/invite/accept`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** F-18 — kosmetyka tokenów / gęstości; flow i copy **bez zmian**.
 
@@ -706,7 +710,7 @@ Opcjonalnie: `CardHeader` — `className="gap-1.5 pb-2"` (gęstość); **bez** z
 
 ### KROK 4 — Lifting floating box
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** F-19. Badge już z F-12; tu kosmetyka shella. Zachowanie Stop / pozycja / copy — **bez zmian**.
 
@@ -753,7 +757,7 @@ Odpowiada major FE Faza 22 / F-16. Status startowy kroków: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — Klient `fetchRunsSummary` + parser
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** F-2 / F-3 / F-16 / K-2k — thin client; DTO z shared; runtime parse jak pozostałe runs API.
 
@@ -821,7 +825,7 @@ export async function fetchRunsSummary(): Promise<RunsSummaryResponse> {
 
 ### KROK 2 — `AccountKpiCards` powyżej „Start runu”
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** F-16 / docs Konto — karty; guest tylko przy `demoMode === true`; błąd → ukryj blok.
 
@@ -1049,23 +1053,155 @@ Fetch GET /runs/summary for admin and user always, and for guest only when demo 
 
 ---
 
+## FAZA 4 — Typografia Space Grotesk + Inter (F-11 / Krok 22.1)
+
+Odpowiada major FE Faza 22 / **Krok 22.1** oraz `SPEC-FRONTEND` F-11 (typografia). Status startowy kroków: `NIE_ROZPOCZĘTY`.
+
+**Dopisek:** **KROK 4** w tej FAZIE odpowiada major FE **Krok 22.2** / F-14 CTA-only (nie typografii) — bez nowej `## FAZA`.
+
+**Refaktor względem:** Faza 1 / Krok 1.4 / 1.4.4 (`WYKONANY`) — Geist jako `--font-sans`; FAZA 1–3 tego feature planu (historia `WYKONANY`) bez pinu Space Grotesk / Inter.
+
+**Cel:** Zalegalizowany kanon docs/SPEC/major wdrożyć w `layout.tsx` + `globals.css` + powierzchniach KPI / supporting copy. **Bez** zmiany semantyki KPI / guest / SSE.
+
+---
+
+### KROK 1 — `layout.tsx`: Space Grotesk + Inter + Geist Mono
+
+**Status:** `WYKONANY`
+
+**Cel:** Ładunek fontów wyłącznie `next/font/google` (self-host build-time); brak `<link>` Google Fonts.
+
+**Artefakty:**
+
+- Zmiana: `apps/frontend/src/app/layout.tsx` — `Space_Grotesk`, `Inter`, zachowanie `Geist_Mono` (lub równoważny import Geist Mono już używany); CSS variables pod `--font-sans` / `--font-secondary` / `--font-mono`.
+
+**DoD:**
+
+- Space Grotesk podpięty jako default sans (zmienna CSS używana przez `--font-sans`).
+- Inter podpięty jako `--font-secondary` (nie jako body).
+- Geist Mono bez regresji roli mono.
+- Brak `<link href="…fonts.googleapis.com">` / `<link href="…fonts.gstatic.com">`.
+
+---
+
+### KROK 2 — `globals.css` / `@theme`: tokeny fontów
+
+**Status:** `WYKONANY`
+
+**Cel:** Mapa tokenów zgodna z `docs/brand_types.md` / F-11.
+
+**Artefakty:**
+
+- Zmiana: `apps/frontend/src/app/globals.css` — `--font-sans` → Space Grotesk; `--font-secondary` → Inter; `--font-mono` → Geist Mono; most `@theme` jeśli wymagany przez Tailwind v4 w tym repo (jak istniejące `--font-*`).
+
+**DoD:**
+
+- `--font-sans` **nie** wskazuje Geist (sans).
+- `--font-secondary` = Inter; **bez** mapowania Inter na globalne `--font-heading`.
+- Mono bez regresji `tabular-nums` / meta.
+
+---
+
+### KROK 3 — Zastosowanie Inter: KPI titles + paragrafy pomocnicze
+
+**Status:** `WYKONANY`
+
+**Cel:** Rola Inter z docs (decyzja #2) na powierzchniach produktu.
+
+**Artefakty:**
+
+- Zmiana: komponenty KPI (`CardTitle` / równoważne etykiety kart) — klasa / styl z `--font-secondary` (Inter).
+- Zmiana: paragrafy pomocnicze pod `h1` widoków (wzorzec Konta — supporting copy) — Inter (`--font-secondary`).
+- Pozostały UI (body, chrome, wartości KPI, nagłówki widoków) — Space Grotesk (default).
+
+**DoD:**
+
+- Etykiety kart KPI = Inter; wartości = Space Grotesk.
+- Supporting copy pod nagłówkiem Konta (i ten sam wzorzec na innych widokach, jeśli już mają taki paragraf) = Inter.
+- Inter **nie** na `body` / głównym chrome.
+- Serif nadal zakazany.
+- Sync skilla `content-chain-product-ui` (SKILL / rules-taste / anti-tells / preflight) z docs/SPEC — w sesji implementacji lub zaraz po HOW (poza auto-startem z tego planu).
+
+#### Propozycja commit message
+
+```text
+feat(frontend): adopt Space Grotesk and Inter secondary for product UI
+
+Map --font-sans to Space Grotesk and --font-secondary to Inter for KPI titles and view supporting copy; keep Geist Mono.
+```
+
+---
+
+### KROK 4 — `Button` `default`: teal gradient + tekst `#0b1f1a`
+
+**Status:** `WYKONANY`
+
+**Cel:** HOW wariantu `default` — gradient teal + ciemny tekst — bez zmiany solid `--primary` chrome (FAZA 1 / KROK 1). Odpowiada major FE Faza 22 / **Krok 22.2** oraz `SPEC-FRONTEND` F-14 (CTA-only).
+
+**Refaktor względem:** FAZA 1 / KROK 1 (`WYKONANY`) — filled CTA dziedziczył solid `--primary` indigo/violet (`bg-primary text-primary-foreground` na wariancie `default`). Cel: wygląd `default` = pin poniżej; **bez** zmiany wartości solid `--primary` / `--primary-foreground` / `--ring` / sidebar / split z KROKU 1.
+
+**Artefakty:**
+
+- Zmiana: `apps/frontend/src/app/globals.css` — dedykowane tokeny CTA `default` w `:root` i `.dark` (te same wartości; produkt bez przełącznika):
+
+```css
+--button-default-from: #39a185;
+--button-default-to: #63b8a3;
+--button-default-foreground: #0b1f1a;
+--button-default-gradient: linear-gradient(
+  135deg,
+  var(--button-default-from) 0%,
+  var(--button-default-to) 100%
+);
+```
+
+- Zmiana: `apps/frontend/src/shared/ui/button.tsx` — wariant `default` mapuje na te tokeny (nie `bg-primary text-primary-foreground`). Pin klas / stylu (równoważny efekt):
+
+```text
+background-image: var(--button-default-gradient);
+color: var(--button-default-foreground);
+hover / :active: te same kolory + filter / Tailwind brightness-[1.06] na całym przycisku
+```
+
+- **Bez zmian:** warianty `outline`, `ghost`, `destructive`, `link`, `secondary`; solid `--primary` chrome (sidebar aktywny, split-panel, ring).
+
+**DoD:**
+
+- `Button` bez `variant` / `variant="default"` = gradient `135deg` `#39a185` → `#63b8a3` + tekst `#0b1f1a` (przez tokeny powyżej).
+- Hover i `:active`: te same kolory tła i tekstu; `brightness(1.06)` na całym przycisku.
+- Solid `--primary` / sidebar / split / ring **bez** podmiany na teal.
+- `outline` / `ghost` / `destructive` / `link` / `secondary` nietknięte tą normą.
+- Sync skilla `content-chain-product-ui` z docs/SPEC (CTA-only) — w sesji implementacji lub zaraz po HOW.
+
+#### Propozycja commit message
+
+```text
+feat(frontend): style default Button CTA with teal gradient
+
+Map Button default to dedicated CTA tokens (teal gradient + dark text); keep chrome primary indigo/violet unchanged.
+```
+
+---
+
 ## Weryfikacja wycinka
 
 | Kryterium | Sprawdzenie |
 |-----------|-------------|
-| F-11 | Tokeny + `@theme` w `globals.css`; primary indigo/violet |
+| F-11 | Tokeny + `@theme` w `globals.css`; primary indigo/violet; typografia Space Grotesk / Inter `--font-secondary` / Geist Mono via `next/font/google` |
 | F-12 | Pill 1:1; brak shared muted / dot |
 | F-13 | Hero tylko `running` \| `awaiting_hitl`; `interrupted` bez hero |
 | F-14 | Ciemny sidebar; logo `h-14`; aktywny = primary; main ciemny (dark shell) |
 | F-15 | Split `lg+`; mobile = formularz |
-| F-16 | KPI nad Start; DTO shared; guest∧demo; błąd → ukryj |
+| F-16 | KPI nad Start; DTO shared; guest∧demo; błąd → ukryj; etykiety KPI = Inter, wartości = Space Grotesk |
 | F-17…F-19 | Lewy border chipów; lifting invite + floating |
-| Product-ui | Drugi lock; Design Read; anti-tells (bez glow / stock purple drift) |
+| Krok 22.1 / FAZA 4 KROK 1–3 | Brak Geist jako `--font-sans`; Inter ≠ body; brak `<link>` Google Fonts |
+| Krok 22.2 / FAZA 4 KROK 4 | `Button` `default` = gradient `#39a185`→`#63b8a3` + `#0b1f1a`; hover/active `brightness(1.06)`; chrome `--primary` indigo bez zmiany; inne warianty Button nietknięte |
+| Product-ui | Drugi lock + typografia + CTA-only; Design Read; anti-tells (bez glow / stock purple drift; bez Inter-as-default; bez utożsamiania filled CTA z solid indigo) |
 | BE | Ten plan **nie** implementuje api; wymaga shared + endpoint przed FAZA 3 |
 | Nagłówki | wyłącznie `FAZA` / `KROK` |
 | Commit messages | EN Conventional Commits na końcu każdej FAZY |
 | Helper plans | brak odwołań do `*-plan.md` w rootcie |
-| Major | nietknięty w tej sesji |
+| Major | nietknięty w sesji feature-implementation; Krok 22.1 / 22.2 zamykane po wdrożeniu HOW (informacyjnie) |
 | Testy FE | poza MVP (T-7) — checklist manual |
 
 **Checklist manual (po implementacji):**
@@ -1076,6 +1212,8 @@ Fetch GET /runs/summary for admin and user always, and for guest only when demo 
 4. Detail `running` / `awaiting_hitl`: hero; `interrupted`: badge bez hero.
 5. Konto: KPI nad Start (admin/user); guest∧demo on → KPI; demo off → brak; wyłączony endpoint → brak bloku.
 6. Chipy: lewy border; invite-accept i floating spójne wizualnie.
+7. Typografia: body/chrome/Space Grotesk; tytuły kart KPI + supporting copy Konta = Inter; mono Geist Mono; DevTools — brak requestów do `fonts.googleapis.com` / `fonts.gstatic.com` w runtime.
+8. CTA `default` (np. „Zaloguj się”, „Uruchom agenta”): gradient teal + ciemny tekst; hover/active jaśniejsze o `brightness(1.06)`; aktywny nav sidebar nadal indigo `bg-primary`; outline/ghost bez gradientu teal.
 
 ---
 
@@ -1083,9 +1221,12 @@ Fetch GET /runs/summary for admin and user always, and for guest only when demo 
 
 | Element | Po wdrożeniu kodu |
 |---------|-------------------|
-| Faza 22 FE | `WYKONANY` (DoD gate + HOW z tego planu) |
+| Faza 22 FE | `WYKONANY` (DoD gate + HOW z tego planu, w tym FAZA 4) |
+| Krok 22.1 | `WYKONANY` po FAZA 4 / KROK 1–3 |
+| Krok 22.2 | `WYKONANY` po FAZA 4 / KROK 4 |
 | MILESTONE 22 | **brak** — nic nie oznaczać `OSIĄGNIĘTY` |
-| Faza 1 / 1.4 / 1.4.4 | historia (`WYKONANY`) — bez przepisywania |
+| Faza 1 / 1.4 / 1.4.4 | historia (`WYKONANY`) — bez przepisywania (Geist jako sans) |
+| FAZA 1 / KROK 1 (ten plik) | historia (`WYKONANY`) — solid primary indigo; CTA `default` = KROK 4 |
 | BE Faza 24 | osobny ślad (poza tym plikiem) |
 
 Edycja pliku major = **poza** tą sesją feature-planu / poza `/create-feature-implementation-plan`.

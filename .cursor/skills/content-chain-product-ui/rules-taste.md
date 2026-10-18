@@ -24,19 +24,21 @@ Nie pytaj użytkownika o zmianę dials. Override tylko gdy **wprost** każe i ni
 
 - Display w dashboardzie jest **mały**. Nie `text-6xl`. Hierarchia: widok `text-lg`/`text-xl` + `font-medium`/`semibold`; chrome `text-sm`; meta/status `text-xs` + tabular nums.
 - Body: `text-sm` lub `text-base`, `leading-normal`/`relaxed`. `max-w-[65ch]` tylko dla dłuższych tekstów pomocy — nie dla tabel i formularzy.
-- **Sans:** Geist (już w `layout.tsx`). **Mono:** Geist Mono — statusy, id skrócone jeśli kiedyś widoczne, liczby w listach (`tabular-nums`).
-- **Serif zakazany** w tym produkcie (taste v1: serif ban dla dashboard/software UI).
-- Inter **nie** dokładaj. Fraunces / Instrument Serif **nie**.
+- **Sans (default):** **Space Grotesk** (`--font-sans`) — `body`, chrome, formularze, wartości KPI, nagłówki widoków (`h1`/`h2`). Ładunek: `next/font/google` w `layout.tsx`.
+- **Pomocniczy:** **Inter** (`--font-secondary`) — wyłącznie (a) tytuły kart KPI (`CardTitle` / równoważne); (b) paragrafy pomocnicze pod nagłówkami widoków. **Nie** mapuj na globalne `--font-heading`. **Nie** ustawiaj Inter jako default `body`.
+- **Mono:** **Geist Mono** (`--font-mono`) — statusy, id skrócone jeśli kiedyś widoczne, liczby w listach (`tabular-nums`).
+- **Serif zakazany** w tym produkcie (taste v1: serif ban dla dashboard/software UI). Fraunces / Instrument Serif **nie**.
+- **Zakaz** `<link>` do Google Fonts. Geist jako sans = historia Fazy 1 — po Fazie 22 / F-11 obowiązuje Space Grotesk.
 - Nagłówki bez kinetic italic + `leading-none` obcinającego descender. Chrome nie używa italic display.
 
 ## Kolor
 
-- **Max 1 akcent brand** poza semantyką statusów. Po Fazie 22 / F-11: primary = żywy **indigo/violet** (wysoka chroma) — **dozwolony** w tym produkcie; to nie jest „losowy AI purple” z boilerplate shadcn.
-- **Zakaz nadal:** fioletowo-niebieski **glow**, neonowe gradienty dekoracyjne, stock-fiolet shadcn „z pudełka” bez tokenów projektu. Po Fazie 22 / F-14: **pełny dark shell** — ciemny `--background` / `main` **oraz** ciemny sidebar (`--sidebar` / `--sidebar-foreground`); sidebar może być nieco ciemniejszy od main. To **nie** jest dual-mode / przełącznik (V1).
+- **Dwie role akcentu w kanonie Fazy 22 (nie trzecia paleta):** (1) **chrome primary** = żywy **indigo/violet** (wysoka chroma) — sidebar aktywny, split dekoracyjny, solid `--primary` / `--ring`; (2) **filled CTA** = wyłącznie wariant `Button` **`default`** — gradient teal/mint **135°** + tekst **ciemny** (tokeny w `globals.css`; wartości = HOW / docs). Indigo chrome **nie** jest „losowym AI purple” z boilerplate shadcn; teal CTA **nie** zastępuje `--primary`.
+- **Zakaz nadal:** fioletowo-niebieski **glow**, neonowe gradienty dekoracyjne poza kanonem CTA `default`, stock-fiolet shadcn „z pudełka” bez tokenów projektu. Po Fazie 22 / F-14: **pełny dark shell** — ciemny `--background` / `main` **oraz** ciemny sidebar (`--sidebar` / `--sidebar-foreground`); sidebar może być nieco ciemniejszy od main. To **nie** jest dual-mode / przełącznik (V1).
 - Jedna rodzina szarości (ciepła **albo** chłodna). Nie mieszaj.
 - Semantic status runu: **unikalny** kolor per `RunStatus` (mapa w docs „Normy wizualne” / F-12); tokeny + `@theme`; `interrupted` = osobny sygnał, **bez** hero. Badge-pill w listach, detail i floating boxie.
-- Po drugim locku akcent jest użyty w całym produkcie: CTA, focus ring, aktywna pozycja sidebara (`bg-primary text-primary-foreground`). Nie zmieniaj akcentu per widok poza kanonem statusów.
-- Unikaj czystego `#000` i czystego `#fff` na dużych płaszczyznach. Off-black / off-white albo tokeny oklch z niuansem (w `globals.css`).
+- Po drugim locku: focus ring + aktywna pozycja sidebara = `bg-primary text-primary-foreground` (indigo). Wypełniony CTA produktu = `Button` `default` (teal gradient + ciemny tekst) — **nie** obowiązkowy solid indigo. Hover/active CTA `default`: te same kolory + `brightness(1.06)` na całym przycisku. Nie zmieniaj ról per widok poza kanonem statusów; **nie** maluj `outline` / `ghost` / `destructive` / `link` / `secondary` gradientem teal.
+- Unikaj czystego `#000` i czystego `#fff` na dużych płaszczyznach. Off-black / off-white albo tokeny oklch z niuansem (w `globals.css`). Hex CTA `default` — wyłącznie jako wartości dedykowanych tokenów w `globals.css` (docs/SPEC).
 - Cienie: jeśli są, tint pod hue tła. Przy density 7–8 preferuj 1px border zamiast `shadow-lg`.
 
 ### Miejsce locku
@@ -45,7 +47,7 @@ Ustaw tokeny w `apps/frontend/src/app/globals.css` (`:root` i ewentualnie `.dark
 
 Jeśli produkt ma jeden motyw: zablokuj go w `layout` (klasa na `html`) i nie flipuj sekcji light/dark w połowie widoku. Dual-mode tylko gdy użytkownik o to poprosi; wtedy tokeny parytet hierarchii w obu motywach.
 
-**Stan wyjściowy boilerplate:** shadcn default. Drugi visual lock (Faza 22) **musi** to spiąć: primary indigo/violet z tokenów, **pełny dark shell** (ciemny sidebar + ciemny main), pełny zestaw tokenów statusowych + `@theme`.
+**Stan wyjściowy boilerplate:** shadcn default. Drugi visual lock (Faza 22) **musi** to spiąć: primary indigo/violet z tokenów (chrome), CTA `default` z tokenów teal (nie `bg-primary`), **pełny dark shell** (ciemny sidebar + ciemny main), pełny zestaw tokenów statusowych + `@theme`.
 
 ## Layout produktu (zamiast anti-center / marketing hero)
 

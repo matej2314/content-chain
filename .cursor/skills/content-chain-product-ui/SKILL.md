@@ -19,7 +19,7 @@ Cienki klient `apps/frontend` to **dashboard operatora**, nie landing. Ten skill
 
 ## Hierarchia (wygrywa wyższy)
 
-1. `docs/` (w tym `docs/ux_dashboard.md` — „Normy wizualne”) i `spec/SPEC-*.md` (w tym `SPEC-FRONTEND` **F-11…F-19**) — IA, labelki PL, trasy, role, stany produktu, BFF, kanon wizualny.
+1. `docs/` (w tym `docs/ux_dashboard.md` — „Normy wizualne” / Typografia) i `spec/SPEC-*.md` (w tym `SPEC-FRONTEND` **F-11…F-19**, F-11 obejmuje typografię) — IA, labelki PL, trasy, role, stany produktu, BFF, kanon wizualny.
 2. `content-chain-frontend_major_plan.md` — kolejność i DoD faz (w tym Faza 22 = drugi visual lock).
 3. Ten katalog — jakość wizualna wewnątrz tej struktury.
 4. Istniejący kod `apps/frontend` — dziedzicz tokeny **obowiązującego** visual locku; nie wymyślaj trzeciej palety poza kanonem docs/SPEC.
@@ -53,16 +53,16 @@ Nie pytaj o estetykę, jeśli brief jest jasny. Jedno pytanie tylko gdy użytkow
 |--------|----------|
 | Faza 1, chrome (karta + layout po sesji) | **Pierwszy lock (historia):** tokeny, radius, akcent, typografia, stany kontrolek. |
 | Fazy 2–21 | **Dziedziczyły** lock Fazy 1. Zakaz nowej palety „na ten ekran” obowiązywał do Fazy 21 włącznie. |
-| **Faza 22** (major FE) | **Drugi visual lock** — obowiązujący kanon. Primary indigo/violet (wysoka chroma); **pełny dark shell** (ciemny sidebar **i** ciemny `main`; bez przełącznika — dual-mode = V1); split-panel na `/`; unikalne badge per `RunStatus`; KPI cards; lifting chipów / invite-accept / floating box. Pliki: `globals.css` (`:root` / `.dark` / `@theme`), powierzchnie z F-11…F-19. |
+| **Faza 22** (major FE) | **Drugi visual lock** — obowiązujący kanon. Primary **chrome** indigo/violet (wysoka chroma); **pełny dark shell** (ciemny sidebar **i** ciemny `main`; bez przełącznika — dual-mode = V1); split-panel na `/`; unikalne badge per `RunStatus`; KPI cards; lifting chipów / invite-accept / floating box; **typografia** Space Grotesk (`--font-sans`) + Inter (`--font-secondary`) + Geist Mono; **CTA-only:** wariant `Button` **`default`** = gradient teal/mint 135° + tekst ciemny (nie solid `bg-primary`). Pliki: `globals.css` (`:root` / `.dark` / `@theme`), `layout.tsx` (`next/font/google`), `button.tsx` (`default`), powierzchnie z F-11…F-19. |
 | Milestone FE | Pre-flight z [preflight.md](preflight.md). |
 
-**Nota (Faza 22):** po legalizacji Fazy 22 w majorze FE obowiązuje **drugi visual lock**. Stare zakazy tego skilla („AI purple”, „brak split-hero”, „dziedzicz lock Fazy 1 bez nowej palety”, „lock jednorazowy”) **nie** blokują Fazy 22 ani F-11…F-19 — źródło prawdy = zaktualizowane `docs/` („Normy wizualne”) + `SPEC-FRONTEND`. Po Fazie 22 dziedzicz **ten** lock; nie wymyślaj trzeciej palety.
+**Nota (Faza 22):** po legalizacji Fazy 22 w majorze FE obowiązuje **drugi visual lock**. Stare zakazy tego skilla („AI purple”, „brak split-hero”, „dziedzicz lock Fazy 1 bez nowej palety”, „lock jednorazowy”, „Geist-only sans”, „Inter nie dokładaj”, „filled CTA = tylko solid indigo”) **nie** blokują Fazy 22 ani F-11…F-19 — źródło prawdy = zaktualizowane `docs/` („Normy wizualne” / Typografia / Paleta) + `SPEC-FRONTEND` F-11 / F-14. Po Fazie 22 dziedzicz **ten** lock; nie wymyślaj trzeciej palety ani trzeciego zestawu fontów. Chrome primary (indigo) i filled CTA (`default` teal) to **dwie role** w jednym kanonie — nie „druga paleta na widok”.
 
 ## Stack (zamknięty)
 
 - Next.js App Router, React, Tailwind **v4** (`@tailwindcss/postcss`), shadcn, `tw-animate-css`.
 - Ikony produktowe: **Iconify** (`@iconify/react`) wg `SPEC-FRONTEND.md`. `lucide-react` wolno zostawić tam, gdzie shadcn już go używa; **nie** migruj na Phosphor/Tabler.
-- Font: **Geist + Geist Mono** (`next/font` w `layout.tsx`). Podłącz `--font-sans` / `--font-heading` do `--font-geist-sans`. Nie dodawaj Inter, serifów, Google Fonts przez `<link>`.
+- Font: **Space Grotesk** (`--font-sans`, default UI) + **Inter** (`--font-secondary` — wyłącznie tytuły kart KPI + paragrafy pomocnicze pod nagłówkami widoków) + **Geist Mono** (`--font-mono`) via `next/font/google` w `layout.tsx`. **Zakaz** Inter jako default `body`; **zakaz** mapowania Inter na globalne `--font-heading`; **zakaz** serifów i Google Fonts przez `<link>`.
 - Język chrome: **polski**. Envelope błędów: `code` + `message` **jak z API**.
 - Nie dodawaj GSAP, Three.js, `motion/react`, nowej biblioteki ikon ani drugiego design systemu bez osobnej zgody.
 

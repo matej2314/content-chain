@@ -47,7 +47,7 @@ export function CompletenessChip() {
     return (
       <div
         data-slot="completeness-chip"
-        className="flex items-start gap-2 rounded-md border border-border px-2 py-2 text-xs"
+        className="flex items-start gap-2 rounded-md border border-border border-l-4 border-l-success px-2 py-2 text-xs"
       >
         <Icon icon="lucide:check" className="mt-0.5 size-3.5 shrink-0" />
         <div className="flex flex-col gap-0.5">
@@ -61,7 +61,7 @@ export function CompletenessChip() {
   return (
     <div
       data-slot="completeness-chip"
-      className="flex items-start gap-2 rounded-md border border-border px-2 py-2 text-xs"
+      className="flex items-start gap-2 rounded-md border border-border border-l-4 border-l-interrupted px-2 py-2 text-xs"
     >
       <Icon icon="lucide:octagon-pause" className="mt-0.5 size-3.5 shrink-0" />
       <div className="flex min-w-0 flex-col gap-1">

@@ -18,6 +18,7 @@ import { HitlPanel } from '@/modules/runs/components/hitl-panel';
 import { RunLogMessage } from '@/modules/runs/components/run-log-message';
 import { RunResultSection } from '@/modules/runs/components/run-result-section';
 import { RunReviewPanel } from '@/modules/runs/components/run-review-panel';
+import { RunLiveHero } from '@/modules/runs/components/run-live-hero';
 import { RunStatusView } from '@/modules/runs/components/run-status';
 import { runLogKey, useRunDetails } from '@/modules/runs/components/use-run-details';
 import { canCancelRunSnapshot } from '@/modules/runs/lib/can-cancel-run-snapshot';
@@ -71,7 +72,7 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
     <article className="flex max-w-3xl flex-col gap-6">
       <header className="flex flex-col gap-2">
         <h1 className="text-lg font-medium">{RUN_TASK_TYPE_LABELS[snapshot.taskType]}</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="font-secondary text-sm text-muted-foreground">
           {RUN_PLATFORM_LABELS[snapshot.platform]}
           {snapshot.contentKind ? ` · ${CONTENT_KIND_LABELS[snapshot.contentKind]}` : ''}
           {` · ${LANGUAGE_LABELS[snapshot.language]}`}
@@ -80,14 +81,19 @@ export function RunDetailsView({ runIdParam }: { readonly runIdParam: string }) 
             <IsoDateTime iso={snapshot.createdAt} />
           </span>
         </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <RunStatusView status={snapshot.status} />
-          {canCancel ? (
+        <RunLiveHero status={snapshot.status} />
+        {snapshot.status === 'running' || snapshot.status === 'awaiting_hitl' ? null : (
+          <div className="flex flex-wrap items-center gap-2">
+            <RunStatusView status={snapshot.status} />
+          </div>
+        )}
+        {canCancel ? (
+          <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => setCancelOpen(true)}>
               Stop
             </Button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </header>
       <CancelRunDialog
         open={cancelOpen}

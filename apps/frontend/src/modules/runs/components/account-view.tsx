@@ -12,6 +12,7 @@ import {
   EMPTY_START_DRAFT,
   StartRunForm,
 } from '@/modules/runs/components/start-run-form';
+import { AccountKpiCards } from '@/modules/runs/components/account-kpi-cards';
 import { MyRunsList } from '@/modules/runs/components/my-runs-list';
 
 interface PrefillErrorState {
@@ -49,9 +50,10 @@ export function AccountView() {
 
   return (
     <div className="flex flex-col gap-10">
+      <AccountKpiCards />
       <div className="flex max-w-xl flex-col gap-1">
         <h1 className="text-lg font-medium">Konto</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="font-secondary text-sm text-muted-foreground">
           Email, start runu, Twoje przebiegi i opinia.
         </p>
       </div>

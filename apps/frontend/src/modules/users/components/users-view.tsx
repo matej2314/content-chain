@@ -175,7 +175,7 @@ function UsersAdminView() {
     <div className="flex max-w-3xl flex-col gap-10">
       <div className="flex flex-col gap-1">
         <h1 className="text-lg font-medium">Użytkownicy</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="font-secondary text-sm text-muted-foreground">
           Zaproszenie wysyłane jest na podany adres e-mail.
         </p>
       </div>

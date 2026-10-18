@@ -8,33 +8,31 @@ type RunStatusViewProps = {
   readonly className?: string;
 };
 
+const STATUS_PILL: Record<RunStatus, string> = {
+  running: 'border-success/40 bg-success/15 text-success',
+  awaiting_hitl: 'border-warning/50 bg-warning/20 text-warning-foreground',
+  completed: 'border-completed/40 bg-completed/15 text-completed',
+  failed: 'border-destructive/40 bg-destructive/15 text-destructive',
+  interrupted: 'border-interrupted/40 bg-interrupted/15 text-interrupted',
+  cancelled: 'border-cancelled/40 bg-cancelled/20 text-cancelled-foreground',
+  queued: 'border-queued/40 bg-queued/15 text-queued',
+};
+
 export function RunStatusView({ status, compact = false, className }: RunStatusViewProps) {
   const label = compact ? RUN_STATUS_SHORT_LABELS[status] : RUN_STATUS_LABELS[status];
   const liveMotion = status === 'running' || status === 'awaiting_hitl';
+
   return (
     <span
       data-slot="run-status"
       data-status={status}
       className={cn(
-        'inline-flex items-center gap-1.5 text-xs font-medium tabular-nums',
-        status === 'interrupted' && 'text-muted-foreground',
-        status === 'failed' && 'text-destructive',
-        status === 'queued' && 'text-muted-foreground',
-        status === 'cancelled' && 'text-muted-foreground',
+        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums',
+        STATUS_PILL[status],
+        liveMotion && 'motion-safe:animate-pulse',
         className,
       )}
     >
-      <span
-        aria-hidden
-        className={cn(
-          'size-1.5 shrink-0 rounded-full bg-foreground/50',
-          status === 'running' && 'bg-foreground',
-          status === 'awaiting_hitl' && 'rounded-sm bg-foreground/80',
-          status === 'interrupted' && 'bg-muted-foreground',
-          status === 'cancelled' && 'bg-muted-foreground',
-          liveMotion && 'motion-safe:animate-pulse',
-        )}
-      />
       {label}
     </span>
   );

@@ -80,8 +80,8 @@ export function AcceptInviteForm({ token }: AcceptInviteFormProps) {
 
   if (token.length === 0) {
     return (
-      <Card className="w-full max-w-md border bg-card shadow-none">
-        <CardHeader>
+      <Card className="w-full max-w-md border border-border bg-card shadow-none ring-1 ring-primary/10">
+        <CardHeader className="gap-1.5 pb-2">
           <CardTitle className="text-lg font-semibold">Zaproszenie</CardTitle>
         </CardHeader>
         <CardContent>
@@ -92,8 +92,8 @@ export function AcceptInviteForm({ token }: AcceptInviteFormProps) {
   }
 
   return (
-    <Card className="w-full max-w-md border bg-card shadow-none">
-      <CardHeader className="gap-1">
+    <Card className="w-full max-w-md border border-border bg-card shadow-none ring-1 ring-primary/10">
+      <CardHeader className="gap-1.5 pb-2">
         <CardTitle className="text-lg font-semibold">Ustaw pierwsze hasło</CardTitle>
         <p className="text-sm text-muted-foreground">
           Po zapisaniu wrócisz na kartę logowania. Dashboard otworzy się dopiero po zalogowaniu.

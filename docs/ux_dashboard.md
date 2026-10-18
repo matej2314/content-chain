@@ -1,7 +1,7 @@
 ---
-wersja: 31
+wersja: 33
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-10-17
+data_modyfikacji: 2026-10-18
 ---
 
 # UX Dashboard — Content Chain
@@ -13,6 +13,10 @@ Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_
 Zmiana względem: status live = „animowany / atrakcyjny” bez kanonu formy; sidebar jasny; strona główna = wyśrodkowana karta; brak bloku KPI na Koncie. Od tej wersji: **Normy wizualne** (paleta indigo/violet, **pełny dark shell** — ciemny sidebar **i** ciemny `main`, unikalne badge-pille per `RunStatus`, hero banner tylko `running` \| `awaiting_hitl`, split-panel logowania, KPI z `GET /api/v1/runs/summary`, lifting chipów / invite-accept / floating box).
 
 Zmiana względem wersji 30 / „Normy wizualne”: *ciemny sidebar ≠ dark mode — `main` jasny*; MVP „motyw produktowy pozostaje jasny”. Od tej wersji: **pełny dark shell** (sidebar + `main` ciemne); dual-mode z przełącznikiem nadal **V1** (bez zmian zakresu V1).
+
+Zmiana względem wersji 31 / „Normy wizualne”: brak pinu font-family w docs; historyczny lock Geist (skill / Faza 1) jako sans. Od tej wersji: **Typografia** — główny sans = **Space Grotesk**, pomocniczy = **Inter** (`--font-secondary`; tytuły kart KPI + paragrafy pomocnicze pod nagłówkami widoków), mono = **Geist Mono**; ładunek wyłącznie `next/font/google`; **zakaz** Inter jako default `body`; serif poza produktem.
+
+Zmiana względem wersji 32 / „Normy wizualne” / Paleta: wypełniony przycisk produktu (filled CTA) = ten sam solid primary indigo/violet co chrome (`bg-primary`). Od tej wersji: **Primary chrome** = indigo/violet (sidebar aktywny, split dekoracyjny, solid `--primary` / `--ring`); **wypełniony CTA** = wyłącznie wariant `Button` **`default`** — gradient teal/mint **135°** + tekst **ciemny** (kierunek; wartości = HOW); hover/active = te same kolory z lekkim podbiciem jasności całego przycisku (wartość = HOW). **Poza:** `outline` / `ghost` / `destructive` / `link` / `secondary`.
 
 Zmiana względem: po udanym `POST /runs` (**202**) operator zostawał na widoku źródłowym (Konto albo Runy); nawigacja na szczegóły nie była wymuszana. Od tej wersji: **zawsze** nawigacja na **Run (szczegóły)** tego `runId` (`/runs/:runId`) z obu powierzchni startu; toast „Run wystartował” zostaje; modal na Runach zamyka się; błąd startu **bez** nawigacji. Powód: mniej chaosu UX po testach manualnych.
 
@@ -68,14 +72,25 @@ Obowiązujące decyzje projektowe szaty graficznej dashboardu. Wartości `oklch`
 
 ### Paleta
 
-- **Primary** = żywy **indigo/violet** (wysoka chroma).
+- **Primary (chrome)** = żywy **indigo/violet** (wysoka chroma) — aktywny nav (`bg-primary text-primary-foreground`), lewy panel split na `/` (gradient primary), solid tokeny `--primary` / `--primary-foreground` / `--ring`. **Nie** mylić z wypełnionym CTA.
+- **Wypełniony CTA** = wyłącznie wariant komponentu `Button` **`default`** (`variant` pominięty lub `variant="default"`): tło = gradient teal/mint **135°**, tekst = **ciemny** (kierunek; konkret hex/gradient = HOW feature-planu). Hover / `:active`: te same kolory tła i tekstu, z lekkim podbiciem jasności (`brightness`) **całego** przycisku (wartość = HOW). **Poza zakresem tej normy:** `outline`, `ghost`, `destructive`, `link`, `secondary` — bez gradientu teal ani wymuszenia ciemnego tekstu CTA.
+- Zmiana względem wersji 32: *filled CTA = solid primary indigo/violet*. Od tej wersji CTA `default` ≠ solid `--primary` chrome.
 - **Pełny dark shell (MVP):** ciemny sidebar (`--sidebar` / `--sidebar-foreground`) **oraz** ciemny obszar roboczy (`--background` / `main`). Sidebar może być nieco ciemniejszy od `main` (hierarchia chrome). **Bez** przełącznika light/dark w MVP — to **nie** jest dual-mode; dual-mode z dedykowanym przełącznikiem = **V1**.
 - Zmiana względem wersji 30: *ciemny sidebar ≠ dark mode — `main` jasny*. Od tej wersji kanon = dark shell (sidebar + main).
 - Zmiana względem wcześniejszego: sidebar jasny (ten sam motyw co jasny main) — historia pierwszego locku.
 
 ### Tokeny semantyczne CSS
 
-Pełny zestaw z mapy `RunStatus` poniżej (`--success`, `--warning`, `--completed`, `--interrupted`, `--cancelled`, `--queued` + istniejące `--destructive` / `--muted`; warianty `-foreground` gdzie potrzeba). Lokalizacja + most `@theme inline` — `brand_types.md`.
+Pełny zestaw z mapy `RunStatus` poniżej (`--success`, `--warning`, `--completed`, `--interrupted`, `--cancelled`, `--queued` + istniejące `--destructive` / `--muted`; warianty `-foreground` gdzie potrzeba). Lokalizacja + most `@theme inline` — `brand_types.md`. Tokeny fontów (`--font-sans`, `--font-secondary`, `--font-mono`) — też `brand_types.md`.
+
+### Typografia
+
+- **Główny sans (UI):** **Space Grotesk** — default `body`, chrome, formularze, wartości KPI, nagłówki widoków (`h1` / `h2` produktowe). Token: `--font-sans`.
+- **Pomocniczy:** **Inter** — wyłącznie: (a) tytuły kart KPI (`CardTitle` / równoważne etykiety kart); (b) **paragrafy pomocnicze** pod nagłówkiem widoku (krótki supporting copy, np. na Koncie: „Email, start runu, Twoje przebiegi i opinia.”). Token: `--font-secondary`. **Nie** mapować Inter na globalne `--font-heading` (Inter ≠ wszystkie nagłówki).
+- **Mono:** **Geist Mono** — statusy / `tabular-nums` / meta mono. Token: `--font-mono`.
+- **Ładunek:** wyłącznie `next/font/google` (build-time self-host w `layout.tsx`). **Zakaz** `<link>` do Google Fonts.
+- **Zakaz:** Inter jako default `body` / głównego chrome; serify / kinetic display poza produktem.
+- Zmiana względem: brak pinu fontu w „Normach wizualnych”; historyczny Geist jako sans (skill / Faza 1). Od tej wersji kanon = Space Grotesk + Inter (rola jak wyżej) + Geist Mono.
 
 ### Status runów (badge)
 
@@ -120,6 +135,7 @@ Pełny zestaw z mapy `RunStatus` poniżej (`--success`, `--warning`, `--complete
 
 - Pozycja: widok **Konto**, **powyżej** sekcji „Start runu”.
 - Forma: **karty** (border / tło / radius) z metrykami: `totalLast30d`, `successRateLast30d`, `activeNow`, `topTaskTypeLast30d` oraz widoczny zakres dat z `windowFrom` / `windowTo` (prezentacja np. `15.06.2026–14.07.2026`).
+- **Typografia kart:** etykiety / tytuły metryk (`CardTitle` lub równoważne) = **Inter** (`--font-secondary`); wartości liczbowe i pozostała treść kart = **Space Grotesk** (`--font-sans`). Semantyka pozycji / scopingu / ukrycia przy błędzie — bez zmian.
 - Źródło: `GET /api/v1/runs/summary` (`dokumentacja_komunikacji.md`).
 - Widoczność:
   - `admin` — zawsze (scope: cała instancja);
@@ -399,6 +415,8 @@ Zmiana względem: po `202` z modalu — widok źródłowy (Runy). Od tej wersji 
 ## Widok: Konto
 
 Osobna pozycja sidebara (admin, `user`, `guest`). **Nie** zastępuje widoku Runy.
+
+Nagłówek widoku (`h1` produktowy) = **Space Grotesk**. Krótki paragraf pomocniczy pod nagłówkiem (supporting copy, np. „Email, start runu, Twoje przebiegi i opinia.”) = **Inter** (`--font-secondary`) — jak „Normy wizualne” / Typografia. Pozostała treść widoku (formularze, listy, wartości) = Space Grotesk, poza etykietami kart KPI (Inter).
 
 | Blok | Zachowanie |
 |------|------------|

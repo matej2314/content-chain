@@ -111,7 +111,7 @@ export function CompanyContextView() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex max-w-3xl flex-col gap-1">
           <h1 className="text-lg font-medium">Kontekst firmy</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="font-secondary text-sm text-muted-foreground">
             Uzupełnij wszystkie obowiązkowe pola. Dodatki są opcjonalne.
           </p>
         </div>

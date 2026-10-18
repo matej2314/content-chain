@@ -26,7 +26,7 @@ export function FloatingRunsBox() {
   return (
     <section
       data-slot="floating-box"
-      className="fixed right-4 bottom-4 z-(--z-overlay) w-80 max-w-[calc(100%-2rem)] rounded-lg border border-border bg-card text-sm"
+      className="fixed right-4 bottom-4 z-(--z-overlay) w-80 max-w-[calc(100%-2rem)] rounded-lg border border-border bg-card text-sm shadow-sm ring-1 ring-primary/5"
     >
       <header
         className="flex cursor-pointer select-none items-center justify-between gap-2 border-b px-3 py-2 hover:bg-muted/50"

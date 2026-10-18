@@ -17,6 +17,7 @@ import {
   type RunPlatform,
   type RunStatus,
   type RunTaskType,
+  type RunsSummaryResponse,
   type SocialPlatform,
   type SocialTaskType,
   type UserId,
@@ -431,5 +432,35 @@ export function startRunBody(input: StartRunInput): Record<string, unknown> {
     platform: input.platform,
     language: input.language,
     brief: omitEmptyBrief(input.brief),
+  };
+}
+
+export function parseRunsSummary(value: unknown): RunsSummaryResponse {
+  if (
+    !isRecord(value) ||
+    typeof value.windowFrom !== 'string' ||
+    typeof value.windowTo !== 'string' ||
+    typeof value.totalLast30d !== 'number' ||
+    typeof value.successRateLast30d !== 'number' ||
+    typeof value.activeNow !== 'number'
+  ) {
+    throw new Error('Invalid runs summary');
+  }
+
+  let topTaskTypeLast30d: RunTaskType | null = null;
+  if (value.topTaskTypeLast30d !== null && value.topTaskTypeLast30d !== undefined) {
+    if (typeof value.topTaskTypeLast30d !== 'string' || !isRunTaskType(value.topTaskTypeLast30d)) {
+      throw new Error('Invalid runs summary topTaskType');
+    }
+    topTaskTypeLast30d = value.topTaskTypeLast30d;
+  }
+
+  return {
+    windowFrom: value.windowFrom,
+    windowTo: value.windowTo,
+    totalLast30d: value.totalLast30d,
+    successRateLast30d: value.successRateLast30d,
+    activeNow: value.activeNow,
+    topTaskTypeLast30d,
   };
 }

@@ -198,7 +198,7 @@ export function ArchiveRunsView() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-1">
           <h1 className="text-lg font-medium">Runy</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="font-secondary text-sm text-muted-foreground">
             Archiwum zakończonych, nieudanych i anulowanych runów instancji.
           </p>
         </div>

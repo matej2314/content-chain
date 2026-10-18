@@ -1,16 +1,20 @@
 ---
-wersja: 4
+wersja: 6
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-17
+data_modyfikacji: 2026-10-18
 ---
 
 # Brand types — Content Chain
 
-Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time. Dopisek: **norma tokenów semantycznych CSS** pod szatę graficzną dashboardu (statusy runów, hero, chipy).
+Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time. Dopisek: **norma tokenów semantycznych CSS** pod szatę graficzną dashboardu (statusy runów, hero, chipy, fonty).
 
 Zmiana względem: brak sekcji tokenów CSS w tym dokumencie (kolory statusów poza kanonem docs). Od tej wersji: **Tokeny semantyczne CSS** w `globals.css` + obowiązkowy most `@theme inline`; mapa status→token w `ux_dashboard.md`.
 
 Zmiana względem wersji 3 / tokeny: definicja w `:root` i `.dark` bez jawnego kanonu powierzchni. Od tej wersji: **kanon MVP = pełny dark shell w `:root`** (ciemne `--background` / `--sidebar`); `.dark` zsynchronizowane; **bez** przełącznika — dual-mode = V1 (`ux_dashboard.md`).
+
+Zmiana względem wersji 4 / tokeny: brak mapy tokenów fontu. Od tej wersji: **Tokeny fontów** — `--font-sans` → Space Grotesk, `--font-secondary` → Inter, `--font-mono` → Geist Mono; lokalizacja `globals.css` + `layout.tsx` (`next/font`); **bez** mapowania Inter na globalne `--font-heading`. Role użycia — `ux_dashboard.md` („Typografia”).
+
+Zmiana względem wersji 5 / tokeny: brak rozróżnienia wyglądu wypełnionego CTA od solid `--primary` chrome. Od tej wersji: **Tokeny CTA `Button` `default`** (osobna rola od `--primary`); gradient + foreground ciemny; wartości = HOW feature-planu; **nie** wymagać, by gradient CTA = wartość `--primary` sidebara/splitu.
 
 Zmiana względem wcześniejszej wersji (bez frontmatteru): `RunStatus` += **`cancelled`**.
 
@@ -113,6 +117,34 @@ Tokeny koloru statusów i sygnałów UI dashboardu **nie** żyją w `packages/sh
 **Zakaz:** hex / rgb / nazwy kolorów „na piechotę” w badge’ach statusów, hero bannerze, chipach (Demo / Agenci), liftingu invite-accept i floating box — wyłącznie tokeny z `globals.css` / klasy Tailwind oparte o most `@theme`.
 
 Wartości `oklch` = HOW feature-planu; **przypisanie** status→rodzina tokenu = docs UX.
+
+### Tokeny wypełnionego CTA (`Button` `default`)
+
+Wygląd wypełnionego CTA produktu **nie** jest wartością solid `--primary` używaną przez sidebar / split-panel / ring.
+
+| Element | Norma |
+|---------|--------|
+| Zakres | wyłącznie wariant `Button` **`default`** (nie `outline` / `ghost` / `destructive` / `link` / `secondary`) |
+| Rola | tło = gradient teal/mint **135°**; tekst = **ciemny** (kierunek — `ux_dashboard.md` / Paleta) |
+| Lokalizacja | tokeny w `apps/frontend/src/app/globals.css` (`:root` / `.dark`); mapowanie w `button.tsx` na wariant `default` |
+| Wartości | hex / pełny zapis gradientu = **HOW** feature-planu Fazy 22 — **nie** pin w tym dokumencie |
+| Chrome primary | `--primary` / `--primary-foreground` / `--ring` **zostają** indigo/violet; CTA **nie** nadpisuje tych tokenów |
+
+**Wyjątek względem zakazu hex:** wartości hex / gradient **wolno** wyłącznie jako definicja dedykowanych tokenów CTA `default` w `globals.css` (oraz ich użycie przez wariant `default`). Badge’e statusów, hero, chipy, lifting — **bez** tego wyjątku (nadal wyłącznie tokeny statusowe / surface).
+
+Hover / `:active`: te same kolory tła i tekstu CTA; lekki `brightness` na **całym** przycisku (wartość = HOW).
+
+### Tokeny fontów
+
+Fonty UI **nie** żyją w `packages/shared` — wyłącznie w frontendzie (jak kolory statusów). Role użycia (gdzie Inter vs Space Grotesk) = `ux_dashboard.md` („Normy wizualne” / Typografia) — ten dokument tylko mapuje tokeny.
+
+| Token CSS | Font | Lokalizacja / ładunek |
+|-----------|------|------------------------|
+| `--font-sans` | **Space Grotesk** | `apps/frontend/src/app/globals.css` + `layout.tsx` (`next/font/google`) — default UI |
+| `--font-secondary` | **Inter** | j.w. — tytuły kart KPI + paragrafy pomocnicze pod nagłówkami widoków; **nie** mapować na globalne `--font-heading` |
+| `--font-mono` | **Geist Mono** | j.w. — mono / `tabular-nums` / meta |
+
+**Zakaz:** `<link>` do Google Fonts; Inter jako default `body`; serify poza produktem.
 
 ## Przepływ korelacji (norma)
 

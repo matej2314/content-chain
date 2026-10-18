@@ -1,7 +1,7 @@
 ---
-wersja: 54
+wersja: 56
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-17
+data_modyfikacji: 2026-10-18
 ---
 
 # SPEC — Frontend
@@ -17,6 +17,10 @@ Bez reguł domenowych pipeline’u, bez bramki kompletności jako jedynej egzeku
 Zmiana względem wersji 51 / cel: szata graficzna = pierwszy visual lock (jasny sidebar, statusy dot + muted, wyśrodkowana karta logowania, brak KPI). Od tej wersji **F-11…F-19** (drugi visual lock): primary indigo/violet, **pełny dark shell** (ciemny sidebar **i** ciemny `main`), unikalne badge-pille per `RunStatus`, hero tylko `running` \| `awaiting_hitl`, split-panel `/`, KPI z `GET /api/v1/runs/summary`, lifting chipów / invite-accept / floating box — `docs/ux_dashboard.md` („Normy wizualne”), `docs/brand_types.md`.
 
 Zmiana względem wersji 53 / F-14 / cel: *ciemny sidebar ≠ dark mode — `main` jasny*. Od tej wersji F-14 = **dark shell** (sidebar + `main` ciemne); dual-mode z przełącznikiem nadal V1 — `docs/ux_dashboard.md`.
+
+Zmiana względem wersji 54 / F-11…F-19: brak pinu font-family w normach wizualnych; historyczny Geist jako sans (Faza 1 UI). Od tej wersji F-11 + stack + DoD: **Space Grotesk** (`--font-sans`), **Inter** (`--font-secondary` — tytuły kart KPI + paragrafy pomocnicze), **Geist Mono** (`--font-mono`); wyłącznie `next/font/google`; **zakaz** Inter jako default `body` — `docs/ux_dashboard.md` („Typografia”), `docs/brand_types.md`.
+
+Zmiana względem wersji 55 / F-14: filled CTA produktu = solid `bg-primary` (indigo/violet) jak chrome. Od tej wersji F-14: **CTA-only** — wariant `Button` **`default`** = gradient teal/mint 135° + tekst ciemny (tokeny w `globals.css`; wartości = HOW); solid `--primary` chrome (sidebar / split / ring) **bez** zmiany kierunku indigo/violet — `docs/ux_dashboard.md` (Paleta), `docs/brand_types.md`.
 
 Zmiana względem wersji 49 / cel / F-8: po `202` z Konta / modalu Runy — widok źródłowy; zakaz wymuszania nawigacji na szczegóły. Od tej wersji F-8 + „Nie wolno” + DoD: po **202** **zawsze** nawigacja na `/runs/:runId` (obie powierzchnie); toast „Run wystartował” zostaje; modal zamyka się; błąd startu bez nawigacji — `docs/ux_dashboard.md`.
 
@@ -248,7 +252,11 @@ Zmiana względem wersji 50 / F-10: zakaz wejścia w cudzy detail. Od tej wersji 
 
 Kanon: `docs/ux_dashboard.md` („Normy wizualne”), `docs/brand_types.md`. ID stałe. Drugi visual lock względem Fazy 1 UI (historyczny jasny sidebar / statusy dot).
 
-F-11. Tokeny semantyczne CSS: wyłącznie w `apps/frontend/src/app/globals.css` — definicja w **`:root` i `.dark`** oraz **obowiązkowy** most `@theme inline` (`--color-success`, `--color-warning`, `--color-completed`, `--color-interrupted`, `--color-cancelled`, `--color-queued` + warianty `-foreground` gdzie używane jako tło/tekst; analogicznie do `--color-destructive`). Pełny zestaw z mapy `RunStatus` w docs. **Zakaz** hex/rgb „na piechotę” w badge’ach statusów, hero, chipach, liftingu invite/floating. Tokeny **nie** w `packages/shared`.
+F-11. Tokeny semantyczne CSS: wyłącznie w `apps/frontend/src/app/globals.css` — definicja w **`:root` i `.dark`** oraz **obowiązkowy** most `@theme inline` (`--color-success`, `--color-warning`, `--color-completed`, `--color-interrupted`, `--color-cancelled`, `--color-queued` + warianty `-foreground` gdzie używane jako tło/tekst; analogicznie do `--color-destructive`). Pełny zestaw z mapy `RunStatus` w docs. **Zakaz** hex/rgb „na piechotę” w badge’ach statusów, hero, chipach, liftingu invite/floating. **Wyjątek CTA:** hex/gradient wyłącznie jako wartości dedykowanych tokenów wariantu `Button` **`default`** (F-14) — nie w statusach / hero / chipach / liftingu. Tokeny **nie** w `packages/shared`.
+
+**Typografia (część F-11):** tokeny fontów w tym samym `globals.css` + ładunek w `layout.tsx` wyłącznie przez `next/font/google` (build-time self-host). **`--font-sans`** → **Space Grotesk** (default UI: `body`, chrome, formularze, wartości KPI, nagłówki widoków `h1`/`h2`). **`--font-secondary`** → **Inter** — wyłącznie tytuły kart KPI (`CardTitle` / równoważne) oraz paragrafy pomocnicze pod nagłówkami widoków; **zakaz** mapowania Inter na globalne `--font-heading` (Inter ≠ wszystkie nagłówki). **`--font-mono`** → **Geist Mono** (statusy / `tabular-nums` / meta mono). **Zakaz** `<link>` do Google Fonts; **zakaz** Inter jako default `body` / głównego chrome; serify / kinetic display poza produktem. Kanon: `docs/ux_dashboard.md` („Typografia”), `docs/brand_types.md` (mapa tokenów fontu).
+
+Zmiana względem wersji 54 / F-11: F-11 pinowało kolory statusów / `@theme` bez font-family; Geist jako sans był historyczny (Faza 1). Od tej wersji F-11 obejmuje też Space Grotesk + Inter + Geist Mono jak wyżej.
 
 F-12. Badge statusów (`RunStatusView` / równoważny): forma **pill** (`rounded-full border px-2 py-0.5`); **unikalny** kolor per `RunStatus` wg mapy docs (`running`→`--success`, `awaiting_hitl`→`--warning`, `completed`→`--completed`, `failed`→`--destructive`, `interrupted`→`--interrupted`, `cancelled`→`--cancelled`, `queued`→`--queued`). Compact (listy, floating box) = **te same** kolory i forma. **Zakaz** samego kółka (dot) bez kontenera pill; **zakaz** dzielenia jednego „muted” między kilka statusów; `completed` **nie** dzieli koloru z `running`.
 
@@ -256,8 +264,11 @@ Zmiana względem: status = kropka + plain muted text; kilka statusów na jednym 
 
 F-13. Hero banner „run w toku”: wyłącznie na szczegółach `/runs/:runId`, gdy `status ∈ {running, awaiting_hitl}` — gradient z tokenów success/warning + animacja. **Ukryty** dla `interrupted`, `queued` oraz terminalnych (`completed` \| `failed` \| `cancelled`). `interrupted` = osobny badge (F-12) **bez** hero.
 
-F-14. **Pełny dark shell:** ciemny sidebar (`AppSidebar`: `--sidebar` / `--sidebar-foreground` ciemne oklch; logo-area `h-14` + `border-b`; aktywny nav = `bg-primary text-primary-foreground`) **oraz** ciemny obszar roboczy (`--background` / `main`). Sidebar może być nieco ciemniejszy od `main`. Primary akcent produktu = żywy **indigo/violet** (wysoka chroma). **Bez** przełącznika light/dark w MVP — dark shell **nie** jest dual-mode; dual-mode z przełącznikiem = V1 (poza zakresem).
+F-14. **Pełny dark shell:** ciemny sidebar (`AppSidebar`: `--sidebar` / `--sidebar-foreground` ciemne oklch; logo-area `h-14` + `border-b`; aktywny nav = `bg-primary text-primary-foreground`) **oraz** ciemny obszar roboczy (`--background` / `main`). Sidebar może być nieco ciemniejszy od `main`. Primary akcent **chrome** = żywy **indigo/violet** (wysoka chroma) — solid `--primary` / `--primary-foreground` / `--ring` dla aktywnego navu, split-panelu i focus ring. **Bez** przełącznika light/dark w MVP — dark shell **nie** jest dual-mode; dual-mode z przełącznikiem = V1 (poza zakresem).
 
+**CTA `Button` `default` (CTA-only):** wypełniony przycisk produktu **nie** dziedziczy solid `bg-primary` indigo jako jedynego filled CTA. Wariant **`default`** (`variant` pominięty lub `variant="default"`) = tło gradient teal/mint **135°** + tekst **ciemny** — dedykowane tokeny w `globals.css` (mapowanie w `button.tsx`); wartości hex/gradient = HOW feature-planu. Hover / `:active`: te same kolory tła i tekstu + `brightness(1.06)` na **całym** przycisku. **Zakaz** zmiany solid `--primary` chrome na teal / gradient. **Poza:** `outline` / `ghost` / `destructive` / `link` / `secondary` — bez tej normy gradientu.
+
+Zmiana względem wersji 55 / F-14: *filled CTA = `bg-primary` indigo/violet*. Od tej wersji filled CTA = osobny kanon wariantu `default` (gradient + ciemny tekst); chrome primary bez zmiany kierunku indigo/violet.
 Zmiana względem wersji 53 / F-14: *ciemny sidebar ≠ dark mode — `main` jasny*. Od tej wersji kanon = dark shell (sidebar + main).
 Zmiana względem wcześniejszego: sidebar jasny (ten sam motyw co jasny main) — historia pierwszego locku.
 
@@ -265,7 +276,7 @@ F-15. Split-panel na `/` (strona główna): na `lg+` — **lewa** = gradient pri
 
 Zmiana względem: wyśrodkowana karta na pełnej szerokości tła.
 
-F-16. KPI cards na Koncie: blok **powyżej** sekcji „Start runu”; forma = **karty** (border / tło / radius). Fetch `GET /api/v1/runs/summary` (BFF, F-2); DTO z `@content-chain/shared` (F-3). Pokaż metryki `totalLast30d`, `successRateLast30d`, `activeNow`, `topTaskTypeLast30d` oraz zakres dat z `windowFrom` / `windowTo` (prezentacja np. `15.06.2026–14.07.2026`). Widoczność: `admin` / `user` — zawsze (scope odpowiedzi = HTTP); `guest` — **tylko** gdy `demoMode === true`; gdy demo off — blok **nie** renderowany. Błąd HTTP / brak endpointu → blok **ukryty** (bez pustych kart z błędem jako treścią KPI). Kontrakt: `SPEC-KOMUNIKACJA.md` K-2k, `SPEC-RUNY.md` R-13.
+F-16. KPI cards na Koncie: blok **powyżej** sekcji „Start runu”; forma = **karty** (border / tło / radius). Fetch `GET /api/v1/runs/summary` (BFF, F-2); DTO z `@content-chain/shared` (F-3). Pokaż metryki `totalLast30d`, `successRateLast30d`, `activeNow`, `topTaskTypeLast30d` oraz zakres dat z `windowFrom` / `windowTo` (prezentacja np. `15.06.2026–14.07.2026`). Widoczność: `admin` / `user` — zawsze (scope odpowiedzi = HTTP); `guest` — **tylko** gdy `demoMode === true`; gdy demo off — blok **nie** renderowany. Błąd HTTP / brak endpointu → blok **ukryty** (bez pustych kart z błędem jako treścią KPI). **Typografia (F-11):** etykiety / tytuły kart KPI = **Inter** (`--font-secondary`); wartości liczbowe i pozostała treść kart = **Space Grotesk** (`--font-sans`). Semantyka fetch / guest / ukrycie przy błędzie — **bez zmian**. Kontrakt: `SPEC-KOMUNIKACJA.md` K-2k, `SPEC-RUNY.md` R-13.
 
 F-17. Chipy Demo / Agenci: kolorowy **lewy border** z tokenów semantycznych (F-11). Pozycja (DemoChip nad CompletenessChip) i semantyka (`agentsActive` F-6, `demoMode` F-10) **bez zmian**.
 
@@ -323,7 +334,7 @@ apps/frontend/src/
 - Widok **Runy**: archiwum `completed` \| `failed` \| `cancelled`; GET co 15 min + przy wejściu; CTA/modal **„Uruchom agenta”** (ten sam brief); po **202** z Run — zamknąć modal, nawigacja na `/runs/:runId` + toast „Run wystartował”; statusy = badge F-12.
 - Client components dla modalu startu (Dialog kitu shadcn).
 - Floating box poza Kontem (zwijany) — lifting F-19; badge F-12.
-- Tokeny statusowe w `globals.css` (`:root` / `.dark` / `@theme inline`) — F-11; hero na detail tylko `running` \| `awaiting_hitl` — F-13; **dark shell** (ciemny sidebar + ciemny `main`) + logo-area — F-14; split-panel na `/` — F-15; lifting chipów / invite-accept — F-17 / F-18.
+- Tokeny statusowe + tokeny fontów w `globals.css` (`:root` / `.dark` / `@theme inline`) — F-11 (Space Grotesk / Inter `--font-secondary` / Geist Mono via `next/font/google`); hero na detail tylko `running` \| `awaiting_hitl` — F-13; **dark shell** (ciemny sidebar + ciemny `main`) + logo-area — F-14; **CTA-only** `Button` `default` (tokeny gradientu + ciemny tekst; chrome `--primary` indigo bez zmiany) — F-14; split-panel na `/` — F-15; lifting chipów / invite-accept — F-17 / F-18.
 - Cienki wrapper `notifyProduct` / `notifyRunTerminal` (Sonner jako adapter; unia produktowa, bez `any`).
 - Odczyt pathname App Router (`usePathname` lub równoważny) do `viewingRunId` przy toaście terminalu.
 - Toaster w gałęzi authenticated layoutu; token `--z-toast`; **wyjątek:** toast po sukcesie activate na niezalogowanym `/`.
@@ -353,7 +364,9 @@ apps/frontend/src/
 - Jasnego sidebara **albo** jasnego `main` jako kanonu produktu; traktowania dark shellu jako dual-mode / przełącznika (obowiązuje F-14 — pełny dark shell; dual-mode = V1).
   Zmiana względem wersji 53 / „Nie wolno”: *F-14 — main jasny*; *ciemny sidebar ≠ dual-mode przy jasnym main*. Od tej wersji zakaz jasnego `main` w MVP; dark shell = kanon.
 - Wyśrodkowanej karty logowania na `lg+` zamiast split-panelu (obowiązuje F-15).
-- Hex/rgb „na piechotę” w badge’ach statusów / hero / chipach / liftingu (obowiązuje F-11).
+- Hex/rgb „na piechotę” w badge’ach statusów / hero / chipach / liftingu (obowiązuje F-11). **Wyjątek:** wartości hex/gradient wyłącznie jako definicja dedykowanych tokenów wariantu `Button` **`default`** w `globals.css` (F-14 CTA-only) — nie w statusach / hero / chipach / liftingu.
+- Traktowania filled CTA (`Button` `default`) jako obowiązkowego solid `bg-primary` indigo; podmiany solid `--primary` chrome (sidebar / split / ring) na teal / gradient CTA (obowiązuje F-14 CTA-only).
+- Inter jako default `body` / głównego chrome; `<link>` do Google Fonts; mapowania Inter na globalne `--font-heading`; Geist (lub innego fontu) jako obowiązkowego `--font-sans` zamiast Space Grotesk; serifów / kinetic display w produkcie (obowiązuje F-11 — typografia).
 - Bloku KPI poniżej „Start runu”; pustych kart KPI przy błędzie HTTP; KPI dla `guest` przy `demoMode === false` (obowiązuje F-16).
 - Stop we floating boxie; cancel **bez** modala „Czy na pewno?”; admin-cancel cudzego runu **`role=user`** z UI; Cancel admin→guest na liście archiwum (obowiązuje tylko detail — F-5b).
   Zmiana względem wersji 37 / „Nie wolno”: *„admin-cancel cudzego runu z UI”* — unieważnione dla admin→guest na detail; zakaz cancel cudzego `user` **zostaje**.
@@ -457,6 +470,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 | `@content-chain/shared` | obowiązkowe |
 | shadcn + Iconify (gdy ikony) | obowiązkowe |
 | Sonner (kit shadcn) | obowiązkowe (toast „wydarzyło się”; adapter, nie store) |
+| Fonty: Space Grotesk + Inter + Geist Mono via `next/font/google` | obowiązkowe (F-11; Inter = `--font-secondary`, nie default body) |
 | React Query / SWR | poza wymogiem MVP |
 | Automatyczne testy FE | poza MVP (`docs/testy.md`) |
 
@@ -468,7 +482,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] Fetch same-origin `/api/v1`; BFF → `API_BASE_URL` tylko serwer (prod: `http://api:3001`); UI prod na porcie **3004**; **401** `UNAUTHORIZED` → refresh → retry; cookie httpOnly na originie FE; **401** `INVALID_PASSWORD` **bez** refresh/wylogowania.
 - [ ] **Runy** = archiwum `completed` \| `failed` \| `cancelled` (15 min + wejście) **oraz** CTA/modal **„Uruchom agenta”**; **Konto** = start inline + Moje runy live (paginacja UI 10) + Stop; po `202` szczegóły tego runu (Konto + modal Runy); toast „Run wystartował”; modal zamknięty; błąd startu bez nawigacji.
 - [ ] Layout zalogowany: `h-dvh`, scroll tylko w `main`; **dark shell** (F-14) — ciemny sidebar **i** ciemny `main` + logo-area; chipy w sidebarze widoczne bez scrolla treści (lifting F-17).
-- [ ] F-11…F-19: tokeny + `@theme` w `globals.css`; unikalny badge-pill per `RunStatus` (compact = te same); hero tylko `running` \| `awaiting_hitl` na detail; KPI cards nad Start runu (`GET /runs/summary`, DTO shared, zakres dat; guest tylko demo on; błąd → ukryj); lifting invite-accept / floating box bez zmiany flow.
+- [ ] F-11…F-19: tokeny + `@theme` w `globals.css`; typografia F-11 — Space Grotesk (`--font-sans`), Inter (`--font-secondary` na tytułach kart KPI + paragrafach pomocniczych), Geist Mono (`--font-mono`); `next/font/google` bez `<link>`; Inter ≠ default body; unikalny badge-pill per `RunStatus` (compact = te same); hero tylko `running` \| `awaiting_hitl` na detail; KPI cards nad Start runu (`GET /runs/summary`, DTO shared, zakres dat; guest tylko demo on; błąd → ukryj; etykiety KPI = Inter, wartości = Space Grotesk); lifting invite-accept / floating box bez zmiany flow; F-14 CTA-only — `Button` `default` = gradient teal/mint 135° + tekst ciemny (tokeny; nie solid `bg-primary`); chrome primary indigo/violet bez zmiany; hover/active = te same kolory + `brightness(1.06)`.
 - [ ] N× SSE tylko własne `running` / `awaiting_hitl` / `interrupted`; `close()` na `completed`/`failed`/`cancelled`; `queued` bez socketa; floating box poza Kontem **bez** Stop; po cancel: „Anulowany” → ukrycie po 200 ms.
 - [ ] Stop + modal „Czy na pewno?” → cancel API (owner **lub** admin∧guest na detail); toast „Run anulowany”; dedup SSE; na `cancelled` brak przeglądu / HITL; parse `startedBy.role`.
 - [ ] Start zablokowany w UI przy `!agentsActive` (niekompletność **lub** gateway nie żyje) **oraz** api `409` `CONTEXT_INCOMPLETE` przy niekompletnym kontekście; **bez** osobnego kodu „gateway down” na `POST /runs`.
