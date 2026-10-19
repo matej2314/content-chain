@@ -22,13 +22,13 @@ export const LANDING_HERO_IMAGES = {
     src: '/landing/hero-panel-desktop.png',
     width: 1440,
     height: 900,
-    alt: 'Panel Content Chain — widok Konto z sidebarem i KPI',
+    alt: 'Panel Content Chain - widok Konto z sidebarem i KPI',
   },
   narrow: {
     src: '/landing/hero-panel-narrow.png',
     width: 390,
     height: 844,
-    alt: 'Panel Content Chain — widok Konto na wąskim viewporcie',
+    alt: 'Panel Content Chain - widok Konto na wąskim viewporcie',
   },
 } as const;
 
@@ -37,13 +37,13 @@ export const LANDING_CONTEXT_IMAGES = {
     src: '/landing/hero-context-desktop.png',
     width: 1440,
     height: 900,
-    alt: 'Panel Content Chain — widok Kontekst firmy z zakładkami i formularzem tożsamości',
+    alt: 'Panel Content Chain - widok Kontekst firmy z zakładkami i formularzem tożsamości',
   },
   narrow: {
     src: '/landing/hero-context-narrow.png',
     width: 390,
     height: 844,
-    alt: 'Panel Content Chain — widok Kontekst firmy na wąskim viewporcie',
+    alt: 'Panel Content Chain - widok Kontekst firmy na wąskim viewporcie',
   },
 } as const;
 
@@ -52,13 +52,13 @@ export const LANDING_RUNS_IMAGES = {
     src: '/landing/hero-runs-desktop.png',
     width: 1440,
     height: 900,
-    alt: 'Panel Content Chain — archiwum Runy z filtrami i listą statusów',
+    alt: 'Panel Content Chain - archiwum Runy z filtrami i listą statusów',
   },
   narrow: {
     src: '/landing/hero-runs-narrow.png',
     width: 390,
     height: 844,
-    alt: 'Panel Content Chain — archiwum Runy na wąskim viewporcie',
+    alt: 'Panel Content Chain - archiwum Runy na wąskim viewporcie',
   },
 } as const;
 
@@ -88,11 +88,11 @@ export const LANDING_COPY = {
   },
   contextSection: {
     title: 'Kontekst firmy pod kontrolą',
-    supporting: 'Tożsamość, oferta i głos marki w jednym miejscu — zanim agent zacznie pisać.',
+    supporting: 'Tożsamość, oferta i głos marki w jednym miejscu - zanim agent zacznie pisać.',
   },
   runsSection: {
     title: 'Runy w jednym archiwum',
-    supporting: 'Statusy, filtry i historia uruchomień — od briefu po zakończony wynik.',
+    supporting: 'Statusy, filtry i historia uruchomień - od briefu po zakończony wynik.',
   },
   features: [
     {
@@ -133,7 +133,7 @@ export const LANDING_COPY = {
   ] as const satisfies readonly LandingTech[],
   closing: {
     title: 'Gotowy wejść do panelu?',
-    supporting: 'Zaloguj się albo załóż konto — formularze otwierają się w oknie dialogowym.',
+    supporting: 'Zaloguj się albo załóż konto - formularze otwierają się w oknie dialogowym.',
   },
   footer: {
     blurb: '@2026 Content Chain. Wszelkie prawa zastrzeżone.',
