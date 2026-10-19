@@ -46,7 +46,7 @@ services:
     ports:
       - "127.0.0.1:3300:3001"
     volumes:
-      - api-sqlite:/app/data
+      - /opt/content-chain/data:/app/data
     healthcheck:
       test:
         [
@@ -93,6 +93,3 @@ networks:
   main_network:
     external: true
     name: main_network
-
-volumes:
-  api-sqlite:
