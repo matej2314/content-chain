@@ -141,7 +141,7 @@ export function AccountKpiCards() {
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => (
-          <Card key={card.title} className="border bg-card shadow-none">
+          <Card key={card.title} className="border border-[#63b8a3] bg-card shadow-md shadow-green-400/25">
             <CardHeader className="gap-1 px-4 pt-4 pb-1">
               <CardTitle className="font-secondary text-[1rem] font-medium text-muted-foreground">
                 {card.title}

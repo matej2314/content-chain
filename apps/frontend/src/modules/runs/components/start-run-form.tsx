@@ -144,8 +144,8 @@ type StartState =
 
 const INITIAL_START_STATE: StartState = { status: 'idle' };
 
-/** Closed-state + option text on dark shell; disabled options stay readable but quieter. */
-const START_RUN_SELECT_CLASS = 'text-[#0b1f1a] [&_option:disabled]:opacity-40';
+/** Dropdown list only (`option`) — same surface as `DialogContent` (`bg-popover`). */
+const START_RUN_SELECT_LIST_CLASS = '[&_option]:bg-popover';
 
 type StartRunFormProps = {
   readonly draft: StartRunDraft;
@@ -237,7 +237,7 @@ export function StartRunForm({
       <FormField label="Typ zadania" htmlFor={`${idPrefix}-task-type`}>
         <NativeSelect
           id={`${idPrefix}-task-type`}
-          className={START_RUN_SELECT_CLASS}
+          className={START_RUN_SELECT_LIST_CLASS}
           value={draft.taskType}
           onChange={(event) => {
             if (!isRunTaskType(event.target.value)) return;
@@ -249,9 +249,6 @@ export function StartRunForm({
               key={taskType}
               value={taskType}
               disabled={guestLocked && !isGuestAllowedTaskType(taskType)}
-              className={
-                guestLocked && !isGuestAllowedTaskType(taskType) ? 'opacity-40' : undefined
-              }
             >
               {RUN_TASK_TYPE_LABELS[taskType]}
             </option>
@@ -267,7 +264,7 @@ export function StartRunForm({
         <FormField label="Rodzaj strony" htmlFor={`${idPrefix}-content-kind`}>
           <NativeSelect
             id={`${idPrefix}-content-kind`}
-            className={START_RUN_SELECT_CLASS}
+            className={START_RUN_SELECT_LIST_CLASS}
             value={draft.contentKind}
             onChange={(event) => {
               if (!isContentKind(event.target.value)) return;
@@ -285,7 +282,7 @@ export function StartRunForm({
         <FormField label="Platforma" htmlFor={`${idPrefix}-platform`}>
           <NativeSelect
             id={`${idPrefix}-platform`}
-            className={START_RUN_SELECT_CLASS}
+            className={START_RUN_SELECT_LIST_CLASS}
             value={draft.platform}
             onChange={(event) => {
               if (!isSocialPlatform(event.target.value)) return;
@@ -303,7 +300,7 @@ export function StartRunForm({
       <FormField label="Język" htmlFor={`${idPrefix}-language`}>
         <NativeSelect
           id={`${idPrefix}-language`}
-          className={START_RUN_SELECT_CLASS}
+          className={START_RUN_SELECT_LIST_CLASS}
           value={draft.language}
           onChange={(event) => {
             if (!isContentLanguage(event.target.value)) return;
@@ -328,7 +325,7 @@ export function StartRunForm({
       <FormField label="Grupa (opcjonalnie)" htmlFor={`${idPrefix}-audience`}>
         <NativeSelect
           id={`${idPrefix}-audience`}
-          className={START_RUN_SELECT_CLASS}
+          className={START_RUN_SELECT_LIST_CLASS}
           value={audienceGroupSelectValue(draft.audienceGroup)}
           onChange={(event) =>
             onDraftChange({

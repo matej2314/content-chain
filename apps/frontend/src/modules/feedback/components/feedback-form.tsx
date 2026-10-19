@@ -45,6 +45,8 @@ type FeedbackFormState = {
 
 const FALLBACK = { code: 'INTERNAL_ERROR', message: 'Nie udało się odczytać odpowiedzi.' };
 
+const FEEDBACK_SELECT_LIST_CLASS = '[&_option]:bg-popover';
+
 const INITIAL_STATE: FeedbackFormState = {
   targetType: 'application',
   agentKey: 'IdeationAgent',
@@ -118,6 +120,7 @@ export function FeedbackForm({ idPrefix }: FeedbackFormProps) {
       <FormField label="Co oceniasz" htmlFor={`${idPrefix}-target`}>
         <NativeSelect
           id={`${idPrefix}-target`}
+          className={FEEDBACK_SELECT_LIST_CLASS}
           value={formState.targetType}
           onChange={(event) => {
             const nextTarget = event.target.value;
@@ -140,6 +143,7 @@ export function FeedbackForm({ idPrefix }: FeedbackFormProps) {
         <FormField label="Agent" htmlFor={`${idPrefix}-agent`}>
           <NativeSelect
             id={`${idPrefix}-agent`}
+            className={FEEDBACK_SELECT_LIST_CLASS}
             value={formState.agentKey}
             onChange={(event) => {
               const nextAgent = event.target.value;
@@ -166,6 +170,7 @@ export function FeedbackForm({ idPrefix }: FeedbackFormProps) {
         >
           <NativeSelect
             id={`${idPrefix}-run`}
+            className={FEEDBACK_SELECT_LIST_CLASS}
             value={formState.runId}
             disabled={state.status !== 'ready'}
             onChange={(event) => {
@@ -194,6 +199,7 @@ export function FeedbackForm({ idPrefix }: FeedbackFormProps) {
           id={`${idPrefix}-body`}
           value={formState.body}
           maxLength={FEEDBACK_BODY_MAX}
+          className="min-h-50"
           onChange={(event) =>
             setFormState((current) => ({ ...current, body: event.target.value }))
           }

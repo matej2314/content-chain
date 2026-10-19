@@ -37,6 +37,9 @@ import type { ArchiveRunsPage } from '@/modules/runs/api/runs.types';
 
 const REFRESH_MS = 15 * 60 * 1000;
 
+/** Dropdown list only (`option`) — same surface as `DialogContent` (`bg-popover`). */
+const ARCHIVE_SELECT_LIST_CLASS = '[&_option]:bg-popover';
+
 type StatusFilter = 'all' | 'completed' | 'failed' | 'cancelled';
 
 type ArchiveQueryState = {
@@ -208,6 +211,7 @@ export function ArchiveRunsView() {
         <FormField label="Status" htmlFor="archive-status" className="min-w-36 flex-1 sm:flex-none">
           <NativeSelect
             id="archive-status"
+            className={ARCHIVE_SELECT_LIST_CLASS}
             value={statusFilter}
             onChange={(event) => {
               const value = event.target.value;
@@ -230,6 +234,7 @@ export function ArchiveRunsView() {
         <FormField label="Typ" htmlFor="archive-task" className="min-w-36 flex-1 sm:flex-none">
           <NativeSelect
             id="archive-task"
+            className={ARCHIVE_SELECT_LIST_CLASS}
             value={taskType}
             onChange={(event) => {
               const value = event.target.value;
@@ -253,6 +258,7 @@ export function ArchiveRunsView() {
         <FormField label="Platforma" htmlFor="archive-platform" className="min-w-36 flex-1 sm:flex-none">
           <NativeSelect
             id="archive-platform"
+            className={ARCHIVE_SELECT_LIST_CLASS}
             value={platform}
             onChange={(event) => {
               const value = event.target.value;
@@ -277,6 +283,7 @@ export function ArchiveRunsView() {
           <FormField label="Inicjator" htmlFor="archive-user" className="min-w-36 flex-1 sm:flex-none">
             <NativeSelect
               id="archive-user"
+              className={ARCHIVE_SELECT_LIST_CLASS}
               value={userId}
               onChange={(event) => {
                 const value = event.target.value;

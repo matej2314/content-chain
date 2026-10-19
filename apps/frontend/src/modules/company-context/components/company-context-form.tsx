@@ -214,6 +214,7 @@ export function CompanyContextForm({
               value={value.identity.description}
               disabled={readOnly}
               aria-required
+              className="min-h-44"
               onChange={(event) =>
                 patch({
                   ...value,
@@ -330,7 +331,7 @@ export function CompanyContextForm({
                   >
                     <Textarea
                       id={`offer-description-${index}`}
-                      className="min-h-24"
+                      className="min-h-48"
                       value={item.description}
                       disabled={readOnly}
                       aria-required

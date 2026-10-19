@@ -3198,9 +3198,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/ui/input.tsx": {
-    "mtime": 1791367829.3959224,
-    "seen": 1792261760.1108649,
-    "ast_hash": "26cdd13c6eb4a306c29b4b51a48cfe8a",
+    "mtime": 1792437089.445719,
+    "seen": 1792437100.4414666,
+    "ast_hash": "a62e4e85a657410630bcfbbde34428a5",
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/ui/label.tsx": {
@@ -3390,9 +3390,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/ui/textarea.tsx": {
-    "mtime": 1791367829.3959224,
-    "seen": 1792261760.1108704,
-    "ast_hash": "56150977f3e7a922756365aba5693246",
+    "mtime": 1792438394.73856,
+    "seen": 1792438402.2294357,
+    "ast_hash": "b61c2da6ff6b4475ed2ecdf25028ed0d",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/company-context/components/completeness-chip.tsx": {
@@ -3438,15 +3438,15 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/start-run-form.tsx": {
-    "mtime": 1792436035.8555517,
-    "seen": 1792436046.9474444,
-    "ast_hash": "f124aa28983b21fc541ea48479fd9dc0",
+    "mtime": 1792436732.2483773,
+    "seen": 1792436743.7279153,
+    "ast_hash": "1c11ee096b45884367e72fa32201ebfa",
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/ui/native-select.tsx": {
-    "mtime": 1791367829.3959224,
-    "seen": 1792261760.1108668,
-    "ast_hash": "fe1b35ba524f5a94961d159a0ef592f9",
+    "mtime": 1792437252.852468,
+    "seen": 1792437257.8712566,
+    "ast_hash": "af87b341e1fe48e17ba6bd2fda7150c7",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/(app)/runs/[runId]/page.tsx": {
@@ -3492,9 +3492,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/archive-runs-view.tsx": {
-    "mtime": 1792416689.4187298,
-    "seen": 1792424680.2523963,
-    "ast_hash": "efac8df7b1bf094864463edb4cefe54a",
+    "mtime": 1792436848.0925167,
+    "seen": 1792436855.8697107,
+    "ast_hash": "987dbead67a54dba12859887d396a072",
     "semantic_hash": ""
   },
   "apps/frontend/src/shared/datetime/format-iso-datetime.ts": {
@@ -3618,9 +3618,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/feedback/components/feedback-form.tsx": {
-    "mtime": 1791815504.5407076,
-    "seen": 1792261760.110823,
-    "ast_hash": "29567e2e25254d366053ae2a93116783",
+    "mtime": 1792438221.5596013,
+    "seen": 1792438402.229378,
+    "ast_hash": "9e8eac143d16fe2ea8b947bf17b6233f",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/account-email-form.tsx": {
@@ -4248,9 +4248,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/account-kpi-cards.tsx": {
-    "mtime": 1792416689.4186306,
-    "seen": 1792424680.252395,
-    "ast_hash": "dcedb994d16412775e20461cb32569cd",
+    "mtime": 1792437507.8175159,
+    "seen": 1792437910.4048944,
+    "ast_hash": "c8b1326e58cccf6275aa2bcae579fc98",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/lib/format-kpi-window.ts": {
