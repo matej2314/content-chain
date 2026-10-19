@@ -1,9 +1,9 @@
 # Graph Report - content-chain  (2026-10-19)
 
 ## Corpus Check
-- 715 files · ~257,558 words
+- 715 files · ~257,592 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 1 file(s) not represented in the graph (top: .css 1)
+- Unclassified: 2 file(s) not represented in the graph (top: .ico 1, .css 1)
 
 ## Summary
 - 4760 nodes · 15448 edges · 126 communities (112 shown, 13 thin omitted)
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `df02f177`
+- Built from commit: `63539ccc`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

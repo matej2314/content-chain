@@ -19,6 +19,7 @@ dist/
 graphify-out/cache/
 graphify-out/2026-*
 deployment-fix-plan.md
+demo-context.txt
 Jenkinsfile.lab
 Jenkinsfile
 
