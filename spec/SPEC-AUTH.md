@@ -1,7 +1,7 @@
 ---
-wersja: 25
+wersja: 26
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-17
+data_modyfikacji: 2026-10-19
 ---
 
 # SPEC — Auth
@@ -64,8 +64,9 @@ Zmiana względem wersji 24 / tabela ról (kolumna guest): detail/logs tylko self
 
 A-1. `POST /api/v1/auth/bootstrap-admin` działa **tylko**, gdy w DB nie ma użytkownika z `role = admin`. Po sukcesie: ustawia sesję cookie jak login oraz **`User.verifiedAt = now()`**; endpoint jest trwale niedostępny (`CONFLICT` / `FORBIDDEN`).
 
-A-1a. `GET /api/v1/auth/bootstrap-status` (bez auth) zwraca `{ "available": boolean }` — `true` wyłącznie gdy wolno wykonać bootstrap. Pod **stronę główną** FE: status steruje **wyłącznie** opcjonalnym CTA + osobnym formularzem bootstrap (tryb `bootstrap_admin` na `/`, nie osobna trasa; **nie** tryb submitu karty logowania; **nie** bramka widoczności „Zarejestruj się!”) — `SPEC-FRONTEND.md` F-4a / F-8, `docs/ux_dashboard.md`. Semantyka HTTP A-1 **bez zmian**.
+A-1a. `GET /api/v1/auth/bootstrap-status` (bez auth) zwraca `{ "available": boolean }` — `true` wyłącznie gdy wolno wykonać bootstrap. Pod **landing** FE (`/`): status steruje **wyłącznie** opcjonalnym CTA + osobnym formularzem bootstrap **z powierzchni rejestracji** (tryb `bootstrap_admin` w modalu auth na `/`, nie osobna trasa; **nie** na formularzu / w trybie logowania; **nie** tryb submitu logowania; **nie** bramka widoczności „Załóż konto” / register) — `SPEC-FRONTEND.md` F-4a / F-8 / F-15, `docs/ux_dashboard.md`. Semantyka HTTP A-1 **bez zmian**.
 
+Zmiana względem wersji 25 / A-1a: odsyłacz UX = „opcjonalne CTA + formularz bootstrap na stronie głównej / karcie logowania” (bez pinu lokalizacji = register). Od tej wersji: CTA + formularz bootstrap **z powierzchni rejestracji** (landing + modal) — `SPEC-FRONTEND.md` F-4a / F-8, `docs/ux_dashboard.md` (landing-legalization Faza 2).
 Zmiana względem wersji 23 / A-1a: status „steruje przyciskiem + formularzem bootstrap” bez jawnego rozdzielenia od CTA register. Od tej wersji `available` **nie** bramkuje register — tylko opcjonalne CTA admina (`docs/ux_dashboard.md`).
 Zmiana względem wersji 21 / A-1a: odsyłacz UX = „tryb submitu karty logowania”. Od tej wersji odsyłacz = przycisk + osobny formularz bootstrap na stronie głównej (tryb `bootstrap_admin` na `/`) — egzekucja API nadal serwerowa (A-1); UI = `SPEC-FRONTEND.md` F-4a / F-8, `docs/ux_dashboard.md`.
 Zmiana względem wersji 8 / A-1a: „pod ekran first-run”. Od tej wersji ten sam widok co logowanie (`docs/ux_dashboard.md`).
@@ -352,8 +353,9 @@ Zmiana względem wersji 14 / „Nie wolno”: zakaz otwartego signup unieważnio
 
 ## Poza zakresem
 
-- Widoki UI (trzy tryby strony głównej: `login` \| `register` \| `bootstrap_admin`; thank-you; aktywacja→login+toast; użytkownicy toggle/Usuń; konto; akceptacja zaproszenia; Cancel admin→guest na detail) — **MVP dashboardu** → `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`. Ten SPEC nie wymaga ekranów jako DoD API (Postman zostaje).
+- Widoki UI (landing + modal auth: tryby `login` \| `register` \| `bootstrap_admin`; thank-you fullscreen w szablonie landingu; aktywacja→toast na landingu / błąd→auto-open login; użytkownicy toggle/Usuń; konto; akceptacja zaproszenia → landing; Cancel admin→guest na detail) — **MVP dashboardu** → `SPEC-FRONTEND.md` / `docs/ux_dashboard.md`. Ten SPEC nie wymaga ekranów jako DoD API (Postman zostaje).
 
+Zmiana względem wersji 25 / poza zakresem: „trzy tryby strony głównej” bez pinu landingu / modala. Od tej wersji odsyłacz UX = landing + modal (bez DoD ekranów w AUTH; HTTP **bez zmian**).
 Zmiana względem wersji 21 / poza zakresem: „first-run, login, rejestracja” jako lista widoków. Od tej wersji jawne trzy tryby na `/` (bez DoD ekranów w AUTH).
 Zmiana względem wersji 7 / poza zakresem: doprecyzowano, że ekrany Users i accept-invite są w zakresie MVP FE, nie „przyszłe”.
 Zmiana względem wersji 14 / poza zakresem: dopisano rejestrację / thank-you / deep link aktywacji jako widoki FE.

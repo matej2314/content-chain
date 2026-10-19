@@ -1,7 +1,7 @@
 ---
-wersja: 16
+wersja: 17
 data_utworzenia: 2026-09-29
-data_modyfikacji: 2026-10-17
+data_modyfikacji: 2026-10-19
 ---
 
 # Bezpieczeństwo — Content Chain
@@ -10,7 +10,9 @@ Norma self-host dla `local` i `production`: auth, sekrety, ekspozycja powierzchn
 
 Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, `architektura.md`.
 
-Zmiana względem: surface FE sugerował, że `bootstrap-status.available` steruje wyłącznie first-run bez jawnego rozdzielenia od CTA register. Od tej wersji: `available` **nie** bramkuje „Zarejestruj się!” — tylko opcjonalne CTA / formularz bootstrap; register zawsze na karcie logowania (`ux_dashboard.md`).
+Zmiana względem wersji 16 (odsyłacz UX): CTA bootstrap / register „na karcie logowania”. Od tej wersji: landing + modal; `available` steruje CTA „Zarejestruj admina” **na formularzu register**; register / „Załóż konto” zawsze dostępne — `ux_dashboard.md`. Semantyka HTTP bootstrap **bez zmian**.
+
+Zmiana względem: surface FE sugerował, że `bootstrap-status.available` steruje wyłącznie first-run bez jawnego rozdzielenia od CTA register. Od wcześniejszej legalizacji: `available` **nie** bramkuje register — tylko opcjonalne CTA / formularz bootstrap.
 
 Zmiana względem: ekspozycja production bez pinu bind localhost dla FE/api/gateway; sekrety tylko „env per app”. Od tej wersji: w `production` publish FE / api / gateway na **`127.0.0.1`** (nie `0.0.0.0` jako kanon); gateway nadal **nie** na internet; sekrety runtime = **jeden** root `.env` z Vault (Jenkins) — zakaz commitowania i bake w obrazie (`deployment.md`).
 
@@ -57,7 +59,7 @@ Zmiana względem: *„guest: detail/logs tylko własne; cudze → 403”* (Faza 
 | Zaproszenia: create / lista pending / resend / revoke | tak | nie | **nie** → **403** |
 | `DELETE /users/:id` (soft `user` / hard+purge `guest`) | tak | nie | **nie** → **403** |
 | Reaktywacja `PATCH /users/:id` (tylko target `user`) | tak | nie | **nie** → **403** |
-| Bootstrap pierwszego admina | jednorazowy (API + formularz bootstrap na stronie głównej) | — | — |
+| Bootstrap pierwszego admina | jednorazowy (API + formularz `bootstrap_admin` w modalu auth na landingu `/`) | — | — |
 
 **403** przy naruszeniu (`FORBIDDEN`). Egzekucja zawsze w `apps/api`, nie tylko w UI. Nowe trasy: **GuestGuard** — brak `@AllowGuest()` → guest **403** (default deny). `admin`/`user`: `@Roles` jak dotychczas.
 
@@ -65,9 +67,9 @@ Gdy `DEMO_MODE=false`: JWT z `role=guest` na **każdej** chronionej trasie (w ty
 
 ## Bootstrap i konta admin
 
-Surface FE: `{ available }` z **`GET /api/v1/auth/bootstrap-status`** steruje **wyłącznie** widocznością opcjonalnego CTA **„Zarejestruj admina”** i **osobnego formularza** bootstrap na stronie głównej (`ux_dashboard.md`). **Nie** bramkuje CTA **„Nie masz konta? Zarejestruj się!”** (zawsze na karcie logowania). Widoczność CTA admina = wyłącznie UX — egzekucja nadal serwerowa (`admin count === 0`). Submit karty logowania **nigdy** nie woła bootstrap (mode-hijack zabroniony).
+Surface FE: `{ available }` z **`GET /api/v1/auth/bootstrap-status`** steruje **wyłącznie** widocznością opcjonalnego CTA **„Zarejestruj admina”** i **osobnego formularza** `bootstrap_admin` w modalu auth — CTA na formularzu **register** (`ux_dashboard.md`). **Nie** bramkuje CTA **„Załóż konto”** / register. **Zakaz** CTA bootstrap na logowaniu. Widoczność CTA admina = wyłącznie UX — egzekucja nadal serwerowa (`admin count === 0`). Submit logowania **nigdy** nie woła bootstrap (mode-hijack zabroniony).
 
-1. **`GET /api/v1/auth/bootstrap-status`** (publiczny) — `{ available }` pod stronę główną (czy pokazać opcjonalne CTA / formularz bootstrap admina; karta logowania zawsze → `POST /auth/login`; register zawsze widoczny).
+1. **`GET /api/v1/auth/bootstrap-status`** (publiczny) — `{ available }` pod UI landingu (czy pokazać opcjonalne CTA / formularz bootstrap na register; login zawsze → `POST /auth/login`; register zawsze dostępny).
 2. **`POST /api/v1/auth/bootstrap-admin`** działa **wyłącznie**, gdy w DB **nie ma** żadnego użytkownika z `role = admin`. Po sukcesie ustawia sesję cookie (jak login) oraz **`User.verifiedAt = now()`** (admin gotowy do loginu bez aktywacji linkiem). **Bez** maila i bez Invitation.
 3. Po utworzeniu pierwszego admina endpoint bootstrap jest **trwale niedostępny** (np. **409** `CONFLICT` / **403**); `bootstrap-status.available === false`.
 4. **Twarda blokada:** tworzenie / awans kolejnych użytkowników z `role = admin` jest **zabronione** w MVP (API odrzuca). W systemie jest **co najwyżej jeden** admin — ten z bootstrapu. Register / activate / resend **nigdy** nie tworzą `admin`.
@@ -161,7 +163,7 @@ Zmiana względem: kolizja na accept-invite → **409** `CONFLICT` jako świadoma
 - Oba cookie: `Secure` + sensowny `SameSite` w `production`.
 - SSE i HTTP: ta sama sesja cookie — **zakaz** tokenu w query string; **zakaz** `Authorization: Bearer` jako modelu MVP (FE, Postman = cookie jar).
 - Body login/refresh **nie** zwraca tokenów (tylko `user` / `expiresIn` wg kontraktu API).
-- Probe tożsamości UI: **`GET /api/v1/auth/me`** → `{ id, email, role }` albo **401** `UNAUTHORIZED` (flow: me → przy sesyjnym 401 refresh → me). **Każde** wywołanie produktowe FE do API: przy **401** `UNAUTHORIZED` ten sam refresh + jednorazowy retry, potem karta logowania (`SPEC-FRONTEND.md`). **401** `INVALID_PASSWORD` (re-auth) **nie** wchodzi w ten cykl — błąd pod polem, sesja zostaje.
+- Probe tożsamości UI: **`GET /api/v1/auth/me`** → `{ id, email, role }` albo **401** `UNAUTHORIZED` (flow: me → przy sesyjnym 401 refresh → me). **Każde** wywołanie produktowe FE do API: przy **401** `UNAUTHORIZED` ten sam refresh + jednorazowy retry, potem **landing `/`** (`ux_dashboard.md`; `SPEC-FRONTEND.md`). **401** `INVALID_PASSWORD` (re-auth) **nie** wchodzi w ten cykl — błąd pod polem, sesja zostaje.
 - Wylogowanie unieważnia refresh w DB i czyści **oba** cookie.
 - **BFF (`apps/frontend`):** przeglądarka mówi wyłącznie z originem Next (ścieżki `/api/v1/...`). Next proxy’uje do `apps/api` (env serwerowe, nie `NEXT_PUBLIC_*`). Cookie sesji są na originie FE — `SameSite=strict` w `production` jest spójne z tym modelem. SSE musi iść przez to samo proxy **bez buforowania** całego strumienia.
 

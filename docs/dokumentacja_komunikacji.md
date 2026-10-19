@@ -1,7 +1,7 @@
 ---
-wersja: 22
+wersja: 23
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-17
+data_modyfikacji: 2026-10-19
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -12,6 +12,8 @@ Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
 2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
 
 **Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+
+Zmiana względem wersji 22 (odsyłacz UX wejścia): FE na `/` = **landing + modal** auth; CTA „Zarejestruj admina” przy **register** gdy `available` — nie „karta logowania” jako jedyna treść `/`. Kontrakt HTTP Auth **bez zmian**. Kanon UX: `docs/ux_dashboard.md`.
 
 Zmiana względem: brak endpointu agregacji runów pod KPI. Od tej wersji: **`GET /api/v1/runs/summary`** (rolling 30 dni; scope admin/user/guest∧demo; TTL cache 60 s; shape KPI; **bez** migracji schematu) — UI: `docs/ux_dashboard.md`.
 
@@ -131,15 +133,15 @@ Publiczny (**`@Public()`**), **bez** sesji. V1: **wyłącznie** flaga trybu demo
 
 #### `GET /api/v1/auth/bootstrap-status`
 
-Publiczny (bez sesji) sygnał, czy na stronie głównej pokazać **opcjonalne** CTA / formularz bootstrap admina (`docs/ux_dashboard.md`). **Nie** przełącza submitu karty logowania (login zawsze → `POST /auth/login`) i **nie** bramkuje CTA „Zarejestruj się!”.
+Publiczny (bez sesji) sygnał, czy w UI pokazać **opcjonalne** CTA / formularz bootstrap admina — na formularzu **rejestracji** w modalu auth (`docs/ux_dashboard.md`). **Nie** przełącza submitu logowania (login zawsze → `POST /auth/login`) i **nie** bramkuje CTA „Załóż konto” / register.
 
 **200** — `{ "available": boolean }` — `true`, gdy w DB **nie ma** jeszcze użytkownika `admin` (wolno wywołać bootstrap); `false` po utworzeniu admina.
 
-Zmiana względem: opis statusu jako „czy submitować bootstrap zamiast loginu”. Od tej wersji status = wyłącznie widoczność opcjonalnego CTA admina.
+Zmiana względem: opis statusu jako „czy submitować bootstrap zamiast loginu”. Od wcześniejszej legalizacji status = wyłącznie widoczność opcjonalnego CTA admina. Zmiana względem: CTA przy karcie logowania — lokalizacja UX = formularz register (landing + modal).
 
 #### `POST /api/v1/auth/bootstrap-admin`
 
-Jednorazowy bootstrap **pierwszego i jedynego** admina self-host. Działa tylko, gdy w DB nie ma admina — norma: `security.md`. Po sukcesie api ustawia sesję cookie jak przy loginie. W UI: **osobny** formularz trybu `bootstrap_admin` na `/` (po CTA „Zarejestruj admina”) — **nie** submit karty logowania — `docs/ux_dashboard.md`.
+Jednorazowy bootstrap **pierwszego i jedynego** admina self-host. Działa tylko, gdy w DB nie ma admina — norma: `security.md`. Po sukcesie api ustawia sesję cookie jak przy loginie. W UI: **osobny** formularz trybu `bootstrap_admin` w **modalu** na `/` (po CTA „Zarejestruj admina” z formularza **register**, gdy `available === true`) — **nie** submit logowania — `docs/ux_dashboard.md`.
 
 | Pole | Typ | Wymagane |
 |------|-----|----------|
@@ -202,9 +204,9 @@ Zmiana względem: body tylko `{ "email" }` bez re-auth.
 Zmiana względem: self-service email poza MVP; brak tej trasy.
 Zmiana względem: flow FE wymagał `code` + `message` pod polem hasła. Od tej wersji pod polem obowiązuje wyłącznie **`message`** (kształt envelope HTTP z `code` bez zmian).
 
-**Flow FE (norma produktowa):** po starcie aplikacji → `GET /auth/me`; przy **401** `UNAUTHORIZED` → `POST /auth/refresh`; potem ponownie `GET /auth/me`; przy kolejnym **401** `UNAUTHORIZED` → **strona główna (karta logowania)**. Ten sam cykl na produktowych wywołaniach przy sesyjnym **401** `UNAUTHORIZED`. **401** `INVALID_PASSWORD` (re-auth przy `PATCH /auth/me/email`) **nie** wchodzi w ten cykl — `message` pod polem hasła, sesja zostaje. Submit karty logowania **zawsze** → `POST /auth/login` (**zakaz** mode-hijack → bootstrap). Dashboard tylko po sesji. Na karcie **zawsze** CTA „Nie masz konta? Zarejestruj się!”; opcjonalne CTA „Zarejestruj admina” wyłącznie gdy `bootstrap-status.available === true` (`docs/ux_dashboard.md`). Deep link `/?activationToken=…` → widok logowania + `POST /auth/activate` w tle + toast.
+**Flow FE (norma produktowa):** po starcie aplikacji → `GET /auth/me`; przy **401** `UNAUTHORIZED` → `POST /auth/refresh`; potem ponownie `GET /auth/me`; przy kolejnym **401** `UNAUTHORIZED` → **landing `/`** (modal auth zamknięty). Ten sam cykl na produktowych wywołaniach przy sesyjnym **401** `UNAUTHORIZED`. **401** `INVALID_PASSWORD` (re-auth przy `PATCH /auth/me/email`) **nie** wchodzi w ten cykl — `message` pod polem hasła, sesja zostaje. Submit logowania (modal) **zawsze** → `POST /auth/login` (**zakaz** mode-hijack → bootstrap). Dashboard tylko po sesji. CTA wejścia na landingu: „Zaloguj się” / „Załóż konto” → modal; opcjonalne CTA „Zarejestruj admina” **wyłącznie** na formularzu register gdy `bootstrap-status.available === true` (`docs/ux_dashboard.md`). Deep link `/?activationToken=…` → landing + `POST /auth/activate` w tle; sukces = toast **bez** auto-modala; błąd = auto-open modal login + ogólny komunikat.
 
-Zmiana względem: *submit karty woła bootstrap gdy `available`*; *register tylko gdy bootstrap niedostępny*. Od tej wersji login zawsze `/auth/login`; register zawsze na karcie; bootstrap = osobny formularz / opcjonalne CTA.
+Zmiana względem: *submit karty woła bootstrap gdy `available`*; *register tylko gdy bootstrap niedostępny*. Od wcześniejszej legalizacji login zawsze `/auth/login`; bootstrap = osobny formularz. Zmiana względem: „strona główna = karta logowania” / CTA bootstrap przy logowaniu — od tej wersji landing + modal; bootstrap CTA przy register.
 
 #### `POST /api/v1/auth/register` (publiczny)
 
@@ -229,7 +231,7 @@ Aktywacja konta tokenem z maila — **`@Public()`**. Body: `{ "token" }` (`.stri
 **200** — sukces: `{ "user": { "id", "email", "role" } }`; ustawia `User.verifiedAt`, usuwa wiersz(e) `AccountActivation` dla usera; **bez** Set-Cookie. Potem zwykły `POST /auth/login`.  
 **401** `UNAUTHORIZED` — token zły / zużyty / wygasły (wspólny komunikat; bez enumeracji email). **Bez** **409** na tej trasie.
 
-Deep link FE (**jedyna** kanoniczna ścieżka): `{APP_PUBLIC_URL}/?activationToken={raw}` → natychmiast widok logowania + activate w tle + toast (`docs/ux_dashboard.md`).
+Deep link FE (**jedyna** kanoniczna ścieżka): `{APP_PUBLIC_URL}/?activationToken={raw}` → landing na `/` + activate w tle; sukces = toast bez auto-modala; błąd = auto-open modal login (`docs/ux_dashboard.md`).
 
 Zmiana względem wersji 10: usunięto **409** na activate.
 

@@ -4,65 +4,38 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { Toaster } from '@/shared/ui/sonner';
-import {
-  activateAccount,
-  fetchBootstrapStatus,
-} from '@/modules/auth/api/auth.api';
+import { activateAccount, fetchBootstrapStatus } from '@/modules/auth/api/auth.api';
 import { ACTIVATION_FAILED_HINT } from '@/modules/auth/activation-error';
-import { BootstrapAdminForm } from '@/modules/auth/components/bootstrap-admin-form';
-import { LoginCard } from '@/modules/auth/components/login-card';
-import {
-  RegisterForm,
-  type RegisterSuccess,
-} from '@/modules/auth/components/register-form';
+import { AuthModal, type AuthMode } from '@/modules/auth/components/auth-modal';
 import { RegistrationThankYou } from '@/modules/auth/components/registration-thank-you';
 import { useSession } from '@/modules/auth/components/session-provider';
+import { LandingView } from '@/modules/auth/landing';
 import { notifyProduct } from '@/modules/notifications/notify-product';
 
-export type GuestView =
-  | {
-    readonly mode: 'login';
-    readonly successHint?: string | null;
-    readonly activationError?: string | null;
-  }
-  | { readonly mode: 'register' }
-  | { readonly mode: 'bootstrap_admin' }
-  | { readonly mode: 'thank_you'; readonly email: string };
+type GuestSurface =
+  { readonly kind: 'landing' } | { readonly kind: 'thank_you'; readonly email: string };
 
-function GuestBrandPanel() {
-  return (
-    <aside
-      data-slot="guest-brand-panel"
-      className="relative hidden w-[min(42%,28rem)] shrink-0 flex-col justify-between overflow-hidden bg-primary px-8 py-10 text-primary-foreground lg:flex"
-    >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-linear-to-br from-primary via-primary to-primary/80"
-      />
-      <div className="relative z-10 flex flex-col gap-6">
-        <p className="text-xl font-semibold tracking-tight">Content Chain</p>
-        <div className="flex max-w-sm flex-col gap-3 text-sm leading-relaxed text-primary-foreground/90">
-          <p>
-            Self-hostowy dashboard do uruchamiania agentów contentowych — od briefu po przegląd
-            wyniku.
-          </p>
-          <p>Jedna sesja, ciemny obszar roboczy i kontrola HITL tam, gdzie decyzja należy do Ciebie.</p>
-        </div>
-      </div>
-      <p className="relative z-10 text-sm font-medium text-primary-foreground/95">
-        Zaloguj się, aby wejść do panelu operatora.
-      </p>
-    </aside>
-  );
-}
+type AuthUi = {
+  readonly open: boolean;
+  readonly mode: AuthMode;
+  readonly successHint: string | null;
+  readonly activationError: string | null;
+};
 
-function GuestFormSkeleton() {
+const initialAuth: AuthUi = {
+  open: false,
+  mode: 'login',
+  successHint: null,
+  activationError: null,
+};
+
+function HomeEntrySkeleton() {
   return (
-    <div className="flex w-full max-w-md flex-col gap-3 rounded-lg border bg-card p-6">
-      <Skeleton className="h-6 w-40" />
-      <Skeleton className="h-9 w-full" />
-      <Skeleton className="h-9 w-full" />
-      <Skeleton className="h-8 w-full" />
+    <div className="flex min-h-dvh flex-col gap-4 bg-background p-6">
+      <Skeleton className="h-10 w-40" />
+      <Skeleton className="h-8 w-full max-w-xl" />
+      <Skeleton className="h-8 w-2/3 max-w-md" />
+      <Skeleton className="mt-6 h-64 w-full max-w-4xl" />
     </div>
   );
 }
@@ -72,7 +45,8 @@ function HomeEntryInner() {
   const searchParams = useSearchParams();
   const activationStarted = useRef(false);
   const { state } = useSession();
-  const [view, setView] = useState<GuestView>({ mode: 'login' });
+  const [surface, setSurface] = useState<GuestSurface>({ kind: 'landing' });
+  const [auth, setAuth] = useState<AuthUi>(initialAuth);
   const [bootstrapAvailable, setBootstrapAvailable] = useState(false);
 
   useEffect(() => {
@@ -113,84 +87,84 @@ function HomeEntryInner() {
         });
       })
       .catch(() => {
-        setView((current) =>
-          current.mode === 'login'
-            ? { ...current, activationError: ACTIVATION_FAILED_HINT }
-            : {
-              mode: 'login',
-              activationError: ACTIVATION_FAILED_HINT,
-              successHint: null,
-            },
-        );
+        setAuth({
+          open: true,
+          mode: 'login',
+          successHint: null,
+          activationError: ACTIVATION_FAILED_HINT,
+        });
       });
   }, [router, searchParams, state.status]);
 
-  function handleRegisterSuccess(result: RegisterSuccess): void {
-    if (result.kind === 'pending') {
-      setView({ mode: 'thank_you', email: result.email });
-      return;
-    }
-    setView({
-      mode: 'login',
-      successHint: 'Konto utworzone. Możesz się zalogować.',
-      activationError: null,
-    });
-  }
-
   if (state.status === 'loading' || state.status === 'authenticated') {
-    return (
-      <div className="flex min-h-dvh bg-background">
-        <GuestBrandPanel />
-        <div className="flex flex-1 items-center justify-center p-4">
-          <GuestFormSkeleton />
-        </div>
-      </div>
-    );
+    return <HomeEntrySkeleton />;
   }
 
   return (
-    <div className="flex min-h-dvh bg-background">
-      <GuestBrandPanel />
-      <div className="flex flex-1 items-center justify-center p-4">
-        <Toaster />
-        {view.mode === 'thank_you' ? (
-          <RegistrationThankYou
-            email={view.email}
-            onBackToLogin={() => setView({ mode: 'login' })}
-          />
-        ) : view.mode === 'register' ? (
-          <RegisterForm
-            onSuccess={handleRegisterSuccess}
-            onBackToLogin={() => setView({ mode: 'login' })}
-          />
-        ) : view.mode === 'bootstrap_admin' ? (
-          <BootstrapAdminForm onBackToLogin={() => setView({ mode: 'login' })} />
-        ) : (
-          <LoginCard
-            bootstrapAvailable={bootstrapAvailable}
-            onGoRegister={() => setView({ mode: 'register' })}
-            onGoBootstrapAdmin={() => setView({ mode: 'bootstrap_admin' })}
-            successHint={view.successHint ?? null}
-            activationError={view.activationError ?? null}
-          />
-        )}
-      </div>
-    </div>
+    <>
+      <Toaster />
+      <LandingView
+        surface={surface.kind === 'thank_you' ? 'thank_you' : 'marketing'}
+        onOpenLogin={() =>
+          setAuth({ open: true, mode: 'login', successHint: null, activationError: null })
+        }
+        onOpenRegister={() =>
+          setAuth({ open: true, mode: 'register', successHint: null, activationError: null })
+        }
+        thankYou={
+          surface.kind === 'thank_you' ? (
+            <RegistrationThankYou
+              email={surface.email}
+              onBackToLogin={() => {
+                setSurface({ kind: 'landing' });
+                setAuth({
+                  open: true,
+                  mode: 'login',
+                  successHint: null,
+                  activationError: null,
+                });
+              }}
+            />
+          ) : undefined
+        }
+      />
+      <AuthModal
+        open={auth.open}
+        mode={auth.mode}
+        onOpenChange={(open) => setAuth((prev) => ({ ...prev, open }))}
+        onModeChange={(mode) =>
+          setAuth((prev) => ({
+            ...prev,
+            mode,
+            successHint: null,
+            activationError: null,
+          }))
+        }
+        bootstrapAvailable={bootstrapAvailable}
+        successHint={auth.successHint}
+        activationError={auth.activationError}
+        onRegisterSuccess={(result) => {
+          if (result.kind === 'pending') {
+            setAuth((prev) => ({ ...prev, open: false }));
+            setSurface({ kind: 'thank_you', email: result.email });
+            return;
+          }
+          setSurface({ kind: 'landing' });
+          setAuth({
+            open: true,
+            mode: 'login',
+            successHint: 'Konto utworzone. Możesz się zalogować.',
+            activationError: null,
+          });
+        }}
+      />
+    </>
   );
 }
 
 export function HomeEntry() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-dvh bg-background">
-          <GuestBrandPanel />
-          <div className="flex flex-1 items-center justify-center p-4">
-            <GuestFormSkeleton />
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<HomeEntrySkeleton />}>
       <HomeEntryInner />
     </Suspense>
   );

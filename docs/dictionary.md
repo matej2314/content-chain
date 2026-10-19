@@ -1,7 +1,7 @@
 ---
-wersja: 23
+wersja: 24
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-17
+data_modyfikacji: 2026-10-19
 ---
 
 # Słownik — Content Chain
@@ -10,9 +10,11 @@ Kanoniczne definicje pojęć domenowych i technicznych. Identyfikatory typów, k
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `observability.md`.
 
+Zmiana względem wersji 23: First-run / bootstrap „na karcie logowania”. Od tej wersji: landing + modal; CTA „Zarejestruj admina” na formularzu register gdy `available` — `ux_dashboard.md`.
+
 Zmiana względem: po `POST /runs` (**202**) operator zostawał na widoku źródłowym (Konto / Runy). Od tej wersji: po **202** z Konta **oraz** z modalu na Runach → nawigacja na szczegóły tego runu (`/runs/:runId`) — `ux_dashboard.md`.
 
-Zmiana względem: first-run / bootstrap w UI bez jawnego „register zawsze na karcie”. Od tej wersji: `available` steruje tylko opcjonalnym CTA admina; „Zarejestruj się!” zawsze — `ux_dashboard.md`.
+Zmiana względem: first-run / bootstrap w UI bez jawnego „register zawsze dostępny”. Od wcześniejszej legalizacji: `available` steruje tylko opcjonalnym CTA admina; register zawsze — lokalizacja powierzchni: landing + modal (`ux_dashboard.md`).
 Zmiana względem: `DELETE /users/:id` = zawsze soft; reaktywacja bez filtra roli; cancel wyłącznie `startedBy`; access JWT bez checku `isActive` / braku wiersza. Od tej wersji: **dezaktywacja** tylko `user`; **usunięcie trwałe / purge** tylko `guest`; **reaktywacja** tylko `user` (z UI); **cancel admin→guest**; sesja nieważna przy soft/hard. Reset instancji **poza** tym wycinkiem. Norma: `security.md`, `dokumentacja_komunikacji.md`, `ux_dashboard.md`.
 
 Zmiana względem: adapter Prisma wyłącznie jako „w `infrastructure`” bez normy podkatalogów I/O. Od tej wersji: adapter Prisma (i mapowanie wiersza) w `infrastructure/` **albo** `infrastructure/persistence/` BC; inne I/O (SSE, Redis quota, SMTP, cookie/JWT) w osobnych podkatalogach tej samej warstwy, gdy katalog puchnie. Dopisano hasło **Podkatalog warstwy (I/O / kernel)**. Sens **Portu**, BC, modułu Nest i kleju procesu — bez zmiany.
@@ -87,7 +89,7 @@ Zmiana względem: hasło `guest` / `FORBIDDEN` bez wyjątku podglądu archiwum c
 | **HITL model B** | Faza ideas kończy **invoke** grafu; stan pauzy (draft, `conversationId`, metadane fazy) kanonicznie w **DB**; `POST .../hitl` startuje **nowy invoke** fazy content. Zakaz checkpoinetera LangGraph jako store pauzy w MVP. Zmiana względem: wcześniejsze hasło HITL bez modelu persistence. |
 | **Full-auto** | Wykonanie tasku jednoetapowego bez wymuszonej pauzy selekcji. |
 | **Self-host** | Uruchomienie we własnej infrastrukturze operatora; licencja MIT. |
-| **First-run** | Stan pustej instancji: `GET /api/v1/auth/bootstrap-status` → `available: true` → jednorazowy `POST .../bootstrap-admin`. W UI **nie** jest osobną trasą ani trybem submitu logowania — na `/` opcjonalny przycisk „Zarejestruj admina” otwiera **osobny formularz** (`bootstrap_admin`); karta logowania nadal woła `POST /auth/login`; CTA „Zarejestruj się!” **zawsze** na karcie (nie XOR z adminem). Potem endpoint bootstrap trwale niedostępny. Zmiana względem: „first-run = tryb karty logowania (submit)” oraz „register tylko gdy `available === false`”. |
+| **First-run** | Stan pustej instancji: `GET /api/v1/auth/bootstrap-status` → `available: true` → jednorazowy `POST .../bootstrap-admin`. W UI **nie** jest osobną trasą ani trybem submitu logowania — na landingu `/` CTA „Załóż konto” → modal register → opcjonalny przycisk „Zarejestruj admina” (iff `available`) otwiera tryb **`bootstrap_admin`** w modalu; logowanie nadal woła `POST /auth/login`; register **zawsze** dostępny (nie XOR z adminem; **bez** CTA bootstrap na logowaniu). Potem endpoint bootstrap trwale niedostępny. Zmiana względem: „first-run = tryb karty logowania (submit)” / „register tylko gdy `available === false`” / CTA bootstrap na logowaniu. Kanon: `ux_dashboard.md`. |
 | **Konto (widok)** | Osobna pozycja sidebara (admin i `user`): zmiana własnego emaila (**modal re-auth**: email disabled → hasło; przy **409** clear + odblokowanie emaila → `PATCH /auth/me/email` `{ email, currentPassword }`; złe hasło → **401** `INVALID_PASSWORD` pod polem, bez wylogowania), lista **własnych** runów (**live** dla `running` / `awaiting_hitl` / `interrupted`; **paginacja UI** 10 jak Runy — slice FE po `GET /runs/user/:userId` bez pageSize HTTP), **start** runu (**inline**, ten sam brief co modal na Runach), **Stop** na własnym runie nieterminalnym (modal potwierdzenia → `POST .../cancel`), opinia tekstowa. Prefill startu wyłącznie z wiersza „Moje runy” (snapshot `GET /runs/:runId`). **Nie** mylić z widokiem **Runy** (archiwum `completed` \| `failed` \| `cancelled` instancji, **paginacja HTTP** `pageSize=10` + CTA/modal startu). Wylogowanie jest w **headerze**. Po `POST /runs` **202** **z Konta** → nawigacja na szczegóły tego runu (`/runs/:runId`); błąd startu bez nawigacji. Zmiana względem: „po `POST /runs` z Konta użytkownik zostaje na Koncie”. |
 | **Runy (widok)** | Archiwum firmy: tylko `completed` \| `failed` \| `cancelled`, `GET /runs?status=completed,failed,cancelled`, odświeżanie przy wejściu i co **15 min**. CTA **„Uruchom agenta”** otwiera modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). **Bez** SSE i **bez** runów w toku na liście. Po `POST /runs` **202** **z modalu** → modal zamknięty + nawigacja na szczegóły tego runu; live poza Kontem = floating box. Zmiana względem: „po `POST /runs` z modalu operator zostaje na Runach”. |
 | **Floating box** | Sygnał własnych runów w toku poza widokiem Konto; zwiniecie/rozwinięcie. N× EventSource per `runId` (bez nowego hubu). `queued` poza boxem. **Bez** przycisku Stop (Stop tylko na Moich runach / szczegółach). Po `cancelled` — krótko label „Anulowany”, potem ukrycie pozycji (delay **200 ms**). |

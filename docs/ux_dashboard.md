@@ -1,5 +1,5 @@
 ---
-wersja: 35
+wersja: 36
 data_utworzenia: 2026-09-17
 data_modyfikacji: 2026-10-19
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-19
 Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / design systemu — widoki, stany i zachowanie względem API/SSE.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`, `brand_types.md`.
+
+Zmiana względem wersji 35 / „Strona główna — split-panel” oraz wejścia z CTA bootstrap na karcie logowania: anonimowe `/` = **landing** (treść marketingowa bez formularza obok) + formularze auth w **modalu**; CTA „Zarejestruj admina” **wyłącznie** na formularzu rejestracji gdy `available === true`; thank-you = fullscreen w szablonie landingu (nie modal); activate sukces = toast bez auto-modala, błąd = auto-open modal login. Endpointy i tryby `login` \| `register` \| `bootstrap_admin` **bez zmian**. Copy marketingowe = feature plan (tu: IA / struktura / stany).
 
 Zmiana względem wersji 34: milczenie o kolejności `CompletenessChipSlot` w mobile sheet (implikacja „sidebar w sheet” bez jawnej kompozycji). Od tej wersji: sheet niesie **ten sam** chrome sidebara co desktop — nav + **`CompletenessChipSlot`** zawsze w viewportcie sheetu; kolejność mobile: tożsamość → nav → slot → „Wyloguj się”; logout na mobile w stopce sheetu **nie** jest pozycją listy nav; semantyka Demo / Completeness **bez zmian**.
 
@@ -53,9 +55,9 @@ Zmiana względem: UX milczał o chipie demo / lockach `guest`. Od tej wersji: `D
 
 Zmiana względem: Faza 18 — invite → zawsze `user` także przy demo. Od tej wersji: po zaproszeniu + loginie na instancji demo konto ma `role=guest` → **te same locki** co po self-register (`session.role === 'guest'` ∧ `demoMode`). Accept flow (hasło → `/` → login, bez cookie) **bez zmian**. **Bez** pickera roli na invite. Zaproszony w demo = gość sandboxu, nie pełny członek zespołu.
 
-Zmiana względem: first-run = tryb submitu tej samej karty logowania (`available === true` → submit → `bootstrap-admin`; register ukryty jako jedyna ścieżka first-run). Od tej wersji na `/` są **trzy tryby** (`login` \| `register` \| `bootstrap_admin`): karta logowania **zawsze** submituje `POST /auth/login`; bootstrap admina = osobny formularz po CTA „Zarejestruj admina” gdy `available === true` (bez osobnej trasy).
+Zmiana względem: first-run = tryb submitu tej samej karty logowania (`available === true` → submit → `bootstrap-admin`; register ukryty jako jedyna ścieżka first-run). Wtedy na `/` trzy tryby (`login` \| `register` \| `bootstrap_admin`): login zawsze → `POST /auth/login`; bootstrap = osobny formularz po CTA gdy `available === true`. **Nadpisane** w v36: landing + modal; lokalizacja CTA bootstrap — sekcja „Wejście”.
 
-Zmiana względem: CTA register ukryte / disabled gdy `available === true` (XOR z „Zarejestruj admina”). Od tej wersji na karcie logowania **zawsze** dwa stałe CTA: **„Zaloguj się”** + **„Nie masz konta? Zarejestruj się!”**; trzeci przycisk **„Zarejestruj admina”** tylko gdy `available === true` (nie zastępuje register).
+Zmiana względem: CTA register ukryte / disabled gdy `available === true` (XOR z „Zarejestruj admina”). Wtedy register zawsze dostępny obok opcjonalnego CTA admina. **Nadpisane** w v36: CTA admina **tylko** na formularzu register (nie na logowaniu).
 
 Zmiana względem: zakładka Odbiorca bez wymaganego pola Nazwa; start runu = wolny input „grupa”. Od tej wersji: profil = **Nazwa** + opis (oba wymagane); **Grupa** przy starcie = **select** (Bez wskazania / nazwy z katalogu / „Wpisz własną grupę…” + pole opisu) — mapowanie do `brief.audience` wg trzech trybów (`dokumentacja_komunikacji.md`).
 
@@ -76,7 +78,7 @@ Obowiązujące decyzje projektowe szaty graficznej dashboardu. Wartości `oklch`
 
 ### Paleta
 
-- **Primary (chrome)** = żywy **indigo/violet** (wysoka chroma) — lewy panel split na `/` (gradient primary), solid tokeny `--primary` / `--primary-foreground` / `--ring` oraz chrome poza pozycjami nawigacji sidebara. **Nie** mylić z wypełnieniem aktywnej pozycji menu ani z wypełnionym CTA.
+- **Primary (chrome)** = żywy **indigo/violet** (wysoka chroma) — akcenty landingu na `/` (chrome / hero; gradient primary tam, gdzie layout landingu tego wymaga), solid tokeny `--primary` / `--primary-foreground` / `--ring` oraz chrome poza pozycjami nawigacji sidebara. **Nie** mylić z wypełnieniem aktywnej pozycji menu ani z wypełnionym CTA. Landing **dziedziczy** ten sam kanon tokenów — **bez** trzeciej palety.
 - **Pozycje nawigacji sidebara** = osobne traktowanie **teal/mint** (wash + inset ring + lewy pasek) — stany w „Sidebar — logo i stany pozycji menu”. **Nie** solid `bg-primary` / `text-primary-foreground` na active item.
 - **Wypełniony CTA** = wyłącznie wariant komponentu `Button` **`default`** (`variant` pominięty lub `variant="default"`): tło = gradient teal/mint **135°**, tekst = **ciemny** (kierunek; konkret hex/gradient = HOW feature-planu). Hover / `:active`: te same kolory tła i tekstu, z lekkim podbiciem jasności (`brightness`) **całego** przycisku (wartość = HOW). **Poza zakresem tej normy:** `outline`, `ghost`, `destructive`, `link`, `secondary` — bez gradientu teal ani wymuszenia ciemnego tekstu CTA. Kolory CTA `default` **nie** zmieniają się przy okazji stanów pozycji menu.
 - Zmiana względem wersji 32: *filled CTA = solid primary indigo/violet*. Od tej wersji CTA `default` ≠ solid `--primary` chrome.
@@ -126,11 +128,23 @@ Pełny zestaw z mapy `RunStatus` poniżej (`--success`, `--warning`, `--complete
 - Badge z `--interrupted`; widoczny w listach / detail / floating box.
 - **Bez** hero banneru (nie traktować jak „w toku” wizualnie równoważnego `running`).
 
-### Strona główna — split-panel
+### Strona główna — landing (+ modal auth)
 
-- Na `lg+`: **lewa** strona dekoracyjna (gradient primary + brand + **1–2 krótkie akapity korzyści** + krótka CTA/zachęta) + **prawa** — formularz (`login` / `register` / `bootstrap_admin` / thank-you).
-- Mobile: **tylko** formularz (bez lewego panelu).
-- Zmiana względem: wyśrodkowana karta na pełnej szerokości tła.
+Anonimowe `/` (brak ważnej sesji): **landing marketingowy** — treść **bez** formularza auth obok. Formularze `login` \| `register` \| `bootstrap_admin` w **modalu** (ten sam model na desktopie i mobile — **nie** „tylko formularz na pełnym ekranie” jako jedyna treść `/`).
+
+Struktura IA (copy = placeholder / doprecyzuje feature plan):
+
+- **Sticky chrome** — brand + CTA wejścia: **„Zaloguj się”** → modal tryb `login`; **„Załóż konto”** → modal tryb `register`.
+- **Hero** — brand / headline / krótki supporting + grupa CTA; **proof** = **realne screenshoty** panelu (asset produktowy; nie token CSS; montaż = feature plan).
+- **Sekcje** wartości / procesu (jak zatwierdzony wzorzec landingu).
+- **Footer**.
+
+Stany pełnoekranowe na `/` **w szablonie landingu** (chrome landingu; **bez** nowego URL):
+
+- **Thank-you** po register (`production`, sygnał `verifiedAt: null` / równoważny) — **nie** modal.
+- Zalogowany na `/` → redirect **`/account`** (**bez zmian**).
+
+Zmiana względem: norma **split-panel** (lewa dekoracja + prawa formularz; mobile = tylko formularz) oraz względem wyśrodkowanej karty na pełnej szerokości tła.
 
 ### Sidebar — logo i stany pozycji menu
 
@@ -175,37 +189,42 @@ Pełny zestaw z mapy `RunStatus` poniżej (`--success`, `--warning`, `--complete
 - Kosmetyka (w tym badge statusów wg mapy powyżej).
 - Pozycjonowanie / copy statusów / zachowanie Stop (**bez** Stop w boxie) **bez zmian**.
 
-## Wejście: strona główna (logowanie), rejestracja, bootstrap admin, sesja
+## Wejście: strona główna (landing), rejestracja, bootstrap admin, sesja
 
-**Strona główna** (brak ważnej sesji): na `lg+` **split-panel** (lewa dekoracja + prawa formularz); mobile = tylko formularz — na **tej samej** trasie `/` w jednym z trzech trybów: `login` \| `register` \| `bootstrap_admin` (**bez** osobnej trasy first-run). Szczegóły layoutu: „Normy wizualne”.
+**Strona główna** (brak ważnej sesji): **landing** na trasie `/` + auth w **modalu** w jednym z trzech trybów: `login` \| `register` \| `bootstrap_admin` (**bez** osobnej trasy first-run). Szczegóły layoutu: „Normy wizualne” / „Strona główna — landing”.
 
-- **Logowanie** — baza widoku: email, hasło, CTA „Zaloguj się”. Submit **zawsze** → `POST /auth/login` → dashboard. **Zakaz** mode-hijack: CTA logowania **nigdy** nie woła `POST /auth/bootstrap-admin`, także gdy `bootstrap-status.available === true`.
-- **Rejestracja** — przycisk **„Nie masz konta? Zarejestruj się!”** **zawsze aktywny / widoczny** na karcie logowania (produkcja pełna i DEMO — **nie** zależy od `available`, `demoMode` / `DEMO_MODE`). **Zakaz** ukrywania register tylko dlatego, że bootstrap jest dostępny.
-- **Bootstrap admin** — opcjonalny trzeci przycisk **„Zarejestruj admina”** (lub równoważne copy PL) **widoczny wyłącznie** gdy `available === true` → przełącza na formularz admina (email + hasło; opcjonalnie powtórz hasło tylko UI) → `POST /auth/bootstrap-admin` → sesja cookie → dashboard (`/account`). **Nie** zastępuje ani nie wyłącza CTA register. Z formularza admina i register — jawny powrót do karty logowania.
+- **CTA wejścia (chrome landingu)** — **„Zaloguj się”** → otwiera modal w trybie `login`; **„Załóż konto”** → modal w trybie `register` (produkcja pełna i DEMO — **nie** zależy od `available`, `demoMode` / `DEMO_MODE`). **Zakaz** ukrywania register tylko dlatego, że bootstrap jest dostępny.
+- **Logowanie** (modal, tryb `login`) — email, hasło, CTA „Zaloguj się”. Submit **zawsze** → `POST /auth/login` → dashboard. **Zakaz** mode-hijack: submit logowania **nigdy** nie woła `POST /auth/bootstrap-admin`, także gdy `bootstrap-status.available === true`. **Zakaz** CTA „Zarejestruj admina” na formularzu / w trybie logowania.
+- **Rejestracja** (modal, tryb `register`) — formularz: email, hasło, **powtórz hasło** (confirm tylko UI — API dostaje `{ email, password }`). Submit → `POST /auth/register`. Z register i bootstrap — jawny powrót do trybu `login` (w modalu) albo zamknięcie modala z powrotem na landing.
+- **Bootstrap admin** — opcjonalne CTA **„Zarejestruj admina”** (lub równoważne copy PL) **wyłącznie** na formularzu **rejestracji**, **widoczne iff** `GET /auth/bootstrap-status` → `available === true` → przełącza modal na tryb `bootstrap_admin` (email + hasło; opcjonalnie powtórz hasło tylko UI) → `POST /auth/bootstrap-admin` → sesja cookie → dashboard (`/account`). **Nie** zastępuje ani nie wyłącza CTA register / „Załóż konto”. **Nie** pokazywać tego CTA na logowaniu ani na chrome landingu jako zastępstwa register.
 
-Dashboard (sidebar) **tylko** po udanej sesji — nigdy jako pierwsza treść niezalogowanego.
+Dashboard (sidebar) **tylko** po udanej sesji — nigdy jako pierwsza treść niezalogowanego. Zalogowany użytkownik na `/` → redirect **`/account`**.
 
-Komponent home-entry **`GuestView`** = widok **anonimowy** (tryby `login` / `register` / `bootstrap_admin`). **Nie** jest to rola `UserRole.guest`.
+Komponent home-entry **`GuestView`** = widok **anonimowy** (landing + modal; tryby `login` / `register` / `bootstrap_admin`). **Nie** jest to rola `UserRole.guest`.
 
 | Ekran / krok | Kiedy | Zachowanie |
 |--------------|-------|------------|
-| **Strona główna — logowanie** | Brak ważnej sesji; widok `login` | Submit → **zawsze** `POST /auth/login` → dashboard. Przy `available === true` nadal loguje (nie tworzy admina). Stałe CTA: „Zaloguj się” + „Nie masz konta? Zarejestruj się!”. Opcjonalne CTA „Zarejestruj admina” iff `available === true` |
-| **Strona główna — bootstrap admin** | Klik „Zarejestruj admina” gdy `available === true` | Widok `bootstrap_admin` na `/` (nie osobna trasa). Formularz: email + hasło (+ opcjonalnie powtórz hasło tylko UI). Submit → `POST /auth/bootstrap-admin` → sesja cookie jak po loginie → dashboard. Powrót → widok logowania |
-| **Rejestracja** | Klik „Zarejestruj się!” (zawsze z karty logowania) | Formularz: email, hasło, **powtórz hasło** (confirm tylko UI — API dostaje `{ email, password }`). Submit → `POST /auth/register`. Powrót → widok logowania |
-| **Po register — `production`** | Udany **201** z `verifiedAt: null` **lub** **503** `MAIL_DELIVERY_FAILED` po utworzeniu pending User (`NODE_ENV=production`) | **Bez** sesji / Set-Cookie. Przejście / **pozostanie** na **stronie podziękowań**: copy sukcesu + „Nie otrzymałeś wiadomości e-mail?” + button **„Wyślij ponownie”** → `POST /auth/resend-activation` z `{ email }` ze **stanu formularza / klienta** (nie z body **201**). Sygnał thank-you po **201**: `user.verifiedAt === null`. Opcjonalne copy o ograniczeniach gościa (gdy demo) **nie** zmienia flow aktywacji |
-| **Po register — poza `production`** | Udany **201** z `verifiedAt` ustawionym (ISO) | Konto gotowe od razu; krótki sukces → widok logowania (**bez** obligatoryjnego thank-you + resend pod mail) |
-| **Kolizja email (409)** | `POST /auth/register` → **409** `CONFLICT`, `message`: **`Email already in use`** | **Zostajemy na formularzu rejestracji**; jawny błąd przy polu email (zmiana adresu + ponowny submit). **Bez** thank-you, **bez** udawania sukcesu |
-| **Aktywacja z maila** | Deep link **wyłącznie** `{APP_PUBLIC_URL}/?activationToken=…` (mail / opcjonalny log DX) | **Natychmiast** widok logowania (strona główna `/`); w tle `POST /auth/activate` z tokenem z query; po sukcesie **toast** na `/`: „Konto aktywowane! Możesz się zalogować.” (**wyjątek** od „Toaster tylko po sesji”). Błąd activate (**401**) → **ogólny** komunikat na karcie logowania (bez rozróżniania przyczyn). **Bez** dashboardu; **bez** Set-Cookie po activate |
-| **Akceptacja zaproszenia** | Publiczny **deep link** `{APP_PUBLIC_URL}/invite/accept?token=…` (mail / log dev); nie strona główna | Formularz **pierwszego** hasła → `POST /auth/accept-invite` → **powrót na stronę główną (logowanie)**. Brak Set-Cookie po accept; dashboard dopiero po `POST /auth/login` |
-| **Probe sesji** | Start aplikacji / reload | `GET /auth/me` → przy **401** `UNAUTHORIZED`: `POST /auth/refresh` → ponownie `GET /auth/me` → przy kolejnym **401** `UNAUTHORIZED`: strona główna (**widok logowania**; CTA bootstrap gdy `available`). **401** `INVALID_PASSWORD` (re-auth email) **nie** dotyczy tego wiersza |
+| **Strona główna — landing** | Brak ważnej sesji; modal zamknięty (albo thank-you — niżej) | Treść landingu; CTA „Zaloguj się” / „Załóż konto” otwierają modal. **Bez** formularza auth obok treści |
+| **Modal — logowanie** | CTA „Zaloguj się” (chrome) lub powrót z register / bootstrap | Submit → **zawsze** `POST /auth/login` → dashboard. Przy `available === true` nadal loguje (nie tworzy admina). **Bez** CTA „Zarejestruj admina” |
+| **Modal — rejestracja** | CTA „Załóż konto” (chrome) | Formularz register jak wyżej. Opcjonalne CTA „Zarejestruj admina” **iff** `available === true` (na tym formularzu). Submit → `POST /auth/register` |
+| **Modal — bootstrap admin** | Klik „Zarejestruj admina” z formularza register gdy `available === true` | Tryb `bootstrap_admin` w modalu na `/` (nie osobna trasa). Formularz: email + hasło (+ opcjonalnie powtórz hasło tylko UI). Submit → `POST /auth/bootstrap-admin` → sesja cookie jak po loginie → dashboard. Powrót → tryb `login` lub `register` w modalu |
+| **Po register — `production`** | Udany **201** z `verifiedAt: null` **lub** **503** `MAIL_DELIVERY_FAILED` po utworzeniu pending User (`NODE_ENV=production`) | **Bez** sesji / Set-Cookie. **Zamknięcie modala**; **fullscreen thank-you** na `/` w **szablonie landingu** (nie modal; bez nowego URL): copy sukcesu + „Nie otrzymałeś wiadomości e-mail?” + button **„Wyślij ponownie”** → `POST /auth/resend-activation` z `{ email }` ze **stanu formularza / klienta** (nie z body **201**). Sygnał thank-you po **201**: `user.verifiedAt === null`. Opcjonalne copy o ograniczeniach gościa (gdy demo) **nie** zmienia flow aktywacji |
+| **Po register — poza `production`** | Udany **201** z `verifiedAt` ustawionym (ISO) | Konto gotowe od razu; krótki sukces → tryb logowania w modalu (**bez** obligatoryjnego thank-you + resend pod mail) |
+| **Kolizja email (409)** | `POST /auth/register` → **409** `CONFLICT`, `message`: **`Email already in use`** | **Zostajemy na formularzu rejestracji** (w modalu); jawny błąd przy polu email (zmiana adresu + ponowny submit). **Bez** thank-you, **bez** udawania sukcesu |
+| **Aktywacja z maila** | Deep link **wyłącznie** `{APP_PUBLIC_URL}/?activationToken=…` (mail / opcjonalny log DX) | Landing na `/`; w tle `POST /auth/activate` z tokenem z query; po sukcesie **toast** na landingu: „Konto aktywowane! Możesz się zalogować.” (**wyjątek** od „Toaster tylko po sesji”) — **bez** auto-otwarcia modala. Błąd activate (**401**) → **auto-open** modal logowania + **ogólny** komunikat w modalu (bez rozróżniania przyczyn). **Bez** dashboardu; **bez** Set-Cookie po activate |
+| **Akceptacja zaproszenia** | Publiczny **deep link** `{APP_PUBLIC_URL}/invite/accept?token=…` (mail / log dev); nie strona główna | Formularz **pierwszego** hasła → `POST /auth/accept-invite` → **powrót na landing `/`**. Modal logowania **nie** auto — użytkownik klika „Zaloguj się”. Brak Set-Cookie po accept; dashboard dopiero po `POST /auth/login` |
+| **Probe sesji** | Start aplikacji / reload | `GET /auth/me` → przy **401** `UNAUTHORIZED`: `POST /auth/refresh` → ponownie `GET /auth/me` → przy kolejnym **401** `UNAUTHORIZED`: **landing** na `/` (modal zamknięty; bootstrap CTA dopiero po otwarciu register gdy `available`). **401** `INVALID_PASSWORD` (re-auth email) **nie** dotyczy tego wiersza |
+| **Zalogowany na `/`** | Ważna sesja + nawigacja na `/` | Redirect **`/account`** (**bez zmian**) |
 
-Zmiana względem: first-run = tryb submitu tej samej karty logowania (submit → `bootstrap-admin`; register ukryty jako jedyna ścieżka first-run). Od tej wersji trzy tryby na `/`; login zawsze `/auth/login`; bootstrap = osobny formularz po CTA gdy `available === true`.
+Zmiana względem: **split-panel** jako layout `/` oraz CTA „Zarejestruj admina” na karcie / w trybie logowania. Od tej wersji: landing + modal; bootstrap CTA **tylko** na formularzu register gdy `available === true`.
 
-Zmiana względem: register widoczny tylko gdy `available === false` (XOR z CTA admina). Od tej wersji register **zawsze** na karcie logowania; CTA admina wyłącznie warunkowe — nie wyłącza register.
+Zmiana względem: first-run = tryb submitu tej samej karty logowania (submit → `bootstrap-admin`; register ukryty jako jedyna ścieżka first-run). Od wcześniejszej legalizacji trzy tryby; login zawsze `/auth/login`; bootstrap = osobny formularz — lokalizacja CTA przeniesiona na register (powyżej).
 
-Zmiana względem: osobne ekrany first-run vs logowanie; wejście na dashboard bez przejścia przez kartę logowania jako stronę główną. Od wcześniejszej legalizacji: jeden widok główny = logowanie (+ rejestracja **zawsze** + opcjonalny bootstrap) — **bez** osobnej trasy first-run; mapping submitu unieważniony powyżej.
+Zmiana względem: register widoczny tylko gdy `available === false` (XOR z CTA admina). Od wcześniejszej legalizacji register **zawsze** dostępny; CTA admina wyłącznie warunkowe — nie wyłącza register.
 
-Zmiana względem: nieaktywne „Zarejestruj się!” / zakaz signup. Invite `/invite/accept?token=` **bez zmian sensu**. Confirm e-mail przy zmianie adresu (`PATCH /auth/me/email`) pozostaje **V1** — **nie** mylić z aktywacją przy rejestracji. Probe / deep link aktywacji / thank-you — **bez** zmiany sensu (nadal wracają na widok logowania).
+Zmiana względem: osobne ekrany first-run vs logowanie; wejście na dashboard bez przejścia przez stronę główną. Od wcześniejszej legalizacji: jeden URL `/` — **bez** osobnej trasy first-run; mapping submitu unieważniony wcześniej; powierzchnia = landing + modal.
+
+Zmiana względem: nieaktywne „Zarejestruj się!” / zakaz signup. Invite `/invite/accept?token=` → landing (modal login **nie** auto). Confirm e-mail przy zmianie adresu (`PATCH /auth/me/email`) pozostaje **V1** — **nie** mylić z aktywacją przy rejestracji.
 
 **Header dashboardu (od pierwszego layoutu po sesji):** pasek nad obszarem roboczym na **wszystkich** widokach zalogowanych. Elementy **wewnątrz headera wyrównane do prawej**.
 
@@ -216,7 +235,7 @@ Hierarchia sterowania tożsamością (**desktop** `lg+`):
 
 Na **mobile** (`lg:hidden`): dropdown tożsamości w headerze jest ukryty — sheet = sidebar (nav + `CompletenessChipSlot`) **oraz** klaster tożsamości/logout: email + stopka **„Wyloguj się”** (kolejność — „Założenia UX”). Logout w stopce sheetu **nie** jest pozycją listy nav; chipy **nie** są pozycją nav. Sens hierarchii header → login → „Wyloguj się” **bez zmian** (sheet zastępuje ukryty klaster headera, nie redefiniuje wylogowania jako pozycji menu).
 
-Klik **„Wyloguj się”** (header desktop **lub** stopka mobile sheet) → **modal potwierdzenia** → **Tak** → `POST /auth/logout` → nawigacja na **`/`** (karta logowania). **Nie** / zamknięcie modala zostawia użytkownika w dashboardzie. Wylogowanie **nie** zastępuje widoku Konto. Na **desktopie** logout wyłącznie w hierarchii headera (**nie** w sidebarze). Na **mobile** logout w stopce sheetu — poza listą nav.
+Klik **„Wyloguj się”** (header desktop **lub** stopka mobile sheet) → **modal potwierdzenia** → **Tak** → `POST /auth/logout` → nawigacja na **`/`** (landing; modal auth zamknięty). **Nie** / zamknięcie modala zostawia użytkownika w dashboardzie. Wylogowanie **nie** zastępuje widoku Konto. Na **desktopie** logout wyłącznie w hierarchii headera (**nie** w sidebarze). Na **mobile** logout w stopce sheetu — poza listą nav.
 
 Zmiana względem: „Wyloguj się” w chrome (sidebar **lub** header), bez wskazania miejsca ani hierarchii login → wylogowanie; milczenie o klastrze tożsamości/logout w mobile sheet.
 
@@ -337,9 +356,9 @@ Sukces toasta: **polski**, krótki tytuł. Błąd w toaście **tylko** gdy na ty
 | SSE terminal **na** `/runs/:runId` tego runu | **nie** | status + logi na szczegółach (bez dublowania toasta mutacji) |
 | GET listy / snapshot / completeness (błąd strony) | **nie** | envelope w bloku |
 | Pulse `running`, `run.log`, heartbeat | **nie** | box / szczegóły |
-| Login / bootstrap / accept-invite / register | **nie** | envelope na karcie (brak Toastera poza sesją) |
-| Sukces `POST /auth/activate` (deep link na `/`) | **tak** | „Konto aktywowane! Możesz się zalogować.” — **jedyny** wyjątek Toastera poza sesją |
-| Błąd `POST /auth/activate` | **nie** | ogólny komunikat na karcie logowania |
+| Login / bootstrap / accept-invite / register | **nie** | envelope w modalu auth / na karcie accept-invite (brak Toastera poza sesją; wyjątek activate sukces — niżej) |
+| Sukces `POST /auth/activate` (deep link na `/`) | **tak** | „Konto aktywowane! Możesz się zalogować.” na landingu — **bez** auto-otwarcia modala; **jedyny** wyjątek Toastera poza sesją |
+| Błąd `POST /auth/activate` | **nie** | auto-open modal logowania + ogólny komunikat w modalu |
 | `awaiting_hitl` | **nie** (MVP) | box już zmienia copy; HITL później na tym samym prymitywie |
 
 Później (HITL, opinia, zaproszenia): **ten sam** kanał toasta, nadal **nie** toast na walidację przy polu. **`PATCH /auth/me/email` (zmiana własnego emaila):** sukces **bez** toastu; błędy hasła (`INVALID_PASSWORD`) / `VALIDATION_FAILED` / **409** — wyłącznie pod polami w modalu re-auth (nie toast). **401** `INVALID_PASSWORD` **nie** uruchamia cyklu refresh / wylogowania.
@@ -522,7 +541,7 @@ Authz selecta runów: wyłącznie runy autora; obcy `userId` → api `403`.
 - Brak UI do tworzenia drugiego admina.
 - **Bez** dwóch przycisków Soft+Hard na `user`; **bez** edycji roli / emaila z tej listy.
 
-**Akceptacja zaproszenia (publiczna, MVP):** trasa **`/invite/accept?token=`** (ten sam kształt, który api wkłada do maila jako `{APP_PUBLIC_URL}/invite/accept?token=…`) — **nie** strona główna. Formularz pierwszego hasła (polityka z `security.md`) → `POST /auth/accept-invite` → **strona główna (logowanie)**. Dashboard dopiero po udanym `POST /auth/login`. Trasa poza layoutem zalogowanego.
+**Akceptacja zaproszenia (publiczna, MVP):** trasa **`/invite/accept?token=`** (ten sam kształt, który api wkłada do maila jako `{APP_PUBLIC_URL}/invite/accept?token=…`) — **nie** strona główna. Formularz pierwszego hasła (polityka z `security.md`) → `POST /auth/accept-invite` → **landing `/`** (modal logowania **nie** auto — użytkownik klika „Zaloguj się”). Dashboard dopiero po udanym `POST /auth/login`. Trasa poza layoutem zalogowanego.
 
 Błędy na accept-invite: **wyłącznie** `message` z envelope na karcie (bez Toastera — jak login / bootstrap). Kolizja email i nieważny token przychodzą jako ten sam **401** — UI **nie** ma osobnego copy „email zajęty” ani gałęzi na **409** `CONFLICT` z tej trasy. Opcjonalnie stała pomocnicza (bez leak z API): ogólne „Nie można dokończyć zaproszenia. Skontaktuj się z administratorem.” — **tylko** jeśli nadal mapowane z tego samego 401 (bez rozróżniania przyczyn po `code`).
 
@@ -534,7 +553,7 @@ Zmiana względem: założenie, że FE może rozróżnić kolizję email (**409**
 
 ## Stany puste i błędy
 
-- Brak admina: strona główna → opcjonalne CTA „Zarejestruj admina” (obok stałego „Zarejestruj się!”) → osobny formularz → bootstrap → dashboard (karta logowania nadal loguje; register nadal dostępny).
+- Brak admina: landing → „Załóż konto” → modal register → opcjonalne CTA „Zarejestruj admina” gdy `available === true` → tryb `bootstrap_admin` → bootstrap → dashboard (logowanie nadal loguje; register nadal dostępny; **bez** CTA bootstrap na logowaniu).
 - Pusty kontekst / po pierwszym wejściu admina: onboarding → uzupełnij kontekst → (przy żywym gateway) „Agenci aktywni”.
 - Błędy API (MVP): pokazać **wyłącznie `message` z envelope** (jak zwraca API; komunikaty są po angielsku). **`code` nie jest treścią UI** — służy logice klienta (gałęzie HTTP), nie etykiecie przy polu. **Bez** stack trace. Chrome i etykiety poza envelope — po polsku. Tłumaczenie UI (np. next-intl) = **V1 — rozbudowa**, nie MVP. Przy formularzu / błędzie GET bloku: `message` **w miejscu błędu** — **nie** toast (sekcja „Feedback zdarzeń”).
   Zmiana względem: wcześniejsza norma wymagała pokazywania **`code` i `message`**. Od tej wersji w UI obowiązuje tylko **`message`**.

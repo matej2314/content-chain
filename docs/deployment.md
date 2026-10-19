@@ -1,7 +1,7 @@
 ---
-wersja: 10
+wersja: 11
 data_utworzenia: 2026-09-30
-data_modyfikacji: 2026-10-11
+data_modyfikacji: 2026-10-19
 ---
 
 # Deployment — Content Chain
@@ -10,7 +10,9 @@ Self-host MVP: jak uruchamiać, konfigurować i utrzymywać jedną instalację (
 
 Powiązane: `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `testy.md`, `security.md`, `observability.md`.
 
-Zmiana względem: first-run w checklistcie DX = submit karty logowania → `bootstrap-admin`. Od tej wersji: karta logowania zawsze → `POST /auth/login`; first-run = opcjonalne CTA „Zarejestruj admina” + osobny formularz gdy `bootstrap-status.available === true`; CTA register zawsze na karcie — `ux_dashboard.md`, `security.md`.
+Zmiana względem wersji 10 (checklist DX): first-run „CTA na karcie logowania”. Od tej wersji: landing + modal; CTA „Zarejestruj admina” na formularzu register gdy `available` — `ux_dashboard.md`, `security.md`. Endpointy bootstrap **bez zmian**.
+
+Zmiana względem: first-run w checklistcie DX = submit karty logowania → `bootstrap-admin`. Od wcześniejszej legalizacji: login zawsze → `POST /auth/login`; first-run = opcjonalne CTA admina + osobny formularz gdy `available === true`; register zawsze dostępny.
 
 Zmiana względem: compose / publish / sekrety bez modelu Compose-first. Od tej wersji kanon production: **trzy usługi** (`ai-provider-gateway` + `api` + `frontend`); **jeden** root `.env` (Vault → Jenkins); publish **`127.0.0.1`**; sieci **`cc-network`** + **`main_network`**; Redis **external** (env, nie usługa compose); volume SQLite `api-sqlite` → `/app/data/chain.db`; migracje w entrypoint api; build z **roota** monorepo + **pnpm**; FE `API_BASE_URL=http://api:3001`, port **3004**; api→gateway po hostname serwisu compose `:3100`.
 
@@ -45,7 +47,7 @@ Bez osobnego „SaaS multi-tenant cloud” w MVP. Staging opcjonalny później =
 2. Skopiować **per-app** `.env.example` → `.env` dla `apps/api`, `apps/ai-provider-gateway`, `apps/frontend` (DX / dokumentacja kluczy). W `production` te same klucze lądują w **jednym** root `.env` — patrz niżej.
 3. Migracje Prisma (api) na SQLite (`prisma migrate deploy` / skrypt DX).
 4. Uruchomić procesy: gateway → api → frontend (kolejność: najpierw gateway, potem api zależne od niego).
-5. First-run w UI: na stronie głównej przy `bootstrap-status.available === true` — opcjonalne CTA **„Zarejestruj admina”** → osobny formularz → `POST /api/v1/auth/bootstrap-admin` (karta logowania nadal submituje wyłącznie `POST /auth/login`; CTA **„Nie masz konta? Zarejestruj się!”** zawsze widoczne). Równoważnie bootstrap z Postmana przy pustej DB (ops).
+5. First-run w UI: landing `/` → **„Załóż konto”** → modal register; przy `bootstrap-status.available === true` — opcjonalne CTA **„Zarejestruj admina”** na formularzu register → tryb `bootstrap_admin` → `POST /api/v1/auth/bootstrap-admin` (logowanie nadal submituje wyłącznie `POST /auth/login`; CTA wejścia **„Załóż konto”** zawsze dostępne; **bez** CTA bootstrap na logowaniu — `ux_dashboard.md`). Równoważnie bootstrap z Postmana przy pustej DB (ops).
 
 Skrypty dokładne (`pnpm dev` / `pnpm --filter …`) doprecyzuje root `package.json` przy implementacji.
 
