@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/shared/ui/button';
 import { EnvelopeError } from '@/shared/ui/form-field';
 import { resendActivation } from '@/modules/auth/api/auth.api';
-import { LANDING_COPY } from '@/modules/auth/landing/landing-copy';
+import { LANDING_COPY } from '@/modules/landing/landing-copy';
 import { ApiError, type ApiErrorEnvelope } from '@/shared/api/envelope';
 
 type RegistrationThankYouProps = {

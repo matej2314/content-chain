@@ -1,5 +1,5 @@
 ---
-wersja: 36
+wersja: 38
 data_utworzenia: 2026-09-17
 data_modyfikacji: 2026-10-19
 ---
@@ -9,6 +9,10 @@ data_modyfikacji: 2026-10-19
 Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / design systemu — widoki, stany i zachowanie względem API/SSE.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`, `brand_types.md`.
+
+Zmiana względem wersji 37 / closing landingu: sekcja **closing** miała **dwa** CTA (login + register), dublując parę sticky chrome. Od tej wersji closing = **jeden** przycisk z etykietą **„Sprawdzam!”** → modal auth w trybie **`register`**; wariant `Button` **`default`** (stylistyka filled CTA / gradient teal/mint — **bez** redefinicji; Paleta powyżej). Sticky chrome CTA wejścia (**„Zaloguj się”** / **„Załóż konto”**) oraz link „Zaloguj się” w footerze — **bez zmian**. Closing **nie** dubluje logowania; logowanie pozostaje w chrome i footerze. Auth / tryby modala / thank-you / activate / bootstrap CTA na register — **bez zmian** kontraktu poza punktem wejścia z closing.
+
+Zmiana względem wersji 36 / IA landingu: szkielet chrome → hero → „sekcje wartości / procesu” → footer **bez** zamkniętej listy nazw ani sekcji audience. Od tej wersji kanon IA anonimowego `/` obejmuje sekcję **„Dla kogo”** (audience) **przed** sekcją wartości („Co zyskuje zespół”); dalej Kontekst → Runy → proces → closing / footer; kotwica (np. `#dla-kogo`) w sticky chrome **oraz** footerze (spójnie z Kontekst / Runy / proces). Forma audience: lead o wartości dla firmy/zespołu + trzy karty person (tekst; **bez** wymogu screenshotów; **bez** nowej palety). Auth / modal / thank-you / activate — **bez zmian**. Finalne brzmienie copy = feature plan (tu: intencja / skrót).
 
 Zmiana względem wersji 35 / „Strona główna — split-panel” oraz wejścia z CTA bootstrap na karcie logowania: anonimowe `/` = **landing** (treść marketingowa bez formularza obok) + formularze auth w **modalu**; CTA „Zarejestruj admina” **wyłącznie** na formularzu rejestracji gdy `available === true`; thank-you = fullscreen w szablonie landingu (nie modal); activate sukces = toast bez auto-modala, błąd = auto-open modal login. Endpointy i tryby `login` \| `register` \| `bootstrap_admin` **bez zmian**. Copy marketingowe = feature plan (tu: IA / struktura / stany).
 
@@ -132,19 +136,28 @@ Pełny zestaw z mapy `RunStatus` poniżej (`--success`, `--warning`, `--complete
 
 Anonimowe `/` (brak ważnej sesji): **landing marketingowy** — treść **bez** formularza auth obok. Formularze `login` \| `register` \| `bootstrap_admin` w **modalu** (ten sam model na desktopie i mobile — **nie** „tylko formularz na pełnym ekranie” jako jedyna treść `/`).
 
-Struktura IA (copy = placeholder / doprecyzuje feature plan):
+Struktura IA (copy = placeholder / intencja; finalne brzmienie = feature plan):
 
-- **Sticky chrome** — brand + CTA wejścia: **„Zaloguj się”** → modal tryb `login`; **„Załóż konto”** → modal tryb `register`.
-- **Hero** — brand / headline / krótki supporting + grupa CTA; **proof** = **realne screenshoty** panelu (asset produktowy; nie token CSS; montaż = feature plan).
-- **Sekcje** wartości / procesu (jak zatwierdzony wzorzec landingu).
-- **Footer**.
+- **Sticky chrome** — brand + CTA wejścia: **„Zaloguj się”** → modal tryb `login`; **„Załóż konto”** → modal tryb `register`; kotwice do sekcji treści (w tym audience, wartości, Kontekst, Runy, proces) — spójnie z footerem.
+- **Hero** (+ istniejący proof hero / tech strip) — brand / headline / krótki supporting + grupa CTA; **proof** w hero = **realne screenshoty** panelu (asset produktowy; nie token CSS; montaż = feature plan).
+- **Sekcja „Dla kogo”** (audience; kotwica np. `#dla-kogo`) — **przed** sekcją wartości. Lead opisuje **wartość wnoszoną przez projekt do firmy / zespołu** (nie tylko „kim jesteś”). Forma: **trzy karty** (tytuł + body), tekstowe; **bez** wymogu screenshotów; **bez** nowej palety (dziedziczenie locku landingu). Persony (skrót / intencja):
+  - **Founderzy / małe zespoły** — szybciej od pomysłu do pierwszej wersji contentu bez osobnego procesu redakcyjnego;
+  - **Marketerzy B2B** — spójny głos marki między postami, rolkami i copy strony;
+  - **Zespoły techniczne** — self-host: kontrola nad instancją, integracjami i sposobem pracy agentów.
+- **Sekcja wartości** („Co zyskuje zespół” / możliwości) — po audience.
+- **Proof / sekcje produktu** — Kontekst → Runy (jak zatwierdzony wzorzec landingu).
+- **Proces** → **closing** → **Footer** (te same kotwice co sticky chrome, w tym `#dla-kogo`).
+  - **Closing** (ostatnia sekcja treści przed stopką) — **jeden** przycisk CTA z etykietą **„Sprawdzam!”** → otwiera modal auth w trybie **`register`**. Wariant: `Button` **`default`** (stylistyka wariantu / filled CTA — **bez zmian**; Paleta). Closing **nie** ma drugiego CTA logowania i **nie** dubluje pary chrome; logowanie pozostaje w sticky chrome (**„Zaloguj się”**) oraz w footerze.
+  - **Sticky chrome** CTA wejścia (**„Zaloguj się”** / **„Załóż konto”**) — **bez zmian** względem normy powyżej (osobna powierzchnia od closing).
+
+Kolejność scrollu (kanon): hero (+ proof / tech) → **Dla kogo** → wartości → Kontekst → Runy → proces → closing / footer.
 
 Stany pełnoekranowe na `/` **w szablonie landingu** (chrome landingu; **bez** nowego URL):
 
 - **Thank-you** po register (`production`, sygnał `verifiedAt: null` / równoważny) — **nie** modal.
 - Zalogowany na `/` → redirect **`/account`** (**bez zmian**).
 
-Zmiana względem: norma **split-panel** (lewa dekoracja + prawa formularz; mobile = tylko formularz) oraz względem wyśrodkowanej karty na pełnej szerokości tła.
+Zmiana względem: norma **split-panel** (lewa dekoracja + prawa formularz; mobile = tylko formularz) oraz względem wyśrodkowanej karty na pełnej szerokości tła. Zmiana względem v36: IA bez sekcji audience — od v37 „Dla kogo” jest częścią kanonu (powyżej). Zmiana względem v37: closing z dwoma CTA (login + register) — od v38 jeden CTA „Sprawdzam!” → `register` (powyżej).
 
 ### Sidebar — logo i stany pozycji menu
 
@@ -193,9 +206,10 @@ Zmiana względem: norma **split-panel** (lewa dekoracja + prawa formularz; mobil
 
 **Strona główna** (brak ważnej sesji): **landing** na trasie `/` + auth w **modalu** w jednym z trzech trybów: `login` \| `register` \| `bootstrap_admin` (**bez** osobnej trasy first-run). Szczegóły layoutu: „Normy wizualne” / „Strona główna — landing”.
 
-- **CTA wejścia (chrome landingu)** — **„Zaloguj się”** → otwiera modal w trybie `login`; **„Załóż konto”** → modal w trybie `register` (produkcja pełna i DEMO — **nie** zależy od `available`, `demoMode` / `DEMO_MODE`). **Zakaz** ukrywania register tylko dlatego, że bootstrap jest dostępny.
-- **Logowanie** (modal, tryb `login`) — email, hasło, CTA „Zaloguj się”. Submit **zawsze** → `POST /auth/login` → dashboard. **Zakaz** mode-hijack: submit logowania **nigdy** nie woła `POST /auth/bootstrap-admin`, także gdy `bootstrap-status.available === true`. **Zakaz** CTA „Zarejestruj admina” na formularzu / w trybie logowania.
-- **Rejestracja** (modal, tryb `register`) — formularz: email, hasło, **powtórz hasło** (confirm tylko UI — API dostaje `{ email, password }`). Submit → `POST /auth/register`. Z register i bootstrap — jawny powrót do trybu `login` (w modalu) albo zamknięcie modala z powrotem na landing.
+- **CTA wejścia (chrome landingu)** — **„Zaloguj się”** → otwiera modal w trybie `login`; **„Załóż konto”** → modal w trybie `register` (produkcja pełna i DEMO — **nie** zależy od `available`, `demoMode` / `DEMO_MODE`). **Zakaz** ukrywania register tylko dlatego, że bootstrap jest dostępny. Para chrome — **bez zmian** względem closing (closing ma osobny, pojedynczy CTA — niżej / „Strona główna — landing”).
+- **CTA closing (sekcja closing landingu)** — **jeden** przycisk **„Sprawdzam!”** → modal w trybie `register`; wariant `Button` **`default`** (stylistyka **bez** redefinicji). **Nie** zastępuje ani nie zmienia pary chrome ani linku „Zaloguj się” w footerze.
+- **Logowanie** (modal, tryb `login`) — email, hasło, CTA „Zaloguj się”. Submit **zawsze** → `POST /auth/login` → dashboard. **Zakaz** mode-hijack: submit logowania **nigdy** nie woła `POST /auth/bootstrap-admin`, także gdy `bootstrap-status.available === true`. **Zakaz** CTA „Zarejestruj admina” na formularzu / w trybie logowania. Wejście do trybu login: chrome **„Zaloguj się”**, powrót z register / bootstrap, link w footerze — **nie** z closing.
+- **Rejestracja** (modal, tryb `register`) — formularz: email, hasło, **powtórz hasło** (confirm tylko UI — API dostaje `{ email, password }`). Submit → `POST /auth/register`. Z register i bootstrap — jawny powrót do trybu `login` (w modalu) albo zamknięcie modala z powrotem na landing. Wejście do trybu register: chrome **„Załóż konto”** **oraz** closing **„Sprawdzam!”**.
 - **Bootstrap admin** — opcjonalne CTA **„Zarejestruj admina”** (lub równoważne copy PL) **wyłącznie** na formularzu **rejestracji**, **widoczne iff** `GET /auth/bootstrap-status` → `available === true` → przełącza modal na tryb `bootstrap_admin` (email + hasło; opcjonalnie powtórz hasło tylko UI) → `POST /auth/bootstrap-admin` → sesja cookie → dashboard (`/account`). **Nie** zastępuje ani nie wyłącza CTA register / „Załóż konto”. **Nie** pokazywać tego CTA na logowaniu ani na chrome landingu jako zastępstwa register.
 
 Dashboard (sidebar) **tylko** po udanej sesji — nigdy jako pierwsza treść niezalogowanego. Zalogowany użytkownik na `/` → redirect **`/account`**.
@@ -204,9 +218,9 @@ Komponent home-entry **`GuestView`** = widok **anonimowy** (landing + modal; try
 
 | Ekran / krok | Kiedy | Zachowanie |
 |--------------|-------|------------|
-| **Strona główna — landing** | Brak ważnej sesji; modal zamknięty (albo thank-you — niżej) | Treść landingu; CTA „Zaloguj się” / „Załóż konto” otwierają modal. **Bez** formularza auth obok treści |
-| **Modal — logowanie** | CTA „Zaloguj się” (chrome) lub powrót z register / bootstrap | Submit → **zawsze** `POST /auth/login` → dashboard. Przy `available === true` nadal loguje (nie tworzy admina). **Bez** CTA „Zarejestruj admina” |
-| **Modal — rejestracja** | CTA „Załóż konto” (chrome) | Formularz register jak wyżej. Opcjonalne CTA „Zarejestruj admina” **iff** `available === true` (na tym formularzu). Submit → `POST /auth/register` |
+| **Strona główna — landing** | Brak ważnej sesji; modal zamknięty (albo thank-you — niżej) | Treść landingu; chrome CTA „Zaloguj się” / „Załóż konto” oraz closing **„Sprawdzam!”** otwierają modal (closing → wyłącznie `register`). **Bez** formularza auth obok treści |
+| **Modal — logowanie** | CTA „Zaloguj się” (chrome / footer) lub powrót z register / bootstrap | Submit → **zawsze** `POST /auth/login` → dashboard. Przy `available === true` nadal loguje (nie tworzy admina). **Bez** CTA „Zarejestruj admina”. Closing **nie** otwiera login |
+| **Modal — rejestracja** | CTA „Załóż konto” (chrome) **lub** closing **„Sprawdzam!”** | Formularz register jak wyżej. Opcjonalne CTA „Zarejestruj admina” **iff** `available === true` (na tym formularzu). Submit → `POST /auth/register` |
 | **Modal — bootstrap admin** | Klik „Zarejestruj admina” z formularza register gdy `available === true` | Tryb `bootstrap_admin` w modalu na `/` (nie osobna trasa). Formularz: email + hasło (+ opcjonalnie powtórz hasło tylko UI). Submit → `POST /auth/bootstrap-admin` → sesja cookie jak po loginie → dashboard. Powrót → tryb `login` lub `register` w modalu |
 | **Po register — `production`** | Udany **201** z `verifiedAt: null` **lub** **503** `MAIL_DELIVERY_FAILED` po utworzeniu pending User (`NODE_ENV=production`) | **Bez** sesji / Set-Cookie. **Zamknięcie modala**; **fullscreen thank-you** na `/` w **szablonie landingu** (nie modal; bez nowego URL): copy sukcesu + „Nie otrzymałeś wiadomości e-mail?” + button **„Wyślij ponownie”** → `POST /auth/resend-activation` z `{ email }` ze **stanu formularza / klienta** (nie z body **201**). Sygnał thank-you po **201**: `user.verifiedAt === null`. Opcjonalne copy o ograniczeniach gościa (gdy demo) **nie** zmienia flow aktywacji |
 | **Po register — poza `production`** | Udany **201** z `verifiedAt` ustawionym (ISO) | Konto gotowe od razu; krótki sukces → tryb logowania w modalu (**bez** obligatoryjnego thank-you + resend pod mail) |

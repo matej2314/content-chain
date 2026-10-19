@@ -9,7 +9,7 @@ import { ACTIVATION_FAILED_HINT } from '@/modules/auth/activation-error';
 import { AuthModal, type AuthMode } from '@/modules/auth/components/auth-modal';
 import { RegistrationThankYou } from '@/modules/auth/components/registration-thank-you';
 import { useSession } from '@/modules/auth/components/session-provider';
-import { LandingView } from '@/modules/auth/landing';
+import { LandingView } from '@/modules/landing';
 import { notifyProduct } from '@/modules/notifications/notify-product';
 
 type GuestSurface =

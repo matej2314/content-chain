@@ -1,12 +1,14 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-09
+data_modyfikacji: 2026-10-19
 ---
 
 # Architektura katalogów i plików — Content Chain
 
 Propozycja **docelowego drzewa** monorepo (greenfield). Odzwierciedla style i granice z `architektura.md`: trzy aplikacje pod `apps/`, wspólne typy w `packages/shared`, `docs/` w rootcie. **Bez** rootowego katalogu `src/` opakowującego aplikacje.
+
+Zmiana względem wersji 4 / `apps/frontend`: szkic `modules/` z przykładami `social`, `content` oraz bez `landing` / `shell` / `demo` / `health` / `notifications`. Od tej wersji drzewo FE = **aktualna** organizacja App Router + moduły UI (pipeline Social/Content tylko w `apps/api`; na FE — `runs`). Landing = osobny `modules/landing/` (nie pod `auth/`).
 
 Zmiana względem: drzewo bez jawnego „źródła prawdy” deployu. Od tej wersji w szkielecie: root `docker-compose.yml`, `Jenkinsfile`, Dockerfile’e usług (build context = **root** monorepo + pnpm), entrypoint api (migracje → start) — szczegóły ops: `deployment.md`.
 
@@ -47,10 +49,10 @@ content-chain/
 │   │       ├── metrics/             # eksporter Prometheus (`GET /metrics`)
 │   │       ├── llm/                 # port LLM + adapter HTTP do gateway
 │   │       └── shared/              # cross-cutting tylko w api (nie packages/shared)
-│   ├── frontend/                    # Next.js — cienki klient
+│   ├── frontend/                    # Next.js — cienki klient + BFF
 │   │   ├── Dockerfile               # build: context = root + pnpm; port prod 3004
 │   │   ├── package.json
-│   │   └── src/                     # App Router, moduły UI
+│   │   └── src/                     # App Router (`app/`) + moduły UI (`modules/`) + `shared/`
 │   └── ai-provider-gateway/         # gateway LLM — bez domeny Content Chain
 │       ├── Dockerfile               # (ścieżka w root compose; port 3100)
 │       ├── gateway.config.yaml      # w repo; COPY do obrazu + volume mount (host wygrywa)
@@ -221,13 +223,49 @@ To **nie** są bounded contexty — brak układu `application` / `domain` / `inf
 
 ```text
 apps/frontend/src/
-├── app/                             # App Router (routes, layouts)
-├── modules/                         # np. auth, company-context, social, content, runs, feedback
-├── shared/                          # UI kit / utils frontu (nie domena api)
-└── ...
+├── app/                                   # App Router — routing i layouty (bez domeny SM/Content)
+│   ├── layout.tsx                         # root: fonty, globals
+│   ├── globals.css                        # tokeny semantyczne (`:root` / `.dark` / `@theme inline`)
+│   ├── page.tsx                           # `/` → HomeEntry (landing albo dashboard po sesji)
+│   ├── (app)/                             # layout dashboardu (wymaga sesji)
+│   │   ├── layout.tsx
+│   │   ├── account/                       # Konto
+│   │   ├── context/                       # Kontekst firmy
+│   │   ├── runs/                          # archiwum + `/runs/[runId]` szczegóły
+│   │   └── users/                         # Users (admin)
+│   ├── invite/accept/                     # publiczny deep link accept-invite
+│   └── api/v1/[[...path]]/                # BFF proxy → `apps/api` (Cookie + SSE bez bufora)
+├── modules/                               # powierzchnie UI (cienki klient)
+│   ├── auth/                              # sesja, modal auth, invite, thank-you, home-entry
+│   │   ├── api/
+│   │   └── components/
+│   ├── landing/                           # landing marketingowy (`landing-view`, `landing-copy`, barrel `index`)
+│   ├── shell/                             # chrome dashboardu (sidebar, header, SSE registry)
+│   ├── company-context/                   # formularz kontekstu, completeness chip / provider
+│   │   ├── api/
+│   │   ├── components/
+│   │   └── lib/                           # lokalny predykat kompletności UI (nie import z api)
+│   ├── runs/                              # start, HITL, wynik, floating box, KPI, archiwum
+│   │   ├── api/
+│   │   ├── components/
+│   │   └── lib/
+│   ├── users/                             # lista / soft-delete / purge guest
+│   ├── feedback/                          # opinia tekstowa
+│   ├── demo/                              # DEMO chip, guest lock / limit modal
+│   ├── health/                            # readiness / `agentsActive` (BFF → api)
+│   └── notifications/                     # toasty produktowe (Sonner jako adapter)
+├── shared/                                # UI kit / utils frontu — **nie** domena api
+│   ├── api/                               # apiFetch, envelope, bff-proxy
+│   ├── config/                            # `API_BASE_URL` (server-only)
+│   ├── ui/                                # shadcn
+│   ├── datetime/
+│   └── utils/
+└── …
 ```
 
 - Moduły UI wołają `apps/api` **przez BFF Next** (same-origin `/api/v1`); typy z `@content-chain/shared` (lub równoważny alias workspace). Katalog `modules/` zastępuje wcześniejszą nazwę `features/`.
+- **Brak** modułów `social/` / `content/` w FE — pipeline’y są BC w `apps/api`; UI startu / HITL / wyniku żyje w `modules/runs/`.
+- Landing = `modules/landing/` (osobno od `auth/`); `HomeEntry` w `modules/auth` montuje landing + modal albo shell zalogowany.
 - Zakaz: sekrety LLM, bezpośredni dostęp do Prisma/gateway vendorów, kopiowanie reguł bramki / pipeline’u.
 - Zakaz: `NEXT_PUBLIC_API_BASE_URL` jako adresu przeglądarki do api (env `API_BASE_URL` tylko na serwerze Next).
 

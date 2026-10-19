@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-06
+data_modyfikacji: 2026-10-19
 ---
 
 # Architektura — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-06
 ## Widok systemu
 
 Content Chain to **modularny monolit w monorepo** z trzema osobnymi procesami runtime oraz wspólnym pakietem kontraktów.
+
+Zmiana względem wersji 2 / Frontend: sekcja FE bez mapy katalogów `modules/` (landing, shell, …). Od tej wersji skrót organizacji UI + odwołanie do aktualnego drzewa w `architektura_katalogi_pliki.md`.
 
 Zmiana względem wcześniejszej wersji tego dokumentu: ścieżki aplikacji ujednolicono do `apps/api`, `apps/frontend`, `apps/ai-provider-gateway` (w rootcie monorepo, **bez** opakowania `src/apps/`). Szczegółowe drzewo: `architektura_katalogi_pliki.md`.
 
@@ -172,8 +174,9 @@ Norma egzekwowalna: `spec/SPEC-PERSISTENCE.md`.
 
 ## Frontend (`apps/frontend`)
 
-- Next.js jako UI self-host: dashboard kontekstu, uruchamianie flow’ów Social i Content, HITL, podgląd wyników i logów.
-- Pobieranie danych i mutacje wyłącznie przez `apps/api`; sekrety LLM i klucze vendorów **nigdy** w bundlu klienta.
+- Next.js jako UI self-host: **anonimowe `/` = landing** + modal auth; po sesji dashboard (Konto, kontekst, runy Social/Content przez UI `runs`, HITL, logi, Users).
+- Organizacja kodu: `app/` (App Router + BFF `/api/v1`), `modules/` (m.in. `auth`, `landing`, `shell`, `company-context`, `runs`, `users`, `feedback`, `demo`, `health`, `notifications`), `shared/` (kit UI, apiFetch). **Bez** modułów `social/` / `content/` na FE — pipeline w `apps/api`. Drzewo: `architektura_katalogi_pliki.md`.
+- Pobieranie danych i mutacje wyłącznie przez BFF → `apps/api`; sekrety LLM i klucze vendorów **nigdy** w bundlu klienta.
 - Typy żądań/odpowiedzi: współdzielone z `packages/shared` tam, gdzie kontrakt jest publiczny.
 
 ## Gateway (`apps/ai-provider-gateway`)

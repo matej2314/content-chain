@@ -8,7 +8,7 @@ import {
   LANDING_COPY,
   LANDING_HERO_IMAGES,
   LANDING_RUNS_IMAGES,
-} from '@/modules/auth/landing/landing-copy';
+} from '@/modules/landing/landing-copy';
 import type { ReactNode } from 'react';
 
 export type LandingViewProps = {
@@ -78,7 +78,7 @@ export function LandingView({ onOpenLogin, onOpenRegister, surface, thankYou }: 
   const copy = LANDING_COPY;
 
   return (
-    <div className="relative min-h-dvh overflow-x-hidden bg-background text-foreground">
+    <div className="relative h-dvh overflow-x-hidden overflow-y-auto bg-background text-foreground scrollbar-none">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_480px_at_15%_-10%,oklch(0.65_0.2_285/0.22),transparent_60%),radial-gradient(700px_420px_at_85%_10%,oklch(0.72_0.12_170/0.14),transparent_55%)]"
@@ -91,6 +91,9 @@ export function LandingView({ onOpenLogin, onOpenRegister, surface, thankYou }: 
               {copy.brand}
             </a>
             <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex">
+              <a href="#dla-kogo" className="transition-colors hover:text-foreground">
+                {copy.chromeNav.audience}
+              </a>
               <a href="#mozliwosci" className="transition-colors hover:text-foreground">
                 {copy.chromeNav.features}
               </a>
@@ -198,6 +201,33 @@ export function LandingView({ onOpenLogin, onOpenRegister, surface, thankYou }: 
               </div>
             </section>
 
+            <section id="dla-kogo" className="border-t border-border/60">
+              <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+                <div className="mb-8 max-w-lg">
+                  <h2 className="text-2xl font-semibold tracking-tight">
+                    {copy.audienceSection.title}
+                  </h2>
+                  <p className="mt-2 font-secondary text-sm text-muted-foreground">
+                    {copy.audienceSection.supporting}
+                  </p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {copy.personas.map((persona) => (
+                    <div
+                      key={persona.title}
+                      className="rounded-xl border border-border bg-card/50 p-5 transition-colors duration-200 hover:bg-card"
+                    >
+                      <Icon icon={persona.icon} className="size-5 text-primary" aria-hidden />
+                      <h3 className="mt-3 text-base font-semibold">{persona.title}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                        {persona.body}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
             <section id="mozliwosci" className="border-t border-border/60">
               <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
                 <div className="mb-8 max-w-lg">
@@ -271,11 +301,13 @@ export function LandingView({ onOpenLogin, onOpenRegister, surface, thankYou }: 
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <Button type="button" size="lg" onClick={onOpenLogin}>
-                    {copy.cta.login}
-                  </Button>
-                  <Button type="button" variant="outline" size="lg" onClick={onOpenRegister}>
-                    {copy.cta.register}
+                  <Button
+                    type="button"
+                    size="lg"
+                    className="h-10"
+                    onClick={onOpenRegister}
+                  >
+                    {copy.closing.cta}
                   </Button>
                 </div>
               </div>
@@ -289,6 +321,9 @@ export function LandingView({ onOpenLogin, onOpenRegister, surface, thankYou }: 
               <p className="mt-1 max-w-sm">{copy.footer.blurb}</p>
             </div>
             <div className="flex flex-wrap gap-4">
+              <a href="#dla-kogo" className="hover:text-foreground">
+                {copy.chromeNav.audience}
+              </a>
               <a href="#mozliwosci" className="hover:text-foreground">
                 {copy.chromeNav.features}
               </a>

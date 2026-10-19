@@ -10,7 +10,7 @@ import {
 import { BootstrapAdminForm } from '@/modules/auth/components/bootstrap-admin-form';
 import { LoginCard } from '@/modules/auth/components/login-card';
 import { RegisterForm, type RegisterSuccess } from '@/modules/auth/components/register-form';
-import { LANDING_COPY } from '@/modules/auth/landing/landing-copy';
+import { LANDING_COPY } from '@/modules/landing/landing-copy';
 
 export type AuthMode = 'login' | 'register' | 'bootstrap_admin';
 
