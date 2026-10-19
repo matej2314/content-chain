@@ -1,12 +1,14 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-18
+data_modyfikacji: 2026-10-19
 ---
 
 # Brand types — Content Chain
 
-Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time. Dopisek: **norma tokenów semantycznych CSS** pod szatę graficzną dashboardu (statusy runów, hero, chipy, fonty).
+Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time. Dopisek: **norma tokenów semantycznych CSS** pod szatę graficzną dashboardu (statusy runów, hero, chipy, fonty, stany pozycji nawigacji).
+
+Zmiana względem wersji 6 / tokeny: sugerowane powiązanie active nav z solid `--primary` (chrome sidebara) oraz brak osobnego traktowania stanów pozycji menu. Od tej wersji: **stany pozycji nawigacji** = teal/mint (wash + ring + rail), **nie** solid indigo `--primary` jako fill active item; tokeny CTA `Button` `default` oraz kierunek tła `--sidebar` — **bez zmian**; solid `--primary` nadal dla chrome poza pozycjami nav (split / ring). Forma stanów — `ux_dashboard.md`.
 
 Zmiana względem: brak sekcji tokenów CSS w tym dokumencie (kolory statusów poza kanonem docs). Od tej wersji: **Tokeny semantyczne CSS** w `globals.css` + obowiązkowy most `@theme inline`; mapa status→token w `ux_dashboard.md`.
 
@@ -14,7 +16,7 @@ Zmiana względem wersji 3 / tokeny: definicja w `:root` i `.dark` bez jawnego ka
 
 Zmiana względem wersji 4 / tokeny: brak mapy tokenów fontu. Od tej wersji: **Tokeny fontów** — `--font-sans` → Space Grotesk, `--font-secondary` → Inter, `--font-mono` → Geist Mono; lokalizacja `globals.css` + `layout.tsx` (`next/font`); **bez** mapowania Inter na globalne `--font-heading`. Role użycia — `ux_dashboard.md` („Typografia”).
 
-Zmiana względem wersji 5 / tokeny: brak rozróżnienia wyglądu wypełnionego CTA od solid `--primary` chrome. Od tej wersji: **Tokeny CTA `Button` `default`** (osobna rola od `--primary`); gradient + foreground ciemny; wartości = HOW feature-planu; **nie** wymagać, by gradient CTA = wartość `--primary` sidebara/splitu.
+Zmiana względem wersji 5 / tokeny: brak rozróżnienia wyglądu wypełnionego CTA od solid `--primary` chrome. Od tej wersji: **Tokeny CTA `Button` `default`** (osobna rola od `--primary`); gradient + foreground ciemny; wartości = HOW feature-planu; **nie** wymagać, by gradient CTA = wartość `--primary` splitu / ring.
 
 Zmiana względem wcześniejszej wersji (bez frontmatteru): `RunStatus` += **`cancelled`**.
 
@@ -120,7 +122,7 @@ Wartości `oklch` = HOW feature-planu; **przypisanie** status→rodzina tokenu =
 
 ### Tokeny wypełnionego CTA (`Button` `default`)
 
-Wygląd wypełnionego CTA produktu **nie** jest wartością solid `--primary` używaną przez sidebar / split-panel / ring.
+Wygląd wypełnionego CTA produktu **nie** jest wartością solid `--primary` używaną przez split-panel / ring / chrome poza pozycjami nawigacji. **Nie** jest też tokenami stanów pozycji menu sidebara.
 
 | Element | Norma |
 |---------|--------|
@@ -129,10 +131,25 @@ Wygląd wypełnionego CTA produktu **nie** jest wartością solid `--primary` u�
 | Lokalizacja | tokeny w `apps/frontend/src/app/globals.css` (`:root` / `.dark`); mapowanie w `button.tsx` na wariant `default` |
 | Wartości | hex / pełny zapis gradientu = **HOW** feature-planu Fazy 22 — **nie** pin w tym dokumencie |
 | Chrome primary | `--primary` / `--primary-foreground` / `--ring` **zostają** indigo/violet; CTA **nie** nadpisuje tych tokenów |
+| Stany nav | legalizacja stanów pozycji menu **nie** przepina ani nie przepisuje kolorów / gradientu CTA `default` |
 
 **Wyjątek względem zakazu hex:** wartości hex / gradient **wolno** wyłącznie jako definicja dedykowanych tokenów CTA `default` w `globals.css` (oraz ich użycie przez wariant `default`). Badge’e statusów, hero, chipy, lifting — **bez** tego wyjątku (nadal wyłącznie tokeny statusowe / surface).
 
 Hover / `:active`: te same kolory tła i tekstu CTA; lekki `brightness` na **całym** przycisku (wartość = HOW).
+
+### Stany pozycji nawigacji sidebara (teal/mint)
+
+Pozycje menu (desktop + mobile sheet) **nie** używają solid `--primary` indigo jako wypełnienia active item. Osobne traktowanie teal/mint względem chrome primary i względem CTA `default`.
+
+| Element | Norma |
+|---------|--------|
+| Rola | wash teal/mint + inset ring + lewy pasek (rail) z glow; stany normal / hover / active / active+hover — forma w `ux_dashboard.md` |
+| Chrome primary | solid `--primary` / `--ring` indigo **zostaje** dla split-panel / ring / chrome **poza** pozycjami nav |
+| Tło sidebara | `--sidebar` / `--sidebar-foreground` — **bez** zmiany kierunku (ciemny shell jak dotychczas); stany nav **nie** redefiniują tła aside |
+| CTA | tokeny `Button` `default` — **bez zmian** (nie mieszać gradientu CTA 135° z wash pozycji menu) |
+| Wartości | hex / opacity / radius = **HOW** feature-planu — **nie** pin w tym dokumencie |
+
+Zmiana względem wersji 6: *active nav sugerowany jako solid `--primary` chrome sidebara*. Od tej wersji active nav ≠ solid indigo fill.
 
 ### Tokeny fontów
 

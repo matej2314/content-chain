@@ -33,12 +33,12 @@ Nie pytaj użytkownika o zmianę dials. Override tylko gdy **wprost** każe i ni
 
 ## Kolor
 
-- **Dwie role akcentu w kanonie Fazy 22 (nie trzecia paleta):** (1) **chrome primary** = żywy **indigo/violet** (wysoka chroma) — sidebar aktywny, split dekoracyjny, solid `--primary` / `--ring`; (2) **filled CTA** = wyłącznie wariant `Button` **`default`** — gradient teal/mint **135°** + tekst **ciemny** (tokeny w `globals.css`; wartości = HOW / docs). Indigo chrome **nie** jest „losowym AI purple” z boilerplate shadcn; teal CTA **nie** zastępuje `--primary`.
-- **Zakaz nadal:** fioletowo-niebieski **glow**, neonowe gradienty dekoracyjne poza kanonem CTA `default`, stock-fiolet shadcn „z pudełka” bez tokenów projektu. Po Fazie 22 / F-14: **pełny dark shell** — ciemny `--background` / `main` **oraz** ciemny sidebar (`--sidebar` / `--sidebar-foreground`); sidebar może być nieco ciemniejszy od main. To **nie** jest dual-mode / przełącznik (V1).
+- **Trzy role akcentu w kanonie Fazy 22+23 (nie trzecia paleta):** (1) **chrome primary** = żywy **indigo/violet** (wysoka chroma) — split dekoracyjny, solid `--primary` / `--ring`, chrome **poza** wypełnieniem pozycji nawigacji; (2) **filled CTA** = wyłącznie wariant `Button` **`default`** — gradient teal/mint **135°** + tekst **ciemny** (tokeny w `globals.css`; wartości = HOW / docs); (3) **pozycje menu sidebara** = osobne traktowanie teal/mint (wash + inset ring + lewy pasek) — stany normal / hover / active / active+hover (F-14 / docs „Sidebar — logo i stany pozycji menu”). Indigo chrome **nie** jest „losowym AI purple” z boilerplate shadcn; teal CTA **nie** zastępuje `--primary`; teal nav **nie** jest filled CTA ani solid `--primary` na active item.
+- **Zakaz nadal:** fioletowo-niebieski **glow** na całym chrome, neonowe gradienty dekoracyjne poza kanonem CTA `default` i formą active nav (rail glow na pozycji menu = kanon F-14, nie „neon AI”), stock-fiolet shadcn „z pudełka” bez tokenów projektu. Po Fazie 22 / F-14: **pełny dark shell** — ciemny `--background` / `main` **oraz** ciemny sidebar (`--sidebar` / `--sidebar-foreground`); sidebar może być nieco ciemniejszy od main. To **nie** jest dual-mode / przełącznik (V1). **Bez** zmiany tła `--sidebar` pod pretekstem stanów nav.
 - Jedna rodzina szarości (ciepła **albo** chłodna). Nie mieszaj.
 - Semantic status runu: **unikalny** kolor per `RunStatus` (mapa w docs „Normy wizualne” / F-12); tokeny + `@theme`; `interrupted` = osobny sygnał, **bez** hero. Badge-pill w listach, detail i floating boxie.
-- Po drugim locku: focus ring + aktywna pozycja sidebara = `bg-primary text-primary-foreground` (indigo). Wypełniony CTA produktu = `Button` `default` (teal gradient + ciemny tekst) — **nie** obowiązkowy solid indigo. Hover/active CTA `default`: te same kolory + `brightness(1.06)` na całym przycisku. Nie zmieniaj ról per widok poza kanonem statusów; **nie** maluj `outline` / `ghost` / `destructive` / `link` / `secondary` gradientem teal.
-- Unikaj czystego `#000` i czystego `#fff` na dużych płaszczyznach. Off-black / off-white albo tokeny oklch z niuansem (w `globals.css`). Hex CTA `default` — wyłącznie jako wartości dedykowanych tokenów w `globals.css` (docs/SPEC).
+- Po drugim locku + Fazie 23: focus ring = `--ring` (indigo chrome). **Aktywna pozycja menu ≠** `bg-primary text-primary-foreground` — obowiązują stany nav (teal wash + ring + rail; tekst muted w active spoczynku); desktop + mobile sheet. Wypełniony CTA produktu = `Button` `default` (teal gradient + ciemny tekst) — **nie** obowiązkowy solid indigo; kolory CTA **bez zmian** przy okazji nav. Hover/active CTA `default`: te same kolory + `brightness(1.06)` na całym przycisku. Nie zmieniaj ról per widok poza kanonem statusów; **nie** maluj `outline` / `ghost` / `destructive` / `link` / `secondary` gradientem teal.
+- Unikaj czystego `#000` i czystego `#fff` na dużych płaszczyznach. Off-black / off-white albo tokeny oklch z niuansem (w `globals.css`). Hex CTA `default` i wartości stanów nav — wyłącznie jako tokeny / HOW z docs/SPEC (nie „na piechotę” poza kanonem).
 - Cienie: jeśli są, tint pod hue tła. Przy density 7–8 preferuj 1px border zamiast `shadow-lg`.
 
 ### Miejsce locku
@@ -47,18 +47,18 @@ Ustaw tokeny w `apps/frontend/src/app/globals.css` (`:root` i ewentualnie `.dark
 
 Jeśli produkt ma jeden motyw: zablokuj go w `layout` (klasa na `html`) i nie flipuj sekcji light/dark w połowie widoku. Dual-mode tylko gdy użytkownik o to poprosi; wtedy tokeny parytet hierarchii w obu motywach.
 
-**Stan wyjściowy boilerplate:** shadcn default. Drugi visual lock (Faza 22) **musi** to spiąć: primary indigo/violet z tokenów (chrome), CTA `default` z tokenów teal (nie `bg-primary`), **pełny dark shell** (ciemny sidebar + ciemny main), pełny zestaw tokenów statusowych + `@theme`.
+**Stan wyjściowy boilerplate:** shadcn default. Drugi visual lock (Faza 22) **musi** to spiąć: primary indigo/violet z tokenów (chrome), CTA `default` z tokenów teal (nie `bg-primary`), **pełny dark shell** (ciemny sidebar + ciemny main), pełny zestaw tokenów statusowych + `@theme`. Faza 23: stany pozycji menu wg F-14 — **bez** solid indigo fill na active item; **bez** przepisywania tła sidebara ani CTA.
 
 ## Layout produktu (zamiast anti-center / marketing hero)
 
 Kanon `docs/ux_dashboard.md` („Normy wizualne”) jest layoutem:
 
 - Niezalogowany `/`: na `lg+` — **split-panel** (lewa: gradient primary + brand + 1–2 akapity korzyści + krótka CTA/zachęta; prawa: formularz `login` / `register` / `bootstrap_admin` / thank-you). Mobile: tylko formularz. (F-15; stara „wyśrodkowana karta” = historia.)
-- Zalogowany: **pełny dark shell** (F-14) — ciemny sidebar + header + **ciemny** obszar roboczy. Header: zawartość do prawej; login → Wyloguj → modal. Logo-area `h-14` + `border-b`; aktywny nav = `bg-primary text-primary-foreground`.
+- Zalogowany: **pełny dark shell** (F-14) — ciemny sidebar + header + **ciemny** obszar roboczy. Header: zawartość do prawej; login → Wyloguj → modal. Logo-area `h-14` + `border-b` (**bez** zmiany przy stanach nav). Pozycje menu: stany normal / hover / active / active+hover (F-14 / Faza 23) — teal wash + ring + rail; **nie** solid `bg-primary` na active; ta sama norma w mobile sheet.
 - Konto: **KPI cards** powyżej „Start runu” gdy widoczne (F-16) — karty z metrykami, nie dekoracyjny bento.
-- Nie zamieniaj sidebara na top-nav, command palette ani floating dock.
+- Nie zamieniaj sidebara na top-nav, command palette ani floating dock; nie zmieniaj tła całego sidebara (`--sidebar`) przy stylizacji pozycji nav.
 - Viewport: pełna wysokość aplikacji `min-h-[100dvh]` / `h-full` na `html`/`body`, nie `h-screen` tam, gdzie pasek iOS zjada layout.
-- Siatka nad `w-[calc(33%-1rem)]`. Breakpointy Tailwind standardowe; `<768px`: sidebar zwijany/off-canvas, nie dwa poziomy navu naraz.
+- Siatka nad `w-[calc(33%-1rem)]`. Breakpointy Tailwind standardowe; `<768px`: sidebar zwijany/off-canvas (sheet), nie dwa poziomy navu naraz — stany pozycji menu jak na desktopie.
 - `max-w-7xl` nie jest kanonem treści dashboardu. Obszar roboczy wypełnia resztę obok sidebara; ograniczaj szerokość tylko tam, gdzie czytelność tego wymaga (karta logowania, wąski formularz startu).
 
 ## shadcn

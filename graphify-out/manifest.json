@@ -2166,9 +2166,9 @@
     "semantic_hash": ""
   },
   "docs/brand_types.md": {
-    "mtime": 1792350094.647207,
-    "seen": 1792350410.9027574,
-    "ast_hash": "b509e51ed2ee97125d9f3d3dc6f6e400",
+    "mtime": 1792400324.3036582,
+    "seen": 1792401661.6656342,
+    "ast_hash": "1a1b2655fc6ca8bf49a94e402f84a419",
     "semantic_hash": ""
   },
   "docs/data_flow.md": {
@@ -2220,9 +2220,9 @@
     "semantic_hash": ""
   },
   "docs/ux_dashboard.md": {
-    "mtime": 1792350088.1176665,
-    "seen": 1792350410.9027634,
-    "ast_hash": "81b67607bdaa84b1caeaf165985f2b28",
+    "mtime": 1792404180.6135569,
+    "seen": 1792405311.70826,
+    "ast_hash": "be9e7aa7008eebccc852d1f28c7c23d9",
     "semantic_hash": ""
   },
   "spec/SPEC-AUTH.md": {
@@ -2244,9 +2244,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-FRONTEND.md": {
-    "mtime": 1792350178.8445315,
-    "seen": 1792350410.9027672,
-    "ast_hash": "0a88ac76458fe5b80bf8eb1844325c3c",
+    "mtime": 1792404469.48941,
+    "seen": 1792405311.7082634,
+    "ast_hash": "f665f070cc7c698b367011e36080343d",
     "semantic_hash": ""
   },
   "spec/SPEC-KOMUNIKACJA.md": {
@@ -2274,9 +2274,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-README.md": {
-    "mtime": 1792350109.9170845,
-    "seen": 1792350410.9027705,
-    "ast_hash": "737d50cb2e1d4ef6d7e8ade337ed6a14",
+    "mtime": 1792404480.5620482,
+    "seen": 1792405311.7082667,
+    "ast_hash": "261000da024a7ea8cdc4754207b78088",
     "semantic_hash": ""
   },
   "spec/SPEC-RUNY.md": {
@@ -3318,15 +3318,15 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/app-header.tsx": {
-    "mtime": 1791815504.5411637,
-    "seen": 1792261760.1108496,
-    "ast_hash": "baa3010d37b89a2d4af51c0e85dca535",
+    "mtime": 1792405301.5072567,
+    "seen": 1792405311.7082217,
+    "ast_hash": "06288fd1babb83f415cbdefcc6888c07",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/app-sidebar.tsx": {
-    "mtime": 1792344430.7781885,
-    "seen": 1792344449.5945807,
-    "ast_hash": "e5f8ded881ace7717c50fe4f3bc0831a",
+    "mtime": 1792402419.7702253,
+    "seen": 1792405311.7082233,
+    "ast_hash": "5c056bda21e0deaed1efcae5057a962f",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/chrome-slots.tsx": {
@@ -4257,6 +4257,12 @@
     "mtime": 1792345494.2214866,
     "seen": 1792345513.4925234,
     "ast_hash": "aa9c79658185b40e2461e117e121c683",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/shell/sidebar-nav-item.ts": {
+    "mtime": 1792401631.5485747,
+    "seen": 1792401661.665607,
+    "ast_hash": "dc22af7a2458709c096f7e0dafed621b",
     "semantic_hash": ""
   }
 }

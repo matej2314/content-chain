@@ -20,7 +20,7 @@ Cienki klient `apps/frontend` to **dashboard operatora**, nie landing. Ten skill
 ## Hierarchia (wygrywa wyższy)
 
 1. `docs/` (w tym `docs/ux_dashboard.md` — „Normy wizualne” / Typografia) i `spec/SPEC-*.md` (w tym `SPEC-FRONTEND` **F-11…F-19**, F-11 obejmuje typografię) — IA, labelki PL, trasy, role, stany produktu, BFF, kanon wizualny.
-2. `content-chain-frontend_major_plan.md` — kolejność i DoD faz (w tym Faza 22 = drugi visual lock).
+2. `content-chain-frontend_major_plan.md` — kolejność i DoD faz (w tym Faza 22 = drugi visual lock; Faza 23 = stany pozycji menu sidebara).
 3. Ten katalog — jakość wizualna wewnątrz tej struktury.
 4. Istniejący kod `apps/frontend` — dziedzicz tokeny **obowiązującego** visual locku; nie wymyślaj trzeciej palety poza kanonem docs/SPEC.
 
@@ -54,9 +54,10 @@ Nie pytaj o estetykę, jeśli brief jest jasny. Jedno pytanie tylko gdy użytkow
 | Faza 1, chrome (karta + layout po sesji) | **Pierwszy lock (historia):** tokeny, radius, akcent, typografia, stany kontrolek. |
 | Fazy 2–21 | **Dziedziczyły** lock Fazy 1. Zakaz nowej palety „na ten ekran” obowiązywał do Fazy 21 włącznie. |
 | **Faza 22** (major FE) | **Drugi visual lock** — obowiązujący kanon. Primary **chrome** indigo/violet (wysoka chroma); **pełny dark shell** (ciemny sidebar **i** ciemny `main`; bez przełącznika — dual-mode = V1); split-panel na `/`; unikalne badge per `RunStatus`; KPI cards; lifting chipów / invite-accept / floating box; **typografia** Space Grotesk (`--font-sans`) + Inter (`--font-secondary`) + Geist Mono; **CTA-only:** wariant `Button` **`default`** = gradient teal/mint 135° + tekst ciemny (nie solid `bg-primary`). Pliki: `globals.css` (`:root` / `.dark` / `@theme`), `layout.tsx` (`next/font/google`), `button.tsx` (`default`), powierzchnie z F-11…F-19. |
+| **Faza 23** (major FE) | **Dziedziczy** lock Fazy 22. **Stany pozycji menu** (normal / hover / active / active+hover): teal/mint wash + inset ring + lewy pasek; tekst **muted** w active spoczynku; desktop `AppSidebar` **i** mobile sheet — ta sama norma. **Nie** solid `bg-primary` na active item. **Bez** zmiany tła `--sidebar` i **bez** zmiany kolorów CTA `Button` `default`. Kanon: `docs/ux_dashboard.md` („Sidebar — logo i stany pozycji menu”) + F-14. |
 | Milestone FE | Pre-flight z [preflight.md](preflight.md). |
 
-**Nota (Faza 22):** po legalizacji Fazy 22 w majorze FE obowiązuje **drugi visual lock**. Stare zakazy tego skilla („AI purple”, „brak split-hero”, „dziedzicz lock Fazy 1 bez nowej palety”, „lock jednorazowy”, „Geist-only sans”, „Inter nie dokładaj”, „filled CTA = tylko solid indigo”) **nie** blokują Fazy 22 ani F-11…F-19 — źródło prawdy = zaktualizowane `docs/` („Normy wizualne” / Typografia / Paleta) + `SPEC-FRONTEND` F-11 / F-14. Po Fazie 22 dziedzicz **ten** lock; nie wymyślaj trzeciej palety ani trzeciego zestawu fontów. Chrome primary (indigo) i filled CTA (`default` teal) to **dwie role** w jednym kanonie — nie „druga paleta na widok”.
+**Nota (Faza 22 / 23):** po legalizacji Fazy 22 w majorze FE obowiązuje **drugi visual lock**. Stare zakazy tego skilla („AI purple”, „brak split-hero”, „dziedzicz lock Fazy 1 bez nowej palety”, „lock jednorazowy”, „Geist-only sans”, „Inter nie dokładaj”, „filled CTA = tylko solid indigo”, „active nav = solid `bg-primary`”) **nie** blokują Fazy 22 / 23 ani F-11…F-19 — źródło prawdy = zaktualizowane `docs/` („Normy wizualne” / Typografia / Paleta / stany pozycji menu) + `SPEC-FRONTEND` F-11 / F-14. Po Fazie 22 dziedzicz **ten** lock; Faza 23 doprecyzowuje wyłącznie pozycje nav. **Trzy role akcentu w jednym kanonie** (nie trzecia paleta): (1) chrome primary indigo — split / ring / chrome **poza** fill pozycji nav; (2) filled CTA `Button` `default` teal gradient; (3) stany pozycji menu — teal wash + ring + rail. Nie myl (2) z (3); nie maluj active nav solid `--primary`.
 
 ## Stack (zamknięty)
 

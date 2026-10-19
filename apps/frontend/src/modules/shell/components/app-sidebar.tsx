@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 import { Icon } from '@iconify/react';
 import { CompletenessChipSlot } from '@/modules/shell/components/chrome-slots';
 import { navItemsForRole } from '@/modules/shell/nav';
+import { sidebarNavItemClassName } from '@/modules/shell/sidebar-nav-item';
 import type { UserRole } from '@content-chain/shared';
-import { cn } from '@/shared/utils/utils';
 
 type AppSidebarProps = {
   readonly role: UserRole;
@@ -21,19 +21,15 @@ export function AppSidebar({ role }: AppSidebarProps) {
       <div className="flex h-14 items-center border-b border-sidebar-border px-3">
         <p className="text-sm font-medium tracking-tight">Content Chain</p>
       </div>
-      <nav className="flex flex-1 flex-col gap-0.5 p-2">
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-visible px-8 py-4">
         {items.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
-                'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
-                active
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-sidebar-accent/70',
-              )}
+              data-active={active ? 'true' : undefined}
+              className={sidebarNavItemClassName()}
             >
               <Icon icon={item.icon} className="size-4 shrink-0" />
               {item.label}

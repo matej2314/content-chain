@@ -13,11 +13,14 @@ import {
 } from '@/shared/ui/dropdown-menu';
 import { Separator } from '@/shared/ui/separator';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/shared/ui/sheet';
-import { FeedbackCtaSlot } from '@/modules/shell/components/chrome-slots';
+import {
+  CompletenessChipSlot,
+  FeedbackCtaSlot,
+} from '@/modules/shell/components/chrome-slots';
 import { LogoutDialog } from '@/modules/shell/components/logout-dialog';
 import { navItemsForRole } from '@/modules/shell/nav';
+import { sidebarNavItemClassName } from '@/modules/shell/sidebar-nav-item';
 import type { SessionUser } from '@/modules/auth/api/session.types';
-import { cn } from '@/shared/utils/utils';
 
 type AppHeaderProps = {
   readonly user: SessionUser;
@@ -86,7 +89,7 @@ export function AppHeader({ user }: AppHeaderProps) {
                 </div>
                 <Separator />
 
-                <nav className="flex flex-1 flex-col gap-0.5 p-2">
+                <nav className="flex flex-1 flex-col gap-0.5 overflow-visible px-8 py-4">
                   {items.map((item) => {
                     const active =
                       pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -95,12 +98,8 @@ export function AppHeader({ user }: AppHeaderProps) {
                         key={item.href}
                         href={item.href}
                         onClick={() => setMobileMenuOpen(false)}
-                        className={cn(
-                          'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
-                          active
-                            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                            : 'hover:bg-sidebar-accent/70',
-                        )}
+                        data-active={active ? 'true' : undefined}
+                        className={sidebarNavItemClassName()}
                       >
                         <Icon icon={item.icon} className="size-4 shrink-0" />
                         {item.label}
@@ -108,6 +107,10 @@ export function AppHeader({ user }: AppHeaderProps) {
                     );
                   })}
                 </nav>
+
+                <div className="p-2">
+                  <CompletenessChipSlot />
+                </div>
 
                 <Separator />
                 <div className="p-2">

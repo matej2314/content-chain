@@ -1,7 +1,7 @@
 ---
-wersja: 33
+wersja: 35
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-10-18
+data_modyfikacji: 2026-10-19
 ---
 
 # UX Dashboard — Content Chain
@@ -10,13 +10,17 @@ Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / desi
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`, `brand_types.md`.
 
+Zmiana względem wersji 34: milczenie o kolejności `CompletenessChipSlot` w mobile sheet (implikacja „sidebar w sheet” bez jawnej kompozycji). Od tej wersji: sheet niesie **ten sam** chrome sidebara co desktop — nav + **`CompletenessChipSlot`** zawsze w viewportcie sheetu; kolejność mobile: tożsamość → nav → slot → „Wyloguj się”; logout na mobile w stopce sheetu **nie** jest pozycją listy nav; semantyka Demo / Completeness **bez zmian**.
+
+Zmiana względem wersji 33 / „Sidebar — logo i aktywny item” oraz Paleta: aktywny item nawigacji = `bg-primary text-primary-foreground` (solid indigo). Od tej wersji: **stany pozycji menu** (normal / hover / active / active+hover) — teal/mint wash + inset ring + lewy pasek; tekst **muted** w active spoczynku; **bez** solid `bg-primary` na pozycji nav. Tło całego sidebara (`--sidebar`) i kolory CTA `Button` `default` — **bez zmian**. Ta sama norma na desktopie i w mobile sheet. Precyzyjne hex/opacity/radius = HOW.
+
 Zmiana względem: status live = „animowany / atrakcyjny” bez kanonu formy; sidebar jasny; strona główna = wyśrodkowana karta; brak bloku KPI na Koncie. Od tej wersji: **Normy wizualne** (paleta indigo/violet, **pełny dark shell** — ciemny sidebar **i** ciemny `main`, unikalne badge-pille per `RunStatus`, hero banner tylko `running` \| `awaiting_hitl`, split-panel logowania, KPI z `GET /api/v1/runs/summary`, lifting chipów / invite-accept / floating box).
 
 Zmiana względem wersji 30 / „Normy wizualne”: *ciemny sidebar ≠ dark mode — `main` jasny*; MVP „motyw produktowy pozostaje jasny”. Od tej wersji: **pełny dark shell** (sidebar + `main` ciemne); dual-mode z przełącznikiem nadal **V1** (bez zmian zakresu V1).
 
 Zmiana względem wersji 31 / „Normy wizualne”: brak pinu font-family w docs; historyczny lock Geist (skill / Faza 1) jako sans. Od tej wersji: **Typografia** — główny sans = **Space Grotesk**, pomocniczy = **Inter** (`--font-secondary`; tytuły kart KPI + paragrafy pomocnicze pod nagłówkami widoków), mono = **Geist Mono**; ładunek wyłącznie `next/font/google`; **zakaz** Inter jako default `body`; serif poza produktem.
 
-Zmiana względem wersji 32 / „Normy wizualne” / Paleta: wypełniony przycisk produktu (filled CTA) = ten sam solid primary indigo/violet co chrome (`bg-primary`). Od tej wersji: **Primary chrome** = indigo/violet (sidebar aktywny, split dekoracyjny, solid `--primary` / `--ring`); **wypełniony CTA** = wyłącznie wariant `Button` **`default`** — gradient teal/mint **135°** + tekst **ciemny** (kierunek; wartości = HOW); hover/active = te same kolory z lekkim podbiciem jasności całego przycisku (wartość = HOW). **Poza:** `outline` / `ghost` / `destructive` / `link` / `secondary`.
+Zmiana względem wersji 32 / „Normy wizualne” / Paleta: wypełniony przycisk produktu (filled CTA) = ten sam solid primary indigo/violet co chrome (`bg-primary`). Od tej wersji: **Primary chrome** = indigo/violet (split dekoracyjny, solid `--primary` / `--ring`; **nie** wypełnienie active nav); **wypełniony CTA** = wyłącznie wariant `Button` **`default`** — gradient teal/mint **135°** + tekst **ciemny** (kierunek; wartości = HOW); hover/active = te same kolory z lekkim podbiciem jasności całego przycisku (wartość = HOW). **Poza:** `outline` / `ghost` / `destructive` / `link` / `secondary`.
 
 Zmiana względem: po udanym `POST /runs` (**202**) operator zostawał na widoku źródłowym (Konto albo Runy); nawigacja na szczegóły nie była wymuszana. Od tej wersji: **zawsze** nawigacja na **Run (szczegóły)** tego `runId` (`/runs/:runId`) z obu powierzchni startu; toast „Run wystartował” zostaje; modal na Runach zamyka się; błąd startu **bez** nawigacji. Powód: mniej chaosu UX po testach manualnych.
 
@@ -61,8 +65,8 @@ Zmiana względem: Faza DEMO / F-10 — *„archiwum: klik cudzego wiersza zablok
 
 - Cienki klient: reguły i pipeline w `apps/api`.
 - Język **UI: polski** (generowane treści SM: PL/EN wg briefu runu).
-- Nawigacja: **sidebar** + **header** + obszar roboczy (po zalogowaniu). Sidebar = widoki. Header = tożsamość sesji (login) i wylogowanie.
-- **Layout dashboardu (po sesji):** wysokość = viewport (`h-dvh`); root **bez** scrolla dokumentu; **scroll wyłącznie w `main`** (obszar roboczy). Sidebar (desktop) = wysokość viewportu — nawigacja u góry, **DemoChip** (gdy demo on) + chip agentów u dołu sidebara **zawsze w viewportcie** (bez konieczności scrollowania treści widoku). Mobile: sidebar w sheet; scroll treści jak na desktopie w obszarze roboczym.
+- Nawigacja: **sidebar** + **header** + obszar roboczy (po zalogowaniu). Sidebar = widoki. Header = tożsamość sesji (login) i wylogowanie (**desktop** `lg+`; na mobile klaster tożsamości/logout żyje w sheetcie — niżej).
+- **Layout dashboardu (po sesji):** wysokość = viewport (`h-dvh`); root **bez** scrolla dokumentu; **scroll wyłącznie w `main`** (obszar roboczy). Sidebar (desktop) = wysokość viewportu — nawigacja u góry, **`CompletenessChipSlot`** (DemoChip gdy demo on + CompletenessChip) u dołu sidebara **zawsze w viewportcie** (bez konieczności scrollowania treści widoku). **Mobile:** sidebar w sheet — sheet niesie **ten sam** chrome sidebara co desktop: nawigacja + **`CompletenessChipSlot`** **zawsze w viewportcie** sheetu (bez scrollowania treści `main`). Kolejność kompozycji sheetu: (1) tożsamość / email, (2) lista pozycji nav, (3) **`CompletenessChipSlot`**, (4) stopka **„Wyloguj się”** → istniejący modal potwierdzenia. Chipy **nie** są pozycją listy nav; „Wyloguj się” w stopce sheetu **nie** jest pozycją listy nav. Scroll treści jak na desktopie — w obszarze roboczym.
 - Live run: status **na żywo (SSE)**. Na **szczegółach** status „w toku” (`running` \| `awaiting_hitl`) = **prominentny hero banner** (gradient + animacja). **Wszędzie indziej** (listy, floating box, compact) status = **kolorowy badge-pill** (mapa 1:1 w „Normy wizualne”). `interrupted` = **osobny** badge **bez** hero.
 - Sesja: wyłącznie cookie httpOnly (`cc_access` / `cc_refresh`); probe tożsamości: `GET /api/v1/auth/me`.
 
@@ -72,10 +76,12 @@ Obowiązujące decyzje projektowe szaty graficznej dashboardu. Wartości `oklch`
 
 ### Paleta
 
-- **Primary (chrome)** = żywy **indigo/violet** (wysoka chroma) — aktywny nav (`bg-primary text-primary-foreground`), lewy panel split na `/` (gradient primary), solid tokeny `--primary` / `--primary-foreground` / `--ring`. **Nie** mylić z wypełnionym CTA.
-- **Wypełniony CTA** = wyłącznie wariant komponentu `Button` **`default`** (`variant` pominięty lub `variant="default"`): tło = gradient teal/mint **135°**, tekst = **ciemny** (kierunek; konkret hex/gradient = HOW feature-planu). Hover / `:active`: te same kolory tła i tekstu, z lekkim podbiciem jasności (`brightness`) **całego** przycisku (wartość = HOW). **Poza zakresem tej normy:** `outline`, `ghost`, `destructive`, `link`, `secondary` — bez gradientu teal ani wymuszenia ciemnego tekstu CTA.
+- **Primary (chrome)** = żywy **indigo/violet** (wysoka chroma) — lewy panel split na `/` (gradient primary), solid tokeny `--primary` / `--primary-foreground` / `--ring` oraz chrome poza pozycjami nawigacji sidebara. **Nie** mylić z wypełnieniem aktywnej pozycji menu ani z wypełnionym CTA.
+- **Pozycje nawigacji sidebara** = osobne traktowanie **teal/mint** (wash + inset ring + lewy pasek) — stany w „Sidebar — logo i stany pozycji menu”. **Nie** solid `bg-primary` / `text-primary-foreground` na active item.
+- **Wypełniony CTA** = wyłącznie wariant komponentu `Button` **`default`** (`variant` pominięty lub `variant="default"`): tło = gradient teal/mint **135°**, tekst = **ciemny** (kierunek; konkret hex/gradient = HOW feature-planu). Hover / `:active`: te same kolory tła i tekstu, z lekkim podbiciem jasności (`brightness`) **całego** przycisku (wartość = HOW). **Poza zakresem tej normy:** `outline`, `ghost`, `destructive`, `link`, `secondary` — bez gradientu teal ani wymuszenia ciemnego tekstu CTA. Kolory CTA `default` **nie** zmieniają się przy okazji stanów pozycji menu.
 - Zmiana względem wersji 32: *filled CTA = solid primary indigo/violet*. Od tej wersji CTA `default` ≠ solid `--primary` chrome.
-- **Pełny dark shell (MVP):** ciemny sidebar (`--sidebar` / `--sidebar-foreground`) **oraz** ciemny obszar roboczy (`--background` / `main`). Sidebar może być nieco ciemniejszy od `main` (hierarchia chrome). **Bez** przełącznika light/dark w MVP — to **nie** jest dual-mode; dual-mode z dedykowanym przełącznikiem = **V1**.
+- Zmiana względem wersji 33: *aktywny nav = `bg-primary text-primary-foreground`*. Od tej wersji active nav ≠ solid `--primary`; teal/mint tylko na pozycji menu (nie na tle całego sidebara).
+- **Pełny dark shell (MVP):** ciemny sidebar (`--sidebar` / `--sidebar-foreground`) **oraz** ciemny obszar roboczy (`--background` / `main`). Sidebar może być nieco ciemniejszy od `main` (hierarchia chrome). **Bez** zmiany kierunku tła `--sidebar` pod pretekstem stanów nav. **Bez** przełącznika light/dark w MVP — to **nie** jest dual-mode; dual-mode z dedykowanym przełącznikiem = **V1**.
 - Zmiana względem wersji 30: *ciemny sidebar ≠ dark mode — `main` jasny*. Od tej wersji kanon = dark shell (sidebar + main).
 - Zmiana względem wcześniejszego: sidebar jasny (ten sam motyw co jasny main) — historia pierwszego locku.
 
@@ -126,10 +132,20 @@ Pełny zestaw z mapy `RunStatus` poniżej (`--success`, `--warning`, `--complete
 - Mobile: **tylko** formularz (bez lewego panelu).
 - Zmiana względem: wyśrodkowana karta na pełnej szerokości tła.
 
-### Sidebar — logo i aktywny item
+### Sidebar — logo i stany pozycji menu
 
-- Logo-area: `h-14` + `border-b`.
-- Aktywny item nawigacji: `bg-primary text-primary-foreground`.
+- Logo-area: `h-14` + `border-b` — **bez zmian**.
+- **Powierzchnie:** ta sama norma stanów na desktopie (`AppSidebar`) **oraz** w mobile sheet (lista pozycji).
+- **Poza zakresem tej normy:** tło całego sidebara (`--sidebar` / `bg-sidebar` aside); kolory CTA `Button` `default`; logo-area; chipy; IA pozycji; accordion / badge Hot·New.
+- Kierunek wizualny: blisko wzorca Vireo (Sales dashboard) — nie wymóg piksela-w-piksel. Precyzyjne wartości hex / opacity / radius / transition (~14px radius, ~13px / weight 500, ~0.14s) = HOW feature-planu.
+- Zmiana względem wersji 33: *aktywny item = `bg-primary text-primary-foreground`*. Od tej wersji pozycje menu **wychodzą** z normy solid indigo fill.
+
+| Stan | Tekst | Tło pozycji | Ring / pasek |
+|------|-------|-------------|--------------|
+| **Normal** | muted | przezroczyste | bez ringa, bez lewego paska |
+| **Hover** (idle) | strong | subtelny fill (~white/4%) | bez ringa / paska |
+| **Active** (spoczynek) | **muted** | gradient wash teal/mint (L→R, mocniejszy → słabszy) | inset ring w teal + lewy pasek accent z glow (`::before` lub równoważna forma) |
+| **Active + hover** | strong | fill hover **zastępuje** gradient wash | ring + pasek **zostają** |
 
 ### KPI — karty statystyk
 
@@ -147,6 +163,7 @@ Pełny zestaw z mapy `RunStatus` poniżej (`--success`, `--warning`, `--complete
 
 - Kolorowy **lewy border** z tokenów semantycznych.
 - Pozycja i semantyka (DemoChip nad CompletenessChip; predykat `agentsActive`) **bez zmian**.
+- **Ten sam** `CompletenessChipSlot` w desktop `AppSidebar` **i** w mobile sheet (kolejność w sheetcie — „Założenia UX”); semantyka Demo / Completeness **bez** redefinicji.
 
 ### Lifting invite-accept
 
@@ -192,14 +209,16 @@ Zmiana względem: nieaktywne „Zarejestruj się!” / zakaz signup. Invite `/in
 
 **Header dashboardu (od pierwszego layoutu po sesji):** pasek nad obszarem roboczym na **wszystkich** widokach zalogowanych. Elementy **wewnątrz headera wyrównane do prawej**.
 
-Hierarchia sterowania tożsamością:
+Hierarchia sterowania tożsamością (**desktop** `lg+`):
 
 1. Widoczny **login** zalogowanego (email z `GET /auth/me`) jako **przycisk** (kontrolka nadrzędna).
-2. Z tego przycisku — **„Wyloguj się”** (pozycja menu / rozwinięcie; nie osobny wiersz sidebara i nie luźny przycisk obok loginu bez tej hierarchii).
+2. Z tego przycisku — **„Wyloguj się”** (pozycja menu / rozwinięcie; nie osobny wiersz listy nav i nie luźny przycisk obok loginu bez tej hierarchii).
 
-Klik **„Wyloguj się”** → **modal potwierdzenia** → **Tak** → `POST /auth/logout` → nawigacja na **`/`** (karta logowania). **Nie** / zamknięcie modala zostawia użytkownika w dashboardzie. Wylogowanie **nie** zastępuje widoku Konto i **nie** żyje w sidebarze.
+Na **mobile** (`lg:hidden`): dropdown tożsamości w headerze jest ukryty — sheet = sidebar (nav + `CompletenessChipSlot`) **oraz** klaster tożsamości/logout: email + stopka **„Wyloguj się”** (kolejność — „Założenia UX”). Logout w stopce sheetu **nie** jest pozycją listy nav; chipy **nie** są pozycją nav. Sens hierarchii header → login → „Wyloguj się” **bez zmian** (sheet zastępuje ukryty klaster headera, nie redefiniuje wylogowania jako pozycji menu).
 
-Zmiana względem: „Wyloguj się” w chrome (sidebar **lub** header), bez wskazania miejsca ani hierarchii login → wylogowanie.
+Klik **„Wyloguj się”** (header desktop **lub** stopka mobile sheet) → **modal potwierdzenia** → **Tak** → `POST /auth/logout` → nawigacja na **`/`** (karta logowania). **Nie** / zamknięcie modala zostawia użytkownika w dashboardzie. Wylogowanie **nie** zastępuje widoku Konto. Na **desktopie** logout wyłącznie w hierarchii headera (**nie** w sidebarze). Na **mobile** logout w stopce sheetu — poza listą nav.
+
+Zmiana względem: „Wyloguj się” w chrome (sidebar **lub** header), bez wskazania miejsca ani hierarchii login → wylogowanie; milczenie o klastrze tożsamości/logout w mobile sheet.
 
 **Konto (MVP):** osobny widok w sidebarze (admin, `user` i `guest` przy demo on) — profil, **własne** runy (live) i formularz startu runu (**inline**). Druga powierzchnia startu = CTA **„Uruchom agenta”** na widoku **Runy** (modal, ten sam brief). Nie mylić Runy z listą live — Runy pozostają archiwum `completed` \| `failed` \| `cancelled`. Szczegóły: sekcje „Widok: Konto” i „Widok: Runy”.
 
@@ -209,8 +228,8 @@ Boot zalogowanego: publiczny `GET /api/v1/config` → `{ demoMode }`. Egzekucja 
 
 | Element | Kiedy | Zachowanie |
 |---------|-------|------------|
-| **`DemoModeChipSlot` / DemoChip** | **Tylko dashboard** (layout po sesji), gdy `demoMode === true` | Slot **nad** CompletenessChip. Copy w stylu **„Tryb demo aktywny / Wybrane funkcje ograniczone”** + Iconify. Przy `demoMode === false` chip **nie** jest widoczny (bez ostrzeżeń ops w UI) |
-| Completeness chip | bez zmian | Demo **nie** zastępuje bramki kontekstu ani chipa kompletności |
+| **`DemoModeChipSlot` / DemoChip** | **Tylko dashboard** (layout po sesji), gdy `demoMode === true` | Slot **nad** CompletenessChip — w desktop `AppSidebar` **i** w mobile sheet (ten sam `CompletenessChipSlot`). Copy w stylu **„Tryb demo aktywny / Wybrane funkcje ograniczone”** + Iconify. Przy `demoMode === false` chip **nie** jest widoczny (bez ostrzeżeń ops w UI) |
+| Completeness chip | bez zmian | Demo **nie** zastępuje bramki kontekstu ani chipa kompletności; ten sam slot w sidebarze desktop **i** w mobile sheet |
 | **Locki UI** | wyłącznie `session.role === 'guest'` **AND** `demoMode === true` | Sidebar (np. Użytkownicy ukryte/disabled), formy (email na Koncie, Edytuj, finalize, write kontekstu), disable `taskType` poza allowlistą (`post_ideas`, `page_copy`, `page_outline_then_copy`). Dotyczy gościa z **self-register** oraz z **accept-invite** przy demo on (ten sam predykat). **Admin** na instancji demo **bez** locków |
 | **GuestLimitModal** | po **403** quota z `POST /runs` (`GUEST_TYPE_QUOTA_EXCEEDED` / `GUEST_GLOBAL_QUOTA_EXCEEDED` / `GUEST_TYPE_NOT_ALLOWED`) | Modal **po** odpowiedzi API (nie pre-empt). CTA kontakt: tablica `{ iconName, contactData }[]` (mailto, LinkedIn, GitHub) — hardcoded FE |
 | Archiwum | `guest` + demo | Lista **całej** instancji jak admin/`user`; klik wiersza (własnego **i** cudzego) → detail archiwalny (snapshot; **bez** SSE). Cudzy detail = **read-only** (bez Stop / HITL / Edytuj / finalize) |
@@ -222,6 +241,8 @@ Zmiana względem: **jedyny** formularz startu wyłącznie na Koncie (kanon Fazy 
 
 ## Nawigacja (sidebar)
 
+Stany wizualne pozycji listy (normal / hover / active / active+hover): „Normy wizualne” / „Sidebar — logo i stany pozycji menu”. IA i role poniżej — bez zmian.
+
 | Widok | Kto | Cel |
 |-------|-----|-----|
 | **Kontekst firmy** | admin: edycja; user i guest: podgląd | Uzupełnienie sekcji bramki (tylko admin); podgląd completeness |
@@ -230,7 +251,7 @@ Zmiana względem: **jedyny** formularz startu wyłącznie na Koncie (kanon Fazy 
 | **Konto** | każdy zalogowany | Własny email (**guest: lock** — bez `PATCH /auth/me/email`); **Moje runy** (wszystkie statusy, live; **paginacja UI** 10 jak Runy; **Stop** na własnym nieterminalnym); **start** nowego runu (**inline**, ten sam brief co modal na Runach; guest: allowlista); opinia tekstowa. Po udanym `POST /runs` (**202**) **z tego widoku** → nawigacja na **Run (szczegóły)** tego `runId` |
 | **Użytkownicy** | tylko admin | Lista kont + kolumna **Akcje** (toggle soft `user` / Usuń hard `guest`) + **zaproszenie (email)**; lista pending (w tym wygasłe); resend/revoke. **Guest: brak nawigacji** (lock) |
 
-**Wyloguj się** nie jest pozycją sidebara — wyłącznie hierarchia przycisku loginu w headerze (wyżej).
+**Wyloguj się** nie jest pozycją listy nav. **Desktop:** wyłącznie hierarchia przycisku loginu w headerze (wyżej). **Mobile:** stopka sheetu (po `CompletenessChipSlot`) — nie wiersz nav.
 
 Zmiana względem: **Runy** = cała instancja (wszystkie statusy) + start; po starcie → szczegóły tego `runId`; sygnał „w toku” = chip w chrome. Od Fazy 3: Runy = archiwum terminalne; start i live = Konto; chrome = floating box (niżej).
 
@@ -242,7 +263,7 @@ Zmiana względem: po `202` z Konta / Run — widok źródłowy (bez wymuszania s
 
 ## Globalny wskaźnik: czy agenci są aktywni
 
-Stały element UI (chip w sidebarze — pod nawigacją, nad dołem chrome’u), widoczny na wszystkich widokach po zalogowaniu. Dzięki viewport shellowi (założenia UX) chip **nie** „ucieka” poza pierwszy ekran przy długiej treści obszaru roboczego.
+Stały element UI (`CompletenessChipSlot` — pod nawigacją, nad dołem chrome’u), widoczny na wszystkich widokach po zalogowaniu: desktop = dół `AppSidebar`; mobile = ta sama pozycja w sheetcie (przed stopką „Wyloguj się”). Dzięki viewport shellowi (założenia UX) chip **nie** „ucieka” poza pierwszy ekran przy długiej treści obszaru roboczego; w sheetcie slot też **zawsze** w viewportcie (bez scrolla `main`).
 
 **Predykat:** `agentsActive` ⇔ `contextComplete` **∧** `gatewayAlive`.
 
@@ -428,7 +449,7 @@ Nagłówek widoku (`h1` produktowy) = **Space Grotesk**. Krótki paragraf pomocn
 
 Zmiana względem: brak bloku KPI na Koncie. Od tej wersji **Statystyki** powyżej „Start runu” (warunki guest ∧ demo — wyżej).
 
-Wylogowanie **nie** żyje na widoku Konto — header: przycisk loginu → „Wyloguj się” + modal, od pierwszego layoutu.
+Wylogowanie **nie** żyje na widoku Konto — desktop: header (przycisk loginu → „Wyloguj się” + modal); mobile: stopka sheetu → ten sam modal — od pierwszego layoutu.
 
 Zmiana względem: Moje runy = pełna tabela bez paginacji UI. Od tej wersji tabela na Koncie = strony po 10 (FE); kontrakt `GET /runs/user/:userId` **bez zmiany**.
 

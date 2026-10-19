@@ -19,6 +19,19 @@ Przycisk: kontrast tekstu do tła WCAG AA (4.5:1 body, 3:1 large). Ghost nad zdj
 
 Dwa CTA o **tym samym intencie** na jednym widoku = błąd (np. dwa „Zostaw opinię”). Kanon docs: jeden globalny CTA opinii + ten sam formularz na Koncie to **dwie powierzchnie tego samego kanonu**, nie dwa różne wezwania na jednym ekranie.
 
+## Pozycje menu sidebara (nav)
+
+Kanon formy: `docs/ux_dashboard.md` („Sidebar — logo i stany pozycji menu”) + `SPEC-FRONTEND` F-14. Hex / opacity / radius / transition = HOW feature-planu (Faza 23). Ta sama norma: desktop `AppSidebar` **i** mobile sheet.
+
+| Stan | Kierunek |
+|------|----------|
+| **Normal** | Tekst muted; tło pozycji przezroczyste; bez ringa i bez lewego paska. |
+| **Hover** (idle) | Tekst strong; subtelny fill (~white/4%); bez ringa / paska. |
+| **Active** (spoczynek) | Tekst **muted**; gradient wash teal/mint (L→R); inset ring teal; lewy pasek accent z glow. |
+| **Active + hover** | Tekst strong; fill hover **zastępuje** wash; ring + pasek zostają. |
+
+**Zakaz:** solid `bg-primary text-primary-foreground` na active item; zmiana tła całego sidebara; zmiana kolorów CTA `Button` `default` przy okazji nav; inna norma stanów między desktopem a sheetem.
+
 ## Formularze
 
 - Label **nad** inputem. Placeholder nie zastępuje labela.
