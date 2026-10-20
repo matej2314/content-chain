@@ -84,7 +84,7 @@ export function LandingView({ onOpenLogin, onOpenRegister, surface, thankYou }: 
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_480px_at_15%_-10%,oklch(0.65_0.2_285/0.22),transparent_60%),radial-gradient(700px_420px_at_85%_10%,oklch(0.72_0.12_170/0.14),transparent_55%)]"
       />
 
-      <div className="relative z-10">
+      <div className="relative z-10 flex min-h-dvh flex-col">
         <header className="sticky top-0 z-40 border-b border-border/80 bg-background/75 backdrop-blur-md">
           <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
             <a href="#top" className="text-sm font-semibold tracking-tight">
@@ -125,11 +125,14 @@ export function LandingView({ onOpenLogin, onOpenRegister, surface, thankYou }: 
         </header>
 
         {surface === 'thank_you' ? (
-          <main id="top" className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-14 sm:px-6">
+          <main
+            id="top"
+            className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-6 px-4 py-14 sm:px-6"
+          >
             {thankYou}
           </main>
         ) : (
-          <main id="top">
+          <main id="top" className="flex-1">
             <section className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-10 sm:px-6 lg:py-14">
               <div className="mx-auto flex max-w-2xl flex-col items-center gap-5 text-center">
                 <p className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs text-muted-foreground">
