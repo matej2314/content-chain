@@ -1,7 +1,7 @@
 ---
-wersja: 23
+wersja: 24
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-19
+data_modyfikacji: 2026-10-20
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -12,6 +12,8 @@ Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
 2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
 
 **Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+
+Zmiana względem wersji 23 / activate: po sukcesie `POST /auth/activate` — skutek uboczny mail `user_welcome` **best-effort** (pad SMTP **nie** zmienia odpowiedzi sukcesu; **bez** `MAIL_DELIVERY_FAILED` na tej ścieżce). Envelope activate (statusy, body) **bez regresji** względem Fazy 16 / register–activation. Pola treści welcome: `email`, `appPublicUrl`, `login` — **bez** tokenu aktywacji.
 
 Zmiana względem wersji 22 (odsyłacz UX wejścia): FE na `/` = **landing + modal** auth; CTA „Zarejestruj admina” przy **register** gdy `available` — nie „karta logowania” jako jedyna treść `/`. Kontrakt HTTP Auth **bez zmian**. Kanon UX: `docs/ux_dashboard.md`.
 
@@ -104,7 +106,7 @@ Wybrane kody domenowe:
 | `USER_NOT_FOUND` | 404 | Brak wiersza `User` przy Users (`DELETE` / `PATCH`) |
 | `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; istniejący `User` przy `POST /invitations`; `User.email` zajęty przy `PATCH /auth/me/email`; **`User.email` zajęty przy `POST /auth/register`** (w tym soft-deleted `user`). **Nie** dotyczy `POST /auth/accept-invite` (kolizja email → **401** `UNAUTHORIZED`) |
 | *(rating guest)* | 429 | Soft cap dzienny ocen `guest` (`GUEST_RATING_CAP_PER_DAY`); `message` z envelope |
-| `MAIL_DELIVERY_FAILED` | 503 | Pad SMTP po zapisie zaproszenia (create / resend invite) **albo** po utworzeniu pending User przy **register**; w `details` wyłącznie `id` (Invitation albo User). **Nie** dotyczy `POST /auth/resend-activation` (tam zawsze **200** — `security.md`) |
+| `MAIL_DELIVERY_FAILED` | 503 | Pad SMTP po zapisie zaproszenia (create / resend invite) **albo** po utworzeniu pending User przy **register**; w `details` wyłącznie `id` (Invitation albo User). **Nie** dotyczy `POST /auth/resend-activation` (tam zawsze **200** — `security.md`). **Nie** dotyczy wysyłki `user_welcome` po sukcesie `POST /auth/activate` (best-effort — pad SMTP nie zmienia odpowiedzi activate) |
 | `INTERNAL_ERROR` | 500 | Błąd nieobsłużony |
 
 `UNKNOWN_TASK_TYPE` nie jest kodem HTTP startu: `taskType` spoza enumu → **400** `VALIDATION_FAILED`. Composite executor używa `UNKNOWN_TASK_TYPE` wyłącznie przy wewnętrznym `execute` z typem poza unią (status `failed`, nie cichy no-op).
@@ -231,6 +233,8 @@ Aktywacja konta tokenem z maila — **`@Public()`**. Body: `{ "token" }` (`.stri
 **200** — sukces: `{ "user": { "id", "email", "role" } }`; ustawia `User.verifiedAt`, usuwa wiersz(e) `AccountActivation` dla usera; **bez** Set-Cookie. Potem zwykły `POST /auth/login`.  
 **401** `UNAUTHORIZED` — token zły / zużyty / wygasły (wspólny komunikat; bez enumeracji email). **Bez** **409** na tej trasie.
 
+Po **sukcesie** activate (skutek uboczny, **best-effort**): wysyłka maila `user_welcome` (PL; HTML + plain text; szablon w `infrastructure/mail/`) do konta z `role ∈ { user, guest }` — **niezależnie** od `DEMO_MODE`; **nie** do `admin`. Pola injection: `email`, `appPublicUrl`, `login` (**bez** raw / hash tokenu aktywacji, **bez** hasła). Pad SMTP / dostawy welcome **nie** zmienia statusu ani body odpowiedzi sukcesu activate — **zakaz** mapowania na `MAIL_DELIVERY_FAILED` / **503** na tej ścieżce. Semantyka HTTP activate (Faza 16 / register–activation) **bez regresji**.
+
 Deep link FE (**jedyna** kanoniczna ścieżka): `{APP_PUBLIC_URL}/?activationToken={raw}` → landing na `/` + activate w tle; sukces = toast bez auto-modala; błąd = auto-open modal login (`docs/ux_dashboard.md`).
 
 Zmiana względem wersji 10: usunięto **409** na activate.
@@ -333,7 +337,7 @@ Porównanie `email` (**Invitation** i **User**) jest **case-sensitive** — bez 
 | `POST` | `/api/v1/invitations/:id/resend` | Rotacja tokenu (nowy raw, nowy hash, nowy `expiresAt`; stary token nieważny) + ponowny mail. Ten sam `id`. Brak / nie-pending → **404**. Pad SMTP → **503** + to samo `id` w `details`. |
 | `DELETE` | `/api/v1/invitations/:id` | Revoke pending: status `revoked` (token nieważny). **Nie** twardy DELETE wiersza — osobny zasób Invitation (nie mylić z hard `guest`). |
 
-Mail zawiera jednorazowy token (link + ten sam token jako tekst pod Postman). **Kanon URL w mailu zaproszenia:** `{APP_PUBLIC_URL}/invite/accept?token={raw}` — ta sama ścieżka co publiczny ekran FE (`docs/ux_dashboard.md`). **Nigdy** hasła. TTL zaproszenia: env `INVITE_TTL`, default **7 dni** (ten sam parser co JWT TTL, np. `7d`). Mail aktywacji konta (`user_activation`): `{APP_PUBLIC_URL}/?activationToken={raw}`; TTL: `ACTIVATION_TTL`, default **`7d`**.
+Mail zawiera jednorazowy token (link + ten sam token jako tekst pod Postman). **Kanon URL w mailu zaproszenia:** `{APP_PUBLIC_URL}/invite/accept?token={raw}` — ta sama ścieżka co publiczny ekran FE (`docs/ux_dashboard.md`). **Nigdy** hasła. TTL zaproszenia: env `INVITE_TTL`, default **7 dni** (ten sam parser co JWT TTL, np. `7d`). Mail aktywacji konta (`user_activation`): `{APP_PUBLIC_URL}/?activationToken={raw}`; TTL: `ACTIVATION_TTL`, default **`7d`**. Mail powitalny (`user_welcome`): **po** sukcesie activate; treść PL (samouczek / ścieżki UI); injection `email`, `appPublicUrl`, `login` — **bez** tokenu w URL ani w body; **nie** przy invite / bootstrap / register poza activate (`deployment.md`).
 
 **Weryfikacja MVP bez FE:** Postman (cookie jar admina z kolekcji auth) + token z ciała maila albo z logu api (`development`). Kolejność: login admina → `POST /invitations` → token z logu/maila → request **bez** cookie admina: `POST /auth/accept-invite` → `POST /auth/login` nowym kontem. Negatywy: drugi accept tego tokenu → **401**; `user` woła `POST /invitations` → 403; revoke / wygasły token → **401**; ważny token + istniejący `User.email` (także soft-deleted) → **401** (ten sam `message` co zły token; invite `revoked`; **nie** 409); drugi `POST /invitations` przy istniejącym pending (w tym wygasłym) → 409.
 

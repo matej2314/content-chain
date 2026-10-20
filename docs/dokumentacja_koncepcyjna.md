@@ -1,7 +1,7 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-19
+data_modyfikacji: 2026-10-20
 ---
 
 # Dokumentacja koncepcyjna — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-19
 ## Cel produktu
 
 **Content Chain** to publiczna, self-hostowalna aplikacja agentowa do generowania treści **Social** (posty i rolki) oraz **Content** (copy stron / artykułów w podstawowej formie): od briefu, przez orchestrację agentów i weryfikację względem kontekstu firmy, po zapis wyników i obserwowalny przebieg runu.
+
+Zmiana względem wersji 8 / onboarding e-mail: maile Auth = invite + activation. Od tej wersji: po udanym `POST /auth/activate` system wysyła dodatkowo **`user_welcome`** (PL; samouczek / ścieżki UI; odbiorcy `user` \| `guest`) — **nie** zamiast `user_activation`. **Bez** welcome przy invite / bootstrap / register poza activate. Szczegóły: `dokumentacja_komunikacji.md`, `deployment.md`.
 
 Najważniejsza wartość:
 
@@ -158,7 +160,7 @@ Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza M
 |---------|-----------|
 | Kontekst firmy | Kanoniczny zestaw informacji o organizacji w DB; wejście do weryfikacji i generowania |
 | Zaproszenie / akceptacja | Invitation ≠ konto: admin wysyła email z tokenem; `User` powstaje przy `accept-invite` (pierwsze hasło; rola vs `DEMO_MODE` jak register). Bootstrap admina = osobna ścieżka, bez maila |
-| Otwarta rejestracja / aktywacja | Self-register → w `production` pending (`verifiedAt` + `AccountActivation` + mail) → activate → login; poza prod konto gotowe od razu. Rola: `guest` gdy demo on, inaczej `user` (**refaktor** względem „zawsze `user`”). Invite = równoległa droga z **tą samą** regułą roli vs demo (prod = zespół, demo = sandbox guest) |
+| Otwarta rejestracja / aktywacja | Self-register → w `production` pending (`verifiedAt` + `AccountActivation` + mail `user_activation`) → `POST /auth/activate` → mail **`user_welcome`** (samouczek / ścieżki UI; `user` \| `guest`) → login; poza prod konto gotowe od razu (**bez** łańcucha activation→welcome). `user_activation` = link aktywacji; `user_welcome` = powitanie **po** sukcesie activate — **nie** przy invite / bootstrap / register poza activate. Rola: `guest` gdy demo on, inaczej `user` (**refaktor** względem „zawsze `user`”). Invite = równoległa droga z **tą samą** regułą roli vs demo (prod = zespół, demo = sandbox guest) |
 | Zarządzanie kontami (admin) | Jedna `DELETE /users/:id`: soft tylko `user` (runy zostają); hard/purge tylko `guest` (konto + treści). Reaktywacja tylko `user`. Cancel admin→guest na szczegółach runu. Reset instancji **poza** Users |
 | Post ideas / Post content | Pomysły i copy postów SM |
 | Reel ideas / Reel script | Pomysły i scenariusz rolek |

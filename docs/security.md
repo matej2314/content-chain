@@ -1,7 +1,7 @@
 ---
-wersja: 17
+wersja: 19
 data_utworzenia: 2026-09-29
-data_modyfikacji: 2026-10-19
+data_modyfikacji: 2026-10-20
 ---
 
 # Bezpieczeństwo — Content Chain
@@ -9,6 +9,10 @@ data_modyfikacji: 2026-10-19
 Norma self-host dla `local` i `production`: auth, sekrety, ekspozycja powierzchni, bootstrap. Bez pełnego modelu STRIDE.
 
 Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, `architektura.md`.
+
+Zmiana względem wersji 18 / maile Auth: kinds = tylko invite + activation. Od tej wersji: po sukcesie activate — `user_welcome` **best-effort** (pad SMTP **nie** failuje activate / **503**). **Zakaz:** welcome przy invite, bootstrap, register poza activate, soft-delete / reaktywacji; **zakaz** tokenu aktywacji / hasła w treści `user_welcome`.
+
+Zmiana względem wersji 17 / mail: brak jawnego kanonu HTML w treści. Od tej wersji: produktowy SMTP = **HTML + plain text**, język **PL**; polityka raw token tylko w mailu / logu DX, `SMTP_*` / `MAIL_FROM` / `APP_PUBLIC_URL` / deep linki — **bez zmian** (`deployment.md`).
 
 Zmiana względem wersji 16 (odsyłacz UX): CTA bootstrap / register „na karcie logowania”. Od tej wersji: landing + modal; `available` steruje CTA „Zarejestruj admina” **na formularzu register**; register / „Załóż konto” zawsze dostępne — `ux_dashboard.md`. Semantyka HTTP bootstrap **bez zmian**.
 
@@ -114,14 +118,15 @@ Bramka aktywacji zależy wyłącznie od **`NODE_ENV=production`**. **Nie** zale�
 | Soft-delete | `false` | dowolne (bez czyszczenia) | zwykle brak | **401** |
 | Po register poza prod | `true` | ustawione od razu | brak (wymóg wyłączony) | OK |
 
-- **`production`:** po udanym register: `isActive = true`, `verifiedAt = null`, wiersz **`AccountActivation`** (hash tokenu + `userId` + `expiresAt`), mail `user_activation`. **Bez** Set-Cookie. Login **401** do czasu udanego `POST /auth/activate`.
-- **Poza `production`:** przy register od razu `verifiedAt` ustawione; aktywacja linkiem **wyłączona** (opcjonalny log URL jak invite — DX).
+- **`production`:** po udanym register: `isActive = true`, `verifiedAt = null`, wiersz **`AccountActivation`** (hash tokenu + `userId` + `expiresAt`), mail `user_activation` (HTML + plain text, PL — jak pozostałe kinds; `deployment.md`). **Bez** Set-Cookie. Login **401** do czasu udanego `POST /auth/activate`.
+- **Poza `production`:** przy register od razu `verifiedAt` ustawione; aktywacja linkiem **wyłączona** (opcjonalny log URL jak invite — DX). Adapter logujący poza `production` — bez zmiany semantyki envelope.
 - Token: w DB **tylko hash**; raw wyłącznie w mailu / logu DX. **`AccountActivation`**: `id` = prefiks **`act_`** + UUID; **`userId`** unikalny (max jeden wiersz na usera); **`tokenHash`** unikalny. Po udanej aktywacji: ustaw `User.verifiedAt`, **usuń** wiersz(e) `AccountActivation` dla tego usera. TTL: env `ACTIVATION_TTL`, default **`7d`** (jak invite). **`POST /auth/register`** sukces **201** zwraca `{ "user": { "id", "email", "role", "verifiedAt" } }` (`verifiedAt` ISO lub `null` w prod pending).
 - **Pending ≠ soft-delete:** pending ma `isActive = true` + `verifiedAt = null`. Soft-delete = `isActive = false`. **Zakaz** reuse `isActive = false` jako „oczekuje na mail”.
 - **`POST /auth/register` + zajęty email:** **409** `CONFLICT`, `message`: **`Email already in use`**. **Bez** drugiego `User`. **Świadoma enumeracja** — trade-off UX (użytkownik musi móc zmienić adres). Zmiana względem chwilowego zapisu „maskowany 201 przy kolizji”.
 - **`POST /auth/resend-activation`:** zawsze **200** + ten sam `message`: **`Wiadomość wysłana ponownie`**, niezależnie czy email istnieje / pending / już aktywny / przekroczony rate limit. Mail + rotacja tokenu **tylko** gdy jest pending z `AccountActivation`; inaczej no-op (w tym pad SMTP — **bez** **503**). Rate limit: **5** żądań / **15 min** na email (soft); po przekroczeniu — **ta sama** odpowiedź **200**. **Bez** enumeracji przez resend. Zmiana względem wersji 4: **503** `MAIL_DELIVERY_FAILED` na resend aktywacji.
 - **`POST /auth/login`:** wspólny **401** dla złego hasła / soft-delete / brak `verifiedAt` w prod **oraz** (`role=guest` && `DEMO_MODE=false`) — **bez** `ACCOUNT_NOT_ACTIVATED` i bez ujawniania „pending” / „guest przy demo off”. Check demo dla guest **przed** innymi powodami rejectu tego przypadku.
 - **`POST /auth/activate`:** zły / zużyty / wygasły token → wspólny **401** (bez rozróżniania). Sukces → **200** `{ "user": { "id", "email", "role" } }`, **bez** Set-Cookie. **Zakaz** **409** na activate (`Email already in use` = wyłącznie register i inne surface’y z zajętym emailem).
+- **`user_welcome` (po sukcesie activate):** mail powitalny (PL; HTML + plain text; CID w I/O mail) do `role ∈ { user, guest }` — **niezależnie** od `DEMO_MODE`; **nie** do `admin`. Injection: `email`, `appPublicUrl`, `login`. **Best-effort:** pad SMTP welcome **nie** zmienia odpowiedzi sukcesu activate — **zakaz** **503** / `MAIL_DELIVERY_FAILED` na tej ścieżce. **Zakaz** wysyłki welcome przy: invite / accept-invite, bootstrap, register (poza skutkiem activate), soft-delete / reaktywacji. **Zakaz** umieszczania tokenu aktywacji albo hasła w treści `user_welcome`.
 
 Zmiana względem wersji 5: usunięto **409** na activate; kanoniczny message register **409** = `Email already in use`.
 - Polityka haseł jak bootstrap / accept-invite; email **case-sensitive** (bez `trim` / `toLowerCase`) — bez zmian.
@@ -189,7 +194,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 3. HTTPS przed FE (reverse proxy na `main_network` / hoście) — cookie Secure.  
 4. Bootstrap → jeden admin → wyłączenie bootstrapu zweryfikowane.  
 5. Próba utworzenia drugiego admina → odrzucona.  
-6. W `production`: **SMTP** (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`) + **`MAIL_FROM`** + **`APP_PUBLIC_URL`** — fail-fast przy starcie; bez nich zaproszenia i maile aktywacji nie działają.  
+6. W `production`: **SMTP** (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`) + **`MAIL_FROM`** + **`APP_PUBLIC_URL`** — fail-fast przy starcie; bez nich zaproszenia i maile aktywacji nie działają. Produktowy send = HTML + plain text (PL); kształt URL w mailach i polityka raw token — bez regresji względem `deployment.md`.  
 7. Volume SQLite (`api-sqlite`) z ograniczonymi uprawnieniami hosta + backup.  
 8. Brak sekretów w logach stdout / `run.log`. Pełna treść hopu chat **nie** trafia na stdout w `production`. Raw token zaproszenia / aktywacji **nie** w logach `production`.
 
@@ -207,6 +212,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 | Pending = `isActive=true` + `verifiedAt=null` + `AccountActivation` | Pending przez samo `isActive=false`; wymaganie aktywacji poza `production`; register bramkowany `DEMO_MODE` |
 | **409** na register przy zajętym emailu (świadomy UX) | Maskowany **201** przy kolizji na register („sukces” bez konta / bez maila) |
 | Stały sukces resend; wspólny **401** na loginie (pending / soft-delete / złe hasło / guest przy demo off) | `ACCOUNT_NOT_ACTIVATED` / różnicowanie stanu konta na loginie lub resendzie |
+| `user_welcome` tylko po sukcesie activate; best-effort (pad SMTP nie psuje **200** activate); pola bez tokenu/hasła | Fail activate / **503** przez pad welcome; welcome przy invite / bootstrap / register poza activate / soft-delete / reaktywacji; token aktywacji lub hasło w treści welcome |
 | Gateway / FE / api na `127.0.0.1` + ograniczony metrics | Publiczny bind `0.0.0.0` FE/api/gateway lub gateway z kluczami vendorów na internet |
 | Dump hopu chat na stdout wyłącznie przy `NODE_ENV=development`, z redakcją `GATEWAY_KEY`; w `development` wolno logować URL akceptacji / aktywacji | Pełne prompty / `output.text` hopu w logach procesu w `production`; raw token w logach `production` |
 

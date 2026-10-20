@@ -1,12 +1,14 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-19
+data_modyfikacji: 2026-10-20
 ---
 
 # Brand types — Content Chain
 
-Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time. Dopisek: **norma tokenów semantycznych CSS** pod szatę graficzną dashboardu i landingu na `/` (statusy runów, hero dashboardu / akcenty landingu, chipy, fonty, stany pozycji nawigacji).
+Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time. Dopisek: **norma tokenów semantycznych CSS** pod szatę graficzną dashboardu i landingu na `/` (statusy runów, hero dashboardu / akcenty landingu, chipy, fonty, stany pozycji nawigacji) oraz **mapowanie ról kolorów maili transakcyjnych** z tego samego kanonu.
+
+Zmiana względem wersji 8 / tokeny: brak kanonu kolorystyki maili transakcyjnych. Od tej wersji: maile współdzielą role kolorów z produktem (dark shell, indigo/violet primary, teal CTA) mapowane z bieżącego `globals.css`; wartości hex/rgb w HTML = HOW przy implementacji — **bez** tabeli hex w docs; klienci poczty **nie** ładują CSS variables.
 
 Zmiana względem wersji 7 / tokeny: primary chrome „głównie pod split-panel”. Od tej wersji: solid `--primary` / `--ring` indigo = chrome dashboardu **oraz** akcenty landingu na `/` (hero / sticky chrome); landing **dziedziczy** ten sam kanon (indigo chrome + teal CTA) — **bez** trzeciej palety; realne screenshoty w hero landingu = **asset produktowy**, nie token CSS. Forma UX `/` — `ux_dashboard.md`.
 
@@ -138,6 +140,25 @@ Wygląd wypełnionego CTA produktu **nie** jest wartością solid `--primary` u�
 **Wyjątek względem zakazu hex:** wartości hex / gradient **wolno** wyłącznie jako definicja dedykowanych tokenów CTA `default` w `globals.css` (oraz ich użycie przez wariant `default`). Badge’e statusów, hero, chipy, lifting — **bez** tego wyjątku (nadal wyłącznie tokeny statusowe / surface).
 
 Hover / `:active`: te same kolory tła i tekstu CTA; lekki `brightness` na **całym** przycisku (wartość = HOW).
+
+### Kolorystyka maili transakcyjnych (mapowanie z produktu)
+
+Maile transakcyjne (Auth `infrastructure/mail/`) **nie** ładują `globals.css` w runtime skrzynki — klienci poczty nie honorują CSS variables produktu. Wspólny shell HTML używa **inline** hex/rgb, ale **role** kolorów mapuje z bieżącego kanonu UI w `apps/frontend/src/app/globals.css`:
+
+| Rola w mailu | Źródło w produkcie (kanon) |
+|--------------|----------------------------|
+| Tło shell / powierzchnia | dark shell (`--background` / powierzchnie kart) |
+| Tekst | foreground / muted z dark shell |
+| Akcent primary | indigo/violet (`--primary` / chrome) |
+| CTA (przycisk / link akcji) | teal CTA (`Button` `default` / akcent CTA) |
+
+| Element | Norma |
+|---------|--------|
+| Zakres | wszystkie kinds (`user_invited`, `user_activation`, …) — **jeden** wspólny shell kolorystyczny |
+| Wartości hex/rgb w HTML | **HOW** feature-planu — odczyt z aktualnego `globals.css` przy implementacji; **bez** tabeli hex w tym dokumencie |
+| Zakaz | osobna paleta „tylko pod mail”; wymaganie CSS variables w kliencie poczty; rozjazd z redesignem UI |
+
+Zmiana względem: brak normy kolorystyki maili w docs. Od tej wersji maile = ten sam kierunek wizualny co dashboard / landing, z ograniczeniem kanału (inline, bez `@theme`).
 
 ### Stany pozycji nawigacji sidebara (teal/mint)
 

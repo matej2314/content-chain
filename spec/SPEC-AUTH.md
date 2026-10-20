@@ -1,15 +1,17 @@
 ---
-wersja: 26
+wersja: 28
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-19
+data_modyfikacji: 2026-10-20
 ---
 
 # SPEC — Auth
 
 ## Cel / zakres względem dokumentacji
 
-Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, **`PATCH /auth/me/email` (własny email + re-auth; nie dla `guest`)**, role `admin` | `user` | **`guest`**, lista kont, **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite** (rola vs `DEMO_MODE`, mirror register), **otwarta rejestracja** (`POST /auth/register` — rola vs `DEMO_MODE`), **aktywacja konta** (`POST /auth/activate` + `AccountActivation` / `verifiedAt`; także dla `guest`), **resend aktywacji**, **GuestGuard** / martwa sesja `guest` przy demo off, **DELETE użytkowników wg roli** (soft `user` / hard+purge `guest`), **reaktywacja PATCH tylko `user` (z UI)**, check `isActive` / braku wiersza na access JWT, polityka haseł i sesji.
+Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, **`PATCH /auth/me/email` (własny email + re-auth; nie dla `guest`)**, role `admin` | `user` | **`guest`**, lista kont, **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite** (rola vs `DEMO_MODE`, mirror register), **otwarta rejestracja** (`POST /auth/register` — rola vs `DEMO_MODE`), **aktywacja konta** (`POST /auth/activate` + `AccountActivation` / `verifiedAt`; także dla `guest`), **powitalny mail `user_welcome` po sukcesie activate (best-effort)**, **resend aktywacji**, **GuestGuard** / martwa sesja `guest` przy demo off, **DELETE użytkowników wg roli** (soft `user` / hard+purge `guest`), **reaktywacja PATCH tylko `user` (z UI)**, check `isActive` / braku wiersza na access JWT, polityka haseł i sesji, **treść maili transakcyjnych** (szablony HTML + plain text, wspólny shell, język **PL**; kinds `user_invited` \| `user_activation` \| `user_welcome`).
 
+Zmiana względem wersji 27 / mail + activate: kinds MVP = `user_invited` \| `user_activation`; brak maila po activate. Od tej wersji unia obejmuje **`user_welcome`** (trigger tylko po udanym activate; odbiorcy `user` \| `guest`; PL; CID w I/O; best-effort — pad SMTP **nie** psuje envelope activate) — `docs/dokumentacja_komunikacji.md`, `docs/security.md`, `docs/deployment.md`.
+Zmiana względem wersji 26 / mail: kanon treści = plain text inline w adapterze SMTP. Od wersji 27: szablony HTML + plain text + wspólny shell w `infrastructure/mail/`; język **PL** — `docs/architektura.md`, `docs/architektura_katalogi_pliki.md`, `docs/brand_types.md`.
 Zmiana względem wersji 5: zakres „lista + tworzenie z hasłem” zastąpiony zaproszeniami + accept-invite (`docs/dokumentacja_komunikacji.md`).
 Zmiana względem wersji 6: A-10a — `PATCH /users/:id` obowiązkowy w MVP i wyłącznie reaktywacją (`{ isActive: true }`); UI nadal poza MVP.
 Zmiana względem wersji 14: zakaz otwartego signup / „jedyna droga = invite”. Od tej wersji self-register + aktywacja e-mail w `production` (A-11…A-13) — `docs/security.md`, `docs/dokumentacja_komunikacji.md`.
@@ -189,7 +191,10 @@ Zmiana względem wersji 17 / A-11: zawsze `role = user`. Od tej wersji **refakto
 
 A-12. `POST /api/v1/auth/activate` — publiczny; body `{ token }`. Sukces: ustawia `User.verifiedAt`, **usuwa** wiersz(e) `AccountActivation` dla tego usera; **200** `{ user: { id, email, role } }`; **bez** Set-Cookie. Token zły / zużyty / wygasły → wspólny **401** (bez rozróżniania; bez enumeracji email). **Zakaz** **409** na tej trasie (409 `Email already in use` = wyłącznie register / inne surface’y z zajętym emailem — A-11). Wymóg aktywacji linkiem tylko w `NODE_ENV=production`; poza prod ścieżka nie jest obligatoryjna (A-11 ustawia `verifiedAt` od razu). Deep link FE: wyłącznie `/?activationToken=`.
 
-Zmiana względem wersji 16 / A-12: błędne **409** „Email already in use” na activate. Od tej wersji activate-fail = wyłącznie wspólny **401**.
+Po **sukcesie** activate (skutek uboczny, **best-effort**): wysyłka maila `user_welcome` (PL; HTML + plain text; szablon we wspólnym shellu w `infrastructure/mail/`; zrzuty jako załączniki **CID** wyłącznie w warstwie mail I/O — **nie** w domain/use-case) do konta z `role ∈ { user, guest }` — **niezależnie** od `DEMO_MODE`; **nie** do `admin`. Pola injection: `email`, `appPublicUrl`, `login` (**bez** raw / hash tokenu aktywacji, **bez** hasła). Pad SMTP / dostawy welcome **nie** zmienia statusu ani body odpowiedzi sukcesu activate — **zakaz** mapowania na `MAIL_DELIVERY_FAILED` / **503** na tej ścieżce. Semantyka HTTP activate (statusy, body) **bez regresji**.
+
+Zmiana względem wersji 27 / A-12: brak skutku ubocznego maila po activate; kinds tylko invite + activation. Od tej wersji A-12 obejmuje `user_welcome` best-effort — `docs/dokumentacja_komunikacji.md`, `docs/security.md`.
+Zmiana względem wersji 16 / A-12: błędne **409** „Email already in use” na activate. Od wersji 16 activate-fail = wyłącznie wspólny **401**.
 
 A-13. `POST /api/v1/auth/resend-activation` — publiczny; body np. `{ email }`. **Zawsze** **200** + `message`: **`Wiadomość wysłana ponownie`**, niezależnie czy email istnieje / pending / już aktywny / przekroczony rate limit. Mail + rotacja tokenu (nowy hash, nowy `expiresAt`) **tylko** gdy jest pending z `AccountActivation`; inaczej no-op (**w tym** pad SMTP — **bez** **503**). Rate limit: **5** / **15 min** na email (soft). **Bez** Set-Cookie. **Bez** enumeracji stanu konta przez resend.
 
@@ -221,11 +226,12 @@ apps/api/src/auth/
 ├── http/                       # DTO — bez zmian układu
 └── infrastructure/
     ├── persistence/            # Prisma User / Invitation / AccountActivation / refresh
-    ├── mail/                   # nodemailer + adapter logujący
+    ├── mail/                   # nodemailer + adapter logujący + szablony HTML/text + wspólny shell + renderer
     └── session/                # cookie + JwtCookieStrategy
 ```
 
 Zmiana względem wersji 19 / drzewo: wcześniej płaskie `infrastructure/` (komentarz: Prisma, hash, JWT, cookie, SMTP w jednym worku). Od tej wersji podkatalogi po granicy I/O: `persistence/` / `mail/` / `session/` — `docs/architektura_katalogi_pliki.md`. A-* i tabele ról **bez zmian**.
+Zmiana względem wersji 26 / drzewo `mail/`: komentarz „nodemailer + adapter logujący”. Od tej wersji: także szablony HTML (+ plain text), wspólny shell, renderer — `docs/architektura_katalogi_pliki.md`.
 
 | Element | Norma |
 |---------|--------|
@@ -234,10 +240,17 @@ Zmiana względem wersji 19 / drzewo: wcześniej płaskie `infrastructure/` (kome
 | Refresh | hash w DB + cookie `cc_refresh`; rotacja przy każdym refresh |
 | Cookie (production) | `httpOnly`; `Secure` + `SameSite=strict` na **obu** cookie; origin = FE (BFF) |
 | Biblioteki | `@nestjs/jwt`, `@nestjs/passport`, `passport-jwt`, `bcrypt` (lub `bcryptjs`); **nodemailer** wyłącznie jako adapter SMTP w `infrastructure/mail/` |
-| Mailer | Port w Auth (`send({ kind: 'user_invited' \| 'user_activation', … })`); `development` / `test`: adapter logujący w `infrastructure/mail/`; `production`: nodemailer SMTP w `infrastructure/mail/` |
-| Lokalizacja I/O | Prisma (User / Invitation / AccountActivation / refresh) = `infrastructure/persistence/`; JWT/cookie helpers + `JwtCookieStrategy` = `infrastructure/session/`; SMTP / adapter logujący = `infrastructure/mail/` |
+| Mailer | Port w Auth (`send({ kind: 'user_invited' \| 'user_activation' \| 'user_welcome', … })`); treść **nie** w porcie — use case przekazuje tylko `kind` + pola wiadomości. `development` / `test`: adapter logujący w `infrastructure/mail/`; `production`: nodemailer SMTP w `infrastructure/mail/` |
+| Treść maila | Przed `sendMail`: renderer z szablonów w `infrastructure/mail/` buduje **`html` + `text`** (równolegle); wspólny layout (header / footer / CTA). Język subject + body: **PL**. Dane wyłącznie z pól `TransactionalMail` portu — **zakaz** logiki domenowej w szablonach |
+| Kolorystyka maili | Wspólny shell dla wszystkich kinds; role kolorów mapowane z kanonu produktu (`apps/frontend/src/app/globals.css` — dark shell, indigo/violet primary, teal CTA); w HTML **inline** hex/rgb (klienci poczty). Wartości hex = HOW feature-planu — **bez** tabeli hex w SPEC. Źródło ról: `docs/brand_types.md` |
+| Kinds | MVP obowiązkowe: `user_invited` \| `user_activation` \| `user_welcome`. Kolejne kinds = rozszerzenie unii `TransactionalMail` + nowy szablon (dynamicznie według potrzeb / funkcjonalności) |
+| `user_welcome` | Trigger: wyłącznie po udanym `POST /auth/activate` (self-register w `production`). Odbiorcy: `role ∈ { user, guest }` — **nie** `admin`; **niezależnie** od `DEMO_MODE`. Język: **PL**. Injection: `email`, `appPublicUrl`, `login`. Obrazy: załączniki **CID** w adapterze mail I/O (**nie** domain/use-case). Best-effort: pad SMTP **nie** zmienia **200** activate — **zakaz** `MAIL_DELIVERY_FAILED` / **503** na tej ścieżce. **Zakaz** welcome przy invite / accept-invite / bootstrap / register (poza skutkiem activate) / soft-delete / reaktywacji |
+| Lokalizacja I/O | Prisma (User / Invitation / AccountActivation / refresh) = `infrastructure/persistence/`; JWT/cookie helpers + `JwtCookieStrategy` = `infrastructure/session/`; SMTP / adapter logujący / **szablony + shell + renderer** / załączniki CID = `infrastructure/mail/` (**jedyna** lokalizacja treści i CID maili) |
 
-Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentication](https://docs.nestjs.com/security/authentication)). Cost bcrypt = 12 — [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html). Adapter SMTP: [Nodemailer `createTransport` + `sendMail`](https://github.com/nodemailer/nodemailer) (`host` / `port` / `auth.user` / `auth.pass` ↔ `SMTP_*`; `from` ↔ `MAIL_FROM`).
+Zmiana względem wersji 27 / Mailer + Kinds: unia = `user_invited` \| `user_activation`; brak normy `user_welcome` / CID / best-effort po activate. Od tej wersji kinds MVP obejmują `user_welcome` (A-12) — `docs/architektura.md`, `docs/security.md`.
+Zmiana względem wersji 26 / Mailer: *„plain text inline w adapterze SMTP jako jedyna treść”*. Od wersji 27 kanon = HTML + plain text z szablonów; PL; wspólny shell; dane z pól portu.
+
+Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentication](https://docs.nestjs.com/security/authentication)). Cost bcrypt = 12 — [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html). Adapter SMTP: [Nodemailer `createTransport` + `sendMail`](https://github.com/nodemailer/nodemailer) (`host` / `port` / `auth.user` / `auth.pass` ↔ `SMTP_*`; `from` ↔ `MAIL_FROM`; body = `html` + `text`).
 
 ### Sesja (cookie-only)
 
@@ -250,7 +263,9 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 ### Wolno
 
 - Port persistence użytkowników, sesji refresh, **zaproszeń** oraz **aktywacji konta** (`AccountActivation`); adapter Prisma w `infrastructure/persistence/`.
-- Port mailera transakcyjnego w Auth (`user_invited` **oraz** `user_activation`); adapter logujący poza `production` w `infrastructure/mail/`; adapter SMTP = **nodemailer** wyłącznie w `infrastructure/mail/`.
+- Port mailera transakcyjnego w Auth (`user_invited` \| `user_activation` \| `user_welcome`; kolejne kinds przez rozszerzenie unii); adapter logujący poza `production` w `infrastructure/mail/`; adapter SMTP = **nodemailer** wyłącznie w `infrastructure/mail/`.
+- Szablony HTML (+ plain text), wspólny shell oraz renderer wstrzykujący pola wiadomości **przed** `sendMail` — wyłącznie w `infrastructure/mail/`; załączniki **CID** (`user_welcome`) wyłącznie w adapterze mail I/O.
+- Wysyłkę `user_welcome` **tylko** po udanym `POST /auth/activate` (A-12); best-effort — pad SMTP **nie** zmienia odpowiedzi sukcesu activate.
 - Strategia cookie / JWT (`JwtCookieStrategy` async `validate` + A-3c, helpers cookie) w `infrastructure/session/`.
 - Walidacja DTO auth class-validator + reguły haseł w domain/application (Zod — `SPEC-KOMUNIKACJA.md`).
 - Soft-delete `user` + flaga aktywności; hard/purge `guest` przez porty (A-10); odrzucenie loginu dla kont nieaktywnych **oraz** (w prod) bez `verifiedAt`; PATCH reaktywacji **tylko `user`**, **bez** odtwarzania sesji refresh i **bez** ustawiania `verifiedAt`.
@@ -272,6 +287,13 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - Przechowywania haseł plaintext / odwracalnych.
 - Hasła w mailu; admin zna hasło `user`; `POST /users` z hasłem.
 - Nodemailera (ani innego klienta SMTP) w domain / use-case — wyłącznie adapter `infrastructure/mail/`; **zakaz** nodemailera w `infrastructure/persistence/` ani `infrastructure/session/`.
+- **React Email** / JSX jako silnika szablonów maili w `apps/api`; szablonów maili we `apps/frontend` albo osobnym package; HTML / plain text / **CID** w use-case / domain (treść i załączniki powstają wyłącznie w adapterze / rendererze I/O `infrastructure/mail/`).
+- Logiki domenowej (reguły ról, TTL, authz, persistencja) w plikach szablonów — szablony tylko renderują dane z pól wiadomości portu.
+- Wysyłki `user_welcome` przy invite / accept-invite / bootstrap / register (poza skutkiem activate) / soft-delete / reaktywacji.
+- Fail `POST /auth/activate` / **503** `MAIL_DELIVERY_FAILED` przez pad dostawy `user_welcome` (envelope activate **niezależny** od SMTP welcome).
+- Tokenu aktywacji albo hasła w treści / injection `user_welcome` (obowiązują wyłącznie `email`, `appPublicUrl`, `login`).
+- Treści maili w **EN** jako kanonu subject/body (obowiązuje **PL** — wspólnie z normą szablonów).
+  Zmiana względem wersji 27 / „Nie wolno”: milczenie o `user_welcome` / CID / best-effort. Od tej wersji zakazy wokół triggera, envelope i pól welcome — `docs/security.md`, `docs/anty_patterny.md`.
 - Bramkowania `POST /auth/register` przez `DEMO_MODE` (register zawsze publiczny).
   Zmiana względem wersji 14 / „Nie wolno”: „Otwartego signup (konto `user` tylko z ważnym tokenem zaproszenia)” — **unieważnione**; obowiązuje A-11 + invite.
 - Pending przez samo `isActive=false` (obowiązuje `verifiedAt=null` + `AccountActivation` w prod).
@@ -316,7 +338,9 @@ Zmiana względem wersji 14 / „Nie wolno”: zakaz otwartego signup unieważnio
 | TTL env: access default 15m, refresh default 1d; `INVITE_TTL` default 7d; `ACTIVATION_TTL` default 7d | obowiązkowe |
 | Port mailera + **nodemailer** (adapter SMTP w `production`) | obowiązkowe |
 | Adapter logujący maila w `development` / `test` | obowiązkowe |
-| Kind mailera `user_invited` **oraz** `user_activation` | obowiązkowe |
+| Kind mailera `user_invited` \| `user_activation` \| `user_welcome` | obowiązkowe |
+| Szablony HTML + plain text + wspólny shell + renderer w `infrastructure/mail/`; język treści **PL**; CID `user_welcome` w I/O mail | obowiązkowe |
+| React Email / JSX maili; szablony we FE; treść HTML / CID w domain / use-case; `MAIL_DELIVERY_FAILED` na ścieżce welcome po activate | zakaz |
 | Bearer access / OAuth / 2FA / zmiana hasła zalogowanego / usuwanie siebie / confirm e-mail przy zmianie adresu | poza MVP (V1 confirm) |
 | `GET /auth/me` + `PATCH /auth/me/email` (`email` + `currentPassword`) + `GET /auth/bootstrap-status` + `POST /auth/accept-invite` + `POST /auth/register` + `POST /auth/activate` + `POST /auth/resend-activation` | obowiązkowe |
 | `DELETE /users/:id` (soft `user` / hard+purge `guest`) + `PATCH /users/:id` (reaktywacja tylko `user`) | obowiązkowe |
@@ -337,7 +361,7 @@ Zmiana względem wersji 14 / „Nie wolno”: zakaz otwartego signup unieważnio
 - [ ] `user` nie przechodzi tras admin-only (`RolesGuard` → `FORBIDDEN`), w tym `POST /invitations` → 403; `user` → `DELETE /users/:id` → **403**.
 - [ ] Admin zaprasza (`POST /invitations`, tylko email, bez `role`) → pending + mail; accept-invite: `DEMO_MODE=false` → `role=user`, `DEMO_MODE=true` → `role=guest`; potem login; raw token nie wraca w JSON admina.
 - [ ] `POST /auth/register`: nowy email → **201** bez Set-Cookie; prod = pending + mail; poza prod = `verifiedAt` od razu; zajęty email → **409** `CONFLICT` (bez drugiego User); **nie** maskowany 201; `DEMO_MODE=true` → `role=guest`; `false` → `role=user`.
-- [ ] `POST /auth/activate`: sukces → **200** `{ user }` + `verifiedAt` + delete `AccountActivation`; zły token → wspólny **401**.
+- [ ] `POST /auth/activate`: sukces → **200** `{ user }` + `verifiedAt` + delete `AccountActivation`; zły token → wspólny **401**; po sukcesie — skutek uboczny `user_welcome` best-effort (**nie** zmienia **200**; **bez** `MAIL_DELIVERY_FAILED` / **503** na tej ścieżce; odbiorcy `user` \| `guest`).
 - [ ] `POST /auth/resend-activation`: zawsze **200** + `Wiadomość wysłana ponownie`; mail tylko przy pending; **bez** **503**.
 - [ ] Soft DELETE `user` usuwa `AccountActivation` + sesje; **nie** kasuje runów/feedback; **nie** czyści `verifiedAt`; live run **nie** daje 409.
 - [ ] Hard DELETE `guest` usuwa wiersz User + runy + dzieci + Feedback + Redis ratings (lub fail-open); email wolny; live bez `purge` → **409** `GUEST_HAS_ACTIVE_RUN`; z `?purge=true` → **200** + brak User/runów.
@@ -346,7 +370,9 @@ Zmiana względem wersji 14 / „Nie wolno”: zakaz otwartego signup unieważnio
 - [ ] Drugi `POST /invitations` przy `pending` (także wygasłym) → **409**; `GET` pending obejmuje wygasłe.
 - [ ] Zużyty / wygasły / revoked token → **401** na accept-invite; hasło poza A-5 → **400** (pending bez zmian).
 - [ ] Kolizja `User.email` (także soft-deleted) przy ważnym tokenie → **401** `UNAUTHORIZED`, ten sam `message` co zły token; Invitation → `revoked`; **nie** **409**; brak `User` z tej próby.
-- [ ] Pad SMTP po zapisie (gdy testowany adapter SMTP) → **503** `MAIL_DELIVERY_FAILED` + `details.id` (Invitation albo User).
+- [ ] Pad SMTP po zapisie invite create/resend **albo** register (gdy testowany adapter SMTP) → **503** `MAIL_DELIVERY_FAILED` + `details.id` (Invitation albo User) — **nie** dotyczy welcome po activate.
+- [ ] Produktowy send SMTP: body **HTML + plain text**, subject/body **PL**, wspólny shell; kinds `user_invited` \| `user_activation` \| `user_welcome`; CID wyłącznie w `infrastructure/mail/`; deep linki invite/activation / envelope HTTP activate **bez regresji** (A-7a / A-11…A-13).
+- [ ] Brak `user_welcome` przy invite / accept-invite / bootstrap / register poza skutkiem activate; brak tokenu aktywacji / hasła w treści welcome.
 - [ ] PATCH `{ isActive: true }` na soft-deleted `user` → 200 `isActive: true`; **nie** ustawia `verifiedAt`. Target `guest` → **403**. `isActive: false` / `role` w body → 400. `user` woła PATCH → 403. PATCH admina → 403.
 - [ ] Postman / FE bez Bearer — wyłącznie cookie.
 - [ ] Domyślne TTL: access 15m, refresh 1d, invite 7d, activation 7d (nadpisywalne env).
@@ -366,3 +392,5 @@ Zmiana względem wersji 20 / poza zakresem: *„Soft-delete / reaktywacja w UI a
 - Chip / locki UI DEMO — `SPEC-FRONTEND.md`. Polityka slotów / Redis admit — `SPEC-RUNY.md` R-12 (DEL ratings przy hard = A-10).
 - Szczegóły ekspozycji sieciowej gateway/metrics / reverse proxy → `SPEC-BEZPIECZENSTWO.md`.
 - Schema Prisma — `SPEC-PERSISTENCE.md` / implementacja, byle port sesji refresh, zaproszeń, aktywacji (`AccountActivation` / `verifiedAt`), flagi aktywności oraz porty purge istniały.
+- Editor szablonów w produkcie; i18n maili (poza PL); React Email; osobny BC „Email”; zmiana `SMTP_*` / `MAIL_FROM` / `APP_PUBLIC_URL` / kształtu deep linków — poza tą normą treści (ops = `docs/deployment.md`).
+- Wartości hex/rgb kolorów maili w SPEC — HOW feature-planu (odczyt z bieżącego `globals.css`); mapa ról = `docs/brand_types.md`.

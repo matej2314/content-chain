@@ -1,7 +1,7 @@
 ---
-wersja: 11
+wersja: 13
 data_utworzenia: 2026-09-30
-data_modyfikacji: 2026-10-19
+data_modyfikacji: 2026-10-20
 ---
 
 # Deployment — Content Chain
@@ -9,6 +9,10 @@ data_modyfikacji: 2026-10-19
 Self-host MVP: jak uruchamiać, konfigurować i utrzymywać jedną instalację (jedna firma = jedna instancja).
 
 Powiązane: `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `testy.md`, `security.md`, `observability.md`.
+
+Zmiana względem wersji 12 / kinds: mailer = `user_invited` \| `user_activation`. Od tej wersji także **`user_welcome`** (po sukcesie activate; PL HTML+text; obrazy CID). **Bez nowych** zmiennych env pod welcome — wyłącznie istniejące `SMTP_*` / `MAIL_FROM` / `APP_PUBLIC_URL`; TTL aktywacji i deep link `user_activation` **bez zmian**.
+
+Zmiana względem wersji 11 / mail: treść produktu bez jawnego kanonu HTML. Od tej wersji: produktowy send (SMTP) = body **HTML + plain text**, język treści **PL**. **Bez zmian:** `SMTP_*`, `MAIL_FROM`, `APP_PUBLIC_URL`, kształt deep linków, adapter logujący poza `production`.
 
 Zmiana względem wersji 10 (checklist DX): first-run „CTA na karcie logowania”. Od tej wersji: landing + modal; CTA „Zarejestruj admina” na formularzu register gdy `available` — `ux_dashboard.md`, `security.md`. Endpointy bootstrap **bez zmian**.
 
@@ -119,16 +123,19 @@ Nazwy SMTP / maila są **kanoniczne** (te same w `spec/SPEC-BEZPIECZENSTWO.md` i
 
 `REVIEW_TTL` = jak długo po `completed`/`failed` wolno mutować przegląd. `REVIEW_SWEEP_INTERVAL` = jak często job domyka wygasłe wiersze w DB (`reviewFinalizedAt`); **nie** przedłuża ani nie skraca okna przeglądu.
 
+**Treść maili produktowych (SMTP):** body = **HTML + plain text**; subject i treść w **PL**. Adapter logujący poza `production` nadal wystarcza do DX (URL / token) — HTML **nie** zmienia semantyki envelope ani wymagań env. Lokalizacja szablonów / shella — `architektura_katalogi_pliki.md` (Auth `infrastructure/mail/`); kolory — mapowanie ról z `brand_types.md` (wartości = HOW).
+
 Bootstrap admina **bez SMTP** nadal możliwy (email + hasło, bez maila).
 
-Create / resend zaproszenia **oraz** mail aktywacji przy **register**: lokalnie (`development` / `test`) send adaptera logującego **zawsze się udaje**. **503** `MAIL_DELIVERY_FAILED` + `details.id` tylko przy padzie **prawdziwego** SMTP (`production`) na invite create/resend **oraz** register. **`POST /auth/resend-activation`:** pad SMTP → **bez** **503** (zawsze **200** + `Wiadomość wysłana ponownie`).
+Create / resend zaproszenia **oraz** mail aktywacji przy **register**: lokalnie (`development` / `test`) send adaptera logującego **zawsze się udaje**. **503** `MAIL_DELIVERY_FAILED` + `details.id` tylko przy padzie **prawdziwego** SMTP (`production`) na invite create/resend **oraz** register. **`POST /auth/resend-activation`:** pad SMTP → **bez** **503** (zawsze **200** + `Wiadomość wysłana ponownie`). **`user_welcome` po `POST /auth/activate`:** best-effort — pad SMTP **nie** daje **503** ani `MAIL_DELIVERY_FAILED` na odpowiedzi activate.
 
-**Kanon URL w mailach:**
+**Kanon URL / kinds w mailach:**
 
-| Kind | URL |
-|------|-----|
+| Kind | Trigger / URL |
+|------|---------------|
 | `user_invited` | `{APP_PUBLIC_URL}/invite/accept?token={raw}` |
 | `user_activation` | `{APP_PUBLIC_URL}/?activationToken={raw}` → FE natychmiast widok logowania + activate w tle |
+| `user_welcome` | Po sukcesie `POST /auth/activate` (self-register w `production`); treść PL HTML+text (samouczek / ścieżki UI); obrazy osadzone **CID**; injection `email`, `appPublicUrl`, `login` — **bez** osobnego deep-link tokenu; **bez** nowych env |
 
 Aktywacja linkiem wymagana **tylko** gdy `NODE_ENV=production`. Poza prod: `verifiedAt` przy register od razu; opcjonalny log URL. Migracja wprowadzająca `verifiedAt`: **backfill** istniejących `User` → `verifiedAt = createdAt`; bootstrap / accept-invite ustawiają `verifiedAt = now()` przy create.
 
@@ -184,7 +191,7 @@ Compose od początku definiuje wszystkie trzy usługi; „puste” UI do czasu g
 5. **Smoke (obowiązkowy w Jenkins):** `GET http://127.0.0.1:3001/api/v1/health/ready` — body `status === "ready"` (api + gateway żyją; `checks.gateway` = liveness procesu gateway). **Brak `ready` = fail joba** (timeout/retry, nie jednorazowy curl).  
 6. (Ops / orchestracja) readiness gateway wewnętrznie: `GET {gateway}/api/v1/health/ready` — **nie** źródło chipa „Agenci aktywni” w CC.  
 7. Bootstrap admin.  
-8. (Opcjonalnie) smoke zaproszenia: `POST /invitations` → token z maila SMTP; lokalnie adapter logujący → token z logu api → `POST /auth/accept-invite` → `POST /auth/login`. Przy **`DEMO_MODE=true`**: po loginie widać chip demo / limity gościa (`role=guest`). Smoke register + activate (w `production`): `POST /auth/register` → mail `user_activation` / log → `POST /auth/activate` → `POST /auth/login`.  
+8. (Opcjonalnie) smoke zaproszenia: `POST /invitations` → token z maila SMTP; lokalnie adapter logujący → token z logu api → `POST /auth/accept-invite` → `POST /auth/login`. Przy **`DEMO_MODE=true`**: po loginie widać chip demo / limity gościa (`role=guest`). Smoke register + activate (w `production`): `POST /auth/register` → mail `user_activation` / log → `POST /auth/activate` → `POST /auth/login`. Po udanym activate w `production` oczekiwany **drugi** mail (`user_welcome`) — **bez** wymogu asercji HTTP przy padzie SMTP (best-effort; activate nadal **200**).  
 9. Uzupełnij kontekst → completeness; przy `ready` api chip UX = „Agenci aktywni”.  
 10. Smoke: start runu Social i Content (`apps/api/test/postman/` albo UI).  
 11. Podłącz scrape `/metrics` (opcjonalnie od razu; z localhost / sieci ops).  

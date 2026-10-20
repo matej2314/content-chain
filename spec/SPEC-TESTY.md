@@ -1,7 +1,7 @@
 ---
-wersja: 35
+wersja: 37
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-17
+data_modyfikacji: 2026-10-20
 ---
 
 # SPEC — Testy
@@ -10,6 +10,8 @@ data_modyfikacji: 2026-10-17
 
 Norma strategii testów MVP Content Chain: piramida, narzędzia, obowiązkowe przypadki DoD oraz CI — uszczegółowienie `docs/testy.md` pod egzekwowalne reguły przy implementacji `apps/api`.
 
+Zmiana względem wersji 36 / activate × welcome: milczenie o wpływie `user_welcome` na DoD activate. Od tej wersji D-41 / D-45: asercje HTTP activate **bez** wymogu dostarczonego welcome; pad SMTP welcome **nie** psuje case’u sukcesu; treść HTML/CID/subject PL welcome = unit renderer / **poza** obowiązkowym T-5 — `SPEC-AUTH.md` A-12, `SPEC-KOMUNIKACJA.md` K-2h.
+Zmiana względem wersji 35 / mail: milczenie o wpływie szablonów HTML na DoD invite / activation. Od wersji 36: HTML + text w SMTP **nie** zmienia statusów envelope ani asercji D-* HTTP; smoke nadal na adapterze logującym; asercja treści (HTML/text/subject) = unit renderer / **poza** obowiązkowym T-5 Postman — `SPEC-AUTH.md`.
 Zmiana względem wersji 23: DoD bez TTL / auto-finalize. Od tej wersji D-35…D-40 (lock po TTL bez CAS, sweeper, restart, GET 4a, backfill, regresje) — `docs/testy.md`, `SPEC-RUNY.md` R-10.
 Zmiana względem wersji 25: DoD bez register / activate / resend. Od tej wersji D-41…D-46 — `SPEC-AUTH.md` A-11…A-13.
 Zmiana względem wersji 27: DoD bez readiness api / probe gateway. Od tej wersji D-47…D-49 — `SPEC-KOMUNIKACJA.md` K-10; regresja `CONTEXT_INCOMPLETE` bez `GATEWAY_NOT_READY`.
@@ -82,7 +84,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-20 | Unit Zod `CompanyContextExtras`: znany kształt OK; nieznany klucz → fail; `isComplete` ignoruje extras. Unit/e2e unknown key → **400**; ścieżki w `details` zgodne z separatorem `'.'` wspólnego `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`). Case na **kompletnym** body bramki (niekompletny zapis = D-29). Bez wymogu osobnego testu wyłącznie na lokalizację pliku helpera. |
 | D-21 | HITL Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): 0 id, duplikat albo obcy id → **400** `HITL_INVALID_SELECTION` (bez zapisu, status `awaiting_hitl`); **2 poprawne** id → `completed` z 2 artefaktami (`contents[]` / `reelScripts[]`, `sourceIdeaId`); 1 poprawny → tablica długości 1 |
 | D-22 | GET result: `characterCount === body.length` (skalar lub każda pozycja `contents[]`); outline z `role` enum przechodzi parse; nieznany `role` → fail |
-| D-23 | Zaproszenie (admin, cookie): `POST /invitations` `{ email }` → pending; publiczny `POST /auth/accept-invite` `{ token, password }` → `User` z `verifiedAt` ustawionym; potem `POST /auth/login` nowym kontem. **Rola:** przy **`DEMO_MODE=false`** (default) → **`role=user`**; przy **`DEMO_MODE=true`** → **`role=guest`** (dalej locki/quota jak D-50…D-62; smoke Postman `demo-guest` / równoważny — invite→accept→login→quota/403). Artefakt E2E: istniejąca kolekcja Postman (`T-5` — bez pinu runnera). **Zmiana względem:** D-23 v30 — pin `role=user` bez gałęzi demo |
+| D-23 | Zaproszenie (admin, cookie): `POST /invitations` `{ email }` → pending; publiczny `POST /auth/accept-invite` `{ token, password }` → `User` z `verifiedAt` ustawionym; potem `POST /auth/login` nowym kontem. **Rola:** przy **`DEMO_MODE=false`** (default) → **`role=user`**; przy **`DEMO_MODE=true`** → **`role=guest`** (dalej locki/quota jak D-50…D-62; smoke Postman `demo-guest` / równoważny — invite→accept→login→quota/403). Artefakt E2E: istniejąca kolekcja Postman (`T-5` — bez pinu runnera). Smoke invite / activation nadal na **adapterze logującym** (DX: URL / token w logu) — **HTML w SMTP nie zmienia** statusów envelope ani asercji HTTP tego case’u; deep linki (`/invite/accept`, `/?activationToken=`) **bez zmian**. **Zmiana względem:** D-23 v30 — pin `role=user` bez gałęzi demo; v35 — milczenie o HTML vs DoD |
 | D-23a | Negatyw accept-invite: ważny token `pending` + istniejący `User` (ten sam email, także soft-deleted) → **401** `UNAUTHORIZED` z **tym samym** `message` co zły token; Invitation po próbie `revoked` (lub zdefiniowany równoważnik); **asercja: nie 409**; brak nowego `User` z tej próby. Regresja: scenariusze / Postman expecting **409** na accept przy zajętym emailu — **unieważnione** |
 | D-24 | `user` woła `POST /invitations` → **403**. Drugi `POST` przy `pending` (także wygasłym) → **409**. `GET /invitations` zwraca też wygasłe pending |
 | D-25 | Soft-delete **tylko `role=user`**: `DELETE /users/:id` → `isActive = false`; runy **zostają**; nieaktywny nie loguje się (ten sam komunikat 401 co złe hasło); kolejne requesty z ważnym access → **401** dzięki checkowi `isActive` (A-3c). Soft przy live runie → **200** (bez 409). **Zmiana względem:** D-25 v31 — soft bez rozróżnienia roli / bez asercji access po soft |
@@ -101,11 +103,11 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-38 | GET snapshot **nie** ustawia `reviewFinalizedAt` (4a — czysty odczyt); po TTL przed sweeperem `reviewExpiresAt` nadal ISO, `reviewFinalizedAt` nadal `null` |
 | D-39 | Backfill B: kotwica z `updatedAt` (fallback `createdAt`); stary run `completed`/`failed` bez finalize, z kotwicą starszą niż TTL → po boot sweeperze locked (`reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL`) |
 | D-40 | Regresja: ręczne finalize **przed** TTL → `REVIEW_LOCKED` na kolejnych mutacjach; `cancelled` → przegląd `RUN_NOT_REVIEWABLE` (`pipelineFinishedAt` null); `POST /feedback` nadal **201** po auto-close / TTL przeglądu (append; nie `REVIEW_LOCKED`) |
-| D-41 | Register happy path przy **`DEMO_MODE=false`** (default): `POST /auth/register` → **201** `{ user: { id, email, role, verifiedAt } }` **bez** Set-Cookie; **`role = user`**; `verifiedAt = null` w prod; wiersz `AccountActivation`; login pending → wspólny **401**. Po activate → **200**; login → **200**. **Zmiana względem:** D-41 v28 — `role = user` bez gałęzi demo (nadal ten case przy demo off) |
+| D-41 | Register happy path przy **`DEMO_MODE=false`** (default): `POST /auth/register` → **201** `{ user: { id, email, role, verifiedAt } }` **bez** Set-Cookie; **`role = user`**; `verifiedAt = null` w prod; wiersz `AccountActivation`; login pending → wspólny **401**. Po activate → **200**; login → **200**. Asercja sukcesu activate **bez** wymogu dostarczonego `user_welcome`; pad SMTP welcome **nie** psuje **200** / case’u. **Zmiana względem:** D-41 v28 — `role = user` bez gałęzi demo; v36 — milczenie o niezależności od welcome |
 | D-42 | Register poza `production`: **201** z `verifiedAt` w body; login → **200** bez activate (rola nadal vs `DEMO_MODE`) |
 | D-43 | Register kolizja (aktywny **lub** soft-deleted email) → **409**, `message`: **`Email already in use`**; **nie** maskowany **201**; brak drugiego `User` |
 | D-44 | Resend: zawsze **200** + `Wiadomość wysłana ponownie` dla pending / brak konta / już aktywny / rate limit / pad SMTP; mail + nowy hash **tylko** przy pending; **bez** **503** |
-| D-45 | Activate: zły token → wspólny **401**; sukces → **200** `{ user }`; login pending / soft-delete / złe hasło → ten sam **401** (bez `ACCOUNT_NOT_ACTIVATED`) |
+| D-45 | Activate: zły token → wspólny **401**; sukces → **200** `{ user }` (**bez** wymogu sukcesu SMTP `user_welcome`; pad welcome **nie** daje **503** / `MAIL_DELIVERY_FAILED` na tej ścieżce); login pending / soft-delete / złe hasło → ten sam **401** (bez `ACCOUNT_NOT_ACTIVATED`). **Zmiana względem:** D-45 v36 — milczenie o best-effort welcome |
 | D-46 | Regresja: invite → accept (`verifiedAt` ustawione; **`DEMO_MODE=false` → `role=user`**; **`DEMO_MODE=true` → `role=guest`**) → login; bootstrap ustawia `verifiedAt`; register **nigdy** `admin`; register revoke pending Invitation; soft-delete usuwa `AccountActivation`; `GET /users` zawiera `verifiedAt`; **brak** ścieżki awansu `guest`. **Zmiana względem:** D-46 v30 — *„`role=user` także przy demo on”* **unieważnione**; invite demo on = dodatkowa ścieżka tego samego stanu `guest` co D-50 (pokrycie Postman `demo-guest` / równoważnym smoke) |
 | D-47 | `GET /api/v1/health/ready`: gdy upstream gateway **liveness** OK (HTTP 2xx + sensowny body) → agregat `status: ready`, `checks.gateway.status: healthy`; body **bez** sekretów / `GATEWAY_KEY` / `X-Gateway-Key`. **Bez** wymogu asercji na upstream gateway `/health/ready`. **Bez** faila z braku Redis |
 | D-48 | `GET /api/v1/health/ready`: upstream liveness timeout **lub** unreachable **lub** nie-2xx → `status: not_ready`, `checks.gateway.status: unhealthy`; HTTP odpowiedzi api nadal **200** (przy żywym procesie api); body bez sekretów |
@@ -143,6 +145,8 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-80 | Semantyka metryk (unit i/lub integration): brak terminalnych w oknie → `successRateLast30d = 0` (**nie** `null`); brak runów w oknie → `topTaskTypeLast30d = null`; remis count `taskType` → typ z **najnowszym** `createdAt` wśród remisujących; `activeNow` = count status ∈ `{running, awaiting_hitl, queued}` **bez** limitu 30d; cache odpowiedzi TTL **60 s** (ten sam klucz scope → ponowna agregacja dopiero po wygaśnięciu) |
 | D-81 | Guest + `DEMO_MODE=true`: `GET /runs/summary` → **200**, scope = wyłącznie własne; JWT `guest` przy demo off → **401** (jak pozostałe chronione trasy guest — GuestGuard) |
 
+Zmiana względem wersji 36 / welcome × DoD: wprowadzenie `user_welcome` (`SPEC-AUTH.md` A-12) **nie** dodaje nowego D-* HTTP i **nie** wymaga sukcesu SMTP welcome do zielonego activate (D-41 / D-45). Asercja treści welcome (subject / HTML / plain text / CID) = opcjonalny **unit renderera** w `infrastructure/mail/` — **poza** obowiązkowym T-5 Postman MVP. D-1…D-81 bez kasowania treści.
+Zmiana względem wersji 35 / mail × DoD: wprowadzenie szablonów HTML + text (`SPEC-AUTH.md`) **nie** dodaje nowego D-* HTTP i **nie** wymaga React Email ani zmiany URL deep linków w D-23 / D-41…D-46. Asercja treści (subject / HTML / plain text) = opcjonalny **unit renderera** w `infrastructure/mail/` — **poza** obowiązkowym T-5 Postman MVP.
 Zmiana względem wersji 34: dopisano D-78…D-81 (`GET /runs/summary` — auth, scope admin/user/guest∧demo, metryki R-13, cache TTL 60 s). D-1…D-77 bez kasowania treści.
 Zmiana względem wersji 32: dopisano D-73…D-77 (audience `name` + unikalność + scoping effective). D-1…D-72 bez kasowania treści.
 Zmiana względem wersji 31: dopisano D-63…D-72; D-25 / D-26 zawężone (rola + isActive na access / PATCH guest 403). D-1…D-62 bez kasowania treści.
@@ -206,6 +210,7 @@ Zmiana względem wersji 7 / D-18: dopisano negatyw HITL (obce id outline).
 - Opcjonalny smoke przeciw prawdziwemu gateway **poza PR** (staging).
 - Kolekcja Postman v2.1 w `apps/api/test/postman/` jako artefakt E2E poza CI PR; Setup happy path przez `PUT /company-context` i weryfikację completeness. Pliki: `social-pipeline.postman-collection.json` (foldery A–D: posty + rolki); `content-pipeline.postman-collection.json` (A `page_copy`, B `page_outline_then_copy`). `reel_script` solo — E2E Jest, nie obowiązkowy Postman (jak `post_content` w Milestone 4).
 - Unit helpera logu hopu gateway (redakcja `GATEWAY_KEY`) oraz preprocess zarzutów verifiera (obiekt `{ itemId, issue }` → `string`).
+- Unit renderera szablonów maili (subject / HTML / plain text / CID, PL, obecność deep linku invite/activation) **bez** wymogu w T-5 / D-* HTTP — w tym asercja treści `user_welcome` — `SPEC-AUTH.md`.
 
 Zmiana względem: dotychczasowa norma mówiła tylko „narzędzie E2E bez pinu” i „opcjonalny smoke poza PR” — bez kanonicznej ścieżki artefaktu i bez zakazu mylenia kolekcji z modułem Nest. T-5, tabela stacku (bez pinu runnera) i poza zakresem „wybór konkretnego runnera” zostają.
 
@@ -220,6 +225,8 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 - Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34), TTL / auto-finalize przeglądu (D-35…D-40), register / activate / resend (D-41…D-46), readiness api / probe gateway (D-47…D-49), guest / DEMO (D-50…D-62), Users delete/purge / cancel admin→guest / isActive (D-63…D-72), audience `name` / scoping (D-73…D-77), agregacji KPI `GET /runs/summary` (D-78…D-81) ani cyklu życia SSE (D-14) „na potem” poza DoD.
 - Asercji DoD opartych o konsumpcję upstream gateway `/health/ready` jako źródła `checks.gateway` (obowiązuje probe **liveness** — D-47 / D-48).
 - Maskowanego **201** przy kolizji na register w asercjach (obowiązuje D-43 = **409**).
+- Wymagania React Email / JSX ani zmiany URL deep linków w asercjach D-23 / D-41…D-46 z powodu HTML maili (kontrakt HTTP **bez zmian** — `SPEC-AUTH.md`).
+- Wymagania sukcesu SMTP `user_welcome` do zielonego D-41 / D-45 (activate **200** niezależny od dostawy welcome — `SPEC-AUTH.md` A-12).
 - `apps/api/postman/` / `src/postman/` jako pozorne BC.
 - Seed Prisma/SQL kontekstu jako substytut Setupu E2E.
 

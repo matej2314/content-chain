@@ -1,8 +1,6 @@
 deprecated/
 post-mvp-plan.md
 architecture_leaks.md
-email-templates-plan.md
-welcome-email-plan.md
 
 node_modules/
 .pnpm-store/

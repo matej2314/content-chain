@@ -1,7 +1,7 @@
 ---
-wersja: 18
+wersja: 19
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-16
+data_modyfikacji: 2026-10-20
 ---
 
 # Anty-patterny — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-16
 Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego źle → zamiast tego. Ogólny podręcznik Nest/Next — poza zakresem.
 
 Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `security.md`.
+
+Zmiana względem wersji 18 / maile Auth: kinds = invite + activation. Od tej wersji zakazy wokół `user_welcome`: fail activate / **503** przez pad welcome; welcome poza wąskim triggerem activate; token/hasło w treści welcome — `security.md`.
 
 Zmiana względem: kanon „po `202` widok źródłowy” jako część antypatternu startu na archiwum. Od tej wersji po `202` obowiązuje nawigacja na szczegóły; „zostań na Koncie/Runach po udanym starcie” jest antypatternem — `ux_dashboard.md`.
 
@@ -181,6 +183,9 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | `ACCOUNT_NOT_ACTIVATED` / różny message na loginie dla pending | Enumeracja „pending” vs złe hasło | Wspólny **401** jak soft-delete / złe hasło / guest przy demo off |
 | Mylenie aktywacji konta z confirm e-mail przy `PATCH /auth/me/email` | Dwa różne flows; confirm = V1 | Aktywacja = register + mail; confirm przy zmianie adresu = **V1** |
 | **503** na `POST /auth/resend-activation` przy padzie SMTP | Enumeracja / zły UX thank-you | Zawsze **200** + `Wiadomość wysłana ponownie`; mail best-effort w tle |
+| Fail `POST /auth/activate` / **503** `MAIL_DELIVERY_FAILED` przez pad `user_welcome` | Envelope aktywacji zależy od dostawy powitania; regresja Fazy 16 | Activate **200** niezależnie; welcome = best-effort (`security.md`, `dokumentacja_komunikacji.md`) |
+| `user_welcome` przy invite / accept-invite / bootstrap / register (poza skutkiem activate) / soft-delete / reaktywacji | Rozszerza trigger poza pomysł produktowy; spam / mylenie z activation | Tylko po sukcesie activate; odbiorcy `user` \| `guest` |
+| Token aktywacji albo hasło w treści `user_welcome` | Wyciek sekretów w mailu onboardingowym | Injection: `email`, `appPublicUrl`, `login` — bez tokenów / haseł |
 | Self-register na email soft-deleted **`user`** | Obejście reaktywacji admina | **409** `Email already in use`; reclaim = `PATCH /users/:id` (tylko `user`). Po hard `guest` email jest wolny — register legalny |
 | Nodemailer (lub inny SMTP client) w use-case / domain | Warstwa aplikacji zależy od vendora maila | Port mailera w Auth; adapter SMTP = nodemailer **tylko** w infrastructure |
 | Dwa `pending` na ten sam email (obejście bez indeksu SQL) | Wyścig `POST /invitations`; dwa ważne tokeny | Partial unique SQL `UNIQUE (email) WHERE status = 'pending'` (jak `User_one_admin`) |

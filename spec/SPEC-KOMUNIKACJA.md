@@ -1,7 +1,7 @@
 ---
-wersja: 41
+wersja: 42
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-17
+data_modyfikacji: 2026-10-20
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -15,6 +15,7 @@ Norma **implementacji obu powierzchni I/O** Content Chain:
 
 Uszczegóławia `docs/dokumentacja_komunikacji.md` oraz korelację ID z `docs/brand_types.md` / `docs/dictionary.md`. **Nie** redefiniuje listy endpointów ani payloadów — odwołuje się do docs; tu obowiązują wzorce warstw, walidacja, envelope, SSE i adapter LLM.
 
+Zmiana względem wersji 41 / activate: milczenie o niezależności envelope activate od dostawy `user_welcome`. Od tej wersji K-1 / K-2h: sukces activate **niezależny** od SMTP welcome; `MAIL_DELIVERY_FAILED` **nie** dotyczy welcome po activate — `docs/dokumentacja_komunikacji.md`, `SPEC-AUTH.md` A-12.
 Zmiana względem wersji 39 / cel: brak endpointu agregacji KPI. Od tej wersji **K-2k** — `GET /api/v1/runs/summary` (rolling 30d, scope admin/user/guest∧demo, TTL cache 60 s, shape KPI) — `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-13, `SPEC-FRONTEND.md` F-16.
 
 Zmiana względem wersji 36 / cel: Users DELETE = soft; cancel wyłącznie `startedBy`; `startedBy` na detail bez `role`; brak `GUEST_HAS_ACTIVE_RUN`. Od tej wersji: DELETE wg roli + `?purge=true`; cancel admin→guest; `startedBy.role` na detail; kod **`GUEST_HAS_ACTIVE_RUN`** (K-2j / K-8) — `docs/dokumentacja_komunikacji.md`, `users-management-plan.md` Faza 2.
@@ -91,9 +92,10 @@ K-1. Każda odpowiedź błędu HTTP z `apps/api` ma envelope:
 
 `requestId` nadaje **`apps/api`** w ramach obsługi tego żądania (middleware / interceptor) i zwraca w envelope oraz (zalecane) nagłówku `x-request-id`. Klient **nie musi** przysyłać `RequestId`.
 
-**503** `MAIL_DELIVERY_FAILED` (pad SMTP po zapisie zaproszenia / resend invite **albo** po utworzeniu pending User przy **register**): ten sam envelope K-1; w `details` wyłącznie `id` (Invitation **albo** User). **`POST /auth/resend-activation`:** **bez** **503** (zawsze **200**). Pełny kontrakt HTTP (201 vs 503, pola, negatywy) — `docs/dokumentacja_komunikacji.md` (bez dublowania payloadów tutaj).
+**503** `MAIL_DELIVERY_FAILED` (pad SMTP po zapisie zaproszenia / resend invite **albo** po utworzeniu pending User przy **register**): ten sam envelope K-1; w `details` wyłącznie `id` (Invitation **albo** User). **`POST /auth/resend-activation`:** **bez** **503** (zawsze **200**). **`POST /auth/activate` + `user_welcome`:** pad SMTP welcome **nie** daje **503** ani `MAIL_DELIVERY_FAILED` — sukces activate (**200**) pozostaje niezależny od dostawy welcome (best-effort; semantyka: `SPEC-AUTH.md` A-12). Pełny kontrakt HTTP (201 vs 503, pola, negatywy) — `docs/dokumentacja_komunikacji.md` (bez dublowania payloadów tutaj).
 
-Zmiana względem wersji 28 / K-1: `MAIL_DELIVERY_FAILED` tylko przy Invitation. Od tej wersji także id User przy register / resend aktywacji.
+Zmiana względem wersji 41 / K-1: `MAIL_DELIVERY_FAILED` bez jawnego wyłączenia welcome po activate. Od tej wersji welcome = best-effort poza mapowaniem 503.
+Zmiana względem wersji 28 / K-1: `MAIL_DELIVERY_FAILED` tylko przy Invitation. Od wersji 28+ także id User przy register / resend aktywacji.
 
 K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId` i statusem `queued` | `running` — bez synchronicznego czekania na wynik LLM. `interrupted` **nie** jest statusem odpowiedzi POST. Body: unia dyskryminowana `taskType` (`platform` XOR `contentKind` **oraz** kształt `brief` XOR: `SocialBrief` vs `ContentBrief`) — `docs/dokumentacja_komunikacji.md`. Walidacja Zod `discriminatedUnion` w application + `.strict()` na gałęzi briefu. DTO HTTP może deklarować sumę kluczy briefu (`topic`, `audience`, `goal`, `ideaCount`, `angle`, `targetLength`); prawda = Zod. `taskType` spoza enumu → **400** `VALIDATION_FAILED`. Page + `brief.ideaCount` / Social + `brief.angle` → **400** `VALIDATION_FAILED`. Dla `guest`: najpierw `GuestRunPolicy` (R-12 / K-12) — quota **przed** 202.
 
@@ -187,8 +189,9 @@ Zmiana względem wersji 35 / K-2f: 201 bez jawnej normy `role` vs demo. Od tej w
 
 K-2g. `POST /api/v1/auth/register` — publiczny; body `{ email, password }` (`.strict()`; bez `role`). **Zawsze** dostępny (nie bramka `DEMO_MODE`). **`user.role` w 201:** `guest` gdy `DEMO_MODE=true`, `user` gdy `false`. **Zmiana względem:** K-2g wersji 32 — zawsze `role = user`. Reszta kontraktu **bez zmian**: revoke pending `Invitation`; **201** `{ user: { id, email, role, verifiedAt } }` **bez** Set-Cookie; w `production`: pending; poza prod: `verifiedAt` od razu; kolizja → **409** `CONFLICT`, `message`: **`Email already in use`**; hasło poza polityką → **400**; pad SMTP → **503** `MAIL_DELIVERY_FAILED` + `details.id`. Semantyka: `SPEC-AUTH.md` A-11; pełne payloady: `docs/dokumentacja_komunikacji.md`.
 
-K-2h. `POST /api/v1/auth/activate` — publiczny; body `{ token }`. Sukces → **200** `{ user: { id, email, role } }`; ustawia `verifiedAt`, usuwa `AccountActivation`; **bez** Set-Cookie. Zły / zużyty / wygasły token → wspólny **401**. **Bez** **409** na tej trasie. Deep link: wyłącznie `/?activationToken=`. Semantyka: `SPEC-AUTH.md` A-12.
+K-2h. `POST /api/v1/auth/activate` — publiczny; body `{ token }`. Sukces → **200** `{ user: { id, email, role } }`; ustawia `verifiedAt`, usuwa `AccountActivation`; **bez** Set-Cookie. Zły / zużyty / wygasły token → wspólny **401**. **Bez** **409** na tej trasie. Deep link: wyłącznie `/?activationToken=`. Po sukcesie: skutek uboczny `user_welcome` **best-effort** — pad SMTP **nie** zmienia statusu ani body **200**; **zakaz** `MAIL_DELIVERY_FAILED` na tej ścieżce. Semantyka: `SPEC-AUTH.md` A-12; payloady: `docs/dokumentacja_komunikacji.md`.
 
+Zmiana względem wersji 41 / K-2h: envelope activate bez normy niezależności od welcome. Od tej wersji sukces HTTP activate niezależny od dostawy `user_welcome`.
 Zmiana względem wersji 30 / K-2h: usunięto **409** na activate (zostaje wyłącznie register / inne surface’y email).
 
 K-2i. `POST /api/v1/auth/resend-activation` — publiczny; body np. `{ email }`. **Zawsze** **200**, `message`: **`Wiadomość wysłana ponownie`** — niezależnie od stanu konta / rate limit / pad SMTP. Mail + rotacja tokenu tylko przy pending; inaczej no-op. Rate limit **5** / **15 min** / email. **Bez** Set-Cookie. Semantyka: `SPEC-AUTH.md` A-13.
@@ -388,7 +391,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - [ ] `POST /api/v1/auth/accept-invite`: **201** bez Set-Cookie; `role` = `guest` \| `user` vs `DEMO_MODE`; zły token / kolizja email → **401** `UNAUTHORIZED` (ten sam `message`); **nie** **409** przy zajętym emailu.
 - [ ] `POST /api/v1/auth/register`: **201** bez Set-Cookie (nowy email); `role` = `guest` \| `user` vs `DEMO_MODE`; kolizja → **409** `CONFLICT`; **nie** maskowany 201; pad SMTP → **503** + `details.id` User.
 - [ ] `GET /api/v1/config`: publiczny; body wyłącznie `{ demoMode }`.
-- [ ] `POST /api/v1/auth/activate`: **200** bez Set-Cookie; zły token → wspólny **401**.
+- [ ] `POST /api/v1/auth/activate`: **200** bez Set-Cookie; zły token → wspólny **401**; pad SMTP `user_welcome` **nie** zmienia **200** (**bez** `MAIL_DELIVERY_FAILED` na tej ścieżce).
 - [ ] `POST /api/v1/auth/resend-activation`: stały sukces HTTP; bez enumeracji stanu konta.
 - [ ] Klient otrzymuje live status wyłącznie przez SSE; GET run/logs = snapshot. Toast terminalu w dashboardzie (gdy mapa UX na to zezwala) **nie** dodaje pollingu.
 - [ ] SSE na skończonym runie (`completed` \| `failed` \| `cancelled`) emituje snapshot statusu i **kończy** strumień; po `run.completed` / `run.failed` / `run.cancelled` serwer zamyka połączenie. `awaiting_hitl` / `interrupted` nie kończą SSE.

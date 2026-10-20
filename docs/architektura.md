@@ -1,7 +1,7 @@
 ---
-wersja: 3
+wersja: 5
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-19
+data_modyfikacji: 2026-10-20
 ---
 
 # Architektura — Content Chain
@@ -9,6 +9,10 @@ data_modyfikacji: 2026-10-19
 ## Widok systemu
 
 Content Chain to **modularny monolit w monorepo** z trzema osobnymi procesami runtime oraz wspólnym pakietem kontraktów.
+
+Zmiana względem wersji 4 / Auth kinds: MVP = `user_invited` \| `user_activation`. Od tej wersji unia kinds obejmuje także **`user_welcome`** (szablon HTML+text we wspólnym shellu; zrzuty jako załączniki **CID** w warstwie mail I/O — **nie** w domain/use-case). Nadal **port Auth** (nie osobny BC); **bez** szablonów FE / React Email. Szczegół drzewa → `architektura_katalogi_pliki.md`.
+
+Zmiana względem wersji 3 / Auth mail: port + adapter bez kanonu treści HTML. Od tej wersji: mail transakcyjny = nadal **port Auth** (nie osobny BC); treść = szablony HTML + plain text w `infrastructure/mail/` (wspólny shell); kinds rozszerzalne (`user_invited` / `user_activation` w MVP + kolejne według potrzeb). **Bez** React Email / szablonów po stronie FE. Szczegół drzewa → `architektura_katalogi_pliki.md`.
 
 Zmiana względem wersji 2 / Frontend: sekcja FE bez mapy katalogów `modules/` (landing, shell, …). Od tej wersji skrót organizacji UI + odwołanie do aktualnego drzewa w `architektura_katalogi_pliki.md`.
 
@@ -82,7 +86,7 @@ Wszystkie bounded contexty w `apps/api` stosują ten sam wzorzec warstw (cienki 
 
 | Context             | Odpowiedzialność                                                                     | Kluczowe reguły                                                       |
 | ------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| **Auth** | Użytkownicy, zaproszenia (Invitation), role `admin` \| `user`, sesja: JWT w `cc_access` + refresh w `cc_refresh` (httpOnly); mail transakcyjny = **port** w Auth, adapter w infrastructure (nie osobny BC w MVP) | **Jeden** `admin` (bootstrap); pozostali `user` przez zaproszenie; tylko admin edytuje kontekst; obaj mogą uruchamiać runy produktowe — `security.md` |
+| **Auth** | Użytkownicy, zaproszenia (Invitation), role `admin` \| `user`, sesja: JWT w `cc_access` + refresh w `cc_refresh` (httpOnly); mail transakcyjny = **port** w Auth (`kind` + pola), treść HTML + plain text z szablonów / wspólnego shella w `infrastructure/mail/` (nie osobny BC w MVP; nie FE / React Email); załączniki CID (np. zrzuty w `user_welcome`) wyłącznie w adapterze mail I/O | **Jeden** `admin` (bootstrap); pozostali `user` przez zaproszenie; tylko admin edytuje kontekst; obaj mogą uruchamiać runy produktowe — `security.md`. Kinds MVP: `user_invited` \| `user_activation` \| `user_welcome`; kolejne kinds = rozszerzenie unii + nowy szablon według potrzeb |
 | **Company Context** | Kanoniczny kontekst firmy w DB, bramka kompletności                                  | Do kompletności — start **każdego** `POST /runs` zablokowany |
 | **Social**          | Post ideas/content **oraz** reel ideas/script (LI / FB / IG, PL / EN), weryfikacja spójności z kontekstem | Task jednoetapowy = full-auto; dwuetapowy = HITL przy wyborze z listy; **bez** własnych tras HTTP; **bez** page copy w tym folderze |
 | **Content**         | Copy stron / long-form (`page_copy`, `page_outline_then_copy`; `ContentKind`) w **podstawowej formie** | Graf za fasadą; HITL model B (outline); **bez** własnych tras HTTP; **bez** importu Social i odwrotnie |
@@ -129,7 +133,7 @@ flowchart TB
 - **Controllers:** walidacja wejścia, mapowanie HTTP, authz — bez ORM i bez promptów.
 - **Application:** orkiestracja przypadku użycia (start runu, wznowienie po HITL, odczyt logów). Gdy warstwa miesza kernel procesu z use-case’ami HTTP — wolno wydzielić podkatalogi (`lifecycle/`, `guest/`); to nadal ta sama warstwa application, nie nowe BC.
 - **Domain:** reguły niezależne od Nest/LLM (kompletność kontekstu, dozwolone przejścia statusów, role).
-- **Ports / adapters:** Prisma + **SQLite w MVP** (ORM tylko w infrastructure); klient HTTP (lub równoważny) do gateway jako adapter portu LLM. PostgreSQL — od fazy **V1 — rozbudowa** (ops/skala, nie warunek Content). Gdy `infrastructure/` miesza kilka granic I/O, podkatalogi (`persistence/`, `sse/`, `quota/`, `mail/`, `session/`, `graph/`, …) organizują adaptery — **bez** zmiany kierunku zależności ani nowych BC. Szczegół → `architektura_katalogi_pliki.md`.
+- **Ports / adapters:** Prisma + **SQLite w MVP** (ORM tylko w infrastructure); klient HTTP (lub równoważny) do gateway jako adapter portu LLM. PostgreSQL — od fazy **V1 — rozbudowa** (ops/skala, nie warunek Content). Gdy `infrastructure/` miesza kilka granic I/O, podkatalogi (`persistence/`, `sse/`, `quota/`, `mail/`, `session/`, `graph/`, …) organizują adaptery — **bez** zmiany kierunku zależności ani nowych BC. Auth `mail/`: adapter SMTP / logujący + **renderer szablonów** (HTML + plain text) — treść **nie** w use-case / domain. Szczegół → `architektura_katalogi_pliki.md`.
 - **Cross-cutting w `apps/api` (MVP):** `@nestjs/config` (env), **Pino** / `nestjs-pino` (logi procesu — `observability.md`), DX OpenAPI **Swagger UI pod `/docs`** (poza prefiksem produktowym `/api/v1`; szczegóły `dokumentacja_komunikacji.md`). Walidacja HTTP: class-validator; application: Zod — `SPEC-KOMUNIKACJA.md`.
 
 **Anty-patterny do unikania:** reguły biznesowe w controllerze; bezpośrednie wywołania vendorów LLM z `apps/api`; logika SM / Content w `apps/frontend` lub w gateway; synchroniczne blokowanie HTTP na cały długi run LLM; montowanie Swagger pod `/api` (kolizja z `/api/v1`); wzajemny `forwardRef` między modułami Nest BC Runs i grafem (albo import `SocialModule` / `ContentModule` z `RunsModule`) jako klej pipeline’u; traktowanie `'web'` jako `SocialPlatform`.
