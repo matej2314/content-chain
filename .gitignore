@@ -1,6 +1,8 @@
 deprecated/
 post-mvp-plan.md
 architecture_leaks.md
+email-templates-plan.md
+welcome-email-plan.md
 
 node_modules/
 .pnpm-store/
@@ -18,7 +20,6 @@ dist/
 
 graphify-out/cache/
 graphify-out/2026-*
-deployment-fix-plan.md
 demo-context.txt
 Jenkinsfile.lab
 Jenkinsfile
