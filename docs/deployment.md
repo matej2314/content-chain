@@ -1,7 +1,7 @@
 ---
-wersja: 13
+wersja: 14
 data_utworzenia: 2026-09-30
-data_modyfikacji: 2026-10-20
+data_modyfikacji: 2026-10-21
 ---
 
 # Deployment — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-20
 Self-host MVP: jak uruchamiać, konfigurować i utrzymywać jedną instalację (jedna firma = jedna instancja).
 
 Powiązane: `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `testy.md`, `security.md`, `observability.md`.
+
+Zmiana względem wersji 13 / smoke i treść maili: token z „ciała maila” / założenie linii Postman w body. Od tej wersji: smoke bierze token z **URL** deep linku w SMTP albo z logu adaptera logującego; copy ważności invite/activation odzwierciedla aktualne `INVITE_TTL` / `ACTIVATION_TTL` (bez nowych zmiennych; default **`7d`** / **`7d`**). Spójne z `dokumentacja_komunikacji.md`.
 
 Zmiana względem wersji 12 / kinds: mailer = `user_invited` \| `user_activation`. Od tej wersji także **`user_welcome`** (po sukcesie activate; PL HTML+text; obrazy CID). **Bez nowych** zmiennych env pod welcome — wyłącznie istniejące `SMTP_*` / `MAIL_FROM` / `APP_PUBLIC_URL`; TTL aktywacji i deep link `user_activation` **bez zmian**.
 
@@ -123,7 +125,7 @@ Nazwy SMTP / maila są **kanoniczne** (te same w `spec/SPEC-BEZPIECZENSTWO.md` i
 
 `REVIEW_TTL` = jak długo po `completed`/`failed` wolno mutować przegląd. `REVIEW_SWEEP_INTERVAL` = jak często job domyka wygasłe wiersze w DB (`reviewFinalizedAt`); **nie** przedłuża ani nie skraca okna przeglądu.
 
-**Treść maili produktowych (SMTP):** body = **HTML + plain text**; subject i treść w **PL**. Adapter logujący poza `production` nadal wystarcza do DX (URL / token) — HTML **nie** zmienia semantyki envelope ani wymagań env. Lokalizacja szablonów / shella — `architektura_katalogi_pliki.md` (Auth `infrastructure/mail/`); kolory — mapowanie ról z `brand_types.md` (wartości = HOW).
+**Treść maili produktowych (SMTP):** body = **HTML + plain text**; subject i treść w **PL**. Invite / activation: ważność linku w copy („Link wygasa po {X}.”) z aktualnego `INVITE_TTL` / `ACTIVATION_TTL` — **bez** nowych env. Raw token tylko w deep linku (nie osobna linia „Token (np. Postman)” w HTML/text). Adapter logujący poza `production` nadal wystarcza do DX (URL + raw) — HTML **nie** zmienia semantyki envelope ani wymagań env. Lokalizacja szablonów / shella — `architektura_katalogi_pliki.md` (Auth `infrastructure/mail/`); kolory — mapowanie ról z `brand_types.md` (wartości = HOW).
 
 Bootstrap admina **bez SMTP** nadal możliwy (email + hasło, bez maila).
 
@@ -191,7 +193,7 @@ Compose od początku definiuje wszystkie trzy usługi; „puste” UI do czasu g
 5. **Smoke (obowiązkowy w Jenkins):** `GET http://127.0.0.1:3001/api/v1/health/ready` — body `status === "ready"` (api + gateway żyją; `checks.gateway` = liveness procesu gateway). **Brak `ready` = fail joba** (timeout/retry, nie jednorazowy curl).  
 6. (Ops / orchestracja) readiness gateway wewnętrznie: `GET {gateway}/api/v1/health/ready` — **nie** źródło chipa „Agenci aktywni” w CC.  
 7. Bootstrap admin.  
-8. (Opcjonalnie) smoke zaproszenia: `POST /invitations` → token z maila SMTP; lokalnie adapter logujący → token z logu api → `POST /auth/accept-invite` → `POST /auth/login`. Przy **`DEMO_MODE=true`**: po loginie widać chip demo / limity gościa (`role=guest`). Smoke register + activate (w `production`): `POST /auth/register` → mail `user_activation` / log → `POST /auth/activate` → `POST /auth/login`. Po udanym activate w `production` oczekiwany **drugi** mail (`user_welcome`) — **bez** wymogu asercji HTTP przy padzie SMTP (best-effort; activate nadal **200**).  
+8. (Opcjonalnie) smoke zaproszenia: `POST /invitations` → token z **URL** deep linku w mailu SMTP; lokalnie adapter logujący → token z logu api (URL + raw) → `POST /auth/accept-invite` → `POST /auth/login`. **Nie** zakładać linii „Token (np. Postman)” w body. Przy **`DEMO_MODE=true`**: po loginie widać chip demo / limity gościa (`role=guest`). Smoke register + activate (w `production`): `POST /auth/register` → token z URL maila `user_activation` / log → `POST /auth/activate` → `POST /auth/login`. Po udanym activate w `production` oczekiwany **drugi** mail (`user_welcome`) — **bez** wymogu asercji HTTP przy padzie SMTP (best-effort; activate nadal **200**).  
 9. Uzupełnij kontekst → completeness; przy `ready` api chip UX = „Agenci aktywni”.  
 10. Smoke: start runu Social i Content (`apps/api/test/postman/` albo UI).  
 11. Podłącz scrape `/metrics` (opcjonalnie od razu; z localhost / sieci ops).  

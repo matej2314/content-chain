@@ -1,7 +1,7 @@
 ---
-wersja: 19
+wersja: 20
 data_utworzenia: 2026-09-29
-data_modyfikacji: 2026-10-20
+data_modyfikacji: 2026-10-21
 ---
 
 # Bezpieczeństwo — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-20
 Norma self-host dla `local` i `production`: auth, sekrety, ekspozycja powierzchni, bootstrap. Bez pełnego modelu STRIDE.
 
 Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, `architektura.md`.
+
+Zmiana względem wersji 19 / „raw w mailu”: sformułowania sugerujące obowiązkowy osobny plaintext token w body (np. pod Postmana). Od tej wersji: raw invite/activation w wiadomości = w **URL** deep linku; **zakaz** raw w JSON; w `development` wolno logować URL + raw (DX). Production nadal **bez** raw w logach. Spójne z `dokumentacja_komunikacji.md` (URL-only + copy ważności).
 
 Zmiana względem wersji 18 / maile Auth: kinds = tylko invite + activation. Od tej wersji: po sukcesie activate — `user_welcome` **best-effort** (pad SMTP **nie** failuje activate / **503**). **Zakaz:** welcome przy invite, bootstrap, register poza activate, soft-delete / reaktywacji; **zakaz** tokenu aktywacji / hasła w treści `user_welcome`.
 
@@ -120,7 +122,7 @@ Bramka aktywacji zależy wyłącznie od **`NODE_ENV=production`**. **Nie** zale�
 
 - **`production`:** po udanym register: `isActive = true`, `verifiedAt = null`, wiersz **`AccountActivation`** (hash tokenu + `userId` + `expiresAt`), mail `user_activation` (HTML + plain text, PL — jak pozostałe kinds; `deployment.md`). **Bez** Set-Cookie. Login **401** do czasu udanego `POST /auth/activate`.
 - **Poza `production`:** przy register od razu `verifiedAt` ustawione; aktywacja linkiem **wyłączona** (opcjonalny log URL jak invite — DX). Adapter logujący poza `production` — bez zmiany semantyki envelope.
-- Token: w DB **tylko hash**; raw wyłącznie w mailu / logu DX. **`AccountActivation`**: `id` = prefiks **`act_`** + UUID; **`userId`** unikalny (max jeden wiersz na usera); **`tokenHash`** unikalny. Po udanej aktywacji: ustaw `User.verifiedAt`, **usuń** wiersz(e) `AccountActivation` dla tego usera. TTL: env `ACTIVATION_TTL`, default **`7d`** (jak invite). **`POST /auth/register`** sukces **201** zwraca `{ "user": { "id", "email", "role", "verifiedAt" } }` (`verifiedAt` ISO lub `null` w prod pending).
+- Token: w DB **tylko hash**; raw w wiadomości = wyłącznie w **URL** deep linku (`/?activationToken=` / invite analogicznie); **bez** obowiązku osobnej linii plaintext w body. W `development` wolno logować URL + raw (DX). **`AccountActivation`**: `id` = prefiks **`act_`** + UUID; **`userId`** unikalny (max jeden wiersz na usera); **`tokenHash`** unikalny. Po udanej aktywacji: ustaw `User.verifiedAt`, **usuń** wiersz(e) `AccountActivation` dla tego usera. TTL: env `ACTIVATION_TTL`, default **`7d`** (jak invite). **`POST /auth/register`** sukces **201** zwraca `{ "user": { "id", "email", "role", "verifiedAt" } }` (`verifiedAt` ISO lub `null` w prod pending).
 - **Pending ≠ soft-delete:** pending ma `isActive = true` + `verifiedAt = null`. Soft-delete = `isActive = false`. **Zakaz** reuse `isActive = false` jako „oczekuje na mail”.
 - **`POST /auth/register` + zajęty email:** **409** `CONFLICT`, `message`: **`Email already in use`**. **Bez** drugiego `User`. **Świadoma enumeracja** — trade-off UX (użytkownik musi móc zmienić adres). Zmiana względem chwilowego zapisu „maskowany 201 przy kolizji”.
 - **`POST /auth/resend-activation`:** zawsze **200** + ten sam `message`: **`Wiadomość wysłana ponownie`**, niezależnie czy email istnieje / pending / już aktywny / przekroczony rate limit. Mail + rotacja tokenu **tylko** gdy jest pending z `AccountActivation`; inaczej no-op (w tym pad SMTP — **bez** **503**). Rate limit: **5** żądań / **15 min** na email (soft); po przekroczeniu — **ta sama** odpowiedź **200**. **Bez** enumeracji przez resend. Zmiana względem wersji 4: **503** `MAIL_DELIVERY_FAILED` na resend aktywacji.
@@ -180,7 +182,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 |---------|--------|
 | `.env` | **production:** jeden root `.env` generowany z Vault (Jenkins) — zakaz commitowania, zakaz bake w warstwach obrazu; DX: per-app `.env` lokalnie. W repo wyłącznie `.env.example` (per-app + root) — `deployment.md` |
 | `X-Gateway-Key`, klucze vendorów, `JWT_*`, **hasło SMTP** (`SMTP_PASS`) | nigdy w obrazie FE, nigdy `NEXT_PUBLIC_*`; w stdout dumpie hopu (tylko `development`) wartość klucza → `[REDACTED]` (`observability.md`) |
-| Raw token zaproszenia / aktywacji | **nie** w logach `production`; **nie** w JSON-ie odpowiedzi admina / publicznych sukcesów. W `development` wolno zalogować URL (odpowiednik treści maila / DX) |
+| Raw token zaproszenia / aktywacji | **nie** w logach `production`; **nie** w JSON-ie odpowiedzi admina / publicznych sukcesów. W wiadomości produktowej — w **URL** deep linku (nie osobna linia body „dla Postmana”). W `development` wolno zalogować URL + raw (DX) |
 | Publish FE / api / gateway w `production` | bind **`127.0.0.1`** (nie `0.0.0.0` jako kanon); dostęp z internetu tylko przez edge na hoście / `main_network` |
 | `apps/ai-provider-gateway` w `production` | **nie** publikować na internet; tylko localhost + sieć wewnętrzna compose (`cc-network` / ops) |
 | `GET /metrics` (`apps/api`) | scrape z sieci ops / localhost; **nie** jako publiczny endpoint internetowy w `production` |
@@ -208,7 +210,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 | Switch trybu wyłącznie env + restart | Switch demo w panelu admina |
 | bcrypt + polityka haseł jak wyżej (bootstrap / accept-invite / register) | Przechowywanie haseł plaintext / odwracalne; **hasło w mailu**; admin zna hasło `user` |
 | Cookie httpOnly dla **access i refresh** (`cc_access`, `cc_refresh`) wyłącznie po login / bootstrap | Set-Cookie na register / activate / resend; access/refresh w `localStorage` / Bearer jako model MVP |
-| Token invite / activation: w DB tylko hash SHA-256; raw w mailu | Raw token w JSON-ie admina (także „dla Postmana”) |
+| Token invite / activation: w DB tylko hash SHA-256; raw w **URL** maila (+ log DX poza `production`) | Raw token w JSON-ie admina; obowiązkowa osobna linia plaintext w body „dla Postmana” |
 | Pending = `isActive=true` + `verifiedAt=null` + `AccountActivation` | Pending przez samo `isActive=false`; wymaganie aktywacji poza `production`; register bramkowany `DEMO_MODE` |
 | **409** na register przy zajętym emailu (świadomy UX) | Maskowany **201** przy kolizji na register („sukces” bez konta / bez maila) |
 | Stały sukces resend; wspólny **401** na loginie (pending / soft-delete / złe hasło / guest przy demo off) | `ACCOUNT_NOT_ACTIVATED` / różnicowanie stanu konta na loginie lub resendzie |
