@@ -8,6 +8,7 @@ export type UserInvitedMail = {
   invitationId: InvitationId;
   acceptUrl: string;
   rawToken: string;
+  validityLabel: string;
 };
 
 export type UserActivationMail = {
@@ -16,6 +17,7 @@ export type UserActivationMail = {
   activationId: AccountActivationId;
   activateUrl: string;
   rawToken: string;
+  validityLabel: string;
 };
 
 export type TransactionalMail = UserInvitedMail | UserActivationMail;

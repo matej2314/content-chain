@@ -14,6 +14,7 @@ import {
 } from '../domain/transactional-mailer.port';
 import { ENV, type Env } from '../../shared/config/env';
 import { generateRefreshToken, parseTtlMs } from './auth.helpers';
+import { formatMailValidityLabel } from './format-mail-validity-label';
 import { resendActivationSchema } from './auth.schemas';
 import { SoftEmailRateLimiter } from './soft-email-rate-limiter';
 
@@ -77,6 +78,7 @@ export class ResendActivationUseCase {
         activationId,
         activateUrl: `${this.env.APP_PUBLIC_URL ?? ''}/?activationToken=${raw}`,
         rawToken: raw,
+        validityLabel: formatMailValidityLabel(this.env.ACTIVATION_TTL),
       });
     } catch {
       return SUCCESS;

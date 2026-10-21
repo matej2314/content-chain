@@ -68,7 +68,7 @@ Odpowiada major Faza 25.5 (cała). Status startowy kroków: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — Port `validityLabel` + helper `formatMailValidityLabel`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Kontrakt wiadomości i I/O formatowania ważności poza szablonem. Major Faza 25.5 HOW-1; `SPEC-AUTH` Mailer / Treść maila; `docs/dokumentacja_komunikacji.md`.
 
@@ -192,7 +192,7 @@ function polishPlural(
 
 ### KROK 2 — Fill `validityLabel` w use-case’ach przed `mailer.send`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Application buduje etykietę z aktualnego env TTL. Major Faza 25.5 HOW-1 (fill); `SPEC-AUTH` — zakaz TTL w szablonach.
 
@@ -287,7 +287,7 @@ We wszystkich czterech: import `formatMailValidityLabel` z `./format-mail-validi
 
 ### KROK 3 — Szablony: wstrzyknięcie etykiety; usunięcie linii Postman
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Body produktowe URL-only + ludzka ważność. Major Faza 25.5 HOW-2; `SPEC-AUTH` Treść maila / Nie wolno (osobna linia raw); `docs/dokumentacja_komunikacji.md`.
 
@@ -425,7 +425,7 @@ export function renderUserActivationMail(
 
 ### KROK 4 — Unit: helper + renderer; DX bez regresji
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Asercje treści poza T-5 / bez nowych D-*. Major Faza 25.5 HOW-3; `SPEC-TESTY.md` (unit renderer; zakaz wymogu linii Postman).
 

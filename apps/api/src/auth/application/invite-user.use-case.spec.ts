@@ -145,6 +145,7 @@ describe('InviteUserUseCase', () => {
     expect(mail).toMatchObject({
       kind: 'user_invited',
       to: INVITE_EMAIL,
+      validityLabel: 'Link wygasa po 7 dni.',
     });
     expect(mail?.acceptUrl).toContain('/invite/accept?token=');
     expect(mail?.rawToken.length).toBeGreaterThan(0);

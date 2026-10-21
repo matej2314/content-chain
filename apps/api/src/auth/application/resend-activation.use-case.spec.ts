@@ -172,6 +172,7 @@ describe('ResendActivationUseCase', () => {
       kind: 'user_activation',
       to: PENDING_EMAIL,
       activationId: ACTIVATION_ID,
+      validityLabel: 'Link wygasa po 7 dni.',
     });
     expect(mail?.rawToken.length).toBeGreaterThan(0);
     expect(mail?.activateUrl).toBe(

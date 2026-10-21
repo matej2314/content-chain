@@ -367,6 +367,7 @@ describe('RegisterUserUseCase', () => {
     expect(mail).toMatchObject({
       kind: 'user_activation',
       to: REGISTER_EMAIL,
+      validityLabel: 'Link wygasa po 7 dni.',
     });
     expect(mail?.rawToken.length).toBeGreaterThan(0);
     expect(mail?.activateUrl).toContain('/?activationToken=');

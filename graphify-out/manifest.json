@@ -2178,21 +2178,21 @@
     "semantic_hash": ""
   },
   "docs/deployment.md": {
-    "mtime": 1792511947.7807584,
-    "seen": 1792575191.738627,
-    "ast_hash": "dc377cf6315fc610db3d0edee9e6a2d8",
+    "mtime": 1792580064.5764413,
+    "seen": 1792603236.5757701,
+    "ast_hash": "bb885f83c7ac5e4cec750c191bde0b5f",
     "semantic_hash": ""
   },
   "docs/dictionary.md": {
-    "mtime": 1792511980.5904987,
-    "seen": 1792575191.7386277,
-    "ast_hash": "75f14d29e66fcdc5a303e8e3211e4e25",
+    "mtime": 1792580054.502983,
+    "seen": 1792603236.5757709,
+    "ast_hash": "92bc892db9ce8583a69fa55defaf9b7e",
     "semantic_hash": ""
   },
   "docs/dokumentacja_komunikacji.md": {
-    "mtime": 1792511927.645918,
-    "seen": 1792575191.7386284,
-    "ast_hash": "81195ad187e8a0bdf0c78cc0ddcd4b95",
+    "mtime": 1792580075.19077,
+    "seen": 1792603236.5757713,
+    "ast_hash": "a57559ba192ca00774cf099ed0e47938",
     "semantic_hash": ""
   },
   "docs/dokumentacja_koncepcyjna.md": {
@@ -2208,9 +2208,9 @@
     "semantic_hash": ""
   },
   "docs/security.md": {
-    "mtime": 1792511967.6166015,
-    "seen": 1792575191.73863,
-    "ast_hash": "43f55369040e8f3f3a5eeca4be9a5376",
+    "mtime": 1792580044.1000042,
+    "seen": 1792603236.5757735,
+    "ast_hash": "6dfde7070312320623e6ebbbba290cac",
     "semantic_hash": ""
   },
   "docs/testy.md": {
@@ -2226,9 +2226,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-AUTH.md": {
-    "mtime": 1792512166.9110239,
-    "seen": 1792575191.7386322,
-    "ast_hash": "c40480a5e1cd0f5bfce9dfbdc8468c49",
+    "mtime": 1792580172.05404,
+    "seen": 1792603236.5757754,
+    "ast_hash": "2431dbca4ad6b5864c194ee629baed40",
     "semantic_hash": ""
   },
   "spec/SPEC-BEZPIECZENSTWO.md": {
@@ -2274,9 +2274,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-README.md": {
-    "mtime": 1792512232.1574697,
-    "seen": 1792575191.7386382,
-    "ast_hash": "82fcb9f76ce958b0e8c76d38d9efe50e",
+    "mtime": 1792580199.768831,
+    "seen": 1792603236.5757813,
+    "ast_hash": "546a6a949536ab3d4ed3e009f0ee8489",
     "semantic_hash": ""
   },
   "spec/SPEC-RUNY.md": {
@@ -2292,9 +2292,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-TESTY.md": {
-    "mtime": 1792512214.1566498,
-    "seen": 1792575191.7386398,
-    "ast_hash": "2e3da828bf45808052df9998eb12614f",
+    "mtime": 1792580185.4319391,
+    "seen": 1792603236.5757833,
+    "ast_hash": "cd0fce45dd5f659da726c316fa678159",
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/resume-hitl.use-case.ts": {
@@ -2958,10 +2958,10 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/invite-user.use-case.ts": {
-    "mtime": 1791367829.3628073,
-    "seen": 1792261760.1106396,
-    "ast_hash": "c5f3105fc11ed02c2dd46198253f5baf",
-    "semantic_hash": "c5f3105fc11ed02c2dd46198253f5baf"
+    "mtime": 1792603716.3086505,
+    "seen": 1792603766.0809119,
+    "ast_hash": "4637f64b1f78039630b539502518f714",
+    "semantic_hash": ""
   },
   "apps/api/src/auth/application/list-invitations.use-case.ts": {
     "mtime": 1791367829.3628373,
@@ -2976,10 +2976,10 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/resend-invitation.use-case.ts": {
-    "mtime": 1791367829.3639975,
-    "seen": 1792261760.1106484,
-    "ast_hash": "713d5468f56d3a16ac03322dde1e4a11",
-    "semantic_hash": "713d5468f56d3a16ac03322dde1e4a11"
+    "mtime": 1792603719.8296618,
+    "seen": 1792603766.080922,
+    "ast_hash": "65628d64e52ca647da3a8393b65892a8",
+    "semantic_hash": ""
   },
   "apps/api/src/auth/application/revoke-invitation.use-case.ts": {
     "mtime": 1791367829.3640118,
@@ -2994,9 +2994,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/domain/transactional-mailer.port.ts": {
-    "mtime": 1791367829.3646839,
-    "seen": 1792261760.1106555,
-    "ast_hash": "5c37648290ac5c0765317deff00beb92",
+    "mtime": 1792601608.3739648,
+    "seen": 1792603236.5755157,
+    "ast_hash": "39e13341ccd371a3726726ab17c38567",
     "semantic_hash": ""
   },
   "apps/api/src/auth/http/accept-invite.dto.ts": {
@@ -3780,9 +3780,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/register-user.use-case.ts": {
-    "mtime": 1791367876.3703244,
-    "seen": 1792261760.1106458,
-    "ast_hash": "2f8af16d60ea20a25be3b4774d8f4ff2",
+    "mtime": 1792603723.6260717,
+    "seen": 1792603766.080919,
+    "ast_hash": "b4fee82a1d9c1d3deb3288ccd18ec000",
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/activate-account.use-case.ts": {
@@ -3792,9 +3792,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/resend-activation.use-case.ts": {
-    "mtime": 1791367829.3639178,
-    "seen": 1792261760.1106474,
-    "ast_hash": "8b06296a4da217c34c97c1b77b4665a3",
+    "mtime": 1792603727.4155538,
+    "seen": 1792603766.0809212,
+    "ast_hash": "a6d7ca51528c09af5cd7d4c1c5ae741e",
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/soft-email-rate-limiter.ts": {
@@ -4314,15 +4314,21 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/mail/templates/user-activation.template.ts": {
-    "mtime": 1792577772.1510372,
-    "seen": 1792577782.2776136,
-    "ast_hash": "9a3b2b271d1da2dd95956475a19b1b62",
+    "mtime": 1792604378.7767453,
+    "seen": 1792604907.5036304,
+    "ast_hash": "98ebf52996b2da13ea750e3d326140ce",
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/mail/templates/user-invited.template.ts": {
-    "mtime": 1792577768.0320685,
-    "seen": 1792577782.277615,
-    "ast_hash": "23aa3f1a46145b4eb785739070c32f5b",
+    "mtime": 1792604373.652948,
+    "seen": 1792604907.5036316,
+    "ast_hash": "d69a983a0457e9526c21b7fa90823ef1",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/application/format-mail-validity-label.ts": {
+    "mtime": 1792603218.3786592,
+    "seen": 1792603236.5754962,
+    "ast_hash": "8a9e028404c4c3065571c9cb400cd46a",
     "semantic_hash": ""
   }
 }

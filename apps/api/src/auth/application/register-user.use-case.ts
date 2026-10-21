@@ -22,6 +22,7 @@ import {
 } from '../domain/transactional-mailer.port';
 import { ENV, type Env } from '../../shared/config/env';
 import { generateRefreshToken, hashPassword, parseTtlMs } from './auth.helpers';
+import { formatMailValidityLabel } from './format-mail-validity-label';
 import { registerUserSchema } from './auth.schemas';
 import type { UserId, UserRole } from '@content-chain/shared';
 
@@ -127,6 +128,7 @@ export class RegisterUserUseCase {
           activationId,
           activateUrl: `${this.env.APP_PUBLIC_URL ?? ''}/?activationToken=${rawToken}`,
           rawToken,
+          validityLabel: formatMailValidityLabel(this.env.ACTIVATION_TTL),
         });
       } catch {
         throw new DomainException(

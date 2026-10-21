@@ -17,6 +17,7 @@ import {
   type TransactionalMailer,
 } from '../domain/transactional-mailer.port';
 import { generateRefreshToken, parseTtlMs } from './auth.helpers';
+import { formatMailValidityLabel } from './format-mail-validity-label';
 import { z } from 'zod';
 
 const inviteUserSchema = z.object({
@@ -89,6 +90,7 @@ export class InviteUserUseCase {
         invitationId: saved.id,
         acceptUrl: `${this.env.APP_PUBLIC_URL ?? ''}/invite/accept?token=${raw}`,
         rawToken: raw,
+        validityLabel: formatMailValidityLabel(this.env.INVITE_TTL),
       });
     } catch {
       throw new DomainException(
