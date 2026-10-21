@@ -139,11 +139,11 @@ describe('parseLlmJson', () => {
     const out = parseLlmJson(verifierOutputSchema, raw);
     expect(out.ok).toBe(false);
     expect(out.contextIssues).toEqual([
-      'idea_4a91844a-0a36-43f0-b82c-4c0daef2afae — Hook: «seed zamknięty» — audience opisuje seed, nie narrację Q2.',
-      'idea_fcb6eb9c-e84e-4025-9618-6557955d4ec5 — 6 godzin tygodniowo — Title obiecuje, co klienci robią z czasem.',
+      'idea_4a91844a-0a36-43f0-b82c-4c0daef2afae - Hook: «seed zamknięty» — audience opisuje seed, nie narrację Q2.',
+      'idea_fcb6eb9c-e84e-4025-9618-6557955d4ec5 - 6 godzin tygodniowo - Title obiecuje, co klienci robią z czasem.',
     ]);
     expect(out.languageIssues).toEqual([
-      'idea_4a91844a-0a36-43f0-b82c-4c0daef2afae — Brak przecinka po okoliczniku.',
+      'idea_4a91844a-0a36-43f0-b82c-4c0daef2afae - Brak przecinka po okoliczniku.',
     ]);
   });
 

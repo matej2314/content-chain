@@ -1,7 +1,7 @@
 import { brand, type Brand } from './brand';
 
 // ---------------------------------------------------------------------------
-// Typy identyfikatorów — formaty z docs/brand_types.md
+// Typy identyfikatorów - formaty z docs/brand_types.md
 // ---------------------------------------------------------------------------
 
 export type RequestId = Brand<string, 'RequestId'>;
@@ -26,7 +26,7 @@ const INVITATION_ID_RE = new RegExp(`^inv_${UUID_PART}$`, 'i');
 const FEEDBACK_ID_RE = new RegExp(`^fbk_${UUID_PART}$`, 'i');
 const ACCOUNT_ACTIVATION_ID_RE = new RegExp(`^act_${UUID_PART}$`, 'i');
 // ---------------------------------------------------------------------------
-// RequestId — nadaje middleware apps/api; klient NIE generuje
+// RequestId - nadaje middleware apps/api; klient NIE generuje
 // ---------------------------------------------------------------------------
 
 export const isRequestId = (value: string): value is RequestId => REQUEST_ID_RE.test(value);
@@ -36,7 +36,7 @@ export const createRequestId = (value: string): RequestId => {
 };
 
 // ---------------------------------------------------------------------------
-// ConversationId — tworzony przez apps/api przy starcie runu (jeden na run)
+// ConversationId - tworzony przez apps/api przy starcie runu (jeden na run)
 // ---------------------------------------------------------------------------
 
 export const isConversationId = (value: string): value is ConversationId => CONV_ID_RE.test(value);
@@ -77,7 +77,7 @@ export const createInvitationId = (value: string): InvitationId => {
 };
 
 // ---------------------------------------------------------------------------
-// GatewayModelAlias — alias modelu z konfiguracji gateway; walidacja "niepusty"
+// GatewayModelAlias - alias modelu z konfiguracji gateway; walidacja "niepusty"
 // ---------------------------------------------------------------------------
 
 export const isGatewayModelAlias = (value: string): value is GatewayModelAlias =>

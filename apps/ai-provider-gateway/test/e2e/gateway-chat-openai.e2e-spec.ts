@@ -16,13 +16,13 @@ import {
   asSystemFingerprint,
 } from '../../src/common/types/branded.types';
 
-describe('Gateway Chat API — OpenAI provider (E2E)', () => {
+describe('Gateway Chat API - OpenAI provider (E2E)', () => {
   const validBody = {
     modelAlias: E2E_OPENAI_MODEL_ALIAS,
     messages: [{ role: 'user' as const, content: 'Hello' }],
   };
 
-  describe('Happy path — POST /chat', () => {
+  describe('Happy path - POST /chat', () => {
     it('should return gateway-format response and call provider.complete', async () => {
       await withE2eApp(
         {
@@ -104,7 +104,7 @@ describe('Gateway Chat API — OpenAI provider (E2E)', () => {
     });
   });
 
-  describe('Generation warnings — OpenAI-specific', () => {
+  describe('Generation warnings - OpenAI-specific', () => {
     it('should warn when topK is sent to openai provider', async () => {
       await withE2eApp(
         { providerRegistry: createE2eOpenAiProviderRegistry() },
@@ -184,7 +184,7 @@ describe('Gateway Chat API — OpenAI provider (E2E)', () => {
     });
   });
 
-  describe('Validation — validateThinking', () => {
+  describe('Validation - validateThinking', () => {
     it('should reject thinkingEnabled without capability', async () => {
       await withE2eApp(
         {
@@ -250,7 +250,7 @@ describe('Gateway Chat API — OpenAI provider (E2E)', () => {
     });
   });
 
-  describe('Streaming — POST /chat/stream', () => {
+  describe('Streaming - POST /chat/stream', () => {
     it('should emit meta, delta and done events', async () => {
       await withE2eApp(
         {

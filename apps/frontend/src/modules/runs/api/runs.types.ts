@@ -50,12 +50,12 @@ export function isLiveRunStatus(status: RunStatus): status is LiveRunStatus {
   return (LIVE_RUN_STATUSES as readonly RunStatus[]).includes(status);
 }
 
-/** Terminal SSE / archiwum / close EventSource — obejmuje `cancelled`. */
+/** Terminal SSE / archiwum / close EventSource - obejmuje `cancelled`. */
 export function isTerminalRunStatus(status: RunStatus): status is SseTerminalRunStatus {
   return (SSE_TERMINAL_STATUSES as readonly RunStatus[]).includes(status);
 }
 
-/** Przegląd (gwiazdki / Edytuj / finalize) — bez `cancelled`. */
+/** Przegląd (gwiazdki / Edytuj / finalize) - bez `cancelled`. */
 export function isReviewableRunStatus(status: RunStatus): status is ReviewableRunStatus {
   return (REVIEWABLE_STATUSES as readonly RunStatus[]).includes(status);
 }

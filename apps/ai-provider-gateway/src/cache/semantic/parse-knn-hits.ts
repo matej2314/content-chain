@@ -17,7 +17,7 @@ export function asString(value: unknown): string {
 
 /**
  * Parse FT.SEARCH RESP2 hits. Corrupt reply payloads are collected for DEL
- * (same hygiene as exact cache invalid entries) — missing dist alone does not delete.
+ * (same hygiene as exact cache invalid entries) - missing dist alone does not delete.
  */
 export function parseKnnHits(raw: unknown): ParsedKnnHits {
   if (!Array.isArray(raw) || raw.length < 3) {

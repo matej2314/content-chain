@@ -4,7 +4,7 @@ import { asToolCallId } from '../types/branded.types';
 import type { GatewayToolCall } from '../../providers/types/tooling-types';
 
 /**
- * HTTP/OpenAPI representation of a tool call (API boundary — plain strings).
+ * HTTP/OpenAPI representation of a tool call (API boundary - plain strings).
  */
 export class GatewayToolCallDto {
   @ApiProperty({

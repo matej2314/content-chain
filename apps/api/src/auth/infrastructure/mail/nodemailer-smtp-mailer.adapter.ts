@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import nodemailer from 'nodemailer';
+import { renderTransactionalMail } from './render-transactional-mail';
 import { ENV, type Env } from '../../../shared/config/env';
 import type { Transporter } from 'nodemailer';
 import type {
@@ -45,20 +46,13 @@ export class NodemailerSmtpMailerAdapter implements TransactionalMailer {
   }
 
   async send(message: TransactionalMail): Promise<void> {
-    if (message.kind === 'user_invited') {
-      await this.transporter.sendMail({
-        from: this.from,
-        to: message.to,
-        subject: 'You are invited to join Content Chain App',
-        text: `You are invited to join Content Chain App. Please click the link below to accept the invitation: ${message.acceptUrl}\nToken: ${message.rawToken} `,
-      });
-      return;
-    }
+    const rendered = renderTransactionalMail(message);
     await this.transporter.sendMail({
       from: this.from,
       to: message.to,
-      subject: 'Activate your Content Chain account',
-      text: `Please activate your account: ${message.activateUrl}\nToken: ${message.rawToken}`,
+      subject: rendered.subject,
+      text: rendered.text,
+      html: rendered.html,
     });
   }
 }

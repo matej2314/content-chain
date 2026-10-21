@@ -67,7 +67,7 @@ export async function apiFetch(path: string, options: ApiFetchOptions = {}): Pro
     const firstBody = await parseBody(response);
     const firstEnvelope = parseApiErrorEnvelope(firstBody);
 
-    // Re-auth (A-3b): nie jest wygaśnięciem sesji — F-4a nie dotyczy.
+    // Re-auth (A-3b): nie jest wygaśnięciem sesji - F-4a nie dotyczy.
     if (firstEnvelope?.code === 'INVALID_PASSWORD') {
       throw toApiError(401, firstBody);
     }

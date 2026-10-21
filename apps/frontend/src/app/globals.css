@@ -68,17 +68,17 @@
 }
 
 :root {
-  /* Pełny dark shell — main + sidebar ciemne (jeden kanon; bez przełącznika) */
+  /* Pełny dark shell - main + sidebar ciemne (jeden kanon; bez przełącznika) */
   --background: oklch(0.18 0.025 285);
   --foreground: oklch(0.93 0.01 285);
   --card: oklch(0.23 0.03 285);
   --card-foreground: oklch(0.93 0.01 285);
   --popover: oklch(0.23 0.03 285);
   --popover-foreground: oklch(0.93 0.01 285);
-  /* Primary: żywy indigo/violet — jaśniejszy pod dark canvas (chrome; nie filled CTA) */
+  /* Primary: żywy indigo/violet - jaśniejszy pod dark canvas (chrome; nie filled CTA) */
   --primary: oklch(0.65 0.2 285);
   --primary-foreground: oklch(0.99 0.01 285);
-  /* Button default (CTA-only) — F-14 / Krok 22.2; nie podmieniać --primary */
+  /* Button default (CTA-only) - F-14 / Krok 22.2; nie podmieniać --primary */
   --button-default-from: #39a185;
   --button-default-to: #63b8a3;
   --button-default-foreground: #0b1f1a;
@@ -87,7 +87,7 @@
     var(--button-default-from) 0%,
     var(--button-default-to) 100%
   );
-  /* Sidebar nav item states — F-14 / Faza 23; nie CTA, nie solid --primary fill; nie zmienia --sidebar */
+  /* Sidebar nav item states - F-14 / Faza 23; nie CTA, nie solid --primary fill; nie zmienia --sidebar */
   --nav-item-radius: 0.875rem;
   --nav-item-font-size: 0.8125rem;
   --nav-item-transition: 140ms;
@@ -129,7 +129,7 @@
   --sidebar-accent-foreground: oklch(0.95 0.01 285);
   --sidebar-border: oklch(1 0 0 / 12%);
   --sidebar-ring: oklch(0.65 0.2 285);
-  /* Statusy — unikalne rodziny (F-11 / F-12); lightness pod dark canvas */
+  /* Statusy - unikalne rodziny (F-11 / F-12); lightness pod dark canvas */
   --success: oklch(0.68 0.15 145);
   --success-foreground: oklch(0.18 0.03 145);
   --warning: oklch(0.78 0.14 75);
@@ -145,7 +145,7 @@
 }
 
 .dark {
-  /* Zsynchronizowane z :root — klasa może istnieć; produkt nie przełącza motywu */
+  /* Zsynchronizowane z :root - klasa może istnieć; produkt nie przełącza motywu */
   --background: oklch(0.18 0.025 285);
   --foreground: oklch(0.93 0.01 285);
   --card: oklch(0.23 0.03 285);
@@ -162,7 +162,7 @@
     var(--button-default-from) 0%,
     var(--button-default-to) 100%
   );
-  /* Sidebar nav item states — F-14 / Faza 23; nie CTA, nie solid --primary fill; nie zmienia --sidebar */
+  /* Sidebar nav item states - F-14 / Faza 23; nie CTA, nie solid --primary fill; nie zmienia --sidebar */
   --nav-item-radius: 0.875rem;
   --nav-item-font-size: 0.8125rem;
   --nav-item-transition: 140ms;
@@ -267,7 +267,7 @@
   --border-radius: var(--radius);
 }
 
-/* Stany pozycji menu — F-14 / Faza 23 (desktop + mobile sheet) */
+/* Stany pozycji menu - F-14 / Faza 23 (desktop + mobile sheet) */
 .sidebar-nav-item {
   position: relative;
   display: flex;
@@ -301,7 +301,7 @@
 .sidebar-nav-item[data-active='true']::before {
   content: '';
   position: absolute;
-  /* Poza pill — gutter jak Vireo (~14px); nav p-2 daje miejsce bez obcięcia */
+  /* Poza pill - gutter jak Vireo (~14px); nav p-2 daje miejsce bez obcięcia */
   left: calc(-1 * var(--nav-item-rail-gap));
   top: 18%;
   bottom: 18%;

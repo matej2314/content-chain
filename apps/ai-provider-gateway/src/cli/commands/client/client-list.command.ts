@@ -10,7 +10,7 @@ interface ClientListOptions {
   json?: boolean;
 }
 
-/** Structural client rows: refs only — never env values. */
+/** Structural client rows: refs only - never env values. */
 function toSafeClientList(config: GatewayConfig) {
   return Object.entries(config.clients).map(([id, client]) => ({
     id,

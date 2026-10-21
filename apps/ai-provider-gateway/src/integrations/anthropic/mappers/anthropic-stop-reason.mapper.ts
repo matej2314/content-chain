@@ -3,7 +3,7 @@ import type { AnthropicMessagesResponseDto } from '../dtos/anthropic-messages-re
 
 /**
  * Reverse map: gateway finishReason → Anthropic stop_reason.
- * Używane przez non-stream (JSON) i stream (message_delta) — muszą być 1:1.
+ * Używane przez non-stream (JSON) i stream (message_delta) - muszą być 1:1.
  *
  * @see mapGatewayResponseToAnthropicFormat (anthropic-response.mapper.ts)
  * @see mapSseEventToAnthropic case 'done' (anthropic-stream.mapper.ts)

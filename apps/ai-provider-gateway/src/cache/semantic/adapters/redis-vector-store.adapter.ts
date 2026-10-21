@@ -58,7 +58,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     if (!redisClient || !key) return;
     try {
       await redisClient.del(key);
-      this.logger.warn(`Invalid semantic cache reply — deleted key: ${key}`);
+      this.logger.warn(`Invalid semantic cache reply - deleted key: ${key}`);
     } catch (err: unknown) {
       this.logger.warn(
         `Semantic cache DEL failed for key ${key}: ${redisSearchErrorMessage(err)}`,
@@ -86,7 +86,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     const redisClient = this.redis.getClient();
     if (!redisClient) {
       this.logger.warn(
-        'Redis client unavailable — skipping vector index ensure (fail-open)',
+        'Redis client unavailable - skipping vector index ensure (fail-open)',
       );
       return;
     }
@@ -101,12 +101,12 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     } catch (infoErr: unknown) {
       if (isRedisSearchModuleMissingError(infoErr)) {
         this.logger.warn(
-          'Redis Search module unavailable (FT.* commands missing — use Redis Stack)',
+          'Redis Search module unavailable (FT.* commands missing - use Redis Stack)',
           { message: redisSearchErrorMessage(infoErr) },
         );
         return;
       }
-      /* missing index — create below */
+      /* missing index - create below */
     }
 
     try {
@@ -159,7 +159,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
         return {
           available: false,
           message:
-            'Redis Search module unavailable (FT.* commands missing — use Redis Stack)',
+            'Redis Search module unavailable (FT.* commands missing - use Redis Stack)',
         };
       }
       return {
@@ -221,7 +221,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     const redisClient = this.redis.getClient();
     if (!redisClient) {
       this.logger.warn(
-        'Redis client unavailable — semantic KNN skipped (fail-open)',
+        'Redis client unavailable - semantic KNN skipped (fail-open)',
       );
       return [];
     }
@@ -294,7 +294,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     );
 
     try {
-      // Require vector too — orphan HASH (reply-only after crashed upsert) is unservable.
+      // Require vector too - orphan HASH (reply-only after crashed upsert) is unservable.
       const [replyRaw, vectorRaw] = await redisClient.hmget(
         key,
         'reply',
@@ -302,7 +302,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       );
       if (!replyRaw) return null;
       if (vectorRaw == null || vectorRaw === '') {
-        // Incomplete / in-flight upsert — miss without DEL (avoid racing MULTI after HSETNX).
+        // Incomplete / in-flight upsert - miss without DEL (avoid racing MULTI after HSETNX).
         // Orphans are healed on the next upsert (hexists/ttl check).
         return null;
       }
@@ -340,7 +340,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
 
   /**
    * Completes an orphan HASH (reply claimed, missing vector and/or TTL).
-   * Preserves first-writer `reply` (SPEC-CHAT F-8d). No Lua — same HSETNX+MULTI shape.
+   * Preserves first-writer `reply` (SPEC-CHAT F-8d). No Lua - same HSETNX+MULTI shape.
    */
   private async healIncompleteEntry(
     key: string,
@@ -359,7 +359,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     const redisClient = this.redis.getClient();
     if (!redisClient) {
       this.logger.warn(
-        'Redis client unavailable — semantic upsert skipped (fail-open)',
+        'Redis client unavailable - semantic upsert skipped (fail-open)',
       );
       return;
     }
@@ -367,7 +367,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     const ttl = unbrand(input.ttlSeconds);
     if (!isSemanticCacheTtlSeconds(ttl)) {
       this.logger.warn(
-        'Semantic upsert skipped — ttlSeconds must be >= 1 (no eternal vectors)',
+        'Semantic upsert skipped - ttlSeconds must be >= 1 (no eternal vectors)',
         { ttlSeconds: ttl },
       );
       return;
@@ -388,7 +388,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       const fields = this.metaFields(input, semCache.embeddingModel);
 
       // First-writer-wins: `reply` as content-identity sentinel (SPEC-CHAT F-8d).
-      // Window between HSETNX and MULTI can leave reply-only orphans — heal below.
+      // Window between HSETNX and MULTI can leave reply-only orphans - heal below.
       const claimed = await redisClient.hsetnx(
         key,
         'reply',
@@ -404,7 +404,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
         redisClient.hexists(key, 'vector'),
         redisClient.ttl(key),
       ]);
-      // TTL -1 = no expiry; -2 = missing (race) — both need heal / recreate path.
+      // TTL -1 = no expiry; -2 = missing (race) - both need heal / recreate path.
       const incomplete = hasVector === 0 || keyTtl < 0;
       if (incomplete) {
         await this.healIncompleteEntry(key, fields, ttl);

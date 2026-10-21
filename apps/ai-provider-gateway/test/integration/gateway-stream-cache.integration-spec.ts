@@ -177,7 +177,7 @@ describe('Gateway stream cache Redis (integration)', () => {
     expect(streamSpy.mock.calls.length).toBe(streamCallsBefore);
   });
 
-  it('tooling stream request bypasses cache — provider.stream called twice', async () => {
+  it('tooling stream request bypasses cache - provider.stream called twice', async () => {
     const toolingBody = {
       modelAlias: INTEGRATION_MODEL_ALIAS,
       messages: [

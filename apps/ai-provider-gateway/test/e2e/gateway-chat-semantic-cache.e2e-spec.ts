@@ -73,7 +73,7 @@ function createFixedEmbeddingBackend(): EmbeddingBackend {
   };
 }
 
-/** In-memory KNN — constant fake vector ⇒ similarity 1.0; filters by all TAGs. */
+/** In-memory KNN - constant fake vector ⇒ similarity 1.0; filters by all TAGs. */
 function createInMemoryVectorStore(): VectorStore & { clear(): void } {
   const entries: VectorStoreUpsertInput[] = [];
 
@@ -158,7 +158,7 @@ function createNoopExactCacheBackend(): CacheBackend {
 }
 
 /**
- * AppModule + SemanticCacheModule (fakes for embedding/vector — no Stack/Ollama).
+ * AppModule + SemanticCacheModule (fakes for embedding/vector - no Stack/Ollama).
  */
 async function createE2eAppWithSemanticCache(
   providerRegistry: E2eProviderRegistryMock,

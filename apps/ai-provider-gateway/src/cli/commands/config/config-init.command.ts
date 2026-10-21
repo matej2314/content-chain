@@ -145,7 +145,7 @@ export class ConfigInitCommand extends CommandRunner {
           status: 'error',
           command: 'config:init',
           errors: [
-            'Agent mode requires secret deferral (default). Operator values must be pasted into .env by the user — never via answers.',
+            'Agent mode requires secret deferral (default). Operator values must be pasted into .env by the user - never via answers.',
           ],
         },
         mode.json,
@@ -256,7 +256,7 @@ export class ConfigInitCommand extends CommandRunner {
         warnings: structure.warnings,
         next: pending.length
           ? [
-              'HUMAN HANDOFF: user must edit .env — see pendingSecrets (api keys, base URLs, Sentry DSN, Redis password). Do not ask user to paste secrets into chat.',
+              'HUMAN HANDOFF: user must edit .env - see pendingSecrets (api keys, base URLs, Sentry DSN, Redis password). Do not ask user to paste secrets into chat.',
               'Wait for user confirmation, then: gateway config:secrets-status --json',
               'On exit 0: gateway config:validate',
             ]

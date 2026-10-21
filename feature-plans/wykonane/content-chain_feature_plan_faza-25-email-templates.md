@@ -84,7 +84,7 @@ Odpowiada major Faza 25 (cała). Status startowy kroków: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — Paleta inline + wspólny shell HTML/text
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Stałe kolory HOW + layout (header / body / CTA / footer) współdzielony przez kinds. Major Faza 25 HOW-1; `SPEC-AUTH` Treść maila / Kolorystyka; `docs/brand_types.md`.
 
@@ -212,7 +212,7 @@ export function wrapMailHtml(content: MailShellContent): string {
           </tr>
         </table>
         <p style="margin:16px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${p.mutedForeground};">
-          Wiadomość transakcyjna Content Chain — nie odpowiadaj na ten e-mail.
+          Wiadomość wygenerowana automatycznie - nie odpowiadaj na ten e-mail.
         </p>
       </td>
     </tr>
@@ -235,7 +235,10 @@ export function wrapMailText(content: MailShellTextContent): string {
   if (content.footerLines !== undefined && content.footerLines.length > 0) {
     lines.push('', ...content.footerLines);
   }
-  lines.push('', 'Wiadomość transakcyjna Content Chain — nie odpowiadaj na ten e-mail.');
+  lines.push(
+    '',
+    'Wiadomość wygenerowana automatycznie - nie odpowiadaj na ten e-mail.',
+  );
   return lines.join('\n');
 }
 ```
@@ -250,7 +253,7 @@ export function wrapMailText(content: MailShellTextContent): string {
 
 ### KROK 2 — Szablony per kind + renderer
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Subject/body PL dla `user_invited` i `user_activation`; injection wyłącznie z pól `TransactionalMail`. Major HOW-2; `SPEC-AUTH` Treść / Kinds (MVP tego wycinka = dwa kinds); port bez zmian.
 
@@ -427,7 +430,7 @@ export function renderTransactionalMail(
 
 ### KROK 3 — Refaktor adapterów SMTP + logującego
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Produktowy send = `html` + `text` + PL subject; DX log nadal z URL + raw token. Major HOW-3; Context7 nodemailer `sendMail({ html, text })`; `SPEC-AUTH` Mailer.
 
@@ -631,7 +634,7 @@ Uwaga: wywołanie `renderTransactionalMail` w loggerze gwarantuje, że DX widzi 
 
 ### KROK 4 — Unit renderera + regresja invite / activation
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Asercja treści poza obowiązkowym T-5 Postman; HTTP D-* bez nowych numerów i bez zmiany envelope. Major HOW-4; `SPEC-TESTY.md` (HTML nie dodaje D-*).
 

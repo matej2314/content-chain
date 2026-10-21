@@ -10,7 +10,7 @@ interface ConfigShowOptions {
   json?: boolean;
 }
 
-/** Structural snapshot: refs only — never env values. */
+/** Structural snapshot: refs only - never env values. */
 function toSafeConfigSnapshot(config: GatewayConfig) {
   return {
     schemaVersion: config.schemaVersion,

@@ -1,5 +1,5 @@
 /**
- * Plain-text project id — first segment of the Redis Search index name and
+ * Plain-text project id - first segment of the Redis Search index name and
  * input to the schema hash. Must not contain spaces or colons (colon separates
  * index-name segments). Not read from package.json / env.
  */
@@ -31,7 +31,7 @@ export function canonicalSemanticSchema(dim: number): string {
 }
 
 /**
- * `FT.CREATE … SCHEMA` argument list — must stay aligned with
+ * `FT.CREATE … SCHEMA` argument list - must stay aligned with
  * {@link canonicalSemanticSchema}.
  */
 export function semanticSchemaFtCreateArgs(dim: number): string[] {
@@ -69,7 +69,7 @@ export const EMBEDDING_CIRCUIT_COOLDOWN_MS = 30_000;
 export const EMBEDDING_PROBE_TIMEOUT_MS = 2_000;
 
 /**
- * Mirror of the gateway Docker HEALTHCHECK timeout (ms). Not an env var —
+ * Mirror of the gateway Docker HEALTHCHECK timeout (ms). Not an env var -
  * Compose/Dockerfile stay unchanged in this slice.
  */
 export const GATEWAY_HEALTHCHECK_TIMEOUT_MS = 3_000;

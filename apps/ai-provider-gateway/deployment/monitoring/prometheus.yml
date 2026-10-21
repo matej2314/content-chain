@@ -16,7 +16,7 @@ rule_files:
   - '/etc/prometheus/alerts.yml'
 
 scrape_configs:
-  # AI Gateway — /metrics triggers health gauge refresh before export
+  # AI Gateway - /metrics triggers health gauge refresh before export
   - job_name: 'ai-gateway'
     static_configs:
       - targets: ['ai-gateway:3000']

@@ -6,8 +6,8 @@ name: ai-provider-gateway-ollama-embedding
 # W sieci Dockera: EMBEDDING_BASE_URL=http://ollama-embedding:11434
 # Na hoście (start:dev):  EMBEDDING_BASE_URL=http://localhost:11435
 # RAM: ~4–6 GB na model qwen3-embedding:0.6b; minimum 16 GB całego stacka
-# CPU, bez GPU — nie dodawaj deploy.resources.reservations.devices
-# Obraz ollama/ollama:latest — pin Stack jest obowiązkowy; pin Ollama = decyzja ops (drift mniejszy niż Stack SCHEMA)
+# CPU, bez GPU - nie dodawaj deploy.resources.reservations.devices
+# Obraz ollama/ollama:latest - pin Stack jest obowiązkowy; pin Ollama = decyzja ops (drift mniejszy niż Stack SCHEMA)
 
 services:
   gateway:

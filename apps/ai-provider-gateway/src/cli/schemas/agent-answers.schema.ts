@@ -12,7 +12,7 @@ function rejectSecretFields(
     if (key in data && data[key] !== undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `[AGENT] Field "${key}" is not allowed (operator values must be pasted into .env by the user — never via answers/chat).`,
+        message: `[AGENT] Field "${key}" is not allowed (operator values must be pasted into .env by the user - never via answers/chat).`,
         path: [key],
       });
     }
@@ -31,7 +31,7 @@ export const InitAnswersSchema = z
             id: z.string().min(1),
             type: z.enum(PROVIDER_TYPES),
             enabled: z.boolean().optional(),
-            // AGENT-MODE: brak baseUrl w answers — URL zawsze wpisuje człowiek do .env
+            // AGENT-MODE: brak baseUrl w answers - URL zawsze wpisuje człowiek do .env
           })
           .strict()
           .superRefine((row, ctx) =>
@@ -124,7 +124,7 @@ export const ProviderAddAnswersSchema = z
     id: z.string().min(1),
     type: z.enum(PROVIDER_TYPES),
     enabled: z.boolean().optional(),
-    /** zawsze true w agent — API key wpisuje człowiek */
+    /** zawsze true w agent - API key wpisuje człowiek */
     deferSecret: z.literal(true),
     ensureModel: z
       .object({

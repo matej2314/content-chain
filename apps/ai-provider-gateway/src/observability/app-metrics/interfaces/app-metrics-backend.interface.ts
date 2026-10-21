@@ -8,13 +8,7 @@ import type {
 
 export type AppRequestMethod = 'chat' | 'stream';
 export type HttpMethod =
-  | 'GET'
-  | 'POST'
-  | 'PUT'
-  | 'PATCH'
-  | 'DELETE'
-  | 'OPTIONS'
-  | 'HEAD';
+  'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 export interface HttpRequestLabels {
   method: HttpMethod;
   route: string;
@@ -49,11 +43,7 @@ export interface AppProviderStreamScope {
 }
 
 export type HealthComponent =
-  | 'config'
-  | 'redis'
-  | 'cache'
-  | 'embeddings'
-  | 'vectorStore';
+  'config' | 'redis' | 'cache' | 'embeddings' | 'vectorStore';
 export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
 /**
  * Semantic cache lookup outcome (exact cache keeps recordCacheAccess).
@@ -62,11 +52,7 @@ export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
  * `error` = failed embed or KNN I/O after an attempt.
  */
 export type SemanticCacheLookupResult =
-  | 'hit'
-  | 'hash-hit'
-  | 'below-threshold'
-  | 'error'
-  | 'skip';
+  'hit' | 'hash-hit' | 'below-threshold' | 'error' | 'skip';
 
 export interface HealthMetricsSnapshot {
   ready: boolean;
@@ -100,7 +86,7 @@ export interface AppMetricsBackend {
     model: ModelAlias,
     totalTokens: number,
   ): void;
-  /** Convenience batch — adapters may implement via recordTokens. */
+  /** Convenience batch - adapters may implement via recordTokens. */
   recordTokenUsage(
     provider: ProviderInstanceId,
     model: ModelAlias,

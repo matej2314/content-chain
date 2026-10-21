@@ -31,7 +31,7 @@ export function resolveCliMode(options: CliModeFlags = {}): CliMode {
 
 /**
  * Marks the process as agent-mode so prompt* guards refuse inquirer
- * (plan §5.5 — GATEWAY_CLI_AGENT=1).
+ * (plan §5.5 - GATEWAY_CLI_AGENT=1).
  */
 export function markAgentRuntime(mode: CliMode): void {
   if (mode.isAgent) {

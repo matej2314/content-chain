@@ -16,10 +16,7 @@ import {
   type RunExecutorPort,
 } from '../src/runs/domain/run-executor.port';
 import type { RunRecord } from '../src/runs/domain/run.types';
-import {
-  createAuthenticatedAgent,
-  type E2eAgent,
-} from './authenticated-agent';
+import { createAuthenticatedAgent, type E2eAgent } from './authenticated-agent';
 import { FakeLlmGateway } from './fake-llm-gateway';
 
 const completeContextBody = {
@@ -35,7 +32,9 @@ const completeContextBody = {
   },
   voice: { weDo: 'konkretnie', weDont: 'żargon' },
   cta: { items: [{ label: 'Napisz do nas', target: '/kontakt' }] },
-  audience: { profiles: [{ name: 'Founder SaaS', description: 'Founder SaaS B2B' }] },
+  audience: {
+    profiles: [{ name: 'Founder SaaS', description: 'Founder SaaS B2B' }],
+  },
   extras: { hashtags: ['#acme'] },
 };
 
@@ -140,7 +139,7 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
 /**
  * Test-only fake for D-9 (queue). Parks `execute` on a deferred Promise so the
  * worker keeps the claimed slot (`running`) until `release()`. Production binds
- * SocialRunExecutor in AppModule glue — this must not be registered in RunsModule.
+ * SocialRunExecutor in AppModule glue - this must not be registered in RunsModule.
  */
 class HoldingRunExecutor implements RunExecutorPort {
   private readonly hold = deferred();
@@ -239,9 +238,7 @@ async function collectSseUntilServerCloses(
 
     const timer = setTimeout(() => {
       finish(
-        new Error(
-          `SSE timed out waiting for stream end. received: ${buffer}`,
-        ),
+        new Error(`SSE timed out waiting for stream end. received: ${buffer}`),
       );
     }, timeoutMs);
 
@@ -362,7 +359,12 @@ describe('Runs lifecycle (e2e)', () => {
       const created = await postRun(agent);
       const runId = created.body.runId as string;
 
-      const snapshot = await waitForRunStatus(agent, runId, 'completed', 15_000);
+      const snapshot = await waitForRunStatus(
+        agent,
+        runId,
+        'completed',
+        15_000,
+      );
       expect(snapshot.status).toBe('completed');
       expect(snapshot.result?.ideas).toEqual(
         expect.arrayContaining([
@@ -370,9 +372,7 @@ describe('Runs lifecycle (e2e)', () => {
         ]),
       );
 
-      const logs = await agent
-        .get(`/api/v1/runs/${runId}/logs`)
-        .expect(200);
+      const logs = await agent.get(`/api/v1/runs/${runId}/logs`).expect(200);
 
       const serialized = JSON.stringify(logs.body);
       expect(logs.body.items.length).toBeGreaterThan(0);

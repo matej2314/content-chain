@@ -34,7 +34,7 @@ COPY --from=build --chown=gateway:nodejs /prod/gateway ./
 # Default config baked into image; host volume mount overrides at runtime
 COPY --chown=gateway:nodejs apps/ai-provider-gateway/gateway.config.yaml ./gateway.config.yaml
 
-# Nest assets used at runtime (prompts) — not always present in deploy packlist
+# Nest assets used at runtime (prompts) - not always present in deploy packlist
 COPY --from=build --chown=gateway:nodejs \
   /app/apps/ai-provider-gateway/src/config/system-prompt \
   ./src/config/system-prompt

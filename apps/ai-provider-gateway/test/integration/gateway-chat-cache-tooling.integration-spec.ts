@@ -59,7 +59,7 @@ describe('Gateway chat cache tooling bypass (integration)', () => {
     await closeIntegrationApp(app);
   });
 
-  it('miss then tooling request bypasses cache — provider.complete called twice', async () => {
+  it('miss then tooling request bypasses cache - provider.complete called twice', async () => {
     const first = await request(app.getHttpServer())
       .post(INTEGRATION_ROUTES.chat)
       .set('x-gateway-key', getIntegrationGatewayKey())

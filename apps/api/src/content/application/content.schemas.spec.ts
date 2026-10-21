@@ -162,11 +162,11 @@ describe('parseLlmJson (content schemas)', () => {
     const out = parseLlmJson(verifierOutputSchema, raw);
     expect(out.ok).toBe(false);
     expect(out.contextIssues).toEqual([
-      'osec_4a91844a-0a36-43f0-b82c-4c0daef2afae — Summary obiecuje wynik poza kontekstem.',
-      'outl_fcb6eb9c-e84e-4025-9618-6557955d4ec5 — 6 godzin tygodniowo — Title obiecuje, co klienci robią z czasem.',
+      'osec_4a91844a-0a36-43f0-b82c-4c0daef2afae - Summary obiecuje wynik poza kontekstem.',
+      'outl_fcb6eb9c-e84e-4025-9618-6557955d4ec5 - 6 godzin tygodniowo - Title obiecuje, co klienci robią z czasem.',
     ]);
     expect(out.languageIssues).toEqual([
-      'osec_4a91844a-0a36-43f0-b82c-4c0daef2afae — Brak przecinka po okoliczniku.',
+      'osec_4a91844a-0a36-43f0-b82c-4c0daef2afae - Brak przecinka po okoliczniku.',
     ]);
   });
 

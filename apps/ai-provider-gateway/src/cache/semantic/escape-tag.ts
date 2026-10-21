@@ -1,7 +1,7 @@
 /**
  * RediSearch TAG special characters that must be escaped in query syntax.
  * Hyphen is included for queries but remains allowed in configured IDs
- * (e.g. `Team-A`, `chat-default`) — see {@link REDIS_SEARCH_TAG_ID_FORBIDDEN}.
+ * (e.g. `Team-A`, `chat-default`) - see {@link REDIS_SEARCH_TAG_ID_FORBIDDEN}.
  */
 export const REDIS_SEARCH_TAG_SPECIAL_CHARS =
   /([,.<>{}[\]"':;!@#$%^&*()\-+=~|/\\ ])/g;

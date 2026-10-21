@@ -158,7 +158,7 @@ export function RegisterForm({
         {registerState.pending ? 'Zapisywanie…' : 'Zarejestruj się'}
       </Button>
       <Button type="button" variant="outline" className="w-full" onClick={onBackToLogin}>
-        Mam już konto — zaloguj się
+        Mam już konto - zaloguj się
       </Button>
       {bootstrapAvailable ? (
         <Button

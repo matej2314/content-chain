@@ -75,7 +75,7 @@ export class GetRunsSummaryUseCase {
     return value;
   }
 
-  /** Testy D-80 — czyszczenie między case’ami. */
+  /** Testy D-80 - czyszczenie między case’ami. */
   clearCache(): void {
     this.cache.clear();
   }

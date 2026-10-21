@@ -15,7 +15,7 @@ import type { LlmHopService } from '../../../../shared/llm/llm-hop';
 import type { SocialGraphState } from '../state';
 
 const EMPTY_REEL_IDEAS_INSTRUCTION =
-  '[] — brak wybranych pomysłów; generuj scenariusz wyłącznie z brief.topic, brief.goal i kontekstu firmy';
+  '[] - brak wybranych pomysłów; generuj scenariusz wyłącznie z brief.topic, brief.goal i kontekstu firmy';
 
 const EMPTY_POST_IDEAS_INSTRUCTION =
   '[] - brak wybranych pomysłów; generuj post wyłącznie z brief.topic, brief.goal i kontekstu firmy';
@@ -80,7 +80,7 @@ export function createContentWriterNode(hop: LlmHopService) {
       const { data } = await hop.chatJson({
         runId: state.runId,
         conversationId: state.conversationId,
-      signal: state.signal,
+        signal: state.signal,
         step: 'ContentWriterAgent',
         schema: reelScriptOutputSchema,
         userContent: renderPrompt(reelTemplate, {

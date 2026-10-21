@@ -30,7 +30,7 @@ export function createE2eRateLimiterBlocked(): Partial<SmartRateLimiterService> 
   };
 }
 
-/** Provider cooldown active — JSON 429 before SSE (stream cache prepare path). */
+/** Provider cooldown active - JSON 429 before SSE (stream cache prepare path). */
 export function createE2eCooldownDeniedLimiter(): Partial<SmartRateLimiterService> {
   const allowed = {
     allowed: true,

@@ -11,7 +11,7 @@ import type { GatewayConfig } from './gateway-config.schema';
  * Low-level rules stay in env.validation / provider-*-validation;
  * this facade is the only place callers should compose them.
  *
- * Plain class (not Nest Injectable) — used during ConfigModule bootstrap
+ * Plain class (not Nest Injectable) - used during ConfigModule bootstrap
  * before the DI container exists.
  */
 export class ConfigurationValidationService {
@@ -39,7 +39,7 @@ export class ConfigurationValidationService {
 
   /**
    * Validates master key + provider secrets for an already-parsed YAML config.
-   * Does not load files or run Zod schema checks — those stay in config-validator.
+   * Does not load files or run Zod schema checks - those stay in config-validator.
    */
   validateParsedGatewayConfig(
     config: RawGatewayConfig,

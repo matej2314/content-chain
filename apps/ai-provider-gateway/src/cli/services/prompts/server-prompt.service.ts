@@ -105,7 +105,7 @@ export class ServerPromptService {
         name: 'cacheBackend',
         message: 'Cache backend:',
         choices: [
-          { name: 'Disabled (noop) — minimal setup', value: 'noop' },
+          { name: 'Disabled (noop) - minimal setup', value: 'noop' },
           { name: 'Redis (recommended for production)', value: 'redis' },
         ],
         default: 'noop',

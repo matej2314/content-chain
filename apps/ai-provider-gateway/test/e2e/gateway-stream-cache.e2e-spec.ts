@@ -223,7 +223,7 @@ describe('Gateway stream cache (E2E)', () => {
     });
   });
 
-  describe('Tooling / didFallback — no store', () => {
+  describe('Tooling / didFallback - no store', () => {
     it('tooling stream request does not populate exact cache', async () => {
       const providerRegistry = createE2eProviderRegistry({
         streamChunks: ['tool-stream'],
@@ -383,7 +383,7 @@ describe('Gateway stream cache (E2E)', () => {
     });
   });
 
-  describe('OpenAI facade stream — X-Gateway-Cache', () => {
+  describe('OpenAI facade stream - X-Gateway-Cache', () => {
     it('sets header on stream hit and omits cacheSource from vendor body', async () => {
       const openAiModel = 'gpt-4';
       const providerRegistry = createE2eProviderRegistry({
@@ -432,7 +432,7 @@ describe('Gateway stream cache (E2E)', () => {
     });
   });
 
-  describe('Anthropic facade stream — X-Gateway-Cache', () => {
+  describe('Anthropic facade stream - X-Gateway-Cache', () => {
     it('sets header on stream hit and omits cacheSource from vendor body', async () => {
       const anthropicModel = 'claude-3-opus-20240229';
       const providerRegistry = createE2eProviderRegistry({

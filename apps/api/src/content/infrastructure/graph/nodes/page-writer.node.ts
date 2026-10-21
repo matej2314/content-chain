@@ -5,7 +5,7 @@ import type { ContentGraphState } from '../state';
 import type { PageDocument } from '../../../domain/content.types';
 
 const EMPTY_OUTLINE_INSTRUCTION =
-  'brak outline — pisz z ContentBrief (topic / angle / goal / targetLength)';
+  'brak outline - pisz z ContentBrief (topic / angle / goal / targetLength)';
 
 export function createPageWriterNode(hop: LlmHopService) {
   const template = loadPrompt('page-writer.prompt.md');

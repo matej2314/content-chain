@@ -93,7 +93,7 @@ export class ProviderAddCommand extends CommandRunner {
               status: 'error',
               command: 'provider:add',
               errors: [
-                'Agent mode requires secret deferral (default). Operator values must be pasted into .env by the user — never via answers.',
+                'Agent mode requires secret deferral (default). Operator values must be pasted into .env by the user - never via answers.',
               ],
             },
             mode.json,

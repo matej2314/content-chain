@@ -19,7 +19,7 @@ export class RecoverInterruptedRunsUseCase {
       if (won) {
         this.lifeCycle.publishCancelled(run.id);
       }
-      // false: already terminal / race — leftover flag ignored (R-9.7); no user-cancel log
+      // false: already terminal / race - leftover flag ignored (R-9.7); no user-cancel log
     }
 
     const leftoverRunning = await this.runs.findInterruptedRunning();

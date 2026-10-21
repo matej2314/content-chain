@@ -79,7 +79,7 @@ function coerceVerifierIssue(value: unknown): unknown {
   const parts = [itemId, quote, issue].filter(
     (part): part is string => part != null,
   );
-  return parts.length > 0 ? parts.join(' — ') : value;
+  return parts.length > 0 ? parts.join(' - ') : value;
 }
 
 const verifierIssueSchema = z.preprocess(coerceVerifierIssue, z.string());

@@ -1,7 +1,7 @@
 import { resolveCliMode, type CliMode } from './resolve-cli-mode';
 
 /**
- * Runtime assert — refuses inquirer when GATEWAY_CLI_AGENT=1 or mode.isAgent.
+ * Runtime assert - refuses inquirer when GATEWAY_CLI_AGENT=1 or mode.isAgent.
  * Main protection: agent command paths never call prompt*; this is a safety net.
  */
 export function assertInteractiveAllowed(

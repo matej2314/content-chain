@@ -10,7 +10,7 @@ interface ModelListOptions {
   json?: boolean;
 }
 
-/** Structural model rows: refs / ids only — never env values. */
+/** Structural model rows: refs / ids only - never env values. */
 function toSafeModelList(config: GatewayConfig) {
   return Object.entries(config.models).map(([alias, model]) => ({
     alias,

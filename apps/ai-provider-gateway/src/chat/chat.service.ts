@@ -338,7 +338,7 @@ export class ChatService {
       const latency = Date.now() - startedAt;
 
       // Dual-write exact SET + semantic upsert must finish before HTTP 201 (P17x.D).
-      // Fallback responses are not cached — next request should retry the primary alias.
+      // Fallback responses are not cached - next request should retry the primary alias.
       if (!didFallback) {
         await this.cachePipelineService.setCachedIfAllowed(
           requestBody,

@@ -197,7 +197,7 @@ export type CacheKey = Brand<string, 'CacheKey'>;
 export type CacheTtlSeconds = Brand<number, 'CacheTtlSeconds'>;
 
 /**
- * Semantic cache entry TTL in seconds (min 1 — no eternal vectors)
+ * Semantic cache entry TTL in seconds (min 1 - no eternal vectors)
  */
 export type SemanticCacheTtlSeconds = Brand<number, 'SemanticCacheTtlSeconds'>;
 
@@ -217,7 +217,7 @@ export type SchemaVersion = Brand<number, 'SchemaVersion'>;
 export type SystemFingerprint = Brand<string, 'SystemFingerprint'>;
 
 // ========================================
-// CONFIGURATION & POLICY — HELPERS (Faza 4)
+// CONFIGURATION & POLICY - HELPERS (Faza 4)
 // ========================================
 
 export const asTimeoutMs = (value: number): TimeoutMs => {
@@ -302,7 +302,7 @@ export const asSchemaVersion = (value: number): SchemaVersion => {
 export type WarningCode = Brand<string, 'WarningCode'>;
 
 // ========================================
-// ERROR & WARNING CODES — HELPERS (Faza 5)
+// ERROR & WARNING CODES - HELPERS (Faza 5)
 // ========================================
 
 export const asWarningCode = (value: string): WarningCode => {

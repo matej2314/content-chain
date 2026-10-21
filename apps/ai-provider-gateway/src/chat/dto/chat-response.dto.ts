@@ -40,7 +40,7 @@ export class ChatUsageDetailsDto {
 }
 
 /**
- * Internal chat response (domain layer — branded identifiers).
+ * Internal chat response (domain layer - branded identifiers).
  */
 export interface ChatResponseData {
   id: ResponseId;
@@ -67,7 +67,7 @@ export interface ChatResponseData {
 }
 
 /**
- * HTTP/OpenAPI representation of chat response (API boundary — plain strings).
+ * HTTP/OpenAPI representation of chat response (API boundary - plain strings).
  */
 export class ChatResponseDto {
   @ApiProperty({
@@ -137,7 +137,7 @@ export class ChatResponseDto {
 
   @ApiProperty({
     description:
-      'Conversation ID returned to client (echo conversationId from body or conv_<uuid> when missing in request). Sentry grouping requires the same ID in body of subsequent requests — see conversation-tracking.md.',
+      'Conversation ID returned to client (echo conversationId from body or conv_<uuid> when missing in request). Sentry grouping requires the same ID in body of subsequent requests - see conversation-tracking.md.',
     example: 'conv_01HZZZZZZZZZZZZZZZZZZZZZZ',
   })
   conversationId: string;

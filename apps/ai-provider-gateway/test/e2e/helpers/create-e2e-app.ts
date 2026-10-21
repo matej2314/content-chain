@@ -68,7 +68,7 @@ function createDefaultE2eConfigOptions(): MockConfigServiceOptions {
   return {
     cache: { enabled: false, backend: 'noop' },
     redis: null,
-    /** Explicit off — suite must not require Redis Stack / Ollama. */
+    /** Explicit off - suite must not require Redis Stack / Ollama. */
     semanticCache: { enabled: false },
     gatewayKey: createE2eGatewayKeyRuntime(),
     providers: {

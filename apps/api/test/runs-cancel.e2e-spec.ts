@@ -20,10 +20,7 @@ import {
   type RunExecutorPort,
 } from '../src/runs/domain/run-executor.port';
 import type { RunRecord } from '../src/runs/domain/run.types';
-import {
-  createAuthenticatedAgent,
-  type E2eAgent,
-} from './authenticated-agent';
+import { createAuthenticatedAgent, type E2eAgent } from './authenticated-agent';
 import { FakeLlmGateway } from './fake-llm-gateway';
 
 const OTHER_USER_EMAIL = 'e2e-cancel-other@content-chain.test';
@@ -42,7 +39,9 @@ const completeContextBody = {
   },
   voice: { weDo: 'konkretnie', weDont: 'żargon' },
   cta: { items: [{ label: 'Napisz do nas', target: '/kontakt' }] },
-  audience: { profiles: [{ name: 'Founder SaaS', description: 'Founder SaaS B2B' }] },
+  audience: {
+    profiles: [{ name: 'Founder SaaS', description: 'Founder SaaS B2B' }],
+  },
   extras: { hashtags: ['#acme'] },
 };
 
@@ -163,16 +162,13 @@ function abortReject(signal?: AbortSignal): Promise<never> {
 }
 
 /**
- * Parks execute until release() or AbortSignal — D-30 live cancel while running.
+ * Parks execute until release() or AbortSignal - D-30 live cancel while running.
  */
 class HoldingRunExecutor implements RunExecutorPort {
   private readonly hold = deferred();
   readonly startedIds: string[] = [];
 
-  async execute(
-    run: RunRecord,
-    options?: RunExecuteOptions,
-  ): Promise<void> {
+  async execute(run: RunRecord, options?: RunExecuteOptions): Promise<void> {
     this.startedIds.push(String(run.id));
     await Promise.race([this.hold.promise, abortReject(options?.signal)]);
   }
@@ -202,9 +198,7 @@ async function collectSseUntilServerCloses(
 
     const timer = setTimeout(() => {
       finish(
-        new Error(
-          `SSE timed out waiting for stream end. received: ${buffer}`,
-        ),
+        new Error(`SSE timed out waiting for stream end. received: ${buffer}`),
       );
     }, timeoutMs);
 
@@ -378,8 +372,7 @@ describe('Runs cancel (e2e)', () => {
       expect(
         (logs.body.items as Array<{ message?: string; level?: string }>).some(
           (entry) =>
-            entry.level === 'info' &&
-            entry.message === 'Run cancelled by user',
+            entry.level === 'info' && entry.message === 'Run cancelled by user',
         ),
       ).toBe(true);
 

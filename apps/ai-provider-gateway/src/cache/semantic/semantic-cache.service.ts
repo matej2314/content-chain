@@ -192,7 +192,7 @@ export class SemanticCacheService {
     const cfg = getAppConfigOrThrow(this.config, 'semanticCache');
     const budget = embeddingProbeTimeoutMs(cfg.embeddingTimeoutMs);
     try {
-      // Observation only — must not close the circuit or clear half-open trial.
+      // Observation only - must not close the circuit or clear half-open trial.
       await this.embedding.embed('ping', budget);
       return true;
     } catch {

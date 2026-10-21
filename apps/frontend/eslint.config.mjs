@@ -14,12 +14,12 @@ const monorepoRestrictedImportPatterns = [
   },
   {
     group: ['**/apps/api', '**/apps/api/**'],
-    message: 'Nie importuj źródeł apps/api — komunikacja tylko HTTP (SPEC-MONOREPO M-4).',
+    message: 'Nie importuj źródeł apps/api - komunikacja tylko HTTP (SPEC-MONOREPO M-4).',
   },
   {
     group: ['**/apps/ai-provider-gateway', '**/apps/ai-provider-gateway/**'],
     message:
-      'Nie importuj źródeł apps/ai-provider-gateway — komunikacja tylko HTTP (SPEC-MONOREPO M-4).',
+      'Nie importuj źródeł apps/ai-provider-gateway - komunikacja tylko HTTP (SPEC-MONOREPO M-4).',
   },
 ];
 

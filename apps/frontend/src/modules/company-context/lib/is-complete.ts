@@ -27,12 +27,12 @@ export function isCompleteAudienceProfile(profile: AudienceProfile): boolean {
   return nonEmpty(profile.name) && nonEmpty(profile.description);
 }
 
-/** W pełni pusty wiersz UI — nie jest usługą; strip przed PUT. */
+/** W pełni pusty wiersz UI - nie jest usługą; strip przed PUT. */
 export function isEmptyOfferPlaceholder(item: OfferItem): boolean {
   return !nonEmpty(item.name) && !nonEmpty(item.description) && !item.benefit.some(nonEmpty);
 }
 
-/** Częściowo wypełniona pozycja — zostaje w drafcie i w body; submit ma paść. */
+/** Częściowo wypełniona pozycja - zostaje w drafcie i w body; submit ma paść. */
 export function isCrippledOfferItem(item: OfferItem): boolean {
   return !isEmptyOfferPlaceholder(item) && !isCompleteOfferItem(item);
 }

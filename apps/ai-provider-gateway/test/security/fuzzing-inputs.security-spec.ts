@@ -17,7 +17,7 @@ const VALID_USER_MESSAGE = { role: 'user' as const, content: 'fuzz probe' };
 
 /**
  * Names that collide with Object.prototype or are stripped by class-transformer
- * before forbidNonWhitelisted — not representative user-supplied field names.
+ * before forbidNonWhitelisted - not representative user-supplied field names.
  */
 const NON_FUZZABLE_OBJECT_KEYS = new Set([
   ...Object.getOwnPropertyNames(Object.prototype),

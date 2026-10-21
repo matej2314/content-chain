@@ -23,7 +23,7 @@ export function computeSystemSignature(
 /**
  * Deterministic plain-object snapshot of the generation params that
  * affect model output. Mirrors `ProviderCallOptions` except `signal`
- * (runtime cancellation — not serialisable, does not change output).
+ * (runtime cancellation - not serialisable, does not change output).
  * Undefined / missing params normalise to `null` so the serialised
  * form is stable across optional fields.
  */

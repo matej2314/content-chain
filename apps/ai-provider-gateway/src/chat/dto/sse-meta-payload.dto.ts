@@ -9,7 +9,7 @@ import type {
 } from '../../common/types/branded.types';
 
 /**
- * Internal SSE meta event payload (domain layer — branded identifiers).
+ * Internal SSE meta event payload (domain layer - branded identifiers).
  */
 export interface SseMetaPayload {
   id: ResponseId;
@@ -18,14 +18,14 @@ export interface SseMetaPayload {
   effectiveModelAlias?: ModelAlias;
   requestId: RequestId;
   conversationId: ConversationId;
-  /** Tylko cache hit na native stream — pomijane na miss / w body fasad. */
+  /** Tylko cache hit na native stream - pomijane na miss / w body fasad. */
   cached?: true;
   cachedAt?: string;
   cacheSource?: ChatCacheSource;
 }
 
 /**
- * HTTP/OpenAPI representation of SSE meta event (API boundary — plain strings).
+ * HTTP/OpenAPI representation of SSE meta event (API boundary - plain strings).
  */
 export class SseMetaPayloadDto {
   @ApiProperty()

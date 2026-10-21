@@ -95,7 +95,7 @@ export interface EditClientInput {
   type?: GatewayClientType;
   /** null clears rate limit */
   rateLimit?: CliRateLimit | null;
-  /** generated key — set before apply for rotateKey */
+  /** generated key - set before apply for rotateKey */
   gatewayKey?: GatewayKey;
 }
 

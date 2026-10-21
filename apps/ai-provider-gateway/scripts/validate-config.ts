@@ -3,7 +3,7 @@ import { validateGatewayConfig } from '../src/config/config-validator';
 
 /**
  * Lokalny dev: jeśli masz `.env`, możesz doładować go tutaj.
- * W CI zwykle nie ma pliku `.env` — env przychodzi z sekretów, więc to jest opcjonalne.
+ * W CI zwykle nie ma pliku `.env` - env przychodzi z sekretów, więc to jest opcjonalne.
  *
  * Jeśli nie masz zainstalowanego `dotenv`, kod działa dalej (po prostu nie wczyta `.env`).
  */

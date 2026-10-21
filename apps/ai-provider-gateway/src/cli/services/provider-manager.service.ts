@@ -107,7 +107,7 @@ export class ProviderManagerService {
 
     if (deferSecrets) {
       CliLogger.info(
-        `Deferring operator secrets — empty placeholders for ${apiKeyRef}` +
+        `Deferring operator secrets - empty placeholders for ${apiKeyRef}` +
           (baseUrlRef ? ` and ${baseUrlRef}` : '') +
           '. Paste values into .env later.',
       );

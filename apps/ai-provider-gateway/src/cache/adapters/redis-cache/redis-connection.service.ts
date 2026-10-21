@@ -80,7 +80,7 @@ export class RedisConnectionService
     if (this.client?.status === 'ready') {
       return;
     }
-    // Live client still owned by ioredis retryStrategy — do not recreate.
+    // Live client still owned by ioredis retryStrategy - do not recreate.
     if (
       this.client &&
       (this.client.status === 'connecting' ||

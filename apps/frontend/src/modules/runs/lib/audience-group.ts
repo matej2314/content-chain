@@ -31,7 +31,7 @@ function normalizeName(value: string): string {
 
 /**
  * Prefill / resolve: match katalogu tylko gdy string (trim, CI) = `name` profilu.
- * Inaczej custom — bez „udawanego” matcha przy typowaniu użytkownika w trybie Wpisz…
+ * Inaczej custom - bez „udawanego” matcha przy typowaniu użytkownika w trybie Wpisz…
  */
 export function resolveAudienceGroupMode(
   briefAudience: string | undefined,

@@ -12,7 +12,7 @@
 .idea
 **/.DS_Store
 
-# Secrets — never bake into image context
+# Secrets - never bake into image context
 .env
 .env.*
 !**/.env.example

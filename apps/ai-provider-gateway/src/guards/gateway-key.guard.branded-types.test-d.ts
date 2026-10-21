@@ -1,6 +1,6 @@
 /**
  * Compile-time brand type checks for GatewayKey (Faza 1.6).
- * Not executed by Jest — verified via `npm run build` / `tsc --noEmit`.
+ * Not executed by Jest - verified via `npm run build` / `tsc --noEmit`.
  */
 import type { GatewayKey } from '../common/types';
 import type { GatewayKeyRuntimeConfig } from '../config/configuration.types';

@@ -11,13 +11,10 @@ import { ENV, type Env } from '../src/shared/config/env';
 import { validateEnv } from '../src/shared/config/env.schema';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 import { PrismaService } from '../src/shared/persistence/prisma.service';
-import {
-  createAuthenticatedAgent,
-  type E2eAgent,
-} from './authenticated-agent';
+import { createAuthenticatedAgent, type E2eAgent } from './authenticated-agent';
 import { FakeLlmGateway } from './fake-llm-gateway';
 
-/** REVIEW_TTL default 2h — anchors older than this are past the review window. */
+/** REVIEW_TTL default 2h - anchors older than this are past the review window. */
 const TTL_MS = 2 * 60 * 60 * 1000;
 const IDEA_ID = 'idea_ttl_1';
 
@@ -54,7 +51,9 @@ const completeContextBody = {
   },
   voice: { weDo: 'konkretnie', weDont: 'żargon' },
   cta: { items: [{ label: 'Napisz do nas', target: '/kontakt' }] },
-  audience: { profiles: [{ name: 'Founder SaaS', description: 'Founder SaaS B2B' }] },
+  audience: {
+    profiles: [{ name: 'Founder SaaS', description: 'Founder SaaS B2B' }],
+  },
   extras: { hashtags: ['#acme'] },
 };
 

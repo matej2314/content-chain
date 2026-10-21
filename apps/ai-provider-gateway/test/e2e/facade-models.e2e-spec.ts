@@ -27,7 +27,7 @@ describe('Facade Models API (E2E)', () => {
   afterAll(async () => {
     await closeE2eApp(app);
   });
-  describe('OpenAI — GET /openai/models', () => {
+  describe('OpenAI - GET /openai/models', () => {
     it('should return 401 when Authorization header is missing', async () => {
       await request(app.getHttpServer())
         .get(E2E_ROUTES.openAiModels)
@@ -69,7 +69,7 @@ describe('Facade Models API (E2E)', () => {
       expect(response.headers['x-request-id']).toBeDefined();
     });
   });
-  describe('OpenAI — GET /openai/models/:model', () => {
+  describe('OpenAI - GET /openai/models/:model', () => {
     it('should return model details for known alias', async () => {
       const response = await request(app.getHttpServer())
         .get(`${E2E_ROUTES.openAiModels}/${TEST_MODEL_ALIAS}`)
@@ -92,7 +92,7 @@ describe('Facade Models API (E2E)', () => {
       );
     });
   });
-  describe('Anthropic — GET /anthropic/models', () => {
+  describe('Anthropic - GET /anthropic/models', () => {
     it('should return 401 when x-api-key header is missing', async () => {
       await request(app.getHttpServer())
         .get(E2E_ROUTES.anthropicModels)
@@ -127,7 +127,7 @@ describe('Facade Models API (E2E)', () => {
       });
     });
   });
-  describe('Anthropic — GET /anthropic/models/:model', () => {
+  describe('Anthropic - GET /anthropic/models/:model', () => {
     it('should return model dto for known alias', async () => {
       const response = await request(app.getHttpServer())
         .get(`${E2E_ROUTES.anthropicModels}/${E2E_SECOND_MODEL_ALIAS}`)

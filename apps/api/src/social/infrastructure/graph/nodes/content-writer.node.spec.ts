@@ -287,7 +287,7 @@ describe('createContentWriterNode', () => {
 
     const userContent = hopUserContent(hop);
     expect(userContent).toContain(
-      '[] — brak wybranych pomysłów; generuj scenariusz wyłącznie z brief.topic, brief.goal i kontekstu firmy',
+      '[] - brak wybranych pomysłów; generuj scenariusz wyłącznie z brief.topic, brief.goal i kontekstu firmy',
     );
   });
 
@@ -332,7 +332,7 @@ describe('createContentWriterNode', () => {
     expect(userContent).toContain(JSON.stringify([otherReel]));
     expect(userContent).not.toContain(JSON.stringify(reelIdea));
     expect(userContent).not.toContain(
-      '[] — brak wybranych pomysłów; generuj scenariusz wyłącznie z brief.topic, brief.goal i kontekstu firmy',
+      '[] - brak wybranych pomysłów; generuj scenariusz wyłącznie z brief.topic, brief.goal i kontekstu firmy',
     );
   });
 });

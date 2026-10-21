@@ -13,7 +13,7 @@ const REQUEST_ID = createRequestId(
 );
 
 const EMPTY_OUTLINE_INSTRUCTION =
-  'brak outline — pisz z ContentBrief (topic / angle / goal / targetLength)';
+  'brak outline - pisz z ContentBrief (topic / angle / goal / targetLength)';
 
 const SAMPLE_OUTLINE: PageOutline = {
   id: 'outl_1',

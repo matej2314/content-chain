@@ -19,7 +19,7 @@ export type LandingStep = {
 export type LandingTech = {
   readonly name: string;
   readonly icon: string;
-  /** Kolor marki — tylko gdy SVG jest monochrome (bez fillów w assetcie). */
+  /** Kolor marki - tylko gdy SVG jest monochrome (bez fillów w assetcie). */
   readonly color?: string;
 };
 
@@ -92,13 +92,13 @@ export const LANDING_COPY = {
   audienceSection: {
     title: 'Dla kogo',
     supporting:
-      'Content Chain skraca drogę od briefu do gotowego materiału w zespole, który chce kontrolować głos marki i przebieg pracy agentów — bez oddawania procesu zewnętrznemu narzędziu.',
+      'Content Chain skraca drogę od briefu do gotowego materiału w zespole, który chce kontrolować głos marki i przebieg pracy agentów - bez oddawania procesu zewnętrznemu narzędziu.',
   },
   personas: [
     {
       icon: 'mdi:rocket-launch-outline',
       title: 'Founderzy i małe zespoły',
-      body: 'Szybciej od pomysłu do pierwszej wersji contentu — bez osobnego, ciężkiego procesu redakcyjnego na każdy post czy stronę.',
+      body: 'Szybciej od pomysłu do pierwszej wersji contentu - bez osobnego, ciężkiego procesu redakcyjnego na każdy post czy stronę.',
     },
     {
       icon: 'mdi:bullhorn-outline',

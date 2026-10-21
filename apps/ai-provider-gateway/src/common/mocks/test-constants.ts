@@ -24,7 +24,7 @@ import {
 export const VALID_CONVERSATION_ID =
   'conv_123e4567-e89b-12d3-a456-426614174000';
 
-/** UUID v4 for jest `uuid` mocks — yields valid `conv_${MOCK_UUID}` */
+/** UUID v4 for jest `uuid` mocks - yields valid `conv_${MOCK_UUID}` */
 export const MOCK_UUID = '123e4567-e89b-12d3-a456-426614174000';
 
 export const TEST_CONVERSATION_ID = asConversationId(VALID_CONVERSATION_ID);

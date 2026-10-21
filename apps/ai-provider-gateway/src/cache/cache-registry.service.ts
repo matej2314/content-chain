@@ -39,7 +39,7 @@ export class CacheRegistryService {
     const noop = this.backends.get('noop');
     if (!noop) {
       throw new Error(
-        '[CacheRegistryService] cache backend "noop" is required — ensure NoOpCacheBackend runs onModuleInit before resolve()',
+        '[CacheRegistryService] cache backend "noop" is required - ensure NoOpCacheBackend runs onModuleInit before resolve()',
       );
     }
     return noop;

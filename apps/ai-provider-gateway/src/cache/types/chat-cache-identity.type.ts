@@ -7,7 +7,7 @@ import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider
 
 /**
  * Message slice used for exact-key hashing and semantic last-user / single-turn
- * gates. Not an HTTP DTO — no Swagger / class-validator.
+ * gates. Not an HTTP DTO - no Swagger / class-validator.
  */
 export type CacheIdentityMessage = {
   role: 'user' | 'assistant' | 'tool';

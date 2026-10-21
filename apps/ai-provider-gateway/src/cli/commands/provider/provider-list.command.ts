@@ -10,7 +10,7 @@ interface ProviderListOptions {
   json?: boolean;
 }
 
-/** Structural provider rows: refs only — never env values. */
+/** Structural provider rows: refs only - never env values. */
 function toSafeProviderList(config: GatewayConfig) {
   return Object.entries(config.providers).map(([id, provider]) => ({
     id,

@@ -30,7 +30,7 @@
 **/*.e2e-spec.ts
 **/mocks/
 
-# Runtime LLM prompts in gateway src — not architecture docs
+# Runtime LLM prompts in gateway src - not architecture docs
 **/src/**/*.md
 
 # package.json / tsconfig / openapi are "code" to Graphify

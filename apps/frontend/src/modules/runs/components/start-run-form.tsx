@@ -144,7 +144,7 @@ type StartState =
 
 const INITIAL_START_STATE: StartState = { status: 'idle' };
 
-/** Dropdown list only (`option`) — same surface as `DialogContent` (`bg-popover`). */
+/** Dropdown list only (`option`) - same surface as `DialogContent` (`bg-popover`). */
 const START_RUN_SELECT_LIST_CLASS = '[&_option]:bg-popover';
 
 type StartRunFormProps = {
@@ -351,7 +351,7 @@ export function StartRunForm({
         <FormField
           label="Opis grupy"
           htmlFor={`${idPrefix}-audience-custom`}
-          hint="Opis odbiorcy w briefie — bez dopasowania do katalogu."
+          hint="Opis odbiorcy w briefie - bez dopasowania do katalogu."
         >
           <Input
             id={`${idPrefix}-audience-custom`}

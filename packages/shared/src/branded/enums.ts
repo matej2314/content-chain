@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Enumy kontraktu MVP — wartości z docs/brand_types.md
+// Enumy kontraktu MVP - wartości z docs/brand_types.md
 // Schemy Zod dla tych enumów żyją w apps/api (application), NIE tutaj.
 // ---------------------------------------------------------------------------
 

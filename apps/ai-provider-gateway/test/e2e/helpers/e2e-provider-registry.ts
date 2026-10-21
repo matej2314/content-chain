@@ -199,7 +199,7 @@ export function createE2eProviderRegistry(
       .mockResolvedValue(
         createDefaultCompleteResponse(options.completeResponse),
       ),
-    // Fresh StreamResult per call — a consumed async generator cannot be replayed.
+    // Fresh StreamResult per call - a consumed async generator cannot be replayed.
     stream: jest
       .fn()
       .mockImplementation(() => createStreamResult(streamOptions)),

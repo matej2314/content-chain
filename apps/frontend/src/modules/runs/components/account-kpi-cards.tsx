@@ -115,7 +115,7 @@ export function AccountKpiCards() {
   const { summary } = matched;
   const topLabel =
     summary.topTaskTypeLast30d === null
-      ? '—'
+      ? '-'
       : RUN_TASK_TYPE_LABELS[summary.topTaskTypeLast30d];
 
   const cards: readonly { readonly title: string; readonly value: string }[] = [

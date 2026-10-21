@@ -90,7 +90,7 @@ describe('Gateway OpenAI-compatible providers (integration)', () => {
   // Dynamically generate test suites for each openai-compatible provider
   openAiCompatibleProviders.forEach(
     ({ instanceId, config, modelAlias, modelId }) => {
-      // Skip when disabled — do not read INTEGRATION_* for that provider.
+      // Skip when disabled - do not read INTEGRATION_* for that provider.
       // When enabled, still skip if INTEGRATION_{ID}_API_KEY / BASE_URL are missing.
       const providerEnabled = config.enabled === true;
       const describeProvider =

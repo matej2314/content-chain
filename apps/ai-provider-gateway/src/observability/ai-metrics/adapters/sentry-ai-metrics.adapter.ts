@@ -68,7 +68,7 @@ function applyGenAiMessagesToSpan(
   }
 }
 
-/** Multi-turn grouping — only when the client sent conversationId. */
+/** Multi-turn grouping - only when the client sent conversationId. */
 function applyGenAiConversationIdToSpan(
   span: Span,
   conversationId: ConversationId,

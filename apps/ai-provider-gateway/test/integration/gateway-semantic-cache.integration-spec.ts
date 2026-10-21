@@ -44,7 +44,7 @@ const EMBEDDING_MODEL = 'qwen3-embedding:0.6b';
 const EXPECTED_INDEX = semanticIndexName(EMBEDDING_MODEL, EMBEDDING_DIM);
 const MIN_SIMILARITY = 0.9;
 
-/** Same constant vector for store + lookup — no live Ollama. */
+/** Same constant vector for store + lookup - no live Ollama. */
 const FIXED_VECTOR = Array.from(
   { length: EMBEDDING_DIM },
   (_, i) => ((i % 17) + 1) / 17,

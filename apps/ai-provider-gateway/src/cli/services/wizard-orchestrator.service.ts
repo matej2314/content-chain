@@ -110,7 +110,7 @@ export class WizardOrchestratorService {
     }
   }
 
-  // AGENT-MODE: non-interactive path — no inquirer; operator secrets deferred to .env
+  // AGENT-MODE: non-interactive path - no inquirer; operator secrets deferred to .env
   runFromAnswers(answers: InitAnswers): WizardRunResult {
     const state: WizardState = {
       sessionId: crypto.randomUUID(),

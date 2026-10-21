@@ -14,7 +14,7 @@ export type CreateSecurityAppOptions = {
   config?: MockConfigServiceOptions;
   providerRegistry?: E2eProviderRegistryMock;
   rateLimiter?: Partial<SmartRateLimiterService>;
-  /** When true, applies `helmet()` before `setupApp()` — same order as `src/main.ts`. */
+  /** When true, applies `helmet()` before `setupApp()` - same order as `src/main.ts`. */
   applyHelmet?: boolean;
 };
 

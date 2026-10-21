@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { renderTransactionalMail } from './render-transactional-mail';
 import type {
   TransactionalMailer,
   TransactionalMail,
@@ -9,16 +10,15 @@ export class LoggingMailerAdapter implements TransactionalMailer {
   private readonly logger = new Logger(LoggingMailerAdapter.name);
 
   send(message: TransactionalMail): Promise<void> {
+    const rendered = renderTransactionalMail(message);
     if (message.kind === 'user_invited') {
-      const text = `Open: ${message.acceptUrl}\nToken: ${message.rawToken}`;
       this.logger.log(
-        `user_invited to=${message.to} invitationId=${message.invitationId} ${text}`,
+        `${message.kind} to=${message.to} invitationId=${message.invitationId} subject=${rendered.subject} Open: ${message.acceptUrl} Token: ${message.rawToken}`,
       );
       return Promise.resolve();
     }
-    const text = `Open: ${message.activateUrl}\nToken: ${message.rawToken}`;
     this.logger.log(
-      `user_activation to=${message.to} activationId=${message.activationId} ${text}`,
+      `${message.kind} to=${message.to} activationId=${message.activationId} subject=${rendered.subject} Open: ${message.activateUrl} Token: ${message.rawToken}`,
     );
     return Promise.resolve();
   }

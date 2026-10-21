@@ -50,7 +50,7 @@ describe('Gateway chat cache Redis (integration)', () => {
     await closeIntegrationApp(app);
   });
 
-  it('miss then hit — provider.complete called exactly once', async () => {
+  it('miss then hit - provider.complete called exactly once', async () => {
     const first = await request(app.getHttpServer())
       .post(INTEGRATION_ROUTES.chat)
       .set('x-gateway-key', getIntegrationGatewayKey())

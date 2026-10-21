@@ -28,7 +28,7 @@ export interface AgentReport {
 
 /** Exit: 0 success, 2 awaiting_secrets (human .env handoff), 1 error */
 export function exitCodeForReport(report: AgentReport): 0 | 1 | 2 {
-  // status is authoritative for the handoff gate (plan §3) — check before !ok
+  // status is authoritative for the handoff gate (plan §3) - check before !ok
   if (report.status === 'awaiting_secrets') return 2;
   if (report.status === 'error' || !report.ok) return 1;
   return 0;

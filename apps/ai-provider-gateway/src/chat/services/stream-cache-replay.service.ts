@@ -8,7 +8,7 @@ import type {
   RequestId,
 } from '../../common/types/branded.types';
 
-/** Stała brief D8 / Q3 — nie konfigurowalna w YAML v1. */
+/** Stała brief D8 / Q3 - nie konfigurowalna w YAML v1. */
 export const STREAM_CACHE_REPLAY_CHUNK_SIZE = 64;
 
 export type StreamCacheReplayInput = {
@@ -17,7 +17,7 @@ export type StreamCacheReplayInput = {
   requestId: RequestId;
   conversationId: ConversationId;
   emit: (event: SseEvent) => void;
-  /** Gdy true — przerwij emit (abort / writableEnded). */
+  /** Gdy true - przerwij emit (abort / writableEnded). */
   shouldAbort?: () => boolean;
 };
 
@@ -65,7 +65,7 @@ export class StreamCacheReplayService {
         name: 'delta',
         data: { text: text.slice(i, i + STREAM_CACHE_REPLAY_CHUNK_SIZE) },
       });
-      // delay = 0 — brak sleep (brief D8)
+      // delay = 0 - brak sleep (brief D8)
     }
 
     if (shouldAbort?.()) return;

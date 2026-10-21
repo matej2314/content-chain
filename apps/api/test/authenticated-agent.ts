@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../src/shared/persistence/prisma.service';
 
-/** Cookie-jar agent — SPEC-TESTY T-3 (cc_access / cc_refresh, bez Bearer). */
+/** Cookie-jar agent - SPEC-TESTY T-3 (cc_access / cc_refresh, bez Bearer). */
 export type E2eAgent = ReturnType<typeof request.agent>;
 
 export const E2E_ADMIN_CREDENTIALS = {

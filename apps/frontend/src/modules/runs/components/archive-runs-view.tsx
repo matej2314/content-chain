@@ -37,7 +37,7 @@ import type { ArchiveRunsPage } from '@/modules/runs/api/runs.types';
 
 const REFRESH_MS = 15 * 60 * 1000;
 
-/** Dropdown list only (`option`) — same surface as `DialogContent` (`bg-popover`). */
+/** Dropdown list only (`option`) - same surface as `DialogContent` (`bg-popover`). */
 const ARCHIVE_SELECT_LIST_CLASS = '[&_option]:bg-popover';
 
 type StatusFilter = 'all' | 'completed' | 'failed' | 'cancelled';

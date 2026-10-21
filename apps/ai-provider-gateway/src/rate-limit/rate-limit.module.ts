@@ -14,7 +14,7 @@ export class RateLimitModule {
    * Redis is provided by CacheModule only when a consumer needs it
    * (`includeRedisStack` / `isRedisRequiredFromEnv`). When
    * `smartRateLimitEnabled` is false and cache is not redis, Redis is absent
-   * from DI — `SmartRateLimiterService` must treat it as optional.
+   * from DI - `SmartRateLimiterService` must treat it as optional.
    */
   static register(options: RateLimitModuleOptions): DynamicModule {
     return {
