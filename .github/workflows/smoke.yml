@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout ${{ inputs.branch }}
-        uses: actions/checkout@v4
+        uses: actions/setup-node@v4
         with:
           ref: ${{ inputs.branch }}
 
@@ -190,7 +190,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout ${{ inputs.branch }}
-        uses: actions/checkout@v4
+        uses: actions/setup-node@v4
         with:
           ref: ${{ inputs.branch }}
 
@@ -227,7 +227,7 @@ jobs:
           --health-retries 10
     steps:
       - name: Checkout ${{ inputs.branch }}
-        uses: actions/checkout@v4
+        uses: actions/setup-node@v4
         with:
           ref: ${{ inputs.branch }}
 
