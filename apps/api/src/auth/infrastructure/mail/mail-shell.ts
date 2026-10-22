@@ -1,5 +1,6 @@
-import { MAIL_PALETTE } from './mail-palette';
+import { BRAND_CID } from './brand-cid-attachments';
 import { escapeHtml } from './escape-html';
+import { MAIL_PALETTE } from './mail-palette';
 
 export type MailShellContent = {
   heading: string;
@@ -55,8 +56,8 @@ export function wrapMailHtml(content: MailShellContent): string {
       <td align="center" style="padding:32px 16px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:${p.panel};border-radius:12px;border:1px solid ${p.primary};">
           <tr>
-            <td style="padding:24px 28px 8px 28px;font-family:Arial,Helvetica,sans-serif;font-size:13px;letter-spacing:0.04em;text-transform:uppercase;color:${p.primary};">
-              Content Chain
+            <td style="padding:24px 28px 8px 28px;">
+              <img src="cid:${BRAND_CID.logo}" alt="Content Chain" width="160" style="max-width:100%;height:auto;display:block;" />
             </td>
           </tr>
           <tr>

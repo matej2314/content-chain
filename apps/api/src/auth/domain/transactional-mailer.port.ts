@@ -20,7 +20,18 @@ export type UserActivationMail = {
   validityLabel: string;
 };
 
-export type TransactionalMail = UserInvitedMail | UserActivationMail;
+export type UserWelcomeMail = {
+  kind: 'user_welcome';
+  to: string;
+  email: string;
+  appPublicUrl: string;
+  login: string;
+};
+
+export type TransactionalMail =
+| UserInvitedMail 
+| UserActivationMail 
+| UserWelcomeMail;
 
 export interface TransactionalMailer {
   send(message: TransactionalMail): Promise<void>;

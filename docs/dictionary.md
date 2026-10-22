@@ -1,7 +1,7 @@
 ---
-wersja: 26
+wersja: 27
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-21
+data_modyfikacji: 2026-10-22
 ---
 
 # Słownik — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-21
 Kanoniczne definicje pojęć domenowych i technicznych. Identyfikatory typów, kodów i pól API w backtickach; opisy po polsku.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `observability.md`.
+
+Zmiana względem wersji 26 / shell mailera: slot brandu HTML = tekst. Od tej wersji: marka w headerze wspólnego shella HTML = **logotyp CID** (nie sam tekst w slocie); plain text / subject / body — string marki — `brand_types.md`.
 
 Zmiana względem wersji 25 / „raw token w mailu”: hasła Invitation / AccountActivation sugerujące osobną linię plaintext w body. Od tej wersji: raw w **URL** deep linku wiadomości (+ log DX poza `production`); bez wymogu linii Postman w treści — `dokumentacja_komunikacji.md`, `security.md`.
 
@@ -122,6 +124,7 @@ Zmiana względem: hasło `guest` / `FORBIDDEN` bez wyjątku podglądu archiwum c
 | **Otwarta rejestracja** | Publiczny `POST /api/v1/auth/register` `{ email, password }`. Zawsze dostępny (**nie** zależy od `DEMO_MODE` — signup **nie** jest „tylko demo”). **Zmiana względem:** po planie register serwer **zawsze** `role = user`. **Refaktor:** `DEMO_MODE=true` → **`guest`**; `DEMO_MODE=false` → **`user`**. Body **bez** `role`. **Nigdy** `admin`. Przed create **revoke** `Invitation` `pending` na email. **201** `{ user: { id, email, role, verifiedAt } }`. W `production`: pending (`verifiedAt = null` + `AccountActivation` + mail) — **także** dla `guest`; poza prod: `verifiedAt` od razu. Kolizja email (aktywny **lub** soft-deleted) → **409**, `message`: **`Email already in use`**. **Bez** Set-Cookie. |
 | **Aktywacja konta** | Weryfikacja e-mail po register w `production`: `POST /auth/activate` `{ token }` ustawia `User.verifiedAt` i usuwa `AccountActivation`. Deep link FE → widok logowania + toast. Po sukcesie activate — skutek uboczny mail **`user_welcome`** (best-effort). **Nie** mylić z **reaktywacją** (soft-deleted `user`), **dezaktywacją**, **usunięciem trwałym gościa** ani z **confirm e-mail** przy zmianie adresu (**V1**). `isActive` ≠ `verifiedAt`. |
 | **`user_welcome`** | Kind mailera transakcyjnego: powitalna wiadomość **po** udanym `POST /auth/activate` (self-register w `production`). Treść **PL** (HTML + plain text; samouczek / ścieżki UI); obrazy **CID** w warstwie mail I/O; pola `email`, `appPublicUrl`, `login`. Odbiorcy `role ∈ { user, guest }` — **nie** admin. **Best-effort:** pad SMTP **nie** zmienia odpowiedzi sukcesu activate (**bez** `MAIL_DELIVERY_FAILED`). **Nie** przy invite / bootstrap / register poza activate. **Nie** mylić z `user_activation` (link aktywacji). |
+| **Shell maili (marka)** | Wspólny layout HTML+text kinds Auth (`user_invited` \| `user_activation` \| `user_welcome`, …): w **headerze HTML** marka = **logotyp CID** (nie sam tekst w slocie); plain text / subject / copy body — string „Content Chain”. Norma: `brand_types.md`; lokalizacja I/O: `architektura_katalogi_pliki.md`. |
 | **`verifiedAt`** | Pole `User` (`DateTime?`): `null` = nieaktywowane linkiem (pending w prod); po sukcesie activate = timestamp. Poza `production` ustawiane przy register. Soft-delete **nie** czyści `verifiedAt`. |
 | **`AccountActivation`** | Tabela tokenu aktywacji: `id` = **`act_<uuid>`**; **`tokenHash`** (unikalny) + **`userId`** (unikalny) + `expiresAt` (TTL `ACTIVATION_TTL`, default `7d`). Raw tylko w **URL** maila / logu DX (nie osobna linia body). Po activate — delete wierszy dla usera; przy soft-delete `user` oraz hard/purge `guest` — delete wierszy activation. Kind mailera aktywacji: `user_activation` (obok `user_invited` i `user_welcome`). |
 | **Resend aktywacji** | Publiczny `POST /auth/resend-activation` (np. `{ email }`): zawsze **200**, `message`: **`Wiadomość wysłana ponownie`**; mail + rotacja tokenu tylko przy pending; rate limit **5** / **15 min** / email; **bez** **503** na SMTP. **Bez** enumeracji stanu konta. |

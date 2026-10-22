@@ -4,7 +4,10 @@
   "sourceRoot": "src",
   "compilerOptions": {
     "deleteOutDir": true,
-    "assets": ["**/*.prompt.md"],
+    "assets": [
+      "**/*.prompt.md",
+      "auth/infrastructure/mail/assets/**/*"
+    ],
     "watchAssets": true
   }
 }

@@ -1,12 +1,14 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-20
+data_modyfikacji: 2026-10-22
 ---
 
 # Architektura katalogów i plików — Content Chain
 
 Propozycja **docelowego drzewa** monorepo (greenfield). Odzwierciedla style i granice z `architektura.md`: trzy aplikacje pod `apps/`, wspólne typy w `packages/shared`, `docs/` w rootcie. **Bez** rootowego katalogu `src/` opakowującego aplikacje.
+
+Zmiana względem wersji 7 / mail CID: drzewo wymieniało CID głównie jako zrzuty `user_welcome`. Od tej wersji w `infrastructure/mail/` żyje także **asset logotypu** wspólnego shella (CID marki w headerze HTML dla wszystkich kinds) — obok assets welcome; nadal wyłącznie I/O, **nie** domain/use-case / FE.
 
 Zmiana względem wersji 6 / kinds: szablony Auth bez `user_welcome`. Od tej wersji kind **`user_welcome`** = szablon HTML+text we wspólnym shellu + assety zrzutów jako załączniki **CID** w `infrastructure/mail/` (I/O) — **nie** w domain/use-case; **bez** osobnego BC ani szablonów FE.
 
@@ -195,11 +197,12 @@ apps/api/src/auth/
     │                                # szablony HTML (+ plain text), wspólny shell
     │                                # (header / footer / CTA), renderer przed send;
     │                                # kinds: user_invited | user_activation | user_welcome;
-    │                                # CID / inline assets (zrzuty welcome) — tylko tu
+    │                                # CID / inline assets: logotyp shella (marka) +
+    │                                # zrzuty welcome — tylko tu
     └── session/                     # cookie + JwtCookieStrategy
 ```
 
-`infrastructure/mail/` to **jedyna** lokalizacja treści maili transakcyjnych (szablony + shell + renderer + załączniki CID). Use case woła port (`kind` + pola wiadomości); HTML/text i CID powstają wyłącznie w adapterze / rendererze I/O. **Bez** nowego BC „Email”; **bez** szablonów w `apps/frontend` ani osobnym package (React Email / JSX poza zakresem). Kierunek zależności warstw Auth — bez zmian.
+`infrastructure/mail/` to **jedyna** lokalizacja treści maili transakcyjnych (szablony + shell + renderer + załączniki CID — w tym **asset logotypu** marki w headerze shella oraz zrzuty `user_welcome`). Use case woła port (`kind` + pola wiadomości); HTML/text i CID powstają wyłącznie w adapterze / rendererze I/O. **Bez** nowego BC „Email”; **bez** szablonów w `apps/frontend` ani osobnym package (React Email / JSX poza zakresem). Kierunek zależności warstw Auth — bez zmian. Norma marki w HTML: `brand_types.md`.
 
 `auth.helpers.ts` (jeśli obecny) **nie** przenosi się do `helpers/` — świadomy dług nazwy; poza zakresem normy drzewa.
 

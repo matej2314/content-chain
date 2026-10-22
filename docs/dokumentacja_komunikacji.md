@@ -1,5 +1,5 @@
 ---
-wersja: 26
+wersja: 27
 data_utworzenia: 2026-09-18
 data_modyfikacji: 2026-10-22
 ---
@@ -12,6 +12,8 @@ Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
 2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
 
 **Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+
+Zmiana względem wersji 26 / shell maili: slot brandu w headerze HTML = tekstowy wordmark. Od tej wersji: header wspólnego shella HTML = **logotyp CID** (norma marki wizualnej — `brand_types.md`); subject, copy body i plain text — string „Content Chain” **bez** regresji (logo nie zastępuje nazwy w prozie). Kinds / PL / welcome best-effort / envelope HTTP — bez zmian.
 
 Zmiana względem wersji 25 / Faza 25.5 (copy ważności invite–activation): kanon osobnego zdania „Link wygasa po {X}.” oraz przykład dopełniacza `7d` → „7 dni”. Od tej wersji: **jedno** zdanie body **„Link jest jednorazowy i wygasa po {X}.”**; {X} = ludzki zapis TTL w **miejscowniku** po przyimku „po” (np. `7d` → **„7 dniach”**); analogicznie inne jednostki parsera (`d` / `h` / `m` / domyślnie sekundy). **Bez** formuły „po upływie …” jako obejścia przypadka. `validityLabel` z application = **pełne** to zdanie (szablon tylko inject — bez osobnego prefiksu „Link jest jednorazowy.”). URL-only, default env **`7d`** / **`7d`**, zakaz TTL w szablonach — bez regresji.
 
@@ -342,6 +344,8 @@ Porównanie `email` (**Invitation** i **User**) jest **case-sensitive** — bez 
 | `DELETE` | `/api/v1/invitations/:id` | Revoke pending: status `revoked` (token nieważny). **Nie** twardy DELETE wiersza — osobny zasób Invitation (nie mylić z hard `guest`). |
 
 Mail invite / activation zawiera jednorazowy token **wyłącznie w deep linku** (CTA + ewentualne „skopiuj link” = ten sam URL). Body produktowe **nie** wymaga osobnej linii raw (np. „Token (np. Postman): …”). **Kanon URL w mailu zaproszenia:** `{APP_PUBLIC_URL}/invite/accept?token={raw}` — ta sama ścieżka co publiczny ekran FE (`docs/ux_dashboard.md`). **Nigdy** hasła. TTL zaproszenia: env `INVITE_TTL`, default **`7d`** (ten sam parser co JWT TTL). Copy PL ważności (jedno zdanie): **„Link jest jednorazowy i wygasa po {X}.”** — {X} = ludzki zapis aktualnej wartości `INVITE_TTL` w **miejscowniku** po „po” (jednostki parsera, np. `7d` → **„7 dniach”**); fill `validityLabel` w application z env — szablony bez env / parsowania TTL. Mail aktywacji konta (`user_activation`): `{APP_PUBLIC_URL}/?activationToken={raw}`; TTL: `ACTIVATION_TTL`, default **`7d`**; ta sama formuła ważności z `ACTIVATION_TTL`. Mail powitalny (`user_welcome`): **po** sukcesie activate; treść PL (samouczek / ścieżki UI); injection `email`, `appPublicUrl`, `login` — **bez** tokenu w URL ani w body; **nie** przy invite / bootstrap / register poza activate (`deployment.md`).
+
+**Identyfikacja marki w treści maili (HTML + plain text):** wszystkie kinds przez wspólny shell — w **headerze HTML** slot brandu = **logotyp CID** (pełna norma: `brand_types.md`); subject i body produktowe oraz plain text — string „Content Chain” bez regresji PL / kinds / welcome best-effort. Kontrakty HTTP activate / invite / envelope — **bez** zmian z powodu formy brandu.
 
 **Weryfikacja MVP bez FE:** Postman (cookie jar admina z kolekcji auth) + token z **query deep linku** w mailu SMTP albo z logu api (`development` — URL + raw DX). Kolejność: login admina → `POST /invitations` → token z URL/logu → request **bez** cookie admina: `POST /auth/accept-invite` → `POST /auth/login` nowym kontem. Negatywy: drugi accept tego tokenu → **401**; `user` woła `POST /invitations` → 403; revoke / wygasły token → **401**; ważny token + istniejący `User.email` (także soft-deleted) → **401** (ten sam `message` co zły token; invite `revoked`; **nie** 409); drugi `POST /invitations` przy istniejącym pending (w tym wygasłym) → 409.
 

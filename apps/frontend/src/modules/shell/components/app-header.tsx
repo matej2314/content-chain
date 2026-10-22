@@ -18,6 +18,7 @@ import {
   FeedbackCtaSlot,
 } from '@/modules/shell/components/chrome-slots';
 import { LogoutDialog } from '@/modules/shell/components/logout-dialog';
+import { SidebarBrandMark } from '@/modules/shell/components/sidebar-brand-mark';
 import { navItemsForRole } from '@/modules/shell/nav';
 import { sidebarNavItemClassName } from '@/modules/shell/sidebar-nav-item';
 import type { SessionUser } from '@/modules/auth/api/session.types';
@@ -48,7 +49,9 @@ export function AppHeader({ user }: AppHeaderProps) {
 
   return (
     <header className="sticky top-0 z-(--z-chrome) flex h-12 items-center border-b bg-background px-3">
-      <span className="text-sm font-medium lg:hidden">Content Chain</span>
+      <div className="lg:hidden">
+        <SidebarBrandMark />
+      </div>
       <div className="ml-auto flex items-center gap-2">
         <FeedbackCtaSlot />
         <DropdownMenu>

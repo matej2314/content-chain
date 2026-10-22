@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@iconify/react';
 import { CompletenessChipSlot } from '@/modules/shell/components/chrome-slots';
+import { SidebarBrandMark } from '@/modules/shell/components/sidebar-brand-mark';
 import { navItemsForRole } from '@/modules/shell/nav';
 import { sidebarNavItemClassName } from '@/modules/shell/sidebar-nav-item';
 import type { UserRole } from '@content-chain/shared';
@@ -19,7 +20,7 @@ export function AppSidebar({ role }: AppSidebarProps) {
   return (
     <aside className="flex h-full w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 items-center border-b border-sidebar-border px-3">
-        <p className="text-sm font-medium tracking-tight">Content Chain</p>
+        <SidebarBrandMark />
       </div>
       <nav className="flex flex-1 flex-col gap-0.5 overflow-visible px-8 py-4">
         {items.map((item) => {

@@ -2160,15 +2160,15 @@
     "semantic_hash": ""
   },
   "docs/architektura_katalogi_pliki.md": {
-    "mtime": 1792511959.1336687,
-    "seen": 1792575191.7386253,
-    "ast_hash": "c54f2efdd15a150ffd326434a971e956",
+    "mtime": 1792672000.9366107,
+    "seen": 1792672064.519022,
+    "ast_hash": "ab213c3c4b9c388c00cede991c095a30",
     "semantic_hash": ""
   },
   "docs/brand_types.md": {
-    "mtime": 1792511397.3179255,
-    "seen": 1792575191.738626,
-    "ast_hash": "693cb1ad950b657eb7c8aa39d1e823fd",
+    "mtime": 1792671962.2425878,
+    "seen": 1792672064.5190234,
+    "ast_hash": "eb5e374584641ca5c831a235a4db911a",
     "semantic_hash": ""
   },
   "docs/data_flow.md": {
@@ -2184,15 +2184,15 @@
     "semantic_hash": ""
   },
   "docs/dictionary.md": {
-    "mtime": 1792580054.502983,
-    "seen": 1792603236.5757709,
-    "ast_hash": "92bc892db9ce8583a69fa55defaf9b7e",
+    "mtime": 1792671988.2677057,
+    "seen": 1792672064.5190265,
+    "ast_hash": "e6cb0d1e630714ed74534bb29b98f119",
     "semantic_hash": ""
   },
   "docs/dokumentacja_komunikacji.md": {
-    "mtime": 1792660412.4308867,
-    "seen": 1792661739.4592893,
-    "ast_hash": "11a48095cde31c011ab4c699037da60e",
+    "mtime": 1792671977.3457878,
+    "seen": 1792672064.5190275,
+    "ast_hash": "308cc859448c8601791aba3aa3a240a2",
     "semantic_hash": ""
   },
   "docs/dokumentacja_koncepcyjna.md": {
@@ -2220,15 +2220,15 @@
     "semantic_hash": ""
   },
   "docs/ux_dashboard.md": {
-    "mtime": 1792430502.7959034,
-    "seen": 1792431574.248504,
-    "ast_hash": "9be37fe32e5f655ad2458c78133548a1",
+    "mtime": 1792671159.1019316,
+    "seen": 1792672064.5190313,
+    "ast_hash": "3e8dc469f5d50678c00dfd513c25cf7e",
     "semantic_hash": ""
   },
   "spec/SPEC-AUTH.md": {
-    "mtime": 1792660539.2140512,
-    "seen": 1792661739.4592936,
-    "ast_hash": "3cbe077dbd5d2fe52e127a1e18813e09",
+    "mtime": 1792672724.3442574,
+    "seen": 1792673676.135705,
+    "ast_hash": "f521f7a79456f99570a09d3aa051b6ef",
     "semantic_hash": ""
   },
   "spec/SPEC-BEZPIECZENSTWO.md": {
@@ -2244,9 +2244,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-FRONTEND.md": {
-    "mtime": 1792430502.8239865,
-    "seen": 1792431574.248507,
-    "ast_hash": "ecf04436db37b7710e642241ab95aedb",
+    "mtime": 1792671419.1199791,
+    "seen": 1792672064.5190356,
+    "ast_hash": "2a3586e9e24e36003f08111e6dd8f3c7",
     "semantic_hash": ""
   },
   "spec/SPEC-KOMUNIKACJA.md": {
@@ -2274,9 +2274,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-README.md": {
-    "mtime": 1792660566.746617,
-    "seen": 1792661739.4592993,
-    "ast_hash": "6c8c4332a675904f7bc404a992a4214a",
+    "mtime": 1792672707.0894668,
+    "seen": 1792673676.1357143,
+    "ast_hash": "e723109aa802964607a78ca0303600b1",
     "semantic_hash": ""
   },
   "spec/SPEC-RUNY.md": {
@@ -2292,9 +2292,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-TESTY.md": {
-    "mtime": 1792660551.7627518,
-    "seen": 1792661739.4593015,
-    "ast_hash": "cd274254db1c275d083c3895ac989d3c",
+    "mtime": 1792672728.281857,
+    "seen": 1792673676.1357174,
+    "ast_hash": "9035315aec94cc842537666b563fd932",
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/resume-hitl.use-case.ts": {
@@ -2994,9 +2994,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/domain/transactional-mailer.port.ts": {
-    "mtime": 1792601608.3739648,
-    "seen": 1792603236.5755157,
-    "ast_hash": "39e13341ccd371a3726726ab17c38567",
+    "mtime": 1792664816.6484423,
+    "seen": 1792667213.1324925,
+    "ast_hash": "41d70e0abcc0e926574a3ac4f83d5836",
     "semantic_hash": ""
   },
   "apps/api/src/auth/http/accept-invite.dto.ts": {
@@ -3318,15 +3318,15 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/app-header.tsx": {
-    "mtime": 1792416689.418931,
-    "seen": 1792424680.252418,
-    "ast_hash": "06288fd1babb83f415cbdefcc6888c07",
+    "mtime": 1792672482.619112,
+    "seen": 1792672497.7455745,
+    "ast_hash": "83bd6d26b8f77433ec1079c20e2e9451",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/app-sidebar.tsx": {
-    "mtime": 1792416689.4189615,
-    "seen": 1792424680.2524185,
-    "ast_hash": "5c056bda21e0deaed1efcae5057a962f",
+    "mtime": 1792672048.5732565,
+    "seen": 1792672064.5189824,
+    "ast_hash": "0bda5bf07ae0f555f499472f52fc2018",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/shell/components/chrome-slots.tsx": {
@@ -3786,9 +3786,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/activate-account.use-case.ts": {
-    "mtime": 1791367829.3625638,
-    "seen": 1792261760.1106348,
-    "ast_hash": "f6bcbda139b5acb7a7200a4ae4a9a52a",
+    "mtime": 1792666842.1471698,
+    "seen": 1792667213.132466,
+    "ast_hash": "26447747a02d8451d4a584ff601cec2f",
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/resend-activation.use-case.ts": {
@@ -3972,15 +3972,15 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/mail/logging-mailer.adapter.ts": {
-    "mtime": 1792576464.7498062,
-    "seen": 1792576965.1455965,
-    "ast_hash": "18591cf941fca155940badc7e3e079db",
+    "mtime": 1792666598.3894193,
+    "seen": 1792667213.1325092,
+    "ast_hash": "94cc0691631d535298e5e609771e244f",
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/mail/nodemailer-smtp-mailer.adapter.ts": {
-    "mtime": 1792576232.6789052,
-    "seen": 1792576965.1455996,
-    "ast_hash": "a3b94331de45815e2c17b85b71afe7cc",
+    "mtime": 1792666593.873453,
+    "seen": 1792667213.1325114,
+    "ast_hash": "ce6a2f163335685bbe3d9ec9b19c7722",
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/persistence/prisma-account-activation.adapter.ts": {
@@ -4284,9 +4284,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/landing/landing-view.tsx": {
-    "mtime": 1792510811.4357097,
-    "seen": 1792575191.7385643,
-    "ast_hash": "c64a4144c866cf1006a547c95efb1a06",
+    "mtime": 1792669601.1917331,
+    "seen": 1792672064.5189476,
+    "ast_hash": "2cdf9409f5a6fc9c1bc7e2071bac8c63",
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/mail/escape-html.ts": {
@@ -4302,15 +4302,15 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/mail/mail-shell.ts": {
-    "mtime": 1792574697.944634,
-    "seen": 1792575191.7383687,
-    "ast_hash": "9f833a2c48acf98909955c525e84acaf",
+    "mtime": 1792673643.4224715,
+    "seen": 1792673676.1353264,
+    "ast_hash": "55f11b7207f40930608e1a7a1c1d6f91",
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/mail/render-transactional-mail.ts": {
-    "mtime": 1792575148.9130797,
-    "seen": 1792575191.7383704,
-    "ast_hash": "e5739db9227e8dfca477c97f7d3460e7",
+    "mtime": 1792673647.5414412,
+    "seen": 1792673676.135329,
+    "ast_hash": "aef052e77fb7153b314c506d58fdeab1",
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/mail/templates/user-activation.template.ts": {
@@ -4320,15 +4320,57 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/mail/templates/user-invited.template.ts": {
-    "mtime": 1792662193.469624,
-    "seen": 1792662205.9026997,
-    "ast_hash": "f62c440a776eb5c45308a3d67f99d5ea",
+    "mtime": 1792671212.848528,
+    "seen": 1792672064.518738,
+    "ast_hash": "9f673f59e3fd0e5432613a8e9c1601e8",
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/format-mail-validity-label.ts": {
     "mtime": 1792661779.1983104,
     "seen": 1792662205.9026654,
     "ast_hash": "bc0e098b8545edca697b5e36d7b1e87a",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/infrastructure/mail/templates/user-welcome.template.ts": {
+    "mtime": 1792668315.696959,
+    "seen": 1792668332.1679306,
+    "ast_hash": "d18442a2be2da9ae2c2c51f17cdb53f6",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/infrastructure/mail/welcome-cid-attachments.ts": {
+    "mtime": 1792665244.0196342,
+    "seen": 1792667213.132516,
+    "ast_hash": "cc8bb907209ffd08aabf0384a8e14791",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/infrastructure/mail/assets/welcome/welcome-login.png": {
+    "mtime": 1792673271.5472143,
+    "seen": 1792673676.13572,
+    "ast_hash": "edc84e039842c3b1a172bb223f98bf59",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/infrastructure/mail/assets/welcome/welcome-runs.png": {
+    "mtime": 1792416689.4175253,
+    "seen": 1792673676.135721,
+    "ast_hash": "471ccddd5e6d0a9148dd9c0222074dd8",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/modules/shell/components/sidebar-brand-mark.tsx": {
+    "mtime": 1792672570.279397,
+    "seen": 1792673676.135651,
+    "ast_hash": "9ebbec9ad5bb1094a24e1787c32f461f",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/infrastructure/mail/brand-cid-attachments.ts": {
+    "mtime": 1792673639.9414973,
+    "seen": 1792673676.1353204,
+    "ast_hash": "b575445bfdcabeb71e94265cdc72e47d",
+    "semantic_hash": ""
+  },
+  "apps/api/src/auth/infrastructure/mail/assets/brand/content-chain-logo-transparent.png": {
+    "mtime": 1792520399.736887,
+    "seen": 1792673676.1357186,
+    "ast_hash": "7214360a91e661d8ab1531801d10bba9",
     "semantic_hash": ""
   }
 }

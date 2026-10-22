@@ -1,12 +1,14 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-20
+data_modyfikacji: 2026-10-22
 ---
 
 # Brand types — Content Chain
 
-Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time. Dopisek: **norma tokenów semantycznych CSS** pod szatę graficzną dashboardu i landingu na `/` (statusy runów, hero dashboardu / akcenty landingu, chipy, fonty, stany pozycji nawigacji) oraz **mapowanie ról kolorów maili transakcyjnych** z tego samego kanonu.
+Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time. Dopisek: **norma tokenów semantycznych CSS** pod szatę graficzną dashboardu i landingu na `/` (statusy runów, hero dashboardu / akcenty landingu, chipy, fonty, stany pozycji nawigacji), **mapowanie ról kolorów maili transakcyjnych** z tego samego kanonu oraz **marka wizualna** w wspólnym shellu HTML maili (logotyp CID).
+
+Zmiana względem wersji 9 / maile: slot brandu w headerze wspólnego shella HTML = tekstowy wordmark (uppercase „Content Chain”). Od tej wersji: slot = **logotyp** PNG dostarczany jako załącznik **CID** (wizualnie tożsamy z `apps/frontend/public/content-chain-logo-transparent.png`, intrinsic 530×275); `alt` = nazwa marki; plain text / subject / copy body — string „Content Chain” **bez** wymogu obrazu.
 
 Zmiana względem wersji 8 / tokeny: brak kanonu kolorystyki maili transakcyjnych. Od tej wersji: maile współdzielą role kolorów z produktem (dark shell, indigo/violet primary, teal CTA) mapowane z bieżącego `globals.css`; wartości hex/rgb w HTML = HOW przy implementacji — **bez** tabeli hex w docs; klienci poczty **nie** ładują CSS variables.
 
@@ -154,11 +156,27 @@ Maile transakcyjne (Auth `infrastructure/mail/`) **nie** ładują `globals.css` 
 
 | Element | Norma |
 |---------|--------|
-| Zakres | wszystkie kinds (`user_invited`, `user_activation`, …) — **jeden** wspólny shell kolorystyczny |
+| Zakres | wszystkie kinds (`user_invited`, `user_activation`, `user_welcome`, …) — **jeden** wspólny shell kolorystyczny |
 | Wartości hex/rgb w HTML | **HOW** feature-planu — odczyt z aktualnego `globals.css` przy implementacji; **bez** tabeli hex w tym dokumencie |
 | Zakaz | osobna paleta „tylko pod mail”; wymaganie CSS variables w kliencie poczty; rozjazd z redesignem UI |
 
 Zmiana względem: brak normy kolorystyki maili w docs. Od tej wersji maile = ten sam kierunek wizualny co dashboard / landing, z ograniczeniem kanału (inline, bez `@theme`).
+
+### Marka wizualna w shellu maili transakcyjnych
+
+Wspólny shell HTML maili Auth (`infrastructure/mail/`) ma w **headerze** slot brandu. Od tej wersji slot = **logotyp**, nie sam tekst marki.
+
+| Element | Norma |
+|---------|--------|
+| Forma w HTML | logotyp PNG (RGBA / przezroczysty), wizualnie tożsamy z `apps/frontend/public/content-chain-logo-transparent.png` (intrinsic **530×275**) |
+| Dostawa | lokalny plik + załącznik **CID** w warstwie mail I/O (`apps/api/.../infrastructure/mail/`); ścieżka pliku, `cid:` i szerokość wyświetlana = **HOW** — **bez** pinowania w tym dokumencie |
+| `alt` | nazwa marki (string copy brand: „Content Chain”) |
+| Zakres kinds | wszystkie kinds przez **jeden** wspólny shell (`user_invited` \| `user_activation` \| `user_welcome` oraz przyszłe w tym samym shellu) |
+| Tło slotu | wyłącznie tło zgodne z **dark** shell / panelem (tabela ról kolorów powyżej); **bez** osobnego wariantu logo na jasne tło |
+| Plain text / subject / copy body | string „Content Chain” — **bez** wymogu obrazu; logo **nie** zastępuje nazwy marki w prozie ani w plaintext |
+| Zakaz | kanon brandu HTML = wyłącznie tekst w slocie headera; osobny „light logo”; React Email / szablony we FE; montaż CID w domain / use-case |
+
+Zmiana względem Fazy 25 / dotychczasowego shella: header brand = tekstowy wordmark (uppercase). Od tej wersji = logotyp CID. Relacja do sidebara / landingu FE — poza zakresem tej normy.
 
 ### Stany pozycji nawigacji sidebara (teal/mint)
 

@@ -11,15 +11,29 @@ export class LoggingMailerAdapter implements TransactionalMailer {
 
   send(message: TransactionalMail): Promise<void> {
     const rendered = renderTransactionalMail(message);
-    if (message.kind === 'user_invited') {
-      this.logger.log(
-        `${message.kind} to=${message.to} invitationId=${message.invitationId} subject=${rendered.subject} Open: ${message.acceptUrl} Token: ${message.rawToken}`,
-      );
-      return Promise.resolve();
+    switch (message.kind) {
+      case 'user_invited':
+        this.logger.log(
+          `${message.kind} to=${message.to} invitationId=${message.invitationId} subject=${rendered.subject} Open: ${message.acceptUrl} Token: ${message.rawToken}`,
+        );
+        break;
+      case 'user_activation':
+        this.logger.log(
+          `${message.kind} to=${message.to} activationId=${message.activationId} subject=${rendered.subject} Open: ${message.activateUrl} Token: ${message.rawToken}`,
+        );
+        break;
+      case 'user_welcome':
+        this.logger.log(
+          `${message.kind} to=${message.to} email=${message.email} subject=${rendered.subject} Open: ${message.login}`,
+        );
+        break;
+      default: {
+        const _exhaustive: never = message;
+        throw new Error(
+          `Unhandled transactional mail kind: ${String(_exhaustive)}`,
+        );
+      }
     }
-    this.logger.log(
-      `${message.kind} to=${message.to} activationId=${message.activationId} subject=${rendered.subject} Open: ${message.activateUrl} Token: ${message.rawToken}`,
-    );
     return Promise.resolve();
   }
 }

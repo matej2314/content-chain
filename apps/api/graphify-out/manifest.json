@@ -12,9 +12,9 @@
     "semantic_hash": ""
   },
   "src/auth/application/activate-account.use-case.ts": {
-    "mtime": 1791367829.3625638,
-    "seen": 1792604395.3518622,
-    "ast_hash": "f6bcbda139b5acb7a7200a4ae4a9a52a",
+    "mtime": 1792666842.1471698,
+    "seen": 1792666855.135066,
+    "ast_hash": "26447747a02d8451d4a584ff601cec2f",
     "semantic_hash": ""
   },
   "src/auth/application/auth.helpers.ts": {
@@ -48,9 +48,9 @@
     "semantic_hash": ""
   },
   "src/auth/application/format-mail-validity-label.ts": {
-    "mtime": 1792603218.3786592,
-    "seen": 1792604395.351869,
-    "ast_hash": "8a9e028404c4c3065571c9cb400cd46a",
+    "mtime": 1792661779.1983104,
+    "seen": 1792666608.5449593,
+    "ast_hash": "bc0e098b8545edca697b5e36d7b1e87a",
     "semantic_hash": ""
   },
   "src/auth/application/invite-user.use-case.ts": {
@@ -186,9 +186,9 @@
     "semantic_hash": ""
   },
   "src/auth/domain/transactional-mailer.port.ts": {
-    "mtime": 1792601608.3739648,
-    "seen": 1792604395.3518891,
-    "ast_hash": "39e13341ccd371a3726726ab17c38567",
+    "mtime": 1792664816.6484423,
+    "seen": 1792666608.5449753,
+    "ast_hash": "41d70e0abcc0e926574a3ac4f83d5836",
     "semantic_hash": ""
   },
   "src/auth/domain/user-repository.port.ts": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "src/auth/infrastructure/mail/logging-mailer.adapter.ts": {
-    "mtime": 1792576464.7498062,
-    "seen": 1792604395.3518987,
-    "ast_hash": "18591cf941fca155940badc7e3e079db",
+    "mtime": 1792666598.3894193,
+    "seen": 1792666608.5449822,
+    "ast_hash": "94cc0691631d535298e5e609771e244f",
     "semantic_hash": ""
   },
   "src/auth/infrastructure/mail/mail-palette.ts": {
@@ -270,27 +270,27 @@
     "semantic_hash": ""
   },
   "src/auth/infrastructure/mail/nodemailer-smtp-mailer.adapter.ts": {
-    "mtime": 1792576232.6789052,
-    "seen": 1792604395.3519018,
-    "ast_hash": "a3b94331de45815e2c17b85b71afe7cc",
+    "mtime": 1792666593.873453,
+    "seen": 1792666608.5449843,
+    "ast_hash": "ce6a2f163335685bbe3d9ec9b19c7722",
     "semantic_hash": ""
   },
   "src/auth/infrastructure/mail/render-transactional-mail.ts": {
-    "mtime": 1792575148.9130797,
-    "seen": 1792604395.3519025,
-    "ast_hash": "e5739db9227e8dfca477c97f7d3460e7",
+    "mtime": 1792665995.2103858,
+    "seen": 1792666608.5449848,
+    "ast_hash": "723702f5fc07a875fbcccae35466e678",
     "semantic_hash": ""
   },
   "src/auth/infrastructure/mail/templates/user-activation.template.ts": {
-    "mtime": 1792604378.7767453,
-    "seen": 1792604395.3519032,
-    "ast_hash": "98ebf52996b2da13ea750e3d326140ce",
+    "mtime": 1792662197.0185962,
+    "seen": 1792666608.5449855,
+    "ast_hash": "edebc957f33df89876626119702bf8e6",
     "semantic_hash": ""
   },
   "src/auth/infrastructure/mail/templates/user-invited.template.ts": {
-    "mtime": 1792604373.652948,
-    "seen": 1792604395.351904,
-    "ast_hash": "d69a983a0457e9526c21b7fa90823ef1",
+    "mtime": 1792665066.8393013,
+    "seen": 1792666608.5449865,
+    "ast_hash": "4432cdf70e2ed2c8425c83de78eec99b",
     "semantic_hash": ""
   },
   "src/auth/infrastructure/persistence/prisma-account-activation.adapter.ts": {
@@ -1437,6 +1437,30 @@
     "mtime": 1791367829.3745825,
     "seen": 1792604395.352068,
     "ast_hash": "4d44ee70d8f020668514a1c8a45d1af3",
+    "semantic_hash": ""
+  },
+  "src/auth/infrastructure/mail/templates/user-welcome.template.ts": {
+    "mtime": 1792665716.4886818,
+    "seen": 1792666608.5449874,
+    "ast_hash": "dcb80e668e47d4feaed9327e9cac3cde",
+    "semantic_hash": ""
+  },
+  "src/auth/infrastructure/mail/welcome-cid-attachments.ts": {
+    "mtime": 1792665244.0196342,
+    "seen": 1792666608.5449882,
+    "ast_hash": "cc8bb907209ffd08aabf0384a8e14791",
+    "semantic_hash": ""
+  },
+  "src/auth/infrastructure/mail/assets/welcome/welcome-login.png": {
+    "mtime": 1792665371.470531,
+    "seen": 1792666608.5451152,
+    "ast_hash": "2cd8bde463f5d82aae0f0cec061d6b8f",
+    "semantic_hash": ""
+  },
+  "src/auth/infrastructure/mail/assets/welcome/welcome-runs.png": {
+    "mtime": 1792665371.470531,
+    "seen": 1792666608.545116,
+    "ast_hash": "2cd8bde463f5d82aae0f0cec061d6b8f",
     "semantic_hash": ""
   }
 }

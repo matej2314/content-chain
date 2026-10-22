@@ -1,7 +1,7 @@
 ---
-wersja: 38
+wersja: 40
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-10-19
+data_modyfikacji: 2026-10-22
 ---
 
 # UX Dashboard — Content Chain
@@ -9,6 +9,10 @@ data_modyfikacji: 2026-10-19
 Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / design systemu — widoki, stany i zachowanie względem API/SSE.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`, `brand_types.md`.
+
+Zmiana względem wersji 39 / logo-area sidebara: norma sticky chrome wymagała logotypu PNG **wyłącznie** na landingu `/` i **nie** w logo-area sidebara dashboardu. Od tej wersji logo-area sidebara (desktop `AppSidebar` **oraz** mobile sheet) = **ten sam** asset `/content-chain-logo-transparent.png` przez `next/image`; slot nadal `h-14` + `border-b`; wysokość wyświetlana obrazu dopasowana do slotu (np. `h-8` / `h-9` — precyzja HOW = feature plan), **nie** `h-20`; `w-auto`; `alt` = nazwa marki; **bez** linku. Sticky chrome landingu (`h-20`, `#top`) oraz brand / wordmark w hero — **bez zmian**.
+
+Zmiana względem wersji 38 / sticky chrome landingu: lewy brand w sticky chrome był **stringiem tekstowym** (nazwa marki z copy) **bez** wymogu assetu PNG. Od wersji 39 lewy brand sticky chrome = **statyczny logotyp** PNG przez `next/image` — ścieżka publiczna `/content-chain-logo-transparent.png` (origin FE / `public/`); proporcje zachowane (`w-auto`); wysokość wyświetlana **`h-20`**; `alt` = nazwa marki (string copy brand); link kotwicy `#top`. CTA wejścia chrome, kotwice, hero / audience / closing / footer — **bez zmian** poza formą lewego brandu. (Zakres sidebara — zmiana względem powyżej / v40.)
 
 Zmiana względem wersji 37 / closing landingu: sekcja **closing** miała **dwa** CTA (login + register), dublując parę sticky chrome. Od tej wersji closing = **jeden** przycisk z etykietą **„Sprawdzam!”** → modal auth w trybie **`register`**; wariant `Button` **`default`** (stylistyka filled CTA / gradient teal/mint — **bez** redefinicji; Paleta powyżej). Sticky chrome CTA wejścia (**„Zaloguj się”** / **„Załóż konto”**) oraz link „Zaloguj się” w footerze — **bez zmian**. Closing **nie** dubluje logowania; logowanie pozostaje w chrome i footerze. Auth / tryby modala / thank-you / activate / bootstrap CTA na register — **bez zmian** kontraktu poza punktem wejścia z closing.
 
@@ -138,7 +142,7 @@ Anonimowe `/` (brak ważnej sesji): **landing marketingowy** — treść **bez**
 
 Struktura IA (copy = placeholder / intencja; finalne brzmienie = feature plan):
 
-- **Sticky chrome** — brand + CTA wejścia: **„Zaloguj się”** → modal tryb `login`; **„Załóż konto”** → modal tryb `register`; kotwice do sekcji treści (w tym audience, wartości, Kontekst, Runy, proces) — spójnie z footerem.
+- **Sticky chrome** — lewy brand = **statyczny obraz** logotypu Content Chain (PNG), **nie** sam tekst nazwy marki: asset `/content-chain-logo-transparent.png` (origin FE / `public/`); forma `next/image` z zachowaniem proporcji (`w-auto`), wysokość wyświetlana **`h-20`**, `alt` = nazwa marki (string copy brand), link kotwicy `#top`. CTA wejścia: **„Zaloguj się”** → modal tryb `login`; **„Załóż konto”** → modal tryb `register`; kotwice do sekcji treści (w tym audience, wartości, Kontekst, Runy, proces) — spójnie z footerem. Parametry sticky chrome (`h-20`, `#top`) dotyczą **landingu** `/` — **nie** brand / wordmark w hero. Logo-area sidebara dashboardu = **ten sam** asset, osobna skala w slocie `h-14` (sekcja „Sidebar — logo i stany pozycji menu”).
 - **Hero** (+ istniejący proof hero / tech strip) — brand / headline / krótki supporting + grupa CTA; **proof** w hero = **realne screenshoty** panelu (asset produktowy; nie token CSS; montaż = feature plan).
 - **Sekcja „Dla kogo”** (audience; kotwica np. `#dla-kogo`) — **przed** sekcją wartości. Lead opisuje **wartość wnoszoną przez projekt do firmy / zespołu** (nie tylko „kim jesteś”). Forma: **trzy karty** (tytuł + body), tekstowe; **bez** wymogu screenshotów; **bez** nowej palety (dziedziczenie locku landingu). Persony (skrót / intencja):
   - **Founderzy / małe zespoły** — szybciej od pomysłu do pierwszej wersji contentu bez osobnego procesu redakcyjnego;
@@ -157,15 +161,19 @@ Stany pełnoekranowe na `/` **w szablonie landingu** (chrome landingu; **bez** n
 - **Thank-you** po register (`production`, sygnał `verifiedAt: null` / równoważny) — **nie** modal.
 - Zalogowany na `/` → redirect **`/account`** (**bez zmian**).
 
-Zmiana względem: norma **split-panel** (lewa dekoracja + prawa formularz; mobile = tylko formularz) oraz względem wyśrodkowanej karty na pełnej szerokości tła. Zmiana względem v36: IA bez sekcji audience — od v37 „Dla kogo” jest częścią kanonu (powyżej). Zmiana względem v37: closing z dwoma CTA (login + register) — od v38 jeden CTA „Sprawdzam!” → `register` (powyżej).
+Zmiana względem: norma **split-panel** (lewa dekoracja + prawa formularz; mobile = tylko formularz) oraz względem wyśrodkowanej karty na pełnej szerokości tła. Zmiana względem v36: IA bez sekcji audience — od v37 „Dla kogo” jest częścią kanonu (powyżej). Zmiana względem v37: closing z dwoma CTA (login + register) — od v38 jeden CTA „Sprawdzam!” → `register` (powyżej). Zmiana względem v38: sticky chrome brand jako tekst (string) — od v39 logotyp PNG (`/content-chain-logo-transparent.png`, `next/image`, `h-20` / `w-auto`, `alt` = brand, `#top`) — powyżej. Zmiana względem v39: logotyp PNG **tylko** sticky chrome — od v40 **także** logo-area sidebara (desktop + mobile sheet; skala w `h-14`, bez linku) — poniżej.
 
 ### Sidebar — logo i stany pozycji menu
 
-- Logo-area: `h-14` + `border-b` — **bez zmian**.
-- **Powierzchnie:** ta sama norma stanów na desktopie (`AppSidebar`) **oraz** w mobile sheet (lista pozycji).
-- **Poza zakresem tej normy:** tło całego sidebara (`--sidebar` / `bg-sidebar` aside); kolory CTA `Button` `default`; logo-area; chipy; IA pozycji; accordion / badge Hot·New.
+- Logo-area: `h-14` + `border-b` — **bez zmian** slotu.
+- **Brand w logo-area:** **statyczny logotyp** PNG `/content-chain-logo-transparent.png` (origin FE / `public/`) przez `next/image` — **nie** sam tekst nazwy marki; proporcje zachowane (`w-auto`); wysokość wyświetlana dopasowana do slotu (np. `h-8` / `h-9` — precyzja HOW = feature plan); **nie** `h-20` jak sticky chrome landingu; `alt` = nazwa marki (string copy brand); **bez** linku.
+- **Powierzchnie brandu:** ta sama norma na desktopie (`AppSidebar`) **oraz** w mobile sheet (brand w logo-area / równoważnym miejscu tożsamości chrome sidebara).
+- Sticky chrome landingu (`h-20`, link `#top`) — **bez zmian** (osobna powierzchnia od logo-area).
+- **Powierzchnie stanów nav:** ta sama norma stanów na desktopie (`AppSidebar`) **oraz** w mobile sheet (lista pozycji).
+- **Poza zakresem tej normy (stany nav):** tło całego sidebara (`--sidebar` / `bg-sidebar` aside); kolory CTA `Button` `default`; stany nav **nie** stylują logo-area (forma brandu — powyżej); chipy; IA pozycji; accordion / badge Hot·New.
 - Kierunek wizualny: blisko wzorca Vireo (Sales dashboard) — nie wymóg piksela-w-piksel. Precyzyjne wartości hex / opacity / radius / transition (~14px radius, ~13px / weight 500, ~0.14s) = HOW feature-planu.
 - Zmiana względem wersji 33: *aktywny item = `bg-primary text-primary-foreground`*. Od tej wersji pozycje menu **wychodzą** z normy solid indigo fill.
+- Zmiana względem wersji 39 / Fazy 27: *„norma nie wymaga tego samego assetu w logo-area sidebara”* / *„nie logo-area sidebara”*. Od tej wersji logo-area **wymaga** tego assetu (powyżej); stany nav — **bez** redefinicji.
 
 | Stan | Tekst | Tło pozycji | Ring / pasek |
 |------|-------|-------------|--------------|

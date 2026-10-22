@@ -1,5 +1,5 @@
 ---
-wersja: 39
+wersja: 40
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-10-22
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-22
 ## Cel / zakres względem dokumentacji
 
 Norma strategii testów MVP Content Chain: piramida, narzędzia, obowiązkowe przypadki DoD oraz CI — uszczegółowienie `docs/testy.md` pod egzekwowalne reguły przy implementacji `apps/api`.
+
+Zmiana względem wersji 39 / brand shella maili: unit renderera milczał o formie marki w HTML (wystarczał string „Content Chain” w headerze). Od tej wersji: HTML shell zawiera **logotyp** (CID / `img` z `cid:`) w slocie brandu; sam tekst „Content Chain” w headerze HTML **nie** jest wystarczającym kanonem brandu; plain text nadal może asertować string marki — `SPEC-AUTH.md`, `docs/brand_types.md`.
 
 Zmiana względem wersji 38 / asercja ważności: „Link wygasa po …” jako obowiązujące brzmienie. Od tej wersji unit renderera asertuje obecność pełnego wzorca **„Link jest jednorazowy i wygasa po …”** (lub wstrzykniętej etykiety zgodnej z `SPEC-AUTH.md` / `validityLabel` = pełne zdanie) oraz URL deep linku; **nie** wymaga linii `Token (np. Postman)`. Refaktor odmiany / składni zdania **nie** dodaje nowego D-*. D-23 / D-41…D-46 / T-5: HTML/copy **nie** zmienia envelope — `SPEC-AUTH.md`, `docs/dokumentacja_komunikacji.md`.
 
@@ -149,6 +151,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-80 | Semantyka metryk (unit i/lub integration): brak terminalnych w oknie → `successRateLast30d = 0` (**nie** `null`); brak runów w oknie → `topTaskTypeLast30d = null`; remis count `taskType` → typ z **najnowszym** `createdAt` wśród remisujących; `activeNow` = count status ∈ `{running, awaiting_hitl, queued}` **bez** limitu 30d; cache odpowiedzi TTL **60 s** (ten sam klucz scope → ponowna agregacja dopiero po wygaśnięciu) |
 | D-81 | Guest + `DEMO_MODE=true`: `GET /runs/summary` → **200**, scope = wyłącznie własne; JWT `guest` przy demo off → **401** (jak pozostałe chronione trasy guest — GuestGuard) |
 
+Zmiana względem wersji 39 / brand shella × DoD: wymóg logotypu CID w headerze HTML **nie** dodaje nowego D-* HTTP i **nie** zmienia T-5. Unit renderera: logo CID w HTML vs string marki w plain text — `SPEC-AUTH.md`. D-1…D-81 bez kasowania treści.
 Zmiana względem wersji 38 / mail copy × DoD: refaktor odmiany PL / pełnego zdania ważności (`validityLabel` = „Link jest jednorazowy i wygasa po {X}.”) **nie** dodaje nowego D-* HTTP i **nie** zmienia T-5. Unit renderera: pełny wzorzec ważności + deep link; **bez** wymogu linii Postman — `SPEC-AUTH.md`. D-1…D-81 bez kasowania treści.
 Zmiana względem wersji 37 / mail copy × DoD: refaktor copy invite/activation (`validityLabel` / URL-only) **nie** dodaje nowego D-* HTTP i **nie** zmienia T-5. Unit renderera: ważność + deep link; **bez** wymogu linii Postman w body — `SPEC-AUTH.md`. D-1…D-81 bez kasowania treści.
 Zmiana względem wersji 36 / welcome × DoD: wprowadzenie `user_welcome` (`SPEC-AUTH.md` A-12) **nie** dodaje nowego D-* HTTP i **nie** wymaga sukcesu SMTP welcome do zielonego activate (D-41 / D-45). Asercja treści welcome (subject / HTML / plain text / CID) = opcjonalny **unit renderera** w `infrastructure/mail/` — **poza** obowiązkowym T-5 Postman MVP. D-1…D-81 bez kasowania treści.
@@ -216,7 +219,7 @@ Zmiana względem wersji 7 / D-18: dopisano negatyw HITL (obce id outline).
 - Opcjonalny smoke przeciw prawdziwemu gateway **poza PR** (staging).
 - Kolekcja Postman v2.1 w `apps/api/test/postman/` jako artefakt E2E poza CI PR; Setup happy path przez `PUT /company-context` i weryfikację completeness. Pliki: `social-pipeline.postman-collection.json` (foldery A–D: posty + rolki); `content-pipeline.postman-collection.json` (A `page_copy`, B `page_outline_then_copy`). `reel_script` solo — E2E Jest, nie obowiązkowy Postman (jak `post_content` w Milestone 4).
 - Unit helpera logu hopu gateway (redakcja `GATEWAY_KEY`) oraz preprocess zarzutów verifiera (obiekt `{ itemId, issue }` → `string`).
-- Unit renderera szablonów maili (subject / HTML / plain text / CID, PL, obecność deep linku invite/activation, obecność pełnego „Link jest jednorazowy i wygasa po …” / wstrzykniętej etykiety `validityLabel` zgodnej z `SPEC-AUTH.md`; **bez** wymogu linii `Token (np. Postman)` w body) **bez** wymogu w T-5 / D-* HTTP — w tym asercja treści `user_welcome` — `SPEC-AUTH.md`.
+- Unit renderera szablonów maili (subject / HTML / plain text / CID, PL, obecność deep linku invite/activation, obecność pełnego „Link jest jednorazowy i wygasa po …” / wstrzykniętej etykiety `validityLabel` zgodnej z `SPEC-AUTH.md`; w HTML shellu — **logotyp** w slocie brandu (`img` z `cid:` / równoważny CID); **bez** traktowania samego tekstu „Content Chain” w headerze HTML jako wystarczającego kanonu brandu; plain text **może** asertować string marki; **bez** wymogu linii `Token (np. Postman)` w body) **bez** wymogu w T-5 / D-* HTTP — w tym asercja treści `user_welcome` — `SPEC-AUTH.md`.
 
 Zmiana względem: dotychczasowa norma mówiła tylko „narzędzie E2E bez pinu” i „opcjonalny smoke poza PR” — bez kanonicznej ścieżki artefaktu i bez zakazu mylenia kolekcji z modułem Nest. T-5, tabela stacku (bez pinu runnera) i poza zakresem „wybór konkretnego runnera” zostają.
 
@@ -235,6 +238,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 - Wymagania osobnej linii raw „Token (np. Postman)” w asercjach treści maila invite/activation (obowiązuje URL-only + unit renderer — `SPEC-AUTH.md`).
 - Nowych D-* HTTP wyłącznie z powodu zmiany copy ważności / URL-only w body maili.
 - Wymagania sukcesu SMTP `user_welcome` do zielonego D-41 / D-45 (activate **200** niezależny od dostawy welcome — `SPEC-AUTH.md` A-12).
+- Traktowania samego tekstu „Content Chain” w headerze HTML shella jako wystarczającej asercji brandu (obowiązuje logotyp CID — `SPEC-AUTH.md`; plain text string marki **zostaje** dozwolony).
 - `apps/api/postman/` / `src/postman/` jako pozorne BC.
 - Seed Prisma/SQL kontekstu jako substytut Setupu E2E.
 

@@ -53,6 +53,11 @@ export class NodemailerSmtpMailerAdapter implements TransactionalMailer {
       subject: rendered.subject,
       text: rendered.text,
       html: rendered.html,
+      attachments: rendered.attachments?.map((item) => ({
+        filename: item.filename,
+        path: item.path,
+        cid: item.cid,
+      })),
     });
   }
 }
