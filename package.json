@@ -2,6 +2,9 @@
 	"name": "content-chain",
 	"version": "1.0.0",
 	"private": true,
+	"engines": {
+		"node": "24.19.0"
+	},
 	"scripts": {
 		"build:api": "pnpm --filter api build",
 		"dev:api": "pnpm --filter api dev",

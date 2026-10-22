@@ -208,6 +208,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build @content-chain/shared
+        run: pnpm --filter @content-chain/shared build
+
       - name: Run unit tests
         run: pnpm test:api
 
@@ -237,13 +240,16 @@ jobs:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
-        uses: actions/checkout@v4
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build @content-chain/shared
+        run: pnpm --filter @content-chain/shared build
 
       - name: Run e2e tests
         env:
