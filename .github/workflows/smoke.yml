@@ -1,0 +1,206 @@
+# Manual smoke: docker-compose build/up + api unit + e2e.
+# Run from Actions → Smoke → Run workflow → set "branch".
+name: Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch, tag, or SHA to checkout and smoke-test
+        required: true
+        default: main
+        type: string
+
+concurrency:
+  group: smoke-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PNPM_VERSION: "9.0.0"
+  NODE_VERSION: "24.19.0"
+  COMPOSE_DOCKER_CLI_BUILD: 1
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  compose-smoke:
+    name: Docker Compose build + up
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout ${{ inputs.branch }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Create external Docker network (main_network)
+        run: docker network create main_network || true
+
+      - name: Prepare api SQLite data directory
+        run: |
+          sudo mkdir -p /opt/content-chain/data
+          sudo chown 1001:1001 /opt/content-chain/data
+
+      - name: Write root .env for compose smoke
+        run: |
+          cat > .env <<'EOF'
+          # --- api ---
+          NODE_ENV=production
+          PORT=3001
+          APP_PUBLIC_URL=http://127.0.0.1:3303
+          DATABASE_URL=file:/app/data/chain.db
+          GATEWAY_BASE_URL=http://ai-provider-gateway:3100
+          GATEWAY_KEY=smoke-gateway-key-webapp
+          GATEWAY_MODEL_ALIAS=chat-default
+          MAX_CONCURRENT_RUNS=3
+          SSE_HEARTBEAT_MS=25000
+          RUN_SSE_SUBJECT_TTL_MS=600000
+          JWT_SECRET=smoke-jwt-secret-change-me-32chars
+          JWT_ACCESS_TTL=15m
+          JWT_REFRESH_TTL=1d
+          INVITE_TTL=7d
+          ACTIVATION_TTL=7d
+          REVIEW_TTL=2h
+          REVIEW_SWEEP_INTERVAL=5m
+          MAIL_FROM=noreply@localhost
+          SMTP_HOST=127.0.0.1
+          SMTP_PORT=1025
+          SMTP_USER=mail
+          SMTP_PASS=smoke-smtp-pass
+          CORS_ORIGIN=http://127.0.0.1:3303
+          DEMO_MODE=false
+          GUEST_GLOBAL_CAP_PER_DAY=30
+          GUEST_RATING_CAP_PER_DAY=10
+
+          # --- frontend ---
+          API_BASE_URL=http://api:3001
+
+          # --- ai-provider-gateway (refs from gateway.config.yaml) ---
+          MASTER_KEY=smoke-master-key
+          ANTHROPIC_API_KEY=sk-ant-smoke-placeholder
+          GOOGLE_API_KEY=smoke-google-api-key
+          OPENAI_API_KEY=sk-smoke-openai-placeholder
+          OPENAI_BASE_URL=https://api.openai.com/v1
+          DEEPSEEK_API_KEY=sk-smoke-deepseek-placeholder
+          DEEPSEEK_BASE_URL=https://api.deepseek.com
+          GATEWAY_KEY_WEBAPP=smoke-gateway-key-webapp
+          GATEWAY_KEY_IDE_PLUGIN=smoke-gateway-key-ide
+          CACHE_ENABLED=false
+          CACHE_BACKEND=noop
+          RATE_LIMIT_SMART_ENABLED=false
+          SEMANTIC_CACHE_ENABLED=false
+          LOG_LEVEL=info
+          LOG_ADAPTER=pino
+          LOG_PRETTY=false
+          METRICS_BACKEND=noop
+          ERROR_REPORTING_ADAPTER=noop
+          SENTRY_ENABLED=false
+          EOF
+          # YAML block scalar may leave leading spaces in the heredoc body
+          sed -i 's/^[[:space:]]*//' .env
+
+      - name: Docker Compose build
+        run: docker compose -f docker-compose.yml build
+
+      - name: Docker Compose up
+        run: docker compose -f docker-compose.yml up -d --remove-orphans
+
+      - name: Wait for service health
+        run: |
+          set -euo pipefail
+          deadline=$((SECONDS + 300))
+          while (( SECONDS < deadline )); do
+            api_ok=0
+            gw_ok=0
+            if curl -fsS "http://127.0.0.1:3300/api/v1/health" | grep -q '"status":"healthy"'; then
+              api_ok=1
+            fi
+            if curl -fsS "http://127.0.0.1:3301/api/v1/health/ready" | grep -q '"status":"ready"'; then
+              gw_ok=1
+            fi
+            if [[ "$api_ok" -eq 1 && "$gw_ok" -eq 1 ]]; then
+              echo "api + gateway healthy"
+              curl -fsS -o /dev/null -w "frontend HTTP %{http_code}\n" "http://127.0.0.1:3303/" || true
+              exit 0
+            fi
+            echo "waiting… api=$api_ok gw=$gw_ok"
+            docker compose -f docker-compose.yml ps || true
+            sleep 10
+          done
+          echo "::error::Services did not become healthy in time"
+          docker compose -f docker-compose.yml ps
+          docker compose -f docker-compose.yml logs --no-color --tail=200
+          exit 1
+
+      - name: Tear down compose stack
+        if: always()
+        run: docker compose -f docker-compose.yml down -v --remove-orphans || true
+
+  unit:
+    name: Unit tests (api)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout ${{ inputs.branch }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests
+        run: pnpm test:api
+
+  e2e:
+    name: E2E tests (api)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - name: Checkout ${{ inputs.branch }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run e2e tests
+        env:
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: "6379"
+        run: pnpm test:e2e:api
