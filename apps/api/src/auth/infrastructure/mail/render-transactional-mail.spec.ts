@@ -9,7 +9,7 @@ const INVITE_URL =
   'https://app.example/invite/accept?token=tok_invite_raw_1';
 const ACTIVATE_URL =
   'https://app.example/?activationToken=tok_activate_raw_1';
-const VALIDITY = 'Link wygasa po 7 dni.';
+const VALIDITY = 'Link jest jednorazowy i wygasa po 7 dniach.';
 
 describe('renderTransactionalMail', () => {
   it('renders PL invite mail with validity label and CTA url (URL-only raw)', () => {
@@ -29,6 +29,8 @@ describe('renderTransactionalMail', () => {
     expect(rendered.html).toContain('Akceptuj zaproszenie');
     expect(rendered.html).toContain(escapeHtml(INVITE_URL));
     expect(rendered.html).toContain(escapeHtml(VALIDITY));
+    expect(rendered.html).toContain('Link jest jednorazowy i wygasa po');
+    expect(rendered.html).not.toMatch(/Link jest jednorazowy\.\s*Link jest/);
     expect(rendered.html).toContain('#39a185');
     expect(rendered.html).not.toContain('Token (np. Postman)');
     expect(rendered.text).toContain(INVITE_URL);
@@ -53,6 +55,8 @@ describe('renderTransactionalMail', () => {
     expect(rendered.html).toContain('Aktywuj konto');
     expect(rendered.html).toContain(escapeHtml(ACTIVATE_URL));
     expect(rendered.html).toContain(escapeHtml(VALIDITY));
+    expect(rendered.html).toContain('Link jest jednorazowy i wygasa po');
+    expect(rendered.html).not.toMatch(/Link jest jednorazowy\.\s*Link jest/);
     expect(rendered.html).not.toContain('Token (np. Postman)');
     expect(rendered.text).toContain(ACTIVATE_URL);
     expect(rendered.text).toContain(VALIDITY);
@@ -61,7 +65,8 @@ describe('renderTransactionalMail', () => {
 
   it('escapes html-special characters in injected url and validity label', () => {
     const evilUrl = 'https://app.example/invite/accept?token=a&b=<x>"';
-    const evilValidity = 'Link wygasa po <script>1d</script>.';
+    const evilValidity =
+      'Link jest jednorazowy i wygasa po <script>1d</script>.';
     const rendered = renderTransactionalMail({
       kind: 'user_invited',
       to: 'member@example.com',

@@ -2178,9 +2178,9 @@
     "semantic_hash": ""
   },
   "docs/deployment.md": {
-    "mtime": 1792580064.5764413,
-    "seen": 1792603236.5757701,
-    "ast_hash": "bb885f83c7ac5e4cec750c191bde0b5f",
+    "mtime": 1792660422.40381,
+    "seen": 1792661739.4592876,
+    "ast_hash": "1f178559f26ba818cc2f8a7ec99ea5bd",
     "semantic_hash": ""
   },
   "docs/dictionary.md": {
@@ -2190,9 +2190,9 @@
     "semantic_hash": ""
   },
   "docs/dokumentacja_komunikacji.md": {
-    "mtime": 1792580075.19077,
-    "seen": 1792603236.5757713,
-    "ast_hash": "a57559ba192ca00774cf099ed0e47938",
+    "mtime": 1792660412.4308867,
+    "seen": 1792661739.4592893,
+    "ast_hash": "11a48095cde31c011ab4c699037da60e",
     "semantic_hash": ""
   },
   "docs/dokumentacja_koncepcyjna.md": {
@@ -2226,9 +2226,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-AUTH.md": {
-    "mtime": 1792580172.05404,
-    "seen": 1792603236.5757754,
-    "ast_hash": "2431dbca4ad6b5864c194ee629baed40",
+    "mtime": 1792660539.2140512,
+    "seen": 1792661739.4592936,
+    "ast_hash": "3cbe077dbd5d2fe52e127a1e18813e09",
     "semantic_hash": ""
   },
   "spec/SPEC-BEZPIECZENSTWO.md": {
@@ -2274,9 +2274,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-README.md": {
-    "mtime": 1792580199.768831,
-    "seen": 1792603236.5757813,
-    "ast_hash": "546a6a949536ab3d4ed3e009f0ee8489",
+    "mtime": 1792660566.746617,
+    "seen": 1792661739.4592993,
+    "ast_hash": "6c8c4332a675904f7bc404a992a4214a",
     "semantic_hash": ""
   },
   "spec/SPEC-RUNY.md": {
@@ -2292,9 +2292,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-TESTY.md": {
-    "mtime": 1792580185.4319391,
-    "seen": 1792603236.5757833,
-    "ast_hash": "cd0fce45dd5f659da726c316fa678159",
+    "mtime": 1792660551.7627518,
+    "seen": 1792661739.4593015,
+    "ast_hash": "cd274254db1c275d083c3895ac989d3c",
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/resume-hitl.use-case.ts": {
@@ -4314,21 +4314,21 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/mail/templates/user-activation.template.ts": {
-    "mtime": 1792604378.7767453,
-    "seen": 1792604907.5036304,
-    "ast_hash": "98ebf52996b2da13ea750e3d326140ce",
+    "mtime": 1792662197.0185962,
+    "seen": 1792662205.902699,
+    "ast_hash": "edebc957f33df89876626119702bf8e6",
     "semantic_hash": ""
   },
   "apps/api/src/auth/infrastructure/mail/templates/user-invited.template.ts": {
-    "mtime": 1792604373.652948,
-    "seen": 1792604907.5036316,
-    "ast_hash": "d69a983a0457e9526c21b7fa90823ef1",
+    "mtime": 1792662193.469624,
+    "seen": 1792662205.9026997,
+    "ast_hash": "f62c440a776eb5c45308a3d67f99d5ea",
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/format-mail-validity-label.ts": {
-    "mtime": 1792603218.3786592,
-    "seen": 1792603236.5754962,
-    "ast_hash": "8a9e028404c4c3065571c9cb400cd46a",
+    "mtime": 1792661779.1983104,
+    "seen": 1792662205.9026654,
+    "ast_hash": "bc0e098b8545edca697b5e36d7b1e87a",
     "semantic_hash": ""
   }
 }

@@ -16,7 +16,7 @@ export function renderUserActivationMail(
   const validity = escapeHtml(message.validityLabel);
   const bodyHtml = `<p style="margin:0 0 12px 0;">Dziękujemy za rejestrację w <strong>Content Chain</strong>.</p>
 <p style="margin:0 0 12px 0;">Kliknij przycisk poniżej, aby aktywować konto. Po aktywacji możesz się zalogować.</p>
-<p style="margin:0;">Link jest jednorazowy. ${validity}</p>`;
+<p style="margin:0;">${validity}</p>`;
 
   const shellHtml: MailShellContent = {
     heading: 'Aktywacja konta',
@@ -34,7 +34,7 @@ export function renderUserActivationMail(
     bodyLines: [
       'Dziękujemy za rejestrację w Content Chain.',
       'Otwórz link poniżej, aby aktywować konto. Po aktywacji możesz się zalogować.',
-      `Link jest jednorazowy. ${message.validityLabel}`,
+      message.validityLabel,
     ],
     cta: {
       label: 'Aktywuj konto',

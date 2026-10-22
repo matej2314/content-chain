@@ -1,6 +1,7 @@
 /**
  * Builds PL validity copy for invite/activation mails from TTL env strings.
  * Units mirror `parseTtlMs` (`d` / `h` / `m` / default seconds).
+ * Returns the full sentence with locative after "po" (e.g. 7d → "… po 7 dniach.").
  * Templates must only inject the result — no env / TTL parsing in templates.
  */
 export function formatMailValidityLabel(ttl: string): string {
@@ -10,24 +11,23 @@ export function formatMailValidityLabel(ttl: string): string {
   const amount = Number.isFinite(value) ? value : Number.NaN;
 
   let human: string;
-  if (!Number.isFinite(amount) || amount < 0) {
-    human = ttl;
-  } else if (unit === 'd') {
-    human = `${amount} ${polishPlural(amount, 'dzień', 'dni', 'dni')}`;
-  } else if (unit === 'h') {
-    human = `${amount} ${polishPlural(amount, 'godzinę', 'godziny', 'godzin')}`;
-  } else if (unit === 'm') {
-    human = `${amount} ${polishPlural(amount, 'minutę', 'minuty', 'minut')}`;
+  if (unit === 'd' && Number.isFinite(amount) && amount >= 0) {
+    // Locative: 1 → dniu; 2+ → dniach (few/many identical in locative plural).
+    human = `${amount} ${polishPlural(amount, 'dniu', 'dniach', 'dniach')}`;
+  } else if (unit === 'h' && Number.isFinite(amount) && amount >= 0) {
+    human = `${amount} ${polishPlural(amount, 'godzinie', 'godzinach', 'godzinach')}`;
+  } else if (unit === 'm' && Number.isFinite(amount) && amount >= 0) {
+    human = `${amount} ${polishPlural(amount, 'minucie', 'minutach', 'minutach')}`;
   } else {
-    // parseTtlMs default: treat whole string as seconds when unit unknown
+    // Bare seconds (whole string), including single-digit TTL like "1".
     const seconds = Number.parseInt(ttl, 10);
-    const s = Number.isFinite(seconds) ? seconds : amount;
-    human = Number.isFinite(s)
-      ? `${s} ${polishPlural(s, 'sekundę', 'sekundy', 'sekund')}`
-      : ttl;
+    human =
+      Number.isFinite(seconds) && seconds >= 0
+        ? `${seconds} ${polishPlural(seconds, 'sekundzie', 'sekundach', 'sekundach')}`
+        : ttl;
   }
 
-  return `Link wygasa po ${human}.`;
+  return `Link jest jednorazowy i wygasa po ${human}.`;
 }
 
 function polishPlural(

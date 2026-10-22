@@ -114,7 +114,7 @@ describe('ResendInvitationUseCase', () => {
       kind: 'user_invited',
       to: INVITE_EMAIL,
       invitationId: INVITATION_ID,
-      validityLabel: 'Link wygasa po 7 dni.',
+      validityLabel: 'Link jest jednorazowy i wygasa po 7 dniach.',
     });
     expect(mail?.rawToken.length).toBeGreaterThan(0);
     expect(mail?.acceptUrl).toContain(mail?.rawToken);

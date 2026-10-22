@@ -19,7 +19,7 @@ export function renderUserInvitedMail(message: UserInvitedMail): RenderedMailPar
   const validity = escapeHtml(message.validityLabel);
   const bodyHtml = `<p style="margin:0 0 12px 0;">Otrzymujesz zaproszenie do aplikacji <strong>Content Chain</strong>.</p>
 <p style="margin:0 0 12px 0;">Kliknij przycisk poniżej, aby ustawić hasło i dołączyć do zespołu.</p>
-<p style="margin:0;">Link jest jednorazowy. ${validity}</p>`;
+<p style="margin:0;">${validity}</p>`;
 
   const shellHtml: MailShellContent = {
     heading: 'Dołącz do zespołu',
@@ -37,7 +37,7 @@ export function renderUserInvitedMail(message: UserInvitedMail): RenderedMailPar
     bodyLines: [
       'Otrzymujesz zaproszenie do aplikacji Content Chain.',
       'Otwórz link poniżej, aby ustawić hasło i dołączyć do zespołu.',
-      `Link jest jednorazowy. ${message.validityLabel}`,
+      message.validityLabel,
     ],
     cta: {
       label: 'Akceptuj zaproszenie',

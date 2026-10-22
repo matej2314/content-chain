@@ -1,7 +1,7 @@
 ---
-wersja: 14
+wersja: 15
 data_utworzenia: 2026-09-30
-data_modyfikacji: 2026-10-21
+data_modyfikacji: 2026-10-22
 ---
 
 # Deployment — Content Chain
@@ -10,7 +10,9 @@ Self-host MVP: jak uruchamiać, konfigurować i utrzymywać jedną instalację (
 
 Powiązane: `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `testy.md`, `security.md`, `observability.md`.
 
-Zmiana względem wersji 13 / smoke i treść maili: token z „ciała maila” / założenie linii Postman w body. Od tej wersji: smoke bierze token z **URL** deep linku w SMTP albo z logu adaptera logującego; copy ważności invite/activation odzwierciedla aktualne `INVITE_TTL` / `ACTIVATION_TTL` (bez nowych zmiennych; default **`7d`** / **`7d`**). Spójne z `dokumentacja_komunikacji.md`.
+Zmiana względem wersji 14 / copy ważności maili: wzorzec „Link wygasa po {X}.”. Od tej wersji: invite/activation — **„Link jest jednorazowy i wygasa po {X}.”** ({X} w miejscowniku, np. `7d` → „7 dniach”); spójne z `dokumentacja_komunikacji.md`. Bez nowych env; URL-only bez zmian.
+
+Zmiana względem wersji 13 / smoke i treść maili: token z „ciała maila” / założenie linii Postman w body. Od tej wersji: smoke bierze token z **URL** deep linku w SMTP albo z logu adaptera logującego; copy ważności invite/activation odzwierciedla aktualne `INVITE_TTL` / `ACTIVATION_TTL` (bez nowych zmiennych; default **`7d`** / **`7d`**). Spójne z `dokumentacja_komunikacji.md` (brzmienie zdania ważności — patrz zmiana względem wersji 14).
 
 Zmiana względem wersji 12 / kinds: mailer = `user_invited` \| `user_activation`. Od tej wersji także **`user_welcome`** (po sukcesie activate; PL HTML+text; obrazy CID). **Bez nowych** zmiennych env pod welcome — wyłącznie istniejące `SMTP_*` / `MAIL_FROM` / `APP_PUBLIC_URL`; TTL aktywacji i deep link `user_activation` **bez zmian**.
 
@@ -125,7 +127,7 @@ Nazwy SMTP / maila są **kanoniczne** (te same w `spec/SPEC-BEZPIECZENSTWO.md` i
 
 `REVIEW_TTL` = jak długo po `completed`/`failed` wolno mutować przegląd. `REVIEW_SWEEP_INTERVAL` = jak często job domyka wygasłe wiersze w DB (`reviewFinalizedAt`); **nie** przedłuża ani nie skraca okna przeglądu.
 
-**Treść maili produktowych (SMTP):** body = **HTML + plain text**; subject i treść w **PL**. Invite / activation: ważność linku w copy („Link wygasa po {X}.”) z aktualnego `INVITE_TTL` / `ACTIVATION_TTL` — **bez** nowych env. Raw token tylko w deep linku (nie osobna linia „Token (np. Postman)” w HTML/text). Adapter logujący poza `production` nadal wystarcza do DX (URL + raw) — HTML **nie** zmienia semantyki envelope ani wymagań env. Lokalizacja szablonów / shella — `architektura_katalogi_pliki.md` (Auth `infrastructure/mail/`); kolory — mapowanie ról z `brand_types.md` (wartości = HOW).
+**Treść maili produktowych (SMTP):** body = **HTML + plain text**; subject i treść w **PL**. Invite / activation: ważność linku w copy — **„Link jest jednorazowy i wygasa po {X}.”** ({X} w miejscowniku z aktualnego `INVITE_TTL` / `ACTIVATION_TTL`, np. `7d` → „7 dniach”) — **bez** nowych env; kanon: `dokumentacja_komunikacji.md`. Raw token tylko w deep linku (nie osobna linia „Token (np. Postman)” w HTML/text). Adapter logujący poza `production` nadal wystarcza do DX (URL + raw) — HTML **nie** zmienia semantyki envelope ani wymagań env. Lokalizacja szablonów / shella — `architektura_katalogi_pliki.md` (Auth `infrastructure/mail/`); kolory — mapowanie ról z `brand_types.md` (wartości = HOW).
 
 Bootstrap admina **bez SMTP** nadal możliwy (email + hasło, bez maila).
 
