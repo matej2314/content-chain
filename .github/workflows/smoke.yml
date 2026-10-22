@@ -1,5 +1,8 @@
 # Manual smoke: docker-compose build/up + api unit + e2e.
 # Run from Actions → Smoke → Run workflow → set "branch".
+# Compose job uses repository secrets named like root .env keys
+# (GATEWAY_KEY, JWT_SECRET, SMTP_*, MASTER_KEY, *API_KEY, GATEWAY_KEY_*).
+# Keep GATEWAY_KEY equal to GATEWAY_KEY_WEBAPP so api can call the gateway.
 name: Smoke
 
 on:
@@ -43,63 +46,106 @@ jobs:
           sudo mkdir -p /opt/content-chain/data
           sudo chown 1001:1001 /opt/content-chain/data
 
+      # Repo secrets: names match root .env / gateway.config.yaml refs
+      # (GATEWAY_KEY, JWT_SECRET, SMTP_*, MASTER_KEY, *API_KEY, GATEWAY_KEY_*).
       - name: Write root .env for compose smoke
+        env:
+          GATEWAY_KEY: ${{ secrets.GATEWAY_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MASTER_KEY: ${{ secrets.MASTER_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_BASE_URL: ${{ secrets.DEEPSEEK_BASE_URL }}
+          GATEWAY_KEY_WEBAPP: ${{ secrets.GATEWAY_KEY_WEBAPP }}
+          GATEWAY_KEY_IDE_PLUGIN: ${{ secrets.GATEWAY_KEY_IDE_PLUGIN }}
         run: |
-          cat > .env <<'EOF'
-          # --- api ---
-          NODE_ENV=production
-          PORT=3001
-          APP_PUBLIC_URL=http://127.0.0.1:3303
-          DATABASE_URL=file:/app/data/chain.db
-          GATEWAY_BASE_URL=http://ai-provider-gateway:3100
-          GATEWAY_KEY=smoke-gateway-key-webapp
-          GATEWAY_MODEL_ALIAS=chat-default
-          MAX_CONCURRENT_RUNS=3
-          SSE_HEARTBEAT_MS=25000
-          RUN_SSE_SUBJECT_TTL_MS=600000
-          JWT_SECRET=smoke-jwt-secret-change-me-32chars
-          JWT_ACCESS_TTL=15m
-          JWT_REFRESH_TTL=1d
-          INVITE_TTL=7d
-          ACTIVATION_TTL=7d
-          REVIEW_TTL=2h
-          REVIEW_SWEEP_INTERVAL=5m
-          MAIL_FROM=noreply@localhost
-          SMTP_HOST=127.0.0.1
-          SMTP_PORT=1025
-          SMTP_USER=mail
-          SMTP_PASS=smoke-smtp-pass
-          CORS_ORIGIN=http://127.0.0.1:3303
-          DEMO_MODE=false
-          GUEST_GLOBAL_CAP_PER_DAY=30
-          GUEST_RATING_CAP_PER_DAY=10
+          set -euo pipefail
+          required=(
+            GATEWAY_KEY
+            JWT_SECRET
+            MAIL_FROM
+            SMTP_HOST
+            SMTP_PORT
+            SMTP_USER
+            SMTP_PASS
+            MASTER_KEY
+            ANTHROPIC_API_KEY
+            GOOGLE_API_KEY
+            OPENAI_API_KEY
+            OPENAI_BASE_URL
+            DEEPSEEK_API_KEY
+            DEEPSEEK_BASE_URL
+            GATEWAY_KEY_WEBAPP
+            GATEWAY_KEY_IDE_PLUGIN
+          )
+          missing=0
+          for name in "${required[@]}"; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing repository secret: ${name}"
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
 
-          # --- frontend ---
-          API_BASE_URL=http://api:3001
-
-          # --- ai-provider-gateway (refs from gateway.config.yaml) ---
-          MASTER_KEY=smoke-master-key
-          ANTHROPIC_API_KEY=sk-ant-smoke-placeholder
-          GOOGLE_API_KEY=smoke-google-api-key
-          OPENAI_API_KEY=sk-smoke-openai-placeholder
-          OPENAI_BASE_URL=https://api.openai.com/v1
-          DEEPSEEK_API_KEY=sk-smoke-deepseek-placeholder
-          DEEPSEEK_BASE_URL=https://api.deepseek.com
-          GATEWAY_KEY_WEBAPP=smoke-gateway-key-webapp
-          GATEWAY_KEY_IDE_PLUGIN=smoke-gateway-key-ide
-          CACHE_ENABLED=false
-          CACHE_BACKEND=noop
-          RATE_LIMIT_SMART_ENABLED=false
-          SEMANTIC_CACHE_ENABLED=false
-          LOG_LEVEL=info
-          LOG_ADAPTER=pino
-          LOG_PRETTY=false
-          METRICS_BACKEND=noop
-          ERROR_REPORTING_ADAPTER=noop
-          SENTRY_ENABLED=false
-          EOF
-          # YAML block scalar may leave leading spaces in the heredoc body
-          sed -i 's/^[[:space:]]*//' .env
+          umask 077
+          {
+            echo "NODE_ENV=production"
+            echo "PORT=3001"
+            echo "APP_PUBLIC_URL=http://127.0.0.1:3303"
+            echo "DATABASE_URL=file:/app/data/chain.db"
+            echo "GATEWAY_BASE_URL=http://ai-provider-gateway:3100"
+            echo "GATEWAY_KEY=${GATEWAY_KEY}"
+            echo "GATEWAY_MODEL_ALIAS=chat-default"
+            echo "MAX_CONCURRENT_RUNS=3"
+            echo "SSE_HEARTBEAT_MS=25000"
+            echo "RUN_SSE_SUBJECT_TTL_MS=600000"
+            echo "JWT_SECRET=${JWT_SECRET}"
+            echo "JWT_ACCESS_TTL=15m"
+            echo "JWT_REFRESH_TTL=1d"
+            echo "INVITE_TTL=7d"
+            echo "ACTIVATION_TTL=7d"
+            echo "REVIEW_TTL=2h"
+            echo "REVIEW_SWEEP_INTERVAL=5m"
+            echo "MAIL_FROM=${MAIL_FROM}"
+            echo "SMTP_HOST=${SMTP_HOST}"
+            echo "SMTP_PORT=${SMTP_PORT}"
+            echo "SMTP_USER=${SMTP_USER}"
+            echo "SMTP_PASS=${SMTP_PASS}"
+            echo "CORS_ORIGIN=http://127.0.0.1:3303"
+            echo "DEMO_MODE=false"
+            echo "GUEST_GLOBAL_CAP_PER_DAY=30"
+            echo "GUEST_RATING_CAP_PER_DAY=10"
+            echo "API_BASE_URL=http://api:3001"
+            echo "MASTER_KEY=${MASTER_KEY}"
+            echo "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
+            echo "GOOGLE_API_KEY=${GOOGLE_API_KEY}"
+            echo "OPENAI_API_KEY=${OPENAI_API_KEY}"
+            echo "OPENAI_BASE_URL=${OPENAI_BASE_URL}"
+            echo "DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}"
+            echo "DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL}"
+            echo "GATEWAY_KEY_WEBAPP=${GATEWAY_KEY_WEBAPP}"
+            echo "GATEWAY_KEY_IDE_PLUGIN=${GATEWAY_KEY_IDE_PLUGIN}"
+            echo "CACHE_ENABLED=false"
+            echo "CACHE_BACKEND=noop"
+            echo "RATE_LIMIT_SMART_ENABLED=false"
+            echo "SEMANTIC_CACHE_ENABLED=false"
+            echo "LOG_LEVEL=info"
+            echo "LOG_ADAPTER=pino"
+            echo "LOG_PRETTY=false"
+            echo "METRICS_BACKEND=noop"
+            echo "ERROR_REPORTING_ADAPTER=noop"
+            echo "SENTRY_ENABLED=false"
+          } > .env
 
       - name: Docker Compose build
         run: docker compose -f docker-compose.yml build
