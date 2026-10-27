@@ -1,7 +1,6 @@
 deprecated/
 post-mvp-plan.md
 architecture_leaks.md
-pagination-refactor-plan.md
 
 node_modules/
 .pnpm-store/

@@ -1,7 +1,7 @@
 ---
-wersja: 19
+wersja: 20
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-20
+data_modyfikacji: 2026-10-27
 ---
 
 # Anty-patterny — Content Chain
@@ -116,7 +116,10 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | Doklejanie sieci / `gatewayAlive` do `isComplete` / BC company-context | Miesza domenę kontekstu z ops; psuje unit testy i `409` `CONTEXT_INCOMPLETE` | `isComplete` bez sieci; `agentsActive` = completeness ∧ `gatewayAlive` w warstwie UX / health |
 | Feedback / gwiazdki / edycja wyniku w LangGraph | Miesza jakość UX z pipeline LLM | Komendy Runs + BC Feedback po `completed`/`failed` (przegląd **bez** `cancelled`). Edycja treści = `POST .../output-edited` (nadpis `result` + flaga), **nie** re-invoke grafu. Przy `POST /feedback` `targetType=run` bramka statusu/wyniku jest w **API** (409 `RUN_NOT_REVIEWABLE`); sam disable na UI nie wystarcza |
 | Edytuj tylko jako flaga, przy kanonie „zapis treści” | UI i snapshot rozjeżdżają się z DB | Zapis edycji zastępuje kanoniczny wynik (`dokumentacja_komunikacji.md`, `ux_dashboard.md`) |
-| Select „wszystkie moje runy” przez łamanie `pageSize=10` na `GET /runs` | Psuje listę dashboardu | Osobny `GET /runs/user/:userId` (bez paginacji 10) |
+| Select / rejestr live „wszystkie moje runy” przez łamanie allowlisty / stałego `pageSize` na `GET /runs` (instancja) | Psuje listę dashboardu archiwum | Ten sam `GET /runs/user/:userId` **bez** parametrów paginacji (tryb cała kolekcja); tabele = osobne wywołanie **z** `page`+`pageSize` |
+| Paginacja listingu (Runy / Users / Moje runy) jako **slice FE** po pełnej odpowiedzi | Drift `total` / zbędny transfer; rozjazd z envelope API | Paginacja **HTTP**; `total` z envelope; zakaz FE-slice jako normy |
+| `pageSize` spoza {10, 15, 25, 50} na listingach w zakresie | Łamie allowlistę kontraktu; niespójny UX | Tylko wartości z allowlisty; inaczej api → **400** `VALIDATION_FAILED` |
+| Osobny endpoint „pełnej listy” obok opcjonalnego trybu all na tych samych GET | Duplikacja kontraktu; drift konsumentów | Jeden GET + tryb bez parametrów = cała kolekcja |
 | Toast / Sonner jako kanał live statusu runu | Zlewa „dzieje się” z „wydarzyło się”; gubi SSE i box | SSE + box / Moje runy / szczegóły (`ux_dashboard.md`, `SPEC-FRONTEND.md` F-5) |
 | Toast na błąd walidacji / 400 przy polu | Operator traci `message` przy formularzu; druga mapa błędów | Envelope: `message` w miejscu błędu (bez pokazywania `code`) |
 | Toast z payloadu `run.failed` jako jedyny powód porażki | Po reloadzie cisza; kanon powodu to logi | `run.log` + GET snapshot; toast tylko „nieudany” + link |

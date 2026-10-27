@@ -1,7 +1,7 @@
 ---
-wersja: 27
+wersja: 28
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-22
+data_modyfikacji: 2026-10-27
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -12,6 +12,8 @@ Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
 2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
 
 **Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+
+Zmiana względem: `GET /runs` = zawsze strona ze stałym `pageSize=10` (bez wyboru klienta); `GET /runs/user/:userId` = pełna lista **bez** `page`/`pageSize` (paginacja „Moje runy” tylko slice FE); `GET /users` = lista bez trybu stron / bez wymogu envelope `{ items, page, pageSize, total }`. Od tej wersji: **opcjonalna** paginacja na trzech GET (`page` + `pageSize`); **brak** parametrów → cała kolekcja w envelope (`page=1`, `pageSize=total`, `total=N`); **obecność** `page` i/lub `pageSize` → tryb stron (domyślnie `page=1`, `pageSize=10`); allowlista `pageSize` ∈ {10, 15, 25, 50}; inna wartość / zły `page` → **400** `VALIDATION_FAILED`. UI tabel (Runy / Users / Moje runy) zawsze wysyła parametry; rejestr live / select opinii = tryb bez parametrów — `ux_dashboard.md`.
 
 Zmiana względem wersji 26 / shell maili: slot brandu w headerze HTML = tekstowy wordmark. Od tej wersji: header wspólnego shella HTML = **logotyp CID** (norma marki wizualnej — `brand_types.md`); subject, copy body i plain text — string „Content Chain” **bez** regresji (logo nie zastępuje nazwy w prozie). Kinds / PL / welcome best-effort / envelope HTTP — bez zmian.
 
@@ -278,9 +280,49 @@ Zasób kont — **bez** create-z-hasłem przez admina. `POST /api/v1/users` **us
 
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
-| `GET` | `/api/v1/users` | Lista kont (w tym `isActive`). Pozycja: `{ id, email, role, isActive, verifiedAt, createdAt }` (`verifiedAt` ISO lub `null`). **Bez** pending invites. |
+| `GET` | `/api/v1/users` | Lista kont (w tym `isActive`) — **opcjonalna** paginacja + envelope (sekcja niżej). Pozycja w `items`: `{ id, email, role, isActive, verifiedAt, createdAt }` (`verifiedAt` ISO lub `null`). **Bez** pending invites. |
 | `PATCH` | `/api/v1/users/:id` | **Wyłącznie reaktywacja targetu `role = user`** — body `{ "isActive": true }`; **bez** `role` / `email` / `password` / `isActive: false`. UI: toggle na liście Konta. |
 | `DELETE` | `/api/v1/users/:id` | Semantyka po `target.role`: soft `user` / hard `guest`. Body **puste**. Opcjonalny query **`purge=true`** (skutek tylko przy `guest` + live). |
+
+#### `GET /api/v1/users` (admin)
+
+Lista kont instancji. Authz: `@Roles('admin')` + JWT (jak cały zasób Users).
+
+| Query | Typ | Wymagane | Opis |
+|-------|-----|----------|------|
+| `page` | number (integer ≥ 1) | nie | Numer strony (1-based). Znaczenie tylko w **trybie stron** |
+| `pageSize` | `10` \| `15` \| `25` \| `50` | nie | Rozmiar strony. Znaczenie tylko w **trybie stron** |
+
+**Tryby:**
+
+| Wejście | Zachowanie |
+|---------|------------|
+| **Brak** `page` **i** brak `pageSize` | Tryb **cała kolekcja**: wszystkie konta; envelope `{ items, page, pageSize, total }` z `page=1`, `pageSize=total`, `total=N` |
+| Obecność `page` **i/lub** `pageSize` | Tryb **stron**: brakujące pole = default (`page=1`, `pageSize=10`); `items` = wycinek; `total` = liczność całej kolekcji (przed stronicowaniem) |
+
+**Walidacja:** `pageSize` spoza allowlisty, nie-integer / `page < 1` / nieparsowalny numer → **400** `VALIDATION_FAILED`. Sortowanie: **`createdAt` malejąco** (najnowsze pierwsze), o ile nie ustalono inaczej w kanonie Users.
+
+**200** — zawsze envelope:
+
+```json
+{
+  "items": [
+    {
+      "id": "…",
+      "email": "user@example.com",
+      "role": "user",
+      "isActive": true,
+      "verifiedAt": "2026-08-12T10:00:00.000Z",
+      "createdAt": "2026-08-01T10:00:00.000Z"
+    }
+  ],
+  "page": 1,
+  "pageSize": 10,
+  "total": 42
+}
+```
+
+Zmiana względem: `GET /users` = lista bez trybu stron / bez wymogu jednolitego envelope `{ items, page, pageSize, total }`. Od tej wersji ten sam model opcjonalnej paginacji co `GET /runs` / `GET /runs/user/:userId`.
 
 Zmiana względem wcześniejszego zapisu „`role` dowolna”: w MVP jest **co najwyżej jeden** `admin` (bootstrap). Tworzenie / ustawienie kolejnego `admin` → **403** / **400**. Norma: `security.md`.
 
@@ -413,21 +455,31 @@ Lista runów pod dashboard (widok tabeli → klik → szczegóły).
 
 | Query | Typ | Wymagane | Opis |
 |-------|-----|----------|------|
-| `page` | number | nie (default **1**) | Numer strony (1-based) |
+| `page` | number (integer ≥ 1) | nie | Numer strony (1-based). Znaczenie tylko w **trybie stron** |
+| `pageSize` | `10` \| `15` \| `25` \| `50` | nie | Rozmiar strony. Znaczenie tylko w **trybie stron** |
 | `status` | jeden `RunStatus` **albo** lista unikalnych wartości rozdzielona przecinkiem | nie | Filtr statusu. Przykład archiwum dashboardu: `completed,failed,cancelled`. Pusty / brak parametru = wszystkie statusy. Nieznana wartość → **400** `VALIDATION_FAILED`. Powtórki w liście = zbiór (bez błędu) |
 | `taskType` | enum tasku | nie | Filtr typu tasku |
 | `platform` | `SocialPlatform` **lub** `web` | nie | Filtr kolumny platformy (w tym sentinel `web` dla page_*) |
 | `userId` | string (id użytkownika) | nie | Filtr: kto uruchomił run |
 
-**Paginacja MVP:** stały rozmiar strony **10** (klient **nie** nadpisuje `limit`). Sortowanie: **`createdAt` malejąco** (najnowsze pierwsze).
+**Paginacja (opcjonalna):**
 
-Dashboard **Runy** (archiwum): FE woła `status=completed,failed,cancelled` (`docs/ux_dashboard.md`). Listing **bez** filtra statusu nadal zwraca całą instancję (Postman / ops) — to nie jest kanon widoku Runy w UI.
+| Wejście | Zachowanie |
+|---------|------------|
+| **Brak** `page` **i** brak `pageSize` | Tryb **cała kolekcja** (po filtrach): wszystkie pasujące runy; envelope z `page=1`, `pageSize=total`, `total=N` |
+| Obecność `page` **i/lub** `pageSize` | Tryb **stron**: brakujące pole = default (`page=1`, `pageSize=10`); `items` = wycinek; `total` = liczność po filtrach (przed stronicowaniem) |
+
+**Allowlista `pageSize`:** wyłącznie **10 \| 15 \| 25 \| 50**. Inna wartość → **400** `VALIDATION_FAILED`. Zły `page` (nie-integer, `< 1`, nieparsowalny) → **400** `VALIDATION_FAILED`. Sortowanie: **`createdAt` malejąco** (najnowsze pierwsze).
+
+Dashboard **Runy** (archiwum): FE **zawsze** wysyła `page` + `pageSize` **oraz** `status=completed,failed,cancelled` (`docs/ux_dashboard.md`). Listing **bez** filtra statusu (i ewentualnie bez paginacji) nadal jest legalny dla Postman / ops — to nie jest kanon widoku Runy w UI.
 
 **`guest`:** lista **tak** (cała instancja, showcase). **Cudzy** `GET /runs/:id` / logs: **403**, **chyba że** status ∈ `{completed, failed, cancelled}` (snapshot archiwum). Cudzy events / SSE → **403** (także terminalne).
 
+Zmiana względem: stały `pageSize=10` bez wyboru klienta / zawsze-strona na `GET /runs`. Od tej wersji opcjonalny tryb all vs strona + allowlista `pageSize`.
+
 Zmiana względem: `status` wyłącznie jako pojedynczy enum.
 
-**200** — kształt:
+**200** — zawsze envelope `{ items, page, pageSize, total }` (oba tryby):
 
 ```json
 {
@@ -731,15 +783,30 @@ DTO odpowiedzi: `@content-chain/shared` (norma FE / BE przy implementacji).
 
 #### `GET /api/v1/runs/user/:userId`
 
-Lekka lista **wszystkich** runów, których inicjatorem jest `:userId` (filtr `startedBy`). **Bez** paginacji HTTP `pageSize=10` (wyjątek względem listingu **Runy** / instancji). Konsumenci UI: select formularza opinii **oraz** lista **Moje runy** na widoku Konto (`docs/ux_dashboard.md`). Sort: `createdAt` desc.
+Lekka lista runów, których inicjatorem jest `:userId` (filtr `startedBy`). **Ten sam** model opcjonalnej paginacji co `GET /runs` (decyzja kontraktu: jeden endpoint, dwa tryby — **bez** osobnej trasy „pełnej listy”).
 
-**UI (Konto):** tabela „Moje runy” **paginuje po stronie FE** stałym `pageSize = 10` (jak Runy) — **nie** dodaje query `page` / `pageSize` do tego endpointu. Pełna lista z odpowiedzi pozostaje źródłem live/SSE / floating box / selectu opinii.
+| Query | Typ | Wymagane | Opis |
+|-------|-----|----------|------|
+| `page` | number (integer ≥ 1) | nie | Numer strony (1-based). Znaczenie tylko w **trybie stron** |
+| `pageSize` | `10` \| `15` \| `25` \| `50` | nie | Rozmiar strony. Znaczenie tylko w **trybie stron** |
+
+**Tryby:** brak `page` **i** brak `pageSize` → cała kolekcja użytkownika w envelope (`page=1`, `pageSize=total`, `total=N`); obecność `page` i/lub `pageSize` → strona (default `page=1`, `pageSize=10`). Allowlista / błędy walidacji — jak `GET /runs` (**400** `VALIDATION_FAILED`). Sort: `createdAt` desc.
+
+**Konsumenci UI** (`docs/ux_dashboard.md`):
+
+| Konsument | Wywołanie |
+|-----------|-----------|
+| Tabela **Moje runy** (Konto) | **Zawsze** `page` + `pageSize` (HTTP; **nie** slice FE) |
+| Rejestr SSE / floating box / OwnRuns | **Bez** parametrów paginacji (tryb cała kolekcja) |
+| Select formularza opinii | **Bez** parametrów paginacji (tryb cała kolekcja) |
 
 **Authz:** `:userId` **musi** być id zalogowanego użytkownika (sesja). Inny id → **403** `FORBIDDEN`. Brak wyjątku dla `admin` w MVP (panel cudzych runów = V1).
 
-**200** — `{ "items": [ { "runId", "taskType", "platform", "language", "status", "createdAt" } ] }`.
+**200** — envelope `{ "items": [ { "runId", "taskType", "platform", "language", "status", "createdAt" } ], "page", "pageSize", "total" }`.
 
 **Bez** pól `pipelineFinishedAt` / `reviewExpiresAt` / metadanych przeglądu — te są na `GET /runs/:runId` (i sukcesach mutacji przeglądu).
+
+Zmiana względem: wyjątek „pełna lista HTTP bez `page`/`pageSize`” oraz paginacja „Moje runy” wyłącznie jako slice FE. Od tej wersji opcjonalna paginacja HTTP + envelope; tabele wysyłają parametry; live/select = tryb bez parametrów.
 
 Trasa statyczna `user/:userId` **przed** parametrem `:runId` w routerze Nest.
 

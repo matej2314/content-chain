@@ -1,7 +1,7 @@
 ---
-wersja: 42
+wersja: 43
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-20
+data_modyfikacji: 2026-10-27
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -15,12 +15,14 @@ Norma **implementacji obu powierzchni I/O** Content Chain:
 
 Uszczegóławia `docs/dokumentacja_komunikacji.md` oraz korelację ID z `docs/brand_types.md` / `docs/dictionary.md`. **Nie** redefiniuje listy endpointów ani payloadów — odwołuje się do docs; tu obowiązują wzorce warstw, walidacja, envelope, SSE i adapter LLM.
 
+Zmiana względem wersji 42 / K-2a / K-2b / K-2j: K-2a = `pageSize=10` zawsze-strona; K-2b = bez paginacji HTTP + slice FE; Users GET bez trybu stron / envelope. Od tej wersji: opcjonalna paginacja `page`+`pageSize` na `GET /runs`, `GET /runs/user/:userId`, `GET /users`; allowlista; envelope w obu trybach — `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-3a / R-3c, `SPEC-AUTH.md` A-10b.
+
 Zmiana względem wersji 41 / activate: milczenie o niezależności envelope activate od dostawy `user_welcome`. Od tej wersji K-1 / K-2h: sukces activate **niezależny** od SMTP welcome; `MAIL_DELIVERY_FAILED` **nie** dotyczy welcome po activate — `docs/dokumentacja_komunikacji.md`, `SPEC-AUTH.md` A-12.
 Zmiana względem wersji 39 / cel: brak endpointu agregacji KPI. Od tej wersji **K-2k** — `GET /api/v1/runs/summary` (rolling 30d, scope admin/user/guest∧demo, TTL cache 60 s, shape KPI) — `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-13, `SPEC-FRONTEND.md` F-16.
 
 Zmiana względem wersji 36 / cel: Users DELETE = soft; cancel wyłącznie `startedBy`; `startedBy` na detail bez `role`; brak `GUEST_HAS_ACTIVE_RUN`. Od tej wersji: DELETE wg roli + `?purge=true`; cancel admin→guest; `startedBy.role` na detail; kod **`GUEST_HAS_ACTIVE_RUN`** (K-2j / K-8) — `docs/dokumentacja_komunikacji.md`, `users-management-plan.md` Faza 2.
 
-Zmiana względem wersji 34 / cel: doprecyzowano K-2b — pełna lista HTTP `GET /runs/user/:userId`; paginacja „Moje runy” = wyłącznie UI (`docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`).
+Zmiana względem wersji 34 / cel: doprecyzowano K-2b — pełna lista HTTP `GET /runs/user/:userId`; paginacja „Moje runy” = wyłącznie UI (`docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`). **Nadpisane** przez zmianę względem wersji 42 powyżej.
 
 Zmiana względem wersji 23 / cel: dopisano konsumpcję `run.completed` / `run.failed` w dashboardzie (toast). **Bez** nowych kodów HTTP, eventów SSE i endpointów.
 
@@ -52,12 +54,12 @@ Wiążące (`docs/architektura.md`):
 | Powierzchnia | Prefiks / ścieżka | Format |
 |--------------|-------------------|--------|
 | Publiczne API CC | `/api/v1` | JSON |
-| Lista runów | `GET /api/v1/runs` | JSON (paginacja stała 10) |
+| Lista runów | `GET /api/v1/runs` | JSON (opcjonalna paginacja; envelope `{ items, page, pageSize, total }`) |
 | Agregacja KPI (Konto) | `GET /api/v1/runs/summary` | JSON (rolling 30d; TTL cache 60 s) |
-| Runy użytkownika (select opinii + Konto) | `GET /api/v1/runs/user/:userId` | JSON (wszystkie, bez pageSize HTTP; paginacja UI Moje runy = FE) |
+| Runy użytkownika (select / live / Moje runy) | `GET /api/v1/runs/user/:userId` | JSON (opcjonalna paginacja; ten sam envelope; tryb all vs strona) |
 | Live run | `GET /api/v1/runs/:runId/events` | SSE (`text/event-stream`) |
 | Anulowanie runu | `POST /api/v1/runs/:runId/cancel` | JSON (body puste; snapshot) |
-| Users (admin) | `GET`/`PATCH`/`DELETE /api/v1/users/:id` | JSON — DELETE soft/hard+`purge`; PATCH reaktywacja tylko `user` |
+| Users (admin) | `GET` / `PATCH` / `DELETE /api/v1/users`… | JSON — GET lista (opcjonalna paginacja + envelope); DELETE soft/hard+`purge`; PATCH reaktywacja tylko `user` |
 | Opinia tekstowa | `POST /api/v1/feedback` | JSON (zapis MVP) |
 | Ops metrics | `GET /metrics` (poza `/api/v1`) | Prometheus text |
 | DX OpenAPI (Swagger UI) | `GET /docs` (poza `/api/v1`) | HTML / OpenAPI JSON |
@@ -111,7 +113,9 @@ K-2. Start runu (`POST /api/v1/runs`) zwraca **202** z `runId`, `conversationId`
 
 Zmiana względem wersji 37 / K-2: pole `audience` wymienione w sumie kluczy bez trzech semantyki. Od tej wersji kanon omit / name / custom + zakaz „omit = wszystkie profile”.
 
-K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, `pageSize=10`, filtry w tym `taskType` i `platform=web`, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md`. Query `status`: **jeden** `RunStatus` **albo** lista unikalnych wartości rozdzielona przecinkiem (archiwum UI: `completed,failed,cancelled`). Brak parametru = wszystkie statusy. Nieznana wartość → **400** `VALIDATION_FAILED`.
+K-2a. `GET /api/v1/runs` realizuje listing kolekcji wg docs (instancja, filtry w tym `taskType` i `platform=web`, `startedBy`) — norma dziedzinowa w `SPEC-RUNY.md` R-3a. **Paginacja opcjonalna:** brak `page` i `pageSize` → cała kolekcja (po filtrach) w envelope; obecność `page` i/lub `pageSize` → strona (default `page=1`, `pageSize=10`); allowlista `pageSize` ∈ {10, 15, 25, 50}; poza allowlistą / zły `page` → **400** `VALIDATION_FAILED`. Envelope zawsze `{ items, page, pageSize, total }`. Query `status`: **jeden** `RunStatus` **albo** lista unikalnych wartości rozdzielona przecinkiem (archiwum UI: `completed,failed,cancelled`). Brak parametru status = wszystkie statusy. Nieznana wartość → **400** `VALIDATION_FAILED`.
+
+Zmiana względem wersji 42 / K-2a: stałe `pageSize=10` / zawsze-strona. Od tej wersji opcjonalny tryb all vs strona + allowlista (R-3a).
 
 Zmiana względem wersji 21 / K-2a: `status` wyłącznie jako pojedynczy enum.
 
@@ -130,9 +134,11 @@ Zmiana względem wersji 15 / K-2c: enumeracja `result` bez `contents` / `reelScr
 
 Zmiana względem wersji 26 / K-2c: snapshot bez pól TTL / bez normy GET bez side-effect. Od tej wersji `pipelineFinishedAt` + `reviewExpiresAt` + 4a.
 
-K-2b. `GET /api/v1/runs/user/:userId` — lista wszystkich runów autora: select opinii **oraz** „Moje runy” na Koncie (live) (`SPEC-RUNY.md` R-3c, `docs/ux_dashboard.md`). **Bez** paginacji HTTP (`page` / `pageSize`); FE **wolno** paginować wyświetlanie tabeli Konta stałym `pageSize = 10` (slice) — `SPEC-FRONTEND.md` F-8. W formularzu opinii UI filtruje `completed` \| `failed` \| (`cancelled` **z** wynikiem — Fbk-3a); lista Konta pokazuje wszystkie statusy. `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`): przy `targetType=run` okno `completed` \| `failed` \| (`cancelled` **oraz** istnieje wynik); inaczej **409** `RUN_NOT_REVIEWABLE` (Fbk-3a). Ocena / **zapis edycji wyniku** (`POST .../output-edited` z `{ result }`) / finalize — wyłącznie `completed` \| `failed` **oraz** w oknie `REVIEW_TTL` (`SPEC-RUNY.md` R-10); `cancelled` → **409** `RUN_NOT_REVIEWABLE`; po finalize **albo** po TTL → **409** `REVIEW_LOCKED` (**bez** side-effect UPDATE `reviewFinalizedAt` przy samym TTL — lock w DB = sweeper). Payloady w `docs/dokumentacja_komunikacji.md`. Env okna / sweepera: `REVIEW_TTL`, `REVIEW_SWEEP_INTERVAL` — `docs/deployment.md` (ten SPEC nie redefiniuje tabeli env).
+K-2b. `GET /api/v1/runs/user/:userId` — lista runów autora: select opinii, rejestr live / floating / OwnRuns **oraz** tabela „Moje runy” (`SPEC-RUNY.md` R-3c, `docs/ux_dashboard.md`). **Opcjonalna paginacja** jak K-2a / R-3c (tryb all vs strona; allowlista; envelope). Tabela Moje runy **zawsze** wysyła `page`+`pageSize`; live/select = **bez** parametrów. **Zakaz** slice FE jako normy paginacji listingu — `SPEC-FRONTEND.md` F-8. W formularzu opinii UI filtruje `completed` \| `failed` \| (`cancelled` **z** wynikiem — Fbk-3a); lista Konta pokazuje wszystkie statusy. `POST /api/v1/feedback` — zapis opinii (`SPEC-FEEDBACK.md`): przy `targetType=run` okno `completed` \| `failed` \| (`cancelled` **oraz** istnieje wynik); inaczej **409** `RUN_NOT_REVIEWABLE` (Fbk-3a). Ocena / **zapis edycji wyniku** (`POST .../output-edited` z `{ result }`) / finalize — wyłącznie `completed` \| `failed` **oraz** w oknie `REVIEW_TTL` (`SPEC-RUNY.md` R-10); `cancelled` → **409** `RUN_NOT_REVIEWABLE`; po finalize **albo** po TTL → **409** `REVIEW_LOCKED` (**bez** side-effect UPDATE `reviewFinalizedAt` przy samym TTL — lock w DB = sweeper). Payloady w `docs/dokumentacja_komunikacji.md`. Env okna / sweepera: `REVIEW_TTL`, `REVIEW_SWEEP_INTERVAL` — `docs/deployment.md` (ten SPEC nie redefiniuje tabeli env).
 
-Zmiana względem wersji 34 / K-2b: dopisano kanon paginacji UI Moje runy (FE) przy zachowaniu pełnej listy HTTP.
+Zmiana względem wersji 42 / K-2b: „bez `page`/`pageSize`” + FE-slice jako kanon Moje runy. Od tej wersji opcjonalna paginacja HTTP; tabele z parametrami; live/select = tryb all.
+
+Zmiana względem wersji 34 / K-2b: dopisano kanon paginacji UI Moje runy (FE) przy zachowaniu pełnej listy HTTP. **Nadpisane** przez zmianę względem wersji 42.
 
 Zmiana względem wersji 19 / K-2b: endpoint user-runs tylko pod select opinii. Od tej wersji także lista Konta; dopisano K-2d.
 
@@ -152,10 +158,13 @@ K-2e. `POST /api/v1/runs/:runId/cancel` — body puste; sesja cookie. Authz: `st
 
 Zmiana względem wersji 36 / K-2e: authz wyłącznie `startedBy`. Od tej wersji wyjątek admin→`guest`.
 
-K-2j. Users (admin) — skrót I/O; pełna semantyka `SPEC-AUTH.md` A-10 / A-10a, `docs/dokumentacja_komunikacji.md`:
+K-2j. Users (admin) — skrót I/O; pełna semantyka `SPEC-AUTH.md` A-10 / A-10a / **A-10b**, `docs/dokumentacja_komunikacji.md`:
 
+- `GET /api/v1/users` — opcjonalna paginacja jak K-2a (tryb all vs strona; allowlista `pageSize`; envelope `{ items, page, pageSize, total }`); authz admin; pozycja w `items` jak docs. Norma: `SPEC-AUTH.md` A-10b.
 - `DELETE /api/v1/users/:id` — body puste; opcjonalny query **`purge=true`** (skutek tylko przy `guest` + live). Semantyka po `target.role`: soft `user` / hard `guest`. **200** `{ "ok": true }` (soft / hard / purge). **403** target admin; **404** brak wiersza; **400** złe `UserId`; **409** `GUEST_HAS_ACTIVE_RUN` + `message` (guest + live + **bez** `purge`; bez listy `runId`).
 - `PATCH /api/v1/users/:id` — body `{ "isActive": true }`; sukces tylko target `role = user`; target `guest` → **403**; **nie** `PATCH` z `role` / `isActive: false`.
+
+Zmiana względem wersji 42 / K-2j: GET Users bez trybu stron / envelope. Od tej wersji ten sam model opcjonalnej paginacji (A-10b).
 
 K-2k. `GET /api/v1/runs/summary` — agregacja KPI pod widok Konto (`docs/ux_dashboard.md`, `SPEC-FRONTEND.md` F-16). Sesja cookie `cc_access` (jak inne chronione trasy Runs). **Query: brak** — okno zawsze rolling **ostatnie 30 dni** od „teraz” serwera. **Bez** body request. **Bez** migracji schematu.
 
@@ -382,7 +391,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 
 - [ ] Błędy HTTP mają envelope z `code`, `message`, `requestId` (format `req_<uuid>`).
 - [ ] `POST /api/v1/runs` kończy się 202 z `runId` + `conversationId` bez czekania na LLM; unia `platform` / `contentKind` egzekwowana (400 przy konflikcie).
-- [ ] `GET /api/v1/runs` listuje runy instancji zgodnie z docs (paginacja 10, filtry, `startedBy`).
+- [ ] `GET /api/v1/runs` listuje runy instancji zgodnie z docs (opcjonalna paginacja + allowlista + envelope, filtry, `startedBy`); `GET /runs/user/:userId` i `GET /users` — ten sam model (K-2a / K-2b / K-2j / A-10b).
 - [ ] `GET /api/v1/runs/summary`: sesja cookie; scope admin/user/guest∧demo; shape `windowFrom`/`windowTo`/`totalLast30d`/`successRateLast30d`/`activeNow`/`topTaskTypeLast30d`; TTL cache 60 s; **401** bez sesji; envelope K-1; DTO w shared; **bez** migracji (K-2k / R-13).
 - [ ] `GET /api/v1/runs/user/:userId` i `POST /feedback` oraz rating/edit/finalize istnieją w kontrakcie docs; kody `REVIEW_LOCKED` / `RUN_NOT_REVIEWABLE` / `RUN_NOT_CANCELABLE` w envelope; snapshot + sukcesy mutacji przeglądu niosą `pipelineFinishedAt` / `reviewExpiresAt`; lista usera **bez** tych pól; GET bez side-effect finalize.
 - [ ] `POST /api/v1/runs/:runId/cancel`: 200 (owner + admin gdy `startedBy.role=guest` + idempotencja), 403 (cudzy `user`), 404, 409 `RUN_NOT_CANCELABLE`; body puste; bez await execute.

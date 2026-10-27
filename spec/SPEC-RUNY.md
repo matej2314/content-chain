@@ -1,20 +1,22 @@
 ---
-wersja: 29
+wersja: 30
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-17
+data_modyfikacji: 2026-10-27
 ---
 
 # SPEC — Runy / logi
 
 ## Cel / zakres względem dokumentacji
 
-Norma bounded contextu **Runs / Logs** w `apps/api`: cykl życia async runu, **lista runów instancji** (paginacja / filtry), **agregacja KPI (`GET /runs/summary`)**, polityka statusów, **anulowanie (`cancelled`)**, kanoniczne logi w DB, emisja SSE, kolejka współbieżności, recovery po przerwaniu procesu, **przegląd runu z TTL** (`pipelineFinishedAt` + `REVIEW_TTL`, sweeper auto-finalize) oraz **`GuestRunPolicy`** (sloty / Redis admit — `docs/dokumentacja_komunikacji.md`).
+Norma bounded contextu **Runs / Logs** w `apps/api`: cykl życia async runu, **lista runów instancji** (opcjonalna paginacja / filtry), **agregacja KPI (`GET /runs/summary`)**, polityka statusów, **anulowanie (`cancelled`)**, kanoniczne logi w DB, emisja SSE, kolejka współbieżności, recovery po przerwaniu procesu, **przegląd runu z TTL** (`pipelineFinishedAt` + `REVIEW_TTL`, sweeper auto-finalize) oraz **`GuestRunPolicy`** (sloty / Redis admit — `docs/dokumentacja_komunikacji.md`).
 
 Uszczegóławia `docs/architektura.md` (async run, klej composite, cancel v1), `docs/dokumentacja_komunikacji.md` (lista / SSE / GET / cancel / ocena / lista user / summary / unia startu), `docs/data_flow.md` (ścieżka cancel, recovery + `cancelRequested`, TTL przeglądu), `docs/observability.md` (pola logów vs metrics) oraz współpracę z `SPEC-SOCIAL.md`, `SPEC-CONTENT.md` i `SPEC-FEEDBACK.md`.
 
+Zmiana względem wersji 29 / R-3a / R-3c: R-3a = zawsze strona ze stałym `pageSize=10`; R-3c = pełna lista HTTP **bez** `page`/`pageSize` + paginacja „Moje runy” wyłącznie slice FE. Od tej wersji: **opcjonalna** paginacja na obu GET (`page` + `pageSize`); brak parametrów → cała kolekcja w envelope (`page=1`, `pageSize=total`); allowlista `pageSize` ∈ {10, 15, 25, 50}; **400** `VALIDATION_FAILED` poza allowlistą / zły `page` — `docs/dokumentacja_komunikacji.md`, `SPEC-KOMUNIKACJA.md` K-2a / K-2b, `SPEC-FRONTEND.md` F-8.
+
 Zmiana względem wersji 27 / cel: brak agregacji KPI w BC Runs. Od tej wersji **R-13** — `GET /api/v1/runs/summary` (metryki 30d, scope, remis topTaskType, cache TTL 60 s, DTO shared, bez migracji) — `SPEC-KOMUNIKACJA.md` K-2k, `SPEC-FRONTEND.md` F-16.
 
-Zmiana względem wersji 22 / R-3c: doprecyzowano, że **paginacja UI** „Moje runy” (FE, `pageSize = 10`) **nie** zmienia kontraktu HTTP R-3c — pełna lista nadal z API (`docs/ux_dashboard.md`, `SPEC-FRONTEND.md` F-8).
+Zmiana względem wersji 22 / R-3c: doprecyzowano, że **paginacja UI** „Moje runy” (FE, `pageSize = 10`) **nie** zmienia kontraktu HTTP R-3c — pełna lista nadal z API (`docs/ux_dashboard.md`, `SPEC-FRONTEND.md` F-8). **Nadpisane** przez zmianę względem wersji 29 powyżej (paginacja HTTP + tryb all).
 
 Zmiana względem wersji 7: **jeden** executor Social w MVP unieważniony — klej composite (Social \| Content); `UNKNOWN_TASK_TYPE`; unia `platform` / `contentKind`; HITL `selectedIdeaIds` także dla reel/page.
 
@@ -79,11 +81,14 @@ R-3. Live postęp **konkretnego** runu wyłącznie przez SSE (`SPEC-KOMUNIKACJA.
 R-3a. `GET /api/v1/runs` — lista **całej instancji** (nie tylko bieżącego użytkownika), zgodnie z `docs/dokumentacja_komunikacji.md`. **`guest` (demo on):** ta sama lista (showcase). `admin`/`user`: **bez zmian**.
 
 - sortowanie: `createdAt` malejąco;
-- paginacja: stałe **`pageSize = 10`** (klient nie nadpisuje limitu), query `page` (default 1);
+- **paginacja opcjonalna:** brak `page` **i** brak `pageSize` → tryb **cała kolekcja** (po filtrach) w envelope `{ items, page, pageSize, total }` z `page=1`, `pageSize=total`, `total=N`; obecność `page` **i/lub** `pageSize` → tryb **stron** (brakujące = default `page=1`, `pageSize=10`);
+- **allowlista `pageSize`:** wyłącznie **10 \| 15 \| 25 \| 50**; inna wartość → **400** `VALIDATION_FAILED`; zły `page` (nie-integer / `< 1`) → **400** `VALIDATION_FAILED`;
 - filtry opcjonalne: `status` (**jeden** `RunStatus` **albo** lista unikalnych wartości rozdzielona przecinkiem; archiwum dashboardu: `completed,failed,cancelled`; brak parametru = wszystkie), `taskType` (w tym `reel_*` i `page_*`), `platform` (`SocialPlatform` **lub** `web`), `userId` (inicjator);
 - pozycja listy: `runId`, `taskType`, `platform`, `contentKind` (nullable), `language`, `status`, `createdAt`, `startedBy: { id, email }`;
-- odpowiedź zawiera `items`, `page`, `pageSize`, `total`.
+- odpowiedź **zawsze** zawiera `items`, `page`, `pageSize`, `total` (oba tryby).
 - nieznana wartość w `status` → **400** `VALIDATION_FAILED`.
+
+Zmiana względem wersji 29 / R-3a: stałe `pageSize=10` bez wyboru klienta / zawsze-strona. Od tej wersji opcjonalny tryb all vs strona + allowlista.
 
 Zmiana względem wersji 16 / R-3a: `status` wyłącznie pojedynczy enum; UI Runy = wszystkie statusy. Od tej wersji lista wielowartościowa; kanon widoku Runy = archiwum terminalne (`docs/ux_dashboard.md`) — API bez filtra nadal zwraca całą instancję (Postman).
 
@@ -128,13 +133,25 @@ Zmiana względem wersji 11: pola wyniku SM/outline bez addytywnych kluczy kontra
 
 Zmiana względem wersji 2: snapshot ma obowiązkowe pola przeglądu (`userRating` zawsze `null` \| `1`…`5`; `outputEdited`; `reviewFinalizedAt`) zgodnie z `docs/dokumentacja_komunikacji.md`.
 
-R-3c. `GET /api/v1/runs/user/:userId` — **wszystkie** runy z `startedBy = :userId`, sort `createdAt` desc, **bez** stałego `pageSize=10` na HTTP. Pozycja lekka: `runId`, `taskType`, `platform`, `language`, `status`, `createdAt`. **Bez** `pipelineFinishedAt` / `reviewExpiresAt` / pełnych metadanych przeglądu. `:userId` **musi** równać się id sesji; inaczej **403** `FORBIDDEN` (brak wyjątku admin w MVP). Konsumenci: select opinii **oraz** lista „Moje runy” na Koncie (live) (`docs/ux_dashboard.md`). **UI Konto** może **paginować wyświetlanie** stałym `pageSize = 10` (slice FE) — **bez** zmiany tego kontraktu i **bez** query `page` / `pageSize` na tym endpoincie (`SPEC-FRONTEND.md` F-8). Wynik runu — przez `GET /runs/:runId` (widok szczegółów), nie przez ten listing.
+R-3c. `GET /api/v1/runs/user/:userId` — runy z `startedBy = :userId`, sort `createdAt` desc. **Ten sam** model opcjonalnej paginacji co R-3a (brak parametrów → cała kolekcja w envelope; obecność `page` i/lub `pageSize` → strona; allowlista 10\|15\|25\|50; **400** `VALIDATION_FAILED`). Pozycja lekka: `runId`, `taskType`, `platform`, `language`, `status`, `createdAt`. **Bez** `pipelineFinishedAt` / `reviewExpiresAt` / pełnych metadanych przeglądu. `:userId` **musi** równać się id sesji; inaczej **403** `FORBIDDEN` (brak wyjątku admin w MVP). Odpowiedź **zawsze** envelope `{ items, page, pageSize, total }`.
 
-Zmiana względem wersji 22 / R-3c: dopisano kanon paginacji UI Moje runy (FE) przy zachowaniu pełnej listy HTTP.
+**Konsumenci** (`docs/ux_dashboard.md`, `SPEC-FRONTEND.md` F-8 / F-9):
+
+| Konsument | Wywołanie |
+|-----------|-----------|
+| Tabela **Moje runy** | **Zawsze** `page` + `pageSize` (HTTP; **zakaz** slice FE jako paginacji) |
+| OwnRuns / floating / rejestr SSE | **Bez** parametrów paginacji |
+| Select formularza opinii | **Bez** parametrów paginacji |
+
+Wynik runu — przez `GET /runs/:runId` (widok szczegółów), nie przez ten listing.
+
+Zmiana względem wersji 29 / R-3c: wyjątek „bez `page`/`pageSize`” + paginacja Moje runy wyłącznie slice FE. Od tej wersji opcjonalna paginacja HTTP; tabele wysyłają parametry; live/select = tryb all.
+
+Zmiana względem wersji 22 / R-3c: dopisano kanon paginacji UI Moje runy (FE) przy zachowaniu pełnej listy HTTP. **Nadpisane** przez zmianę względem wersji 29.
 
 Zmiana względem wersji 15 / R-3c: endpoint był opisany wyłącznie pod select opinii.
 
-Zmiana względem wersji 2 / R-3a: R-3a (dashboard, strona 10) **zostaje**; R-3c to **osobny** endpoint pod select formularza opinii — nie wolno nadpisywać `limit` na `GET /runs`.
+Zmiana względem wersji 2 / R-3a: R-3a (dashboard) **zostaje** osobnym listingiem instancji; R-3c to **osobny** endpoint pod user-runs — **nie** wolno ładować selectu opinii / rejestru live z `GET /runs` (instancja).
 
 R-4. Emisja zdarzeń SSE należy do Runs; Social nie streamuje SSE bezpośrednio z węzłów grafu.
 
@@ -340,7 +357,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Tworzenia `interrupted` z HTTP (`POST /runs`, HITL).
 - Wycieku sekretów do `run.log`.
 - Listy tylko „moje runy” jako **jedynego** trybu MVP (norma: archiwum instancji `GET /runs` **oraz** `GET /runs/user/:userId`). UI Runy filtruje terminalne; API bez `status` nadal zwraca całą instancję.
-- Zmiennego `pageSize` / dowolnego `limit` z query na `GET /runs` w MVP (stałe 10). `GET /runs/user/:userId` jest **osobnym** wyjątkiem bez paginacji HTTP — nie mylić z R-3a **ani** z paginacją UI „Moje runy” (FE, `SPEC-FRONTEND.md`).
+- `pageSize` spoza allowlisty {10, 15, 25, 50} na `GET /runs` / `GET /runs/user/:userId` (R-3a / R-3c). Osobnego endpointu „pełnej listy” obok opcjonalnego trybu all. Myślenia, że R-3c **nie** przyjmuje `page`/`pageSize` (tabele **wysyłają**; live/select = tryb bez parametrów — `SPEC-FRONTEND.md`).
 - Oceny / edycji wyniku / finalize na runie obcego `startedBy`.
 - Zmiany `userRating` / treści wyniku / `outputEdited` po `reviewFinalizedAt` **albo** po minięciu `REVIEW_TTL` (produktowo locked — R-10).
 - UPDATE `reviewFinalizedAt` przy mutacji po TTL (lock w DB poza ręcznym finalize = wyłącznie sweeper).
@@ -404,8 +421,8 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 - [ ] Nielegalne przejście statusu jest odrzucane.
 - [ ] Logi rosną tylko przez append; GET logs zwraca historię; SSE dostarcza przyrosty.
 - [ ] Po `completed`/`failed`/`cancelled` hub nie zatrzymuje subjectu danego `runId`; `awaiting_hitl` / `interrupted` nie evikują subjectu; przy cancelu kolejność `run.status` → `run.cancelled` → complete.
-- [ ] `GET /runs` zwraca listę instancji z paginacją 10, sortem `createdAt` desc, filtrami i `startedBy`; archiwum UI filtruje `completed,failed,cancelled`.
-- [ ] `GET /runs/user/:userId` zwraca wszystkie runy sesji; cudzy id → 403.
+- [ ] `GET /runs` — opcjonalna paginacja (tryb all vs strona; allowlista; envelope), sort `createdAt` desc, filtry i `startedBy`; archiwum UI filtruje `completed,failed,cancelled` + zawsze `page`+`pageSize`.
+- [ ] `GET /runs/user/:userId` — ten sam model paginacji; tryb bez parametrów = cała kolekcja; cudzy id → 403.
 - [ ] Snapshot zawiera `userRating` (`null` \| 1–5), `outputEdited`, `reviewFinalizedAt`, `pipelineFinishedAt`, `reviewExpiresAt`, `cancelledAt` (`null` \| ISO8601).
 - [ ] Ocena i Edytuj (zapis treści + flaga) działają na `completed` i `failed` tylko dla autora w oknie TTL; na `cancelled` → `RUN_NOT_REVIEWABLE`; po finalize **albo** po TTL → `REVIEW_LOCKED` (po samym TTL **bez** UPDATE `reviewFinalizedAt`); GET snapshot po Edytuj zwraca treść użytkownika; GET **nie** ustawia finalize.
 - [ ] Transition → `completed`/`failed` ustawia `pipelineFinishedAt` raz; sweeper (boot / interval) ustawia `reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL` dla zaległych; restart api nie odmraża wygasłego przeglądu.

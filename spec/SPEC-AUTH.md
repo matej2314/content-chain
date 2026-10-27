@@ -1,14 +1,16 @@
 ---
-wersja: 31
+wersja: 32
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-22
+data_modyfikacji: 2026-10-27
 ---
 
 # SPEC — Auth
 
 ## Cel / zakres względem dokumentacji
 
-Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, **`PATCH /auth/me/email` (własny email + re-auth; nie dla `guest`)**, role `admin` | `user` | **`guest`**, lista kont, **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite** (rola vs `DEMO_MODE`, mirror register), **otwarta rejestracja** (`POST /auth/register` — rola vs `DEMO_MODE`), **aktywacja konta** (`POST /auth/activate` + `AccountActivation` / `verifiedAt`; także dla `guest`), **powitalny mail `user_welcome` po sukcesie activate (best-effort)**, **resend aktywacji**, **GuestGuard** / martwa sesja `guest` przy demo off, **DELETE użytkowników wg roli** (soft `user` / hard+purge `guest`), **reaktywacja PATCH tylko `user` (z UI)**, check `isActive` / braku wiersza na access JWT, polityka haseł i sesji, **treść maili transakcyjnych** (szablony HTML + plain text, wspólny shell z **logotypem CID** w headerze HTML, język **PL**; kinds `user_invited` \| `user_activation` \| `user_welcome`; invite/activation: ważność = pełne zdanie w `validityLabel` + token tylko w URL).
+Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, **`PATCH /auth/me/email` (własny email + re-auth; nie dla `guest`)**, role `admin` | `user` | **`guest`**, lista kont (**opcjonalna paginacja** `GET /users`), **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite** (rola vs `DEMO_MODE`, mirror register), **otwarta rejestracja** (`POST /auth/register` — rola vs `DEMO_MODE`), **aktywacja konta** (`POST /auth/activate` + `AccountActivation` / `verifiedAt`; także dla `guest`), **powitalny mail `user_welcome` po sukcesie activate (best-effort)**, **resend aktywacji**, **GuestGuard** / martwa sesja `guest` przy demo off, **DELETE użytkowników wg roli** (soft `user` / hard+purge `guest`), **reaktywacja PATCH tylko `user` (z UI)**, check `isActive` / braku wiersza na access JWT, polityka haseł i sesji, **treść maili transakcyjnych** (szablony HTML + plain text, wspólny shell z **logotypem CID** w headerze HTML, język **PL**; kinds `user_invited` \| `user_activation` \| `user_welcome`; invite/activation: ważność = pełne zdanie w `validityLabel` + token tylko w URL).
+
+Zmiana względem wersji 31 / lista kont: `GET /users` bez trybu stron / bez wymogu envelope `{ items, page, pageSize, total }`. Od tej wersji **A-10b** — opcjonalna paginacja jak listingi Runs; allowlista `pageSize`; authz admin **bez zmian** — `docs/dokumentacja_komunikacji.md`, `SPEC-KOMUNIKACJA.md` K-2j.
 
 Zmiana względem wersji 30 / Faza 25 (shell): slot brandu w headerze HTML = tekstowy wordmark. Od tej wersji: header wspólnego shella HTML = **logotyp** PNG (CID; wizualnie = `content-chain-logo-transparent.png`); `alt` = nazwa marki; plain text / subject / body prose = string „Content Chain” **bez regresji**; CID logotypu wyłącznie w `infrastructure/mail/` — `docs/brand_types.md`.
 
@@ -181,6 +183,19 @@ A-10a. `PATCH /api/v1/users/:id` = **wyłącznie reaktywacja** targetu **`role =
 Zmiana względem wersji 20 / A-10a: reaktywacja bez rozróżnienia roli targetu; UI poza MVP. Od tej wersji tylko `user`; `guest` → **403**; UI **w wycinku**.
 
 Zmiana względem wersji 14 / A-10a: milczenie o `verifiedAt` przy reaktywacji. Od tej wersji jawnie: PATCH **nie** ustawia `verifiedAt`.
+
+A-10b. `GET /api/v1/users` — lista kont instancji (admin). Authz: `@Roles('admin')` + cookie; `user` / `guest` → **403** `FORBIDDEN`; brak sesji → **401** `UNAUTHORIZED`. **Bez** pending invitations w tej odpowiedzi.
+
+**Paginacja opcjonalna** (ten sam model co `SPEC-RUNY.md` R-3a / `docs/dokumentacja_komunikacji.md`):
+
+| Wejście | Zachowanie |
+|---------|------------|
+| Brak `page` **i** brak `pageSize` | Tryb **cała kolekcja**: envelope `{ items, page, pageSize, total }` z `page=1`, `pageSize=total`, `total=N` |
+| Obecność `page` **i/lub** `pageSize` | Tryb **stron**: default `page=1`, `pageSize=10`; `total` = liczność całej kolekcji |
+
+Allowlista `pageSize` ∈ {10, 15, 25, 50}; poza allowlistą / zły `page` → **400** `VALIDATION_FAILED`. Pozycja w `items`: `{ id, email, role, isActive, verifiedAt, createdAt }` (`verifiedAt` ISO \| `null`). Sort: `createdAt` desc. UI Users **zawsze** wysyła `page`+`pageSize` + select allowlisty — `SPEC-FRONTEND.md` F-8.
+
+Zmiana względem: listing `GET /users` bez trybu stron / bez wymogu jednolitego envelope. Od tej wersji A-10b egzekwuje opcjonalną paginację.
 
 A-11. `POST /api/v1/auth/register` — publiczny (`@Public()`); body `{ email, password }` (`.strict()`; **bez** `role`). **Zawsze** dostępny — **nie** bramkowany `DEMO_MODE` (dostępność **bez zmian** względem A-11 po planie register). Rola: **`DEMO_MODE=true` → `guest`**; **`DEMO_MODE=false` → `user`**. **Zmiana względem:** A-11 wersji 17 (oraz kanon po planie register) — serwer **zawsze** ustawiał **`role = user`**; `guest` / `DEMO_MODE` były poza kontraktem register. **Zakaz:** drugi endpoint register-as-guest; `role` w body. Register **nigdy** → `admin`. Przed `User.create`: **revoke** ewentualnego **`Invitation` `pending`** na ten sam email. Polityka A-5 przed hashowaniem. Email case-sensitive jak A-7d. Aktywacja (A-12 / A-13 / `verifiedAt` / `AccountActivation`) **bez zmian** sensu — dotyczy także kont `guest` (demo on + `production`).
 

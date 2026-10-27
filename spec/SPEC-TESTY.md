@@ -1,7 +1,7 @@
 ---
-wersja: 40
+wersja: 41
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-22
+data_modyfikacji: 2026-10-27
 ---
 
 # SPEC — Testy
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-22
 ## Cel / zakres względem dokumentacji
 
 Norma strategii testów MVP Content Chain: piramida, narzędzia, obowiązkowe przypadki DoD oraz CI — uszczegółowienie `docs/testy.md` pod egzekwowalne reguły przy implementacji `apps/api`.
+
+Zmiana względem wersji 40: DoD bez opcjonalnej paginacji listingów. Od tej wersji **D-82…D-85** (tryb all vs strona; allowlista `pageSize`; envelope na `GET /runs`, `GET /runs/user/:userId`, `GET /users`) — `SPEC-RUNY.md` R-3a / R-3c, `SPEC-AUTH.md` A-10b, `SPEC-KOMUNIKACJA.md` K-2a / K-2b / K-2j; konsumpcja UI (Faza 29 FE) = `SPEC-FRONTEND.md` F-8 (automaty FE poza MVP — T-7). D-28 uściślone: filtr `status` przy **trybie stron** z `pageSize` z allowlisty (nie „jedyny legalny rozmiar”).
 
 Zmiana względem wersji 39 / brand shella maili: unit renderera milczał o formie marki w HTML (wystarczał string „Content Chain” w headerze). Od tej wersji: HTML shell zawiera **logotyp** (CID / `img` z `cid:`) w slocie brandu; sam tekst „Content Chain” w headerze HTML **nie** jest wystarczającym kanonem brandu; plain text nadal może asertować string marki — `SPEC-AUTH.md`, `docs/brand_types.md`.
 
@@ -79,7 +81,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-10 | Recovery: leftover `running` → `interrupted`; claim pod `MAX_CONCURRENT_RUNS`; leftover już `interrupted` bez inkrementu `recoveryAttempts`; 3× przerwany execute → `failed` + log |
 | D-11 | `POST /feedback`: zapis z `authorId`+`createdAt`; cudzy `runId` → `FORBIDDEN`; własny run w toku (`queued` / `running` / `awaiting_hitl` / `interrupted`) → **409** `RUN_NOT_REVIEWABLE` (bez zapisu); `completed` \| `failed` → 201; `cancelled` **bez** wyniku → 409; `cancelled` **z** wynikiem → 201; drugi wpis = nowy wiersz (także po finalize) |
 | D-12 | Ocena `null` \| 1–5 na `completed`/`failed` tylko autora; na `cancelled` → **409** `RUN_NOT_REVIEWABLE`; po finalize → `REVIEW_LOCKED`; `POST .../output-edited` z `{ result }` zastępuje kanoniczny wynik i stawia `outputEdited`; GET snapshot zwraca treść po edycji; snapshot / sukces mutacji niosą `pipelineFinishedAt` + `reviewExpiresAt` (lista usera **bez** tych pól) |
-| D-13 | `GET /runs/user/:userId`: własne wszystkie; cudzy id → `403` |
+| D-13 | `GET /runs/user/:userId`: własne wszystkie; cudzy id → `403`. **Envelope / tryby paginacji** — D-84 (ten case = authz + pełny zbiór własnych w trybie bez parametrów lub równoważny). |
 | D-14 | SSE: hub nie zatrzymuje subjectu po `completed`/`failed`/`cancelled`; po cancel kolejność `run.status` → `run.cancelled` → complete; `GET .../events` na skończonym runie emituje `run.status` i kończy stream |
 | D-15 | `reel_ideas` full-auto: `running` → `completed`; `result.reelIdeas[0].id` |
 | D-16 | `reel_ideas_then_scripts`: `awaiting_hitl` (`options` = reelIdeas) → resume → `result.reelScripts[]` (każdy element + `sourceIdeaId`); skalar `result.reelScript` = `null` po completed fazy 2 |
@@ -96,7 +98,7 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-25 | Soft-delete **tylko `role=user`**: `DELETE /users/:id` → `isActive = false`; runy **zostają**; nieaktywny nie loguje się (ten sam komunikat 401 co złe hasło); kolejne requesty z ważnym access → **401** dzięki checkowi `isActive` (A-3c). Soft przy live runie → **200** (bez 409). **Zmiana względem:** D-25 v31 — soft bez rozróżnienia roli / bez asercji access po soft |
 | D-26 | Reaktywacja **tylko `user`**: `PATCH /users/:id` `{ isActive: true }` na soft-deleted `user` → **200** `isActive: true`; następnie `POST /auth/login` → **200**. `isActive: false` → **400**. `user` woła PATCH → **403**. Target `guest` → **403**. (UI toggle opisowo / API — `SPEC-FRONTEND.md` F-8.) **Zmiana względem:** D-26 v31 — bez filtra roli targetu |
 | D-27 | `PATCH /auth/me/email` `{ email, currentPassword }` (sesja, poprawne hasło): **200** `{ id, email, role }`; `GET /auth/me` zgadza się. Ten sam email co obecny + poprawne hasło → **200** bez zmiany wiersza. Złe hasło → **401** `INVALID_PASSWORD` / `Invalid password`, email w DB **bez** zmiany. Pusty / brak `currentPassword` → **400** `VALIDATION_FAILED`, email bez zmiany. Brak sesji → **401** `UNAUTHORIZED`. Drugi użytkownik / email zajęty (po udanym re-auth) → **409**. `PATCH /users/:id` z `email` nadal **400**. Brak mutacji na `PATCH /auth/me` (albo trasa nie istnieje / nie zmienia emaila). |
-| D-28 | `GET /runs?status=completed,failed,cancelled`: tylko te statusy, `pageSize=10`, sort `createdAt` desc (mieszane); pojedynczy `status=interrupted` bez regresji; nieznana wartość w liście → **400** `VALIDATION_FAILED` |
+| D-28 | `GET /runs?status=completed,failed,cancelled&page=1&pageSize=10` (tryb stron; `pageSize` ∈ allowlisty): tylko te statusy w `items`; envelope `{ items, page, pageSize, total }` z `page=1`, `pageSize=10`; sort `createdAt` desc (mieszane); pojedynczy `status=interrupted` bez regresji; nieznana wartość w liście → **400** `VALIDATION_FAILED`. Allowlista / tryb all / inne listingi — D-82…D-85. **Zmiana względem:** D-28 v40 — pin `pageSize=10` bez jawnego trybu stron / bez odesłania do allowlisty |
 | D-29 | PUT/PATCH `/company-context` przy niekompletnej bramce (w tym kaleka oferta: brak opisu / pusta korzyść / druga niepełna pozycja) → **400** `VALIDATION_FAILED`; singleton w DB **bez zmiany** (brak upsert). D-1 (start → 409 `CONTEXT_INCOMPLETE`) **zostaje**. |
 | D-30 | Cancel happy: `startedBy` woła `POST .../cancel` na nieterminalnym → **200**, `status=cancelled`, `cancelledAt` ustawione; log append; SSE `run.status` + `run.cancelled` + complete huba |
 | D-31 | Cancel idempotencja: drugi `POST .../cancel` na już `cancelled` → **200** (bez błędu) |
@@ -150,7 +152,12 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-79 | Sesja **user**: summary liczy wyłącznie własne (`startedBy` = sesja); cudze runy w oknie **nie** wpływają na `totalLast30d` / `successRateLast30d` / `topTaskTypeLast30d` / `activeNow` |
 | D-80 | Semantyka metryk (unit i/lub integration): brak terminalnych w oknie → `successRateLast30d = 0` (**nie** `null`); brak runów w oknie → `topTaskTypeLast30d = null`; remis count `taskType` → typ z **najnowszym** `createdAt` wśród remisujących; `activeNow` = count status ∈ `{running, awaiting_hitl, queued}` **bez** limitu 30d; cache odpowiedzi TTL **60 s** (ten sam klucz scope → ponowna agregacja dopiero po wygaśnięciu) |
 | D-81 | Guest + `DEMO_MODE=true`: `GET /runs/summary` → **200**, scope = wyłącznie własne; JWT `guest` przy demo off → **401** (jak pozostałe chronione trasy guest — GuestGuard) |
+| D-82 | `GET /api/v1/runs` **bez** `page` **i** bez `pageSize` (tryb **cała kolekcja**): **200** envelope `{ items, page, pageSize, total }` z `page=1`, `pageSize=total`, `total=N` (N = liczność po filtrach; pusta kolekcja → `total=0`, `pageSize=0`); `items.length === total`; filtry (`status` / `taskType` / …) stosowane **przed** meta. **Zakaz** odpowiedzi bez `page`/`pageSize`/`total`. |
+| D-83 | `GET /api/v1/runs` tryb **stron** (obecność `page` **i/lub** `pageSize`): brakujące = default `page=1`, `pageSize=10`; `pageSize` ∈ {10, 15, 25, 50} → **200**, `items.length ≤ pageSize`, `total` = liczność po filtrach (nie tylko strona); `pageSize=50` **nie** jest **400**; `pageSize` spoza allowlisty (np. `11`, `20`, `100`) **lub** zły `page` (nie-integer / `< 1` / nieparsowalny) → **400** `VALIDATION_FAILED`. Regresja D-28: `status=completed,failed,cancelled&page=1&pageSize=10` nadal zielony. |
+| D-84 | `GET /api/v1/runs/user/:userId` — **ten sam** model co D-82/D-83: bez parametrów → cała kolekcja użytkownika w envelope (`page=1`, `pageSize=total`); z `page`/`pageSize` → strona + allowlista + **400** poza nią; pozycje lekkie (`runId`, `taskType`, `platform`, `language`, `status`, `createdAt` — **bez** pól przeglądu). Cudzy `:userId` → **403** `FORBIDDEN` (D-13). Semantyka FE (tabela Moje runy **z** parametrami; OwnRuns / floating / select opinii **bez** parametrów) — `SPEC-FRONTEND.md` F-8 / Faza 29 FE; automaty FE poza MVP (T-7). |
+| D-85 | `GET /api/v1/users` (admin): opcjonalna paginacja jak D-82/D-83 — bez parametrów → cała kolekcja w envelope; z `page`/`pageSize` → strona + allowlista + **400** poza nią; pozycja w `items`: `{ id, email, role, isActive, verifiedAt, createdAt }`; sort `createdAt` **desc**. Sesja `user` / `guest` → **403**; brak sesji → **401**. UI Users (select + kontrolki) — F-8 / Faza 29 FE; automaty FE poza MVP (T-7). |
 
+Zmiana względem wersji 40: dopisano **D-82…D-85** (opcjonalna paginacja trzech GET — tryb all vs strona, allowlista, envelope; Users sort desc); D-28 / D-13 uściślone (odesłanie do trybów). Konsumpcja UI Runy / Users / Moje runy + zakaz FE-slice = `SPEC-FRONTEND.md` F-8 (Faza 29 FE) — **bez** nowych automatów FE w DoD (T-7). D-1…D-81 bez kasowania treści.
 Zmiana względem wersji 39 / brand shella × DoD: wymóg logotypu CID w headerze HTML **nie** dodaje nowego D-* HTTP i **nie** zmienia T-5. Unit renderera: logo CID w HTML vs string marki w plain text — `SPEC-AUTH.md`. D-1…D-81 bez kasowania treści.
 Zmiana względem wersji 38 / mail copy × DoD: refaktor odmiany PL / pełnego zdania ważności (`validityLabel` = „Link jest jednorazowy i wygasa po {X}.”) **nie** dodaje nowego D-* HTTP i **nie** zmienia T-5. Unit renderera: pełny wzorzec ważności + deep link; **bez** wymogu linii Postman — `SPEC-AUTH.md`. D-1…D-81 bez kasowania treści.
 Zmiana względem wersji 37 / mail copy × DoD: refaktor copy invite/activation (`validityLabel` / URL-only) **nie** dodaje nowego D-* HTTP i **nie** zmienia T-5. Unit renderera: ważność + deep link; **bez** wymogu linii Postman w body — `SPEC-AUTH.md`. D-1…D-81 bez kasowania treści.
@@ -171,7 +178,7 @@ Zmiana względem wersji 19: dopisano D-29 (twardy zapis kontekstu — C-4). D-1�
 Zmiana względem wersji 18: T-5 i kryteria akceptacji obejmują też D-28 (wcześniej D-28 było w tabeli, bez jawnego pinu w T-5 / checklistcie D-1…D-28).
 Zmiana względem wersji 17: dopisano D-28 (filtr `status` wielowartościowy pod archiwum UI). D-1…D-27 bez kasowania treści.
 
-D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-23a (kolizja email na accept → 401 + revoke) **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel) **oraz** D-35…D-40 (TTL przeglądu / sweeper) **oraz** D-41…D-46 (register / activate / resend; rola vs demo) **oraz** D-47…D-49 (readiness api / probe liveness gateway) **oraz** D-50…D-62 (guest / DEMO) **oraz** D-63…D-72 (Users DELETE/purge / cancel admin→guest / isActive) **oraz** D-73…D-77 (audience `name` / unikalność / effective scoping) **oraz** D-78…D-81 (`GET /runs/summary` KPI). T-3 (cookie) **bez zmian**.
+D-4 i D-5 **zostają**. T-5 obejmuje use-case’y post, reel i page **oraz** zaproszenie → accept → login **oraz** D-23a (kolizja email na accept → 401 + revoke) **oraz** D-26 (reaktywacja → login) **oraz** D-27 (zmiana własnego emaila z re-auth — `PATCH /auth/me/email` + `INVALID_PASSWORD`) **oraz** D-28 (filtr `status` wielowartościowy z `cancelled` + tryb stron `pageSize=10`) **oraz** D-29 (PUT/PATCH niekompletnej bramki → 400) **oraz** D-30…D-34 (cancel) **oraz** D-35…D-40 (TTL przeglądu / sweeper) **oraz** D-41…D-46 (register / activate / resend; rola vs demo) **oraz** D-47…D-49 (readiness api / probe liveness gateway) **oraz** D-50…D-62 (guest / DEMO) **oraz** D-63…D-72 (Users DELETE/purge / cancel admin→guest / isActive) **oraz** D-73…D-77 (audience `name` / unikalność / effective scoping) **oraz** D-78…D-81 (`GET /runs/summary` KPI) **oraz** D-82…D-85 (opcjonalna paginacja `GET /runs` / `GET /runs/user/:userId` / `GET /users`). T-3 (cookie) **bez zmian**.
 
 Zmiana względem wersji 27: dopisano D-47…D-49 (ready gdy liveness OK; unhealthy przy timeout/unreachable; regresja bez `GATEWAY_NOT_READY` na `POST /runs`). D-1…D-46 bez kasowania treści.
 Zmiana względem wersji 28: dopisano D-50…D-62; D-41/D-46 refaktor roli vs `DEMO_MODE`. D-1…D-49 bez kasowania treści.
@@ -231,7 +238,10 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 - Live OpenAI/Anthropic (lub innego vendora) na każdy PR.
 - Wymuszania suite automatycznego FE w v1/MVP.
 - Over-mockowania (testy tylko powtarzające implementację).
-- Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34), TTL / auto-finalize przeglądu (D-35…D-40), register / activate / resend (D-41…D-46), readiness api / probe gateway (D-47…D-49), guest / DEMO (D-50…D-62), Users delete/purge / cancel admin→guest / isActive (D-63…D-72), audience `name` / scoping (D-73…D-77), agregacji KPI `GET /runs/summary` (D-78…D-81) ani cyklu życia SSE (D-14) „na potem” poza DoD.
+- Odkładania testów bramki, HITL, recovery, anulowania (D-30…D-34), TTL / auto-finalize przeglądu (D-35…D-40), register / activate / resend (D-41…D-46), readiness api / probe gateway (D-47…D-49), guest / DEMO (D-50…D-62), Users delete/purge / cancel admin→guest / isActive (D-63…D-72), audience `name` / scoping (D-73…D-77), agregacji KPI `GET /runs/summary` (D-78…D-81), opcjonalnej paginacji listingów (D-82…D-85) ani cyklu życia SSE (D-14) „na potem” poza DoD.
+- Traktowania `pageSize` spoza {10, 15, 25, 50} jako sukcesu na `GET /runs` / `GET /runs/user/:userId` / `GET /users` (obowiązuje **400** `VALIDATION_FAILED` — D-83…D-85).
+- Traktowania braku `page`/`pageSize`/`total` w odpowiedzi tych trzech GET jako poprawnego envelope (obowiązuje D-82…D-85).
+- Asercji DoD, że klientowe `pageSize=15|25|50` na `GET /runs` jest **400** (unieważnione względem historycznego e2e „forbid pageSize”; allowlista — D-83).
 - Asercji DoD opartych o konsumpcję upstream gateway `/health/ready` jako źródła `checks.gateway` (obowiązuje probe **liveness** — D-47 / D-48).
 - Maskowanego **201** przy kolizji na register w asercjach (obowiązuje D-43 = **409**).
 - Wymagania React Email / JSX ani zmiany URL deep linków w asercjach D-23 / D-41…D-46 z powodu HTML maili (kontrakt HTTP **bez zmian** — `SPEC-AUTH.md`).
@@ -256,7 +266,7 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-81 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23, D-23a, D-24…D-29, D-30…D-34, D-35…D-40, D-41…D-46, D-47…D-49, D-50…D-62, D-63…D-72, D-73…D-77, D-78…D-81) pokryte testami (warstwa adekwatna do przypadku). Chip/locki FE — `SPEC-FRONTEND.md` F-10 (automaty FE poza MVP — T-7).
+- [ ] Przypadki D-1…D-85 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23, D-23a, D-24…D-29, D-30…D-34, D-35…D-40, D-41…D-46, D-47…D-49, D-50…D-62, D-63…D-72, D-73…D-77, D-78…D-81, D-82…D-85) pokryte testami (warstwa adekwatna do przypadku). Chip/locki FE — `SPEC-FRONTEND.md` F-10; paginacja UI Runy / Users / Moje runy — F-8 / Faza 29 FE (automaty FE poza MVP — T-7).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.
