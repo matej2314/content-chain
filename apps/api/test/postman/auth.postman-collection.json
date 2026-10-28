@@ -1166,10 +1166,16 @@
                   "  pm.response.to.have.status(200);",
                   "});",
                   "const body = pm.response.json();",
+                  "pm.test('envelope has items/page/pageSize/total (all mode)', function () {",
+                  "  pm.expect(body).to.include.keys('items', 'page', 'pageSize', 'total');",
+                  "  pm.expect(body.page).to.eql(1);",
+                  "  pm.expect(body.pageSize).to.eql(body.items.length);",
+                  "  pm.expect(body.total).to.eql(body.items.length);",
+                  "});",
                   "pm.test('items have isActive and no passwordHash', function () {",
                   "  pm.expect(body.items).to.be.an('array').that.is.not.empty;",
                   "  body.items.forEach(function (row) {",
-                  "    pm.expect(row).to.include.keys('id', 'email', 'role', 'isActive', 'verifiedAt');",
+                  "    pm.expect(row).to.include.keys('id', 'email', 'role', 'isActive', 'verifiedAt', 'createdAt');",
                   "    pm.expect(row.verifiedAt === null || typeof row.verifiedAt === 'string').to.eql(true);",
                   "    pm.expect(row.isActive).to.be.a('boolean');",
                   "    pm.expect(row).to.not.have.property('passwordHash');",
@@ -1183,7 +1189,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/users",
-            "description": "Lista kont (w tym isActive). Pending invites nie są w tej liście. Bez passwordHash. Każdy item ma verifiedAt (ISO string lub null)."
+            "description": "Lista kont (envelope all: items/page/pageSize/total). Pending invites nie są w tej liście. Bez passwordHash. Każdy item ma verifiedAt (ISO string lub null) i createdAt."
           }
         }
       ]

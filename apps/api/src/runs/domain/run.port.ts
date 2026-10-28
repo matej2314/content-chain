@@ -5,13 +5,15 @@ import type {
 } from '@content-chain/shared';
 import type { RunId, RunStatus, UserId, UserRole } from '@content-chain/shared';
 import type { RunLogEntry, RunRecord } from './run.types';
+import type { PaginationMode } from '../../shared/http/pagination';
 
 export const RUN_REPOSITORY = Symbol('RUN_REPOSITORY');
 
+/** @deprecated Użyj DEFAULT_PAGE_SIZE z shared — alias pod istniejące importy w trakcie migracji KROK 4. */
 export const PAGE_SIZE = 10;
 
 export type ListRunsQuery = {
-  page: number;
+  pagination: PaginationMode;
   status?: RunStatus[];
   taskType?: RunRecord['taskType'];
   platform?: RunRecord['platform'];
@@ -41,7 +43,14 @@ export type LightRunItem = {
 export type ListRunsResult = {
   items: RunSnapshot[];
   page: number;
-  pageSize: typeof PAGE_SIZE;
+  pageSize: number;
+  total: number;
+};
+
+export type ListLightRunsResult = {
+  items: LightRunItem[];
+  page: number;
+  pageSize: number;
   total: number;
 };
 
@@ -73,7 +82,10 @@ export interface RunRepository {
   setCancelRequested(id: RunId): Promise<void>;
   attemptCancel(id: RunId, cancelledAt: Date): Promise<boolean>;
   saveSelectedIdeaIds(id: RunId, selectedIdeaIds: string[]): Promise<void>;
-  listByUser(userId: UserId): Promise<LightRunItem[]>;
+  listByUser(
+    userId: UserId,
+    pagination: PaginationMode,
+  ): Promise<ListLightRunsResult>;
   saveRating(id: RunId, rating: number | null): Promise<boolean>;
   saveOutputEdited(id: RunId): Promise<boolean>;
   saveFinalizedAt(id: RunId, at: Date): Promise<boolean>;

@@ -4,6 +4,7 @@ import {
   type UserRepository,
 } from '../domain/user-repository.port';
 import type { UserListItem } from '../domain/auth-user.types';
+import type { PaginationMode } from '../../shared/http/pagination';
 
 @Injectable()
 export class ListUsersUseCase {
@@ -11,10 +12,15 @@ export class ListUsersUseCase {
     @Inject(USER_REPOSITORY) private readonly users: UserRepository,
   ) {}
 
-  async execute(): Promise<{ items: UserListItem[] }> {
-    const all = await this.users.list();
+  async execute(pagination: PaginationMode): Promise<{
+    items: UserListItem[];
+    page: number;
+    pageSize: number;
+    total: number;
+  }> {
+    const result = await this.users.list(pagination);
     return {
-      items: all.map(
+      items: result.items.map(
         ({ id, email, role, isActive, verifiedAt, createdAt }) => ({
           id,
           email,
@@ -24,6 +30,9 @@ export class ListUsersUseCase {
           createdAt,
         }),
       ),
+      page: result.page,
+      pageSize: result.pageSize,
+      total: result.total,
     };
   }
 }

@@ -1866,6 +1866,12 @@
                   "  return;",
                   "}",
                   "const body = pm.response.json();",
+                  "pm.test('envelope has items/page/pageSize/total (all mode)', function () {",
+                  "  pm.expect(body).to.include.keys('items', 'page', 'pageSize', 'total');",
+                  "  pm.expect(body.page).to.eql(1);",
+                  "  pm.expect(body.pageSize).to.eql(body.items.length);",
+                  "  pm.expect(body.total).to.eql(body.items.length);",
+                  "});",
                   "pm.test('items is an array of light runs', function () {",
                   "  pm.expect(body.items).to.be.an('array');",
                   "  pm.expect(body.items.length).to.be.at.least(1);",
@@ -1886,7 +1892,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/runs/user/{{userId}}",
-            "description": "200 `{ items: [...] }` — lekka lista autora."
+            "description": "200 envelope `{ items, page, pageSize, total }` — tryb all (bez query); lekka lista autora."
           }
         },
         {
@@ -2419,6 +2425,12 @@
                   "pm.test('own list is empty (user has not started a run)', function () {",
                   "  pm.expect(body.items).to.be.an('array').that.is.empty;",
                   "});",
+                  "pm.test('all-mode empty envelope', function () {",
+                  "  pm.expect(body).to.include.keys('items', 'page', 'pageSize', 'total');",
+                  "  pm.expect(body.page).to.eql(1);",
+                  "  pm.expect(body.pageSize).to.eql(0);",
+                  "  pm.expect(body.total).to.eql(0);",
+                  "});",
                   "pm.test('does not leak admin fixture run ids', function () {",
                   "  const ids = body.items.map(function (item) { return item.runId; });",
                   "  pm.expect(ids).to.not.include(pm.collectionVariables.get('completedRunId'));",
@@ -2433,7 +2445,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/runs/user/{{invitedUserId}}",
-            "description": "Własne id sesji `user` → 200. Ten folder nie startuje runu usera: `items` puste i bez fixture’ów admina. Jeśli user ma już runy, asercja `empty` padnie — wtedy poluzuj do braku trzech id z Fixtures."
+            "description": "Własne id sesji `user` → 200 envelope all (`page=1`, `pageSize=0`, `total=0`). Ten folder nie startuje runu usera: `items` puste i bez fixture’ów admina. Jeśli user ma już runy, asercja `empty` padnie — wtedy poluzuj do braku trzech id z Fixtures."
           }
         },
         {

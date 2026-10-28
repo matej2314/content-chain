@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
-  PAGE_SIZE,
   RUN_REPOSITORY,
   RunStartedBy,
   type ListRunsQuery,
@@ -49,7 +48,7 @@ export class ListRunsUseCase {
         startedBy: item.startedBy,
       })),
       page: result.page,
-      pageSize: PAGE_SIZE,
+      pageSize: result.pageSize,
       total: result.total,
     };
   }

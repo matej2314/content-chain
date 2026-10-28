@@ -70,6 +70,22 @@ type ListRunsBody = {
   items: ListRunItem[];
 };
 
+type LightUserRunItem = {
+  runId: string;
+  taskType: string;
+  platform: string;
+  language: string;
+  status: string;
+  createdAt: string;
+};
+
+type LightUserRunsBody = {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: LightUserRunItem[];
+};
+
 function deployTestDb(): void {
   execFileSync(
     process.execPath,
@@ -189,10 +205,12 @@ function readListItem(value: unknown): ListRunItem {
   };
 }
 
-function readListBody(body: unknown): ListRunsBody {
-  if (!isRecord(body)) {
-    throw new Error('list body is not an object');
-  }
+function readListMeta(body: Record<string, unknown>): {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: unknown[];
+} {
   if (typeof body.page !== 'number') {
     throw new Error('list body.page is not a number');
   }
@@ -209,7 +227,68 @@ function readListBody(body: unknown): ListRunsBody {
     page: body.page,
     pageSize: body.pageSize,
     total: body.total,
-    items: body.items.map(readListItem),
+    items: body.items,
+  };
+}
+
+function readListBody(body: unknown): ListRunsBody {
+  if (!isRecord(body)) {
+    throw new Error('list body is not an object');
+  }
+  const meta = readListMeta(body);
+  return {
+    page: meta.page,
+    pageSize: meta.pageSize,
+    total: meta.total,
+    items: meta.items.map(readListItem),
+  };
+}
+
+function readLightUserRunItem(value: unknown): LightUserRunItem {
+  if (!isRecord(value)) {
+    throw new Error('light user-run item is not an object');
+  }
+  if (typeof value.runId !== 'string') {
+    throw new Error('light item.runId is not a string');
+  }
+  if (typeof value.taskType !== 'string') {
+    throw new Error('light item.taskType is not a string');
+  }
+  if (typeof value.platform !== 'string') {
+    throw new Error('light item.platform is not a string');
+  }
+  if (typeof value.language !== 'string') {
+    throw new Error('light item.language is not a string');
+  }
+  if (typeof value.status !== 'string') {
+    throw new Error('light item.status is not a string');
+  }
+  if (typeof value.createdAt !== 'string') {
+    throw new Error('light item.createdAt is not a string');
+  }
+  if ('startedBy' in value || 'userRating' in value || 'contentKind' in value) {
+    throw new Error('light user-run item leaked non-light fields');
+  }
+  return {
+    runId: value.runId,
+    taskType: value.taskType,
+    platform: value.platform,
+    language: value.language,
+    status: value.status,
+    createdAt: value.createdAt,
+  };
+}
+
+function readLightUserRunsBody(body: unknown): LightUserRunsBody {
+  if (!isRecord(body)) {
+    throw new Error('user-runs body is not an object');
+  }
+  const meta = readListMeta(body);
+  return {
+    page: meta.page,
+    pageSize: meta.pageSize,
+    total: meta.total,
+    items: meta.items.map(readLightUserRunItem),
   };
 }
 
@@ -342,6 +421,29 @@ describe('Runs list (e2e)', () => {
       .get('/api/v1/runs')
       .expect(401);
     expect(response.body.code).toBe('UNAUTHORIZED');
+  });
+
+  it('D-82: without page/pageSize returns the full collection envelope', async () => {
+    const response = await agent.get('/api/v1/runs').expect(200);
+    const listed = readListBody(response.body);
+
+    expect(listed.page).toBe(1);
+    expect(listed.pageSize).toBe(listed.total);
+    expect(listed.items).toHaveLength(listed.total);
+    expect(listed.total).toBe(14);
+
+    const empty = readListBody(
+      (
+        await agent
+          .get('/api/v1/runs')
+          .query({ userId: UNKNOWN_USER_ID })
+          .expect(200)
+      ).body,
+    );
+    expect(empty.page).toBe(1);
+    expect(empty.pageSize).toBe(0);
+    expect(empty.total).toBe(0);
+    expect(empty.items).toEqual([]);
   });
 
   it('GET /api/v1/runs page=1 returns 10 newest items with session startedBy', async () => {
@@ -549,12 +651,50 @@ describe('Runs list (e2e)', () => {
     );
   });
 
-  it('rejects client pageSize/limit override and invalid userId on the HTTP boundary', async () => {
-    const pageSize = await agent
+  it('D-83: accepts allowlisted pageSize and rejects invalid pagination / filters', async () => {
+    for (const pageSize of [10, 15, 25, 50] as const) {
+      const allowed = await agent
+        .get('/api/v1/runs')
+        .query({ page: 1, pageSize })
+        .expect(200);
+      const allowedBody = readListBody(allowed.body);
+      expect(allowedBody.page).toBe(1);
+      expect(allowedBody.pageSize).toBe(pageSize);
+      expect(allowedBody.items.length).toBeLessThanOrEqual(pageSize);
+      expect(typeof allowedBody.total).toBe('number');
+      expect(allowedBody.total).toBeGreaterThanOrEqual(allowedBody.items.length);
+    }
+
+    const onlyPageSize = readListBody(
+      (
+        await agent
+          .get('/api/v1/runs')
+          .query({ pageSize: 15 })
+          .expect(200)
+      ).body,
+    );
+    expect(onlyPageSize.page).toBe(1);
+    expect(onlyPageSize.pageSize).toBe(15);
+
+    for (const pageSize of [11, 100] as const) {
+      const forbiddenSize = await agent
+        .get('/api/v1/runs')
+        .query({ pageSize })
+        .expect(400);
+      expect(forbiddenSize.body.code).toBe('VALIDATION_FAILED');
+    }
+
+    const pageZero = await agent
       .get('/api/v1/runs')
-      .query({ pageSize: 50 })
+      .query({ page: 0 })
       .expect(400);
-    expect(pageSize.body.code).toBe('VALIDATION_FAILED');
+    expect(pageZero.body.code).toBe('VALIDATION_FAILED');
+
+    const pageAbc = await agent
+      .get('/api/v1/runs')
+      .query({ page: 'abc' })
+      .expect(400);
+    expect(pageAbc.body.code).toBe('VALIDATION_FAILED');
 
     const limit = await agent
       .get('/api/v1/runs')
@@ -579,6 +719,40 @@ describe('Runs list (e2e)', () => {
       .query({ platform: 'tiktok' })
       .expect(400);
     expect(platform.body.code).toBe('VALIDATION_FAILED');
+  });
+
+  it('D-84: GET /runs/user/:userId supports all vs page modes and forbids foreign id', async () => {
+    const allOwn = readLightUserRunsBody(
+      (await agent.get(`/api/v1/runs/user/${sessionUser.id}`).expect(200)).body,
+    );
+    expect(allOwn.page).toBe(1);
+    expect(allOwn.pageSize).toBe(allOwn.total);
+    expect(allOwn.items).toHaveLength(allOwn.total);
+    expect(allOwn.total).toBeGreaterThanOrEqual(12);
+
+    const paged = readLightUserRunsBody(
+      (
+        await agent
+          .get(`/api/v1/runs/user/${sessionUser.id}`)
+          .query({ page: 1, pageSize: 10 })
+          .expect(200)
+      ).body,
+    );
+    expect(paged.page).toBe(1);
+    expect(paged.pageSize).toBe(10);
+    expect(paged.items.length).toBeLessThanOrEqual(10);
+    expect(paged.total).toBe(allOwn.total);
+
+    const forbiddenSize = await agent
+      .get(`/api/v1/runs/user/${sessionUser.id}`)
+      .query({ pageSize: 11 })
+      .expect(400);
+    expect(forbiddenSize.body.code).toBe('VALIDATION_FAILED');
+
+    const foreign = await agent
+      .get(`/api/v1/runs/user/${otherUserId}`)
+      .expect(403);
+    expect(foreign.body.code).toBe('FORBIDDEN');
   });
 
   it('accepts status=interrupted on GET /api/v1/runs while the worker is idle', async () => {
@@ -660,9 +834,12 @@ describe('Runs list (e2e)', () => {
 
     const mixed = await agent.get('/api/v1/runs').query({
       status: 'completed,failed,cancelled',
+      page: 1,
+      pageSize: 10,
     });
     expect(mixed.status).toBe(200);
     const mixedBody = readListBody(mixed.body);
+    expect(mixedBody.page).toBe(1);
     expect(mixedBody.pageSize).toBe(10);
     expect(
       mixedBody.items.every(

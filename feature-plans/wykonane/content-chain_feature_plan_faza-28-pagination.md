@@ -73,7 +73,7 @@ Odpowiada major Faza 28 (cała). Status startowy kroków: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — Allowlista + envelope w `@content-chain/shared`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Wspólny kontrakt typów dla api i FE (Faza 29): stałe allowlisty + generyczny envelope. Major Faza 28 / HOW „DTO shared”; `SPEC-RUNY.md` R-3a; `SPEC-AUTH.md` A-10b.
 
@@ -143,7 +143,7 @@ export * from './pagination';
 
 ### KROK 2 — Resolver trybu + DTO query (wspólne api)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jedna semantyka „all vs strona” + walidacja HTTP `page`/`pageSize` na trzech GET. Usunąć default `page = 1` z `ListRunsQueryDto` (inaczej ValidationPipe/transform zawsze ustawia stronę → niemożliwy tryb all). `SPEC-KOMUNIKACJA.md` K-2a; D-82 / D-83.
 
@@ -373,7 +373,7 @@ export class ListRunsQueryDto extends PaginationQueryDto {
 
 ### KROK 3 — Runs: port + Prisma (list + listByUser)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Adapter egzekwuje tryb all vs strona; `listByUser` zwraca envelope (nie gołą tablicę). R-3a / R-3c.
 
@@ -578,7 +578,7 @@ async listByUser(
 
 ### KROK 4 — Runs HTTP: ListRuns + ListRunsUser + controller
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Use-case’y i HTTP zawsze zwracają envelope; controller mapuje DTO → `pagination` + filtry. R-3a / R-3c / K-2a / K-2b.
 
@@ -815,7 +815,7 @@ expect(listRunsUser.execute).toHaveBeenCalledWith(
 
 ### KROK 5 — Users: port + Prisma + use-case + controller
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** `GET /users` = ten sam model paginacji + envelope; sort `createdAt` **desc**. A-10b / K-2j / D-85.
 
@@ -988,7 +988,7 @@ expect(listUsers.execute).toHaveBeenCalledWith({ mode: 'all' });
 
 ### KROK 6 — Testy D-82…D-85 + regresje + Postman
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** DoD T-5 / D-82…D-85; regresja D-28; unieważnienie historycznego e2e „forbid `pageSize=50`”. `SPEC-TESTY.md`.
 

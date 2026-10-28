@@ -16,10 +16,9 @@ import { PrismaService } from '../../../shared/persistence/prisma.service';
 import { assertTransition } from '../../domain/status-transitions';
 import { toInputJson } from '../../../shared/persistence/to-input-json';
 import {
-  LightRunItem,
-  PAGE_SIZE,
   type ListRunsQuery,
   type ListRunsResult,
+  type ListLightRunsResult,
   type RunRepository,
   type RunSnapshot,
   type RunSummaryAggregate,
@@ -42,7 +41,13 @@ import type {
   RunRow,
   RunReviewFields,
 } from './prisma-run-row.types';
+
 import { toLightRunItem } from './to-light-run-item';
+import {
+  PaginationMode,
+  paginationMeta,
+  prismaPageArgs,
+} from '../../../shared/http/pagination';
 
 @Injectable()
 export class PrismaRunAdapter implements RunRepository {
@@ -170,7 +175,6 @@ export class PrismaRunAdapter implements RunRepository {
   }
 
   async list(query: ListRunsQuery): Promise<ListRunsResult> {
-    const page = query.page ?? 1;
     const where = {
       ...(query.status && query.status.length > 0
         ? { status: { in: query.status } }
@@ -179,23 +183,22 @@ export class PrismaRunAdapter implements RunRepository {
       ...(query.platform ? { platform: query.platform } : {}),
       ...(query.userId ? { startedByUserId: query.userId } : {}),
     };
+    const pageArgs = prismaPageArgs(query.pagination);
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.run.count({ where }),
       this.prisma.run.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * PAGE_SIZE,
-        take: PAGE_SIZE,
+        ...pageArgs,
         include: {
           startedBy: { select: { id: true, email: true, role: true } },
         },
       }),
     ]);
+    const meta = paginationMeta(query.pagination, total);
     return {
       items: rows.map((row) => this.toSnapshot(row)),
-      page,
-      pageSize: PAGE_SIZE,
-      total,
+      ...meta,
     };
   }
 
@@ -209,20 +212,33 @@ export class PrismaRunAdapter implements RunRepository {
     });
   }
 
-  async listByUser(userId: UserId): Promise<LightRunItem[]> {
-    const rows = await this.prisma.run.findMany({
-      where: { startedByUserId: userId },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        taskType: true,
-        platform: true,
-        language: true,
-        status: true,
-        createdAt: true,
-      },
-    });
-    return rows.map((row) => toLightRunItem(row));
+  async listByUser(
+    userId: UserId,
+    pagination: PaginationMode,
+  ): Promise<ListLightRunsResult> {
+    const where = { startedByUserId: userId };
+    const pageArgs = prismaPageArgs(pagination);
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.run.count({ where }),
+      this.prisma.run.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        ...pageArgs,
+        select: {
+          id: true,
+          taskType: true,
+          platform: true,
+          language: true,
+          status: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+    const meta = paginationMeta(pagination, total);
+    return {
+      items: rows.map((row) => toLightRunItem(row)),
+      ...meta,
+    };
   }
 
   async saveRating(id: RunId, rating: number | null): Promise<boolean> {

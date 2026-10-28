@@ -223,7 +223,7 @@ describe('RunsController', () => {
 
     await expect(controller.list(query)).resolves.toBe(listed);
     expect(listRuns.execute).toHaveBeenCalledWith({
-      page: 2,
+      pagination: { mode: 'page', page: 2, pageSize: 10 },
       status: ['completed'],
       taskType: 'post_ideas',
       platform: 'linkedin',
@@ -231,22 +231,42 @@ describe('RunsController', () => {
     });
   });
 
+  it('maps allowlisted pageSize=50 into ListRunsQuery pagination', async () => {
+    const listed = { items: [], page: 1, pageSize: 50, total: 0 };
+    listRuns.execute.mockResolvedValue(listed);
+
+    const query: ListRunsQueryDto = {
+      page: 1,
+      pageSize: 50,
+    };
+
+    await expect(controller.list(query)).resolves.toBe(listed);
+    expect(listRuns.execute).toHaveBeenCalledWith({
+      pagination: { mode: 'page', page: 1, pageSize: 50 },
+      status: undefined,
+      taskType: undefined,
+      platform: undefined,
+      userId: undefined,
+    });
+  });
+
   it('delegates GET user/:userId to ListRunsUserUseCase', async () => {
-    const listed = { items: [] };
+    const listed = { items: [], page: 1, pageSize: 0, total: 0 };
     listRunsUser.execute.mockResolvedValue(listed);
 
     await expect(
-      controller.getRunsByUser(sessionUser.id, sessionUser),
+      controller.getRunsByUser(sessionUser.id, {}, sessionUser),
     ).resolves.toBe(listed);
     expect(listRunsUser.execute).toHaveBeenCalledWith(
       sessionUser.id,
       sessionUser,
+      { mode: 'all' },
     );
   });
 
   it('rejects GET user/:userId with invalid format', async () => {
     await expect(
-      controller.getRunsByUser('not-a-user-id', sessionUser),
+      controller.getRunsByUser('not-a-user-id', {}, sessionUser),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(listRunsUser.execute).not.toHaveBeenCalled();
   });

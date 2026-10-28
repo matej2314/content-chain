@@ -52,6 +52,8 @@ import { HitlDto } from './http/dto/hitl.dto';
 import { StartRunDto } from './http/dto/start-run.dto';
 import { ListRunsQueryDto } from './http/dto/list-runs-query.dto';
 import { ParseRunIdPipe } from './http/parse-run-id.pipe';
+import { resolvePaginationMode } from '../shared/http/pagination';
+import { PaginationQueryDto } from '../shared/http/pagination-query.dto';
 import { createUserId, isUserId } from '@content-chain/shared';
 import type { RunId, RunStatus } from '@content-chain/shared';
 import type { ListRunsQuery } from './domain/run.port';
@@ -168,7 +170,7 @@ export class RunsController {
       throw new BadRequestException('Invalid user ID format');
     }
     const command: ListRunsQuery = {
-      page: query.page ?? 1,
+      pagination: resolvePaginationMode(query),
       status: query.status,
       taskType: query.taskType,
       platform: query.platform,
@@ -186,12 +188,17 @@ export class RunsController {
   @Get('user/:userId')
   async getRunsByUser(
     @Param('userId') userId: string,
+    @Query() query: PaginationQueryDto,
     @CurrentUser() user: AuthUserContext,
   ): Promise<ListRunsUserOutput> {
     if (!isUserId(userId)) {
       throw new BadRequestException('Invalid user ID format');
     }
-    return this.listRunsUser.execute(createUserId(userId), user);
+    return this.listRunsUser.execute(
+      createUserId(userId),
+      user,
+      resolvePaginationMode(query),
+    );
   }
 
   @AllowGuest()

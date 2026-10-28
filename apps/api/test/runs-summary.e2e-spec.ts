@@ -469,8 +469,21 @@ describe('GET /api/v1/runs/summary guest DEMO off (e2e D-81)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let guestId: string;
+  let envSnapshot: Record<
+    'DEMO_MODE' | 'REDIS_HOST' | 'REDIS_PORT',
+    string | undefined
+  >;
 
   beforeAll(async () => {
+    // Force off: ConfigModule may have loaded DEMO_MODE=true from apps/api/.env
+    // during earlier suites; without an explicit false GuestGuard allows guest → 200.
+    envSnapshot = {
+      DEMO_MODE: process.env.DEMO_MODE,
+      REDIS_HOST: process.env.REDIS_HOST,
+      REDIS_PORT: process.env.REDIS_PORT,
+    };
+    process.env.DEMO_MODE = 'false';
+
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -507,6 +520,7 @@ describe('GET /api/v1/runs/summary guest DEMO off (e2e D-81)', () => {
     } finally {
       await prisma?.$disconnect();
       await app?.close();
+      restoreEnv(envSnapshot);
     }
   }, 15_000);
 

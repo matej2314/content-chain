@@ -1,16 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../../shared/persistence/prisma.service';
 import { createUserId, isUserRole, type UserId } from '@content-chain/shared';
+import { PrismaService } from '../../../shared/persistence/prisma.service';
+import {
+  paginationMeta,
+  prismaPageArgs,
+  type PaginationMode,
+} from '../../../shared/http/pagination';
+import { DomainException } from '../../../shared/exceptions/domain.exception';
 import type { AuthUser } from '../../domain/auth-user.types';
 import type {
   CreateAdminIfNoneData,
   CreateAdminIfNoneResult,
   CreateUserData,
+  ListUsersResult,
   UserForAuth,
   UserRepository,
 } from '../../domain/user-repository.port';
-import { DomainException } from '../../../shared/exceptions/domain.exception';
 
 function isUniqueConstraintViolation(
   error: unknown,
@@ -130,11 +136,20 @@ export class PrismaUserAdapter implements UserRepository {
     return this.toUser(row);
   }
 
-  async list(): Promise<AuthUser[]> {
-    const rows = await this.prisma.user.findMany({
-      orderBy: { createdAt: 'asc' },
-    });
-    return rows.map((row) => this.toUser(row));
+  async list(pagination: PaginationMode): Promise<ListUsersResult> {
+    const pageArgs = prismaPageArgs(pagination);
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.user.count(),
+      this.prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        ...pageArgs,
+      }),
+    ]);
+    const meta = paginationMeta(pagination, total);
+    return {
+      items: rows.map((row) => this.toUser(row)),
+      ...meta,
+    };
   }
 
   async updateEmail(id: UserId, email: string): Promise<AuthUser> {

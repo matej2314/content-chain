@@ -3,6 +3,7 @@ import { DomainException } from '../../shared/exceptions/domain.exception';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import type { UserId } from '@content-chain/shared';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
+import type { PaginationMode } from '../../shared/http/pagination';
 
 interface ListRunsUserItem {
   runId: string;
@@ -15,6 +16,9 @@ interface ListRunsUserItem {
 
 export type ListRunsUserOutput = {
   items: ListRunsUserItem[];
+  page: number;
+  pageSize: number;
+  total: number;
 };
 
 @Injectable()
@@ -24,6 +28,7 @@ export class ListRunsUserUseCase {
   async execute(
     userId: UserId,
     requestingUser: AuthUserContext,
+    pagination: PaginationMode,
   ): Promise<ListRunsUserOutput> {
     if (userId !== requestingUser.id) {
       throw new DomainException(
@@ -32,9 +37,9 @@ export class ListRunsUserUseCase {
         403,
       );
     }
-    const items = await this.runs.listByUser(userId);
+    const result = await this.runs.listByUser(userId, pagination);
     return {
-      items: items.map((item) => ({
+      items: result.items.map((item) => ({
         runId: item.runId,
         taskType: item.taskType,
         platform: item.platform,
@@ -42,6 +47,9 @@ export class ListRunsUserUseCase {
         status: item.status,
         createdAt: item.createdAt.toISOString(),
       })),
+      page: result.page,
+      pageSize: result.pageSize,
+      total: result.total,
     };
   }
 }

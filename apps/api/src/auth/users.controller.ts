@@ -12,6 +12,8 @@ import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { CurrentUser } from '../shared/decorators/current-user.decorator';
 import { COOKIE_AUTH_NAME } from '../shared/http/configure-swagger';
+import { PaginationQueryDto } from '../shared/http/pagination-query.dto';
+import { resolvePaginationMode } from '../shared/http/pagination';
 import { ListUsersUseCase } from './application/list-users.use-case';
 import { ReactivateUserUseCase } from './application/reactivate-user.use-case';
 import { PatchUserDto } from './http/patch-user.dto';
@@ -30,8 +32,8 @@ export class UsersController {
   ) {}
 
   @Get()
-  list() {
-    return this.listUsers.execute();
+  list(@Query() query: PaginationQueryDto) {
+    return this.listUsers.execute(resolvePaginationMode(query));
   }
 
   @Patch(':id')

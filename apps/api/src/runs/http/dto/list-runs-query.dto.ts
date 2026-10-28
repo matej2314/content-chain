@@ -1,12 +1,10 @@
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   ArrayUnique,
   IsArray,
   IsIn,
-  IsInt,
   IsOptional,
   IsString,
-  Min,
 } from 'class-validator';
 import {
   RUN_PLATFORMS,
@@ -14,6 +12,7 @@ import {
   RUN_TASK_TYPES,
   type RunStatus,
 } from '@content-chain/shared';
+import { PaginationQueryDto } from '../../../shared/http/pagination-query.dto';
 
 function parseStatusQuery(value: unknown): RunStatus[] | undefined {
   if (value === undefined || value === null || value === '') {
@@ -32,13 +31,7 @@ function parseStatusQuery(value: unknown): RunStatus[] | undefined {
   return [...new Set(parts)] as RunStatus[];
 }
 
-export class ListRunsQueryDto {
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
-
+export class ListRunsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @Transform(({ value }) => parseStatusQuery(value))
   @IsArray()

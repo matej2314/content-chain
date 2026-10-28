@@ -81,13 +81,37 @@ describe('UsersController', () => {
   });
 
   it('delegates GET list without calling mutate use-cases', async () => {
-    const payload = { items: [userItem] };
+    const payload = {
+      items: [userItem],
+      page: 1,
+      pageSize: 1,
+      total: 1,
+    };
     listUsers.execute.mockResolvedValue(payload);
 
-    await expect(controller.list()).resolves.toBe(payload);
-    expect(listUsers.execute).toHaveBeenCalledWith();
+    await expect(controller.list({})).resolves.toBe(payload);
+    expect(listUsers.execute).toHaveBeenCalledWith({ mode: 'all' });
     expect(reactivate.execute).not.toHaveBeenCalled();
     expect(deleteUser.execute).not.toHaveBeenCalled();
+  });
+
+  it('maps page query to page-mode pagination for list', async () => {
+    const payload = {
+      items: [userItem],
+      page: 1,
+      pageSize: 25,
+      total: 1,
+    };
+    listUsers.execute.mockResolvedValue(payload);
+
+    await expect(
+      controller.list({ page: 1, pageSize: 25 }),
+    ).resolves.toBe(payload);
+    expect(listUsers.execute).toHaveBeenCalledWith({
+      mode: 'page',
+      page: 1,
+      pageSize: 25,
+    });
   });
 
   it('delegates PATCH :id to ReactivateUserUseCase', async () => {
