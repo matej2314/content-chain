@@ -1,7 +1,7 @@
 ---
-wersja: 28
+wersja: 29
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-27
+data_modyfikacji: 2026-10-28
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -12,6 +12,8 @@ Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
 2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
 
 **Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+
+Zmiana względem: wyjątek admina na `GET /runs/user/:userId` = V1. Od tej wersji: brak wyjątku także w **V1**; podgląd cudzych = archiwum `/runs`; panel po tej trasie dla admina **odpuszczony**. Self-service hasła / delete konta = etykieta **V1** (nie „nigdy”).
 
 Zmiana względem: `GET /runs` = zawsze strona ze stałym `pageSize=10` (bez wyboru klienta); `GET /runs/user/:userId` = pełna lista **bez** `page`/`pageSize` (paginacja „Moje runy” tylko slice FE); `GET /users` = lista bez trybu stron / bez wymogu envelope `{ items, page, pageSize, total }`. Od tej wersji: **opcjonalna** paginacja na trzech GET (`page` + `pageSize`); **brak** parametrów → cała kolekcja w envelope (`page=1`, `pageSize=total`, `total=N`); **obecność** `page` i/lub `pageSize` → tryb stron (domyślnie `page=1`, `pageSize=10`); allowlista `pageSize` ∈ {10, 15, 25, 50}; inna wartość / zły `page` → **400** `VALIDATION_FAILED`. UI tabel (Runy / Users / Moje runy) zawsze wysyła parametry; rejestr live / select opinii = tryb bez parametrów — `ux_dashboard.md`.
 
@@ -192,7 +194,7 @@ Probe bieżącej sesji na podstawie cookie **`cc_access`** (ta sama sesja co poz
 
 #### `PATCH /api/v1/auth/me/email`
 
-Zalogowany zmienia **własny** email po **re-auth** aktualnym hasłem. Body: `{ "email", "currentPassword" }` (`.strict()`). Sesja cookie jak pozostałe chronione trasy. **`guest` → 403** `FORBIDDEN` (mutacja zabroniona). **`GET /auth/me` pozostaje wyłącznie probe** — **bez** mutacji na `PATCH /auth/me`. **Nie** mylić z `PATCH /users/:id` (reaktywacja admina) ani z self-service zmianą hasła (poza MVP). Ten sam wzorzec (osobna mutacja wrażliwa + `currentPassword` + `INVALID_PASSWORD`) jest **fundamentem** pod przyszłe self-service zmiany hasła (np. `PATCH /auth/me/password`) po spięciu z SMTP — **nie** implementować w MVP.
+Zalogowany zmienia **własny** email po **re-auth** aktualnym hasłem. Body: `{ "email", "currentPassword" }` (`.strict()`). Sesja cookie jak pozostałe chronione trasy. **`guest` → 403** `FORBIDDEN` (mutacja zabroniona). **`GET /auth/me` pozostaje wyłącznie probe** — **bez** mutacji na `PATCH /auth/me`. **Nie** mylić z `PATCH /users/:id` (reaktywacja admina) ani z self-service zmianą hasła / usuwaniem własnego konta (**V1 — rozbudowa**). Ten sam wzorzec (osobna mutacja wrażliwa + `currentPassword` + `INVALID_PASSWORD`) jest **fundamentem** pod self-service zmiany hasła w **V1** — **nie** w MVP.
 
 | Pole | Typ | Wymagane |
 |------|-----|----------|
@@ -800,7 +802,7 @@ Lekka lista runów, których inicjatorem jest `:userId` (filtr `startedBy`). **T
 | Rejestr SSE / floating box / OwnRuns | **Bez** parametrów paginacji (tryb cała kolekcja) |
 | Select formularza opinii | **Bez** parametrów paginacji (tryb cała kolekcja) |
 
-**Authz:** `:userId` **musi** być id zalogowanego użytkownika (sesja). Inny id → **403** `FORBIDDEN`. Brak wyjątku dla `admin` w MVP (panel cudzych runów = V1).
+**Authz:** `:userId` **musi** być id zalogowanego użytkownika (sesja). Inny id → **403** `FORBIDDEN`. Brak wyjątku dla `admin` w MVP **i w V1** — podgląd cudzych przebiegów = archiwum **`/runs`** (terminalne). Dedykowany panel po `GET /runs/user/:userId` dla admina — **odpuszczony**.
 
 **200** — envelope `{ "items": [ { "runId", "taskType", "platform", "language", "status", "createdAt" } ], "page", "pageSize", "total" }`.
 

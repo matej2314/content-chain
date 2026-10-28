@@ -1,7 +1,7 @@
 ---
-wersja: 30
+wersja: 31
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-27
+data_modyfikacji: 2026-10-28
 ---
 
 # SPEC — Runy / logi
@@ -12,6 +12,7 @@ Norma bounded contextu **Runs / Logs** w `apps/api`: cykl życia async runu, **l
 
 Uszczegóławia `docs/architektura.md` (async run, klej composite, cancel v1), `docs/dokumentacja_komunikacji.md` (lista / SSE / GET / cancel / ocena / lista user / summary / unia startu), `docs/data_flow.md` (ścieżka cancel, recovery + `cancelRequested`, TTL przeglądu), `docs/observability.md` (pola logów vs metrics) oraz współpracę z `SPEC-SOCIAL.md`, `SPEC-CONTENT.md` i `SPEC-FEEDBACK.md`.
 
+Zmiana względem wersji 30 / R-3c: „brak wyjątku admin w MVP” (sugerowało panel cudzych = V1). Od tej wersji: brak wyjątku admin także w **V1** — podgląd cudzych = archiwum `GET /runs`; panel po `GET /runs/user/:userId` dla admina **odpuszczony** — `docs/dokumentacja_komunikacji.md`.
 Zmiana względem wersji 29 / R-3a / R-3c: R-3a = zawsze strona ze stałym `pageSize=10`; R-3c = pełna lista HTTP **bez** `page`/`pageSize` + paginacja „Moje runy” wyłącznie slice FE. Od tej wersji: **opcjonalna** paginacja na obu GET (`page` + `pageSize`); brak parametrów → cała kolekcja w envelope (`page=1`, `pageSize=total`); allowlista `pageSize` ∈ {10, 15, 25, 50}; **400** `VALIDATION_FAILED` poza allowlistą / zły `page` — `docs/dokumentacja_komunikacji.md`, `SPEC-KOMUNIKACJA.md` K-2a / K-2b, `SPEC-FRONTEND.md` F-8.
 
 Zmiana względem wersji 27 / cel: brak agregacji KPI w BC Runs. Od tej wersji **R-13** — `GET /api/v1/runs/summary` (metryki 30d, scope, remis topTaskType, cache TTL 60 s, DTO shared, bez migracji) — `SPEC-KOMUNIKACJA.md` K-2k, `SPEC-FRONTEND.md` F-16.
@@ -133,7 +134,7 @@ Zmiana względem wersji 11: pola wyniku SM/outline bez addytywnych kluczy kontra
 
 Zmiana względem wersji 2: snapshot ma obowiązkowe pola przeglądu (`userRating` zawsze `null` \| `1`…`5`; `outputEdited`; `reviewFinalizedAt`) zgodnie z `docs/dokumentacja_komunikacji.md`.
 
-R-3c. `GET /api/v1/runs/user/:userId` — runy z `startedBy = :userId`, sort `createdAt` desc. **Ten sam** model opcjonalnej paginacji co R-3a (brak parametrów → cała kolekcja w envelope; obecność `page` i/lub `pageSize` → strona; allowlista 10\|15\|25\|50; **400** `VALIDATION_FAILED`). Pozycja lekka: `runId`, `taskType`, `platform`, `language`, `status`, `createdAt`. **Bez** `pipelineFinishedAt` / `reviewExpiresAt` / pełnych metadanych przeglądu. `:userId` **musi** równać się id sesji; inaczej **403** `FORBIDDEN` (brak wyjątku admin w MVP). Odpowiedź **zawsze** envelope `{ items, page, pageSize, total }`.
+R-3c. `GET /api/v1/runs/user/:userId` — runy z `startedBy = :userId`, sort `createdAt` desc. **Ten sam** model opcjonalnej paginacji co R-3a (brak parametrów → cała kolekcja w envelope; obecność `page` i/lub `pageSize` → strona; allowlista 10\|15\|25\|50; **400** `VALIDATION_FAILED`). Pozycja lekka: `runId`, `taskType`, `platform`, `language`, `status`, `createdAt`. **Bez** `pipelineFinishedAt` / `reviewExpiresAt` / pełnych metadanych przeglądu. `:userId` **musi** równać się id sesji; inaczej **403** `FORBIDDEN` (brak wyjątku admin w MVP **i w V1** — podgląd cudzych = archiwum `GET /runs`; panel po tej trasie dla admina **odpuszczony**). Odpowiedź **zawsze** envelope `{ items, page, pageSize, total }`.
 
 **Konsumenci** (`docs/ux_dashboard.md`, `SPEC-FRONTEND.md` F-8 / F-9):
 
@@ -445,11 +446,11 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 
 - Animacje / EventSource UI / Stop + modal → `SPEC-FRONTEND.md`.
 - Pełny zestaw metryk Prometheus i OTel → docs observability / `SPEC-BEZPIECZENSTWO.md`.
-- Publikacja draftów na API portali SM (v2).
+- Publikacja draftów na API portali SM (**V2**).
 - Osobny always-on worker process, broker kolejek (Redis itd.).
 - Checkpointer LangGraph.
-- Limit współbieżności per użytkownik.
-- Abort na `apps/ai-provider-gateway` / providerze; admin cancel; `reason` w body cancel; resume / rollback.
+- Limit współbieżności per użytkownik (**V1 — rozbudowa**).
+- Abort na `apps/ai-provider-gateway` / providerze (ścieżka V1 gdzie uzgodnione — poza tym SPEC jako HOW); admin cancel; `reason` w body cancel; resume / rollback.
 - Panel odczytu ocen / analityka (V1 — rozbudowa). **Nie** mylić z KPI `GET /runs/summary` (R-13) — to osobny endpoint agregacji pod Konto, nie panel admina.
 - TTL / auto-akcja dla `awaiting_hitl`; blokada `POST /feedback` po TTL przeglądu; `reviewFinalizedBy`; multi-instance api / distributed lock sweepera.
 - Opinie tekstowe → `SPEC-FEEDBACK.md`.

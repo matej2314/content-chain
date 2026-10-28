@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-20
+data_modyfikacji: 2026-10-28
 ---
 
 # Architektura — Content Chain
@@ -95,7 +95,9 @@ Wszystkie bounded contexty w `apps/api` stosują ten sam wzorzec warstw (cienki 
 
 Zmiana względem: „rolki itd. = V1” oraz „jeden executor Social w MVP”. Content wchodzi w **MVP**; klej nadal ręczny (dwa executory w `AppModule` / `registerAsync`); self-register nadal poza MVP. PostgreSQL odpięty od „kolejnych workflowów” — cutover = V1 ops/skala (`spec/SPEC-PERSISTENCE.md`), niezależnie od tego, że Content jest w MVP.
 
-YouTube, publikacja portali, łańcuch audytorów Content — **V1 — rozbudowa** / później; architektura zakłada dodawanie kolejnych contextów / grafów bez rozbijania monorepo na mikroserwisy i **bez złączania** katalogów grafu z BC Runs.
+YouTube, publikacja portali, pack/Insights — **V2**; split verifiera (nie łańcuch 6 węzłów) — **V1**; WordPress — **porzucone**. Architektura zakłada dodawanie kolejnych contextów / grafów bez rozbijania monorepo na mikroserwisy i **bez złączania** katalogów grafu z BC Runs.
+
+Zmiana względem wersji 5: etykiety YouTube / publikacja / audytorzy-6 jako V1 — **unieważnione**; zgodność ze słownikiem V1/V2.
 
 ### Zależności między BC w `apps/api`
 

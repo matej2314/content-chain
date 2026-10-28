@@ -1669,3 +1669,10 @@ Zmiana względem: status Fazy 29 (`NIE_ROZPOCZĘTY`). Powód: ślad do major po 
 - Fazy 3 / 6 / 16 / 28 nietknięte (`WYKONANY`); numer **29** (FE); **bez** MILESTONE 29; **bez** kroków kodu w majorze.
 - Zależność api = backend **Faza 28** (osobny tor — ten major jej **nie** oznacza).
 - HOW = `feature-plans/content-chain_feature_plan_faza-29-pagination-frontend.md` (poza tym majorem).
+
+<div align="center">
+
+## **POST-MVP**
+
+</div>
+

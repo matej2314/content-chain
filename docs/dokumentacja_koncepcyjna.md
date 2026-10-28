@@ -1,7 +1,7 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-20
+data_modyfikacji: 2026-10-28
 ---
 
 # Dokumentacja koncepcyjna — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-20
 ## Cel produktu
 
 **Content Chain** to publiczna, self-hostowalna aplikacja agentowa do generowania treści **Social** (posty i rolki) oraz **Content** (copy stron / artykułów w podstawowej formie): od briefu, przez orchestrację agentów i weryfikację względem kontekstu firmy, po zapis wyników i obserwowalny przebieg runu.
+
+Zmiana względem: V1 = publikacja + audytorzy-6 + YouTube → **V1 — rozbudowa** bez publikacji / YouTube / łańcucha 6 (split verifiera, Postgres, panel odczytu, i18n itd.); **V2** = publikacja + YouTube + pack; **WordPress** = porzucone — `dictionary.md`.
 
 Zmiana względem wersji 8 / onboarding e-mail: maile Auth = invite + activation. Od tej wersji: po udanym `POST /auth/activate` system wysyła dodatkowo **`user_welcome`** (PL; samouczek / ścieżki UI; odbiorcy `user` \| `guest`) — **nie** zamiast `user_activation`. **Bez** welcome przy invite / bootstrap / register poza activate. Szczegóły: `dokumentacja_komunikacji.md`, `deployment.md`.
 
@@ -113,24 +115,23 @@ Sam wynik Postmana **nie** jest ostatecznym publicznym MVP. Bramka mapowania (ob
 
 Zmiana względem „tylko pipeline SM przed auth”: w kroku (1) wchodzą **oba** kanały (rolki w Social + Content BC), nadal pre-auth / Postman. Dopisano fundament feedbacku **po auth, przed** dashboardem (wymaga `startedBy` / sesji; UI zostaje w majorze FE).
 
-## Poza zakresem MVP (oraz później — V1 — rozbudowa / dalsze)
+## Poza zakresem MVP (V1 — rozbudowa / V2 / porzucone)
 
 Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza MVP. Rolki i page copy (podstawowa forma) **są w MVP**. Poza MVP zostaje:
 
-- Łańcuch specjalistów Content (psychologia / sprzedaż / SEO jako osobne węzły-audytory) — V1.
-- YouTube ().
-- Publikacja na API portali SM (już v2 w `spec/SPEC-RUNY.md`).
-- WordPress.
-- Osobny `LanguageQualityVerifier`.
+- Split verifierów (dwa równoległe węzły zamiast jednego `ConsistencyVerifier`) — **V1** (nie łańcuch 6 specjalistów).
+- YouTube, publikacja na API portali SM, pack/Insights, parity content kinds — **V2**.
+- WordPress / Gutenberg / shortcode — **porzucone** (nie V1/V2).
+- Łańcuch 6 specjalistów (psychologia / sprzedaż / SEO jako osobne węzły) — **nie** w V1; opcjonalny pass narracja/CRO/SEO ze starego flow = **V2**, nie LangGraph×6.
 - Self-register grafów; mikroserwisy domenowe.
 - Pipeline builder / konfiguracyjne YAML-pipeline’y.
-- Eksport kontekstu do `.md` + zgodność checksum jako wymóg pierwszego dowodu agentów (planowane **tuż po** MVP).
+- Eksport kontekstu do `.md` + zgodność checksum jako wymóg pierwszego dowodu agentów (planowane **tuż po** MVP / w **V2** wraz z eksportem MD).
 - **PostgreSQL w MVP** — świadomie nie; silnik MVP = SQLite (także z modelami reel/page). PostgreSQL = **V1 — rozbudowa** (ops / skala), nie warunek dodania Content.
 - Cichy runtime-fallback kontekstu z plików przy niedostępnej lub niespójnej DB.
 - Marketingowy traffic / „produkt dla agencji” jako cel MVP.
 - Uznanie samego API bez auth i dashboardu za finalne MVP.
 - Panel administracyjny opinii / średnich ocen / analityki feedbacku (V1 — rozbudowa).
-- Stopień edycji outputu (diff / procent / historia wersji) — poza MVP; **zapis zastępujący** kanoniczny wynik + flaga `outputEdited` **są** w MVP.
+- Stopień edycji outputu (diff / procent / historia wersji) — **V1 — rozbudowa**; **zapis zastępujący** kanoniczny wynik + flaga `outputEdited` **są** w MVP.
 - Zmiana oceny gwiazdkowej po zatwierdzeniu / zamknięciu przeglądu runu.
 
 ## Główne założenia
@@ -140,7 +141,7 @@ Zmiana względem: wcześniejsza lista „rolki, Web/blog, YouTube” jako poza M
 3. **Gateway jako granica LLM** — API nie woła vendorów modeli bezpośrednio.
 4. **Backend-first w realizacji**, pełny zakres MVP w produkcie (oba pipeline’y + DB + auth + dashboard + gateway).
 5. **Spójność treści i czytelność logów** są kryteriami akceptacji wyniku, nie opcją.
-6. **Modularny monolit** w monorepo z port/adapter tam, gdzie ma sens (LLM, persistence); dwa BC grafu (Social, Content) spięte ręcznym klejem — self-register poza MVP. YouTube / audytorzy Content / publikacja — **V1 — rozbudowa**.
+6. **Modularny monolit** w monorepo z port/adapter tam, gdzie ma sens (LLM, persistence); dwa BC grafu (Social, Content) spięte ręcznym klejem — self-register poza MVP. YouTube / publikacja / pack — **V2**; rozbudowa verifiera (split) — **V1**. Self-register nadal poza MVP.
 
 ## Kryteria sukcesu MVP
 

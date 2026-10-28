@@ -1,7 +1,7 @@
 ---
-wersja: 41
+wersja: 42
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-27
+data_modyfikacji: 2026-10-28
 ---
 
 # SPEC — Testy
@@ -10,7 +10,8 @@ data_modyfikacji: 2026-10-27
 
 Norma strategii testów MVP Content Chain: piramida, narzędzia, obowiązkowe przypadki DoD oraz CI — uszczegółowienie `docs/testy.md` pod egzekwowalne reguły przy implementacji `apps/api`.
 
-Zmiana względem wersji 40: DoD bez opcjonalnej paginacji listingów. Od tej wersji **D-82…D-85** (tryb all vs strona; allowlista `pageSize`; envelope na `GET /runs`, `GET /runs/user/:userId`, `GET /users`) — `SPEC-RUNY.md` R-3a / R-3c, `SPEC-AUTH.md` A-10b, `SPEC-KOMUNIKACJA.md` K-2a / K-2b / K-2j; konsumpcja UI (Faza 29 FE) = `SPEC-FRONTEND.md` F-8 (automaty FE poza MVP — T-7). D-28 uściślone: filtr `status` przy **trybie stron** z `pageSize` z allowlisty (nie „jedyny legalny rozmiar”).
+Zmiana względem wersji 41 / T-7: Playwright / automaty FE = „poza MVP” bez obowiązku V1. Od tej wersji: poza MVP w slice; **obowiązek od V1 — rozbudowa** — `docs/testy.md`.
+Zmiana względem wersji 40: DoD bez opcjonalnej paginacji listingów. Od tej wersji **D-82…D-85** (tryb all vs strona; allowlista `pageSize`; envelope na `GET /runs`, `GET /runs/user/:userId`, `GET /users`) — `SPEC-RUNY.md` R-3a / R-3c, `SPEC-AUTH.md` A-10b, `SPEC-KOMUNIKACJA.md` K-2a / K-2b / K-2j; konsumpcja UI (Faza 29 FE) = `SPEC-FRONTEND.md` F-8 (automaty FE poza MVP w slice — T-7; obowiązek od V1). D-28 uściślone: filtr `status` przy **trybie stron** z `pageSize` z allowlisty (nie „jedyny legalny rozmiar”).
 
 Zmiana względem wersji 39 / brand shella maili: unit renderera milczał o formie marki w HTML (wystarczał string „Content Chain” w headerze). Od tej wersji: HTML shell zawiera **logotyp** (CID / `img` z `cid:`) w slocie brandu; sam tekst „Content Chain” w headerze HTML **nie** jest wystarczającym kanonem brandu; plain text nadal może asertować string marki — `SPEC-AUTH.md`, `docs/brand_types.md`.
 
@@ -44,7 +45,7 @@ Wiążące: testowanie zachowania na granicach (domain / application + porty); c
 | **Unit** | `apps/api` (domain, application) | Najwięcej | Bramka, statusy, role, `isRetryable`, hub SSE (complete / evikcja), fasady z **fake** portów (LLM, persistence wg potrzeby) |
 | **Integration** | `apps/api` | Mniej | HTTP (**supertest**) + Prisma/SQLite; cookie auth; SSE/statusy; stub LLM |
 | **E2E API** | przeciw api (bez przeglądarki) | Wąsko, ale **pełne use-case’y** | Happy path **oraz** error/edge case’y MVP — bez pinu narzędzia w SPEC |
-| **Frontend** | — | **Poza MVP** | Brak wymogu automatycznych testów `apps/frontend` |
+| **Frontend** | — | **Poza MVP** / obowiązek od **V1** | Brak wymogu automatów FE w MVP; **Playwright** (lub równoważne) = obowiązek jakości **V1 — rozbudowa** |
 
 ## Wymagania (egzekwowalne)
 
@@ -60,7 +61,7 @@ T-5. E2E API: wąski zestaw uruchamiany poza samym PR lub przed release self-hos
 
 T-6. CI PR: **unit + integration** `apps/api` muszą przechodzić.
 
-T-7. Automatyczne testy `apps/frontend` — poza MVP.
+T-7. Automatyczne testy `apps/frontend` — poza MVP w slice; od **V1 — rozbudowa**: **Playwright** (lub równoważne) = obowiązek kanonu (`docs/testy.md`).
 
 ## Obowiązkowe przypadki DoD (api)
 
@@ -154,8 +155,8 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-81 | Guest + `DEMO_MODE=true`: `GET /runs/summary` → **200**, scope = wyłącznie własne; JWT `guest` przy demo off → **401** (jak pozostałe chronione trasy guest — GuestGuard) |
 | D-82 | `GET /api/v1/runs` **bez** `page` **i** bez `pageSize` (tryb **cała kolekcja**): **200** envelope `{ items, page, pageSize, total }` z `page=1`, `pageSize=total`, `total=N` (N = liczność po filtrach; pusta kolekcja → `total=0`, `pageSize=0`); `items.length === total`; filtry (`status` / `taskType` / …) stosowane **przed** meta. **Zakaz** odpowiedzi bez `page`/`pageSize`/`total`. |
 | D-83 | `GET /api/v1/runs` tryb **stron** (obecność `page` **i/lub** `pageSize`): brakujące = default `page=1`, `pageSize=10`; `pageSize` ∈ {10, 15, 25, 50} → **200**, `items.length ≤ pageSize`, `total` = liczność po filtrach (nie tylko strona); `pageSize=50` **nie** jest **400**; `pageSize` spoza allowlisty (np. `11`, `20`, `100`) **lub** zły `page` (nie-integer / `< 1` / nieparsowalny) → **400** `VALIDATION_FAILED`. Regresja D-28: `status=completed,failed,cancelled&page=1&pageSize=10` nadal zielony. |
-| D-84 | `GET /api/v1/runs/user/:userId` — **ten sam** model co D-82/D-83: bez parametrów → cała kolekcja użytkownika w envelope (`page=1`, `pageSize=total`); z `page`/`pageSize` → strona + allowlista + **400** poza nią; pozycje lekkie (`runId`, `taskType`, `platform`, `language`, `status`, `createdAt` — **bez** pól przeglądu). Cudzy `:userId` → **403** `FORBIDDEN` (D-13). Semantyka FE (tabela Moje runy **z** parametrami; OwnRuns / floating / select opinii **bez** parametrów) — `SPEC-FRONTEND.md` F-8 / Faza 29 FE; automaty FE poza MVP (T-7). |
-| D-85 | `GET /api/v1/users` (admin): opcjonalna paginacja jak D-82/D-83 — bez parametrów → cała kolekcja w envelope; z `page`/`pageSize` → strona + allowlista + **400** poza nią; pozycja w `items`: `{ id, email, role, isActive, verifiedAt, createdAt }`; sort `createdAt` **desc**. Sesja `user` / `guest` → **403**; brak sesji → **401**. UI Users (select + kontrolki) — F-8 / Faza 29 FE; automaty FE poza MVP (T-7). |
+| D-84 | `GET /api/v1/runs/user/:userId` — **ten sam** model co D-82/D-83: bez parametrów → cała kolekcja użytkownika w envelope (`page=1`, `pageSize=total`); z `page`/`pageSize` → strona + allowlista + **400** poza nią; pozycje lekkie (`runId`, `taskType`, `platform`, `language`, `status`, `createdAt` — **bez** pól przeglądu). Cudzy `:userId` → **403** `FORBIDDEN` (D-13). Semantyka FE (tabela Moje runy **z** parametrami; OwnRuns / floating / select opinii **bez** parametrów) — `SPEC-FRONTEND.md` F-8 / Faza 29 FE; automaty FE poza MVP w slice (T-7; obowiązek od V1). |
+| D-85 | `GET /api/v1/users` (admin): opcjonalna paginacja jak D-82/D-83 — bez parametrów → cała kolekcja w envelope; z `page`/`pageSize` → strona + allowlista + **400** poza nią; pozycja w `items`: `{ id, email, role, isActive, verifiedAt, createdAt }`; sort `createdAt` **desc**. Sesja `user` / `guest` → **403**; brak sesji → **401**. UI Users (select + kontrolki) — F-8 / Faza 29 FE; automaty FE poza MVP w slice (T-7; obowiązek od V1). |
 
 Zmiana względem wersji 40: dopisano **D-82…D-85** (opcjonalna paginacja trzech GET — tryb all vs strona, allowlista, envelope; Users sort desc); D-28 / D-13 uściślone (odesłanie do trybów). Konsumpcja UI Runy / Users / Moje runy + zakaz FE-slice = `SPEC-FRONTEND.md` F-8 (Faza 29 FE) — **bez** nowych automatów FE w DoD (T-7). D-1…D-81 bez kasowania treści.
 Zmiana względem wersji 39 / brand shella × DoD: wymóg logotypu CID w headerze HTML **nie** dodaje nowego D-* HTTP i **nie** zmienia T-5. Unit renderera: logo CID w HTML vs string marki w plain text — `SPEC-AUTH.md`. D-1…D-81 bez kasowania treści.
@@ -260,20 +261,20 @@ Zmiana względem wersji 5: dopisano unit redakcji dumpa hopu i coerce zarzutów 
 | **supertest** | obowiązkowe (integration HTTP) |
 | Cookie auth w testach | obowiązkowe |
 | Narzędzie E2E API (Postman/Newman/…) | **bez pinu** w SPEC |
-| Playwright / testy FE | poza MVP |
+| Playwright / testy FE | poza MVP w slice; **obowiązek od V1** |
 | Live LLM na PR | zakaz |
 
 ## Kryteria akceptacji
 
 - [ ] `pnpm` (lub skrypt CI) odpala Jest: unit + integration api na PR.
-- [ ] Przypadki D-1…D-85 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23, D-23a, D-24…D-29, D-30…D-34, D-35…D-40, D-41…D-46, D-47…D-49, D-50…D-62, D-63…D-72, D-73…D-77, D-78…D-81, D-82…D-85) pokryte testami (warstwa adekwatna do przypadku). Chip/locki FE — `SPEC-FRONTEND.md` F-10; paginacja UI Runy / Users / Moje runy — F-8 / Faza 29 FE (automaty FE poza MVP — T-7).
+- [ ] Przypadki D-1…D-85 (w tym D-9b, D-15…D-19a, D-20…D-22, D-23, D-23a, D-24…D-29, D-30…D-34, D-35…D-40, D-41…D-46, D-47…D-49, D-50…D-62, D-63…D-72, D-73…D-77, D-78…D-81, D-82…D-85) pokryte testami (warstwa adekwatna do przypadku). Chip/locki FE — `SPEC-FRONTEND.md` F-10; paginacja UI Runy / Users / Moje runy — F-8 / Faza 29 FE (automaty FE poza MVP w slice — T-7; obowiązek od V1).
 - [ ] Brak zależności CI PR od live vendorów LLM.
 - [ ] E2E API (gdy uruchamiane) obejmuje use-case’y MVP oraz wybrane error/edge — nie sam happy path.
 - [ ] Suite nie wymaga Bearer; działa na cookie.
 
 ## Poza zakresem
 
-- Automatyczne testy `apps/frontend`.
+- Automatyczne testy `apps/frontend` w slice MVP (obowiązek od **V1** — T-7).
 - Osobny framework consumer-driven contract testing.
 - Chaos / load testing.
 - Wybór konkretnego runnera E2E API (pozostawiony implementacji).

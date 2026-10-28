@@ -1868,3 +1868,11 @@ Zmiana względem: status Fazy 28 (`NIE_ROZPOCZĘTY`). Powód: ślad do major po 
 | Faza 27 — logotyp PNG (CID) w headerze shella maili (gate) | `email-mail-logo-plan.md` (źródło gate; treść wsiąka w docs/SPEC), `docs/brand_types.md`, `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`, `docs/architektura_katalogi_pliki.md`, `SPEC-AUTH.md`, `SPEC-TESTY.md`, `SPEC-README.md` (refaktor względem Fazy 25 — tekstowy wordmark; Faza 26 — CID zrzutów, bez przepisywania), `feature-plans/content-chain_feature_plan_faza-27-mail-logo.md` |
 | Faza 28 — opcjonalna paginacja listingów runs / user-runs / users (gate) | `pagination-refactor-plan.md` (źródło legalizacji; treść wsiąka w docs/SPEC), `docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`, `docs/dictionary.md`, `docs/anty_patterny.md`, `SPEC-RUNY.md` R-3a / R-3c, `SPEC-AUTH.md` A-10b, `SPEC-KOMUNIKACJA.md` K-2a / K-2b / K-2j, `SPEC-FRONTEND.md` F-8, `content-chain-frontend_major_plan.md` Faza 29 (gate UX), refaktor względem Fazy 10 / 21 (historia `WYKONANY`), `feature-plans/content-chain_feature_plan_faza-28-pagination.md` |
 | Kolejność budowy | `docs/dokumentacja_koncepcyjna.md`, `content-chain_brief.md` |
+
+
+
+<div align="center">
+
+## **POST-MVP**
+
+</div>

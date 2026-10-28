@@ -1,7 +1,7 @@
 ---
-wersja: 40
+wersja: 41
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-27
+data_modyfikacji: 2026-10-28
 ---
 
 # SPEC — README
@@ -44,9 +44,12 @@ SPEC **uszczegóławia** docs; nie zastępuje ich i nie tworzy równoległej dok
 | Faza | Znaczenie |
 |------|-----------|
 | **MVP** | Pierwszy slice: Social (posty i rolki) + Content (BC, podstawowa forma) + auth (invite **oraz** self-register + aktywacja w prod) + dashboard + gateway + **fundament zapisu feedbacku**; silnik DB = **SQLite**; w kontrakcie slice’u także typowane `extras` + HITL Social dwuetapowy (min. 1 unikalne id ⊆ draftu, N→N) + pola wyniku SM (`contents[]` / `reelScripts[]`, `sourceIdeaId`) + `role` outline (nie V1) |
-| **V1 — rozbudowa** | Po MVP: PostgreSQL (ops/skala) + panel odczytu opinii + publikacja portali SM + audytorzy Content + YouTube. **Nie** „kolejne workflowy / rolki / blog” |
+| **V1 — rozbudowa** | Po MVP, **bez** publikacji SM / YouTube / łańcucha 6 audytorów: PostgreSQL; panel admin P0 (odczyt); i18n; limit per-user; dual-mode; confirm e-mail; hasło + delete account; abort/cancel V1; Playwright; split ConsistencyVerifier; model per node; uczenie HITL (bez pętli feedback→prompt); GenAI obs (TBD); artifact diff. **Nie** „kolejne workflowy / rolki / blog” |
+| **V2** | Parity legacy + publikacja SM + YouTube + pack/Insights (+ rozważenie analizy historii runów); eksport MD / schowek / backup kontekstu — nie WP |
+| **WordPress** | **Porzucone** (nie V1/V2 bez osobnej decyzji) |
 | **`/api/v1`** | Prefiks HTTP API — **nie** to samo co „V1 — rozbudowa” |
 
+Zmiana względem wersji 40: V1 bez publikacji/YT/audytorów-6; dopisano V2 i WordPress porzucone — `docs/dictionary.md`, `docs/dokumentacja_koncepcyjna.md`.
 Zmiana względem wersji 5: dopisano kontrakt extras / HITL SM 1 id / pola SM / role outline jako część MVP (nie V1).
 Zmiana względem wersji 6: „HITL SM 1 id” unieważnione — kanon slice’u = K z N Social (`contents[]` / `reelScripts[]`); Content nadal `[outline.id]`.
 Zmiana względem wersji 7: mapa obszarów bez `cancelled` / Stop. Od tej wersji indeks wskazuje anulowanie w RUNY / FEEDBACK / FRONTEND / PERSISTENCE / TESTY.

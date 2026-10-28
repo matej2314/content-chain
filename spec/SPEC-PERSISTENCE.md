@@ -1,7 +1,7 @@
 ---
-wersja: 18
+wersja: 19
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-09
+data_modyfikacji: 2026-10-28
 ---
 
 # SPEC — Persistence
@@ -38,7 +38,9 @@ Uściślenie względem potocznego „1:1 config”:
 - **Prisma:** zmiana `provider` + `DATABASE_URL` + **nowa historia** `prisma/migrations` pod PostgreSQL (stare migracje SQLite → archiwum). Oficjalnie nie da się użyć tych samych plików SQL migracji na obu providerach ([Prisma Migrate — switch providers](https://docs.prisma.io/docs/orm/prisma-migrate/understanding-prisma-migrate/limitations-and-known-issues)).
 - **Dane:** nowa baza PostgreSQL startuje **pusta**. Rekordy z pliku SQLite **nie** migrują się automatycznie; ewentualny eksport/import = osobna procedura ops (poza automatyzmem Prisma). Plik SQLite nie jest kasowany przez samą zmianę providera — po prostu przestaje być kanonicznym store’em po cutoverze.
 
-W tym SPEC nazwa **„V1 — rozbudowa”** oznacza fazę **po MVP** (PostgreSQL + panel opinii + publikacja + audytorzy Content + YouTube). Nie mylić z prefiksem HTTP `/api/v1`.
+W tym SPEC nazwa **„V1 — rozbudowa”** oznacza fazę **po MVP** z cutoverem na **PostgreSQL** (ops / skala) oraz pozostałymi pozycjami V1 z `docs/dictionary.md` (panel odczytu itd.). **Publikacja** SM, YouTube i łańcuch 6 audytorów **nie** należą do tej definicji V1 — to **V2** (słownik). Nie mylić z prefiksem HTTP `/api/v1`.
+
+Zmiana względem wersji 18: V1 w tym SPEC = PG + ops (zgodnie ze słownikiem); publikacja / YT / audytorzy-6 poza definicją V1.
 
 ## Wymagania (egzekwowalne)
 

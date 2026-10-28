@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-08-31
-data_modyfikacji: 2026-10-13
+data_modyfikacji: 2026-10-28
 ---
 
 # SPEC — Content (BC)
@@ -15,6 +15,7 @@ Uszczegóławia BC Content z `docs/architektura.md`, przepływy z `docs/data_flo
 Content jest **jednym bounded contextem** pipeline’u stron w monoliticie — nie orkiestratorem cyklu życia runu (to Runs) i **nie** częścią Social.
 
 Zmiana względem wersji 6 / Ctn-4 / LoadContext: fallback „brak `brief.audience` → pełny katalog `audience.profiles`”. Od tej wersji **effective** audience (scoped) przed LLM i verifierem — `docs/data_flow.md`, jak Social S-10.
+Zmiana względem wersji 7: „łańcuch 6 specjalistów — V1”; WordPress bez etykiety „porzucone”. Od tej wersji: łańcuch 6 **nie** w V1; split `ConsistencyVerifier` = **V1**; pass narracja/CRO/SEO = **V2**; WordPress = **porzucone** — `docs/dictionary.md`.
 
 ## Powiązanie ze stylem z docs / wyjątek
 
@@ -131,8 +132,8 @@ page_copy:
 
 ### Nie wolno
 
-- Łańcucha 6 specjalistów (psychologia / sprzedaż / SEO jako osobne węzły-audytory) — V1.
-- WordPress / eksportu `Jak_wrzucic_do_WordPressa.md`.
+- Łańcucha 6 specjalistów (psychologia / sprzedaż / SEO jako osobne węzły-audytory) — **nie** w V1; opcjonalny pass narracja/CRO/SEO = **V2** (nie LangGraph×6).
+- WordPress / Gutenberg / shortcode / eksportu `Jak_wrzucic_do_WordPressa.md` — **porzucone** (nie V1/V2).
 - Materiałów z folderu `Materiały/` jako produktu. Wejście = `ContentBrief` + kontekst firmy (Ctn-11).
   Zmiana względem: wcześniejsza reguła „wystarczą `brief.topic` + kontekst firmy” jako **jedyne** pola — unieważniona na rzecz `ContentBrief` (kąt / długość opcjonalne). Topic nadal wymagany.
 - Reklamy (krótki copy) jako `ContentKind`.
@@ -165,7 +166,10 @@ Zmiana względem wersji 5 / „Nie wolno”: zakaz dotyczył „flagi edycji”;
 | HITL model **B** | obowiązkowe |
 | ConsistencyVerifier (1 węzeł, 2 obszary) + refine `max N=2` | obowiązkowe |
 | Executor Content jako adapter `RunExecutorPort`; Content → port lifecycle | obowiązkowe |
-| Łańcuch audytorów / WordPress / checkpointer / self-register | poza MVP |
+| Łańcuch 6 audytorów | poza V1 (pass narracja/CRO/SEO = V2) |
+| WordPress / Gutenberg / shortcode | **porzucone** |
+| Split ConsistencyVerifier (2 węzły) | **V1 — rozbudowa** (nie MVP) |
+| Checkpointer / self-register | poza MVP |
 
 ## Kryteria akceptacji
 
@@ -183,8 +187,10 @@ Zmiana względem wersji 5 / „Nie wolno”: zakaz dotyczył „flagi edycji”;
 
 - Cykl życia statusów runu, SSE, klej composite → `SPEC-RUNY.md`.
 - Treść merytoryczna promptów (copy szablonów).
-- LanguageQualityVerifier jako osobny węzeł.
-- YouTube, publikacja portali, WordPress, łańcuch 6 specjalistów.
+- LanguageQualityVerifier jako osobny węzeł w MVP (w **V1**: split z `ConsistencyVerifier` — dwa równoległe węzły).
+- YouTube, publikacja portali, pack/Insights — **V2**.
+- WordPress — **porzucone**.
+- Łańcuch 6 specjalistów jako węzły LangGraph — **nie** w V1.
 - UI HITL / widok dokumentu → `SPEC-FRONTEND.md`.
 - Ocena gwiazdkowa, flaga edycji, opinie → `SPEC-RUNY.md` / `SPEC-FEEDBACK.md`.
 - Enum `PageWriterAgent` w `packages/shared` — kontrakt w docs/spec; implementacja shared = Faza 6.

@@ -26,3 +26,4 @@ Jenkinsfile
 .DS_Store
 Thumbs.db
 post-mvp-*.md
+!post-mvp-a-*

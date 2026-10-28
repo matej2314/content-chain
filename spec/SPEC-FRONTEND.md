@@ -1,7 +1,7 @@
 ---
-wersja: 65
+wersja: 66
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-27
+data_modyfikacji: 2026-10-28
 ---
 
 # SPEC — Frontend
@@ -606,12 +606,12 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 
 ## Poza zakresem
 
-- Playwright / testy FE.
+- Playwright / testy FE w slice MVP (**obowiązek od V1 — rozbudowa** — `docs/testy.md`).
 - Motywy jasny / ciemny (**V1 — rozbudowa**, obowiązkowy): oba tryby w produkcie oraz **dynamiczne** przełączanie przez użytkownika **dedykowanym przełącznikiem** w UI (`docs/ux_dashboard.md`). W MVP kanon = **pełny dark shell** (F-14 — ciemny sidebar **i** ciemny `main`); **bez** przełącznika — dark shell **nie** jest dual-mode.
 - i18n / next-intl (**V1 — rozbudowa**).
 - Limit per-user runów w toku (**V1 — rozbudowa**, obowiązkowy).
 - Pixel-perfect / Figma jako norma.
-- Publikacja postów na API portali (v2).
+- Publikacja postów na API portali (**V2**).
 - OAuth / social login.
 - Przełącznik DEMO w UI admina; reset instancji / bulk purge gości z UI.
 - Osobny trwały ekran „Aktywacja…”.
@@ -620,10 +620,11 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - `selectedIdeaIds` na starcie; `conversationId` w UI.
 - CTA startu w sidebarze / headerze oraz na szczegółach `/runs/:runId`.
 - Prefill startu z wiersza archiwum Runy.
-- Panel admina opinii / diff / historia wersji outputu.
+- Panel admina opinii / diff / historia wersji outputu (**V1**).
 - Nowy endpoint SSE „moje runy”.
 - Browser Notification API; mail przy `failed` runu.
 - Druga rura toastów poza `notifyProduct`.
 
-Zmiana względem wersji 20 / „Poza zakresem”: „Playwright / testy FE, dark/light jako wymóg” (jedna linia, bez fazy). Od tej wersji Playwright zostaje poza MVP; dual-mode = **obowiązek V1** z dedykowanym przełącznikiem.
+Zmiana względem wersji 65 / „Poza zakresem”: Playwright bez obowiązku V1; publikacja jako „v2”. Od tej wersji Playwright = obowiązek **V1**; publikacja = **V2** — `docs/dictionary.md`, `docs/testy.md`.
+Zmiana względem wersji 20 / „Poza zakresem”: „Playwright / testy FE, dark/light jako wymóg” (jedna linia, bez fazy). Od tej wersji (historycznie) Playwright poza MVP w slice; dual-mode = **obowiązek V1** z dedykowanym przełącznikiem — **nadpisane** dla Playwright przez zmianę względem v65 (obowiązek V1).
 Zmiana względem wersji 30 / „Poza zakresem”: „Otwarta rejestracja” — **unieważnione**; signup jest w zakresie MVP (F-4b).

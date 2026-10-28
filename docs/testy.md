@@ -1,7 +1,7 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-07
+data_modyfikacji: 2026-10-28
 ---
 
 # Testy — Content Chain
@@ -27,7 +27,7 @@ Zmiana względem: Faza 18 — accept-invite → zawsze `role=user` (także przy 
 | **Unit** | `apps/api` (domain, application) | Najwięcej | Bramka kontekstu, statusy runu, role, fasady use-case z **portami** (LLM/persistence jako fake) |
 | **Integration** | `apps/api` | Mniej | HTTP (**supertest**) + Prisma/SQLite; SSE/statusy runu; auth **cookie** (`cc_access` / `cc_refresh`) |
 | **E2E API** | przeciw api (bez przeglądarki) | Wąsko | Use-case’y MVP + error/edge case’y — **bez pinu narzędzia** w docs/SPEC |
-| **Frontend** | — | **Poza MVP** | Brak wymogu automatycznych testów `apps/frontend` w MVP |
+| **Frontend** | — | **Poza MVP** / obowiązek od **V1** | Brak wymogu automatów FE w MVP; **Playwright** (lub równoważne automaty FE) = obowiązek jakości **V1 — rozbudowa** |
 
 ```text
         /\
@@ -46,7 +46,7 @@ Zmiana względem: Faza 18 — accept-invite → zawsze `role=user` (także przy 
 | Unit + integration | **Jest** (obowiązkowe) |
 | Integration HTTP | **supertest** (obowiązkowe) |
 | E2E API | **bez pinu** — Postman/Newman, skrypt lub równoważne; byle pokrycie use-case / error / edge |
-| FE | poza MVP (np. Playwright później) |
+| FE | poza MVP; od **V1**: Playwright (lub równoważne) — obowiązek |
 
 Nazwa pliku kolekcji Social: `social-pipeline.postman-collection.json` (myślnik, nie `_collection`) — foldery A/B (posty, Milestone 4) **oraz** C (`reel_ideas`) / D (`reel_ideas_then_scripts`) w tym samym pliku. Content = osobny JSON: `content-pipeline.postman-collection.json` (foldery A `page_copy`, B `page_outline_then_copy`). Setup obu = `PUT /company-context` + asercja `GET /company-context/completeness` (nie seed Prisma). Jak odpalić: `apps/api/test/postman/README.md`.
 
@@ -60,7 +60,7 @@ Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATE
 4. **Verifier** — osobne przypadki: fail kontekstu, fail języka, ok, wyczerpanie `max N=2` → `failed`.
 5. **Korelacja** — asercje, że po stubie gateway w logu runu jest `requestId` z „odpowiedzi” oraz stały `conversationId`.
 6. **Auth w testach** — cookie jar / agent z `cc_access` / `cc_refresh`; bez Bearer jako modelu MVP.
-7. **Frontend poza MVP** — jakość UI weryfikowana ręcznie / E2E API; automatyczne testy FE = później (po MVP / w dalszej rozbudowie).
+7. **Frontend w MVP** — bez wymogu automatów; jakość UI ręcznie / E2E API. **Od V1 — rozbudowa:** automatyczne testy FE (**Playwright** lub równoważne) = obowiązek kanonu.
 
 ## Co mockować / nie mockować
 
@@ -96,7 +96,8 @@ Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATE
 |--------|-------|
 | **PR** | Unit + integration `apps/api` (**Jest** + **supertest**) |
 | **Po pojawieniu się FE / przed release self-host** | Wąskie E2E API (narzędzie dowolne; use-case + error/edge, nie tylko happy path) |
-| **Poza MVP** | Testy `apps/frontend` (np. Playwright) |
+| **V1 — rozbudowa** | Testy `apps/frontend` (Playwright lub równoważne) — obowiązek |
+| **Poza MVP** | (bez osobnego „nigdy”) — brak wymogu FE w slice MVP |
 | **Opcjonalnie poza PR** | Smoke przeciw prawdziwemu gateway (staging) |
 
 ## Anty-patterny testowe (skrót)
@@ -105,11 +106,11 @@ Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATE
 - Mockowanie wszystkiego tak, że test tylko powtarza implementację (London overuse).
 - Integration zależne od live OpenAI/Anthropic na każdy PR.
 - Odkładanie testów bramki i HITL „na potem”.
-- Wymuszanie suite FE w MVP (świadomie poza zakresem).
+- Wymuszanie suite FE **w MVP** (świadomie poza zakresem slice’u); odkładanie Playwright **poza V1** jako „nigdy”.
 
 ## Poza zakresem MVP
 
-- Automatyczne testy `apps/frontend`
+- Automatyczne testy `apps/frontend` w slice MVP (obowiązek od **V1 — rozbudowa**: Playwright lub równoważne)
 - Contract testing consumer-driven jako osobny framework (wystarczy zgodność ze stubem natywnego chat + docs gateway)
 - Chaos / load testing
 - Pin konkretnego narzędzia E2E API
