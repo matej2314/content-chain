@@ -7,6 +7,7 @@ import {
 } from '@content-chain/shared';
 import { apiFetch } from '@/shared/api/api-fetch';
 import { isRecord } from '@/shared/api/envelope';
+import type { PageSize } from '@/shared/pagination/page-size';
 import {
   parseArchiveRunsPage,
   parseRunLogs,
@@ -14,6 +15,7 @@ import {
   parseRunsSummary,
   parseStartRunAccepted,
   parseUserRunList,
+  parseUserRunsPage,
   startRunBody,
   type ArchiveRunsPage,
   type RunLogItem,
@@ -21,6 +23,7 @@ import {
   type StartRunAccepted,
   type StartRunInput,
   type UserRunItem,
+  type UserRunsPage,
 } from '@/modules/runs/api/runs.types';
 import {
   parseHitlAccepted,
@@ -29,9 +32,27 @@ import {
 } from '@/modules/runs/api/runs-result.types';
 import { fetchUsers } from '@/modules/users/api/users.api';
 
+/** OwnRuns / floating / opinia — bez parametrów paginacji (tryb cała kolekcja). */
 export async function fetchUserRuns(userId: UserId): Promise<readonly UserRunItem[]> {
   const body = await apiFetch(`/runs/user/${userId}`);
   return parseUserRunList(body);
+}
+
+export type UserRunsPageQuery = {
+  readonly page: number;
+  readonly pageSize: PageSize;
+};
+
+/** Tabela Moje runy — zawsze page + pageSize. */
+export async function fetchUserRunsPage(
+  userId: UserId,
+  query: UserRunsPageQuery,
+): Promise<UserRunsPage> {
+  const params = new URLSearchParams();
+  params.set('page', String(query.page));
+  params.set('pageSize', String(query.pageSize));
+  const body = await apiFetch(`/runs/user/${userId}?${params.toString()}`);
+  return parseUserRunsPage(body);
 }
 
 export async function fetchRunsSummary(): Promise<RunsSummaryResponse> {
@@ -67,6 +88,7 @@ export async function cancelRun(runId: RunId): Promise<RunSnapshot> {
 
 export type ArchiveRunsQuery = {
   readonly page: number;
+  readonly pageSize: PageSize;
   readonly status: readonly ('completed' | 'failed' | 'cancelled')[];
   readonly taskType?: RunTaskType;
   readonly platform?: RunPlatform;
@@ -76,6 +98,7 @@ export type ArchiveRunsQuery = {
 export async function fetchArchiveRuns(query: ArchiveRunsQuery): Promise<ArchiveRunsPage> {
   const params = new URLSearchParams();
   params.set('page', String(query.page));
+  params.set('pageSize', String(query.pageSize));
   params.set('status', query.status.join(','));
   if (query.taskType) params.set('taskType', query.taskType);
   if (query.platform) params.set('platform', query.platform);

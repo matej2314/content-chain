@@ -14,11 +14,17 @@ import {
   type UserId,
 } from '@content-chain/shared';
 import { ApiError } from '@/shared/api/envelope';
-import { Button } from '@/shared/ui/button';
 import { EnvelopeError, FormField } from '@/shared/ui/form-field';
 import { NativeSelect } from '@/shared/ui/native-select';
 import { IsoDateTime } from '@/shared/datetime/iso-date-time';
 import { Skeleton } from '@/shared/ui/skeleton';
+import { ListPaginationBar } from '@/shared/pagination/list-pagination-bar';
+import {
+  DEFAULT_PAGE,
+  DEFAULT_PAGE_SIZE,
+  totalPagesFromMeta,
+  type PageSize,
+} from '@/shared/pagination/page-size';
 import { useSession } from '@/modules/auth/components/session-provider';
 import {
   fetchArchiveRuns,
@@ -44,6 +50,7 @@ type StatusFilter = 'all' | 'completed' | 'failed' | 'cancelled';
 
 type ArchiveQueryState = {
   page: number;
+  pageSize: PageSize;
   statusFilter: StatusFilter;
   taskType: RunTaskType | '';
   platform: RunPlatform | '';
@@ -52,13 +59,15 @@ type ArchiveQueryState = {
 
 type ArchiveQueryAction =
   | { type: 'setPage'; page: number }
+  | { type: 'setPageSize'; pageSize: PageSize }
   | { type: 'setStatusFilter'; statusFilter: StatusFilter }
   | { type: 'setTaskType'; taskType: RunTaskType | '' }
   | { type: 'setPlatform'; platform: RunPlatform | '' }
   | { type: 'setUserId'; userId: UserId | '' };
 
 const INITIAL_ARCHIVE_QUERY: ArchiveQueryState = {
-  page: 1,
+  page: DEFAULT_PAGE,
+  pageSize: DEFAULT_PAGE_SIZE,
   statusFilter: 'all',
   taskType: '',
   platform: '',
@@ -72,14 +81,16 @@ function archiveQueryReducer(
   switch (action.type) {
     case 'setPage':
       return { ...state, page: action.page };
+    case 'setPageSize':
+      return { ...state, pageSize: action.pageSize, page: DEFAULT_PAGE };
     case 'setStatusFilter':
-      return { ...state, statusFilter: action.statusFilter, page: 1 };
+      return { ...state, statusFilter: action.statusFilter, page: DEFAULT_PAGE };
     case 'setTaskType':
-      return { ...state, taskType: action.taskType, page: 1 };
+      return { ...state, taskType: action.taskType, page: DEFAULT_PAGE };
     case 'setPlatform':
-      return { ...state, platform: action.platform, page: 1 };
+      return { ...state, platform: action.platform, page: DEFAULT_PAGE };
     case 'setUserId':
-      return { ...state, userId: action.userId, page: 1 };
+      return { ...state, userId: action.userId, page: DEFAULT_PAGE };
     default: {
       const _exhaustive: never = action;
       return _exhaustive;
@@ -116,7 +127,7 @@ export function ArchiveRunsView() {
   const [initiators, setInitiators] = useState<InitiatorsState>(INITIAL_INITIATORS);
   const [list, setList] = useState<ArchiveListState>(INITIAL_ARCHIVE_LIST);
 
-  const { page, statusFilter, taskType, platform, userId } = query;
+  const { page, pageSize, statusFilter, taskType, platform, userId } = query;
   const { data: result, error, loading } = list;
   const visibleInitiators = isAdmin ? initiators : INITIAL_INITIATORS;
 
@@ -164,6 +175,7 @@ export function ArchiveRunsView() {
       try {
         const data = await fetchArchiveRuns({
           page,
+          pageSize,
           status:
             statusFilter === 'all'
               ? (['completed', 'failed', 'cancelled'] as const)
@@ -192,9 +204,7 @@ export function ArchiveRunsView() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [page, platform, statusFilter, taskType, userId]);
-
-  const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 1;
+  }, [page, pageSize, platform, statusFilter, taskType, userId]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -367,29 +377,16 @@ export function ArchiveRunsView() {
         </div>
       ) : null}
       {result ? (
-        <div className="flex items-center gap-2 text-sm">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => dispatchQuery({ type: 'setPage', page: Math.max(1, page - 1) })}
-          >
-            Poprzednia
-          </Button>
-          <p className="tabular-nums text-muted-foreground">
-            {result.page} / {totalPages} ({result.total})
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => dispatchQuery({ type: 'setPage', page: page + 1 })}
-          >
-            Następna
-          </Button>
-        </div>
+        <ListPaginationBar
+          sizeSelectId="archive-page-size"
+          page={page}
+          pageSize={pageSize}
+          total={result.total}
+          totalPages={totalPagesFromMeta(result.total, result.pageSize)}
+          disabled={loading}
+          onPageChange={(next) => dispatchQuery({ type: 'setPage', page: next })}
+          onPageSizeChange={(next) => dispatchQuery({ type: 'setPageSize', pageSize: next })}
+        />
       ) : null}
     </div>
   );

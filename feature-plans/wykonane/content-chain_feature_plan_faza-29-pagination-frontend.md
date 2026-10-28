@@ -76,7 +76,7 @@ Odpowiada major FE Faza 29 (cała). Status startowy kroków: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — Helper + pasek kontrolek paginacji
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jedna powierzchnia UI dla trzech tabel (Poprzednia / meta / Następna / select rozmiaru). Major Faza 29; `docs/ux_dashboard.md`; `SPEC-FRONTEND.md` F-8; product-ui (density, NativeSelect).
 
@@ -210,7 +210,7 @@ export function ListPaginationBar({
 
 ### KROK 2 — Klienci API: `page` + `pageSize` vs tryb bez parametrów
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Warstwa `runs.api` / `users.api` + parsery envelope pod tabele; zachować wywołania bez query dla OwnRuns / inicjatorów. Major Faza 29; R-3a / R-3c / A-10b; F-8.
 
@@ -427,7 +427,7 @@ export async function fetchUsersPage(query: UsersPageQuery): Promise<UsersPage> 
 
 ### KROK 3 — Runy: `ArchiveRunsView` + select `pageSize`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Archiwum zawsze wysyła `page`+`pageSize`; select 10/15/25/50; reset strony przy zmianie rozmiaru / filtrów. Major Faza 29; F-8 Runy; refaktor względem Fazy 3 / 3.5 (stałe 10).
 
@@ -560,7 +560,7 @@ Meta w pasku: lokalny `page` / wyliczone `totalPages` / `result.total` (spójne 
 
 ### KROK 4 — Moje runy: HTTP zamiast FE-slice; OwnRuns bez parametrów
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Tabela na Koncie = `fetchUserRunsPage`; **usunąć** `items.slice(...)`; OwnRuns nadal `fetchUserRuns` bez query (live / floating / opinia). Major Faza 29; F-8 Konto; R-3c; refaktor względem Fazy 3 Moje runy.
 
@@ -815,7 +815,7 @@ export function MyRunsList({ onPrefill }: MyRunsListProps) {
 
 ### KROK 5 — Użytkownicy: `UsersView` + `fetchUsersPage`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Sekcja „Konta” = paginacja HTTP + select; zaproszenia bez zmian (pełna lista invites). Major Faza 29; F-8 Users; A-10b; refaktor względem Fazy 6 / 16.
 

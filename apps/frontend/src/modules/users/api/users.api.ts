@@ -1,11 +1,14 @@
+import type { UserId } from '@content-chain/shared';
 import { apiFetch } from '@/shared/api/api-fetch';
 import { isRecord } from '@/shared/api/envelope';
+import type { PageSize } from '@/shared/pagination/page-size';
 import {
   parseUserList,
   parseUserListItem,
+  parseUsersPage,
   type UserListItem,
+  type UsersPage,
 } from '@/modules/users/api/users.types';
-import type { UserId } from '@content-chain/shared';
 
 export const GUEST_HAS_ACTIVE_RUN = 'GUEST_HAS_ACTIVE_RUN' as const;
 
@@ -15,9 +18,24 @@ function parseOkBody(body: unknown): void {
   }
 }
 
+/** Inicjatorzy archiwum / tryb cała kolekcja — bez page/pageSize. */
 export async function fetchUsers(): Promise<readonly UserListItem[]> {
   const body = await apiFetch('/users');
   return parseUserList(body);
+}
+
+export type UsersPageQuery = {
+  readonly page: number;
+  readonly pageSize: PageSize;
+};
+
+/** Tabela Użytkownicy — zawsze page + pageSize. */
+export async function fetchUsersPage(query: UsersPageQuery): Promise<UsersPage> {
+  const params = new URLSearchParams();
+  params.set('page', String(query.page));
+  params.set('pageSize', String(query.pageSize));
+  const body = await apiFetch(`/users?${params.toString()}`);
+  return parseUsersPage(body);
 }
 
 export async function deleteUser(

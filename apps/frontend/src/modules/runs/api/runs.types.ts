@@ -264,6 +264,31 @@ export function parseUserRunList(value: unknown): readonly UserRunItem[] {
   return value.items.map(parseUserRunItem);
 }
 
+export type UserRunsPage = {
+  readonly items: readonly UserRunItem[];
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
+};
+
+export function parseUserRunsPage(value: unknown): UserRunsPage {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.items) ||
+    typeof value.page !== 'number' ||
+    typeof value.pageSize !== 'number' ||
+    typeof value.total !== 'number'
+  ) {
+    throw new Error('Invalid user runs page payload');
+  }
+  return {
+    items: value.items.map(parseUserRunItem),
+    page: value.page,
+    pageSize: value.pageSize,
+    total: value.total,
+  };
+}
+
 export function parseArchiveRunItem(value: unknown): ArchiveRunItem {
   const core = parseRunCore(value);
   if (!isRecord(value)) throw new Error('Invalid archive item');

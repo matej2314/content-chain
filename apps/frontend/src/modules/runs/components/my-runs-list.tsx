@@ -1,35 +1,114 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { RunId } from '@content-chain/shared';
+import { ApiError } from '@/shared/api/envelope';
 import { Button } from '@/shared/ui/button';
 import { EnvelopeError } from '@/shared/ui/form-field';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { CancelRunDialog } from '@/modules/runs/components/cancel-run-dialog';
 import { useOwnRuns } from '@/modules/runs/components/own-runs-provider';
 import { RunStatusView } from '@/modules/runs/components/run-status';
-import { isCancelableRunStatus } from '@/modules/runs/api/runs.types';
+import { useSession } from '@/modules/auth/components/session-provider';
+import { fetchUserRunsPage } from '@/modules/runs/api/runs.api';
+import {
+  isCancelableRunStatus,
+  type UserRunItem,
+} from '@/modules/runs/api/runs.types';
 import { RUN_PLATFORM_LABELS, RUN_TASK_TYPE_LABELS } from '@/modules/runs/api/run-labels';
 import { IsoDateTime } from '@/shared/datetime/iso-date-time';
-
-/** Matches archive listing `pageSize` (SPEC-RUNY R-3a / UI Runy). */
-const PAGE_SIZE = 10;
+import { ListPaginationBar } from '@/shared/pagination/list-pagination-bar';
+import {
+  DEFAULT_PAGE,
+  DEFAULT_PAGE_SIZE,
+  totalPagesFromMeta,
+  type PageSize,
+} from '@/shared/pagination/page-size';
 
 type MyRunsListProps = {
   readonly onPrefill: (runId: RunId) => void;
 };
 
+type PageState =
+  | { readonly status: 'loading' }
+  | { readonly status: 'error'; readonly code: string; readonly message: string }
+  | {
+      readonly status: 'ready';
+      readonly items: readonly UserRunItem[];
+      readonly total: number;
+      readonly pageSize: number;
+    };
+
+const FALLBACK = {
+  code: 'INTERNAL_ERROR',
+  message: 'Nie udało się odczytać odpowiedzi.',
+} as const;
+
 export function MyRunsList({ onPrefill }: MyRunsListProps) {
-  const { state, patchStatus, refresh } = useOwnRuns();
+  const { state: session } = useSession();
+  const userId = session.status === 'authenticated' ? session.user.id : null;
+  const { state: ownState, patchStatus, refresh } = useOwnRuns();
   const [cancelTarget, setCancelTarget] = useState<RunId | null>(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(DEFAULT_PAGE);
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [list, setList] = useState<PageState>({ status: 'loading' });
 
-  const total = state.status === 'ready' ? state.items.length : 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
+  const ownRunIdsKey =
+    ownState.status === 'ready' ? ownState.items.map((item) => item.runId).join(',') : ownState.status;
 
-  if (state.status === 'loading') {
+  const ownStatusById = useMemo(() => {
+    const map = new Map<RunId, UserRunItem['status']>();
+    if (ownState.status === 'ready') {
+      for (const item of ownState.items) {
+        map.set(item.runId, item.status);
+      }
+    }
+    return map;
+  }, [ownState]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const id = userId;
+    let cancelled = false;
+    async function load(): Promise<void> {
+      setList((current) =>
+        current.status === 'ready' ? current : { status: 'loading' },
+      );
+      try {
+        const data = await fetchUserRunsPage(id, { page, pageSize });
+        if (cancelled) return;
+        if (data.total > 0 && data.items.length === 0 && page > 1) {
+          setPage((current) => Math.max(DEFAULT_PAGE, current - 1));
+          return;
+        }
+        setList({
+          status: 'ready',
+          items: data.items,
+          total: data.total,
+          pageSize: data.pageSize,
+        });
+      } catch (reason: unknown) {
+        if (cancelled) return;
+        if (reason instanceof ApiError) {
+          setList({
+            status: 'error',
+            code: reason.envelope.code,
+            message: reason.envelope.message,
+          });
+          return;
+        }
+        setList({ status: 'error', ...FALLBACK });
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, page, pageSize, ownRunIdsKey, reloadToken]);
+
+  if (!userId || list.status === 'loading') {
     return (
       <div className="flex flex-col gap-2">
         <Skeleton className="h-8 w-full" />
@@ -37,10 +116,10 @@ export function MyRunsList({ onPrefill }: MyRunsListProps) {
       </div>
     );
   }
-  if (state.status === 'error') {
-    return <EnvelopeError code={state.envelope.code} message={state.envelope.message} />;
+  if (list.status === 'error') {
+    return <EnvelopeError code={list.code} message={list.message} />;
   }
-  if (state.items.length === 0) {
+  if (list.total === 0) {
     return (
       <p className="text-sm text-muted-foreground">
         Brak własnych runów. Uruchom pierwszy z formularza powyżej.
@@ -48,7 +127,13 @@ export function MyRunsList({ onPrefill }: MyRunsListProps) {
     );
   }
 
-  const pageItems = state.items.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const totalPages = totalPagesFromMeta(list.total, list.pageSize);
+  const rows = list.items.map((item) => {
+    const liveStatus = ownStatusById.get(item.runId);
+    return liveStatus && liveStatus !== item.status
+      ? { ...item, status: liveStatus }
+      : item;
+  });
 
   return (
     <div className="flex flex-col gap-3">
@@ -64,7 +149,7 @@ export function MyRunsList({ onPrefill }: MyRunsListProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {pageItems.map((item) => (
+            {rows.map((item) => (
               <tr key={item.runId}>
                 <td className="py-2 pr-3">
                   <Link href={`/runs/${item.runId}`} className="underline-offset-4 hover:underline">
@@ -105,29 +190,18 @@ export function MyRunsList({ onPrefill }: MyRunsListProps) {
           </tbody>
         </table>
       </div>
-      <div className="flex items-center gap-2 text-sm">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={safePage <= 1}
-          onClick={() => setPage(Math.max(1, safePage - 1))}
-        >
-          Poprzednia
-        </Button>
-        <p className="tabular-nums text-muted-foreground">
-          {safePage} / {totalPages} ({total})
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={safePage >= totalPages}
-          onClick={() => setPage(Math.min(totalPages, safePage + 1))}
-        >
-          Następna
-        </Button>
-      </div>
+      <ListPaginationBar
+        sizeSelectId="my-runs-page-size"
+        page={page}
+        pageSize={pageSize}
+        total={list.total}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        onPageSizeChange={(next) => {
+          setPageSize(next);
+          setPage(DEFAULT_PAGE);
+        }}
+      />
       <CancelRunDialog
         open={cancelTarget !== null}
         onOpenChange={(open) => {
@@ -137,6 +211,7 @@ export function MyRunsList({ onPrefill }: MyRunsListProps) {
         onCancelled={(snapshot) => {
           patchStatus(snapshot.runId, snapshot.status);
           void refresh();
+          setReloadToken((n) => n + 1);
         }}
       />
     </div>

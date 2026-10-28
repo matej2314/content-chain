@@ -44,3 +44,28 @@ export function parseUserList(value: unknown): readonly UserListItem[] {
   }
   return value.items.map(parseUserListItem);
 }
+
+export type UsersPage = {
+  readonly items: readonly UserListItem[];
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
+};
+
+export function parseUsersPage(value: unknown): UsersPage {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.items) ||
+    typeof value.page !== 'number' ||
+    typeof value.pageSize !== 'number' ||
+    typeof value.total !== 'number'
+  ) {
+    throw new Error('Invalid users page payload');
+  }
+  return {
+    items: value.items.map(parseUserListItem),
+    page: value.page,
+    pageSize: value.pageSize,
+    total: value.total,
+  };
+}
