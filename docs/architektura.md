@@ -151,17 +151,21 @@ Pipeline produktowy działa jako **asynchroniczny run**:
 5. Task jednoetapowy kończy się bez pauzy selekcji.
 6. Wynik (addytywny snapshot: ideas / content / **contents** / reelIdeas / reelScript / **reelScripts** / pageOutline / pageDocument) i werdykt weryfikacji spójności są zapisane w DB i dostępne przez API / UI.
 7. Po `completed` albo `failed` autor runu (`startedBy`) może: zapisać edycję wyniku (`POST .../output-edited` z `{ result }` — zastępuje kanoniczny wynik **oraz** stawia `outputEdited`), ustawić ocenę `1–5` albo zostawić `null`, potem **zatwierdzić / zamknąć przegląd** — od tej chwili ocena i treść/`outputEdited` są niemutowalne. Opinia tekstowa (aplikacja / agent / run) jest osobnym zapisem (BC Feedback), niezależnym od grafu. Na `cancelled` przegląd (gwiazdki/Edytuj/finalize) jest zakazany; opinia o runie — gdy jest partial wynik.
-8. **Anulowanie (Stop) v1:** autor woła `POST .../cancel` → CAS statusu (`attemptCancel`) + `cancelledAt` + SSE + **200** od razu; execute **nie** jest awaitowane w tym requeście. Abort hopu LLM = in-process `AbortSignal` (niżej).
+8. **Anulowanie (Stop) V1:** autor (lub admin→guest) woła `POST .../cancel` → CAS statusu (`attemptCancel`) + `cancelledAt` + SSE + **200** od razu; execute **nie** jest awaitowane w tym requeście. Abort hopu = in-process `AbortSignal` **oraz** sygnał abort do gateway (niżej).
+9. **Admit startu (V1):** po bramce kompletności (i polityce guest, gdy dotyczy) — limit per-user runów w toku (`MAX_USER_IN_FLIGHT_RUNS`); dopiero potem create / enqueue pod globalnym `MAX_CONCURRENT_RUNS`. Przekroczenie per-user = błąd domenowy, nie ciche `queued` ponad cap użytkownika (`data_flow.md`).
 
-### Anulowanie runu — mechanizm v1 (wysoki poziom)
+### Anulowanie runu — mechanizm V1 (wysoki poziom)
 
 - **`InProcessRunWorker`:** `Map<RunId, AbortController>` — przy starcie `execute` tworzy controller i wpisuje do mapy; po zakończeniu usuwa.
 - Cancel use-case → `requestCancel(runId)` → `controller.abort()`.
-- **`RunExecutorPort.execute`** przyjmuje `AbortSignal`; klient HTTP do `apps/ai-provider-gateway` przekazuje sygnał — hop w locie przerywany po stronie `apps/api`.
+- **`RunExecutorPort.execute`** przyjmuje `AbortSignal`; klient HTTP do `apps/ai-provider-gateway` przekazuje sygnał — hop w locie przerywany po stronie `apps/api` (**MVP**, zostaje).
+- **V1 — abort→gateway:** po cancel api **propaguje** abort do `apps/ai-provider-gateway` (ścieżka api→gateway). Abort u zewnętrznego providera LLM **poza** tą paczką, jeśli gateway nie ma haczyka do vendora.
 - **Port `attemptCancel` (CAS)** na repozytorium Runs: warunkowy zapis `cancelled` tylko ze statusu nieterminalnego; spójnie z kanonem — szczegóły egzekwowalne w `spec/SPEC-RUNY.md`.
-- **Ograniczenie v1:** wyłącznie in-process (jeden proces Node `apps/api`). Abort na gateway / providerze LLM **poza** v1. Durable `cancelRequested` w DB zostaje guardem recovery po crashu — niezależnie od mapy in-memory.
+- **Ograniczenie procesu:** mapa abortu in-process = jeden proces Node `apps/api`. Durable `cancelRequested` w DB zostaje guardem recovery po crashu — niezależnie od mapy in-memory.
 
 Zmiana względem wcześniejszego zapisu w tym dokumencie: zamiast opierania obserwacji runu na samym pollingu HTTP — **SSE od MVP** (szczegóły kontraktu: `dokumentacja_komunikacji.md`). Dopisano fundament feedbacku (zapis w MVP; panel analityczny = V1 — rozbudowa). Dopisano, że strumień SSE kończy się po evencie terminalnym (wcześniej tylko „live przez SSE”, bez końca połączenia). Snapshot addytywny obejmuje `contents` / `reelScripts` (pusta tablica gdy brak kanału) — nie tylko skalary `content` / `reelScript`. **Edytuj:** pkt 7 wcześniej opisywał wyłącznie flagę; od tej wersji `POST .../output-edited` nadpisuje kanoniczny `result` (`dokumentacja_komunikacji.md`). Tablice pipeline Social: `clear`+`append` na porcie wyniku; zapis Edytuj = `OutputEditedWriter` w Runs (nie `replaceContents` / `replaceReelScripts` na `SocialResultStore`). Dopisano trzeci terminal `cancelled` i mechanizm cancel v1.
+
+Zmiana względem: „Abort na gateway / providerze LLM **poza** v1”; brak bramki per-user przy starcie. Od tej wersji abort V1 obejmuje propagację api→gateway; limit per-user w toku jest kanonem admit V1 (pkt 9).
 
 ## Auth
 

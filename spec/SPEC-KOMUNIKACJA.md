@@ -1,7 +1,7 @@
 ---
-wersja: 43
+wersja: 44
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-27
+data_modyfikacji: 2026-10-29
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -37,6 +37,8 @@ Zmiana względem wersji 32 / cel: K-2g = zawsze `role = user`. Od tej wersji **r
 Zmiana względem wersji 35 / K-2f: happy path 201 bez jawnej normy roli vs demo. Od tej wersji `role` w 201 accept-invite vs `DEMO_MODE` (odsyłacz A-7b).
 Zmiana względem wersji 37 / K-2: `brief.audience` bez semantyki trzech trybów. Od tej wersji omit / name katalogu / custom opis — bez nowego klucza body — `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`.
 Zmiana względem wersji 38 / K-2c: milczenie o authz guest na detail/logs (ownership w R-12 / docs). Od tej wersji K-2c: `guest` — cudzy detail/logs dozwolone przy statusie archiwalnym; lista `GET /runs` bez zmian — `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-12.
+
+Zmiana względem wersji 43 / K-2e / K-8: brak `USER_IN_FLIGHT_LIMIT_EXCEEDED`; cancel bez jawnej wzmianki abort→gateway w skrócie I/O. Od tej wersji kod limitu per-user w K-8; K-2e odsyła do R-11 V1 (abort api→gateway) — `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-6a / R-11.
 
 ## Powiązanie ze stylem z docs
 
@@ -154,9 +156,10 @@ K-2d. `PATCH /api/v1/auth/me/email` — body `{ email, currentPassword }`; re-au
 
 Zmiana względem wcześniejszego K-2d: trasa `PATCH /auth/me` (z lub bez `currentPassword`) / złe hasło jako `UNAUTHORIZED`.
 
-K-2e. `POST /api/v1/runs/:runId/cancel` — body puste; sesja cookie. Authz: `startedBy` **lub** (aktor `admin` **i** `startedBy.role === guest`); cudzy run `role = user` → **403** `FORBIDDEN`. Odpowiedzi: **200** + snapshot (`status: cancelled`, `cancelledAt`) przy pierwszym legalnym cancelu **oraz** gdy run już `cancelled` (idempotencja); **404**; **409** `RUN_NOT_CANCELABLE` gdy status już `completed` \| `failed`. **200 nie czeka** na zwinięcie execute. Semantyka CAS / abort / recovery / log aktora — `SPEC-RUNY.md` R-11. Pełny kontrakt: `docs/dokumentacja_komunikacji.md`.
+K-2e. `POST /api/v1/runs/:runId/cancel` — body puste; sesja cookie. Authz: `startedBy` **lub** (aktor `admin` **i** `startedBy.role === guest`); cudzy run `role = user` → **403** `FORBIDDEN`. Odpowiedzi: **200** + snapshot (`status: cancelled`, `cancelledAt`) przy pierwszym legalnym cancelu **oraz** gdy run już `cancelled` (idempotencja); **404**; **409** `RUN_NOT_CANCELABLE` gdy status już `completed` \| `failed`. **200 nie czeka** na zwinięcie execute (bez regresji MVP). Semantyka CAS / abort in-process **+** (V1) abort api→gateway / recovery / log aktora — `SPEC-RUNY.md` R-11. Pełny kontrakt: `docs/dokumentacja_komunikacji.md`.
 
 Zmiana względem wersji 36 / K-2e: authz wyłącznie `startedBy`. Od tej wersji wyjątek admin→`guest`.
+Zmiana względem wersji 43 / K-2e: skrót milczał o abort→gateway. Od tej wersji odsyłacz do R-11 V1.
 
 K-2j. Users (admin) — skrót I/O; pełna semantyka `SPEC-AUTH.md` A-10 / A-10a / **A-10b**, `docs/dokumentacja_komunikacji.md`:
 
@@ -250,7 +253,7 @@ K-7. Błędy gateway mapowane na logi runu i ewentualnie `run.failed` / retry wg
 
 Zmiana względem wersji 9 / K-7: wcześniejsza norma mówiła o logach produktowych i frontendzie — bez rozróżnienia dumpa diagnostycznego stdout w `development`.
 
-K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, `HITL_REQUIRED`, `HITL_INVALID_SELECTION`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, **`RUN_NOT_CANCELABLE`**, **`GUEST_HAS_ACTIVE_RUN`**, `CONFLICT`, `MAIL_DELIVERY_FAILED`, `INTERNAL_ERROR`, **`GUEST_TYPE_NOT_ALLOWED`**, **`GUEST_TYPE_QUOTA_EXCEEDED`**, **`GUEST_GLOBAL_QUOTA_EXCEEDED`**, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach. Skrót: `GUEST_HAS_ACTIVE_RUN` (409) = `DELETE /users/:id` na `guest` z ≥1 live run **bez** `?purge=true` (wspólny `message`; bez `details.runIds` — K-2j / A-10); `RUN_NOT_CANCELABLE` (409) = cancel gdy już `completed` \| `failed`; `RUN_NOT_REVIEWABLE` (409) = przegląd poza `completed` \| `failed` **oraz** opinia `targetType=run` poza `completed` \| `failed` \| (`cancelled`+wynik); `REVIEW_LOCKED` (409) = przegląd zamknięty (`reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL`) — przy samym TTL **bez** side-effect UPDATE locka — szczegóły `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-10 / R-11, `SPEC-FEEDBACK.md` Fbk-3a. Soft limit rating guest = **429** (nie nowy `code` obowiązkowy w V1 — `message` z envelope). `CONFLICT` (409) = m.in. drugi `pending` invite, istniejący `User` przy `POST /invitations`, zajęty email przy `PATCH /auth/me/email`, **zajęty email przy `POST /auth/register`**, niedozwolone przejścia runu / HITL — **nie** kolizja email na `POST /auth/accept-invite` (tam **401** `UNAUTHORIZED`, K-2f). Login przed aktywacją (prod) / soft-delete / złe hasło / **guest przy demo off** oraz activate-fail = wspólny **401** — **bez** `ACCOUNT_NOT_ACTIVATED`. Gdy `VALIDATION_FAILED` pochodzi z application Zod przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, nie lokalna kopia w BC): `details[].path` = `issue.path.join('.')`. PUT/PATCH `/company-context` przy niespełnionej bramce kompletności też zwraca **400** `VALIDATION_FAILED` (`docs/dokumentacja_komunikacji.md`) — `details` mogą mieć `section` i/lub `path` pozycji; **nie** 409 `CONTEXT_INCOMPLETE` (ten kod zostaje na `POST /runs`). **Brak** nowego kodu envelope „GATEWAY_NOT_READY” / twardego rejectu `POST /runs` za martwy gateway — bramka UX = `SPEC-FRONTEND.md` F-6; hop LLM = istniejąca ścieżka błędu.
+K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, **`USER_IN_FLIGHT_LIMIT_EXCEEDED`**, `HITL_REQUIRED`, `HITL_INVALID_SELECTION`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, **`RUN_NOT_CANCELABLE`**, **`GUEST_HAS_ACTIVE_RUN`**, `CONFLICT`, `MAIL_DELIVERY_FAILED`, `INTERNAL_ERROR`, **`GUEST_TYPE_NOT_ALLOWED`**, **`GUEST_TYPE_QUOTA_EXCEEDED`**, **`GUEST_GLOBAL_QUOTA_EXCEEDED`**, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach. Skrót: `USER_IN_FLIGHT_LIMIT_EXCEEDED` (**409**) = `POST /runs` gdy użytkownik ma już ≥ `MAX_USER_IN_FLIGHT_RUNS` własnych runów w `queued` \| `running` \| `interrupted` \| `awaiting_hitl` (`SPEC-RUNY.md` R-6a; **nie** ciche `queued`; **nie** kod guest quota); `GUEST_HAS_ACTIVE_RUN` (409) = `DELETE /users/:id` na `guest` z ≥1 live run **bez** `?purge=true` (wspólny `message`; bez `details.runIds` — K-2j / A-10); `RUN_NOT_CANCELABLE` (409) = cancel gdy już `completed` \| `failed`; `RUN_NOT_REVIEWABLE` (409) = przegląd poza `completed` \| `failed` **oraz** opinia `targetType=run` poza `completed` \| `failed` \| (`cancelled`+wynik); `REVIEW_LOCKED` (409) = przegląd zamknięty (`reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL`) — przy samym TTL **bez** side-effect UPDATE locka — szczegóły `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-10 / R-11, `SPEC-FEEDBACK.md` Fbk-3a. Soft limit rating guest = **429** (nie nowy `code` obowiązkowy w V1 — `message` z envelope). `CONFLICT` (409) = m.in. drugi `pending` invite, istniejący `User` przy `POST /invitations`, zajęty email przy `PATCH /auth/me/email`, **zajęty email przy `POST /auth/register`**, niedozwolone przejścia runu / HITL — **nie** kolizja email na `POST /auth/accept-invite` (tam **401** `UNAUTHORIZED`, K-2f). Login przed aktywacją (prod) / soft-delete / złe hasło / **guest przy demo off** oraz activate-fail = wspólny **401** — **bez** `ACCOUNT_NOT_ACTIVATED`. Gdy `VALIDATION_FAILED` pochodzi z application Zod przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, nie lokalna kopia w BC): `details[].path` = `issue.path.join('.')`. Refaktor jakości `parseWithZod` — **bez zmiany** kontraktu I/O envelope. PUT/PATCH `/company-context` przy niespełnionej bramce kompletności też zwraca **400** `VALIDATION_FAILED` (`docs/dokumentacja_komunikacji.md`) — `details` mogą mieć `section` i/lub `path` pozycji; **nie** 409 `CONTEXT_INCOMPLETE` (ten kod zostaje na `POST /runs`). **Brak** nowego kodu envelope „GATEWAY_NOT_READY” / twardego rejectu `POST /runs` za martwy gateway — bramka UX = `SPEC-FRONTEND.md` F-6; hop LLM = istniejąca ścieżka błędu.
 
 Zmiana względem wersji 24 / K-8: brak `RUN_NOT_CANCELABLE`; opis `RUN_NOT_REVIEWABLE` bez rozszczepienia przegląd vs opinia na `cancelled`.
 
@@ -273,6 +276,8 @@ Zmiana względem wersji 28 / K-8: `CONFLICT` bez register; brak normy wspólnego
 Zmiana względem wersji 31 / K-8: milczenie o reject gateway na `POST /runs`. Od tej wersji jawny zakaz nowego kodu „gateway down” na starcie.
 
 Zmiana względem wersji 36 / K-8: brak `GUEST_HAS_ACTIVE_RUN`. Od tej wersji kod 409 przy DELETE guest + live bez purge.
+
+Zmiana względem wersji 43 / K-8: brak `USER_IN_FLIGHT_LIMIT_EXCEEDED`. Od tej wersji kod **409** limitu per-user (R-6a) w liście K-8; parseWithZod — jawne „bez zmiany I/O”.
 
 K-9. Kontrakt GET result pól addytywnych (`cta?`, `characterCount`, `role?`, `contents[]` / `reelScripts[]`, `sourceIdeaId`) oraz body `extras` kontekstu — egzekwowalne jak docs; ten SPEC nie redefiniuje tabel payloadów.
 
@@ -339,6 +344,8 @@ Zmiana względem wersji 8 / wiersz Application: odczyt snapshotu był milcząco 
 - Zostawiania otwartego SSE po evencie terminalnym albo na runie już `completed` \| `failed` \| `cancelled`.
 - Pollingu statusu jako live w związku z cancel (obowiązuje SSE + GET snapshot).
 - Synchronicznego await execute w handlerze `POST .../cancel` (K-2e / `SPEC-RUNY.md` R-11).
+- Ad hoc statusów / kodów limitu per-user poza **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` (K-8 / R-6a).
+- Cichego `queued` ponad per-user zamiast rejectu envelope.
 - Unbounded mapy Subject per `runId` bez evikcji po terminalu (cykl życia huba — `SPEC-RUNY.md`).
 - Subjectu bez TTL automatu ewikcji — zombie Subject przy hung runie powoduje memory leak (K-3b).
 - Braku heartbeat przy live SSE — cisza TCP >60 s grozi zamknięciem połączenia przez proxy i reconnectem klienta (K-3b).
@@ -408,6 +415,7 @@ Zmiana względem wersji 3: dopisano obowiązkowy DX Swagger pod `/docs` (wcześn
 - [ ] Adapter gateway woła natywny chat z `X-Gateway-Key`, bez `x-request-id` z CC; `conversationId` stały w runie; `requestId` z odpowiedzi w logu kroku. Hop mieści się w limicie native **10 000** znaków. Dump pełnej treści hopu na stdout tylko w `development`, z redakcją sekretu.
 - [ ] `GET /api/v1/health/ready`: publiczny; body z agregatem `ready` \| `not_ready` + `checks.api` / `checks.gateway`; probe = upstream **liveness** `/health` (timeout 1–2 s, cache 5–15 s); **bez** sekretów; **bez** konsumpcji upstream `/health/ready`; probe **nie** przez port `chat`.
 - [ ] `POST /runs` przy martwym gateway **nie** dostaje nowego kodu rejectu „gateway down” (nadal tylko `CONTEXT_INCOMPLETE` przy niekompletnym kontekście).
+- [ ] V1: `POST /runs` ponad per-user → **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` w K-8; cancel **200** bez await (K-2e).
 - [ ] DTO HTTP walidowane class-validator; use-case’y używają Zod tam, gdzie parsują / walidują dane aplikacji.
 - [ ] Brak ścieżki FE/api → vendor LLM z pominięciem gateway.
 - [ ] Publiczne API MVP wyłącznie pod `/api/v1`.

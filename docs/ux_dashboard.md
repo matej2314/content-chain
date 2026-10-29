@@ -73,6 +73,8 @@ Zmiana względem: zakładka Odbiorca bez wymaganego pola Nazwa; start runu = wol
 
 Zmiana względem: Faza DEMO / F-10 — *„archiwum: klik cudzego wiersza zablokowany; guest na szczegółach tylko `startedBy === self`”*. Od tej wersji: guest przy demo on **może** otworzyć cudzy run **archiwalny** (`completed` \| `failed` \| `cancelled`) — detail **read-only** (bez Stop / HITL / Edytuj / finalize; **bez** EventSource na cudzym). Mutacje i live cudze — bez zmian. Prefill startu z cudzego wiersza archiwum — nadal zakaz.
 
+Zmiana względem: błąd startu limitu per-user poza UX; Stop bez wzmianki o V1. Od tej wersji: `POST /runs` **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` → `message` z envelope na formularzu startu (Konto / modal Runy; **nie** GuestLimitModal; **nie** ciche „queued”). Stop/cancel: semantyka MVP (**200**, modal „Czy na pewno?”, bez await) **bez regresji**.
+
 ## Założenia UX
 
 - Cienki klient: reguły i pipeline w `apps/api`.
@@ -330,7 +332,7 @@ Stały element UI (`CompletenessChipSlot` — pod nawigacją, nad dołem chrome�
 **Odświeżanie:** jak completeness — **mount + refetch przy okazji** (np. po udanym zapisie kontekstu / wspólnym `refetch` providera). **Bez** interval pollingu.  
 **Zakaz:** FE → gateway (wyłącznie BFF → `apps/api`).
 
-CTA **„Uruchom agenta”** (Konto — submit formularza; Runy — przycisk otwierający modal **oraz** submit w modalu) disabled + tooltip, gdy `!agentsActive`. Twarda bramka api na `POST /runs` pozostaje **409** `CONTEXT_INCOMPLETE` przy niekompletnym kontekście — **bez** nowego rejectu „gateway down” na starcie runu (UI nie jest jedyną bramką kontekstu; brak gateway = disable CTA, nie osobny kod HTTP startu).
+CTA **„Uruchom agenta”** (Konto — submit formularza; Runy — przycisk otwierający modal **oraz** submit w modalu) disabled + tooltip, gdy `!agentsActive`. Twarda bramka api na `POST /runs` pozostaje **409** `CONTEXT_INCOMPLETE` przy niekompletnym kontekście — **bez** nowego rejectu „gateway down” na starcie runu (UI nie jest jedyną bramką kontekstu; brak gateway = disable CTA, nie osobny kod HTTP startu). Limit per-user (**409** `USER_IN_FLIGHT_LIMIT_EXCEEDED`) egzekwuje **api** po submit — UI pokazuje `message`; **bez** panelu mutacji `MAX_USER_IN_FLIGHT_RUNS`.
 
 ## Floating box: własne runy w toku
 
@@ -373,7 +375,7 @@ Sukces toasta: **polski**, krótki tytuł. Błąd w toaście **tylko** gdy na ty
 | `PUT /company-context` **400** (walidacja / bramka) | **nie** | envelope + `details` przy formularzu |
 | `POST /runs` **202** | tak | „Run wystartował” **oraz** nawigacja na `/runs/:runId` (Konto inline **i** modal na Runach; modal zamyka się przed / przy przejściu). Live nowego runu = szczegóły (+ floating box gdy operator później zejdzie poza Konto). Lista archiwum Runy **bez** nowego wiersza, dopóki run nie jest terminalny |
 | `POST /runs` **409** `CONTEXT_INCOMPLETE` / **400** | **nie** | envelope na formularzu startu (także w modalu na Runach) |
-| `POST /runs` **403** quota guest (`GUEST_*`) | **nie** (toast) | **GuestLimitModal** + kontakty (po odpowiedzi API) |
+| `POST /runs` **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` | **nie** | `message` z envelope na formularzu startu (Konto / modal); **nie** toast; **nie** GuestLimitModal; **bez** nawigacji |
 | `POST /runs` **403** quota guest (`GUEST_*`) | **nie** (toast) | **GuestLimitModal** + kontakty (po odpowiedzi API) |
 | `POST .../cancel` **200** | tak | **„Run anulowany”** (zostajemy na widoku źródłowym). Gdy operator **nie** jest na `/runs/:runId` **tego** runu — toast z akcją **Szczegóły**. Gdy **jest** na szczegółach tego runu — toast mutacji bez nawigacji; SSE terminal **nie** dubluje (dedup per `runId`) |
 | SSE `run.completed` / `run.failed` / `run.cancelled` **i** operator **nie** jest na `/runs/:runId` **tego** runu | tak | „Run zakończony” / „Run nieudany” / **„Run anulowany”** + akcja **Szczegóły** (link); `notifyRunTerminal` z dedupem względem toasta mutacji cancel |

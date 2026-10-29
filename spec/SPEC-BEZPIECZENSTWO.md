@@ -1,7 +1,7 @@
 ---
-wersja: 19
+wersja: 20
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-17
+data_modyfikacji: 2026-10-29
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -21,6 +21,7 @@ Zmiana względem wersji 15 / B-8 + B-11: kanon URL **albo** HOST/PORT. Od tej we
 Zmiana względem wersji 16: brak B-12 (Users DELETE / cancel / sesja isActive / Redis ratings SCAN). Od tej wersji B-12 — `docs/security.md`, `users-management-plan.md` Faza 2.
 Zmiana względem wersji 17 / B-2 + B-6 + Deploy: sekrety ops = „env per app”; publish production bez pinu `127.0.0.1` dla FE/api. Od tej wersji: **jeden** root `.env` z Vault (Jenkins) w production; publish FE/api/gateway na **`127.0.0.1`**; Redis **nie** jest usługą compose w MVP stacku CC — `docs/deployment.md`.
 Zmiana względem wersji 18 / B-11: milczenie o ownership odczytu detail/logs guest. Od tej wersji jawny odsyłacz: authz odczytu archiwum → `SPEC-RUNY.md` R-12 / `docs/security.md` (cudzy detail/logs terminalny dozwolony; events/mutacje bez zmian).
+Zmiana względem wersji 19 / B-11: milczenie o limicie per-user vs Redis guest. Od tej wersji jawne: per-user (R-6a) ≠ Redis guest ≠ `MAX_CONCURRENT_RUNS` — `docs/security.md`, `SPEC-RUNY.md` R-6a.
 
 ## Powiązanie ze stylem z docs
 
@@ -87,13 +88,14 @@ B-9. Minimalny zestaw `/metrics` (proces `apps/api`) zgodny z `docs/observabilit
 
 B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/security.md` (ten SPEC nie dubluje szczegółów, ale uznaje je za obowiązujące przy review security).
 
-B-11. **DEMO MODE / guest (authz):** `DEMO_MODE` (bool string, default **`false`**) ładowane przy **starcie procesu** — zmiana wymaga restartu; **brak** switcha w UI. `GuestGuard` + `@AllowGuest` — `SPEC-AUTH.md` A-6a. Redis keys: `content-chain:guest:daily:runs:{UTC-date}`, `content-chain:guest:daily:ratings:{userId}:{UTC-date}`. Przy `DEMO_MODE=true` Redis potrzebny pod cap + soft rating. Przy `false` Redis **opcjonalny**. `GET /health` i `GET /health/ready` **nie** failują z braku Redis. Pad Redis: `POST /runs` guest → fail closed; rating guest → fail open (`SPEC-RUNY.md` R-12). Env capów: `GUEST_GLOBAL_CAP_PER_DAY` (default 30), `GUEST_RATING_CAP_PER_DAY` (default 10) — walidowane przy starcie. Połączenie Redis (przy `DEMO_MODE=true` wymagane): **`REDIS_HOST`**+**`REDIS_PORT`**; opcjonalne **`REDIS_PASSWORD`** (semantyka env **bez zmian** — wartości z Vault / root `.env`). **Zakaz** `REDIS_URL`. W MVP stacku Compose CC Redis jest **external** (instancja na serwerze) — **nie** usługa w bazowym `docker-compose.yml` (`docs/deployment.md`). Dump SQLite przenosi role (w tym `guest`); `DEMO_MODE` **nie** degraduje ról w DB. **Ownership odczytu** detail/logs / events / mutacji guest — `SPEC-RUNY.md` R-12 / `docs/security.md` (cudzy detail/logs przy statusie archiwalnym dozwolony; events/HITL/cancel bez zmian).
+B-11. **DEMO MODE / guest (authz):** `DEMO_MODE` (bool string, default **`false`**) ładowane przy **starcie procesu** — zmiana wymaga restartu; **brak** switcha w UI. `GuestGuard` + `@AllowGuest` — `SPEC-AUTH.md` A-6a. Redis keys: `content-chain:guest:daily:runs:{UTC-date}`, `content-chain:guest:daily:ratings:{userId}:{UTC-date}`. Przy `DEMO_MODE=true` Redis potrzebny pod cap + soft rating. Przy `false` Redis **opcjonalny**. `GET /health` i `GET /health/ready` **nie** failują z braku Redis. Pad Redis: `POST /runs` guest → fail closed; rating guest → fail open (`SPEC-RUNY.md` R-12). Env capów: `GUEST_GLOBAL_CAP_PER_DAY` (default 30), `GUEST_RATING_CAP_PER_DAY` (default 10) — walidowane przy starcie. **Osobno (V1):** `MAX_USER_IN_FLIGHT_RUNS` (`SPEC-RUNY.md` R-6a) — **nie** Redis guest i **nie** drugi semafor `MAX_CONCURRENT_RUNS`; **nie** sterowany z panelu P0. Połączenie Redis (przy `DEMO_MODE=true` wymagane): **`REDIS_HOST`**+**`REDIS_PORT`**; opcjonalne **`REDIS_PASSWORD`** (semantyka env **bez zmian** — wartości z Vault / root `.env`). **Zakaz** `REDIS_URL`. W MVP stacku Compose CC Redis jest **external** (instancja na serwerze) — **nie** usługa w bazowym `docker-compose.yml` (`docs/deployment.md`). Dump SQLite przenosi role (w tym `guest`); `DEMO_MODE` **nie** degraduje ról w DB. **Ownership odczytu** detail/logs / events / mutacji guest — `SPEC-RUNY.md` R-12 / `docs/security.md` (cudzy detail/logs przy statusie archiwalnym dozwolony; events/HITL/cancel bez zmian).
 
 Zmiana względem wersji 13: brak normy DEMO/Redis guest. Od tej wersji B-11.
 Zmiana względem wersji 14 / B-11: brak nazw env połączenia Redis / `REDIS_PASSWORD`. Od tej wersji kanon URL vs HOST/PORT + opcjonalne hasło HOST/PORT (`docs/deployment.md`).
 Zmiana względem wersji 15 / B-11: `REDIS_URL` **albo** HOST/PORT. Od tej wersji wyłącznie HOST/PORT + opcjonalne `REDIS_PASSWORD`.
 Zmiana względem wersji 17 / B-11: semantyka HOST/PORT/PASSWORD **bez unieważnienia**; dopisek: Redis **nie** jest usługą compose w MVP stacku CC (external + Vault).
 Zmiana względem wersji 18 / B-11: dopisek odsyłacza ownership odczytu archiwum → R-12 / `docs/security.md`.
+Zmiana względem wersji 19 / B-11: milczenie o limicie per-user vs Redis guest. Od tej wersji jawne rozróżnienie R-6a.
 
 B-12. **Zarządzanie kontami / sesja / cancel (authz + audyt):**
 

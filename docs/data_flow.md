@@ -18,6 +18,8 @@ Zmiana względem wcześniejszej wersji (bez frontmatteru): dopisano ścieżkę *
 
 Zmiana względem: self-register zawsze `user`; admit startu = tylko bramka kontekstu + `MAX_CONCURRENT_RUNS`. Od tej wersji: register → `guest` wyłącznie gdy `DEMO_MODE=true` (**refaktor**). Dla guest: Redis admit (global cap UTC) **przed** create Run; slot COUNT bez filtra statusu. Per-konto hard/purge guest — w kanonie (sekcja Users poniżej); reset instancji poza.
 
+Zmiana względem: admit bez limitu per-user; cancel = CAS + SSE + abort wyłącznie in-process (abort gateway poza v1). Od tej wersji (V1): po kompletności / guest — bramka **per-user** (`MAX_USER_IN_FLIGHT_RUNS`); cancel dodatkowo propaguje abort api→gateway.
+
 Zmiana względem: Faza 18 — *„Invite / bootstrap nie tworzą `guest`”*. Od tej wersji: **bootstrap** nadal nie; **invite przy `DEMO_MODE=true` tworzy `guest`** (mirror register).
 
 Zmiana względem: Redis admit bez nazw env połączenia. Od tej wersji: klient guest quota = **`REDIS_HOST`** + **`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); **bez** `REDIS_URL` — `deployment.md`.
@@ -84,7 +86,7 @@ Sekcje bramki: tożsamość, oferta, głos SM, CTA/kanały, odbiorca (`dokumenta
 
 ---
 
-## 2a. Admit startu runu: guest vs `MAX_CONCURRENT_RUNS`
+## 2a. Admit startu runu: kontekst → guest → per-user → `MAX_CONCURRENT_RUNS`
 
 ```text
 POST /runs
@@ -94,12 +96,16 @@ POST /runs
        COUNT startedBy+taskType (wszystkie statusy) → GUEST_TYPE_QUOTA_EXCEEDED
        Redis INCR global UTC → GUEST_GLOBAL_QUOTA_EXCEEDED / fail closed
          (klient: REDIS_HOST + REDIS_PORT [+ REDIS_PASSWORD]; bez REDIS_URL)
+  → [V1] limit per-user:
+       COUNT własnych runów w queued | running | interrupted | awaiting_hitl
+       ≥ MAX_USER_IN_FLIGHT_RUNS (env, default 3)
+         → 409 USER_IN_FLIGHT_LIMIT_EXCEEDED (bez create; nie ciche queued)
   → create Run (queued | running)
-  → [create fail] Redis DECR
-  → worker claim pod MAX_CONCURRENT_RUNS (FIFO; bez zmian; nie drugi semafor guest)
+  → [create fail] Redis DECR (gdy guest INCR)
+  → worker claim pod MAX_CONCURRENT_RUNS (FIFO; bez zmian; nie drugi semafor guest ani per-user)
 ```
 
-Slot gościa **nie** jest tabelą — COUNT z `Run`. HITL nie zużywa slotu. Env połączenia Redis: `deployment.md`.
+Slot gościa **nie** jest tabelą — COUNT z `Run`. HITL nie zużywa slotu guest. Per-user liczy także `awaiting_hitl` / `queued` / `interrupted` (własne). Globalny cap execute i limity guest/DEMO **bez zmian semantycznych**. Env Redis: `deployment.md`.
 
 ---
 
@@ -111,7 +117,9 @@ Wejście: **`SocialBrief`** + platforma + język (`docs/dokumentacja_komunikacji
 flowchart TB
   Start[POST /runs] --> Gate{Kompletność kontekstu}
   Gate -->|nie| E409[409 CONTEXT_INCOMPLETE]
-  Gate -->|tak| Q[status queued / running]
+  Gate -->|tak| PerUser{V1 limit per-user}
+  PerUser -->|przekroczony| ELim[409 USER_IN_FLIGHT_LIMIT_EXCEEDED]
+  PerUser -->|OK| Q[status queued / running]
   Q --> Load[LoadContext]
   Load --> Norm[NormalizeBrief]
   Norm --> Idea[IdeationAgent]
@@ -145,7 +153,9 @@ Zmiana względem: wcześniejszy mermaid `Ref --> Idea` (oraz analogicznie powró
 ```mermaid
 flowchart TB
   Start[POST /runs] --> Gate{Kompletność}
-  Gate -->|tak| Load[LoadContext]
+  Gate -->|tak| PerUser{V1 limit per-user}
+  PerUser -->|przekroczony| ELim[409 USER_IN_FLIGHT_LIMIT_EXCEEDED]
+  PerUser -->|OK| Load[LoadContext]
   Load --> Norm[NormalizeBrief]
   Norm --> Idea[IdeationAgent]
   Idea --> VerI[ConsistencyVerifier ideas]
@@ -317,7 +327,7 @@ Szczegóły: `dictionary.md` (hasła `interrupted`, `cancelled`, `cancelRequeste
 
 ## 6a. Anulowanie runu (`cancelled`)
 
-Ścieżka HTTP → CAS → SSE → abort w tle (v1 in-process). Authz: `startedBy` **lub** (admin ∧ `startedBy.role === guest`).
+Ścieżka HTTP → CAS → SSE → abort w tle (in-process **+** sygnał api→gateway). Authz: `startedBy` **lub** (admin ∧ `startedBy.role === guest`). Semantyka HTTP **200** bez await execute — **bez regresji** względem MVP.
 
 ```mermaid
 sequenceDiagram
@@ -326,6 +336,7 @@ sequenceDiagram
   participant Repo as attemptCancel CAS
   participant Hub as SSE hub
   participant W as InProcessRunWorker
+  participant GW as ai-provider-gateway
 
   Op->>API: POST /runs/:runId/cancel
   Note over API: authz: owner OR admin+guest
@@ -335,7 +346,8 @@ sequenceDiagram
     API->>Hub: run.status cancelled + run.cancelled + complete
     API-->>Op: 200 + snapshot
     API->>W: requestCancel abort AbortSignal
-    Note over W: execute zwija się w tle; HTTP nie awaituje
+    API->>GW: propagacja abort (V1)
+    Note over W,GW: execute / hop zwija się w tle; HTTP nie awaituje
   else status już completed / failed
     Repo-->>API: false
     API-->>Op: 409 RUN_NOT_CANCELABLE
@@ -345,6 +357,7 @@ sequenceDiagram
 | Reguła | Norma |
 |--------|--------|
 | Slot `MAX_CONCURRENT_RUNS` | HTTP cancel **nie** dekrementuje licznika in-flight; zwalnia go `finally` execute po aborcie. Cancel `queued` / `awaiting_hitl` / `interrupted` **nie** zajmuje slotu execute |
+| Abort V1 | In-process (MVP) **oraz** propagacja do gateway; abort vendora LLM poza paczką, gdy brak haczyka w gateway |
 | Persist | **Bez rollbacku** wyniku już zacommitowanego. Hop w locie **nie** jest dopisywany po `cancelled` |
 | Logi | Append-only + wpis rozróżniający aktora (`cancelled by admin` vs owner) |
 | Authz | Cudzy `role=user` → **403** także dla admina; admin→guest **dozwolone** |
@@ -382,6 +395,7 @@ Admin PATCH /users/:id { isActive: true }
 | Sytuacja | Przepływ danych |
 |----------|-----------------|
 | Kontekst niekompletny | Brak grafu; **409** `CONTEXT_INCOMPLETE`; brak `ConversationId` runu |
+| Limit per-user w toku (V1) | **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED`; brak create Run |
 | Błąd / timeout gateway | Log kroku (bez `requestId` przy braku odpowiedzi); po polityce retry lub **`failed`** + SSE `run.failed` |
 | Verifier fail po `max N=2` | **`failed`**; w logach czytelny powód (kontekst i/lub język) |
 | HITL na runie nie w `awaiting_hitl` (w tym po `cancelled`) | **409** `HITL_REQUIRED` / `CONFLICT` |

@@ -1,7 +1,7 @@
 ---
-wersja: 31
+wersja: 32
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-28
+data_modyfikacji: 2026-10-29
 ---
 
 # SPEC — Runy / logi
@@ -28,6 +28,8 @@ Zmiana względem wersji 19 / cel: brak GuestRunPolicy. Od tej wersji R-12 + owne
 Zmiana względem wersji 24 / R-11 / R-3b: cancel wyłącznie `startedBy`; `startedBy` na detail bez `role`; hard guest poza Runy. Od tej wersji: admin cancel gdy `startedBy.role === guest`; `startedBy.role` w detail; hard/purge usuwa Run+dzieci (port dla Auth A-10) — `docs/security.md`, `users-management-plan.md` Faza 2.
 Zmiana względem wersji 25 / R-3d: `brief.audience?` bez semantyki trzech trybów. Od tej wersji omit / name katalogu / custom — bez FK; scoping = Social/Content — `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`.
 Zmiana względem wersji 26 / R-3b / R-12: *„guest: detail/logs/events tylko własne; cudze → 403”*. Od tej wersji wyjątek archiwum: `guest` — `GET /runs/:id` i logs cudzego dozwolone, gdy status ∈ `{completed, failed, cancelled}`; cudzy nieterminalny → **403**; events/SSE / HITL / cancel — nadal tylko self — `docs/security.md`, `guest-view-others-runs-plan.md`.
+
+Zmiana względem wersji 31 / R-6 / R-11 / poza zakresem: *„Bez limitu per-user w v1”*; abort gateway/provider **poza** v1; per-user tylko hasło V1 bez normy admit. Od tej wersji **R-6a** (limit per-user V1) + R-11 abort api→gateway; globalny R-6 i guest R-12 **bez zmian semantycznych** — `docs/dictionary.md`, `docs/data_flow.md`, `docs/architektura.md`, `docs/dokumentacja_komunikacji.md`.
 
 ## Powiązanie ze stylem z docs
 
@@ -170,9 +172,21 @@ Zmiana względem wersji 4 / R-4: R-4 mówiło tylko kto emituje; infra „SSE hu
 
 R-5. Worker MVP: **in-process** w procesie `apps/api` (po `202` z `POST /runs`). Zakaz spawnu osobnego procesu OS na każdy run oraz osobnego always-on workera w MVP.
 
-R-6. Współbieżność: tylko limit **globalny** `MAX_CONCURRENT_RUNS` (env), domyślnie **3** — maksymalna liczba równoległych **execute** w procesie api. Claim do `running` z `queued` **oraz** z `interrupted` wyłącznie przy wolnym slocie. Nowe runy (`POST /runs`) powyżej limitu pozostają w `queued` i są podejmowane FIFO, gdy zwolni się slot **i** nie ma starszego `interrupted` w drain. Drain: najpierw `interrupted`, potem `queued`. Bez limitu per-user w v1. `awaiting_hitl → running` (HITL) jest osobnym use-casem i **nie** podlega temu capowi w MVP.
+R-6. Współbieżność **globalna**: limit `MAX_CONCURRENT_RUNS` (env), domyślnie **3** — maksymalna liczba równoległych **execute** w procesie api. Claim do `running` z `queued` **oraz** z `interrupted` wyłącznie przy wolnym slocie. Nowe runy (`POST /runs`) powyżej limitu pozostają w `queued` i są podejmowane FIFO, gdy zwolni się slot **i** nie ma starszego `interrupted` w drain. Drain: najpierw `interrupted`, potem `queued`. `awaiting_hitl → running` (HITL) jest osobnym use-casem i **nie** podlega temu capowi. Limit **per-user** = osobna norma R-6a (nie zastępuje R-6).
 
 Zmiana względem wersji 3 / R-6: cap dotyczył wyłącznie nowych runów w `queued`; recovery boot mogło odpalić execute ponad limit (burst).
+
+Zmiana względem wersji 31 / R-6: *„Bez limitu per-user w v1”* w tym samym punkcie. Od tej wersji per-user = R-6a; R-6 pozostaje wyłącznie globalnym capem execute.
+
+R-6a. Limit **per-user** runów w toku (**V1 — rozbudowa**; obowiązkowy przy implementacji V1):
+
+1. Env `MAX_USER_IN_FLIGHT_RUNS` (domyślnie **3**, walidowany przy starcie).
+2. Licznik: własne runy sesji (`startedBy`) w statusach `queued` \| `running` \| `interrupted` \| `awaiting_hitl`.
+3. Bramka przy `POST /runs` **przed** create Run (po kompletności kontekstu; po GuestRunPolicy gdy guest): COUNT ≥ limitu → **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` — **zakaz** cichego `queued` ponad per-user.
+4. Globalny `MAX_CONCURRENT_RUNS` (R-6) **zostaje**. Limity guest/DEMO (R-12) **bez zmian**.
+5. Sterowanie limitem z panelu admin — **poza** P0 (`docs/dictionary.md`).
+
+Zmiana względem wersji 31: brak egzekwowalnej normy per-user (tylko „poza MVP / V1 hasło”). Od tej wersji R-6a. Źródło: `docs/dictionary.md`, `docs/data_flow.md`, `docs/dokumentacja_komunikacji.md`.
 
 R-7. Retention: logi runu **bez TTL** w MVP; **bez** limitu długości `message` w MVP. Zakaz sekretów w `message` (jak observability / security).
 
@@ -224,7 +238,7 @@ R-11. Anulowanie runu (`cancelled`) — Stop / decyzja operatora (**nie** błąd
 2. Durable guard: przed / w trakcie wyścigu z executorem api ustawia `cancelRequested` na runie (chroni crash między cancel a zapisem statusu — R-9).
 3. Atomowy zapis statusu: port repozytorium `attemptCancel(id, cancelledAt): Promise<boolean>` (CAS) — warunkowy update tylko ze statusu nieterminalnego; przy wygranej: `status = cancelled`, `cancelledAt`, **zerowanie** `cancelRequested`. `true` = CAS wygrał; `false` przy statusie już `completed` \| `failed` → use-case → **409** `RUN_NOT_CANCELABLE`. Już `cancelled` → **200** + snapshot (**idempotencja**; bez ponownego abortu / logu cancel).
 4. Odpowiedź HTTP **200** + snapshot (`status: cancelled`, `cancelledAt`) **nie czeka** na zwinięcie `execute` (zakaz await execute w requeście cancel).
-5. Abort v1 in-process: po wygranej CAS worker (`InProcessRunWorker`) `requestCancel(runId)` → `AbortController.abort()`; `RunExecutorPort.execute` przyjmuje `AbortSignal`; klient HTTP do gateway przekazuje sygnał. Ograniczenie: wyłącznie in-process (jeden proces Node `apps/api`); abort na gateway / providerze **poza** v1. Przy hard/purge gościa (Auth A-10) abort live jest **poza** tx DB — ten sam mechanizm abort; persistence kasuje Run w osobnej tx.
+5. Abort: (a) **MVP / zostaje** — in-process: po wygranej CAS worker (`InProcessRunWorker`) `requestCancel(runId)` → `AbortController.abort()`; `RunExecutorPort.execute` przyjmuje `AbortSignal`; klient HTTP do gateway przekazuje sygnał (jeden proces Node `apps/api`); (b) **V1** — po cancel api **propaguje** abort do `apps/ai-provider-gateway` (ścieżka api→gateway). Abort u zewnętrznego providera LLM **poza** tą paczką, jeśli gateway nie ma haczyka do vendora. Przy hard/purge gościa (Auth A-10) abort live jest **poza** tx DB — ten sam mechanizm abort; persistence kasuje Run w osobnej tx.
 6. Persist: **bez rollbacku** już zacommitowanego wyniku; hop w locie **nie** jest dopisywany po `cancelled`. Slot `MAX_CONCURRENT_RUNS`: HTTP cancel **nie** dekrementuje; zwalnia `finally` execute. Cancel `queued` / `awaiting_hitl` / `interrupted` nie zajmuje slotu execute.
 7. Log / audyt: append-only wpis informacyjny — **rozróżnić** aktora (`cancelled by admin` vs owner / `startedBy`) (`docs/observability.md`, `docs/security.md`).
 8. SSE: `run.status` → `run.cancelled` → complete huba (R-4a).
@@ -233,6 +247,8 @@ R-11. Anulowanie runu (`cancelled`) — Stop / decyzja operatora (**nie** błąd
 11. **Hard / purge gościa** (Auth A-10): port eksportowany z Runs (`GuestPurgePort` / równoważnik) kasuje **wszystkie** runy `startedBy` gościa + dzieci w **jednej** tx z Auth — **bez** Cascade ORM jako wymogu; kolejność aplikacyjna. Soft `user` **nie** kasuje runów.
 
 Zmiana względem wersji 24 / R-11: *„Authz: wyłącznie startedBy; Brak admin-cancel cudzego runu w MVP”*. Od tej wersji wyjątek admin→`guest`; log rozróżnia aktora; hard/purge = port dla Auth.
+
+Zmiana względem wersji 31 / R-11 pkt 5: *„abort na gateway / providerze poza v1”*. Od tej wersji V1 obejmuje propagację abort api→gateway; abort vendora poza paczką gdy brak haczyka.
 
 Źródło: `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md`, `docs/architektura.md`, `docs/dictionary.md`, `docs/security.md`.
 
@@ -299,7 +315,8 @@ Wolno wydzielić kernel Nest (lifecycle + repo + hub) od HTTP/workera **w tym sa
 |---------|--------|
 | Kolejka | Stan w DB (`queued` / `interrupted` / `running`); semafor współbieżności w procesie api |
 | SSE | Nest `@Sse()`; subskrypcja po `runId`; auth jak API; **complete + evikcja** subjectu po `completed`/`failed`/`cancelled` (R-4a) |
-| Anulowanie | `attemptCancel` (CAS) + `cancelRequested` + abort in-process (R-11); HTTP **nie** awaituje execute |
+| Anulowanie | `attemptCancel` (CAS) + `cancelRequested` + abort in-process **+** abort→gateway V1 (R-11); HTTP **nie** awaituje execute |
+| Limit per-user | `MAX_USER_IN_FLIGHT_RUNS` + COUNT statusów w toku przed create (R-6a); **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` |
 | Licznik recovery | Pole / metadane runu (np. `recoveryAttempts`), cap = 3; cancel **nie** zużywa |
 | Idempotencja HITL | Tylko ze statusu `awaiting_hitl` |
 | Przegląd | `userRating` + kanoniczny wynik po Edytuj + `outputEdited` + `reviewFinalizedAt` + `pipelineFinishedAt`; okno `REVIEW_TTL`; mutacja po TTL = 409 bez UPDATE locka; sweeper boot+interval; **bez** `cancelled` |
@@ -318,7 +335,8 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Claim `interrupted → running` pod tym samym capem co `queued`; priorytet `interrupted` w drain.
 - Emitować SSE przy każdym udanym `appendLog` i każdej legalnej zmianie statusu (w tym do/z `interrupted`).
 - Domykać i usuwać subject huba wyłącznie po `completed` / `failed` / `cancelled` (R-4a).
-- `POST .../cancel` z **200** od razu po wygranej CAS (lub idempotencji); abort hopu w tle (R-11).
+- `POST .../cancel` z **200** od razu po wygranej CAS (lub idempotencji); abort hopu in-process **i** propagacja do gateway w tle (R-11).
+- Przy `POST /runs` egzekwować R-6a przed create (V1); **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` bez cichego `queued` ponad per-user.
 - Ustawiać `cancelRequested` jako durable guard; zerować przy udanym `attemptCancel`.
 - Leftover z `cancelRequested` finalizować do `cancelled` na bootcie (R-9).
 - `startedBy` nullable wyłącznie dla historycznych / pre-auth przebiegów testowych; po domknięciu auth na api nowe runy zawsze z inicjatorem.
@@ -351,7 +369,8 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Mylenia `/metrics` z logami runu.
 - Niedozwolonych skoków statusów.
 - Spawnu procesu per run; always-on worker process w MVP.
-- Limitu współbieżności **per-user w MVP** (obowiązuje wyłącznie globalny `MAX_CONCURRENT_RUNS` na execute). Refaktor per-user = **V1 — rozbudowa** (`docs/dictionary.md`, `post-mvp-plan.md`) — nie ten SPEC jako zakaz V1.
+- Cichego `queued` ponad `MAX_USER_IN_FLIGHT_RUNS` (R-6a) — przekroczenie = **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED`.
+  Zmiana względem wersji 31 / „Nie wolno”: *„Limitu współbieżności per-user w MVP… Refaktor per-user = V1”* jako sama wzmianka bez normy. Od tej wersji R-6a jest egzekwowalne; w MVP przed wdrożeniem R-6a nadal obowiązuje wyłącznie R-6.
 - Checkpoinetera LangGraph jako mechanizmu recovery Runs.
 - `running → queued` jako recovery.
 - Startu wszystkich leftover `running` execute ponad `MAX_CONCURRENT_RUNS` (burst recovery).
@@ -411,8 +430,10 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 | Recovery: leftover `running` → `interrupted` → claim pod capem; leftover + `cancelRequested` → `cancelled`; max 3 × `isRetryable` → `failed` | obowiązkowe |
 | Pola przeglądu `userRating` / `outputEdited` / `reviewFinalizedAt` / `pipelineFinishedAt` + wyliczone `reviewExpiresAt` + zapis kanonicznego `result` przy Edytuj + `GET /runs/user/:userId` | obowiązkowe w **MVP** (fundament zapisu) |
 | `REVIEW_TTL` (default `2h`) + `REVIEW_SWEEP_INTERVAL` (default `5m`) + sweeper boot+okresowy (R-10) | obowiązkowe w **MVP** |
-| Osobny worker process / per-user limit / TTL logów | poza MVP |
-| Abort na gateway / providerze LLM; resume po cancel; rollback wyniku | poza v1 / poza MVP |
+| Osobny worker process / TTL logów | poza MVP |
+| Limit per-user `MAX_USER_IN_FLIGHT_RUNS` (R-6a) | obowiązkowe w **V1**; poza MVP do wdrożenia V1 |
+| Abort api→gateway (R-11) | obowiązkowe w **V1** (in-process = MVP) |
+| Abort u vendor LLM (gdy brak haczyka gateway); resume po cancel; rollback wyniku | poza tą paczką / poza MVP |
 | Admin cancel gdy `startedBy.role === guest` (R-11) | obowiązkowe w MVP |
 | Self-register grafów / `@Global()` na BC grafu jako klej | poza MVP (i zakazane jako obejście cyklu) |
 | Stopień edycji outputu / zmiana oceny po finalize; HITL TTL; multi-instance sweeper / distributed lock | poza MVP |
@@ -427,9 +448,10 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 - [ ] Snapshot zawiera `userRating` (`null` \| 1–5), `outputEdited`, `reviewFinalizedAt`, `pipelineFinishedAt`, `reviewExpiresAt`, `cancelledAt` (`null` \| ISO8601).
 - [ ] Ocena i Edytuj (zapis treści + flaga) działają na `completed` i `failed` tylko dla autora w oknie TTL; na `cancelled` → `RUN_NOT_REVIEWABLE`; po finalize **albo** po TTL → `REVIEW_LOCKED` (po samym TTL **bez** UPDATE `reviewFinalizedAt`); GET snapshot po Edytuj zwraca treść użytkownika; GET **nie** ustawia finalize.
 - [ ] Transition → `completed`/`failed` ustawia `pipelineFinishedAt` raz; sweeper (boot / interval) ustawia `reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL` dla zaległych; restart api nie odmraża wygasłego przeglądu.
-- [ ] `POST .../cancel`: `startedBy` → 200 + `cancelled` (+ idempotencja); admin + `startedBy.role=guest` → 200; admin + cudzy `user` → 403; inny obcy → 403; `completed`/`failed` → 409 `RUN_NOT_CANCELABLE`; HTTP nie awaituje execute; abort in-process po CAS; log rozróżnia admin vs owner.
+- [ ] `POST .../cancel`: `startedBy` → 200 + `cancelled` (+ idempotencja); admin + `startedBy.role=guest` → 200; admin + cudzy `user` → 403; inny obcy → 403; `completed`/`failed` → 409 `RUN_NOT_CANCELABLE`; HTTP nie awaituje execute; abort in-process po CAS **oraz** (V1) propagacja abort do gateway; log rozróżnia admin vs owner.
 - [ ] Snapshot detail niesie `startedBy.role`; lista archiwum bez wymogu `role`.
-- [ ] Przy zajętych slotach nowy run jest `queued` i startuje po zwolnieniu slotu (globalny limit, default 3); `interrupted` ma priorytet nad `queued`.
+- [ ] Przy zajętych slotach globalnych nowy run jest `queued` i startuje po zwolnieniu slotu (`MAX_CONCURRENT_RUNS`, default 3); `interrupted` ma priorytet nad `queued`.
+- [ ] V1 R-6a: przy ≥ `MAX_USER_IN_FLIGHT_RUNS` własnych w toku `POST /runs` → **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` (bez create); guest/DEMO i R-6 bez regresji.
 - [ ] Po restarcie api: `awaiting_hitl` bez zmian; leftover `running` bez flagi → `interrupted` (claim pod `MAX_CONCURRENT_RUNS`); leftover `running`/`interrupted` **z** `cancelRequested` → `cancelled` (bez `recoveryAttempts++`); po 3 przerwanych execute → `failed` z logiem. N leftover przy `MAX=1` → jeden execute naraz, reszta zostaje `interrupted`.
 - [ ] HITL po `cancelled` odrzucony; flaga `cancelRequested` na już-terminalnym ignorowana.
 - [ ] Social / Content nie emitują SSE omijając Runs.
@@ -449,8 +471,10 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 - Publikacja draftów na API portali SM (**V2**).
 - Osobny always-on worker process, broker kolejek (Redis itd.).
 - Checkpointer LangGraph.
-- Limit współbieżności per użytkownik (**V1 — rozbudowa**).
-- Abort na `apps/ai-provider-gateway` / providerze (ścieżka V1 gdzie uzgodnione — poza tym SPEC jako HOW); admin cancel; `reason` w body cancel; resume / rollback.
+- Sterowanie `MAX_USER_IN_FLIGHT_RUNS` z panelu admin (P0 poza — R-6a pkt 5).
+  Zmiana względem wersji 31 / poza zakresem: *„Limit współbieżności per użytkownik (V1)”* jako całość poza SPEC. Od tej wersji norma R-6a jest w zakresie; poza = tylko mutacja capu z UI.
+- Abort u vendor LLM poza haczykiem gateway; `reason` w body cancel; resume / rollback.
+  Zmiana względem wersji 31: abort api→gateway **w** R-11 V1; poza zakresem zostaje abort vendora / resume / rollback.
 - Panel odczytu ocen / analityka (V1 — rozbudowa). **Nie** mylić z KPI `GET /runs/summary` (R-13) — to osobny endpoint agregacji pod Konto, nie panel admina.
 - TTL / auto-akcja dla `awaiting_hitl`; blokada `POST /feedback` po TTL przeglądu; `reviewFinalizedBy`; multi-instance api / distributed lock sweepera.
 - Opinie tekstowe → `SPEC-FEEDBACK.md`.

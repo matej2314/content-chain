@@ -39,6 +39,8 @@ Zmiana względem: przegląd bez limitu czasu; `reviewFinalizedAt` tylko z ręczn
 
 Zmiana względem wcześniejszej wersji tego dokumentu: trzeci terminal **`cancelled`**; krawędzie z `queued` \| `running` \| `awaiting_hitl` \| `interrupted`; endpoint `POST .../cancel`; SSE `run.cancelled`; archiwum UI `completed,failed,cancelled`; rozszczep przegląd vs opinia na `cancelled`. `POST /runs` nadal nigdy nie tworzy `cancelled`.
 
+Zmiana względem: brak kodu limitu per-user; cancel = **200** + abort in-process, abort gateway poza v1. Od tej wersji: **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` przy `POST /runs`; cancel V1 dodatkowo abort api→gateway (semantyka **200** bez await — bez regresji).
+
 Zmiana względem: Redis admit / rating bez nazw env połączenia w kontrakcie I/O. Od tej wersji: api → Redis = **`REDIS_HOST`** + **`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); **bez** `REDIS_URL` — `deployment.md`.
 
 Zmiana względem wcześniejszej wersji tego dokumentu (korelacja): **`ConversationId` jest jeden na run agentowy** (główna oś kroków LLM). **`RequestId`** zawsze z **odpowiedzi** (`apps/api` dla HTTP, gateway dla LLM) — klienci nie generują go z góry. Formaty jak w gateway — patrz `brand_types.md` / `dictionary.md`.
@@ -92,7 +94,7 @@ Zmiana względem: *„guest: cudzy `GET /runs/:id` / logs / events → 403”* (
 
 `requestId` w envelope dotyczy **tego** żądania HTTP do `apps/api` (nie „wszystkich” wywołań LLM w runie).
 
-Gdy `code` = `VALIDATION_FAILED` pochodzi z application Zod (`parseWithZod` w `apps/api/src/shared/`), elementy `details` mają `path` = ścieżkę Zod (`issue.path`) z separatorem `'.'` (spójnie Runs i company-context `extras`). Gdy `VALIDATION_FAILED` pochodzi z bramki kompletności przy `PUT` / `PATCH /company-context`, `details` wskazują brakujące sekcje i/lub ścieżki pozycji (np. `{ "section": "offer" }`, `{ "path": "offer.items.1.description" }`) — **ten sam** envelope, nie nowy kod. Tabela kodów HTTP bez zmian. **Nie** reuse `CONTEXT_INCOMPLETE` na zapisie kontekstu.
+Gdy `code` = `VALIDATION_FAILED` pochodzi z application Zod (`parseWithZod` w `apps/api/src/shared/`), elementy `details` mają `path` = ścieżkę Zod (`issue.path`) z separatorem `'.'` (spójnie Runs i company-context `extras`). Gdy `VALIDATION_FAILED` pochodzi z bramki kompletności przy `PUT` / `PATCH /company-context`, `details` wskazują brakujące sekcje i/lub ścieżki pozycji (np. `{ "section": "offer" }`, `{ "path": "offer.items.1.description" }`) — **ten sam** envelope, nie nowy kod. Tabela kodów HTTP bez zmian. **Nie** reuse `CONTEXT_INCOMPLETE` na zapisie kontekstu. Refaktor jakości `parseWithZod` (V1 / major) — **bez zmiany kontraktu I/O** envelope walidacji.
 
 Wybrane kody domenowe:
 
@@ -106,6 +108,7 @@ Wybrane kody domenowe:
 | `GUEST_GLOBAL_QUOTA_EXCEEDED` | 403 | `guest`: dzienny global cap instancji (UTC) wyczerpany |
 | `VALIDATION_FAILED` | 400 | Błąd walidacji DTO **albo** niekompletna bramka przy PUT/PATCH kontekstu |
 | `CONTEXT_INCOMPLETE` | 409 | Bramka kontekstu — **start runu** zablokowany (`POST /runs`); **nie** kod zapisu kontekstu |
+| `USER_IN_FLIGHT_LIMIT_EXCEEDED` | 409 | V1: start runu odrzucony — użytkownik ma już ≥ `MAX_USER_IN_FLIGHT_RUNS` (default **3**) własnych runów w `queued` \| `running` \| `interrupted` \| `awaiting_hitl`. **Nie** ciche `queued` ponad per-user. Osobne od guest quota i od `MAX_CONCURRENT_RUNS` |
 | `HITL_REQUIRED` | 409 | Operacja wymaga stanu oczekiwania na wybór / odwrotnie |
 | `HITL_INVALID_SELECTION` | 400 | Selekcja HITL niezgodna z kanonem: Content — `selectedIdeaIds` ≠ `[outline.id]`; Social dwuetapowy — długość `< 1`, duplikaty, albo id spoza draftu / `hitl.options` (**2+ legalne**, gdy wszystkie ∈ options) |
 | `RUN_NOT_FOUND` | 404 | Nieznany `runId` |
@@ -611,7 +614,9 @@ Page + `platform: linkedin` → **400** `VALIDATION_FAILED`. Page + `selectedIde
 | Global cap dnia UTC | **403** | `GUEST_GLOBAL_QUOTA_EXCEEDED` |
 | Pad Redis (admit) | **503** / fail closed | bez cichego create |
 
-`admin` / `user`: ta polityka **nie** obowiązuje.
+`admin` / `user`: ta polityka guest **nie** obowiązuje.
+
+**Limit per-user (V1 — wszystkie role ze startem):** po bramce kontekstu (i guest, gdy dotyczy) — COUNT własnych runów w `queued` \| `running` \| `interrupted` \| `awaiting_hitl` vs env `MAX_USER_IN_FLIGHT_RUNS` (default **3**). Przekroczenie → **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` (**bez** create; **nie** ciche `queued`). Globalny `MAX_CONCURRENT_RUNS` i limity guest **bez zmian**. Sterowanie capem z UI — poza P0.
 
 - `runId` — `RunId` (`run_<uuid>`)
 - `conversationId` — `ConversationId` (`conv_<uuid>`), **stały przez cały run agentowy**
@@ -631,7 +636,7 @@ Anulowanie runu. Body **puste**. Sesja cookie jak pozostałe chronione trasy Run
 | brak runu | **404** | `RUN_NOT_FOUND` |
 | status już `completed` \| `failed` | **409** | `RUN_NOT_CANCELABLE` |
 
-**200 nie czeka** na zwinięcie execute / hopu LLM. Prawda dla klienta: snapshot i SSE; abort in-process leci w tle (`docs/architektura.md`, `docs/data_flow.md`). Log / audyt rozróżnia aktora (`cancelled by admin` vs owner).
+**200 nie czeka** na zwinięcie execute / hopu LLM. Prawda dla klienta: snapshot i SSE; abort in-process **oraz** propagacja abort api→gateway lecą w tle (`docs/architektura.md`, `docs/data_flow.md`). Log / audyt rozróżnia aktora (`cancelled by admin` vs owner).
 
 #### `GET /api/v1/runs/:runId`
 

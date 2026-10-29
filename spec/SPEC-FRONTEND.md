@@ -1,7 +1,7 @@
 ---
-wersja: 66
+wersja: 67
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-28
+data_modyfikacji: 2026-10-29
 ---
 
 # SPEC — Frontend
@@ -84,6 +84,8 @@ Zmiana względem wersji 47 / F-7 / F-8: zakładka Odbiorca bez wymaganego pola N
 
 Zmiana względem wersji 50 / F-8 / F-10: *„zakaz nawigacji do cudzego `/runs/:id` dla guest”* (Faza 14). Od tej wersji: klik wiersza archiwum (także cudzego) **dozwolony** → detail **read-only**; bez SSE na cudzym; locki mutacji guest ∧ demo on **bez zmian** — `docs/ux_dashboard.md`, `guest-view-others-runs-plan.md`.
 
+Zmiana względem wersji 66 / F-5b / F-7 / F-10: brak UX limitu per-user; Stop bez wzmianki V1. Od tej wersji **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` → `message` na formularzu startu (nie GuestLimitModal); Stop bez regresji MVP — `docs/ux_dashboard.md`, `SPEC-KOMUNIKACJA.md` K-8, `SPEC-RUNY.md` R-6a.
+
 ## Powiązanie ze stylem z docs / wyjątek
 
 Wiążące (`docs/architektura.md`): Next.js jako UI; pobieranie i mutacje wyłącznie przez `apps/api`; sekrety LLM nigdy w bundlu.
@@ -153,9 +155,11 @@ F-5b. Anulowanie w UI (Stop):
 3. Po **200** z cancel: toast sukcesu mutacji **„Run anulowany”** (zostajemy na widoku źródłowym). Gdy **nie** na `/runs/:runId` tego runu — toast z akcją **Szczegóły** (jak mapa UX). Dedup względem toasta SSE `run.cancelled` / `notifyRunTerminal` (jeden toast per `runId`).
 4. Po sukcesie: odświeżenie wiersza / snapshotu (`cancelled`); na szczegółach panel HITL znika; przegląd (gwiazdki / Edytuj / finalize) niedostępny; partial wynik widoczny jak przy `failed`.
 5. Floating box: po `cancelled` krótko label **„Anulowany”**, potem usunięcie pozycji po **200 ms** (nie trzymać anulowanego runu w boxie).
+6. Semantyka HTTP cancel (**200** bez await execute; modal „Czy na pewno?”) **bez regresji** względem MVP — niezależnie od abortu gateway po stronie api (R-11).
 
 Zmiana względem: wcześniejszy kanon roboczy bez modala przed Stop — **unieważnione**; obowiązuje modal (`docs/ux_dashboard.md`).
 Zmiana względem wersji 37 / F-5b: Stop wyłącznie własny run. Od tej wersji admin→guest na **detail** (parse `startedBy.role`).
+Zmiana względem wersji 66 / F-5b: milczenie o stabilności UX cancel przy V1 abort→gateway. Od tej wersji pkt 6.
 
 F-6. Bramka „Agenci aktywni” i disable CTA startu runu — predykat UX:
 
@@ -166,7 +170,7 @@ F-6. Bramka „Agenci aktywni” i disable CTA startu runu — predykat UX:
 | `contextComplete` | `GET .../company-context/completeness` → `complete === true` |
 | `gatewayAlive` | `GET /api/v1/health/ready` → `checks.gateway.status === "healthy"` |
 
-Chip zielony / aktywny **oraz** enable CTA startu = ten sam `agentsActive`. Disable dotyczy **obu** powierzchni: submit na Koncie **oraz** przycisk/modal **„Uruchom agenta”** na Runach. Copy nieaktywnego: **„Agenci nieaktywni. Sprawdź kontekst i stan gatewaya.”** Gdy `complete === false`: wolno **dodatkowo** lista `missing` + link „Uzupełnij kontekst”. Gdy `complete === true` a gateway nie żyje: **bez** fałszywego „Uzupełnij kontekst” jako jedynej remedacji. Odświeżanie: mount + refetch przy okazji (np. po udanym zapisie kontekstu) — **bez** interval pollingu. **Egzekucja** twardej bramki kontekstu nadal w api (`409` `CONTEXT_INCOMPLETE` na `POST /runs`) — **bez** nowego rejectu „gateway down” na starcie runu. **Zakaz** wołania gateway z FE — wyłącznie BFF → `apps/api` (F-2).
+Chip zielony / aktywny **oraz** enable CTA startu = ten sam `agentsActive`. Disable dotyczy **obu** powierzchni: submit na Koncie **oraz** przycisk/modal **„Uruchom agenta”** na Runach. Copy nieaktywnego: **„Agenci nieaktywni. Sprawdź kontekst i stan gatewaya.”** Gdy `complete === false`: wolno **dodatkowo** lista `missing` + link „Uzupełnij kontekst”. Gdy `complete === true` a gateway nie żyje: **bez** fałszywego „Uzupełnij kontekst” jako jedynej remedacji. Odświeżanie: mount + refetch przy okazji (np. po udanym zapisie kontekstu) — **bez** interval pollingu. **Egzekucja** twardej bramki kontekstu nadal w api (`409` `CONTEXT_INCOMPLETE` na `POST /runs`) — **bez** nowego rejectu „gateway down” na starcie runu. Limit per-user (**409** `USER_IN_FLIGHT_LIMIT_EXCEEDED`) egzekwuje **api** po submit — UI: `message` na formularzu (F-7); **bez** panelu mutacji capu. **Zakaz** wołania gateway z FE — wyłącznie BFF → `apps/api` (F-2).
 
 Zmiana względem wersji 33 / F-6 (oraz v22 / v24): chip i disable = wyłącznie `GET .../completeness`. Od tej wersji AND z `gatewayAlive` z api `/health/ready`; copy i reguły remedacji wg `docs/ux_dashboard.md`. Druga powierzchnia startu (Konto + Runy) **bez unieważnienia**.
 
@@ -266,14 +270,15 @@ F-10. DEMO MODE (UX) — `docs/ux_dashboard.md`:
 1. Boot: `DemoModeProvider` (lub równoważny) woła publiczny `GET /config`; jedyne pole używane w V1: `demoMode`.
 2. `DemoModeChipSlot` / `DemoChip` **nad** CompletenessChip (wewnątrz `CompletenessChipSlot`) — **tylko dashboard**, gdy `demoMode === true`. Copy w stylu „Tryb demo aktywny / Wybrane funkcje ograniczone” + Iconify. Przy `demoMode === false` chip **nie** jest widoczny. Montaż slotu: desktop `AppSidebar` **i** mobile sheet — F-8 (pozycja; semantyka **bez** zmiany).
 3. Locki UI (sidebar, formy, disable `taskType` poza allowlistą, zapis kontekstu, Users, Edytuj/finalize, `PATCH /auth/me/email`): wyłącznie gdy **`session.role === 'guest'` AND `demoMode === true`**. Admin na instancji demo **bez** locków gościa. Ten sam predykat obejmuje konta `guest` z **register** oraz z **accept-invite** przy demo on (`SPEC-AUTH.md` A-7b) — po accept → `/` → login flow bez zmian; locki dopiero po sesji z `role === guest`.
-4. `GuestLimitModal` **wyłącznie** po błędzie quota z API (`GUEST_TYPE_*` / `GUEST_GLOBAL_QUOTA_EXCEEDED`); CTA kontakt `{ iconName, contactData }[]` (mailto, LinkedIn, GitHub) — hardcoded FE. **Zakaz** preemptive modalu bez odpowiedzi API.
+4. `GuestLimitModal` **wyłącznie** po błędzie quota z API (`GUEST_TYPE_*` / `GUEST_GLOBAL_QUOTA_EXCEEDED`); CTA kontakt `{ iconName, contactData }[]` (mailto, LinkedIn, GitHub) — hardcoded FE. **Zakaz** preemptive modalu bez odpowiedzi API. **Zakaz** użycia GuestLimitModal dla **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` (to `message` na formularzu startu — F-7).
 5. Rating: obsługa **429** (`message` z envelope). Feedback: `application`/`agent` OK; `run` tylko własny.
 6. Archiwum (guest ∧ demo on): klik wiersza (własnego **i** cudzego) → `/runs/:id` **read-only**; **bez** SSE na cudzym; locki mutacji (pkt 3) **bez zmian**.
-7. Egzekucja limitów = API; FE tylko odzwierciedla.
+7. Egzekucja limitów = API; FE tylko odzwierciedla. Per-user in-flight: po **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` — `message` w miejscu błędu formularza; **bez** nawigacji; **bez** toastu; **bez** cichego „queued”.
 
 Zmiana względem wersji 34: chip/locki guest poza zakresem. Od tej wersji F-10.
 Zmiana względem wersji 36 / F-10: bez jawnej ścieżki invite→guest. Od tej wersji zaproszony przy demo on podlega tym samym lockom co self-register guest; predykat **bez zmian**; `GuestView` ≠ `UserRole.guest` (F-8) — bez zmian.
 Zmiana względem wersji 50 / F-10: zakaz wejścia w cudzy detail. Od tej wersji pkt 6 — nawigacja archiwum dozwolona (read-only).
+Zmiana względem wersji 66 / F-10: milczenie o limicie per-user vs GuestLimitModal. Od tej wersji pkt 4/7 rozróżniają guest quota i `USER_IN_FLIGHT_LIMIT_EXCEEDED`.
 
 ### Normy wizualne (F-11…F-19)
 
@@ -458,6 +463,7 @@ apps/frontend/src/
 - Bloku KPI poniżej „Start runu”; pustych kart KPI przy błędzie HTTP; KPI dla `guest` przy `demoMode === false` (obowiązuje F-16).
 - Stop we floating boxie; cancel **bez** modala „Czy na pewno?”; admin-cancel cudzego runu **`role=user`** z UI; Cancel admin→guest na liście archiwum (obowiązuje tylko detail — F-5b).
   Zmiana względem wersji 37 / „Nie wolno”: *„admin-cancel cudzego runu z UI”* — unieważnione dla admin→guest na detail; zakaz cancel cudzego `user` **zostaje**.
+- Cichego traktowania limitu per-user jako „queued” w UI; GuestLimitModal dla `USER_IN_FLIGHT_LIMIT_EXCEEDED`; panelu mutacji `MAX_USER_IN_FLIGHT_RUNS` w P0.
 - Natychmiastowego usunięcia pozycji boxa po `cancelled` bez krótkiego labelu „Anulowany” (obowiązuje **200 ms**).
 - Podwójnego toasta mutacja cancel + SSE `run.cancelled` bez dedupu.
 - Chipu / stosu chipów „w toku” w chrome (obowiązuje floating box).
@@ -586,6 +592,7 @@ Zmiana względem wersji 13 / „Nie wolno”: zakaz „nadpisu wyniku poza flag�
 - [ ] N× SSE tylko własne `running` / `awaiting_hitl` / `interrupted`; `close()` na `completed`/`failed`/`cancelled`; `queued` bez socketa; floating box poza Kontem **bez** Stop; po cancel: „Anulowany” → ukrycie po 200 ms.
 - [ ] Stop + modal „Czy na pewno?” → cancel API (owner **lub** admin∧guest na detail); toast „Run anulowany”; dedup SSE; na `cancelled` brak przeglądu / HITL; parse `startedBy.role`.
 - [ ] Start zablokowany w UI przy `!agentsActive` (niekompletność **lub** gateway nie żyje) **oraz** api `409` `CONTEXT_INCOMPLETE` przy niekompletnym kontekście; **bez** osobnego kodu „gateway down” na `POST /runs`.
+- [ ] V1: `POST /runs` **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` → `message` na formularzu (Konto / modal); **nie** GuestLimitModal; **nie** nawigacja; Stop + modal cancel bez regresji.
 - [ ] Chip F-6: copy nieaktywnego kanoniczne; przy kompletnym kontekście i martwym gateway — disable CTA **bez** fałszywego „Uzupełnij kontekst” jako jedynej remedacji; kropki zakładek **tylko** z `completeness.missing`.
 - [ ] F-10: `GET /config`; chip demo tylko dashboard gdy `demoMode`; locki tylko `guest` ∧ demo on (także po accept+login przy demo on — te same co register→guest); modal limitu po quota API; 429 rating; archiwum: klik cudzego wiersza → detail read-only (bez SSE / bez mutacji).
 - [ ] Konto: email — modal re-auth (`PATCH /auth/me/email` `{ email, currentPassword }`); `INVALID_PASSWORD` / `VALIDATION_FAILED` pod hasłem (bez F-4a); **409** → clear + odblokowanie emaila + błąd pod emailem; sukces bez toastu + `GET /auth/me`; Anuluj bez API; KPI (F-16) powyżej Start runu; moje runy (paginacja UI 10, badge F-12) → szczegóły; start (prefill ze snapshotu); opinia.
