@@ -23,6 +23,7 @@ import {
   mapThinkingToAnthropic,
   resolveAnthropicOutputConfig,
 } from '../anthropic/anthropic-thinking.mapper';
+import { anthropicModelRejectsSamplingParams } from '../anthropic/anthropic-sampling-params.util';
 import {
   asInputTokens,
   asOutputTokens,
@@ -38,11 +39,18 @@ function mapStopSequences(
   return Array.isArray(stop) ? stop : [stop];
 }
 
-function resolveAnthropicSamplingParams(options?: ProviderCallOptions): {
+function resolveAnthropicSamplingParams(
+  modelId: string,
+  options?: ProviderCallOptions,
+): {
   temperature?: number;
   top_p?: number;
   top_k?: number;
 } {
+  if (anthropicModelRejectsSamplingParams(modelId)) {
+    return {};
+  }
+
   if (options?.topK !== undefined) {
     return { top_k: options.topK };
   }
@@ -95,7 +103,7 @@ export function createAnthropicProvider(
         const baseParams = {
           model: modelId,
           max_tokens: options?.maxOutputTokens ?? 1024,
-          ...resolveAnthropicSamplingParams(options),
+          ...resolveAnthropicSamplingParams(modelId, options),
           stop_sequences: mapStopSequences(options?.stop),
           system: input.system,
           messages: mapTurnsToAnthropicMessages(input.messages),
@@ -174,7 +182,7 @@ export function createAnthropicProvider(
           const streamParams = {
             model: modelId,
             max_tokens: options?.maxOutputTokens ?? 1024,
-            ...resolveAnthropicSamplingParams(options),
+            ...resolveAnthropicSamplingParams(modelId, options),
             stop_sequences: mapStopSequences(options?.stop),
             system: input.system,
             messages: mapTurnsToAnthropicMessages(input.messages),

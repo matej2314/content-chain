@@ -1,7 +1,7 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-28
+data_modyfikacji: 2026-11-09
 ---
 
 # Architektura — Content Chain
@@ -19,6 +19,8 @@ Zmiana względem wersji 2 / Frontend: sekcja FE bez mapy katalogów `modules/` (
 Zmiana względem wcześniejszej wersji tego dokumentu: ścieżki aplikacji ujednolicono do `apps/api`, `apps/frontend`, `apps/ai-provider-gateway` (w rootcie monorepo, **bez** opakowania `src/apps/`). Szczegółowe drzewo: `architektura_katalogi_pliki.md`.
 
 Zmiana względem: dwa terminale SSE (`completed` / `failed`). Od tej wersji trzeci terminal **`cancelled`** (Stop / `POST .../cancel`); complete huba jak R-4a; mechanizm abortu v1 in-process + port `attemptCancel` (CAS) — norma w `SPEC-RUNY.md`.
+
+Zmiana względem wersji 6 / cancel V1: *„abort V1 obejmuje propagację api→gateway (mapowanie disconnect→`AbortSignal` hopu)”*. Od tej wersji: mapowanie disconnect klienta HTTP na `AbortSignal` hopu w `apps/ai-provider-gateway` **odłożone** (późniejsze fazy pracy — **bez** pinu numeru); kanon V1 = limit per-user + abort in-process w api (+ abort `fetch` z api); hop LLM w gateway może dobiec mimo cancel — `SPEC-RUNY.md` R-11.
 
 Zmiana względem: warstwy BC bez normy podkatalogów I/O poza Social/Content. Od tej wersji: podział `infrastructure/` po granicy I/O (m.in. `persistence` / SSE / quota / mail / session / graph) oraz kernel w `application/` (Runs) **nie** tworzy nowych BC i **nie** zmienia kierunku zależności. Szczegół drzewa → `architektura_katalogi_pliki.md`.
 
@@ -151,21 +153,21 @@ Pipeline produktowy działa jako **asynchroniczny run**:
 5. Task jednoetapowy kończy się bez pauzy selekcji.
 6. Wynik (addytywny snapshot: ideas / content / **contents** / reelIdeas / reelScript / **reelScripts** / pageOutline / pageDocument) i werdykt weryfikacji spójności są zapisane w DB i dostępne przez API / UI.
 7. Po `completed` albo `failed` autor runu (`startedBy`) może: zapisać edycję wyniku (`POST .../output-edited` z `{ result }` — zastępuje kanoniczny wynik **oraz** stawia `outputEdited`), ustawić ocenę `1–5` albo zostawić `null`, potem **zatwierdzić / zamknąć przegląd** — od tej chwili ocena i treść/`outputEdited` są niemutowalne. Opinia tekstowa (aplikacja / agent / run) jest osobnym zapisem (BC Feedback), niezależnym od grafu. Na `cancelled` przegląd (gwiazdki/Edytuj/finalize) jest zakazany; opinia o runie — gdy jest partial wynik.
-8. **Anulowanie (Stop) V1:** autor (lub admin→guest) woła `POST .../cancel` → CAS statusu (`attemptCancel`) + `cancelledAt` + SSE + **200** od razu; execute **nie** jest awaitowane w tym requeście. Abort hopu = in-process `AbortSignal` **oraz** sygnał abort do gateway (niżej).
-9. **Admit startu (V1):** po bramce kompletności (i polityce guest, gdy dotyczy) — limit per-user runów w toku (`MAX_USER_IN_FLIGHT_RUNS`); dopiero potem create / enqueue pod globalnym `MAX_CONCURRENT_RUNS`. Przekroczenie per-user = błąd domenowy, nie ciche `queued` ponad cap użytkownika (`data_flow.md`).
+8. **Anulowanie (Stop) V1:** autor (lub admin→guest) woła `POST .../cancel` → CAS statusu (`attemptCancel`) + `cancelledAt` + SSE + **200** od razu; execute **nie** jest awaitowane w tym requeście. Abort = in-process `AbortSignal` w `apps/api` (niżej). Mapowanie disconnect→`AbortSignal` hopu w gateway — **odłożone**.
+9. **Admit startu (V1):** po bramce kompletności (i polityce guest, gdy dotyczy) — limit per-user runów w toku (`MAX_USER_IN_FLIGHT_RUNS`); dopiero potem create / enqueue pod globalnym `MAX_CONCURRENT_RUNS`. Przekroczenie per-user = błąd domenowy, nie ciche `queued` ponad cap użytkownika (`data_flow.md`). Limit per-user jest **główną tamą** kosztów równoległych hopów, dopóki abort hopu w gateway jest odłożony.
 
 ### Anulowanie runu — mechanizm V1 (wysoki poziom)
 
 - **`InProcessRunWorker`:** `Map<RunId, AbortController>` — przy starcie `execute` tworzy controller i wpisuje do mapy; po zakończeniu usuwa.
 - Cancel use-case → `requestCancel(runId)` → `controller.abort()`.
-- **`RunExecutorPort.execute`** przyjmuje `AbortSignal`; klient HTTP do `apps/ai-provider-gateway` przekazuje sygnał — hop w locie przerywany po stronie `apps/api` (**MVP**, zostaje).
-- **V1 — abort→gateway:** po cancel api **propaguje** abort do `apps/ai-provider-gateway` (ścieżka api→gateway). Abort u zewnętrznego providera LLM **poza** tą paczką, jeśli gateway nie ma haczyka do vendora.
+- **`RunExecutorPort.execute`** przyjmuje `AbortSignal`; klient HTTP do `apps/ai-provider-gateway` przekazuje sygnał — api **przerywa własny** `fetch` (**MVP**, zostaje).
+- **Abort hopu w gateway / u vendora — odłożone:** mapowanie disconnect klienta HTTP na `AbortSignal` hopu LLM w `apps/ai-provider-gateway` **nie** jest kanonem bieżącego V1 (odłożone na późniejsze fazy pracy — **bez** pinu numeru). Po cancel hop w gateway **może** dobiec do końca mimo abortu `fetch` z api. Abort u zewnętrznego providera LLM pozostaje poza gwarancją, dopóki gateway nie honoruje sygnału.
 - **Port `attemptCancel` (CAS)** na repozytorium Runs: warunkowy zapis `cancelled` tylko ze statusu nieterminalnego; spójnie z kanonem — szczegóły egzekwowalne w `spec/SPEC-RUNY.md`.
 - **Ograniczenie procesu:** mapa abortu in-process = jeden proces Node `apps/api`. Durable `cancelRequested` w DB zostaje guardem recovery po crashu — niezależnie od mapy in-memory.
 
 Zmiana względem wcześniejszego zapisu w tym dokumencie: zamiast opierania obserwacji runu na samym pollingu HTTP — **SSE od MVP** (szczegóły kontraktu: `dokumentacja_komunikacji.md`). Dopisano fundament feedbacku (zapis w MVP; panel analityczny = V1 — rozbudowa). Dopisano, że strumień SSE kończy się po evencie terminalnym (wcześniej tylko „live przez SSE”, bez końca połączenia). Snapshot addytywny obejmuje `contents` / `reelScripts` (pusta tablica gdy brak kanału) — nie tylko skalary `content` / `reelScript`. **Edytuj:** pkt 7 wcześniej opisywał wyłącznie flagę; od tej wersji `POST .../output-edited` nadpisuje kanoniczny `result` (`dokumentacja_komunikacji.md`). Tablice pipeline Social: `clear`+`append` na porcie wyniku; zapis Edytuj = `OutputEditedWriter` w Runs (nie `replaceContents` / `replaceReelScripts` na `SocialResultStore`). Dopisano trzeci terminal `cancelled` i mechanizm cancel v1.
 
-Zmiana względem: „Abort na gateway / providerze LLM **poza** v1”; brak bramki per-user przy starcie. Od tej wersji abort V1 obejmuje propagację api→gateway; limit per-user w toku jest kanonem admit V1 (pkt 9).
+Zmiana względem: „Abort na gateway / providerze LLM **poza** v1”; brak bramki per-user przy starcie. Następnie (v6): abort V1 = api→gateway + limit per-user. **Od wersji 7:** mapowanie disconnect→`AbortSignal` hopu w gateway **odłożone**; limit per-user + abort in-process w api pozostają kanonem V1.
 
 ## Auth
 

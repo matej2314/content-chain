@@ -1,7 +1,7 @@
 ---
-wersja: 44
+wersja: 45
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-29
+data_modyfikacji: 2026-11-09
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -38,7 +38,9 @@ Zmiana względem wersji 35 / K-2f: happy path 201 bez jawnej normy roli vs demo.
 Zmiana względem wersji 37 / K-2: `brief.audience` bez semantyki trzech trybów. Od tej wersji omit / name katalogu / custom opis — bez nowego klucza body — `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`.
 Zmiana względem wersji 38 / K-2c: milczenie o authz guest na detail/logs (ownership w R-12 / docs). Od tej wersji K-2c: `guest` — cudzy detail/logs dozwolone przy statusie archiwalnym; lista `GET /runs` bez zmian — `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-12.
 
-Zmiana względem wersji 43 / K-2e / K-8: brak `USER_IN_FLIGHT_LIMIT_EXCEEDED`; cancel bez jawnej wzmianki abort→gateway w skrócie I/O. Od tej wersji kod limitu per-user w K-8; K-2e odsyła do R-11 V1 (abort api→gateway) — `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-6a / R-11.
+Zmiana względem wersji 43 / K-2e / K-8: brak `USER_IN_FLIGHT_LIMIT_EXCEEDED`; cancel bez jawnej wzmianki abort→gateway w skrócie I/O. Od tej wersji kod limitu per-user w K-8; K-2e odsyła do R-11 — `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-6a / R-11.
+
+Zmiana względem wersji 44 / K-2e: odsyłacz do R-11 jako *„abort api→gateway”* (honorowanie hopu). Od tej wersji: mapowanie disconnect→`AbortSignal` hopu w gateway **odłożone** (R-11); K-2e bez zmiany semantyki HTTP **200**.
 
 ## Powiązanie ze stylem z docs
 
@@ -156,10 +158,10 @@ K-2d. `PATCH /api/v1/auth/me/email` — body `{ email, currentPassword }`; re-au
 
 Zmiana względem wcześniejszego K-2d: trasa `PATCH /auth/me` (z lub bez `currentPassword`) / złe hasło jako `UNAUTHORIZED`.
 
-K-2e. `POST /api/v1/runs/:runId/cancel` — body puste; sesja cookie. Authz: `startedBy` **lub** (aktor `admin` **i** `startedBy.role === guest`); cudzy run `role = user` → **403** `FORBIDDEN`. Odpowiedzi: **200** + snapshot (`status: cancelled`, `cancelledAt`) przy pierwszym legalnym cancelu **oraz** gdy run już `cancelled` (idempotencja); **404**; **409** `RUN_NOT_CANCELABLE` gdy status już `completed` \| `failed`. **200 nie czeka** na zwinięcie execute (bez regresji MVP). Semantyka CAS / abort in-process **+** (V1) abort api→gateway / recovery / log aktora — `SPEC-RUNY.md` R-11. Pełny kontrakt: `docs/dokumentacja_komunikacji.md`.
+K-2e. `POST /api/v1/runs/:runId/cancel` — body puste; sesja cookie. Authz: `startedBy` **lub** (aktor `admin` **i** `startedBy.role === guest`); cudzy run `role = user` → **403** `FORBIDDEN`. Odpowiedzi: **200** + snapshot (`status: cancelled`, `cancelledAt`) przy pierwszym legalnym cancelu **oraz** gdy run już `cancelled` (idempotencja); **404**; **409** `RUN_NOT_CANCELABLE` gdy status już `completed` \| `failed`. **200 nie czeka** na zwinięcie execute (bez regresji MVP). Semantyka CAS / abort in-process (+ abort `fetch` z api) / recovery / log aktora — `SPEC-RUNY.md` R-11. Mapowanie disconnect→`AbortSignal` hopu w gateway **odłożone** (R-11). Pełny kontrakt: `docs/dokumentacja_komunikacji.md`.
 
 Zmiana względem wersji 36 / K-2e: authz wyłącznie `startedBy`. Od tej wersji wyjątek admin→`guest`.
-Zmiana względem wersji 43 / K-2e: skrót milczał o abort→gateway. Od tej wersji odsyłacz do R-11 V1.
+Zmiana względem wersji 43 / K-2e: skrót milczał o abort→gateway. Następnie (v44): odsyłacz do R-11 V1 abort api→gateway. **Od wersji 45:** odsyłacz do R-11 z **odłożonym** mapowaniem hopu w gateway.
 
 K-2j. Users (admin) — skrót I/O; pełna semantyka `SPEC-AUTH.md` A-10 / A-10a / **A-10b**, `docs/dokumentacja_komunikacji.md`:
 

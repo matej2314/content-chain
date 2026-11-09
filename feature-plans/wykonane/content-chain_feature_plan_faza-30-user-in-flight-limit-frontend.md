@@ -72,7 +72,7 @@ Odpowiada major FE Faza 30 (cała). Status startowy kroków: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — Stała i type guard `USER_IN_FLIGHT_LIMIT_EXCEEDED`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jawny kontrakt kodu envelope limitu per-user po stronie FE, rozłączny od `GUEST_*`. Major FE Faza 30; `SPEC-KOMUNIKACJA.md` K-8; `SPEC-RUNY.md` R-6a; `docs/dokumentacja_komunikacji.md`.
 
@@ -102,7 +102,7 @@ export function isUserInFlightLimitCode(code: string): code is UserInFlightLimit
 
 ### KROK 2 — `StartRunForm`: limitu per-user → envelope na formularzu
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Po `POST /runs` **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` operator widzi `message` przy formularzu (Konto + modal Runy); **nie** `GuestLimitModal`; **nie** toast; **nie** nawigacja. Refaktor względem: Faza 3 / 3.1 + Faza 7 (historia). `SPEC-FRONTEND.md` F-7 / F-10 pkt 4/7; `docs/ux_dashboard.md` (tabela toastów).
 
@@ -214,7 +214,7 @@ import { isUserInFlightLimitCode } from '@/modules/runs/lib/user-in-flight-limit
 
 ### KROK 3 — Stop/cancel: audyt F-5b bez regresji V1
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Potwierdzić, że Stop w UI pozostaje semantyką MVP (modal „Czy na pewno?”, **200**, bez await execute po stronie UI, toast „Run anulowany”) — niezależnie od abortu api→gateway (R-11). FE **nie** dostaje nowego endpointu ani klienta gateway. Refaktor względem: Faza 8 / 16 (historia). `SPEC-FRONTEND.md` F-5b pkt 6; major FE Faza 30.
 

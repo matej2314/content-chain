@@ -1,7 +1,7 @@
 ---
-wersja: 29
+wersja: 30
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-28
+data_modyfikacji: 2026-11-09
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -39,7 +39,9 @@ Zmiana względem: przegląd bez limitu czasu; `reviewFinalizedAt` tylko z ręczn
 
 Zmiana względem wcześniejszej wersji tego dokumentu: trzeci terminal **`cancelled`**; krawędzie z `queued` \| `running` \| `awaiting_hitl` \| `interrupted`; endpoint `POST .../cancel`; SSE `run.cancelled`; archiwum UI `completed,failed,cancelled`; rozszczep przegląd vs opinia na `cancelled`. `POST /runs` nadal nigdy nie tworzy `cancelled`.
 
-Zmiana względem: brak kodu limitu per-user; cancel = **200** + abort in-process, abort gateway poza v1. Od tej wersji: **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` przy `POST /runs`; cancel V1 dodatkowo abort api→gateway (semantyka **200** bez await — bez regresji).
+Zmiana względem: brak kodu limitu per-user; cancel = **200** + abort in-process, abort gateway poza v1. Od tej wersji: **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` przy `POST /runs`; cancel = **200** + abort in-process (bez await — bez regresji).
+
+Zmiana względem wersji 29 / cancel: *„cancel V1 dodatkowo abort api→gateway”*. Od tej wersji: mapowanie disconnect→`AbortSignal` hopu w `apps/ai-provider-gateway` **odłożone** (późniejsze fazy — **bez** pinu numeru); api nadal może abortować własny `fetch`.
 
 Zmiana względem: Redis admit / rating bez nazw env połączenia w kontrakcie I/O. Od tej wersji: api → Redis = **`REDIS_HOST`** + **`REDIS_PORT`** (+ opcjonalne **`REDIS_PASSWORD`**); **bez** `REDIS_URL` — `deployment.md`.
 
@@ -636,7 +638,7 @@ Anulowanie runu. Body **puste**. Sesja cookie jak pozostałe chronione trasy Run
 | brak runu | **404** | `RUN_NOT_FOUND` |
 | status już `completed` \| `failed` | **409** | `RUN_NOT_CANCELABLE` |
 
-**200 nie czeka** na zwinięcie execute / hopu LLM. Prawda dla klienta: snapshot i SSE; abort in-process **oraz** propagacja abort api→gateway lecą w tle (`docs/architektura.md`, `docs/data_flow.md`). Log / audyt rozróżnia aktora (`cancelled by admin` vs owner).
+**200 nie czeka** na zwinięcie execute / hopu LLM. Prawda dla klienta: snapshot i SSE; abort in-process (+ abort `fetch` z api) leci w tle. Mapowanie disconnect→`AbortSignal` hopu w gateway **odłożone** — hop LLM w `apps/ai-provider-gateway` może dobiec mimo cancel (`docs/architektura.md`, `docs/data_flow.md`). Log / audyt rozróżnia aktora (`cancelled by admin` vs owner).
 
 #### `GET /api/v1/runs/:runId`
 

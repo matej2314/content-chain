@@ -46,6 +46,7 @@ import {
   resolveAudienceGroupMode,
   type AudienceGroupMode,
 } from '@/modules/runs/lib/audience-group';
+import { isUserInFlightLimitCode } from '@/modules/runs/lib/user-in-flight-limit';
 import type { RunSnapshot, StartRunInput } from '@/modules/runs/api/runs.types';
 
 export type StartRunDraft = {
@@ -211,6 +212,16 @@ export function StartRunForm({
         if (isGuestQuotaCode(reason.envelope.code)) {
           setStartState({
             status: 'quota',
+            code: reason.envelope.code,
+            message: reason.envelope.message,
+          });
+          return;
+        }
+        // Per-user in-flight (409 USER_IN_FLIGHT_LIMIT_EXCEEDED): form envelope only —
+        // never GuestLimitModal, never toast, never navigate (F-7 / F-10).
+        if (isUserInFlightLimitCode(reason.envelope.code)) {
+          setStartState({
+            status: 'error',
             code: reason.envelope.code,
             message: reason.envelope.message,
           });

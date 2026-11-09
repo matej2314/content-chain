@@ -5,11 +5,8 @@ jest.mock('uuid', () => ({
 import { Test } from '@nestjs/testing';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
-import type { Request, Response } from 'express';
-import {
-  createMockExpressRequest,
-  createMockExpressResponse,
-} from '../common/mocks/http-mocks';
+import type { Request } from 'express';
+import { createMockExpressRequest } from '../common/mocks/http-mocks';
 import {
   TEST_CONVERSATION_ID,
   TEST_GATEWAY_KEY_BRANDED,
@@ -52,36 +49,22 @@ describe('ChatController', () => {
   });
 
   describe('chat', () => {
-    function mockHttpPair() {
-      const mockRequest = createMockExpressRequest({
+    function mockRequest(): Request {
+      return createMockExpressRequest({
         requestId: TEST_REQUEST_ID,
         gatewayKey: TEST_GATEWAY_KEY_BRANDED,
         header: jest.fn().mockReturnValue('gw_key_123'),
         headers: { 'x-gateway-key': 'gw_key_123' },
-        once: jest.fn(),
-        aborted: false,
-        destroyed: false,
-      });
-      const mockResponse = {
-        ...createMockExpressResponse(),
-        once: jest.fn(),
-        writableEnded: false,
-      };
-      return {
-        mockRequest: mockRequest as Request,
-        mockResponse: mockResponse as unknown as Response,
-      };
+      }) as Request;
     }
 
-    it('should call chatService.executeChat with client AbortSignal from req/res', async () => {
-      const { mockRequest, mockResponse } = mockHttpPair();
-
+    it('should call chatService.executeChat without client AbortSignal', async () => {
       const requestBody = {
         modelAlias: TEST_MODEL_ALIAS,
         messages: [{ role: 'user' as const, content: 'Hello' }],
       };
 
-      await controller.chat(mockRequest, mockResponse, requestBody);
+      await controller.chat(mockRequest(), requestBody);
 
       expect(mockChatService.executeChat).toHaveBeenCalledWith(
         requestBody,
@@ -89,12 +72,10 @@ describe('ChatController', () => {
         'req-123',
         'gw_key_123',
         'native',
-        expect.any(AbortSignal),
       );
     });
 
     it('should map cache hit with cacheSource exact', async () => {
-      const { mockRequest, mockResponse } = mockHttpPair();
       (mockChatService.executeChat as jest.Mock).mockResolvedValue({
         id: 'cached-123',
         provider: TEST_PROVIDER_INSTANCE_BRANDED,
@@ -107,7 +88,7 @@ describe('ChatController', () => {
         cacheSource: 'exact',
       });
 
-      const dto = await controller.chat(mockRequest, mockResponse, {
+      const dto = await controller.chat(mockRequest(), {
         modelAlias: TEST_MODEL_ALIAS,
         messages: [{ role: 'user' as const, content: 'Hello' }],
       });
@@ -121,7 +102,6 @@ describe('ChatController', () => {
     });
 
     it('should omit cache fields on provider miss', async () => {
-      const { mockRequest, mockResponse } = mockHttpPair();
       (mockChatService.executeChat as jest.Mock).mockResolvedValue({
         id: 'resp-123',
         provider: TEST_PROVIDER_INSTANCE_BRANDED,
@@ -132,7 +112,7 @@ describe('ChatController', () => {
         finishReason: 'stop',
       });
 
-      const dto = await controller.chat(mockRequest, mockResponse, {
+      const dto = await controller.chat(mockRequest(), {
         modelAlias: TEST_MODEL_ALIAS,
         messages: [{ role: 'user' as const, content: 'Hello' }],
       });

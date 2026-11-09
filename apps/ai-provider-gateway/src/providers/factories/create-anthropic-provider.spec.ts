@@ -174,6 +174,31 @@ describe('createAnthropicProvider', () => {
       expect(callArgs).not.toHaveProperty('temperature');
     });
 
+    it('should omit sampling params for Sonnet 5 models that reject them', async () => {
+      mockAnthropicClient.messages.create.mockResolvedValue({
+        model: 'claude-sonnet-5-5',
+        content: [{ type: 'text', text: 'Hi!' }],
+        usage: { input_tokens: 10, output_tokens: 5 },
+      });
+
+      const options: ProviderCallOptions = {
+        temperature: 0.5,
+        topP: 0.9,
+        topK: 40,
+      };
+      await provider.complete(input, asModelId('claude-sonnet-5-5'), options);
+
+      const callArgs = mockAnthropicClient.messages.create.mock.calls[0][0];
+      expect(callArgs).not.toHaveProperty('temperature');
+      expect(callArgs).not.toHaveProperty('top_p');
+      expect(callArgs).not.toHaveProperty('top_k');
+      expect(callArgs).toEqual(
+        expect.objectContaining({
+          model: 'claude-sonnet-5-5',
+        }),
+      );
+    });
+
     it('should map stop sequences (array)', async () => {
       mockAnthropicClient.messages.create.mockResolvedValue({
         model: 'claude-sonnet-4',
@@ -838,6 +863,48 @@ describe('createAnthropicProvider', () => {
             type: 'adaptive',
             display: 'summarized',
           },
+        }),
+      );
+    });
+
+    it('should omit sampling params for Sonnet 5 models that reject them', async () => {
+      const mockStream = {
+        [Symbol.asyncIterator]: function* () {},
+        finalMessage: jest.fn().mockResolvedValue({
+          model: 'claude-sonnet-5-5',
+          content: [],
+          usage: { input_tokens: 10, output_tokens: 5 },
+        }),
+      };
+
+      mockAnthropicClient.messages.stream.mockReturnValue(mockStream);
+
+      const options: ProviderCallOptions = {
+        temperature: 0.5,
+        topP: 0.9,
+        topK: 40,
+        maxOutputTokens: 2048,
+      };
+
+      const result = provider.stream!(
+        input,
+        asModelId('claude-sonnet-5-5'),
+        options,
+      );
+
+      for await (const chunk of result.textStream) {
+        void chunk;
+      }
+
+      const callArgs = mockAnthropicClient.messages.stream.mock.calls[0][0];
+      expect(callArgs).not.toHaveProperty('temperature');
+      expect(callArgs).not.toHaveProperty('top_p');
+      expect(callArgs).not.toHaveProperty('top_k');
+      expect(callArgs).toEqual(
+        expect.objectContaining({
+          model: 'claude-sonnet-5-5',
+          stream: true,
+          max_tokens: 2048,
         }),
       );
     });

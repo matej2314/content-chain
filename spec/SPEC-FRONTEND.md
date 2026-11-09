@@ -1,7 +1,7 @@
 ---
-wersja: 67
+wersja: 68
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-29
+data_modyfikacji: 2026-11-09
 ---
 
 # SPEC — Frontend
@@ -86,6 +86,8 @@ Zmiana względem wersji 50 / F-8 / F-10: *„zakaz nawigacji do cudzego `/runs/:
 
 Zmiana względem wersji 66 / F-5b / F-7 / F-10: brak UX limitu per-user; Stop bez wzmianki V1. Od tej wersji **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` → `message` na formularzu startu (nie GuestLimitModal); Stop bez regresji MVP — `docs/ux_dashboard.md`, `SPEC-KOMUNIKACJA.md` K-8, `SPEC-RUNY.md` R-6a.
 
+Zmiana względem wersji 67 / F-5b pkt 6: *„niezależnie od abortu gateway (R-11)”* przy założeniu V1 abort→gateway hop. Od tej wersji: UX Stop **bez regresji** także gdy mapowanie disconnect→`AbortSignal` hopu w gateway jest **odłożone** (`SPEC-RUNY.md` R-11).
+
 ## Powiązanie ze stylem z docs / wyjątek
 
 Wiążące (`docs/architektura.md`): Next.js jako UI; pobieranie i mutacje wyłącznie przez `apps/api`; sekrety LLM nigdy w bundlu.
@@ -155,11 +157,11 @@ F-5b. Anulowanie w UI (Stop):
 3. Po **200** z cancel: toast sukcesu mutacji **„Run anulowany”** (zostajemy na widoku źródłowym). Gdy **nie** na `/runs/:runId` tego runu — toast z akcją **Szczegóły** (jak mapa UX). Dedup względem toasta SSE `run.cancelled` / `notifyRunTerminal` (jeden toast per `runId`).
 4. Po sukcesie: odświeżenie wiersza / snapshotu (`cancelled`); na szczegółach panel HITL znika; przegląd (gwiazdki / Edytuj / finalize) niedostępny; partial wynik widoczny jak przy `failed`.
 5. Floating box: po `cancelled` krótko label **„Anulowany”**, potem usunięcie pozycji po **200 ms** (nie trzymać anulowanego runu w boxie).
-6. Semantyka HTTP cancel (**200** bez await execute; modal „Czy na pewno?”) **bez regresji** względem MVP — niezależnie od abortu gateway po stronie api (R-11).
+6. Semantyka HTTP cancel (**200** bez await execute; modal „Czy na pewno?”) **bez regresji** względem MVP — niezależnie od tego, czy gateway mapuje disconnect na `AbortSignal` hopu (R-11: mapowanie **odłożone**).
 
 Zmiana względem: wcześniejszy kanon roboczy bez modala przed Stop — **unieważnione**; obowiązuje modal (`docs/ux_dashboard.md`).
 Zmiana względem wersji 37 / F-5b: Stop wyłącznie własny run. Od tej wersji admin→guest na **detail** (parse `startedBy.role`).
-Zmiana względem wersji 66 / F-5b: milczenie o stabilności UX cancel przy V1 abort→gateway. Od tej wersji pkt 6.
+Zmiana względem wersji 66 / F-5b: milczenie o stabilności UX cancel przy V1 abort→gateway. Następnie (v67): pkt 6. **Od wersji 68:** pkt 6 jawnie przy odłożonym mapowaniu hopu w gateway.
 
 F-6. Bramka „Agenci aktywni” i disable CTA startu runu — predykat UX:
 

@@ -1,7 +1,7 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-13
+data_modyfikacji: 2026-11-09
 ---
 
 # Przepływy danych — Content Chain
@@ -18,7 +18,9 @@ Zmiana względem wcześniejszej wersji (bez frontmatteru): dopisano ścieżkę *
 
 Zmiana względem: self-register zawsze `user`; admit startu = tylko bramka kontekstu + `MAX_CONCURRENT_RUNS`. Od tej wersji: register → `guest` wyłącznie gdy `DEMO_MODE=true` (**refaktor**). Dla guest: Redis admit (global cap UTC) **przed** create Run; slot COUNT bez filtra statusu. Per-konto hard/purge guest — w kanonie (sekcja Users poniżej); reset instancji poza.
 
-Zmiana względem: admit bez limitu per-user; cancel = CAS + SSE + abort wyłącznie in-process (abort gateway poza v1). Od tej wersji (V1): po kompletności / guest — bramka **per-user** (`MAX_USER_IN_FLIGHT_RUNS`); cancel dodatkowo propaguje abort api→gateway.
+Zmiana względem: admit bez limitu per-user; cancel = CAS + SSE + abort wyłącznie in-process (abort gateway poza v1). Od tej wersji (V1): po kompletności / guest — bramka **per-user** (`MAX_USER_IN_FLIGHT_RUNS`); cancel = CAS + SSE + abort in-process (+ abort `fetch` z api).
+
+Zmiana względem wersji 8 / §6a: *„cancel dodatkowo propaguje abort api→gateway”* / Abort V1 z mapowaniem disconnect→hop. Od tej wersji: mapowanie disconnect na `AbortSignal` hopu w `apps/ai-provider-gateway` **odłożone** (późniejsze fazy — **bez** pinu numeru); hop LLM w gateway może dobiec mimo cancel.
 
 Zmiana względem: Faza 18 — *„Invite / bootstrap nie tworzą `guest`”*. Od tej wersji: **bootstrap** nadal nie; **invite przy `DEMO_MODE=true` tworzy `guest`** (mirror register).
 
@@ -327,7 +329,7 @@ Szczegóły: `dictionary.md` (hasła `interrupted`, `cancelled`, `cancelRequeste
 
 ## 6a. Anulowanie runu (`cancelled`)
 
-Ścieżka HTTP → CAS → SSE → abort w tle (in-process **+** sygnał api→gateway). Authz: `startedBy` **lub** (admin ∧ `startedBy.role === guest`). Semantyka HTTP **200** bez await execute — **bez regresji** względem MVP.
+Ścieżka HTTP → CAS → SSE → abort in-process w tle (+ abort `fetch` z api do gateway). Authz: `startedBy` **lub** (admin ∧ `startedBy.role === guest`). Semantyka HTTP **200** bez await execute — **bez regresji** względem MVP. Mapowanie disconnect→`AbortSignal` hopu w gateway — **odłożone**.
 
 ```mermaid
 sequenceDiagram
@@ -346,8 +348,9 @@ sequenceDiagram
     API->>Hub: run.status cancelled + run.cancelled + complete
     API-->>Op: 200 + snapshot
     API->>W: requestCancel abort AbortSignal
-    API->>GW: propagacja abort (V1)
-    Note over W,GW: execute / hop zwija się w tle; HTTP nie awaituje
+    API->>GW: abort fetch z api (połączenie HTTP)
+    Note over W: execute zwija się w tle; HTTP nie awaituje
+    Note over GW: mapowanie disconnect na AbortSignal hopu odłożone; hop LLM może dobiec
   else status już completed / failed
     Repo-->>API: false
     API-->>Op: 409 RUN_NOT_CANCELABLE
@@ -357,8 +360,8 @@ sequenceDiagram
 | Reguła | Norma |
 |--------|--------|
 | Slot `MAX_CONCURRENT_RUNS` | HTTP cancel **nie** dekrementuje licznika in-flight; zwalnia go `finally` execute po aborcie. Cancel `queued` / `awaiting_hitl` / `interrupted` **nie** zajmuje slotu execute |
-| Abort V1 | In-process (MVP) **oraz** propagacja do gateway; abort vendora LLM poza paczką, gdy brak haczyka w gateway |
-| Persist | **Bez rollbacku** wyniku już zacommitowanego. Hop w locie **nie** jest dopisywany po `cancelled` |
+| Abort V1 | In-process (MVP) + abort `fetch` z api. Mapowanie disconnect→`AbortSignal` hopu w `apps/ai-provider-gateway` **odłożone** (późniejsze fazy — **bez** pinu numeru). Abort vendora LLM poza gwarancją, dopóki gateway nie honoruje sygnału. Limit per-user (R-6a) = główna tama równoległych hopów |
+| Persist | **Bez rollbacku** wyniku już zacommitowanego. Hop w locie **nie** jest dopisywany po `cancelled` (po stronie api); gateway może dokończyć vendor call bez zapisu wyniku runu |
 | Logi | Append-only + wpis rozróżniający aktora (`cancelled by admin` vs owner) |
 | Authz | Cudzy `role=user` → **403** także dla admina; admin→guest **dozwolone** |
 

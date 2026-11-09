@@ -1,5 +1,7 @@
 # Content Chain — major plan (backend)
 
+**Adnotacja (abortSignal gateway — odłożone):** Mapowanie disconnect klienta HTTP na `AbortSignal` hopu LLM w `apps/ai-provider-gateway` (oraz niezawodne gaszenie vendorów) jest **odłożone** na późniejsze fazy pracy nad projektem (**bez** wskazywania numeru fazy). Bieżący kanon V1: **limit per-user** (`MAX_USER_IN_FLIGHT_RUNS` / R-6a) + cancel in-process w `apps/api` (CAS / `RunAbortRegistry` / abort `fetch`). Gateway **nie** honoruje disconnect jako abort hopu — hop LLM może dobiec mimo Stop. Historia Fazy 29 / feature-planu (disconnect→signal) **nie** nadpisuje tego odłożenia. Norma: `docs/architektura.md`, `docs/data_flow.md`, `SPEC-RUNY.md` R-11.
+
 **Zakres tego pliku:** fundament monorepo, boilerplate frontu (wyłącznie struktura i pakiety) oraz **backend** aż do zielonego pipeline’u SM (Milestone 4), **dopełnienia Social o rolki (Faza 4.1)** i **BC Content + klej (Faza 4.2 / Milestone 4.2)**, **rozszerzenia kontraktu MVP (Faza 4.3 / Milestone 4.3)**, auth API **oraz fundamentu zapisu feedbacku** (opinie, ocena runu, flaga edycji).  
 **Poza tym plikiem:** dashboard / feature FE (osobny major frontendowy — w tym kontrolki zapisu opinii/gwiazdek wg `docs/ux_dashboard.md`), pełny Docker Compose / `production` (ewentualnie tylko roboczy compose pod backend — bez domknięcia produkcyjnego), eksport `.md` + checksum, PostgreSQL / faza V1 — rozbudowa (w tym **panel administracyjny** opinii / analityka), rozbudowa ops poza fundamentem metryk.
 

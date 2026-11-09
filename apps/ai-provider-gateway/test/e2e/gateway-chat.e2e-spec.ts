@@ -207,13 +207,13 @@ describe('Gateway Chat API (E2E)', () => {
       expect(response.body.message).toMatch(/150|Too many messages/i);
     });
 
-    it('should reject request when user content exceeds 3000 characters', async () => {
+    it('should reject request when user content exceeds 25000 characters', async () => {
       const response = await request(app.getHttpServer())
         .post(E2E_ROUTES.chat)
         .set('x-gateway-key', E2E_GATEWAY_KEY)
         .send({
           modelAlias: TEST_MODEL_ALIAS,
-          messages: [{ role: 'user', content: 'a'.repeat(3001) }],
+          messages: [{ role: 'user', content: 'a'.repeat(25001) }],
         })
         .expect(400);
 

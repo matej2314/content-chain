@@ -1,7 +1,7 @@
 ---
-wersja: 29
+wersja: 30
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-28
+data_modyfikacji: 2026-11-09
 ---
 
 # Słownik — Content Chain
@@ -39,7 +39,9 @@ Zmiana względem definicji **MVP** / **V1 — rozbudowa** oraz kanałów (legali
 
 Zmiana względem poprzedniego zbioru `RunStatus` (pięć wartości, recovery jako ponowne execute na leftover `running`): dopisano status **`interrupted`**. `MAX_CONCURRENT_RUNS` tnie **każdy** claim do `running` z `queued` oraz z `interrupted` (priorytet recovery nad nowymi POST). Burst execute wszystkich leftover `running` ponad cap **unieważniony**. HITL (`awaiting_hitl`) pozostaje osobnym use-casem.
 
-Zmiana względem: limit per-user „tylko kiedyś / V1 bez normy admit”; anulowanie v1 = abort wyłącznie in-process w api, abort gateway **poza** v1. Od tej wersji (**V1 — rozbudowa**): obowiązkowy **limit per-user** runów w toku (`MAX_USER_IN_FLIGHT_RUNS`, default **3**) przy `POST /runs` — błąd domenowy, nie ciche `queued` ponad cap użytkownika; globalny `MAX_CONCURRENT_RUNS` zostaje; limity guest/DEMO **bez zmian**. Abort V1 = in-process **oraz** propagacja abort api→gateway (abort u vendora LLM poza tą paczką, gdy gateway nie ma haczyka).
+Zmiana względem: limit per-user „tylko kiedyś / V1 bez normy admit”; anulowanie v1 = abort wyłącznie in-process w api, abort gateway **poza** v1. Od tej wersji (**V1 — rozbudowa**): obowiązkowy **limit per-user** runów w toku (`MAX_USER_IN_FLIGHT_RUNS`, default **3**) przy `POST /runs` — błąd domenowy, nie ciche `queued` ponad cap użytkownika; globalny `MAX_CONCURRENT_RUNS` zostaje; limity guest/DEMO **bez zmian**. Abort V1 = in-process w api (+ abort `fetch`).
+
+Zmiana względem wersji 29 / Anulowanie: *„Abort V1 = in-process oraz propagacja abort api→gateway”*. Od tej wersji: mapowanie disconnect→`AbortSignal` hopu w `apps/ai-provider-gateway` **odłożone** (późniejsze fazy — **bez** pinu numeru); limit per-user pozostaje główną tamą równoległych hopów.
 
 Zmiana względem jednego „Brief SM” na cały `POST /runs`: kanon to **`SocialBrief`** vs **`ContentBrief`**; `Run.brief` to JSON unii, nie jeden obiekt z `ideaCount` dla `page_*`.
 
@@ -183,7 +185,7 @@ Zmiana względem: hasło `guest` / `FORBIDDEN` bez wyjątku podglądu archiwum c
 | **`cancelled`** | Terminal: ręczna decyzja `startedBy` (Stop). Legalne wejścia wyłącznie z nieterminalnych: `queued` \| `running` \| `awaiting_hitl` \| `interrupted` → `cancelled`. Bez wyjść; bez resume / retry na tym samym `runId`. Authz: tylko `startedBy` (brak admin-cancel). Ustawia `cancelledAt`. **Nie** jest `failed` (błąd pipeline) ani `interrupted` (recovery). `POST /runs` nigdy nie tworzy `cancelled`. |
 | **`cancelledAt`** | Timestamp pierwszego udanego przejścia do `cancelled` (`null` \| ISO8601). Bez osobnego `cancelledBy` — przy authz = `startedBy` to ten sam podmiot. |
 | **`cancelRequested`** | Durable flaga na runie (oprócz statusu). Chroni wyścig cancel vs crash procesu, zanim status wyląduje albo abort się domknie. Recovery: leftover `running`/`interrupted` **z** flagą → `cancelled` (bez `recoveryAttempts++`, nie retryable). Flaga na już-terminalnym statusie jest **ignorowana**. |
-| **Anulowanie runu / Stop** | Świadome przerwanie runu przez `startedBy` (lub admin→guest wg authz): HTTP `POST /api/v1/runs/:runId/cancel` (body puste) + **200** bez await execute. Abort V1: (1) in-process `AbortSignal` w `apps/api` (MVP); (2) **propagacja abort api→gateway** (V1). Abort u zewnętrznego providera LLM **poza** tą paczką, jeśli gateway nie ma haczyka. UI: przycisk **Stop** + modal **„Czy na pewno?”**. Zmiana względem: abort gateway/provider „poza v1” jako zakaz. |
+| **Anulowanie runu / Stop** | Świadome przerwanie runu przez `startedBy` (lub admin→guest wg authz): HTTP `POST /api/v1/runs/:runId/cancel` (body puste) + **200** bez await execute. Abort V1: in-process `AbortSignal` w `apps/api` (+ abort `fetch` do gateway). Mapowanie disconnect klienta HTTP na `AbortSignal` hopu LLM w `apps/ai-provider-gateway` **odłożone** (późniejsze fazy — **bez** pinu numeru); hop w gateway może dobiec mimo cancel. Abort u zewnętrznego providera LLM poza gwarancją, dopóki gateway nie honoruje sygnału. UI: przycisk **Stop** + modal **„Czy na pewno?”**. Zmiana względem v29: *„propagacja abort api→gateway”* jako wymóg V1 — odłożone mapowanie hopu. |
 | **`interrupted`** | Status recovery: execute w procesie api zostało przerwane (crash/restart); pipeline **nie leci**, ale to **nie** jest nowa pozycja FIFO z `POST /runs`. Powstaje wyłącznie na bootcie z leftover `running`. Legalne wyjścia: `interrupted → running` (wolny slot), `interrupted → failed` (cap recovery) albo **`interrupted → cancelled`** (Stop / leftover z `cancelRequested`). Zakaz `interrupted → queued`. **Zakaz** utożsamiania z `cancelled`. Nie mylić z `queued` ani z `awaiting_hitl`. |
 | **`startedBy`** | Inicjator runu (sesja). Lista/snapshot; authz oceny, Edytuj, opinii o runie, **anulowania (Stop)** i `GET /runs/user/:userId`. Po auth nowe runy zawsze z inicjatorem. |
 | **Log runu** | Czytelny wpis w DB powiązany z `RunId`, zwykle też z `ConversationId` oraz `RequestId` **tego kroku**; źródło prawdy dla UI. |

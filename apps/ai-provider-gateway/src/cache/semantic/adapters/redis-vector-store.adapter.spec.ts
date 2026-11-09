@@ -401,7 +401,7 @@ describe('RedisVectorStoreAdapter', () => {
       expect(mockDel).not.toHaveBeenCalledWith('no-dist');
       expect(mockDel).not.toHaveBeenCalledWith('ok');
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Invalid semantic cache reply — deleted key:'),
+        expect.stringContaining('Invalid semantic cache reply - deleted key:'),
       );
     });
 
@@ -627,7 +627,7 @@ describe('RedisVectorStoreAdapter', () => {
         expect.stringMatching(new RegExp(`^${indexName}:[a-f0-9]{32}$`)),
       );
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Invalid semantic cache reply — deleted key:'),
+        expect.stringContaining('Invalid semantic cache reply - deleted key:'),
       );
     });
 
