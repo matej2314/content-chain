@@ -1,7 +1,7 @@
 ---
-wersja: 15
+wersja: 16
 data_utworzenia: 2026-09-30
-data_modyfikacji: 2026-10-22
+data_modyfikacji: 2026-11-09
 ---
 
 # Deployment — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-22
 Self-host MVP: jak uruchamiać, konfigurować i utrzymywać jedną instalację (jedna firma = jedna instancja).
 
 Powiązane: `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `testy.md`, `security.md`, `observability.md`.
+
+Zmiana względem wersji 15 / store MVP = SQLite volume: dopisano **topologię V1** — Compose (lub managed) **PostgreSQL** zamiast `api-sqlite` jako kanonu V1; cutover = nowa historia migracji + pusta baza (nie „podmień tylko `DATABASE_URL`”); import SQLite→PG = osobna procedura ops. Kanon MVP (trzy usługi + volume SQLite) **bez zmian** do czasu cutoveru.
 
 Zmiana względem wersji 14 / copy ważności maili: wzorzec „Link wygasa po {X}.”. Od tej wersji: invite/activation — **„Link jest jednorazowy i wygasa po {X}.”** ({X} w miejscowniku, np. `7d` → „7 dniach”); spójne z `dokumentacja_komunikacji.md`. Bez nowych env; URL-only bez zmian.
 
@@ -173,8 +175,34 @@ W `production`: zalecany Prometheus (lub agent) scrapujący api z localhost / si
 - Plik DB na **nazwanym volume** `api-sqlite` montowanym jako **`/app/data`** w kontenerze api; kanoniczny URL: **`DATABASE_URL=file:/app/data/chain.db`**.
 - Backup MVP: spójna kopia pliku SQLite przy zatrzymanym zapisie lub z użyciem bezpiecznej procedury kopiowania (np. `sqlite3 .backup`) — szczegóły w runbooku implementacji.
 - **Backup / restore przenosi konta i role** (w tym `admin`, `user`, **`guest`**). Nowa pusta DB + bootstrap = **nowy** admin (nie „odzyskanie” starego bez restore volume). **`DEMO_MODE` nie degraduje** ról w DB (guest zostaje guest po restarcie z demo off — sesja/login wtedy **401**, wiersz bez zmiany roli).
-- W **MVP**: wyłącznie SQLite (volume), w tym modele reel i Content. **PostgreSQL** — obowiązkowo od fazy **V1 — rozbudowa** (ops / skala, **nie** warunek dodania Content): nowa historia migracji, pusta baza, ew. osobny import danych — `spec/SPEC-PERSISTENCE.md`.
+- W **MVP**: wyłącznie SQLite (volume), w tym modele reel i Content. **PostgreSQL** — obowiązkowo od fazy **V1 — rozbudowa** (ops / skala, **nie** warunek dodania Content): patrz sekcja niżej + `spec/SPEC-PERSISTENCE.md`.
 - Eksport kontekstu do `.md` / checksum — **nie** w pierwszym dowodzie agentów (tuż po MVP).
+
+## V1 — topologia PostgreSQL (cutover ops)
+
+Cutover V1 **zmienia topologię store’a**, nie tylko string `DATABASE_URL`. Nie obiecywać: „podmień URL i odpal te same migracje SQLite na Postgres”.
+
+### Compose / managed (kanon V1)
+
+| Element MVP | Po cutoverze V1 |
+|-------------|-----------------|
+| Volume `api-sqlite` → `file:/app/data/chain.db` | Usługa **Postgres** w compose (nazwany volume danych PG) **albo** managed Postgres poza stackiem |
+| `DATABASE_URL=file:…` | `DATABASE_URL` = connection string Postgres (host serwisu compose lub managed; sekrety w root `.env`) |
+| Historia migracji SQLite w `apps/api/prisma/migrations` | **Nowa** historia Migrate pod provider Postgres; baza startuje **pusta** |
+| Entrypoint api: `prisma migrate deploy` | Bez zmiany sensu: `migrate deploy` **na PG** przed startem Node; pad migracji = pad kontenera |
+
+Trzy usługi aplikacyjne (`ai-provider-gateway` + `api` + `frontend`), sieci (`cc-network` + `main_network`) i publish `127.0.0.1` — **bez zmian** względem modelu Compose-first. Postgres (gdy w compose) należy do topologii store’a V1; Redis nadal **external**.
+
+### Checklist cutover (operator)
+
+1. Backup volume / pliku SQLite (MVP) — procedura jak wyżej.  
+2. Provision Postgres (compose volume **albo** managed) + sekrety w root `.env`.  
+3. Provider Prisma → Postgres; **nowa** historia migracji (archiwum / osobna ścieżka względem SQLite — nie reuse 1:1 plików SQLite).  
+4. Pusta baza → `prisma migrate deploy` (entrypoint api) → smoke `health` / `ready` / `/metrics`.  
+5. (Opcjonalnie) import danych SQLite→PG = **osobna procedura ops** — poza produktem; brak importu = fresh start + bootstrap admin.  
+6. Wyłączenie / usunięcie volume `api-sqlite` z kanonu compose V1 po potwierdzeniu smoke.
+
+Norma silnika i pustej bazy: `architektura.md`, `spec/SPEC-PERSISTENCE.md`. Liczniki Run w `/metrics` idą przez port — niezależne od flipu providera (`observability.md`).
 
 ## Kolejność wdrożenia vs produkt
 
@@ -209,6 +237,7 @@ Compose od początku definiuje wszystkie trzy usługi; „puste” UI do czasu g
 - Sekrety w obrazie Docker (warstwach) zamiast root `.env` runtime z Vault.
 - SQLite na efemerycznym filesystemie kontenera bez volume `api-sqlite`.
 - `DATABASE_URL` / `GATEWAY_BASE_URL` z `localhost` **wewnątrz** kontenera api (zamiast ścieżki volume / hostname serwisu compose).
+- Cutover V1 = sama zmiana `DATABASE_URL` na Postgres **bez** nowej historii migracji / pustej bazy (reuse migracji SQLite).
 - `npm` / `npm ci` w obrazie przy pnpm workspace (łamanie `workspace:` / lockfile).
 - `docker image prune --all` / `docker builder prune --all` po każdym deployu (zamiast wyłącznie dangling).
 - Redis / Ollama / observability jako wymagane usługi w bazowym compose CC.
@@ -217,9 +246,10 @@ Compose od początku definiuje wszystkie trzy usługi; „puste” UI do czasu g
 ## Poza zakresem MVP
 
 - Kubernetes / multi-region  
-- Managed Postgres **w MVP** (Postgres = faza **V1 — rozbudowa**, ops/skala — nie warunek Content)  
+- Managed Postgres **w MVP** (Postgres = faza **V1 — rozbudowa**, ops/skala — nie warunek Content; topologia V1 — sekcja wyżej)  
 - Automatyczny certyfikat / pełny ingress guide (można dodać później)  
 - Multi-tenant SaaS  
 - Multi-instance api / distributed lock sweepera (MVP = single-process)  
 - Rollback (tagi obrazów / poprzednia rewizja), staging, hardening SSL Vault — osobne fazy  
-- Redis / Ollama / compose monitoring **w** bazowym stacku CC
+- Redis / Ollama / compose monitoring **w** bazowym stacku CC  
+- ETL / import SQLite→PG jako kod produktu (tylko procedura ops)

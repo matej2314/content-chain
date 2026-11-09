@@ -1,5 +1,5 @@
 ---
-wersja: 33
+wersja: 34
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-11-09
 ---
@@ -10,7 +10,9 @@ data_modyfikacji: 2026-11-09
 
 Norma bounded contextu **Runs / Logs** w `apps/api`: cykl życia async runu, **lista runów instancji** (opcjonalna paginacja / filtry), **agregacja KPI (`GET /runs/summary`)**, polityka statusów, **anulowanie (`cancelled`)**, kanoniczne logi w DB, emisja SSE, kolejka współbieżności, recovery po przerwaniu procesu, **przegląd runu z TTL** (`pipelineFinishedAt` + `REVIEW_TTL`, sweeper auto-finalize) oraz **`GuestRunPolicy`** (sloty / Redis admit — `docs/dokumentacja_komunikacji.md`).
 
-Uszczegóławia `docs/architektura.md` (async run, klej composite, cancel v1), `docs/dokumentacja_komunikacji.md` (lista / SSE / GET / cancel / ocena / lista user / summary / unia startu), `docs/data_flow.md` (ścieżka cancel, recovery + `cancelRequested`, TTL przeglądu), `docs/observability.md` (pola logów vs metrics) oraz współpracę z `SPEC-SOCIAL.md`, `SPEC-CONTENT.md` i `SPEC-FEEDBACK.md`.
+Uszczegóławia `docs/architektura.md` (async run, klej composite, cancel v1), `docs/dokumentacja_komunikacji.md` (lista / SSE / GET / cancel / ocena / lista user / summary / unia startu), `docs/data_flow.md` (ścieżka cancel, recovery + `cancelRequested`, TTL przeglądu), `docs/observability.md` (pola logów vs metrics; **L-11** — metrics przez port) oraz współpracę z `SPEC-SOCIAL.md`, `SPEC-CONTENT.md` i `SPEC-FEEDBACK.md`.
+
+Zmiana względem wersji 33 / R-8: `/metrics` bez normy źródła liczników `RunStatus`. Od tej wersji **R-14** — `RunStatsPort` / `countByStatus`; **zakaz** Prisma w `metrics/` — obowiązuje na SQLite (MVP) i po PG; **nie** reuse R-13 `aggregateSummary` — `docs/observability.md`, `SPEC-BEZPIECZENSTWO.md` B-9.
 
 Zmiana względem wersji 30 / R-3c: „brak wyjątku admin w MVP” (sugerowało panel cudzych = V1). Od tej wersji: brak wyjątku admin także w **V1** — podgląd cudzych = archiwum `GET /runs`; panel po `GET /runs/user/:userId` dla admina **odpuszczony** — `docs/dokumentacja_komunikacji.md`.
 Zmiana względem wersji 29 / R-3a / R-3c: R-3a = zawsze strona ze stałym `pageSize=10`; R-3c = pełna lista HTTP **bez** `page`/`pageSize` + paginacja „Moje runy” wyłącznie slice FE. Od tej wersji: **opcjonalna** paginacja na obu GET (`page` + `pageSize`); brak parametrów → cała kolekcja w envelope (`page=1`, `pageSize=total`); allowlista `pageSize` ∈ {10, 15, 25, 50}; **400** `VALIDATION_FAILED` poza allowlistą / zły `page` — `docs/dokumentacja_komunikacji.md`, `SPEC-KOMUNIKACJA.md` K-2a / K-2b, `SPEC-FRONTEND.md` F-8.
@@ -194,6 +196,16 @@ R-7. Retention: logi runu **bez TTL** w MVP; **bez** limitu długości `message`
 
 R-8. `/metrics` (Prometheus) **nie** zastępuje logów runu i nie jest kanałem przebiegu domenowego.
 
+R-14. **Liczniki / gauge `RunStatus` dla `/metrics` (L-11):**
+
+1. Moduł `apps/api/src/metrics/` (nie-BC) **nie** wstrzykuje `PrismaService` i **nie** woła `prisma.run.groupBy` (ani innego SQL/ORM) — odczyt statusów wyłącznie przez port.
+2. Port: cienki **`RunStatsPort`** (preferowany; wzorzec read-only jak reader pod Feedback) **albo** metoda **`countByStatus`** na istniejącym `RunRepository` / porcie Run. Adapter ORM **wyłącznie** w `runs/infrastructure/persistence/`.
+3. **Zakaz** reuse R-13 `aggregateSummary` / `GET /runs/summary` jako źródła Prometheus (inny kształt: okno 30d / top `taskType` / scope ról). **Zakaz** CQRS „dla metrics”.
+4. Norma obowiązuje **już w MVP na SQLite** — **nie** jest warunkowana cutoverem PostgreSQL. Testowalna bez flipu providera.
+5. Spójność ekspozycji `/metrics` (zestaw sygnałów, sekrety w labelach) — `SPEC-BEZPIECZENSTWO.md` B-9; kanon docs: `docs/observability.md`.
+
+Zmiana względem wersji 33: brak egzekwowalnego zakazu Prisma w `metrics/`. Od tej wersji R-14.
+
 R-9. Recovery po brutalnym przerwaniu `running` (restart / crash procesu api):
 
 1. Przy starcie api, **zanim** pump claimuje `queued`:
@@ -325,6 +337,7 @@ Wolno wydzielić kernel Nest (lifecycle + repo + hub) od HTTP/workera **w tym sa
 | Port lifecycle | Token + interfejs `appendLog` + `transition` w `domain/`; graf zależy od portu, nie od klasy `RunLifecycleService` |
 | Port executor | Token `RunExecutorPort` w Runs; **composite** w kleju wpinający Social i Content; **binding w `AppModule` / `registerAsync`**; `execute` z `AbortSignal` |
 | Odczyt snapshotu `result`/`hitl` | Composite reader; **zakaz** wstrzykiwania store Social/Content do use-case’u Runs przez `imports: [SocialModule]` / `ContentModule` |
+| Port stats (metrics) | `RunStatsPort` **albo** `countByStatus` na porcie Run; konsument = `metrics/` — **bez** Prisma w module ops (R-14) |
 | Lokalizacja I/O / kernel | Hub SSE = `infrastructure/sse/`; Prisma run/log/output-edited + mapowania wiersza = `infrastructure/persistence/`; Redis guest quota = `infrastructure/quota/`; stub dispatch = `infrastructure/dispatch/`; kernel worker/abort/dispatch = `application/lifecycle/`; `GuestRunPolicy` = `application/guest/` |
 
 Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnienia lifecycle vs executor vs reader; binding executora nie był unormowany (feature plan Fazy 4 wstawiał `forwardRef`).
@@ -369,6 +382,8 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Hardkodowania wartości `SSE_HEARTBEAT_MS` i `RUN_SSE_SUBJECT_TTL_MS` w kodzie (env z walidacją Zod).
 - Traktowania stdout jako jedynego źródła przebiegu dla UI.
 - Mylenia `/metrics` z logami runu.
+- `PrismaService` / `prisma.*.groupBy` (lub innego ORM/SQL) w `apps/api/src/metrics/` — obowiązuje R-14 (port stats).
+- Podpinania R-13 `aggregateSummary` jako jedynego źródła gauge `RunStatus` w Prometheus.
 - Niedozwolonych skoków statusów.
 - Spawnu procesu per run; always-on worker process w MVP.
 - Cichego `queued` ponad `MAX_USER_IN_FLIGHT_RUNS` (R-6a) — przekroczenie = **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED`.
@@ -423,6 +438,7 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 |---------|--------|
 | BC Runs + porty używane przez Social i Content | obowiązkowe |
 | Port lifecycle + binding composite `RunExecutorPort` w kleju procesu (bez cyklu Nest) | obowiązkowe |
+| Port stats dla `/metrics` (`RunStatsPort` / `countByStatus` — R-14) | obowiązkowe (MVP; niezależne od PG) |
 | Append-only logi w DB + SSE Nest | obowiązkowe |
 | Hub SSE: `complete` + evikcja subjectu po `completed`/`failed`/`cancelled` (R-4a) | obowiązkowe |
 | `RUN_SSE_SUBJECT_TTL_MS` (env, default `600_000`) — TTL automatu ewikcji Subject | obowiązkowe |
@@ -458,6 +474,7 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 - [ ] HITL po `cancelled` odrzucony; flaga `cancelRequested` na już-terminalnym ignorowana.
 - [ ] Social / Content nie emitują SSE omijając Runs.
 - [ ] `/metrics` nie jest używane jako podgląd przebiegu runu.
+- [ ] Liczniki `RunStatus` w `metrics/` idą przez `RunStatsPort` / `countByStatus` — brak `PrismaService` w module metrics (R-14).
 - [ ] Brak cyklu Nest Runs ↔ Social / Content; worker dostaje composite executor z kleju.
 - [ ] `POST /runs` z `page_*` bez `platform` i z `contentKind` → 202; page + `platform: linkedin` → 400; `taskType` spoza enumu → 400.
 - [ ] HITL `page_outline_then_copy` z id ≠ `outline.id` → 400 `HITL_INVALID_SELECTION`; run zostaje `awaiting_hitl`.

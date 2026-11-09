@@ -1710,11 +1710,3 @@ Zmiana względem: status Fazy 30 (`NIE_ROZPOCZĘTY`). Powód: ślad do major po 
 - Zależność api = backend **Faza 29** (osobny tor — ten major jej **nie** oznacza).
 - HOW = `feature-plans/content-chain_feature_plan_faza-30-user-in-flight-limit-frontend.md` (poza tym majorem).
 
-<div align="center">
-
-## **POST-MVP**
-
-</div>
-
-Gate FE pod V1 execute/safety UX: **Faza 30** (`WYKONANY`) powyżej. Zależność api = backend **Faza 29**. Kolejne paczki post-MVP (C persistence, D auth/chrome, …) — osobne aux plany / fazy; nie cytować aux jako wymogu w feature-planach.
-

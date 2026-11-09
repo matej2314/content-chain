@@ -1,7 +1,7 @@
 ---
-wersja: 19
+wersja: 20
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-28
+data_modyfikacji: 2026-11-09
 ---
 
 # SPEC — Persistence
@@ -10,7 +10,9 @@ data_modyfikacji: 2026-10-28
 
 Norma warstwy persistence w `apps/api`: port + adapter Prisma, lokalizacja schema/migracji, kanoniczność DB, zakazy ORM w domain oraz **harmonogram silników** SQLite → PostgreSQL.
 
-Uszczegóławia `docs/architektura.md`, `docs/architektura_katalogi_pliki.md` oraz brak cichego fallbacku z `docs/dokumentacja_koncepcyjna.md` / `docs/anty_patterny.md`.
+Uszczegóławia `docs/architektura.md`, `docs/architektura_katalogi_pliki.md`, `docs/deployment.md` (topologia Compose MVP vs V1) oraz brak cichego fallbacku z `docs/dokumentacja_koncepcyjna.md` / `docs/anty_patterny.md`.
+
+Zmiana względem wersji 19 / P-6a: kanon prod = wyłącznie volume SQLite. Od tej wersji **P-6b** — topologia V1 = Postgres (compose lub managed) zamiast `api-sqlite`; cutover C1/C2 **bez** re-write — odesłanie do sekcji silników + `docs/deployment.md`. Liczniki metrics → port (L-11): `SPEC-RUNY.md` R-14 / `SPEC-BEZPIECZENSTWO.md` B-9 — **nie** w tym SPEC.
 
 Zmiana względem wersji 9: kanon Run bez `pipelineFinishedAt` / indeksu pod sweeper. Od tej wersji kolumna kotwicy TTL przeglądu + migracja backfill B — `docs/dictionary.md`, `SPEC-RUNY.md` R-10.
 Zmiana względem wersji 11: kanon Auth bez `verifiedAt` / `AccountActivation`. Od tej wersji marker weryfikacji + tabela tokenu aktywacji — `docs/dictionary.md`, `SPEC-AUTH.md` A-11…A-13.
@@ -134,9 +136,13 @@ Zmiana względem wersji 3: kanon nie rozdzielał liczników refine — Content m
 
 P-6. W MVP `datasource.provider = "sqlite"`. Wprowadzenie PostgreSQL jako providera aplikacji = sygnał wejścia w fazę **V1 — rozbudowa** (patrz tabela wyżej), z nową historią migracji.
 
-P-6a. **Ścieżka pliku SQLite w production (Compose):** `DATABASE_URL=file:/app/data/chain.db`; named volume **`api-sqlite`** montowany jako **`/app/data`** w kontenerze api. Plik DB **nie** może żyć wyłącznie na efemerycznym filesystemie kontenera. DX lokalny: dowolna ścieżka pliku zgodna z `.env` / Prisma — byle provider = sqlite. Ops volume / entrypoint migracji: `docs/deployment.md`.
+P-6a. **Ścieżka pliku SQLite w production (Compose) — MVP:** `DATABASE_URL=file:/app/data/chain.db`; named volume **`api-sqlite`** montowany jako **`/app/data`** w kontenerze api. Plik DB **nie** może żyć wyłącznie na efemerycznym filesystemie kontenera. DX lokalny: dowolna ścieżka pliku zgodna z `.env` / Prisma — byle provider = sqlite. Ops volume / entrypoint migracji: `docs/deployment.md`.
 
 Zmiana względem wersji 17 / P-6: brak pinu ścieżki / volume w SPEC. Od tej wersji P-6a (kanon prod + odwołanie do deployment).
+
+P-6b. **Topologia store’a V1 (Compose / managed):** po wejściu w **V1 — rozbudowa** kanonem jest **PostgreSQL** — usługa w compose (named volume danych PG) **albo** managed Postgres; `DATABASE_URL` = connection string PG; entrypoint api nadal `prisma migrate deploy` **na pustej bazie** z **nową** historią migracji. Volume `api-sqlite` **przestaje** być kanonem V1. Cutover ≠ sama podmiana URL na te same migracje SQLite. Import SQLite→PG = osobna procedura ops. Checklist / szczegóły sieci: `docs/deployment.md` (sekcja V1). Semantyka silników C1/C2 w tabeli wyżej — **bez** redefinicji.
+
+Zmiana względem wersji 19: brak pinu topologii Compose pod PG. Od tej wersji P-6b (odesłanie do deployment; bez ETL w produkcie).
 
 P-7. `schema.prisma` w MVP utrzymywać **przenośnie** (unikać zbędnych atrybutów `@db.*` / typów tylko pod jeden silnik), żeby modele dało się przenieść przy cutoverze na PostgreSQL przy minimalnych poprawkach. Partial unique zaproszeń (`UNIQUE (email) WHERE status = 'pending'`) jest SQL w migracji — **ten sam wzorzec** przenosi się na PostgreSQL przy cutoverze (nowa historia migracji, ten sam predykat).
 
@@ -163,7 +169,8 @@ Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/
 | Port persistence | interfejsy per potrzeba BC (users, **invitations**, **account-activation**, sessions, context, runs, logs, wyniki SM, feedback) |
 | Adapter | Prisma implementuje porty; lokalizacja = `<bc>/infrastructure/` **albo** `<bc>/infrastructure/persistence/` (gdy BC ma kilka I/O) |
 | SQLite ops (WAL, busy_timeout) | **poza** sztywną normą SPEC — decyzja implementacyjna pod współbieżność runów |
-| Plik SQLite (production) | volume `api-sqlite` → `/app/data/chain.db` (P-6a); szczegóły compose — `docs/deployment.md` |
+| Plik SQLite (production MVP) | volume `api-sqlite` → `/app/data/chain.db` (P-6a); szczegóły compose — `docs/deployment.md` |
+| Store V1 | Postgres compose/managed (P-6b); nie reuse migracji SQLite; import = ops |
 | Kolumny kontekstu firmy | per sekcja — `SPEC-KONTEKST-FIRMY.md` |
 | Sesje refresh (hash) | `SPEC-AUTH.md` |
 
@@ -184,6 +191,7 @@ Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/
 - Trzymania kanonicznego pliku SQLite **wyłącznie** na efemerycznym FS kontenera w production (bez volume `api-sqlite` / równoważnego trwałego mounta — P-6a).
 - Pozostawania przy SQLite jako kanonie po wejściu w V1 — rozbudowę (ops/skala; **nie** mylić z „po dodaniu Content” — Content jest w MVP na SQLite).
 - Obiecywać w kodzie/docs wewnętrznych, że te same pliki migracji SQLite zadziałają na PostgreSQL bez nowej historii.
+- Traktowania cutoveru V1 jako wyłącznie zmiany `DATABASE_URL` przy zachowaniu volume `api-sqlite` / historii SQLite (P-6b).
 - Drugiego ORM równolegle do Prisma.
 - Przenoszenia reguł domenowych do UI przy zmianie silnika.
 - Zapisu refine outline/copy (BC Content) do `Run.ideasRefineCount` / `Run.contentRefineCount`.
@@ -229,6 +237,7 @@ Zmiana względem wersji 11 / „Nie wolno”: dopisano zakazy pending przez `isA
 ## Kryteria akceptacji
 
 - [ ] MVP: `provider = sqlite`, migracje w repo, aplikacja wstaje na pliku SQLite; w production Compose: `DATABASE_URL=file:/app/data/chain.db` + volume `api-sqlite` (P-6a).
+- [ ] V1: topologia Postgres (compose/managed) opisana w ops; cutover ≠ sama zmiana URL; import = osobna procedura (P-6b / `docs/deployment.md`).
 - [ ] Żaden plik w `domain/` nie importuje `@prisma/client`.
 - [ ] ID w DB mają prefiksy brandów z docs.
 - [ ] Brak ścieżki runtime fallbacku kontekstu z `.md`.

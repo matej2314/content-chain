@@ -1,12 +1,14 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-22
+data_modyfikacji: 2026-11-09
 ---
 
 # Architektura katalogów i plików — Content Chain
 
 Propozycja **docelowego drzewa** monorepo (greenfield). Odzwierciedla style i granice z `architektura.md`: trzy aplikacje pod `apps/`, wspólne typy w `packages/shared`, `docs/` w rootcie. **Bez** rootowego katalogu `src/` opakowującego aplikacje.
+
+Zmiana względem wersji 8 / metrics: `metrics/` woła port stats Run (`RunStatsPort` / `countByStatus`) — **bez** Prisma w tym katalogu; norma w `observability.md` (MVP/SQLite).
 
 Zmiana względem wersji 7 / mail CID: drzewo wymieniało CID głównie jako zrzuty `user_welcome`. Od tej wersji w `infrastructure/mail/` żyje także **asset logotypu** wspólnego shella (CID marki w headerze HTML dla wszystkich kinds) — obok assets welcome; nadal wyłącznie I/O, **nie** domain/use-case / FE.
 
@@ -229,7 +231,7 @@ Pomocnicze elementy wyłącznie API (np. konfiguracja, interceptory, mapping bł
 To **nie** są bounded contexty — brak układu `application` / `domain` / `infrastructure`.
 
 - `health/` — liveness procesu (`GET /api/v1/health`) oraz readiness produktowa (`GET /api/v1/health/ready`: check api + probe upstream **liveness** gateway). Cienki klient HTTP probe **w `health/`** (lub obok), **nie** w porcie `chat` / `llm/`. Kontrakt: `dokumentacja_komunikacji.md`.
-- `metrics/` — eksporter Prometheus (`GET /metrics` poza `/api/v1`; `observability.md`).
+- `metrics/` — eksporter Prometheus (`GET /metrics` poza `/api/v1`; `observability.md`). Liczniki `RunStatus` **przez port** (`RunStatsPort` / `countByStatus`); **zakaz** `PrismaService` / ORM w tym katalogu — adapter zostaje przy Runs.
 - `llm/` — port LLM i adapter HTTP do `apps/ai-provider-gateway` (**chat**). Wołają go BC (Social, Content), nie kontrolery HTTP. **Bez** obowiązku pełnienia roli probe health. Helper kształtu logu hopu: `llm-gateway-chat.log.ts` (stdout tylko w `development`, z redakcją `GATEWAY_KEY` — `observability.md`). **Nie** umieszczać tu domeny Content Chain ani kluczy vendorów.
 
 ## `apps/frontend`

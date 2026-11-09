@@ -1,16 +1,18 @@
 ---
-wersja: 20
+wersja: 21
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-29
+data_modyfikacji: 2026-11-09
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
 
 ## Cel / zakres względem dokumentacji
 
-Norma **przekrojowa**: bezpieczeństwo implementacji i ekspozycji self-host (env, powierzchnie sieciowe, cookie, brak wycieku sekretów w logach/metrics) — uszczegółowienie `docs/security.md`, `docs/deployment.md`, `docs/observability.md` oraz spójność z `SPEC-AUTH.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-FRONTEND.md`, `SPEC-PERSISTENCE.md`.
+Norma **przekrojowa**: bezpieczeństwo implementacji i ekspozycji self-host (env, powierzchnie sieciowe, cookie, brak wycieku sekretów w logach/metrics) — uszczegółowienie `docs/security.md`, `docs/deployment.md`, `docs/observability.md` oraz spójność z `SPEC-AUTH.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-FRONTEND.md`, `SPEC-PERSISTENCE.md`, `SPEC-RUNY.md`.
 
 Nie zastępuje BC Auth ani pełnego runbooka operatorskiego — spina reguły egzekwowalne w kodzie i przy deployu MVP.
+
+Zmiana względem wersji 20 / B-9: zestaw `/metrics` bez źródła liczników Run. Od tej wersji B-9 — odczyt statusów **przez port** (`RunStatsPort` / `countByStatus`); **zakaz** `PrismaService` w `metrics/` (L-11) — `docs/observability.md`, `SPEC-RUNY.md` R-14.
 
 Zmiana względem wersji 10 / cel: surface publiczne auth = accept-invite (+ sesyjne 409). Od tej wersji także register / activate / resend — anti-enum częściowa (`docs/security.md`).
 
@@ -84,7 +86,9 @@ B-8a. `currentPassword` w `PATCH /auth/me/email` jest sekretem jak hasło logowa
 
 Zmiana względem: mutacja email na `PATCH /auth/me` bez re-auth albo z `UNAUTHORIZED` na złe hasło.
 
-B-9. Minimalny zestaw `/metrics` (proces `apps/api`) zgodny z `docs/observability.md`: HTTP (licznik + latencja), uptime/process, liczniki/gauge statusów runów, sygnały błędów wywołań gateway — nazwy mogą mieć prefiks `content_chain_`.
+B-9. Minimalny zestaw `/metrics` (proces `apps/api`) zgodny z `docs/observability.md`: HTTP (licznik + latencja), uptime/process, liczniki/gauge statusów runów, sygnały błędów wywołań gateway — nazwy mogą mieć prefiks `content_chain_`. **Źródło liczników `RunStatus`:** wyłącznie port Runs (`RunStatsPort` albo `countByStatus`) — **zakaz** bezpośredniego `PrismaService` / `groupBy` / SQL w `apps/api/src/metrics/`. Metrics **nie** zależy od schematu Prisma „na skróty”. Norma obowiązuje **już w MVP (SQLite)** — **nie** dopiero po cutoverze PostgreSQL. Szczegół portu: `SPEC-RUNY.md` R-14.
+
+Zmiana względem wersji 20 / B-9: Prometheus „czyta tabelę” przez ORM w module ops było milczeniem. Od tej wersji jawny zakaz + port.
 
 B-10. Bootstrap / jeden admin / polityka haseł — jak `SPEC-AUTH.md` / `docs/security.md` (ten SPEC nie dubluje szczegółów, ale uznaje je za obowiązujące przy review security).
 
@@ -116,8 +120,8 @@ Zmiana względem wersji 16: brak normy Users DELETE rozgałęzionego / cancel ad
 | Konfiguracja | **`@nestjs/config`** w `apps/api` + walidowany obiekt env przy starcie (fail-fast — B-1; pełne egzekwowanie krytycznych env może dojść w Fazie 2 major, deps/ConfigModule wcześniej) |
 | FE | Brak URL-a api w `NEXT_PUBLIC_*`; `API_BASE_URL` tylko serwer Next |
 | Auth transport | Cookie-only MVP — `SPEC-AUTH.md` / `SPEC-FRONTEND.md` |
-| Logi vs metrics | Logi procesu: **Pino** / `nestjs-pino` (stdout); logi runu = DB/SSE; metrics = ops procesu — bez mieszania i bez sekretów (`docs/observability.md`) |
-| Deploy | Compose-first: trzy usługi; publish **`127.0.0.1`**; sekrety = root `.env` (Vault); volume SQLite `api-sqlite` → `/app/data/chain.db`; Redis external; HTTPS / edge przed FE na `main_network`; lokalnie api **PORT=3001** (`docs/deployment.md`) |
+| Logi vs metrics | Logi procesu: **Pino** / `nestjs-pino` (stdout); logi runu = DB/SSE; metrics = ops procesu — bez mieszania i bez sekretów; liczniki Run **przez port** (B-9 / R-14) — `docs/observability.md` |
+| Deploy | Compose-first: trzy usługi; publish **`127.0.0.1`**; sekrety = root `.env` (Vault); volume SQLite `api-sqlite` → `/app/data/chain.db` (**MVP**); V1 = topologia Postgres — `docs/deployment.md` / `SPEC-PERSISTENCE.md`; Redis external; HTTPS / edge przed FE na `main_network`; lokalnie api **PORT=3001** |
 
 ### Wolno
 
@@ -132,6 +136,7 @@ Zmiana względem wersji 16: brak normy Users DELETE rozgałęzionego / cancel ad
 - Publicznego bind `0.0.0.0` dla FE / api / gateway jako kanonu `production` (obowiązuje **`127.0.0.1`** — B-6).
 - Publicznego gateway z kluczami vendorów w production.
 - Publicznego `/metrics` na internet w production.
+- `PrismaService` / ORM / SQL w `apps/api/src/metrics/` (B-9 / R-14) — review PR `metrics` → Prisma = naruszenie SPEC.
 - Sekretów LLM / gateway w FE.
 - Wycieku `GATEWAY_KEY` / `X-Gateway-Key` / sekretów env w body `GET /api/v1/health` albo `GET /api/v1/health/ready`.
 - Dumpa pełnych promptów hopu gateway na stdout w `production` (w tym przy `NODE_ENV=production`).
@@ -187,7 +192,7 @@ Zmiana względem wersji 4: B-1 fail-fast SMTP/`MAIL_FROM`/`APP_PUBLIC_URL` w `pr
 - [ ] Publiczne auth: register kolizja → **409**; resend = stały sukces; login pending / soft-delete / złe hasło / guest przy demo off = wspólny **401**; activate-fail = wspólny **401**; accept-invite kolizja = **401** (nie 409).
 - [ ] `GET /config` publiczny, body tylko `demoMode`; GuestGuard default deny; Redis nie psuje ready.
 - [ ] B-12: soft/hard DELETE wg roli; access po soft/hard → 401; Redis ratings SCAN fail-open; cancel admin→guest; audyt strukturalny.
-- [ ] `/metrics` zwraca co najmniej sygnały z B-9.
+- [ ] `/metrics` zwraca co najmniej sygnały z B-9; liczniki Run bez Prisma w module `metrics/` (port — R-14).
 - [ ] Checklist operatora z `docs/security.md` da się odhaczyć na instalacji compose.
 
 ## Poza zakresem

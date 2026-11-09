@@ -1,5 +1,5 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-09-27
 data_modyfikacji: 2026-11-09
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-09
 ## Widok systemu
 
 Content Chain to **modularny monolit w monorepo** z trzema osobnymi procesami runtime oraz wspólnym pakietem kontraktów.
+
+Zmiana względem wersji 7 / observability: `metrics/` czyta liczniki `RunStatus` **przez port** (`RunStatsPort` / `countByStatus`) — **zakaz** Prisma w module ops; obowiązuje na SQLite (MVP) i po PG. Szczegół → `observability.md`.
 
 Zmiana względem wersji 4 / Auth kinds: MVP = `user_invited` \| `user_activation`. Od tej wersji unia kinds obejmuje także **`user_welcome`** (szablon HTML+text we wspólnym shellu; zrzuty jako załączniki **CID** w warstwie mail I/O — **nie** w domain/use-case). Nadal **port Auth** (nie osobny BC); **bez** szablonów FE / React Email. Szczegół drzewa → `architektura_katalogi_pliki.md`.
 
@@ -138,9 +140,9 @@ flowchart TB
 - **Application:** orkiestracja przypadku użycia (start runu, wznowienie po HITL, odczyt logów). Gdy warstwa miesza kernel procesu z use-case’ami HTTP — wolno wydzielić podkatalogi (`lifecycle/`, `guest/`); to nadal ta sama warstwa application, nie nowe BC.
 - **Domain:** reguły niezależne od Nest/LLM (kompletność kontekstu, dozwolone przejścia statusów, role).
 - **Ports / adapters:** Prisma + **SQLite w MVP** (ORM tylko w infrastructure); klient HTTP (lub równoważny) do gateway jako adapter portu LLM. PostgreSQL — od fazy **V1 — rozbudowa** (ops/skala, nie warunek Content). Gdy `infrastructure/` miesza kilka granic I/O, podkatalogi (`persistence/`, `sse/`, `quota/`, `mail/`, `session/`, `graph/`, …) organizują adaptery — **bez** zmiany kierunku zależności ani nowych BC. Auth `mail/`: adapter SMTP / logujący + **renderer szablonów** (HTML + plain text) — treść **nie** w use-case / domain. Szczegół → `architektura_katalogi_pliki.md`.
-- **Cross-cutting w `apps/api` (MVP):** `@nestjs/config` (env), **Pino** / `nestjs-pino` (logi procesu — `observability.md`), DX OpenAPI **Swagger UI pod `/docs`** (poza prefiksem produktowym `/api/v1`; szczegóły `dokumentacja_komunikacji.md`). Walidacja HTTP: class-validator; application: Zod — `SPEC-KOMUNIKACJA.md`.
+- **Cross-cutting w `apps/api` (MVP):** `@nestjs/config` (env), **Pino** / `nestjs-pino` (logi procesu — `observability.md`), DX OpenAPI **Swagger UI pod `/docs`** (poza prefiksem produktowym `/api/v1`; szczegóły `dokumentacja_komunikacji.md`). Walidacja HTTP: class-validator; application: Zod — `SPEC-KOMUNIKACJA.md`. Moduł `metrics/` (nie-BC) eksportuje Prometheus; odczyt statusów Run **wyłącznie** przez port (`RunStatsPort` / `countByStatus`) — ORM zostaje w adapterze Runs (`observability.md`).
 
-**Anty-patterny do unikania:** reguły biznesowe w controllerze; bezpośrednie wywołania vendorów LLM z `apps/api`; logika SM / Content w `apps/frontend` lub w gateway; synchroniczne blokowanie HTTP na cały długi run LLM; montowanie Swagger pod `/api` (kolizja z `/api/v1`); wzajemny `forwardRef` między modułami Nest BC Runs i grafem (albo import `SocialModule` / `ContentModule` z `RunsModule`) jako klej pipeline’u; traktowanie `'web'` jako `SocialPlatform`.
+**Anty-patterny do unikania:** reguły biznesowe w controllerze; bezpośrednie wywołania vendorów LLM z `apps/api`; logika SM / Content w `apps/frontend` lub w gateway; synchroniczne blokowanie HTTP na cały długi run LLM; montowanie Swagger pod `/api` (kolizja z `/api/v1`); wzajemny `forwardRef` między modułami Nest BC Runs i grafem (albo import `SocialModule` / `ContentModule` z `RunsModule`) jako klej pipeline’u; traktowanie `'web'` jako `SocialPlatform`; `PrismaService` / `groupBy` w `metrics/` omijające port Run.
 
 ## Async run i HITL
 

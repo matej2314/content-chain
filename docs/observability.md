@@ -1,14 +1,16 @@
 ---
-wersja: 1
+wersja: 2
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-09-27
+data_modyfikacji: 2026-11-09
 ---
 
 # Observability — Content Chain
 
 Co obserwujemy w MVP: **metryki procesu** vs **logi runu** (przebieg domenowy). Nie mylić ze sobą.
 
-Powiązane: `dokumentacja_komunikacji.md`, `data_flow.md`, `deployment.md`, `brand_types.md`, `security.md`.
+Powiązane: `dokumentacja_komunikacji.md`, `data_flow.md`, `deployment.md`, `brand_types.md`, `security.md`, `architektura.md`.
+
+Zmiana względem wersji 1: gauge / liczniki `RunStatus` w `metrics/` czytają stan Run **przez port** (`RunStatsPort` albo `countByStatus` na porcie Run) — **zakaz** bezpośredniego `PrismaService` / `groupBy` w `metrics/`. Norma obowiązuje **już w MVP na SQLite**, nie dopiero po cutoverze PostgreSQL. Bez nowego kanału metryk poza statusem.
 
 Zmiana względem wcześniejszej wersji (bez frontmatteru): gauge / liczniki `RunStatus` obejmują **`cancelled`**; ewent. log informacyjny przy cancel (append-only w `run.log`) — bez nowego kanału metryk poza statusem.
 
@@ -44,13 +46,25 @@ Minimalny zestaw (nazwy przykładowe — implementacja może użyć prefiksu `co
 | Runy | Liczniki / gauge wg `RunStatus` (queued, running, interrupted, awaiting_hitl, completed, failed, **cancelled**) |
 | Gateway (z perspektywy api) | Licznik błędów / timeoutów wywołań do gateway (nie mylić z logiem runu) |
 
+### Źródło liczników Run (L-11)
+
+`apps/api/src/metrics/` to **nie-BC** (eksport Prometheus) — ale odczyt statusów Run **nie** omija granicy portu.
+
+| Wolno | Zakaz |
+|-------|--------|
+| Cienki `RunStatsPort` (wzorzec jak read-only reader pod Feedback) **albo** `countByStatus` na istniejącym porcie Run | `PrismaService` / `prisma.run.groupBy` (i inny SQL/ORM) **w** `metrics/` |
+| Adapter portu w infrastructure Runs (ORM tylko tam) | Uzależnianie metryk od schematu Prisma „na skróty” |
+| Testy liczników Run **na SQLite** (MVP) — bez czekania na PostgreSQL | Traktowanie cutoveru PG jako warunku spłaty L-11 |
+
+`aggregateSummary` (okno 30d / top `taskType` pod KPI Konta) **nie** zastępuje `countByStatus` / `RunStatsPort` — inny kształt kontraktu. **Bez** CQRS „dla metrics”.
+
 Poza MVP metryk: pełny USE/RED, tracing OTel, biznesowe „jakość copy”, **analityka ocen / opinii** (panel admina — V1 — rozbudowa).
 
 ### Scrape
 
 - **Wymagane w ops production:** Prometheus (lub agent) → `apps/api` `/metrics`.
 - **Opcjonalnie:** drugi job → `apps/ai-provider-gateway` `/metrics` (kontrakt upstream).
-- Retention / storage metryk = odpowiedzialność instalacji Prometheus operatora (CC nie trzyma time-series w SQLite).
+- Retention / storage metryk = odpowiedzialność instalacji Prometheus operatora (CC nie trzyma time-series w store’ie aplikacji).
 
 ## Logi runu (domena)
 
@@ -95,6 +109,7 @@ Szczegóły: `brand_types.md`, `dictionary.md`.
 - Happy path runu: w UI/API widać czytelne logi kroków ze `step` i `conversationId` (post, reel i page).
 - Po każdym udanym hopie LLM w logu jest `requestId` z gateway.
 - `/metrics` zwraca HTTP i run status counters bez auth w sieci ops.
+- Liczniki `RunStatus` w `metrics/` idą przez port (`RunStatsPort` / `countByStatus`) — **bez** Prisma w `metrics/` (także na SQLite).
 - Brak sekretów w logach runu i w metrykach (labelach).
 - Dump pełnej treści hopu chat na stdout wyłącznie w `development`, z `[REDACTED]` zamiast `GATEWAY_KEY`.
 
