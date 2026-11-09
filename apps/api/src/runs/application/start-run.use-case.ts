@@ -1,15 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { GetCompletenessUseCase } from '../../company-context/application/get-completeness.use-case';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import { newConversationId, newRunId } from '../../shared/http/new-ids';
-import type { AuthUserContext } from '../../shared/types/auth-user-context';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import { InProcessRunWorker } from './lifecycle/in-process-run.worker';
-import { parseWithZod } from '../../shared/parse-with-zod';
-import {
-  startRunCommandSchema,
-  type ParsedStartRunCommand,
-} from './run.schemas';
 import {
   isContentTaskType,
   type ContentKind,
@@ -18,12 +7,24 @@ import {
   type RunTaskType,
   type SocialPlatform,
 } from '@content-chain/shared';
+import { GetCompletenessUseCase } from '../../company-context/application/get-completeness.use-case';
+import { ENV, type Env } from '../../shared/config/env';
+import { DomainException } from '../../shared/exceptions/domain.exception';
+import { newConversationId, newRunId } from '../../shared/http/new-ids';
+import { parseWithZod } from '../../shared/parse-with-zod';
+import type { AuthUserContext } from '../../shared/types/auth-user-context';
+import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import type {
   ContentRunRecord,
   RunRecord,
   SocialRunRecord,
 } from '../domain/run.types';
 import { GuestRunPolicyService } from './guest/guest-run-policy.service';
+import { InProcessRunWorker } from './lifecycle/in-process-run.worker';
+import {
+  startRunCommandSchema,
+  type ParsedStartRunCommand,
+} from './run.schemas';
 
 export type StartRunBriefInput = {
   topic: string;
@@ -76,6 +77,7 @@ export class StartRunUseCase {
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
     private readonly worker: InProcessRunWorker,
     private readonly guestPolicy: GuestRunPolicyService,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   async execute(
@@ -100,6 +102,21 @@ export class StartRunUseCase {
       actor === null
         ? null
         : await this.guestPolicy.admitStart(actor, parsedCommand.taskType);
+
+    if (actor !== null) {
+      const inFlight = await this.runs.countInFlightByUser(actor.id);
+      if (inFlight >= this.env.MAX_USER_IN_FLIGHT_RUNS) {
+        if (guestAdmit !== null) {
+          await guestAdmit.release();
+        }
+        throw new DomainException(
+          'USER_IN_FLIGHT_LIMIT_EXCEEDED',
+          'User in-flight run limit exceeded',
+          409,
+        );
+      }
+    }
+
     const startedByUserId = actor?.id ?? null;
 
     let run: RunRecord;

@@ -93,6 +93,8 @@ export interface RunRepository {
   setPipelineFinishedAt(id: RunId, at: Date): Promise<void>;
   finalizeExpiredReviews(now: Date, reviewTtlMs: number): Promise<number>;
   countByUserAndType(userId: UserId, taskType: RunTaskType): Promise<number>;
+  /** R-6a: własne runy w queued | running | interrupted | awaiting_hitl. */
+  countInFlightByUser(userId: UserId): Promise<number>;
   aggregateSummary(
     scope: RunSummaryScope,
     windowFrom: Date,

@@ -24,8 +24,22 @@ describe('validateEnv', () => {
     const env = validateEnv(valid);
     expect(env.PORT).toBe(3001);
     expect(env.MAX_CONCURRENT_RUNS).toBe(3);
+    expect(env.MAX_USER_IN_FLIGHT_RUNS).toBe(3);
     expect(env.GATEWAY_MODEL_ALIAS).toBe('chat-default');
   });
+
+  it('defaults MAX_USER_IN_FLIGHT_RUNS to 3 when key is absent', () => {
+    expect(validateEnv(valid).MAX_USER_IN_FLIGHT_RUNS).toBe(3);
+  });
+
+  it.each(['0', '-1'] as const)(
+    'throws when MAX_USER_IN_FLIGHT_RUNS is %s',
+    (value) => {
+      expect(() =>
+        validateEnv({ ...valid, MAX_USER_IN_FLIGHT_RUNS: value }),
+      ).toThrow();
+    },
+  );
 
   it.each([
     'DATABASE_URL',

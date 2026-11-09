@@ -318,6 +318,15 @@ export class PrismaRunAdapter implements RunRepository {
     });
   }
 
+  async countInFlightByUser(userId: UserId): Promise<number> {
+    return this.prisma.run.count({
+      where: {
+        startedByUserId: userId,
+        status: { in: [...CANCELABLE_RUN_STATUSES] },
+      },
+    });
+  }
+
   async aggregateSummary(
     scope: RunSummaryScope,
     windowFrom: Date,

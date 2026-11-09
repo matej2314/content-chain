@@ -32,7 +32,7 @@
 
 1. Env `MAX_USER_IN_FLIGHT_RUNS` **przed** admit w `StartRunUseCase`.
 2. Port COUNT in-flight **przed** create Run.
-3. Haczyk disconnect→`AbortSignal` w gateway **przed** asercjami E2E abort (KROK 3 → 4).
+3. Haczyk disconnect→`AbortSignal` w gateway (`req`+`res`, nie `!req.complete`) **przed** asercjami E2E abort (KROK 3 → 4).
 4. Poprawka `RunAbortRegistry` (cancel przed `begin`) **przed** testami race cancel.
 5. `parseWithZod` — **brak zmian pliku**; tylko weryfikacja regresji w KROK 6.
 6. Testy na końcu.
@@ -62,7 +62,7 @@
 
 | Temat | Źródło | Ustalenie | Decyzja w wycinku |
 |-------|--------|-----------|-------------------|
-| Client disconnect / `AbortSignal` | Context7 `/nestjs/docs.nestjs.com` (SSE `@SseSignal`) | Nest dokumentuje abort przy disconnect; dla zwykłego POST Express: `req` `aborted` / `close` → własny `AbortController` | Helper `abortSignalFromIncomingMessage(req)` w gateway; **bez** nowej trasy |
+| Client disconnect / `AbortSignal` | Context7 `/nestjs/docs.nestjs.com` (SSE `@SseSignal`); Node `ServerResponse` | Nest dokumentuje abort przy disconnect; dla POST JSON: po pełnym body `req.complete` jest już `true` — cancel w trakcie hopu widać na **`res.close` + `!res.writableEnded`**, nie na `!req.complete` | Helper `abortSignalFromIncomingMessage(req, res)` w gateway; **bez** nowej trasy |
 | `fetch` + `signal` | Web API (Node 22); już w `LlmGatewayHttpAdapter` | Abort klienta zamyka request do gateway | Zostaje; gateway musi przerwać hop na disconnect |
 | Prisma `count` | konwencja `countByUserAndType` | `where: { startedByUserId, status: { in: [...] } }` | Nowy `countInFlightByUser` |
 | Zod `safeParse` / path | istniejący `parse-with-zod.ts` + unit | `issue.path.join('.')` → envelope | **Zero zmian** helpera |
@@ -77,7 +77,7 @@ Odpowiada major Faza 29 (kroki 29.1–29.3). Status startowy kroków: `NIE_ROZPO
 
 ### KROK 1 — Env `MAX_USER_IN_FLIGHT_RUNS`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Walidowany env limitu per-user (default **3**). Major 29.1; `SPEC-RUNY.md` R-6a pkt 1; `docs/dictionary.md`.
 
@@ -127,7 +127,7 @@ Unit `env.schema.spec.ts`: default `3`; wartość `0` / ujemna → throw.
 
 ### KROK 2 — COUNT in-flight + bramka w `StartRunUseCase`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Admit `POST /runs` egzekwuje R-6a **przed** create. Major 29.1; `SPEC-RUNY.md` R-6a; `SPEC-KOMUNIKACJA.md` K-8; `docs/data_flow.md` §2a.
 
@@ -199,7 +199,7 @@ Uwagi:
 
 ### KROK 3 — Gateway: disconnect klienta → istniejący `AbortSignal`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Gdy api abortuje `fetch` (cancel runu), gateway **przerywa** hop LLM przez ten sam kanał `signal`, który już istnieje w `ResilientExecutor` / `providerCallService.completeOnce`. **Bez nowych endpointów.** Major 29.2; `SPEC-RUNY.md` R-11 pkt 5b; `docs/architektura.md`.
 
@@ -219,14 +219,19 @@ Uwagi:
 `apps/ai-provider-gateway/src/chat/helpers/abort-signal-from-request.ts`:
 
 ```typescript
-import type { IncomingMessage } from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 
 /**
  * Mapuje disconnect / abort klienta HTTP na AbortSignal.
  * Używane przez POST /api/v1/chat (bez nowej trasy) — api cancel zamyka fetch.
+ *
+ * Nie używaj `!req.complete`: po odebraniu body POST `complete` jest już true,
+ * a cancel V1 pada właśnie wtedy (hop LLM w toku). Sygnał bierze się z życia
+ * odpowiedzi: klient zniknął, a `res` jeszcze nie skończył zapisu.
  */
 export function abortSignalFromIncomingMessage(
   req: IncomingMessage,
+  res: ServerResponse,
 ): AbortSignal {
   const controller = new AbortController();
   const abort = (): void => {
@@ -240,13 +245,14 @@ export function abortSignalFromIncomingMessage(
     return controller.signal;
   }
 
-  req.once('aborted', abort);
-  req.once('close', () => {
-    // close po sukcesie też pada — abort tylko gdy request nie dokończony normalnie
-    if (!req.complete) {
+  const onResponseClose = (): void => {
+    if (!res.writableEnded) {
       abort();
     }
-  });
+  };
+
+  req.once('aborted', abort);
+  res.once('close', onResponseClose);
 
   return controller.signal;
 }
@@ -254,10 +260,16 @@ export function abortSignalFromIncomingMessage(
 
 #### `ChatController.chat` — przekaż signal
 
+`@Res({ passthrough: true })` — Nest dalej serializuje return value; potrzebujemy uchwytu `res` pod `close`.
+
 ```typescript
-  async chat(@Req() req: Request, @Body() requestBody: ChatRequestDto) {
+  async chat(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Body() requestBody: ChatRequestDto,
+  ) {
     const gatewayKey = requireClientGatewayKey(req);
-    const clientAbort = abortSignalFromIncomingMessage(req);
+    const clientAbort = abortSignalFromIncomingMessage(req, res);
     const result = await this.chatService.executeChat(
       requestBody,
       req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
@@ -309,16 +321,17 @@ Gdy brak `timeoutMs`: i tak łącz z `externalSignal` (abort klienta przerywa `f
 
 **DoD kroku:**
 
-- Unit helper: `aborted` req → signal już aborted; `close` przy `!complete` → abort.
-- Unit resilient: `externalSignal.abort()` → `runOnce` dostaje `signal.aborted` / rzuca AbortError; **nie** fałszywy `PROVIDER_TIMEOUT` gdy to abort klienta.
-- Unit / controller: `executeChat` dostaje signal z requestu.
+- Unit helper: `aborted` / `destroyed` req → signal już aborted.
+- Unit helper (scenariusz V1): body już „odebrane” (`req.complete === true`) + `res.emit('close')` przy `writableEnded === false` → `signal.aborted`; po `writableEnded === true` → **bez** abortu (sukces HTTP).
+- Unit resilient: `externalSignal.abort()` → `runOnce` dostaje `signal.aborted` / rzuca AbortError; **nie** fałszywy `PROVIDER_TIMEOUT` gdy to abort klienta; gałąź **bez** `timeoutMs` też honoruje `externalSignal`.
+- Unit / controller: `executeChat` dostaje signal z `(req, res)`.
 - **Brak** nowej trasy w OpenAPI gateway.
 
 ---
 
 ### KROK 4 — Api: registry pending cancel + E2E ścieżka abort
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Cancel nadal: CAS + **200** + `requestCancel` in-process; `fetch` z `signal` (już w adapterze). Domknięcie race: cancel **przed** `begin(runId)`. Major 29.2; refaktor względem Fazy 12 / `RunAbortRegistry`.
 
@@ -411,7 +424,7 @@ export class RunAbortRegistry {
 
 ### KROK 5 — Kotwica jakości `parseWithZod` (bez zmian kodu)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Major 29.3 / Faza 4.3 — helper w `apps/api/src/shared/parse-with-zod.ts` jest już zgodny z kanonem (`VALIDATION_FAILED`, `details[].path` = `issue.path.join('.')`). Decyzja HOW: **zero edycji** pliku i call sites.
 
@@ -431,7 +444,7 @@ export class RunAbortRegistry {
 
 ### KROK 6 — Testy limitu, abort E2E, regresja
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Obserwowalne pokrycie R-6a / R-11 V1 + regresja R-6 / R-12 / cancel D-30…D-34 / parseWithZod. **Bez** nowych identyfikatorów D-* w `SPEC-TESTY.md` (jak maile 25–27).
 
@@ -489,7 +502,7 @@ client disconnect AbortSignal so api cancel stops the hop without new routes.
 | R-6a | env + COUNT + 409 przed create; nie ciche queued |
 | R-6 | worker / claim bez zmian semantyki |
 | R-12 | guest admit + per-user; release przy 409 |
-| R-11 V1 | in-process + disconnect→signal na `/chat`; 200 bez await |
+| R-11 V1 | in-process + `res.close`/`!writableEnded` → signal na `/chat` (nie `!req.complete`); 200 bez await |
 | Brak nowych endpointów | diff OpenAPI / kontrolerów bez nowych `@Post` abort |
 | parseWithZod | brak zmian pliku; unit path `'.'` |
 | SPEC / docs | kody K-8; bez cytowania planów pomocniczych w kodzie |

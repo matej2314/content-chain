@@ -43,4 +43,6 @@ export interface ResilientExecutionOptions<T> {
   ) => Promise<T>;
   validateFallbackChain?: (primary: ModelAlias, fallback?: ModelAlias) => void;
   requestId?: string;
+  /** Client disconnect / cancel — aborts attempts without mapping to PROVIDER_TIMEOUT. */
+  externalSignal?: AbortSignal;
 }

@@ -9,3 +9,4 @@ process.env.JWT_ACCESS_TTL ??= '15m';
 process.env.JWT_REFRESH_TTL ??= '7d';
 process.env.CORS_ORIGIN ??= 'http://localhost:3000';
 process.env.MAX_CONCURRENT_RUNS ??= '3';
+process.env.MAX_USER_IN_FLIGHT_RUNS ??= '3';

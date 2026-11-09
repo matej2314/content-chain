@@ -186,6 +186,7 @@ export class ChatService {
     requestId: RequestId,
     gatewayKey: GatewayKey,
     ingressProfile: ChatIngressProfile,
+    clientAbort?: AbortSignal,
   ): Promise<ChatResponseData | CachedChatResponseWithConversation> {
     const {
       primaryResolved,
@@ -242,6 +243,7 @@ export class ChatService {
         resolvedPrompts,
         embedState,
         log,
+        clientAbort,
       );
 
     const mayCoalesce =
@@ -283,6 +285,7 @@ export class ChatService {
     resolvedPrompts: ResolvedSystemPrompts,
     embedState: SemanticStoreEmbedState | undefined,
     log: LoggingService,
+    clientAbort?: AbortSignal,
   ): Promise<ChatResponseData> {
     const startedAt = Date.now();
 
@@ -310,6 +313,7 @@ export class ChatService {
         retry: buildRetryPolicyFromResolved(primaryResolved),
         runOnce,
         requestId,
+        externalSignal: clientAbort,
       });
 
       const { response, resolved } = result.value;

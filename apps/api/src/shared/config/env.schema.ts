@@ -18,6 +18,7 @@ export const envSchema = z
     JWT_REFRESH_TTL: z.string().min(1).default('1d'),
     CORS_ORIGIN: z.string().min(1),
     MAX_CONCURRENT_RUNS: z.coerce.number().int().positive().default(3),
+    MAX_USER_IN_FLIGHT_RUNS: z.coerce.number().int().positive().default(3),
     INVITE_TTL: z.string().min(1).default('7d'),
     ACTIVATION_TTL: z.string().min(1).default('7d'),
     REVIEW_TTL: z.string().min(1).default('2h'),

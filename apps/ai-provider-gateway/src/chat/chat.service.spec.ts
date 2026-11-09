@@ -356,6 +356,26 @@ describe('ChatService', () => {
       );
     });
 
+    it('should pass clientAbort as externalSignal to resilient executor', async () => {
+      mockExecutorChatSuccess({ text: 'Hello!' });
+      const clientAbort = new AbortController().signal;
+
+      await service.executeChat(
+        baseRequest,
+        TEST_CLIENT_ID,
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        'native',
+        clientAbort,
+      );
+
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          externalSignal: clientAbort,
+        }),
+      );
+    });
+
     it('should return cached response without calling executor', async () => {
       const cachedResponse = {
         id: 'cached-123',

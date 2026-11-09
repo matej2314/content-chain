@@ -1,6 +1,7 @@
 import { createUserId } from '@content-chain/shared';
 import type { GetCompletenessUseCase } from '../../company-context/application/get-completeness.use-case';
 import type { Completeness } from '../../company-context/domain/company-context.types';
+import type { Env } from '../../shared/config/env';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { RunRepository, RunSnapshot } from '../domain/run.port';
@@ -17,6 +18,16 @@ const ACTOR: AuthUserContext = {
   email: 'user@example.com',
   role: 'user',
 };
+
+const GUEST_ACTOR: AuthUserContext = {
+  id: createUserId('usr_22222222-2222-4222-8222-222222222222'),
+  email: 'guest@example.com',
+  role: 'guest',
+};
+
+const TEST_ENV = {
+  MAX_USER_IN_FLIGHT_RUNS: 3,
+} as Env;
 
 function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
   const unexpected = async () => {
@@ -44,6 +55,7 @@ function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
     setPipelineFinishedAt: unexpected,
     finalizeExpiredReviews: unexpected,
     countByUserAndType: unexpected,
+    countInFlightByUser: unexpected,
     aggregateSummary: unexpected,
     ...overrides,
   };
@@ -78,6 +90,7 @@ function makeUseCase(args: {
   runs: RunRepository;
   notifyQueued?: jest.Mock;
   admitStart?: jest.Mock<Promise<GuestRunAdmit | null>>;
+  env?: Env;
 }) {
   const completeness = {
     execute: jest.fn(async () => args.gate ?? { complete: true, missing: [] }),
@@ -91,6 +104,7 @@ function makeUseCase(args: {
       args.runs,
       { notifyQueued } as unknown as InProcessRunWorker,
       guestPolicy,
+      args.env ?? TEST_ENV,
     ),
     completeness,
     notifyQueued,
@@ -452,8 +466,10 @@ describe('StartRunUseCase', () => {
     const admitStart = jest.fn(async (): Promise<GuestRunAdmit> => ({
       release,
     }));
+    const countInFlightByUser = jest.fn(async () => 0);
     const { useCase } = makeUseCase({
       runs: unusedRepo({
+        countInFlightByUser,
         create: async (run) => {
           created.push(run);
         },
@@ -468,6 +484,7 @@ describe('StartRunUseCase', () => {
     await useCase.execute(validCommand(), ACTOR);
 
     expect(admitStart).toHaveBeenCalledWith(ACTOR, 'post_ideas');
+    expect(countInFlightByUser).toHaveBeenCalledWith(ACTOR.id);
     expect(created[0]?.startedByUserId).toBe(ACTOR.id);
     expect(release).not.toHaveBeenCalled();
   });
@@ -482,7 +499,10 @@ describe('StartRunUseCase', () => {
       throw persistError;
     });
     const { useCase, notifyQueued } = makeUseCase({
-      runs: unusedRepo({ create }),
+      runs: unusedRepo({
+        countInFlightByUser: async () => 0,
+        create,
+      }),
       admitStart,
     });
 
@@ -494,5 +514,112 @@ describe('StartRunUseCase', () => {
     expect(create).toHaveBeenCalledTimes(1);
     expect(release).toHaveBeenCalledTimes(1);
     expect(notifyQueued).not.toHaveBeenCalled();
+  });
+
+  it('rejects with USER_IN_FLIGHT_LIMIT_EXCEEDED when in-flight count is at MAX and does not create', async () => {
+    const create = jest.fn();
+    const countInFlightByUser = jest.fn(async () => 3);
+    const { useCase, notifyQueued, admitStart } = makeUseCase({
+      runs: unusedRepo({ create, countInFlightByUser }),
+      env: { MAX_USER_IN_FLIGHT_RUNS: 3 } as Env,
+    });
+
+    await expect(useCase.execute(validCommand(), ACTOR)).rejects.toMatchObject({
+      name: 'DomainException',
+      code: 'USER_IN_FLIGHT_LIMIT_EXCEEDED',
+      httpStatus: 409,
+      message: 'User in-flight run limit exceeded',
+    });
+
+    expect(admitStart).toHaveBeenCalledWith(ACTOR, 'post_ideas');
+    expect(countInFlightByUser).toHaveBeenCalledWith(ACTOR.id);
+    expect(create).not.toHaveBeenCalled();
+    expect(notifyQueued).not.toHaveBeenCalled();
+  });
+
+  it('creates when in-flight count is below MAX after guest admit', async () => {
+    const created: RunRecord[] = [];
+    const create = jest.fn(async (run: RunRecord) => {
+      created.push(run);
+    });
+    const countInFlightByUser = jest.fn(async () => 2);
+    const admitStart = jest.fn(async () => null);
+    const { useCase, notifyQueued } = makeUseCase({
+      runs: unusedRepo({
+        countInFlightByUser,
+        create,
+        getById: async (id) => {
+          const run = created.find((row) => row.id === id);
+          return run ? asSnapshot(run) : null;
+        },
+      }),
+      admitStart,
+      env: { MAX_USER_IN_FLIGHT_RUNS: 3 } as Env,
+    });
+
+    const result = await useCase.execute(validCommand(), ACTOR);
+
+    expect(admitStart).toHaveBeenCalledWith(ACTOR, 'post_ideas');
+    expect(countInFlightByUser).toHaveBeenCalledWith(ACTOR.id);
+    expect(admitStart.mock.invocationCallOrder[0]).toBeLessThan(
+      countInFlightByUser.mock.invocationCallOrder[0],
+    );
+    expect(countInFlightByUser.mock.invocationCallOrder[0]).toBeLessThan(
+      create.mock.invocationCallOrder[0],
+    );
+    expect(created).toHaveLength(1);
+    expect(notifyQueued).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe('queued');
+  });
+
+  it('releases guest Redis admit when per-user in-flight limit rejects', async () => {
+    const release = jest.fn(async () => undefined);
+    const admitStart = jest.fn(async (): Promise<GuestRunAdmit> => ({
+      release,
+    }));
+    const create = jest.fn();
+    const countInFlightByUser = jest.fn(async () => 3);
+    const { useCase, notifyQueued } = makeUseCase({
+      runs: unusedRepo({ create, countInFlightByUser }),
+      admitStart,
+      env: { MAX_USER_IN_FLIGHT_RUNS: 3 } as Env,
+    });
+
+    await expect(
+      useCase.execute(validCommand(), GUEST_ACTOR),
+    ).rejects.toMatchObject({
+      code: 'USER_IN_FLIGHT_LIMIT_EXCEEDED',
+      httpStatus: 409,
+    });
+
+    expect(admitStart).toHaveBeenCalledWith(GUEST_ACTOR, 'post_ideas');
+    expect(countInFlightByUser).toHaveBeenCalledWith(GUEST_ACTOR.id);
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(create).not.toHaveBeenCalled();
+    expect(notifyQueued).not.toHaveBeenCalled();
+  });
+
+  it('skips per-user in-flight gate when actor is null', async () => {
+    const created: RunRecord[] = [];
+    const countInFlightByUser = jest.fn(async () => {
+      throw new Error('countInFlightByUser must not be called without actor');
+    });
+    const { useCase } = makeUseCase({
+      runs: unusedRepo({
+        countInFlightByUser,
+        create: async (run) => {
+          created.push(run);
+        },
+        getById: async (id) => {
+          const run = created.find((row) => row.id === id);
+          return run ? asSnapshot(run) : null;
+        },
+      }),
+    });
+
+    await useCase.execute(validCommand());
+
+    expect(countInFlightByUser).not.toHaveBeenCalled();
+    expect(created).toHaveLength(1);
   });
 });

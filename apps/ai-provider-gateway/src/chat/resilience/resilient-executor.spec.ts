@@ -452,6 +452,168 @@ describe('ResilientExecutor', () => {
     });
   });
 
+  describe('Edge case - externalSignal (client abort)', () => {
+    it('should abort runOnce signal and throw AbortError (not PROVIDER_TIMEOUT)', async () => {
+      const external = new AbortController();
+      let seen: AbortSignal | undefined;
+      const runOnce = jest.fn(
+        (
+          _alias: ModelAlias,
+          _attempt: number,
+          signal: AbortSignal,
+        ): Promise<string> => {
+          seen = signal;
+          return new Promise((_resolve, reject) => {
+            signal.addEventListener(
+              'abort',
+              () =>
+                reject(
+                  new DOMException('The operation was aborted', 'AbortError'),
+                ),
+              { once: true },
+            );
+          });
+        },
+      );
+
+      const options: ResilientExecutionOptions<string> = {
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(1, [], 5000),
+        runOnce,
+        externalSignal: external.signal,
+      };
+
+      const pending = executor.executeWithRetryAndFallback(options);
+      external.abort();
+
+      await expect(pending).rejects.toMatchObject({
+        name: 'AbortError',
+      });
+      expect(seen?.aborted).toBe(true);
+      expect(runOnce).toHaveBeenCalledTimes(1);
+    });
+
+    it('should honor externalSignal when timeoutMs is undefined', async () => {
+      const external = new AbortController();
+      let seen: AbortSignal | undefined;
+      const runOnce = jest.fn(
+        (
+          _alias: ModelAlias,
+          _attempt: number,
+          signal: AbortSignal,
+        ): Promise<string> => {
+          seen = signal;
+          return new Promise(() => {
+            /* never resolves — external abort must win */
+          });
+        },
+      );
+
+      const options: ResilientExecutionOptions<string> = {
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(1, []),
+        runOnce,
+        externalSignal: external.signal,
+      };
+
+      const pending = executor.executeWithRetryAndFallback(options);
+      external.abort();
+
+      await expect(pending).rejects.toMatchObject({
+        name: 'AbortError',
+      });
+      expect(seen?.aborted).toBe(true);
+    });
+
+    it('should throw AbortError immediately when externalSignal is already aborted', async () => {
+      const external = new AbortController();
+      external.abort();
+      const runOnce = jest.fn();
+
+      const options: ResilientExecutionOptions<string> = {
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(1, [], 5000),
+        runOnce,
+        externalSignal: external.signal,
+      };
+
+      await expect(
+        executor.executeWithRetryAndFallback(options),
+      ).rejects.toMatchObject({ name: 'AbortError' });
+      expect(runOnce).not.toHaveBeenCalled();
+    });
+
+    it('should rethrow AbortError without fallback or PROVIDER_UNAVAILABLE', async () => {
+      const external = new AbortController();
+      const runOnce = jest.fn(
+        (
+          _alias: ModelAlias,
+          _attempt: number,
+          signal: AbortSignal,
+        ): Promise<string> =>
+          new Promise((_resolve, reject) => {
+            signal.addEventListener(
+              'abort',
+              () =>
+                reject(
+                  new DOMException('The operation was aborted', 'AbortError'),
+                ),
+              { once: true },
+            );
+          }),
+      );
+
+      const options: ResilientExecutionOptions<string> = {
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(1, [], 5000),
+        runOnce,
+        externalSignal: external.signal,
+      };
+
+      const pending = executor.executeWithRetryAndFallback(options);
+      external.abort();
+
+      await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+      expect(runOnce).toHaveBeenCalledTimes(1);
+      expect(runOnce).toHaveBeenCalledWith(
+        alias('primary'),
+        1,
+        expect.any(AbortSignal),
+      );
+    });
+
+    it('should still fall back when externalSignal is present but not aborted', async () => {
+      const external = new AbortController();
+      const runOnce = jest
+        .fn()
+        .mockRejectedValueOnce(new HttpException('Error', 500))
+        .mockResolvedValueOnce('fallback-ok');
+
+      const options: ResilientExecutionOptions<string> = {
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(1, [500], 5000),
+        runOnce,
+        externalSignal: external.signal,
+      };
+
+      const result = await executor.executeWithRetryAndFallback(options);
+
+      expect(result).toEqual({
+        value: 'fallback-ok',
+        usedAlias: alias('fallback'),
+        attempts: asAttemptNumber(2),
+        didFallback: true,
+      });
+      expect(runOnce).toHaveBeenCalledWith(
+        alias('fallback'),
+        1,
+        expect.any(AbortSignal),
+      );
+    });
+  });
+
   describe('Edge case - timeout', () => {
     it('should timeout and throw PROVIDER_TIMEOUT after timeoutMs', async () => {
       const runOnce = jest.fn().mockImplementation(

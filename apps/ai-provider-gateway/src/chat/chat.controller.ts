@@ -1,5 +1,5 @@
-import { Controller, Post, Body, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Controller, Post, Body, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import {
   ApiOperation,
   ApiBody,
@@ -19,6 +19,7 @@ import { ApiGatewayChatErrorResponses } from '../common/decorators/api-gateway-e
 import { ApiRequestIdHeader } from '../common/decorators/api-request-id-header.decorator';
 import { requireClientGatewayKey } from '../common/requireClientGatewayKey';
 import { asRequestId, asClientId } from 'src/common/types/branded.types';
+import { abortSignalFromIncomingMessage } from './helpers/abort-signal-from-request';
 
 @ApiTags('Chat')
 @ApiSecurity('GatewayKeyAuth')
@@ -37,14 +38,20 @@ export class ChatController {
   @ApiResponse({ status: 201, type: ChatResponseDto })
   @ApiGatewayChatErrorResponses()
   @ApiRequestIdHeader()
-  async chat(@Req() req: Request, @Body() requestBody: ChatRequestDto) {
+  async chat(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Body() requestBody: ChatRequestDto,
+  ) {
     const gatewayKey = requireClientGatewayKey(req);
+    const clientAbort = abortSignalFromIncomingMessage(req, res);
     const result = await this.chatService.executeChat(
       requestBody,
       req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
       asRequestId(req.requestId),
       gatewayKey,
       'native',
+      clientAbort,
     );
 
     if ('cached' in result && result.cached) {

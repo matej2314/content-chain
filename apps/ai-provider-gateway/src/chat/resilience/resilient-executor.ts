@@ -51,6 +51,7 @@ export class ResilientExecutor {
       retry: options.retry,
       runOnce: options.runOnce,
       requestId: options.requestId ? asRequestId(options.requestId) : undefined,
+      ...this.externalSignalProps(options),
     });
 
     if (primary.ok) {
@@ -67,6 +68,10 @@ export class ResilientExecutor {
         attempts: primary.attempts,
         didFallback: false,
       };
+    }
+
+    if (options.externalSignal?.aborted || this.isAbortError(primary.error)) {
+      throw primary.error;
     }
 
     this.logger.warn('Primary alias exhausted', {
@@ -92,6 +97,7 @@ export class ResilientExecutor {
       retry: options.retry,
       runOnce: options.runOnce,
       requestId: options.requestId ? asRequestId(options.requestId) : undefined,
+      ...this.externalSignalProps(options),
     });
 
     if (fallback.ok) {
@@ -145,6 +151,7 @@ export class ResilientExecutor {
       signal: AbortSignal,
     ) => Promise<T>;
     requestId?: RequestId;
+    externalSignal?: AbortSignal;
   }): Promise<AttemptResult<T>> {
     let lastError: unknown;
     const maxAttempts = unbrand(options.maxAttempts);
@@ -157,6 +164,7 @@ export class ResilientExecutor {
           options.retry.timeoutMs,
           (signal: AbortSignal) =>
             options.runOnce(options.alias, attempt, signal),
+          options.externalSignal,
         );
 
         return {
@@ -223,47 +231,89 @@ export class ResilientExecutor {
   private async runWithTimeout<T>(
     timeoutMs: TimeoutMs | undefined,
     fn: (signal: AbortSignal) => Promise<T>,
+    externalSignal?: AbortSignal,
   ): Promise<T> {
-    if (!timeoutMs) {
+    const abortError = (): DOMException =>
+      new DOMException('The operation was aborted', 'AbortError');
+
+    if (externalSignal?.aborted) {
+      throw abortError();
+    }
+
+    const hasDeadline = timeoutMs != null && unbrand(timeoutMs) > 0;
+    if (!hasDeadline && !externalSignal) {
       const idle = new AbortController();
       return fn(idle.signal);
     }
 
     const controller = new AbortController();
-    const timeoutHttpError = new HttpException(
-      {
-        code: ApiErrorCode.PROVIDER_TIMEOUT,
-        message: `Request timeout after ${timeoutMs}ms`,
-        details: [],
-      },
-      HttpStatus.GATEWAY_TIMEOUT,
-    );
+    let timedOut = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let rejectOnAbort: (() => void) | undefined;
 
-    const timeoutId = setTimeout(() => {
+    const onExternalAbort = (): void => {
       controller.abort();
-    }, unbrand(timeoutMs));
+    };
+    externalSignal?.addEventListener('abort', onExternalAbort, { once: true });
 
-    const onAbort = new Promise<never>((_, reject) => {
-      const rejectTimeout = () => reject(timeoutHttpError);
+    const timeoutHttpError = hasDeadline
+      ? new HttpException(
+          {
+            code: ApiErrorCode.PROVIDER_TIMEOUT,
+            message: `Request timeout after ${timeoutMs}ms`,
+            details: [],
+          },
+          HttpStatus.GATEWAY_TIMEOUT,
+        )
+      : undefined;
+
+    if (hasDeadline && timeoutMs != null) {
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, unbrand(timeoutMs));
+    }
+
+    const onAbortRace = new Promise<never>((_, reject) => {
+      rejectOnAbort = (): void => {
+        if (externalSignal?.aborted) {
+          reject(abortError());
+          return;
+        }
+        if (timedOut && timeoutHttpError) {
+          reject(timeoutHttpError);
+          return;
+        }
+        reject(abortError());
+      };
       if (controller.signal.aborted) {
-        rejectTimeout();
+        rejectOnAbort();
         return;
       }
-      controller.signal.addEventListener('abort', rejectTimeout, {
+      controller.signal.addEventListener('abort', rejectOnAbort, {
         once: true,
       });
     });
 
     try {
-      // Race: deadline for the gateway + AbortSignal for in-flight SDK cancel.
-      return await Promise.race([fn(controller.signal), onAbort]);
+      // Race: deadline (optional) + AbortSignal for in-flight SDK / client cancel.
+      return await Promise.race([fn(controller.signal), onAbortRace]);
     } catch (error) {
-      if (controller.signal.aborted) {
+      if (externalSignal?.aborted) {
+        throw abortError();
+      }
+      if (timedOut && timeoutHttpError) {
         throw timeoutHttpError;
       }
       throw error;
     } finally {
-      clearTimeout(timeoutId);
+      if (rejectOnAbort) {
+        controller.signal.removeEventListener('abort', rejectOnAbort);
+      }
+      externalSignal?.removeEventListener('abort', onExternalAbort);
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
     }
   }
 
@@ -331,5 +381,25 @@ export class ResilientExecutor {
       return error;
     }
     return 'Unknown error';
+  }
+
+  private isAbortError(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null || !('name' in error)) {
+      return false;
+    }
+    return error.name === 'AbortError';
+  }
+
+  /**
+   * Only include externalSignal when present — avoids assigning
+   * `AbortSignal | undefined` into an optional property (eslint / EOPT).
+   */
+  private externalSignalProps<T>(options: ResilientExecutionOptions<T>): {
+    externalSignal?: AbortSignal;
+  } {
+    if (options.externalSignal === undefined) {
+      return {};
+    }
+    return { externalSignal: options.externalSignal };
   }
 }
