@@ -1,27 +1,29 @@
-import { Test, type TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import { RUN_STATUSES } from '@content-chain/shared';
+import { RUN_STATS_PORT } from '../runs/domain/run-stats.port';
 import { MetricsService } from './metrics.service';
-import { PrismaService } from '../shared/persistence/prisma.service';
 
 describe('MetricsService', () => {
-  let service: MetricsService;
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+  it('fills gauges from RunStatsPort without Prisma', async () => {
+    const counts = new Map([['completed', 2] as const]);
+    const moduleRef = await Test.createTestingModule({
       providers: [
         MetricsService,
         {
-          provide: PrismaService,
+          provide: RUN_STATS_PORT,
           useValue: {
-            run: { groupBy: jest.fn().mockResolvedValue([]) },
+            countByStatus: jest.fn().mockResolvedValue(counts),
           },
         },
       ],
     }).compile();
 
-    service = module.get<MetricsService>(MetricsService);
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+    const service = moduleRef.get(MetricsService);
+    const { contentType, body } = await service.render();
+    expect(contentType).toContain('text/plain');
+    expect(body).toContain('content_chain_runs_by_status');
+    for (const status of RUN_STATUSES) {
+      expect(body).toContain(`status="${status}"`);
+    }
   });
 });

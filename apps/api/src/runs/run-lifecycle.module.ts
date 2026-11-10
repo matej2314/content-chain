@@ -3,6 +3,7 @@ import { RunLifecycleService } from './application/lifecycle/run-lifecycle.servi
 import { RUN_LIFECYCLE } from './domain/run-lifecycle.port';
 import { OUTPUT_EDITED_WRITER } from './domain/output-edited-writer.port';
 import { RUN_REPOSITORY } from './domain/run.port';
+import { RUN_STATS_PORT } from './domain/run-stats.port';
 import { RUN_SSE_HUB } from './domain/run-sse.port';
 import { PrismaOutputEditedAdapter } from './infrastructure/persistence/prisma-output-edited.adapter';
 import { PrismaRunAdapter } from './infrastructure/persistence/prisma-run.adapter';
@@ -11,7 +12,9 @@ import { RunAbortRegistry } from './application/lifecycle/run-abort.registry';
 
 @Module({
   providers: [
-    { provide: RUN_REPOSITORY, useClass: PrismaRunAdapter },
+    PrismaRunAdapter,
+    { provide: RUN_REPOSITORY, useExisting: PrismaRunAdapter },
+    { provide: RUN_STATS_PORT, useExisting: PrismaRunAdapter },
     { provide: OUTPUT_EDITED_WRITER, useClass: PrismaOutputEditedAdapter },
     { provide: RUN_SSE_HUB, useClass: InMemoryRunSseHub },
     RunLifecycleService,
@@ -20,6 +23,7 @@ import { RunAbortRegistry } from './application/lifecycle/run-abort.registry';
   ],
   exports: [
     RUN_REPOSITORY,
+    RUN_STATS_PORT,
     OUTPUT_EDITED_WRITER,
     RUN_SSE_HUB,
     RUN_LIFECYCLE,

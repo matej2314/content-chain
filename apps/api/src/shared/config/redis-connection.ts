@@ -7,7 +7,11 @@ export type RedisStandalone = {
 };
 
 export function resolveRedisStandalone(env: Env): RedisStandalone | null {
-  if (env.REDIS_HOST !== undefined && env.REDIS_PORT !== undefined) {
+  if (
+    env.DEMO_MODE === true &&
+    env.REDIS_HOST !== undefined &&
+    env.REDIS_PORT !== undefined
+  ) {
     return {
       host: env.REDIS_HOST,
       port: env.REDIS_PORT,

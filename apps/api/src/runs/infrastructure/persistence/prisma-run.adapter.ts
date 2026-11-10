@@ -5,6 +5,7 @@ import {
   createRunId,
   isContentKind,
   isContentTaskType,
+  isRunStatus,
   isSocialPlatform,
   isSocialTaskType,
   isRunTaskType,
@@ -24,6 +25,7 @@ import {
   type RunSummaryAggregate,
   type RunSummaryScope,
 } from '../../domain/run.port';
+import type { RunStatsPort } from '../../domain/run-stats.port';
 import {
   contentBriefSchema,
   socialBriefSchema,
@@ -50,7 +52,7 @@ import {
 } from '../../../shared/http/pagination';
 
 @Injectable()
-export class PrismaRunAdapter implements RunRepository {
+export class PrismaRunAdapter implements RunRepository, RunStatsPort {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(run: RunRecord): Promise<void> {
@@ -325,6 +327,19 @@ export class PrismaRunAdapter implements RunRepository {
         status: { in: [...CANCELABLE_RUN_STATUSES] },
       },
     });
+  }
+
+  async countByStatus(): Promise<ReadonlyMap<RunStatus, number>> {
+    const grouped = await this.prisma.run.groupBy({
+      by: ['status'],
+      _count: { _all: true },
+    });
+    const counts = new Map<RunStatus, number>();
+    for (const row of grouped) {
+      if (!isRunStatus(row.status)) continue;
+      counts.set(row.status, row._count._all);
+    }
+    return counts;
   }
 
   async aggregateSummary(

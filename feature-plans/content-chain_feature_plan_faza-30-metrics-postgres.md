@@ -78,7 +78,7 @@ Po tej fazie stack MVP (SQLite) działa jak dziś — wolno robić pełną regre
 
 ### KROK 1 — Port `RunStatsPort`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Cienki kontrakt odczytu liczników `RunStatus` dla Prometheus. Major 30.1; `SPEC-RUNY.md` R-14; `docs/observability.md` (L-11); wzorzec jak `FeedbackRunReader`.
 
@@ -111,7 +111,7 @@ export interface RunStatsPort {
 
 ### KROK 2 — Implementacja w `PrismaRunAdapter`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** `groupBy` statusów żyje wyłącznie w `runs/infrastructure/persistence/`. Major 30.1; R-14 pkt 2.
 
@@ -243,7 +243,7 @@ export class RunLifecycleModule {}
 
 ### KROK 3 — Refaktor `MetricsService` / `MetricsModule`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** `apps/api/src/metrics/` bez `PrismaService` / ORM / SQL. Major 30.1; B-9; R-14 pkt 1.
 
@@ -399,7 +399,7 @@ describe('MetricsService', () => {
 
 ### KROK 4 — Testy L-11 na SQLite + regresja metrics
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Dowód R-14 na istniejącym silniku MVP. Major 30.1 DoD.
 

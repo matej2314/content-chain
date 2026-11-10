@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { RUN_STATUSES } from '@content-chain/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { Public } from '../src/shared/decorators/public.decorator';
@@ -66,9 +67,13 @@ describe('Metrics (e2e)', () => {
       'content_chain_http_request_duration_seconds',
     );
     expect(response.text).toContain('content_chain_runs_by_status');
-    expect(response.text).toMatch(
-      /content_chain_runs_by_status\{status="cancelled"\}/,
-    );
+    for (const status of RUN_STATUSES) {
+      expect(response.text).toMatch(
+        new RegExp(
+          `content_chain_runs_by_status\\{status="${status}"\\} \\d+`,
+        ),
+      );
+    }
     expect(response.text).toContain('content_chain_gateway_errors_total');
     expect(response.text).not.toMatch(
       /change-me-gateway-key|JWT_SECRET|password=/i,
