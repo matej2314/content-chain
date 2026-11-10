@@ -1,7 +1,7 @@
 ---
-wersja: 20
+wersja: 21
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-10-27
+data_modyfikacji: 2026-11-10
 ---
 
 # Anty-patterny — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-27
 Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego źle → zamiast tego. Ogólny podręcznik Nest/Next — poza zakresem.
 
 Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `security.md`.
+
+Zmiana względem wersji 20: doprecyzowano seed kontekstu — dozwolony zapis domenowy (kompletny fixture, seed-if-empty) ≠ surowy seed SQL/Prisma pod E2E; zakazy: force overwrite, cichy odczyt z pliku przy GET, logika seedu w bashu/entrypoint zamiast api.
 
 Zmiana względem wersji 18 / maile Auth: kinds = invite + activation. Od tej wersji zakazy wokół `user_welcome`: fail activate / **503** przez pad welcome; welcome poza wąskim triggerem activate; token/hasło w treści welcome — `security.md`.
 
@@ -45,7 +47,7 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | Use-case’y / Prisma / **Zod** w `packages/shared` | Shared przestaje być czystym kontraktem typów | W `shared` tylko typy / brand / enumy kontraktu (**bez Zod**) |
 | Lokalna kopia `parseWithZod` / osobny adapter Zod→`VALIDATION_FAILED` w każdym BC | Drift separatora `details[].path` i duplikat mapowania błędów | Jeden helper: `apps/api/src/shared/parse-with-zod.ts` (`path` = `issue.path.join('.')`) |
 | Rootowy `src/apps/` albo rozjechane ścieżki app | Drift względem docs i DX monorepo | `apps/{api,frontend,ai-provider-gateway}` + `packages/shared` |
-| Katalog `postman/` na rootcie `apps/api` (sibling `src/`) albo seed SQL/Prisma kontekstu pod E2E zamiast `PUT /company-context` | Kolekcja wygląda jak BC/moduł produktu; seed omija bramkę HTTP (`CONTEXT_INCOMPLETE`) | `apps/api/test/postman/`; Setup = `PUT /company-context` |
+| Katalog `postman/` na rootcie `apps/api` (sibling `src/`) albo seed SQL/Prisma kontekstu pod E2E zamiast `PUT /company-context` | Kolekcja wygląda jak BC/moduł produktu; seed omija bramkę HTTP (`CONTEXT_INCOMPLETE`) | `apps/api/test/postman/`; Setup = `PUT /company-context`. **Dozwolony** osobno: seed demo/DX przez warstwę zapisu domenowego (kompletny fixture, seed-if-empty) — **nie** zastępuje Setupu Postman |
 
 ---
 
@@ -146,7 +148,9 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | Anty-pattern | Dlaczego źle | Zamiast tego |
 |--------------|--------------|--------------|
 | Prisma (lub SQL) w `domain/` | Domain zależy od ORM | Port w domain/application; Prisma tylko w `infrastructure` |
-| Cichy fallback kontekstu z plików `.md` przy dziurawej DB | Niespójność, „działa u mnie”; odrzucone w briefie | DB kanoniczna; brak cichego fallbacku; eksport `.md` dopiero po MVP (osobno) |
+| Cichy fallback kontekstu z plików `.md` / JSON przy `GET` (pusta lub niespójna DB) | Niespójność, „działa u mnie”; odrzucone w briefie | DB kanoniczna; **brak** overlay przy odczycie; dozwolony wyłącznie **jawny seed zapisu** (seed-if-empty) — `deployment.md` / `data_flow.md`; eksport `.md` dopiero po MVP (osobno) |
+| Force overwrite kontekstu seedem (nadpis niepustego / flaga force) | Kasuje ręczną edycję admina przy restarcie | Zawsze seed-if-empty; niepusty → no-op |
+| Logika seedu kontekstu w bashu / `docker-entrypoint.sh` zamiast lifecycle api | Druga ścieżka zapisu; drift względem bramki PUT | Auto = lifecycle Nest (`SeedModule` / `SeedService`); DX = skrypt wołający ten sam serwis |
 | Traktowanie logów stdout jako jedynego źródła przebiegu runu | UI i audyt runu ślepe | Kanoniczne `run.log` w DB + SSE; stdout = ops |
 | Mylenie `/metrics` z logami runu | Ops ≠ przebieg domenowy | Prometheus = proces; logi = run |
 

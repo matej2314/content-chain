@@ -1,7 +1,7 @@
 ---
-wersja: 42
+wersja: 43
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-28
+data_modyfikacji: 2026-11-10
 ---
 
 # SPEC — Testy
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-28
 ## Cel / zakres względem dokumentacji
 
 Norma strategii testów MVP Content Chain: piramida, narzędzia, obowiązkowe przypadki DoD oraz CI — uszczegółowienie `docs/testy.md` pod egzekwowalne reguły przy implementacji `apps/api`.
+
+Zmiana względem wersji 42: DoD bez seedu kontekstu. Od tej wersji **D-86…D-89** (auto `DEMO_MODE` + seed-if-empty / no-op; DX `seed:company-context`; regresja Setup Postman = `PUT`) — `SPEC-KONTEKST-FIRMY.md` C-9, `SPEC-PERSISTENCE.md` P-9, `docs/testy.md`.
 
 Zmiana względem wersji 41 / T-7: Playwright / automaty FE = „poza MVP” bez obowiązku V1. Od tej wersji: poza MVP w slice; **obowiązek od V1 — rozbudowa** — `docs/testy.md`.
 Zmiana względem wersji 40: DoD bez opcjonalnej paginacji listingów. Od tej wersji **D-82…D-85** (tryb all vs strona; allowlista `pageSize`; envelope na `GET /runs`, `GET /runs/user/:userId`, `GET /users`) — `SPEC-RUNY.md` R-3a / R-3c, `SPEC-AUTH.md` A-10b, `SPEC-KOMUNIKACJA.md` K-2a / K-2b / K-2j; konsumpcja UI (Faza 29 FE) = `SPEC-FRONTEND.md` F-8 (automaty FE poza MVP w slice — T-7; obowiązek od V1). D-28 uściślone: filtr `status` przy **trybie stron** z `pageSize` z allowlisty (nie „jedyny legalny rozmiar”).
@@ -157,7 +159,12 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-83 | `GET /api/v1/runs` tryb **stron** (obecność `page` **i/lub** `pageSize`): brakujące = default `page=1`, `pageSize=10`; `pageSize` ∈ {10, 15, 25, 50} → **200**, `items.length ≤ pageSize`, `total` = liczność po filtrach (nie tylko strona); `pageSize=50` **nie** jest **400**; `pageSize` spoza allowlisty (np. `11`, `20`, `100`) **lub** zły `page` (nie-integer / `< 1` / nieparsowalny) → **400** `VALIDATION_FAILED`. Regresja D-28: `status=completed,failed,cancelled&page=1&pageSize=10` nadal zielony. |
 | D-84 | `GET /api/v1/runs/user/:userId` — **ten sam** model co D-82/D-83: bez parametrów → cała kolekcja użytkownika w envelope (`page=1`, `pageSize=total`); z `page`/`pageSize` → strona + allowlista + **400** poza nią; pozycje lekkie (`runId`, `taskType`, `platform`, `language`, `status`, `createdAt` — **bez** pól przeglądu). Cudzy `:userId` → **403** `FORBIDDEN` (D-13). Semantyka FE (tabela Moje runy **z** parametrami; OwnRuns / floating / select opinii **bez** parametrów) — `SPEC-FRONTEND.md` F-8 / Faza 29 FE; automaty FE poza MVP w slice (T-7; obowiązek od V1). |
 | D-85 | `GET /api/v1/users` (admin): opcjonalna paginacja jak D-82/D-83 — bez parametrów → cała kolekcja w envelope; z `page`/`pageSize` → strona + allowlista + **400** poza nią; pozycja w `items`: `{ id, email, role, isActive, verifiedAt, createdAt }`; sort `createdAt` **desc**. Sesja `user` / `guest` → **403**; brak sesji → **401**. UI Users (select + kontrolki) — F-8 / Faza 29 FE; automaty FE poza MVP w slice (T-7; obowiązek od V1). |
+| D-86 | `DEMO_MODE=true` + kontekst **pusty** (równoważny `emptyCompanyContext` / C-2): po starcie procesu api (auto-seed) kontekst w DB **kompletny** z fixture JSON (lub równoważna asercja GET completeness `complete: true` + treść zgodna z fixture). Fixture przechodzi bramkę C-4. |
+| D-87 | Kontekst **niepusty** + restart api przy `DEMO_MODE=true` **lub** ponowne wywołanie `seedCompanyContext` → **brak nadpisania** (no-op; wartości w DB bez zmian względem stanu przed seedem). |
+| D-88 | DX `seed:company-context` (lub bezpośrednie `seedCompanyContext`) przy **`DEMO_MODE=false`**: kontekst pusty → zapis jak D-86; kontekst niepusty → no-op jak D-87. **Bez** wymogu ustawiania `DEMO_MODE`. |
+| D-89 | Regresja Setup E2E / Postman kontekstu: Setup kolekcji Social/Content nadal = **`PUT /company-context`** (+ completeness); **nie** zastąpione seedem Prisma ani DX `seed:company-context` jako jedynym Setupem. |
 
+Zmiana względem wersji 42: dopisano **D-86…D-89** (seed kontekstu auto/DX / no-op / regresja PUT Setup) — `SPEC-KONTEKST-FIRMY.md` C-9. D-1…D-85 bez kasowania treści.
 Zmiana względem wersji 40: dopisano **D-82…D-85** (opcjonalna paginacja trzech GET — tryb all vs strona, allowlista, envelope; Users sort desc); D-28 / D-13 uściślone (odesłanie do trybów). Konsumpcja UI Runy / Users / Moje runy + zakaz FE-slice = `SPEC-FRONTEND.md` F-8 (Faza 29 FE) — **bez** nowych automatów FE w DoD (T-7). D-1…D-81 bez kasowania treści.
 Zmiana względem wersji 39 / brand shella × DoD: wymóg logotypu CID w headerze HTML **nie** dodaje nowego D-* HTTP i **nie** zmienia T-5. Unit renderera: logo CID w HTML vs string marki w plain text — `SPEC-AUTH.md`. D-1…D-81 bez kasowania treści.
 Zmiana względem wersji 38 / mail copy × DoD: refaktor odmiany PL / pełnego zdania ważności (`validityLabel` = „Link jest jednorazowy i wygasa po {X}.”) **nie** dodaje nowego D-* HTTP i **nie** zmienia T-5. Unit renderera: pełny wzorzec ważności + deep link; **bez** wymogu linii Postman — `SPEC-AUTH.md`. D-1…D-81 bez kasowania treści.

@@ -50,6 +50,8 @@ import { CompositeRunResultReader } from './runs/application/composite-run-resul
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
+      // E2e ładuje wyłącznie apps/api/.env.test (setup-env) — nie mieszaj apps/api/.env.
+      ignoreEnvFile: process.env.NODE_ENV === 'test',
     }),
     EnvModule,
     LoggerModule.forRoot({

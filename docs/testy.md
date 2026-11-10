@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-28
+data_modyfikacji: 2026-11-10
 ---
 
 # Testy — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-28
 Strategia testów **MVP**. Cel: szybka pewność na domenie i granicach `apps/api` + kontrakt z gateway (przez port), bez rozdmuchanego E2E UI.
 
 Powiązane: `architektura.md`, `data_flow.md`, `anty_patterny.md`, `spec/SPEC-TESTY.md`.
+
+Zmiana względem wersji 7: pokrycie seedu kontekstu (auto + DX, seed-if-empty / no-op). Setup Postman / E2E kontekstu **nadal** `PUT /company-context` — seed nie zastępuje Setupu kolekcji ani seedu Prisma.
 
 Zmiana względem: soft-delete Users bez rozróżnienia roli; cancel wyłącznie owner; brak oczekiwań purge / `isActive` na access. Od tej wersji skrót: soft tylko `user`; hard+purge `guest`; reaktywacja tylko `user`; cancel admin→guest; access po soft/hard → **401**. Pełne D-* → `spec/SPEC-TESTY.md` (po Fazie 2 planu Users).
 
@@ -48,7 +50,7 @@ Zmiana względem: Faza 18 — accept-invite → zawsze `role=user` (także przy 
 | E2E API | **bez pinu** — Postman/Newman, skrypt lub równoważne; byle pokrycie use-case / error / edge |
 | FE | poza MVP; od **V1**: Playwright (lub równoważne) — obowiązek |
 
-Nazwa pliku kolekcji Social: `social-pipeline.postman-collection.json` (myślnik, nie `_collection`) — foldery A/B (posty, Milestone 4) **oraz** C (`reel_ideas`) / D (`reel_ideas_then_scripts`) w tym samym pliku. Content = osobny JSON: `content-pipeline.postman-collection.json` (foldery A `page_copy`, B `page_outline_then_copy`). Setup obu = `PUT /company-context` + asercja `GET /company-context/completeness` (nie seed Prisma). Jak odpalić: `apps/api/test/postman/README.md`.
+Nazwa pliku kolekcji Social: `social-pipeline.postman-collection.json` (myślnik, nie `_collection`) — foldery A/B (posty, Milestone 4) **oraz** C (`reel_ideas`) / D (`reel_ideas_then_scripts`) w tym samym pliku. Content = osobny JSON: `content-pipeline.postman-collection.json` (foldery A `page_copy`, B `page_outline_then_copy`). Setup obu = `PUT /company-context` + asercja `GET /company-context/completeness` (nie seed Prisma; **nie** DX `seed:company-context` jako Setup kolekcji). Jak odpalić: `apps/api/test/postman/README.md`.
 
 Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATEWAY_KEY` w helperze logu hopu (`llm-gateway-chat.log.spec.ts`); preprocess zarzutów verifiera z obiektu `{ itemId, issue }` do `string[]` (`social.schemas.spec.ts`). Unia `RunRecord`: fabryki `makeSocialRun` / `makeContentRun` w `apps/api/src/runs/run-record.test-helpers.ts` (unit `*.spec.ts` przy `src/`; fixture w **korzeniu** BC Runs — nie w `infrastructure/` ani `helpers/`); **nie** `Partial<RunRecord>`. `apps/api/test/` (e2e) tego pliku nie używa.
 
@@ -73,6 +75,7 @@ Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATE
 
 ## Priorytety przypadków (DoD jakości api)
 
+- Seed kontekstu (auto + DX): `DEMO_MODE=true` + pusty → po starcie zapis z fixture; niepusty + restart / ponowne wywołanie → **no-op** (brak nadpisania); DX `seed:company-context` przy `DEMO_MODE=false` + pusty → zapis, przy niepustym → no-op. Pełne case’y → `spec/SPEC-TESTY.md` (po legalizacji SPEC).
 - Bramka: niekompletny kontekst → brak startu runu (`CONTEXT_INCOMPLETE`).
 - Authz: `user` nie zapisze kontekstu; `admin` tak; obaj mogą startować run (przy kompletności).
 - Zaproszenia (E2E API / Postman, adapter logujący): happy path `POST /invitations` (admin) → token z logu api → `POST /auth/accept-invite` (bez cookie admina) → `POST /auth/login` nowym kontem. Przy **`DEMO_MODE=false`**: konto `role=user`. Przy **`DEMO_MODE=true`**: konto `role=guest` + limity / **403** quota / chip jak ścieżka register→guest (kolekcja `demo-guest` / równoważny smoke: invite → accept → login → jeden slot typu). `user` nie zaprasza (**403**). Drugi `POST /invitations` przy `pending` (także wygasłym) → **409**. Wygasły token → **401** na accept; wiersz nadal na `GET /invitations` (pending). Negatyw: ważny token + istniejący `User` (ten sam email, także soft-deleted `user`) → **401** `UNAUTHORIZED` z tym samym `message` co zły token; Invitation po próbie `revoked` (lub równoważnik); **nie** **409**.

@@ -1,7 +1,7 @@
 ---
-wersja: 30
+wersja: 31
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-11-09
+data_modyfikacji: 2026-11-10
 ---
 
 # Słownik — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-09
 Kanoniczne definicje pojęć domenowych i technicznych. Identyfikatory typów, kodów i pól API w backtickach; opisy po polsku.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `observability.md`.
+
+Zmiana względem wersji 30: hasło **Seed kontekstu firmy** (fixture JSON; auto przy `DEMO_MODE`; DX `seed:company-context`; seed-if-empty). **DEMO MODE** bez rozszerzania o capy/role — seed tylko powiązany jako dodatkowy efekt bootu przy demo on. Ops: `deployment.md`.
 
 Zmiana względem wersji 26 / shell mailera: slot brandu HTML = tekst. Od tej wersji: marka w headerze wspólnego shella HTML = **logotyp CID** (nie sam tekst w slocie); plain text / subject / body — string marki — `brand_types.md`.
 
@@ -76,6 +78,7 @@ Zmiana względem: hasło `guest` / `FORBIDDEN` bez wyjątku podglądu archiwum c
 |---------|-----------|
 | **Content Chain** | Publiczna, self-hostowalna aplikacja agentowa do generowania treści **Social** (posty i rolki) oraz **Content (BC)** (copy stron / long-form) z weryfikacją względem kontekstu firmy, zapisem wyników i obserwowalnymi runami. |
 | **Kontekst firmy** (`Company Context`) | Kanoniczny zestaw informacji o organizacji w DB (jedna instancja = jedna firma); wejście do generowania i weryfikacji spójności. |
+| **Seed kontekstu firmy** | Jednorazowy (idempotentny) **zapis** singletonu kontekstu z fixture JSON o kształcie `CompanyContext` (kontrakt PUT): tylko gdy kontekst **pusty** (**seed-if-empty**); gdy w DB są wartości → **no-op** (chroni ręczną edycję admina). **Auto:** przy starcie api wyłącznie gdy `DEMO_MODE=true`. **DX:** komenda `seed:company-context` — **bez** wymogu `DEMO_MODE`, **bez** ustawiania flagi. **Nie** force / overwrite; **nie** overlay przy `GET`; **nie** zastępuje `PUT`/`PATCH` admina na niepustej instancji. „Pusty” = równoważny pustemu kontekstowi domenowemu (same `""` / `[]` / `extras=null`), także gdy wiersz singletonu istnieje. Ops: `deployment.md`. |
 | **Bramka kontekstu** / kompletność | Programowy warunek: wymagane sekcje kontekstu uzupełnione. Udany `PUT` / `PATCH` kontekstu tylko gdy bramka spełniona (inaczej **400** `VALIDATION_FAILED`). Start **każdego** `POST /runs` odblokowany przy kompletności **w DB** (Social i Content); inaczej start runu zablokowany (`409` `CONTEXT_INCOMPLETE`). Werdykt: `isComplete`. Jedna bramka na cały produkt w MVP (w tym głos SM dla page_* — świadome). |
 | **`isComplete`** | Czysta funkcja domeny kontekstu: `{ complete, missing }` (`missing` = klucze niespełnionych sekcji bramki). Ten sam werdykt dla GET completeness, PUT/PATCH i twardej bramki `POST /runs` (`409` `CONTEXT_INCOMPLETE`). Unit-testowalna bez DB/HTTP. **Nie** obejmuje sieci, procesu gateway ani konfiguracji LLM. |
 | **Sekcje bramki** | Tożsamość, oferta (≥ 1 **kompletna** usługa: nazwa + opis + ≥ 1 korzyść, bez kalekich pozycji), głos SM, CTA/kanały, odbiorca (≥ 1 profil z niepustym `name` i `description`) — patrz docs koncepcyjne. |
@@ -117,7 +120,7 @@ Zmiana względem: hasło `guest` / `FORBIDDEN` bez wyjątku podglądu archiwum c
 | **`admin`** | Jedyny administrator (bootstrap); wyłączne prawo edycji kontekstu firmy, zapraszania (email) oraz zarządzania kontami (soft `user` / hard+purge `guest`; cancel runów `guest` na szczegółach); może generować treści jak `user`. Na instancji z `DEMO_MODE=true` **bez** locków gościa. Norma: `security.md`. |
 | **`user`** | Rola uruchamiająca runy produktowe (Social i Content) i przeglądająca wyniki/logi; bez edycji kontekstu i bez zapraszania. Konto powstaje po akceptacji zaproszenia **gdy `DEMO_MODE=false`** (członek zespołu) **albo** po self-register **gdy `DEMO_MODE=false`** (w `production` — po aktywacji e-mail). Widok **Konto** (email, własne runy, start) jest dostępny tak samo jak dla `admin`. Przy demo on invite → **`guest`**, nie `user`. |
 | **`guest`** | Rola demonstracyjna / gość sandboxu. Powstaje przy **`POST /auth/register` lub `POST /auth/accept-invite`** gdy `DEMO_MODE=true` (body nadal **bez** `role`). **Nie** z bootstrap. Przy demo: także zaproszony = gość sandboxu, **nie** członek zespołu. Aktywacja e-mail w `production` dotyczy także `guest` (ścieżka register). **Start / mutacje / live** — własne; **podgląd archiwum cudzego** (detail + logs przy statusie `completed` \| `failed` \| `cancelled`) **dozwolony** przy demo on. **Zakaz permanentny** awansu `guest` → `user` / `admin` (brak endpointu i ścieżki produktowej). Gdy `DEMO_MODE=false`: login i chronione trasy z JWT `role=guest` → **401** jak konto nieaktywne (rola **martwa** mimo ważnego ciasteczka). |
-| **DEMO MODE** | Tryb instancji sterowany env **`DEMO_MODE`** (`true` \| `false`, default **`false`**), ładowany przy **starcie procesu** (zmiana = restart). **Brak** switcha w UI admina. FE czyta publiczny `GET /config` → `{ demoMode: boolean }`; egzekucja limitów i authz **zawsze** w API. |
+| **DEMO MODE** | Tryb instancji sterowany env **`DEMO_MODE`** (`true` \| `false`, default **`false`**), ładowany przy **starcie procesu** (zmiana = restart). **Brak** switcha w UI admina. FE czyta publiczny `GET /config` → `{ demoMode: boolean }`; egzekucja limitów i authz **zawsze** w API. Przy `true` boot api może dodatkowo wykonać **Seed kontekstu firmy** (seed-if-empty) — to **nie** zmienia semantyki guest / capów Redis / `GET /config`. |
 | **Slot gościa** | Hardcoded allowlista startów na życie konta `guest`: `post_ideas` ×1, `page_copy` ×1, `page_outline_then_copy` ×1. Zużycie = COUNT runów `startedByUserId` + `taskType` **bez filtra statusu** (także `failed` / `cancelled` / `completed` / …). HITL **bez** osobnego limitu. **Nie** env. |
 | **Global guest cap** | Dzienny limit **wszystkich** startów `guest` na instancji (niezależnie od typu): env `GUEST_GLOBAL_CAP_PER_DAY` (default **30**); doba **UTC**; Redis INCR; admit **przed** `create` Run. Pad Redis przy `POST /runs` guest → **fail closed**. |
 | **Soft limit rating gościa** | Dzienny limit ocen własnego runu przez `guest`: env `GUEST_RATING_CAP_PER_DAY` (default **10**); doba UTC; **429** + message. Pad Redis → **fail open** (ocena przechodzi). |

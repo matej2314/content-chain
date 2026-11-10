@@ -1929,6 +1929,53 @@ Zmiana względem: status Fazy 30 / kroków 30.1–30.2 (`NIE_ROZPOCZĘTY`). Pow�
 
 ---
 
+## Faza 31 — Seed kontekstu firmy (JSON, seed-if-empty; auto=`DEMO_MODE`; DX=`seed:company-context`) — norma gotowa pod feature-plan
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Bez MILESTONE 31** — gate normy i gotowości pod osobny feature-plan; nie skok implementacyjny w tym majorze. Numer **31** = kolejny wolny po Fazie 30. Norma wsiąka z `docs/` + `spec/` (C-9 / P-9 / D-86…D-89) — feature-plan **nie** cytuje aux jako wymogu. **Nie** mylić z `content-chain-frontend_major_plan.md`.
+
+**Refaktor / baza względem (historia, bez edycji `WYKONANY`):** **Faza 3** — kontekst firmy / singleton / bramka (`WYKONANY`); **Faza 18** — `DEMO_MODE` + guest / Redis / `GET /config` (`WYKONANY`). Te fazy pozostają historią — **bez** przepisywania treści ani statusów. Semantyka guest / capów / `GET /config` **bez zmian**; seed to dodatkowy efekt bootu przy demo on + ścieżka DX.
+
+**Opis:** Ta faza majoru **nie** zawiera kroków implementacji kodu. Oznacza, że kanon seed-if-empty kontekstu jest w `docs/deployment.md` / `dictionary.md` / `data_flow.md` / `anty_patterny.md` / `architektura_katalogi_pliki.md` / `testy.md` oraz `SPEC-KONTEKST-FIRMY.md` C-9, `SPEC-PERSISTENCE.md` P-9, `SPEC-TESTY.md` D-86…D-89. Wolno otworzyć feature-plan BE bez dalszej zmiany kanonu w `docs/` + `spec/`.
+
+**HOW (wskazówka pod feature-plan — nie kod w tym majorze):**
+
+- Uniwersalny `SeedModule` + `SeedService` w `apps/api/src/seed/` (nie-BC; **bez** brandu „Demo*” w nazwie modułu/serwisu).
+- Metoda `seedCompanyContext()` — zapis przez warstwę domenową company-context (ten sam kontrakt co udany PUT); fixture JSON w `apps/api/src/seed/fixtures/` (kształt `CompanyContext`, kompletny względem bramki).
+- Auto: lifecycle Nest przy starcie api **tylko** gdy `DEMO_MODE=true`; zawsze seed-if-empty (pusty → zapis; niepusty → no-op; **bez** force).
+- DX: `apps/api/scripts/…` + `NestFactory.createApplicationContext` (wspólny serwis); pnpm **`seed:company-context`** (api / root wg konwencji workspace) — **bez** wymogu `DEMO_MODE`, **bez** ustawiania flagi.
+- **Bez** logiki seedu w bashu / `docker-entrypoint.sh` (auto = lifecycle Nest).
+- Cleanup: usunięcie przejściowego `demo-context.txt` **po** poprawnym teście auto + ręcznego seedu.
+- Testy: D-86…D-89; Setup Postman nadal `PUT /company-context`.
+
+**Poza zakresem tej fazy majoru:** implementacja w `apps/api`; kroki kodu w tym pliku; feature plan (osobna sesja); major FE; **MILESTONE 31**; przepisywanie Fazy 3 / 18 / MILESTONE’ów; zmiana guest / Redis / `GET /config`; force overwrite; overlay przy GET.
+
+### Krok 31.1 — `SeedModule` / `SeedService` + `seedCompanyContext` (auto przy `DEMO_MODE`)
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+1. **Cel:** Lifecycle boot woła seed-if-empty kontekstu wyłącznie przy `DEMO_MODE=true`.
+2. **HOW (wskazówka):** `SeedModule` + `SeedService`; metoda `seedCompanyContext()`; fixture JSON kompletny; zapis domenowy; niepusty → no-op.
+3. **DoD kroku (po feature-planie):** D-86 / D-87 zielone; brak „Demo*” w nazwie modułu/serwisu.
+
+### Krok 31.2 — DX `seed:company-context` + cleanup `demo-context.txt`
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+1. **Cel:** Ręczny seed bez wymogu `DEMO_MODE`; po weryfikacji auto+DX usunąć artefakt przejściowy.
+2. **HOW (wskazówka):** skrypt w `apps/api/scripts/` + `createApplicationContext`; pnpm `seed:company-context`; cleanup `demo-context.txt` po teście.
+3. **DoD kroku (po feature-planie):** D-88 / D-89; brak seedu w bashu/entrypoint; `demo-context.txt` usunięty po weryfikacji.
+
+**DoD (faza-gate):**
+
+- docs + SPEC: seed-if-empty (auto + DX) egzekwowalne; zakaz overlay GET i force; P-9 bez seed marker.
+- Istnieje ścieżka do feature-planu BE z `SeedModule`/`SeedService` + `seedCompanyContext` + skryptem DX bez luk decyzyjnych w docs/spec.
+- Faza 3 / 18 / 30 nietknięte treściowo (`WYKONANY`); **bez** MILESTONE 31.
+- Ten major nie oznacza implementacji jako `WYKONANY` z tej fazy-gate.
+
+---
+
 ## Mapa odwołań (lekka)
 
 | Obszar | Docs / SPEC |
@@ -1939,7 +1986,7 @@ Zmiana względem: status Fazy 30 / kroków 30.1–30.2 (`NIE_ROZPOCZĘTY`). Pow�
 | Persistence MVP | `SPEC-PERSISTENCE.md` |
 | HTTP / SSE / gateway / lista runów / auth probe / feedback | `docs/dokumentacja_komunikacji.md`, `SPEC-KOMUNIKACJA.md` |
 | Bezpieczeństwo / env / bootstrap /me | `docs/security.md`, `SPEC-BEZPIECZENSTWO.md`, `SPEC-AUTH.md` |
-| Kontekst firmy | `SPEC-KONTEKST-FIRMY.md`, `docs/dokumentacja_koncepcyjna.md` |
+| Kontekst firmy (+ seed-if-empty C-9) | `SPEC-KONTEKST-FIRMY.md`, `docs/dokumentacja_koncepcyjna.md`, `docs/deployment.md` (seed ops); Faza 31 |
 | Runy / logi / listing / przegląd (ocena, edycja) / `interrupted` / cykl życia SSE | `SPEC-RUNY.md` (w tym R-4a), `SPEC-KOMUNIKACJA.md` (K-3a, K-3b), `docs/observability.md`, `docs/data_flow.md` (recovery), `docs/dokumentacja_komunikacji.md` |
 | Opinie tekstowe | `SPEC-FEEDBACK.md` |
 | Social (posty i rolki) | `SPEC-SOCIAL.md`, `docs/data_flow.md` |
@@ -1971,4 +2018,5 @@ Zmiana względem: status Fazy 30 / kroków 30.1–30.2 (`NIE_ROZPOCZĘTY`). Pow�
 | Faza 28 — opcjonalna paginacja listingów runs / user-runs / users (gate) | `pagination-refactor-plan.md` (źródło legalizacji; treść wsiąka w docs/SPEC), `docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`, `docs/dictionary.md`, `docs/anty_patterny.md`, `SPEC-RUNY.md` R-3a / R-3c, `SPEC-AUTH.md` A-10b, `SPEC-KOMUNIKACJA.md` K-2a / K-2b / K-2j, `SPEC-FRONTEND.md` F-8, `content-chain-frontend_major_plan.md` Faza 29 (gate UX), refaktor względem Fazy 10 / 21 (historia `WYKONANY`), `feature-plans/content-chain_feature_plan_faza-28-pagination.md` |
 | Faza 29 — execute / safety V1: per-user + abort→gateway + parseWithZod (gate) | `post-mvp-b-execute-safety-plan.md` (źródło legalizacji; treść wsiąka w docs/SPEC), `docs/dictionary.md`, `docs/data_flow.md`, `docs/architektura.md`, `docs/dokumentacja_komunikacji.md`, `docs/security.md`, `SPEC-RUNY.md` R-6a / R-11, `SPEC-KOMUNIKACJA.md` K-8 / K-2e, `SPEC-BEZPIECZENSTWO.md` B-11, refaktor względem Fazy 12 / R-6 / Fazy 4.3 (historia `WYKONANY`); FE UX limitu = `content-chain-frontend_major_plan.md` **Faza 30** (**≠** FE Faza 29 paginacji), `feature-plans/content-chain_feature_plan_faza-29-execute-safety.md` |
 | Faza 30 — L-11 metrics port + cutover PostgreSQL (gate) | `post-mvp-c-persistence-postgres-plan.md` (źródło legalizacji; treść wsiąka w docs/SPEC), `docs/observability.md`, `docs/deployment.md` (V1 Postgres), `docs/architektura.md`, `SPEC-RUNY.md` R-14, `SPEC-BEZPIECZENSTWO.md` B-9, `SPEC-PERSISTENCE.md` P-6 / P-6a / P-6b; kolejność **30.1 → 30.2**; **≠** FE Faza 30 (UX limitu), `feature-plans/content-chain_feature_plan_faza-30-metrics-postgres.md` |
+| Faza 31 — seed kontekstu firmy JSON seed-if-empty (gate) | `docs/deployment.md`, `docs/dictionary.md`, `docs/data_flow.md`, `docs/anty_patterny.md`, `docs/architektura_katalogi_pliki.md`, `docs/testy.md`, `SPEC-KONTEKST-FIRMY.md` C-9, `SPEC-PERSISTENCE.md` P-9, `SPEC-TESTY.md` D-86…D-89; baza względem Fazy 3 + 18 (`WYKONANY`, bez edycji); **bez** MILESTONE 31 |
 | Kolejność budowy | `docs/dokumentacja_koncepcyjna.md`, `content-chain_brief.md` |

@@ -1,12 +1,14 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-11-09
+data_modyfikacji: 2026-11-10
 ---
 
 # Architektura katalogów i plików — Content Chain
 
 Propozycja **docelowego drzewa** monorepo (greenfield). Odzwierciedla style i granice z `architektura.md`: trzy aplikacje pod `apps/`, wspólne typy w `packages/shared`, `docs/` w rootcie. **Bez** rootowego katalogu `src/` opakowującego aplikacje.
+
+Zmiana względem wersji 9: kanon lokalizacji uniwersalnego seedu w `apps/api` — `SeedModule` / `SeedService` (bez brandu „Demo*”), fixture JSON kontekstu, `scripts/` + komenda `seed:company-context`. Nie-BC jak `health/` / `llm/`.
 
 Zmiana względem wersji 8 / metrics: `metrics/` woła port stats Run (`RunStatsPort` / `countByStatus`) — **bez** Prisma w tym katalogu; norma w `observability.md` (MVP/SQLite).
 
@@ -40,6 +42,7 @@ content-chain/
 │   │   ├── Dockerfile               # build: context = root monorepo + pnpm
 │   │   ├── docker-entrypoint…       # prisma migrate deploy → start procesu (production)
 │   │   ├── prisma/                  # schema Prisma (SQLite MVP)
+│   │   ├── scripts/                 # DX (Nest application context); m.in. seed:company-context
 │   │   ├── test/
 │   │   │   ├── *.e2e-spec.ts        # Jest e2e (supertest; fake LLM w happy path pipeline)
 │   │   │   └── postman/             # kolekcja Postman v2.1 Milestone 4 + README; nie BC, nie runtime, nie runner pnpm test:e2e
@@ -49,6 +52,8 @@ content-chain/
 │   │       ├── app.module.ts
 │   │       ├── auth/
 │   │       ├── company-context/
+│   │       ├── seed/                # SeedModule / SeedService (uniwersalne; nie „Demo*”)
+│   │       │   └── fixtures/        # JSON kontekstu firmy (kształt CompanyContext / PUT)
 │   │       ├── social/
 │   │       ├── content/             # BC Content (copy stron; bez HTTP controllera)
 │   │       ├── runs/
@@ -87,7 +92,7 @@ content-chain/
 |-------------------------------|-------------------------|
 | Modularny monolit, 3 procesy | `apps/api`, `apps/frontend`, `apps/ai-provider-gateway` |
 | Port/adapter (persistence, LLM) | Porty w `domain` / `application`; adaptery w `infrastructure` (+ Prisma w `apps/api/prisma`); klient gateway w `apps/api/src/llm/` |
-| Health / metrics (ops) | `apps/api/src/health/`, `apps/api/src/metrics/` — nie BC |
+| Health / metrics / seed (ops) | `apps/api/src/health/`, `apps/api/src/metrics/`, `apps/api/src/seed/` — nie BC; DX w `apps/api/scripts/` |
 | Social = LangGraph za fasadą | `apps/api/src/social/infrastructure/graph/` |
 | Prompty przy BC Social (posty **i** rolki) | `apps/api/src/social/infrastructure/prompts/` |
 | Content = LangGraph za fasadą | `apps/api/src/content/infrastructure/graph/` |
@@ -226,13 +231,14 @@ Pomocnicze elementy wyłącznie API (np. konfiguracja, interceptory, mapping bł
 
 `parse-with-zod.ts` — cienki helper cross-cutting: application Zod → `DomainException` (`VALIDATION_FAILED`, 400); `details[].path` = segmenty Zod `issue.path` połączone `'.'`. Używany przez BC (Runs, company-context) — **bez** reguł domenowych w tym pliku. Obok: `config/`, `http/`, `exceptions/`, `llm/`, `persistence/`.
 
-### `apps/api/src/health/`, `metrics/`, `llm/`
+### `apps/api/src/health/`, `metrics/`, `llm/`, `seed/`
 
 To **nie** są bounded contexty — brak układu `application` / `domain` / `infrastructure`.
 
 - `health/` — liveness procesu (`GET /api/v1/health`) oraz readiness produktowa (`GET /api/v1/health/ready`: check api + probe upstream **liveness** gateway). Cienki klient HTTP probe **w `health/`** (lub obok), **nie** w porcie `chat` / `llm/`. Kontrakt: `dokumentacja_komunikacji.md`.
 - `metrics/` — eksporter Prometheus (`GET /metrics` poza `/api/v1`; `observability.md`). Liczniki `RunStatus` **przez port** (`RunStatsPort` / `countByStatus`); **zakaz** `PrismaService` / ORM w tym katalogu — adapter zostaje przy Runs.
 - `llm/` — port LLM i adapter HTTP do `apps/ai-provider-gateway` (**chat**). Wołają go BC (Social, Content), nie kontrolery HTTP. **Bez** obowiązku pełnienia roli probe health. Helper kształtu logu hopu: `llm-gateway-chat.log.ts` (stdout tylko w `development`, z redakcją `GATEWAY_KEY` — `observability.md`). **Nie** umieszczać tu domeny Content Chain ani kluczy vendorów.
+- `seed/` — uniwersalny `SeedModule` / `SeedService` (lifecycle boot + wywołania DX). Metody pod treść, np. `seedCompanyContext()` — **bez** brandu „Demo*” w nazwie modułu/serwisu. Fixture JSON kontekstu w `seed/fixtures/` (kształt kontraktu PUT). Auto-seed kontekstu wyłącznie gdy `DEMO_MODE=true` (warunek przy wołaniu metody); DX: `apps/api/scripts/` + pnpm `seed:company-context` (Nest `createApplicationContext`, ten sam serwis). Zapis przez warstwę domenową company-context (seed-if-empty). Moduł gotowy na kolejne seedy treści — nie tylko demo.
 
 ## `apps/frontend`
 

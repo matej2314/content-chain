@@ -1,16 +1,18 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-13
+data_modyfikacji: 2026-11-10
 ---
 
 # SPEC — Kontekst firmy
 
 ## Cel / zakres względem dokumentacji
 
-Norma bounded contextu **Company Context** w `apps/api`: kanoniczny zapis kontekstu firmy w DB, bramka kompletności sekcji, authz edycji wyłącznie dla `admin`, typowane opcjonalne `extras`.
+Norma bounded contextu **Company Context** w `apps/api`: kanoniczny zapis kontekstu firmy w DB, bramka kompletności sekcji, authz edycji wyłącznie dla `admin`, typowane opcjonalne `extras`, oraz **seed-if-empty** (auto przy `DEMO_MODE` / DX) jako jawny zapis — bez overlay przy odczycie.
 
-Uszczegóławia bramkę i sekcje z `docs/dokumentacja_koncepcyjna.md`, endpointy z `docs/dokumentacja_komunikacji.md` oraz reguły ról z `docs/security.md` / `SPEC-AUTH.md`.
+Uszczegóławia bramkę i sekcje z `docs/dokumentacja_koncepcyjna.md`, endpointy z `docs/dokumentacja_komunikacji.md`, ops seedu z `docs/deployment.md` / `docs/dictionary.md` oraz reguły ról z `docs/security.md` / `SPEC-AUTH.md`.
+
+Zmiana względem wersji 8 / C-6 + „Nie wolno”: zakaz cichego fallbacku z plików przy odczycie. Od tej wersji **C-9**: dozwolony wyłącznie **jawny seed zapisu** (seed-if-empty) z fixture JSON; overlay przy GET nadal zakazany. Mechanizm: uniwersalny `SeedModule` / `SeedService` + `seedCompanyContext()` — nie „DemoSeed*”.
 
 Zmiana względem wersji 5 / cel: milczenie o granicach względem sieci. Od tej wersji jawnie: `isComplete` / C-1…C-5 **bez** gateway; wskaźnik UX „Agenci aktywni” → `SPEC-FRONTEND.md` F-6.
 Zmiana względem wersji 6 / C-4: `user` → 403 na zapis. Od tej wersji także `guest`; GET z `@AllowGuest`.
@@ -90,11 +92,23 @@ C-5. Start runu (`POST /api/v1/runs`) w `apps/api` **musi** sprawdzić bramkę �
 
 Zmiana względem wersji 1: C-5 mówił „start runu SM”; teraz każdy `POST /runs`.
 
-C-6. Jedna instalacja = **jeden** kanoniczny kontekst firmy w DB. Brak cichego odczytu / fallbacku z plików `.md` w runtime.
+C-6. Jedna instalacja = **jeden** kanoniczny kontekst firmy w DB. **Zakaz** cichego odczytu / overlay z plików (`.md` / JSON fixture) przy `GET` / completeness gdy DB pusta lub niespójna — kanon odczytu = wyłącznie DB.
+
+**Zmiana względem** wcześniejszej formy C-6 („brak cichego odczytu / fallbacku z plików `.md`”): zakaz **nadal** dotyczy **overlay przy odczycie**; **nie** wyklucza jawnego seedu **zapisu** opisanego w C-9.
 
 C-7. Model persistence: **osobne kolumny (lub równoważne pola zmapowane 1:1) per sekcja bramki** — nie jeden nieprzezroczysty blob JSON jako jedyny nośnik sekcji wymaganych. `extras`: kolumna Prisma **`Json?`** (lub równoważne); walidacja kształtu w application Zod przy PUT/PATCH — **nie** osobne tabele per case study w tym wycinku.
 
 C-8. Preferencja pustych danych: omit / `null` na całym `extras`, gdy brak danych (nie obowiązkowe puste tablice).
+
+C-9. **Seed kontekstu (seed-if-empty).** Wolno **zapisać** singleton kontekstu z fixture JSON o kształcie `CompanyContext` (kontrakt PUT) **wyłącznie** gdy kontekst jest **pusty**. „Pusty” = równoważny `emptyCompanyContext()` / legalnemu pustemu odczytowi C-2 (same `""` / `[]` / `extras=null`), także gdy wiersz singletonu już istnieje. Gdy kontekst **niepusty** → **no-op** (brak overwrite; **zakaz** force).
+
+- **Auto:** przy starcie procesu api, wyłącznie gdy `DEMO_MODE=true`.
+- **DX:** wywołanie `SeedService.seedCompanyContext()` (lub kanoniczna komenda `seed:company-context`) — **bez** wymogu `DEMO_MODE`, **bez** ustawiania flagi.
+- Fixture musi spełnić **ten sam** warunek zapisu co udany PUT (C-4: `isComplete(wynik).complete === true` + unikalność audience itd.). Inaczej: **brak** zapisu / fail-fast ścieżki seedu — **bez** cichego częściowego stanu w DB.
+- Zapis idzie przez warstwę domenową / ten sam port co udany PUT (nie surowy SQL/Prisma omijający bramkę).
+- Mechanizm strukturalny (bez HOW): uniwersalny `SeedModule` / `SeedService` w `apps/api` (nie-BC jak `health/` / `llm/`); metoda `seedCompanyContext()` — **zakaz** brandu „Demo*” w nazwie modułu/serwisu. Semantyka demo = warunek przy wołaniu metody, nie nazwa typu.
+
+`DEMO_MODE` poza seedem (guest / Redis / `GET /config`) — **bez zmian** w tym SPEC.
 
 ## Norma implementacji
 
@@ -124,6 +138,7 @@ apps/api/src/company-context/
 - Zwracać w GET status kompletności per sekcja bramki (wygodne dla UI).
 - Współdzielić **tę samą** `isComplete` między GET completeness, PUT/PATCH (werdykt przed persist) a guardem startu runu (ten sam kod domenowy).
 - Omit / `null` całego `extras` gdy brak danych.
+- Jawny seed-if-empty (C-9): auto przy `DEMO_MODE=true` oraz DX `seed:company-context` / `seedCompanyContext()` — zapis kompletnego fixture przez warstwę domenową.
 
 ### Nie wolno
 
@@ -132,7 +147,9 @@ apps/api/src/company-context/
 - Cicho stripować kalekie `offer.items` w adapterze / use-case (kaleka pozycja → 400, nie `filter`).
 - Traktować profil audience bez `name` / z pustym `name` jako kompletny; zapisywać katalog z zduplikowanymi `name` (case-insensitive po trim).
 - Startować runa w api bez sprawdzenia bramki.
-- Cichego fallbacku kontekstu z `.md` / plików przy pustej lub niespójnej DB.
+- Cichego fallbacku / overlay kontekstu z `.md` / plików przy **odczycie** (GET / completeness) przy pustej lub niespójnej DB — **zmiana względem:** wcześniejszy zakaz „cichego fallbacku z plików” pozostaje dla odczytu; dozwolony jest wyłącznie jawny seed **zapisu** (C-9).
+- Force overwrite niepustego kontekstu seedem; częściowego zapisu fixture omijającego C-4.
+- Brandować moduł/serwis seedu jako „Demo*” (obowiązuje `SeedModule` / `SeedService`).
 - Umieszczać regułę bramki w controllerze lub w grafie Social / Content (graf **odczytuje** kompletny kontekst; decyzja „czy wolno zapisać” = use-case PUT/PATCH; „czy wolno startować” = use-case startu runu — przed grafem).
 - Traktować jakość copy kontekstu jako warunek programowy MVP (tylko niepustość wymaganych pól).
 - Traktować `extras` jako warunek startu runu / wpis do `missing`.
@@ -164,7 +181,8 @@ apps/api/src/company-context/
 - [ ] HTTP: PUT/PATCH niekompletnej bramki → **400** `VALIDATION_FAILED`; GET bez zmiany (brak upsert).
 - [ ] Schema ma pola/kolumny per sekcja bramki; `extras` Json opcjonalne nie blokują `complete`.
 - [ ] E2e / HTTP: PUT z hashtagami / case study → round-trip w GET (**przy kompletnym** body bramki).
-- [ ] Brak ścieżki runtime czytającej kontekst z `.md` zamiast DB.
+- [ ] Brak ścieżki runtime czytającej kontekst z `.md` / fixture zamiast DB (GET).
+- [ ] Seed-if-empty (C-9): pusty + auto/`seedCompanyContext` → zapis kompletnego fixture; niepusty → no-op; niekompletny fixture → brak częściowego stanu.
 
 ## Poza zakresem
 
@@ -173,3 +191,4 @@ apps/api/src/company-context/
 - Eksport kontekstu do `.md` + checksum.
 - Treść promptów i ConsistencyVerifier (użycie kontekstu / extras jako wejścia) → `SPEC-SOCIAL.md` / `SPEC-CONTENT.md`.
 - Szczegóły migracji Prisma → `SPEC-PERSISTENCE.md`.
+- Semantyka guest / Redis / `GET /config` przy `DEMO_MODE` → `SPEC-AUTH.md` / `SPEC-RUNY.md` (poza C-9).

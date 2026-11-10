@@ -1,7 +1,7 @@
 ---
-wersja: 20
+wersja: 21
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-09
+data_modyfikacji: 2026-11-10
 ---
 
 # SPEC — Persistence
@@ -11,6 +11,8 @@ data_modyfikacji: 2026-11-09
 Norma warstwy persistence w `apps/api`: port + adapter Prisma, lokalizacja schema/migracji, kanoniczność DB, zakazy ORM w domain oraz **harmonogram silników** SQLite → PostgreSQL.
 
 Uszczegóławia `docs/architektura.md`, `docs/architektura_katalogi_pliki.md`, `docs/deployment.md` (topologia Compose MVP vs V1) oraz brak cichego fallbacku z `docs/dokumentacja_koncepcyjna.md` / `docs/anty_patterny.md`.
+
+Zmiana względem wersji 20 / P-5 + CompanyContext: milczenie o seed-if-empty. Od tej wersji **P-9**: singleton kontekstu — seed nie nadpisuje niepustego; `DEMO_MODE` nie przepisuje niepustego kontekstu przy restarcie; **bez** tabeli „seed marker” w MVP (predykat pustego kontekstu). Norma zapisu seedu → `SPEC-KONTEKST-FIRMY.md` C-9.
 
 Zmiana względem wersji 19 / P-6a: kanon prod = wyłącznie volume SQLite. Od tej wersji **P-6b** — topologia V1 = Postgres (compose lub managed) zamiast `api-sqlite`; cutover C1/C2 **bez** re-write — odesłanie do sekcji silników + `docs/deployment.md`. Liczniki metrics → port (L-11): `SPEC-RUNY.md` R-14 / `SPEC-BEZPIECZENSTWO.md` B-9 — **nie** w tym SPEC.
 
@@ -148,6 +150,8 @@ P-7. `schema.prisma` w MVP utrzymywać **przenośnie** (unikać zbędnych atrybu
 
 P-8. Drugi ORM obok Prisma — zakazany w MVP i przy cutoverze (nadal Prisma, inny provider).
 
+P-9. **Singleton `CompanyContext` — seed-if-empty.** Persistencja seedu (auto przy `DEMO_MODE=true` / DX) **nie** nadpisuje niepustego kontekstu: niepusty → **no-op** na poziomie zapisu (brak force). Restart api przy `DEMO_MODE=true` **nie** przepisuje niepustego singletonu. Dump/restore przenosi kontekst jak pozostałe dane — **bez** nowej semantyki degradacji przez sam flag `DEMO_MODE`. Predykat „pusty” = równoważność pustemu kontekstowi domenowemu (`SPEC-KONTEKST-FIRMY.md` C-9 / C-2) — **bez** osobnej tabeli / kolumny „seed marker” w MVP.
+
 ## Norma implementacji
 
 ### Wzorce / struktura
@@ -181,12 +185,14 @@ Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/
 - Archiwizować katalog migracji SQLite przy starcie historii PostgreSQL.
 - Traktować cutover na PostgreSQL jako zaplanowany krok fazy V1 — rozbudowa (nie jako wymóg dnia 1 MVP).
 - W DX lokalnym używać innej ścieżki pliku SQLite niż `/app/data/chain.db` (P-6a pinuje **production** Compose).
+- Seed-if-empty kontekstu (P-9) przez port company-context — bez nowej tabeli markera.
 
 ### Nie wolno
 
 - Prisma / SQL w `domain/` lub w `packages/shared`.
 - Prisma w `infrastructure/sse` \| `quota` \| `mail` \| `session` \| `graph` (te podkatalogi = inne I/O; ORM wyłącznie w `infrastructure/` lub `infrastructure/persistence/`).
 - Cichego odczytu kontekstu z `.md` przy dziurawej DB.
+- Force overwrite niepustego `CompanyContext` seedem / restartem przy `DEMO_MODE=true` (P-9).
 - PostgreSQL jako providera **w MVP**.
 - Trzymania kanonicznego pliku SQLite **wyłącznie** na efemerycznym FS kontenera w production (bez volume `api-sqlite` / równoważnego trwałego mounta — P-6a).
 - Pozostawania przy SQLite jako kanonie po wejściu w V1 — rozbudowę (ops/skala; **nie** mylić z „po dodaniu Content” — Content jest w MVP na SQLite).
@@ -248,6 +254,7 @@ Zmiana względem wersji 11 / „Nie wolno”: dopisano zakazy pending przez `isA
 - [ ] `User.verifiedAt` (`DateTime?`) w schemie; soft-delete **nie** czyści pola.
 - [ ] `User.role` = String (`admin`/`user`/`guest`); **bez** Prisma enum roli; **brak** tabeli slotów guest.
 - [ ] Soft `user` = jedna tx bez kasowania Run/Feedback; hard/purge `guest` = jedna tx delete tree + User; brak orphan Feedback; abort poza tx.
+- [ ] P-9: seed / restart przy `DEMO_MODE=true` nie nadpisuje niepustego singletonu `CompanyContext`; brak tabeli „seed marker”.
 
 ## Poza zakresem
 

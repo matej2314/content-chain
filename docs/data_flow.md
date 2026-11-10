@@ -1,12 +1,14 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-11-09
+data_modyfikacji: 2026-11-10
 ---
 
 # Przepływy danych — Content Chain
 
 Opis orkiestracji i ruchu danych w MVP. Kontrakty HTTP/SSE: `dokumentacja_komunikacji.md`. Identyfikatory: `brand_types.md`, `dictionary.md`.
+
+Zmiana względem wersji 9 / sekcja kontekstu: dopisano ścieżkę **seedu** (boot przy `DEMO_MODE` lub skrypt DX) → zapis singletonu gdy pusty → dalej istniejący flow GET/PUT/bramki/runów. Seed = **zapis**, nie podmiana odczytu / overlay przy GET.
 
 Zmiana względem: brak ścieżki Users DELETE/purge; cancel wyłącznie owner; access bez checku `isActive`. Od tej wersji: soft `user` / hard+purge `guest` (409 → confirm → `purge=true`); Redis SCAN ratings; sesja nieważna przy soft/hard; cancel admin→guest.
 
@@ -71,7 +73,8 @@ Dane: hasła tylko po stronie api (hash w DB); sekrety LLM nigdy we frontendzie.
 
 ```mermaid
 flowchart LR
-  Admin[admin] -->|PUT/PATCH company-context| API[apps/api]
+  Boot[boot api DEMO_MODE lub DX seed:company-context] -->|seed-if-empty| API[apps/api]
+  Admin[admin] -->|PUT/PATCH company-context| API
   API --> DB[(DB)]
   API -->|GET completeness| Admin
   FE[apps/frontend] -->|GET health/ready| API
@@ -80,6 +83,8 @@ flowchart LR
   Gate -->|nie| Block[Start runu 409 CONTEXT_INCOMPLETE]
   Gate -->|tak| Allow[POST /runs dozwolony — Social i Content]
 ```
+
+**Seed (zapis, nie odczyt):** przy starcie procesu api, gdy `DEMO_MODE=true`, albo ręcznie przez DX `seed:company-context` (bez wymogu demo) — jeśli singleton kontekstu jest **pusty**, api zapisuje fixture JSON tą samą ścieżką domenową co udany PUT; jeśli niepusty → **no-op**. `GET` / completeness **zawsze** z DB — **bez** overlay z pliku przy pustej lub niespójnej bazie.
 
 Sekcje bramki: tożsamość, oferta, głos SM, CTA/kanały, odbiorca (`dokumentacja_koncepcyjna.md`).  
 **Chip UX „Agenci aktywni”** = `completeness.complete` **∧** `checks.gateway` healthy z api `/health/ready` (probe = liveness gateway). **Nie** mieszać z `isComplete` / `409` `CONTEXT_INCOMPLETE` (te zostają wyłącznie kontekstowe).  

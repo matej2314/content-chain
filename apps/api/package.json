@@ -13,7 +13,11 @@
     "build": "nest build",
     "start": "node dist/main",
     "test": "jest",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e:db:up": "node ./test/e2e-db.mjs up",
+    "test:e2e:db:down": "node ./test/e2e-db.mjs down",
+    "test:e2e:migrate": "node ./test/e2e-db.mjs migrate",
+    "test:e2e": "node ./test/run-e2e.mjs",
+
     "typecheck:tests": "tsc -p tsconfig.test.json --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

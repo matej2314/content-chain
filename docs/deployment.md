@@ -1,7 +1,7 @@
 ---
-wersja: 16
+wersja: 17
 data_utworzenia: 2026-09-30
-data_modyfikacji: 2026-11-09
+data_modyfikacji: 2026-11-10
 ---
 
 # Deployment — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-09
 Self-host MVP: jak uruchamiać, konfigurować i utrzymywać jedną instalację (jedna firma = jedna instancja).
 
 Powiązane: `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `testy.md`, `security.md`, `observability.md`.
+
+Zmiana względem wersji 16 / `DEMO_MODE` = guest + Redis: przy `DEMO_MODE=true` start procesu api **może** zapełnić **pusty** singleton kontekstu firmy z fixture JSON (**seed-if-empty**); restart **nie** nadpisuje niepustego; **brak** force. DX: komenda `seed:company-context` **bez** wymogu `DEMO_MODE` (też seed-if-empty). Seed **nie** zastępuje ręcznego `PUT` admina na niepustej instancji i **nie** jest toggle UI. Guest / Redis / `GET /config` — **bez zmian**.
 
 Zmiana względem wersji 15 / store MVP = SQLite volume: dopisano **topologię V1** — Compose (lub managed) **PostgreSQL** zamiast `api-sqlite` jako kanonu V1; cutover = nowa historia migracji + pusta baza (nie „podmień tylko `DATABASE_URL`”); import SQLite→PG = osobna procedura ops. Kanon MVP (trzy usługi + volume SQLite) **bez zmian** do czasu cutoveru.
 
@@ -149,13 +151,15 @@ Aktywacja linkiem wymagana **tylko** gdy `NODE_ENV=production`. Poza prod: `veri
 
 | Zmienna | Semantyka |
 |---------|-----------|
-| `DEMO_MODE` | `true` \| `false` (string bool), default **`false`**. Ładowane przy starcie. **Brak** UI toggle. Register **zawsze** dostępny. Przy `true`: nowe konta z **register i accept-invite** → `guest` (sandbox do poklikania); przy `false`: obie ścieżki → `user` (invite = członek zespołu). |
+| `DEMO_MODE` | `true` \| `false` (string bool), default **`false`**. Ładowane przy starcie. **Brak** UI toggle. Register **zawsze** dostępny. Przy `true`: nowe konta z **register i accept-invite** → `guest` (sandbox do poklikania); przy `false`: obie ścieżki → `user` (invite = członek zespołu). Dodatkowo przy `true`: auto **seed-if-empty** singletonu kontekstu firmy z fixture JSON przy starcie procesu api (pusty → zapis; niepusty → **no-op**; **bez** force / overwrite). Przy `false`: auto-seed kontekstu **wyłączony**. |
 | `GUEST_GLOBAL_CAP_PER_DAY` | Default **30**. Wszystkie starty `guest` na instancji / dobę UTC. |
 | `GUEST_RATING_CAP_PER_DAY` | Default **10**. Soft limit ocen `guest` / user / dobę UTC. |
 | `REDIS_HOST` + `REDIS_PORT` | Standalone Redis (**external** — nie usługa w bazowym compose CC). Przy `DEMO_MODE=true` **wymagane** (fail-fast). |
 | `REDIS_PASSWORD` | Opcjonalne hasło AUTH (ioredis `password`). Sekret — nie w logach / envelope / health. |
 
 Przy `DEMO_MODE=true` Redis jest potrzebny pod cap runów i soft rating. Przy `false` Redis **opcjonalny**. `GET /health` i `/health/ready` **nie** failują z powodu braku Redis.
+
+**Seed kontekstu (ops):** zmiana `DEMO_MODE` = **restart** procesu api (jak reszta semantyki flagi). Auto-seed przy demo on **nie** zastępuje ręcznego `PUT` / `PATCH` admina na instancji, która już ma niepusty kontekst. Poza auto: DX `seed:company-context` (workspace api / root wg konwencji) — ten sam seed-if-empty, **bez** wymogu `DEMO_MODE=true` i **bez** ustawiania flagi. Seed to **zapis** do DB (ta sama ścieżka domenowa co udany PUT), nie overlay przy `GET`.
 
 Lokalna instancja gateway w tym repo: `apps/ai-provider-gateway/gateway.config.yaml` (m.in. `timeoutMs` i `maxOutputTokens` aliasu używanego przez api) musi unieść hop Social z pełnym JSON kontekstu firmy. **Liczb z YAML nie pinujemy w SPEC** — źródło operatorskie to plik instancji. Ingress native: **10 000** znaków na `content` `user` / `assistant` (`dokumentacja_komunikacji.md`). Jak odpalić happy path: `apps/api/test/postman/README.md`.
 
