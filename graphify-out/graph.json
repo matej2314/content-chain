@@ -35492,7 +35492,7 @@
       "file_type": "code",
       "norm_label": ".onmoduledestroy()",
       "source_file": "apps/api/src/shared/persistence/prisma.service.ts",
-      "source_location": "L15"
+      "source_location": "L13"
     },
     {
       "id": "apps_api_src_shared_persistence_prisma_service_prismaservice_onmoduleinit",
@@ -238125,7 +238125,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/api/src/shared/persistence/prisma.service.ts",
-      "source_location": "L15",
+      "source_location": "L13",
       "weight": 1.0
     },
     {
@@ -243772,5 +243772,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "15e4fbd3a7fbea1348d8155bbddfcf55d8159733"
+  "built_at_commit": "b2f38957d78164003ee9d5d2408e281c4de17a87"
 }

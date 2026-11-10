@@ -1800,9 +1800,9 @@
     "semantic_hash": "4d44ee70d8f020668514a1c8a45d1af3"
   },
   "apps/frontend/src/app/layout.tsx": {
-    "mtime": 1793188188.6147282,
-    "seen": 1793273423.4948902,
-    "ast_hash": "8605df6953fdf1e591a638dd1b785143",
+    "mtime": 1794314630.54164,
+    "seen": 1794315869.642119,
+    "ast_hash": "ab8f110a61915b737ffd6dd85114470e",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/page.tsx": {
@@ -2130,10 +2130,10 @@
     "semantic_hash": "0d14fad4b4742f49ea6d9d9c48069e8b"
   },
   "apps/api/src/shared/persistence/prisma.service.ts": {
-    "mtime": 1791367829.3729303,
-    "seen": 1792261760.1107702,
-    "ast_hash": "223d93c206e9276b8b7125dae1c5359e",
-    "semantic_hash": "223d93c206e9276b8b7125dae1c5359e"
+    "mtime": 1794313229.6591988,
+    "seen": 1794315869.6420906,
+    "ast_hash": "b927225fdf284e7b8337fa5b66dca982",
+    "semantic_hash": ""
   },
   "apps/api/src/shared/persistence/to-input-json.ts": {
     "mtime": 1791367829.3729641,
@@ -3888,9 +3888,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/shared/config/redis-connection.ts": {
-    "mtime": 1791367876.3741136,
-    "seen": 1792261760.1107554,
-    "ast_hash": "3a785d9a14fb7b2dad5b6a9261ef7389",
+    "mtime": 1794306509.2656453,
+    "seen": 1794308450.0392032,
+    "ast_hash": "91b77aedf07ab2448e0e5ed135470ec5",
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/reject-dead-guest-session.ts": {

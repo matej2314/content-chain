@@ -36,7 +36,7 @@ const ANCHOR_OPEN = new Date('2026-09-30T10:00:00.000Z');
 const ANCHOR_EXPIRED = new Date('2026-09-30T08:00:00.000Z');
 
 const BASE_ENV_FIELDS = {
-  DATABASE_URL: 'file:./test.db',
+  DATABASE_URL: 'postgresql://cc:cc@127.0.0.1:5432/content_chain_test?schema=public',
   GATEWAY_BASE_URL: 'http://localhost:3100',
   GATEWAY_KEY: 'test-gateway-key',
   JWT_SECRET: 'test-jwt-secret',

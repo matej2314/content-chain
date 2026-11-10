@@ -28,9 +28,7 @@ ENV PORT=3001
 
 RUN apk add --no-cache libc6-compat openssl \
   && addgroup -g 1001 -S nodejs \
-  && adduser -S api -u 1001 \
-  && mkdir -p /app/data \
-  && chown api:nodejs /app/data
+  && adduser -S api -u 1001
 
 COPY --from=build --chown=api:nodejs /prod/api ./
 COPY --chown=api:nodejs apps/api/docker-entrypoint.sh /app/docker-entrypoint.sh

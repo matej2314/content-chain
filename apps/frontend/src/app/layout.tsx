@@ -23,7 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: '%s |Content Chain',
+  title: 'Home | Content Chain',
   description: 'Automatyzacja generowania treści na Media Społecznościowe.',
 };
 

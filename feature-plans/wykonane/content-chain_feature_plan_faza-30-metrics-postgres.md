@@ -437,7 +437,7 @@ Po tej fazie kanon V1 = Postgres; SQLite nie jest silnikiem aplikacji / testów 
 
 ### KROK 1 — Archiwum migracji SQLite + provider Postgres
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Odciąć historię SQLite od aktywnego Migrate; przestawić schema. Major 30.2; P-6b; Context7 switch-provider.
 
@@ -492,7 +492,7 @@ Modele **bez** zmian w tym kroku (P-7 — przenośność). Partial unique nadal 
 
 ### KROK 2 — Nowa historia Migrate (PG) + partial unique
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jedna (lub dwie) migracje od pustej PG do aktualnego modelu + indeksy SQL z archiwum. Major 30.2; P-6b; P-7.
 
@@ -547,7 +547,7 @@ CREATE UNIQUE INDEX "Invitation_one_pending_email" ON "Invitation"("email") WHER
 
 ### KROK 3 — Compose, env, CI/e2e pod Postgres
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Topologia V1 bez `api-sqlite` / mountu pliku SQLite jako kanonu. Major 30.2; `docs/deployment.md` V1; P-6b.
 
@@ -677,7 +677,7 @@ na connection string do usługi `postgres` w compose (+ sekrety/user/db z env jo
 
 ### KROK 4 — Smoke ops na pustej PG
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Domknięcie DoD Kroku 30.2 / fazy. Checklist z `docs/deployment.md` (V1) — bez ETL.
 
@@ -700,7 +700,7 @@ na connection string do usługi `postgres` w compose (+ sekrety/user/db z env jo
 
 ### KROK 5 — Usunięcie archiwum migracji SQLite
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Po domkniętym baseline PG usunąć tymczasowe archiwum z working tree. Major 30.2 / P-6b — archiwizacja przy starcie historii PG **już spełniona** w KROK 1; docs/SPEC **nie** pinują wiecznej retencji katalogu w drzewie (historia MVP zostaje w Gicie).
 

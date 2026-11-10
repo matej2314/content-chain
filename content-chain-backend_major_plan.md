@@ -1883,7 +1883,7 @@ Zmiana względem: status Fazy 29 / kroków 29.1–29.3 (`NIE_ROZPOCZĘTY`). Pow�
 
 ## Faza 30 — Post-MVP: metrics port (L-11) + cutover PostgreSQL — norma gotowa pod feature-plan
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Bez MILESTONE 30** — gate normy i gotowości pod osobny feature-plan; nie skok implementacyjny w tym majorze. Numer **30** = kolejny wolny po Fazie 29. Źródło legalizacji: `post-mvp-c-persistence-postgres-plan.md` (treść wsiąka w `docs/` + `spec/` — feature-plan **nie** cytuje aux jako wymogu). **Nie** mylić z `content-chain-frontend_major_plan.md` Fazą 30 (UX limitu per-user).
 
@@ -1895,7 +1895,7 @@ Zmiana względem: status Fazy 29 / kroków 29.1–29.3 (`NIE_ROZPOCZĘTY`). Pow�
 
 ### Krok 30.1 — L-11: port stats + `metrics/` bez Prisma (SQLite)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Wprowadzić cienki `RunStatsPort` (preferowany) **albo** `countByStatus` na porcie Run; przerobić `MetricsService` / `metrics/` tak, by **nie** zależał od `PrismaService` / `groupBy`. Unit + integration **na SQLite** (stack MVP). Gate docs/SPEC: `observability.md`, R-14, B-9.
 
@@ -1907,7 +1907,7 @@ Zmiana względem: status Fazy 29 / kroków 29.1–29.3 (`NIE_ROZPOCZĘTY`). Pow�
 
 ### Krok 30.2 — Cutover PostgreSQL (ops + Migrate)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Opis:** Po domknięciu Kroku 30.1: provider Prisma → Postgres; archiwum historii migracji SQLite; **nowa** historia Migrate; Compose (usługa Postgres + volume) **albo** managed; `DATABASE_URL` PG; entrypoint `migrate deploy` na **pustej** bazie; smoke health/ready/metrics. Checklist ops z `docs/deployment.md` (V1). Import SQLite→PG = osobna procedura ops (poza kodem produktu).
 
@@ -1916,6 +1916,9 @@ Zmiana względem: status Fazy 29 / kroków 29.1–29.3 (`NIE_ROZPOCZĘTY`). Pow�
 - Stack V1 wstaje na Postgres (compose lub managed) bez volume `api-sqlite` jako kanonu.
 - `migrate deploy` na pustej PG przechodzi; smoke ops OK.
 - Brak obietnicy „te same migracje SQLite na PG”; import opcjonalny = procedura ops.
+
+**Nota (po feature planie):** `feature-plans/content-chain_feature_plan_faza-30-metrics-postgres.md` (FAZA 1 / KROK 1–4 `WYKONANY` — `RunStatsPort` + `PrismaRunAdapter` + `metrics/` bez Prisma + testy na SQLite; FAZA 2 / KROK 1–5 `WYKONANY` — archiwum SQLite → baseline PG + partial unique, Compose/env/CI, smoke na pustej PG, usunięcie archiwum z drzewa; postęp kodu wyłącznie w feature-planie; **bez** dodatkowych kroków w tym majorze). **`WYKONANY` tej fazy = DoD gate** (docs/SPEC + ścieżka HOW) **oraz** domknięcie implementacji w feature-planie; nie mylić z milestone’em produktowym. **Brak MILESTONE 30** — nic nie oznaczać `OSIĄGNIĘTY`. Fazy MVP SQLite / Faza 29 bez zmian (`WYKONANY`); major FE (Faza 30 UX limitu) poza tym śladem.
+Zmiana względem: status Fazy 30 / kroków 30.1–30.2 (`NIE_ROZPOCZĘTY`). Powód: ślad do major po domknięciu gate / implementacji `content-chain_feature_plan_faza-30-metrics-postgres.md`.
 
 **DoD (faza-gate):**
 
@@ -1967,5 +1970,5 @@ Zmiana względem: status Fazy 29 / kroków 29.1–29.3 (`NIE_ROZPOCZĘTY`). Pow�
 | Faza 27 — logotyp PNG (CID) w headerze shella maili (gate) | `email-mail-logo-plan.md` (źródło gate; treść wsiąka w docs/SPEC), `docs/brand_types.md`, `docs/dokumentacja_komunikacji.md`, `docs/dictionary.md`, `docs/architektura_katalogi_pliki.md`, `SPEC-AUTH.md`, `SPEC-TESTY.md`, `SPEC-README.md` (refaktor względem Fazy 25 — tekstowy wordmark; Faza 26 — CID zrzutów, bez przepisywania), `feature-plans/content-chain_feature_plan_faza-27-mail-logo.md` |
 | Faza 28 — opcjonalna paginacja listingów runs / user-runs / users (gate) | `pagination-refactor-plan.md` (źródło legalizacji; treść wsiąka w docs/SPEC), `docs/dokumentacja_komunikacji.md`, `docs/ux_dashboard.md`, `docs/dictionary.md`, `docs/anty_patterny.md`, `SPEC-RUNY.md` R-3a / R-3c, `SPEC-AUTH.md` A-10b, `SPEC-KOMUNIKACJA.md` K-2a / K-2b / K-2j, `SPEC-FRONTEND.md` F-8, `content-chain-frontend_major_plan.md` Faza 29 (gate UX), refaktor względem Fazy 10 / 21 (historia `WYKONANY`), `feature-plans/content-chain_feature_plan_faza-28-pagination.md` |
 | Faza 29 — execute / safety V1: per-user + abort→gateway + parseWithZod (gate) | `post-mvp-b-execute-safety-plan.md` (źródło legalizacji; treść wsiąka w docs/SPEC), `docs/dictionary.md`, `docs/data_flow.md`, `docs/architektura.md`, `docs/dokumentacja_komunikacji.md`, `docs/security.md`, `SPEC-RUNY.md` R-6a / R-11, `SPEC-KOMUNIKACJA.md` K-8 / K-2e, `SPEC-BEZPIECZENSTWO.md` B-11, refaktor względem Fazy 12 / R-6 / Fazy 4.3 (historia `WYKONANY`); FE UX limitu = `content-chain-frontend_major_plan.md` **Faza 30** (**≠** FE Faza 29 paginacji), `feature-plans/content-chain_feature_plan_faza-29-execute-safety.md` |
-| Faza 30 — L-11 metrics port + cutover PostgreSQL (gate) | `post-mvp-c-persistence-postgres-plan.md` (źródło legalizacji; treść wsiąka w docs/SPEC), `docs/observability.md`, `docs/deployment.md` (V1 Postgres), `docs/architektura.md`, `SPEC-RUNY.md` R-14, `SPEC-BEZPIECZENSTWO.md` B-9, `SPEC-PERSISTENCE.md` P-6 / P-6a / P-6b; kolejność **30.1 → 30.2**; **≠** FE Faza 30 (UX limitu) |
+| Faza 30 — L-11 metrics port + cutover PostgreSQL (gate) | `post-mvp-c-persistence-postgres-plan.md` (źródło legalizacji; treść wsiąka w docs/SPEC), `docs/observability.md`, `docs/deployment.md` (V1 Postgres), `docs/architektura.md`, `SPEC-RUNY.md` R-14, `SPEC-BEZPIECZENSTWO.md` B-9, `SPEC-PERSISTENCE.md` P-6 / P-6a / P-6b; kolejność **30.1 → 30.2**; **≠** FE Faza 30 (UX limitu), `feature-plans/content-chain_feature_plan_faza-30-metrics-postgres.md` |
 | Kolejność budowy | `docs/dokumentacja_koncepcyjna.md`, `content-chain_brief.md` |

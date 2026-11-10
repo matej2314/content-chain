@@ -114,7 +114,7 @@ function deployTestDb(): void {
       cwd: join(__dirname, '..'),
       env: {
         ...process.env,
-        DATABASE_URL: 'file:./test.db',
+        DATABASE_URL: process.env.DATABASE_URL!,
         CHECKPOINT_DISABLE: '1',
         PRISMA_HIDE_UPDATE_MESSAGE: '1',
       },

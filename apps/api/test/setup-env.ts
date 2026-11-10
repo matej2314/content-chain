@@ -1,6 +1,7 @@
 process.env.NODE_ENV = 'test';
 process.env.PORT ??= '3001';
-process.env.DATABASE_URL ??= 'file:./test.db';
+process.env.DATABASE_URL ??=
+  'postgresql://cc:cc@127.0.0.1:5432/content_chain_test?schema=public';
 process.env.GATEWAY_BASE_URL ??= 'http://127.0.0.1:3100';
 process.env.GATEWAY_KEY ??= 'test-gateway-key';
 process.env.GATEWAY_MODEL_ALIAS ??= 'chat-default';

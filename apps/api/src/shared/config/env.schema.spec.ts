@@ -3,7 +3,7 @@ import { parseCorsOrigins, validateEnv } from './env.schema';
 const valid: Record<string, unknown> = {
   NODE_ENV: 'development',
   PORT: '3001',
-  DATABASE_URL: 'file:./chain.db',
+  DATABASE_URL: 'postgresql://cc:cc@127.0.0.1:5432/content_chain?schema=public',
   GATEWAY_BASE_URL: 'http://localhost:3100',
   GATEWAY_KEY: 'change-me-gateway-key',
   JWT_SECRET: 'change-me-jwt-secret',

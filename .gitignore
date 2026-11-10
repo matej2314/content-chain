@@ -13,16 +13,14 @@ dist/
 .env
 .env.local
 .env.*.local
+.env.db
+.env.dev
 
 *.db
 *.db-journal
 
 graphify-out/cache/
 graphify-out/2026-*
-demo-context.txt
-Jenkinsfile.lab
-Jenkinsfile
-
 
 .DS_Store
 Thumbs.db

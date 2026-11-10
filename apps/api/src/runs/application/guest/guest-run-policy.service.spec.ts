@@ -18,7 +18,7 @@ const GUEST_ID = createUserId('usr_11111111-1111-4111-8111-111111111111');
 const OTHER_ID = createUserId('usr_22222222-2222-4222-8222-222222222222');
 
 const BASE_ENV_FIELDS = {
-  DATABASE_URL: 'file:./test.db',
+  DATABASE_URL: 'postgresql://cc:cc@127.0.0.1:5432/content_chain_test?schema=public',
   GATEWAY_BASE_URL: 'http://localhost:3100',
   GATEWAY_KEY: 'test-gateway-key',
   JWT_SECRET: 'test-jwt-secret',

@@ -41,11 +41,6 @@ jobs:
       - name: Create external Docker network (main_network)
         run: docker network create main_network || true
 
-      - name: Prepare api SQLite data directory
-        run: |
-          sudo mkdir -p /opt/content-chain/data
-          sudo chown 1001:1001 /opt/content-chain/data
-
       # Repo secrets: names match root .env / gateway.config.yaml refs
       # (GATEWAY_KEY, JWT_SECRET, SMTP_*, MASTER_KEY, *API_KEY, GATEWAY_KEY_*).
       - name: Write root .env for compose smoke
@@ -102,7 +97,10 @@ jobs:
             echo "NODE_ENV=production"
             echo "PORT=3001"
             echo "APP_PUBLIC_URL=http://127.0.0.1:3303"
-            echo "DATABASE_URL=file:/app/data/chain.db"
+            echo "POSTGRES_USER=cc"
+            echo "POSTGRES_PASSWORD=cc"
+            echo "POSTGRES_DB=content_chain"
+            echo "DATABASE_URL=postgresql://cc:cc@postgres:5432/content_chain?schema=public"
             echo "GATEWAY_BASE_URL=http://ai-provider-gateway:3100"
             echo "GATEWAY_KEY=${GATEWAY_KEY}"
             echo "GATEWAY_MODEL_ALIAS=chat-default"
@@ -228,6 +226,19 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cc
+          POSTGRES_PASSWORD: cc
+          POSTGRES_DB: content_chain_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cc -d content_chain_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - name: Checkout ${{ inputs.branch }}
         uses: actions/checkout@v4
@@ -255,4 +266,5 @@ jobs:
         env:
           REDIS_HOST: 127.0.0.1
           REDIS_PORT: "6379"
+          DATABASE_URL: postgresql://cc:cc@127.0.0.1:5432/content_chain_test?schema=public
         run: pnpm test:e2e:api
