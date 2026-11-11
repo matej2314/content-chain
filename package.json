@@ -25,7 +25,8 @@
 		"lint:frontend": "pnpm --filter frontend lint",
 		"lint:gateway": "pnpm --filter ai-provider-gateway lint",
 		"format": "prettier --write .",
-		"format:check": "prettier --check ."
+		"format:check": "prettier --check .",
+		"seed:company-context": "pnpm --filter api seed:company-context"
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3.2.0",

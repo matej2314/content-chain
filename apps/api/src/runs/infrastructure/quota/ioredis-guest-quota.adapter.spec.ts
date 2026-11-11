@@ -18,8 +18,10 @@ jest.mock('ioredis', () =>
 );
 
 const TEST_ENV = validateEnv({
+  DEMO_MODE: 'true',
   NODE_ENV: 'test',
-  DATABASE_URL: 'postgresql://cc:cc@127.0.0.1:5432/content_chain_test?schema=public',
+  DATABASE_URL:
+    'postgresql://cc:cc@127.0.0.1:5432/content_chain_test?schema=public',
   GATEWAY_BASE_URL: 'http://localhost:3100',
   GATEWAY_KEY: 'test-gateway-key',
   JWT_SECRET: 'test-jwt-secret',

@@ -17,12 +17,12 @@
     "test:e2e:db:down": "node ./test/e2e-db.mjs down",
     "test:e2e:migrate": "node ./test/e2e-db.mjs migrate",
     "test:e2e": "node ./test/run-e2e.mjs",
-
     "typecheck:tests": "tsc -p tsconfig.test.json --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "seed:company-context": "node ./scripts/seed-company-context.mjs"
   },
   "dependencies": {
     "@content-chain/shared": "workspace:*",

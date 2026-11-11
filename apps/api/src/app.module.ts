@@ -30,6 +30,7 @@ import { PrismaModule } from './shared/persistence/prisma.module';
 import { LlmModule } from './llm/llm.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { ContentModule } from './content/content.module';
+import { SeedModule } from './seed/seed.module';
 import { RunLifecycleModule } from './runs/run-lifecycle.module';
 import { PublicConfigModule } from './public-config/public-config.module';
 import { FeedbackModule } from './feedback/feedback.module';
@@ -50,7 +51,6 @@ import { CompositeRunResultReader } from './runs/application/composite-run-resul
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
-      // E2e ładuje wyłącznie apps/api/.env.test (setup-env) — nie mieszaj apps/api/.env.
       ignoreEnvFile: process.env.NODE_ENV === 'test',
     }),
     EnvModule,
@@ -96,6 +96,7 @@ import { CompositeRunResultReader } from './runs/application/composite-run-resul
     MetricsModule,
     FeedbackModule,
     PublicConfigModule,
+    SeedModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

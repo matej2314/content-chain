@@ -1746,9 +1746,9 @@
     "semantic_hash": "ee817bfd7e25f778a714f16506add3bb"
   },
   "apps/api/src/app.module.ts": {
-    "mtime": 1794319032.4627776,
-    "seen": 1794319075.9482408,
-    "ast_hash": "a9f0e25589429a9529d738b2619a3ea5",
+    "mtime": 1794393470.992703,
+    "seen": 1794393998.8532019,
+    "ast_hash": "8ce4d4c73a3a6ef1d4bad70d04cb6e53",
     "semantic_hash": ""
   },
   "apps/api/src/auth/auth.controller.ts": {
@@ -1770,10 +1770,10 @@
     "semantic_hash": ""
   },
   "apps/api/src/company-context/company-context.module.ts": {
-    "mtime": 1791367829.3654954,
-    "seen": 1792261760.1106725,
-    "ast_hash": "87e872c3ecac38b736342e07b6635a61",
-    "semantic_hash": "87e872c3ecac38b736342e07b6635a61"
+    "mtime": 1794389870.788699,
+    "seen": 1794393998.8532548,
+    "ast_hash": "7c7aa8ae956d142b5e86a6c02dd1ee4e",
+    "semantic_hash": ""
   },
   "apps/api/src/main.ts": {
     "mtime": 1791367829.3680239,
@@ -4425,6 +4425,42 @@
     "mtime": 1794304927.3905814,
     "seen": 1794305107.0102026,
     "ast_hash": "bf3870422b581e6a2d20de75af0fc860",
+    "semantic_hash": ""
+  },
+  "apps/api/src/company-context/domain/is-empty-company-context.ts": {
+    "mtime": 1794389826.641158,
+    "seen": 1794393998.8532615,
+    "ast_hash": "430f2f8fe9ae7f1122451364f310c4a2",
+    "semantic_hash": ""
+  },
+  "apps/api/src/seed/load-company-context-fixture.ts": {
+    "mtime": 1794397263.2296352,
+    "seen": 1794397540.9889627,
+    "ast_hash": "1654fe80ea6e577c7b20805737401e14",
+    "semantic_hash": ""
+  },
+  "apps/api/src/seed/seed.module.ts": {
+    "mtime": 1794393447.7958853,
+    "seen": 1794393998.8533523,
+    "ast_hash": "ac39988bae79b8ae1f88fb945fafbc3c",
+    "semantic_hash": ""
+  },
+  "apps/api/src/seed/seed.service.ts": {
+    "mtime": 1794393988.5760458,
+    "seen": 1794393998.8533528,
+    "ast_hash": "61d32a9c9d8adcce0b3d0ae4ced1ca11",
+    "semantic_hash": ""
+  },
+  "apps/api/src/seed/seed-cli.module.ts": {
+    "mtime": 1794394725.3628411,
+    "seen": 1794397540.9889643,
+    "ast_hash": "1abffd9ebb2ea0c6b76909b69fd454de",
+    "semantic_hash": ""
+  },
+  "apps/api/src/seed/seed-company-context.cli.ts": {
+    "mtime": 1794394915.0813882,
+    "seen": 1794397540.9889653,
+    "ast_hash": "865d00b6e7554eaece3d59d1c5b679e7",
     "semantic_hash": ""
   }
 }

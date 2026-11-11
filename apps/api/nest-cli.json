@@ -6,7 +6,8 @@
     "deleteOutDir": true,
     "assets": [
       "**/*.prompt.md",
-      "auth/infrastructure/mail/assets/**/*"
+      "auth/infrastructure/mail/assets/**/*",
+      "seed/fixtures/**/*"
     ],
     "watchAssets": true
   }

@@ -19,6 +19,10 @@ import { PrismaCompanyContextAdapter } from './infrastructure/prisma-company-con
     PatchCompanyContextUseCase,
     GetCompletenessUseCase,
   ],
-  exports: [GetCompletenessUseCase, COMPANY_CONTEXT_REPOSITORY],
+  exports: [
+    GetCompletenessUseCase,
+    PutCompanyContextUseCase,
+    COMPANY_CONTEXT_REPOSITORY,
+  ],
 })
 export class CompanyContextModule {}
