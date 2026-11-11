@@ -50,7 +50,6 @@ graphify-out/
 **/AGENTS.md
 **/CLAUDE.md
 **/graphify-out
-deployment-fix-plan.md
 content-chain_brief.md
 *_major_plan.md
 *_major_plan_*.md
@@ -62,3 +61,5 @@ apps/ai-provider-gateway/deployment/scripts
 apps/ai-provider-gateway/test
 apps/api/test
 apps/api/content-chain.postman-collection.json
+README.md
+docker-compose.*
