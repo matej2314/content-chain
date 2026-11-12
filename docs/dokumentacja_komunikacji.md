@@ -1,17 +1,21 @@
 ---
-wersja: 30
+wersja: 32
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-11-09
+data_modyfikacji: 2026-11-12
 ---
 
 # Dokumentacja komunikacji — Content Chain
 
-Normatywny kontrakt I/O **MVP**. Dwie powierzchnie:
+Normatywny kontrakt I/O **MVP** (+ jawne trasy **V1** auth self-service poniżej). Dwie powierzchnie:
 
 1. **HTTP API `apps/api`** — konsumenci: `apps/frontend`, Postman  
 2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
 
 **Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+
+Zmiana względem wersji 31 / confirm e-mail: V1 opisane bez pinu deep linku `emailChangeToken`, kind `email_change_confirm` ani TTL `EMAIL_CHANGE_TTL`. Od tej wersji: URL **`{APP_PUBLIC_URL}/?emailChangeToken={raw}`**; kind **`email_change_confirm`** (shell PL + CID jak pozostałe); TTL **`EMAIL_CHANGE_TTL`** default **`24h`**; `validityLabel` z tego env — `docs/deployment.md`, `SPEC-AUTH.md` A-3b / A-8.
+
+Zmiana względem wersji 30 / auth self-service: confirm e-mail, `PATCH /auth/me/password`, `DELETE /auth/me` = **V1 must-have** (kontrakt I/O poniżej); `GET /auth/me` + opcjonalne `pendingEmail`; soft/hard delete own jak Users; `admin` → **403** na self-delete. Dual-mode / i18n poza tą falą.
 
 Zmiana względem: wyjątek admina na `GET /runs/user/:userId` = V1. Od tej wersji: brak wyjątku także w **V1**; podgląd cudzych = archiwum `/runs`; panel po tej trasie dla admina **odpuszczony**. Self-service hasła / delete konta = etykieta **V1** (nie „nigdy”).
 
@@ -103,7 +107,7 @@ Wybrane kody domenowe:
 | `code` | Typowe HTTP | Znaczenie |
 |--------|-------------|-----------|
 | `UNAUTHORIZED` | 401 | Brak / nieważna sesja (wyłącznie sesja — **nie** złe hasło przy re-auth) |
-| `INVALID_PASSWORD` | 401 | Złe `currentPassword` przy re-auth (`PATCH /auth/me/email`); `message`: `Invalid password`. **Nie** mylić z `UNAUTHORIZED` ani z loginem `Invalid credentials` |
+| `INVALID_PASSWORD` | 401 | Złe `currentPassword` przy re-auth (`PATCH /auth/me/email`, V1: `PATCH /auth/me/password`, `DELETE /auth/me`); `message`: `Invalid password`. **Nie** mylić z `UNAUTHORIZED` ani z loginem `Invalid credentials` |
 | `FORBIDDEN` | 403 | Brak uprawnień (np. user edytuje kontekst; guest bez `@AllowGuest`; guest mutuje zabronione; guest czyta cudzy **nieterminalny** detail/logs albo cudzy HITL / events) |
 | `GUEST_TYPE_NOT_ALLOWED` | 403 | `guest`: `taskType` poza allowlistą slotów |
 | `GUEST_TYPE_QUOTA_EXCEEDED` | 403 | `guest`: slot danego typu wyczerpany (COUNT ≥ 1, wszystkie statusy) |
@@ -117,11 +121,11 @@ Wybrane kody domenowe:
 | `REVIEW_LOCKED` | 409 | Przegląd zamknięty (`reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL`) — zmiana oceny / Edytuj / finalize zabroniona; po samym TTL **bez** side-effect UPDATE `reviewFinalizedAt` |
 | `RUN_NOT_REVIEWABLE` | 409 | **Przegląd** (ocena / Edytuj / finalize): status inny niż `completed` \| `failed` (w tym `cancelled`). **Opinia** `POST /feedback` `targetType=run`: poza oknem `completed` \| `failed` \| (`cancelled` **z** wynikiem — dowolne nie-`null` pole wyniku w snapshotcie); `cancelled` bez wyniku → ten kod |
 | `RUN_NOT_CANCELABLE` | 409 | Cancel gdy status już `completed` \| `failed` (wyścig z executorem) |
-| `GUEST_HAS_ACTIVE_RUN` | 409 | `DELETE /users/:id` na `guest` z ≥1 live run **bez** `?purge=true`; wspólny `message` (niezależnie od liczby live); **bez** `details.runIds` |
+| `GUEST_HAS_ACTIVE_RUN` | 409 | `DELETE /users/:id` **lub** V1 `DELETE /auth/me` na `guest` z ≥1 live run **bez** `?purge=true`; wspólny `message` (niezależnie od liczby live); **bez** `details.runIds` |
 | `USER_NOT_FOUND` | 404 | Brak wiersza `User` przy Users (`DELETE` / `PATCH`) |
 | `CONFLICT` | 409 | Niedozwolone przejście statusu runu; drugi `pending` na email; istniejący `User` przy `POST /invitations`; `User.email` zajęty przy `PATCH /auth/me/email`; **`User.email` zajęty przy `POST /auth/register`** (w tym soft-deleted `user`). **Nie** dotyczy `POST /auth/accept-invite` (kolizja email → **401** `UNAUTHORIZED`) |
 | *(rating guest)* | 429 | Soft cap dzienny ocen `guest` (`GUEST_RATING_CAP_PER_DAY`); `message` z envelope |
-| `MAIL_DELIVERY_FAILED` | 503 | Pad SMTP po zapisie zaproszenia (create / resend invite) **albo** po utworzeniu pending User przy **register**; w `details` wyłącznie `id` (Invitation albo User). **Nie** dotyczy `POST /auth/resend-activation` (tam zawsze **200** — `security.md`). **Nie** dotyczy wysyłki `user_welcome` po sukcesie `POST /auth/activate` (best-effort — pad SMTP nie zmienia odpowiedzi activate) |
+| `MAIL_DELIVERY_FAILED` | 503 | Pad SMTP po zapisie zaproszenia (create / resend invite) **albo** po utworzeniu pending User przy **register** **albo** (V1) po zapisie pending zmiany email / resend confirm; w `details` wyłącznie `id` (Invitation albo User). **Nie** dotyczy `POST /auth/resend-activation` (tam zawsze **200** — `security.md`). **Nie** dotyczy wysyłki `user_welcome` po sukcesie `POST /auth/activate` (best-effort — pad SMTP nie zmienia odpowiedzi activate) |
 | `INTERNAL_ERROR` | 500 | Błąd nieobsłużony |
 
 `UNKNOWN_TASK_TYPE` nie jest kodem HTTP startu: `taskType` spoza enumu → **400** `VALIDATION_FAILED`. Composite executor używa `UNKNOWN_TASK_TYPE` wyłącznie przy wewnętrznym `execute` z typem poza unią (status `failed`, nie cichy no-op).
@@ -194,32 +198,71 @@ Unieważnia refresh w DB / czyści cookie **`cc_access`** i **`cc_refresh`**. UI
 
 Probe bieżącej sesji na podstawie cookie **`cc_access`** (ta sama sesja co pozostałe chronione trasy).
 
-**200** — `{ "id", "email", "role" }` (wyłącznie te pola; `role` może być `guest`).  
+**200 (MVP):** `{ "id", "email", "role" }` (wyłącznie te pola; `role` może być `guest`).  
+**200 (V1):** te same pola + opcjonalne **`pendingEmail`**: `string` \| `null` (adres oczekujący na confirm po `PATCH /auth/me/email`; `null` gdy brak pending).  
 **401** `UNAUTHORIZED` — brak / nieważna sesja access **albo** JWT `role=guest` przy `DEMO_MODE=false` (sesja martwa; ten sam 401 co wygasła sesja — anti-enum).
 
 #### `PATCH /api/v1/auth/me/email`
 
-Zalogowany zmienia **własny** email po **re-auth** aktualnym hasłem. Body: `{ "email", "currentPassword" }` (`.strict()`). Sesja cookie jak pozostałe chronione trasy. **`guest` → 403** `FORBIDDEN` (mutacja zabroniona). **`GET /auth/me` pozostaje wyłącznie probe** — **bez** mutacji na `PATCH /auth/me`. **Nie** mylić z `PATCH /users/:id` (reaktywacja admina) ani z self-service zmianą hasła / usuwaniem własnego konta (**V1 — rozbudowa**). Ten sam wzorzec (osobna mutacja wrażliwa + `currentPassword` + `INVALID_PASSWORD`) jest **fundamentem** pod self-service zmiany hasła w **V1** — **nie** w MVP.
+Zalogowany inicjuje zmianę **własnego** emaila po **re-auth** aktualnym hasłem. Body: `{ "email", "currentPassword" }` (`.strict()`). Sesja cookie jak pozostałe chronione trasy. **`guest` → 403** `FORBIDDEN`. **`GET /auth/me` pozostaje wyłącznie probe** — **bez** mutacji na `PATCH /auth/me`. **Nie** mylić z `PATCH /users/:id` (reaktywacja admina), z aktywacją po register, ani z `PATCH /auth/me/password` / `DELETE /auth/me`.
 
 | Pole | Typ | Wymagane |
 |------|-----|----------|
 | `email` | string (email) | tak |
 | `currentPassword` | string | tak (niepuste) |
 
-Kolejność w application: walidacja kształtu Zod → bcrypt compare z hashem użytkownika sesji (jak `login.use-case.ts` — **bez** polityki haseł, bo to weryfikacja istniejącego hasła, nie ustawianie nowego) → (opcjonalnie) zapis nowego emaila.
+Kolejność w application: walidacja kształtu Zod → bcrypt compare (`currentPassword`, **bez** polityki haseł) → (dalej wg fazy poniżej).
 
-**200** — `{ "id", "email", "role" }` (adres po operacji; gdy podany email = obecny, bez zapisu w DB, ale re-auth **obowiązkowy**).  
-**400** `VALIDATION_FAILED` — zły kształt / brak pól (pusty `currentPassword`).  
-**401** `UNAUTHORIZED` — brak / nieważna sesja access.  
-**401** `INVALID_PASSWORD` — hasło nie zgadza się z hashem (`message`: **`Invalid password`**). **Nie** uruchamia cyklu refresh / wylogowania FE (to nie jest wygaśnięcie sesji).  
-**409** `CONFLICT` — `User.email` zajęty (w tym soft-deleted); porównanie **case-sensitive**, jak zaproszenia. Re-auth musi przejść **zanim** zwrócony zostanie 409 zajętości.
+**MVP (bez confirm):** po re-auth → (opcjonalnie) zapis nowego emaila od razu.  
+**200** — `{ "id", "email", "role" }` (adres po operacji; gdy podany = obecny, bez zapisu, re-auth **obowiązkowy**). Cookie / refresh **bez** rotacji. Bez maila potwierdzającego.
 
-Bez zmiany hasła konta, roli i `isActive`. Bez maila potwierdzającego w MVP (confirm e-mail = V1). Cookie / sesja refresh w DB **bez** rotacji z powodu tej trasy.
+**V1 (confirm e-mail — must-have):** gdy nowy adres ≠ obecny: po re-auth + check zajętości zapisz **pending** (nie zmieniaj `User.email`), wyślij mail **`email_change_confirm`** na **nowy** adres (token **tylko** w deep linku **`{APP_PUBLIC_URL}/?emailChangeToken={raw}`**; hash w DB; TTL **`EMAIL_CHANGE_TTL`**, default **`24h`**; **nie** `AccountActivation` / **nie** `/?activationToken=`).  
+**200** — `{ "id", "email", "role", "pendingEmail" }` (`email` = nadal stary; `pendingEmail` = nowy). Gdy podany = obecny: **200** jak MVP (bez pending / bez maila).  
+**503** `MAIL_DELIVERY_FAILED` — pad SMTP po zapisie pending (jak register; **nie** best-effort).  
+Sesja cookie **zostaje**. Publiczny confirm: **`POST /api/v1/auth/confirm-email-change`** `{ "token" }` → stosuje `User.email` = pending, czyści pending + tokeny; **200** `{ "id", "email", "role" }` **bez** Set-Cookie; zły/zużyty/wygasły token → wspólny **401**. Resend (zalogowany, gdy jest pending): **`POST /api/v1/auth/me/email/resend-confirm`** — rotacja tokenu + mail; pad SMTP → **503**; brak pending → **409** `CONFLICT`. Copy ważności: `validityLabel` = pełne „Link jest jednorazowy i wygasa po {X}.” z **`EMAIL_CHANGE_TTL`** (np. default `24h` → „24 godzinach”).
+
+Wspólne błędy (MVP i V1):  
+**400** `VALIDATION_FAILED` — zły kształt / pusty `currentPassword`.  
+**401** `UNAUTHORIZED` — brak / nieważna sesja.  
+**401** `INVALID_PASSWORD` — hasło nie zgadza się (`message`: **`Invalid password`**); **nie** cykl refresh/logout.  
+**409** `CONFLICT` — `User.email` zajęty (w tym soft-deleted) **albo** kolizja z innym pending; porównanie **case-sensitive**. Re-auth **przed** 409 zajętości.
+
+Bez zmiany hasła konta, roli i `isActive` na tej trasie.
 
 Zmiana względem: `PATCH /auth/me` z body `{ email, currentPassword }` i złe hasło jako `UNAUTHORIZED`.  
 Zmiana względem: body tylko `{ "email" }` bez re-auth.  
 Zmiana względem: self-service email poza MVP; brak tej trasy.
 Zmiana względem: flow FE wymagał `code` + `message` pod polem hasła. Od tej wersji pod polem obowiązuje wyłącznie **`message`** (kształt envelope HTTP z `code` bez zmian).
+Zmiana względem: confirm e-mail / hasło / delete own jako „V1 etykieta bez kontraktu I/O”. Od tej wersji trasy V1 poniżej są normą.
+
+#### `PATCH /api/v1/auth/me/password` (V1)
+
+Zalogowany zmienia **własne** hasło. Body: `{ "currentPassword", "newPassword" }` (`.strict()`). Role: `admin` \| `user` \| `guest` (przy demo on).
+
+| Pole | Typ | Wymagane |
+|------|-----|----------|
+| `currentPassword` | string | tak (niepuste; bcrypt compare, **bez** polityki) |
+| `newPassword` | string | tak (polityka haseł — `security.md`) |
+
+**200** — `{ "ok": true }` (lub puste data równoważne) + **Clear-Cookie** `cc_access` / `cc_refresh`; **wszystkie** refresh usera unieważnione. FE → landing + ponowny login.  
+**400** `VALIDATION_FAILED` — kształt / polityka `newPassword`.  
+**401** `UNAUTHORIZED` — brak sesji.  
+**401** `INVALID_PASSWORD` — złe `currentPassword` (sesja **zostaje**).  
+**403** `FORBIDDEN` — gdy `DEMO_MODE=false` i JWT `guest` (martwa rola — jak inne chronione).
+
+#### `DELETE /api/v1/auth/me` (V1)
+
+Usuwanie **własnego** konta (self-service; UI = **Konto**). Body: `{ "currentPassword" }` (`.strict()`). Query opcjonalne **`purge=true`** — skutek jak na `DELETE /users/:id` (tylko `guest` + live).
+
+| Własna rola | Semantyka |
+|-------------|-----------|
+| `admin` | **403** `FORBIDDEN` (jedyny admin; nie self-delete) |
+| `user` | soft jak `DELETE /users/:id` na `user` |
+| `guest` | hard (+ `?purge=true` przy live); bez purge + live → **409** `GUEST_HAS_ACTIVE_RUN` |
+
+**200** — sukces + **Clear-Cookie**; FE → landing.  
+**401** `INVALID_PASSWORD` / `UNAUTHORIZED` — jak wyżej.  
+**Nie** mylić z admin `DELETE /users/:id`.
 
 **Flow FE (norma produktowa):** po starcie aplikacji → `GET /auth/me`; przy **401** `UNAUTHORIZED` → `POST /auth/refresh`; potem ponownie `GET /auth/me`; przy kolejnym **401** `UNAUTHORIZED` → **landing `/`** (modal auth zamknięty). Ten sam cykl na produktowych wywołaniach przy sesyjnym **401** `UNAUTHORIZED`. **401** `INVALID_PASSWORD` (re-auth przy `PATCH /auth/me/email`) **nie** wchodzi w ten cykl — `message` pod polem hasła, sesja zostaje. Submit logowania (modal) **zawsze** → `POST /auth/login` (**zakaz** mode-hijack → bootstrap). Dashboard tylko po sesji. CTA wejścia na landingu: „Zaloguj się” / „Załóż konto” → modal; opcjonalne CTA „Zarejestruj admina” **wyłącznie** na formularzu register gdy `bootstrap-status.available === true` (`docs/ux_dashboard.md`). Deep link `/?activationToken=…` → landing + `POST /auth/activate` w tle; sukces = toast **bez** auto-modala; błąd = auto-open modal login + ogólny komunikat.
 
@@ -392,9 +435,9 @@ Porównanie `email` (**Invitation** i **User**) jest **case-sensitive** — bez 
 | `POST` | `/api/v1/invitations/:id/resend` | Rotacja tokenu (nowy raw, nowy hash, nowy `expiresAt`; stary token nieważny) + ponowny mail. Ten sam `id`. Brak / nie-pending → **404**. Pad SMTP → **503** + to samo `id` w `details`. |
 | `DELETE` | `/api/v1/invitations/:id` | Revoke pending: status `revoked` (token nieważny). **Nie** twardy DELETE wiersza — osobny zasób Invitation (nie mylić z hard `guest`). |
 
-Mail invite / activation zawiera jednorazowy token **wyłącznie w deep linku** (CTA + ewentualne „skopiuj link” = ten sam URL). Body produktowe **nie** wymaga osobnej linii raw (np. „Token (np. Postman): …”). **Kanon URL w mailu zaproszenia:** `{APP_PUBLIC_URL}/invite/accept?token={raw}` — ta sama ścieżka co publiczny ekran FE (`docs/ux_dashboard.md`). **Nigdy** hasła. TTL zaproszenia: env `INVITE_TTL`, default **`7d`** (ten sam parser co JWT TTL). Copy PL ważności (jedno zdanie): **„Link jest jednorazowy i wygasa po {X}.”** — {X} = ludzki zapis aktualnej wartości `INVITE_TTL` w **miejscowniku** po „po” (jednostki parsera, np. `7d` → **„7 dniach”**); fill `validityLabel` w application z env — szablony bez env / parsowania TTL. Mail aktywacji konta (`user_activation`): `{APP_PUBLIC_URL}/?activationToken={raw}`; TTL: `ACTIVATION_TTL`, default **`7d`**; ta sama formuła ważności z `ACTIVATION_TTL`. Mail powitalny (`user_welcome`): **po** sukcesie activate; treść PL (samouczek / ścieżki UI); injection `email`, `appPublicUrl`, `login` — **bez** tokenu w URL ani w body; **nie** przy invite / bootstrap / register poza activate (`deployment.md`).
+Mail invite / activation / **email-change confirm** zawiera jednorazowy token **wyłącznie w deep linku** (CTA + ewentualne „skopiuj link” = ten sam URL). Body produktowe **nie** wymaga osobnej linii raw (np. „Token (np. Postman): …”). **Kanon URL w mailu zaproszenia:** `{APP_PUBLIC_URL}/invite/accept?token={raw}` — ta sama ścieżka co publiczny ekran FE (`docs/ux_dashboard.md`). **Nigdy** hasła. TTL zaproszenia: env `INVITE_TTL`, default **`7d`** (ten sam parser co JWT TTL). Copy PL ważności (jedno zdanie): **„Link jest jednorazowy i wygasa po {X}.”** — {X} = ludzki zapis aktualnej wartości TTL w **miejscowniku** po „po” (jednostki parsera, np. `7d` → **„7 dniach”**, `24h` → **„24 godzinach”**); fill `validityLabel` w application z env — szablony bez env / parsowania TTL. Mail aktywacji konta (`user_activation`): `{APP_PUBLIC_URL}/?activationToken={raw}`; TTL: `ACTIVATION_TTL`, default **`7d`**; ta sama formuła ważności z `ACTIVATION_TTL`. Mail confirm zmiany emaila (`email_change_confirm`): `{APP_PUBLIC_URL}/?emailChangeToken={raw}`; TTL: **`EMAIL_CHANGE_TTL`**, default **`24h`**; ta sama formuła ważności; **nie** mylić z `activationToken` / `AccountActivation`. Mail powitalny (`user_welcome`): **po** sukcesie activate; treść PL (samouczek / ścieżki UI); injection `email`, `appPublicUrl`, `login` — **bez** tokenu w URL ani w body; **nie** przy invite / bootstrap / register poza activate (`deployment.md`).
 
-**Identyfikacja marki w treści maili (HTML + plain text):** wszystkie kinds przez wspólny shell — w **headerze HTML** slot brandu = **logotyp CID** (pełna norma: `brand_types.md`); subject i body produktowe oraz plain text — string „Content Chain” bez regresji PL / kinds / welcome best-effort. Kontrakty HTTP activate / invite / envelope — **bez** zmian z powodu formy brandu.
+**Identyfikacja marki w treści maili (HTML + plain text):** wszystkie kinds (w tym **`email_change_confirm`**) przez wspólny shell — w **headerze HTML** slot brandu = **logotyp CID** (pełna norma: `brand_types.md`); subject i body produktowe oraz plain text — string „Content Chain” bez regresji PL / kinds / welcome best-effort. Kontrakty HTTP activate / invite / confirm / envelope — **bez** zmian z powodu formy brandu.
 
 **Weryfikacja MVP bez FE:** Postman (cookie jar admina z kolekcji auth) + token z **query deep linku** w mailu SMTP albo z logu api (`development` — URL + raw DX). Kolejność: login admina → `POST /invitations` → token z URL/logu → request **bez** cookie admina: `POST /auth/accept-invite` → `POST /auth/login` nowym kontem. Negatywy: drugi accept tego tokenu → **401**; `user` woła `POST /invitations` → 403; revoke / wygasły token → **401**; ważny token + istniejący `User.email` (także soft-deleted) → **401** (ten sam `message` co zły token; invite `revoked`; **nie** 409); drugi `POST /invitations` przy istniejącym pending (w tym wygasłym) → 409.
 

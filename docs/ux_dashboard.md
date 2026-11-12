@@ -1,7 +1,7 @@
 ---
-wersja: 41
+wersja: 42
 data_utworzenia: 2026-09-17
-data_modyfikacji: 2026-10-27
+data_modyfikacji: 2026-11-12
 ---
 
 # UX Dashboard — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-27
 Kierunek UI self-host (`apps/frontend`) dla MVP. Bez specyfikacji pikseli / design systemu — widoki, stany i zachowanie względem API/SSE.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `dokumentacja_komunikacji.md`, `data_flow.md`, `security.md`, `observability.md`, `brand_types.md`.
+
+Zmiana względem wersji 41 / auth self-service: widok **Konto** = V1 must (confirm e-mail, zmiana hasła, usuwanie własnego konta); Users zostaje osobno; panel admin ≠ Konto. Dual-mode + i18n = **poza falą auth** (osobna paczka chrome); dark shell MVP **nie** jest zobowiązaniem dual-mode.
 
 Zmiana względem: archiwum **Runy** = stałe HTTP `pageSize=10` bez selectu; **Moje runy** = pełna odpowiedź `GET /runs/user/:userId` + **paginacja UI / slice FE**; **Użytkownicy** = listing bez wymogu paginacji HTTP / selectu `pageSize`. Od tej wersji: tabele Runy / Users / Moje runy **zawsze** wołają API z `page` + `pageSize` (domyślnie 10); kontrolki **Poprzednia** / `strona / totalPages (total)` / **Następna** **plus** select rozmiaru strony **10 / 15 / 25 / 50**; `total` / `totalPages` z envelope API — **zakaz** FE-slice jako normy paginacji listingu. Rejestr SSE / floating box / źródło selectu opinii: `GET /runs/user/:userId` **bez** parametrów paginacji (tryb cała kolekcja). Kontrakt HTTP: `dokumentacja_komunikacji.md`.
 
@@ -28,7 +30,7 @@ Zmiana względem wersji 33 / „Sidebar — logo i aktywny item” oraz Paleta: 
 
 Zmiana względem: status live = „animowany / atrakcyjny” bez kanonu formy; sidebar jasny; strona główna = wyśrodkowana karta; brak bloku KPI na Koncie. Od tej wersji: **Normy wizualne** (paleta indigo/violet, **pełny dark shell** — ciemny sidebar **i** ciemny `main`, unikalne badge-pille per `RunStatus`, hero banner tylko `running` \| `awaiting_hitl`, split-panel logowania, KPI z `GET /api/v1/runs/summary`, lifting chipów / invite-accept / floating box).
 
-Zmiana względem wersji 30 / „Normy wizualne”: *ciemny sidebar ≠ dark mode — `main` jasny*; MVP „motyw produktowy pozostaje jasny”. Od tej wersji: **pełny dark shell** (sidebar + `main` ciemne); dual-mode z przełącznikiem nadal **V1** (bez zmian zakresu V1).
+Zmiana względem wersji 30 / „Normy wizualne”: *ciemny sidebar ≠ dark mode — `main` jasny*; MVP „motyw produktowy pozostaje jasny”. Od tej wersji: **pełny dark shell** (sidebar + `main` ciemne); dual-mode z przełącznikiem = cel chrome (od fali auth P0: **poza** obowiązkową falą).
 
 Zmiana względem wersji 31 / „Normy wizualne”: brak pinu font-family w docs; historyczny lock Geist (skill / Faza 1) jako sans. Od tej wersji: **Typografia** — główny sans = **Space Grotesk**, pomocniczy = **Inter** (`--font-secondary`; tytuły kart KPI + paragrafy pomocnicze pod nagłówkami widoków), mono = **Geist Mono**; ładunek wyłącznie `next/font/google`; **zakaz** Inter jako default `body`; serif poza produktem.
 
@@ -95,7 +97,7 @@ Obowiązujące decyzje projektowe szaty graficznej dashboardu. Wartości `oklch`
 - **Wypełniony CTA** = wyłącznie wariant komponentu `Button` **`default`** (`variant` pominięty lub `variant="default"`): tło = gradient teal/mint **135°**, tekst = **ciemny** (kierunek; konkret hex/gradient = HOW feature-planu). Hover / `:active`: te same kolory tła i tekstu, z lekkim podbiciem jasności (`brightness`) **całego** przycisku (wartość = HOW). **Poza zakresem tej normy:** `outline`, `ghost`, `destructive`, `link`, `secondary` — bez gradientu teal ani wymuszenia ciemnego tekstu CTA. Kolory CTA `default` **nie** zmieniają się przy okazji stanów pozycji menu.
 - Zmiana względem wersji 32: *filled CTA = solid primary indigo/violet*. Od tej wersji CTA `default` ≠ solid `--primary` chrome.
 - Zmiana względem wersji 33: *aktywny nav = `bg-primary text-primary-foreground`*. Od tej wersji active nav ≠ solid `--primary`; teal/mint tylko na pozycji menu (nie na tle całego sidebara).
-- **Pełny dark shell (MVP):** ciemny sidebar (`--sidebar` / `--sidebar-foreground`) **oraz** ciemny obszar roboczy (`--background` / `main`). Sidebar może być nieco ciemniejszy od `main` (hierarchia chrome). **Bez** zmiany kierunku tła `--sidebar` pod pretekstem stanów nav. **Bez** przełącznika light/dark w MVP — to **nie** jest dual-mode; dual-mode z dedykowanym przełącznikiem = **V1**.
+- **Pełny dark shell (MVP):** ciemny sidebar (`--sidebar` / `--sidebar-foreground`) **oraz** ciemny obszar roboczy (`--background` / `main`). Sidebar może być nieco ciemniejszy od `main` (hierarchia chrome). **Bez** zmiany kierunku tła `--sidebar` pod pretekstem stanów nav. **Bez** przełącznika light/dark w MVP — to **nie** jest dual-mode. Dual-mode z dedykowanym przełącznikiem = **cel produktu / osobna paczka chrome** — **nie** obowiązek fali auth self-service.
 - Zmiana względem wersji 30: *ciemny sidebar ≠ dark mode — `main` jasny*. Od tej wersji kanon = dark shell (sidebar + main).
 - Zmiana względem wcześniejszego: sidebar jasny (ten sam motyw co jasny main) — historia pierwszego locku.
 
@@ -250,7 +252,7 @@ Zmiana względem: register widoczny tylko gdy `available === false` (XOR z CTA a
 
 Zmiana względem: osobne ekrany first-run vs logowanie; wejście na dashboard bez przejścia przez stronę główną. Od wcześniejszej legalizacji: jeden URL `/` — **bez** osobnej trasy first-run; mapping submitu unieważniony wcześniej; powierzchnia = landing + modal.
 
-Zmiana względem: nieaktywne „Zarejestruj się!” / zakaz signup. Invite `/invite/accept?token=` → landing (modal login **nie** auto). Confirm e-mail przy zmianie adresu (`PATCH /auth/me/email`) pozostaje **V1** — **nie** mylić z aktywacją przy rejestracji.
+Zmiana względem: nieaktywne „Zarejestruj się!” / zakaz signup. Invite `/invite/accept?token=` → landing (modal login **nie** auto). Confirm e-mail przy zmianie adresu = **V1 must** (Konto) — **nie** mylić z aktywacją przy rejestracji.
 
 **Header dashboardu (od pierwszego layoutu po sesji):** pasek nad obszarem roboczym na **wszystkich** widokach zalogowanych. Elementy **wewnątrz headera wyrównane do prawej**.
 
@@ -293,8 +295,8 @@ Stany wizualne pozycji listy (normal / hover / active / active+hover): „Normy 
 | **Kontekst firmy** | admin: edycja; user i guest: podgląd | Uzupełnienie sekcji bramki (tylko admin); podgląd completeness |
 | **Runy** | admin, user, guest (demo) | **Archiwum firmy:** tylko runy instancji w `completed` \| `failed` \| `cancelled` (**paginacja HTTP** `page`+`pageSize`, domyślnie 10; select 10/15/25/50; najnowsze pierwsze). Klik wiersza → szczegóły (snapshot; **bez** SSE) — **guest: własne oraz cudze z archiwum** (read-only na cudzym). CTA **„Uruchom agenta”** → modal z tym samym briefem co na Koncie (guest: typy poza allowlistą disabled). Po udanym `POST /runs` (**202**) z modalu → nawigacja na **Run (szczegóły)** tego `runId` (modal zamknięty). Cudzy run w toku **nie** jest na tej liście. Nowy run po starcie **nie** wpadnie na listę archiwum, dopóki nie jest terminalny |
 | **Run (szczegóły)** | admin, user; guest: własne (wszystkie statusy) **oraz** cudze **tylko** z archiwum | Podstrona po kliknięciu w **Moich runach** (Konto), w archiwum Runy **albo** zaraz po udanym `POST /runs` (**202**): logi, HITL, wynik, przegląd; **Stop** gdy owner **lub** (`session.role=admin` ∧ `startedBy.role=guest`) na nieterminalnym. Guest: **bez** Edytuj / finalize; na **cudzym** archiwalnym — UI **read-only** (bez Stop / HITL). Live SSE tylko gdy run jest własny i w `running` / `awaiting_hitl` / `interrupted` (**bez** EventSource na cudzym). **Bez** CTA startu |
-| **Konto** | każdy zalogowany | Własny email (**guest: lock** — bez `PATCH /auth/me/email`); **Moje runy** (wszystkie statusy, live; **paginacja HTTP** jak Runy + select `pageSize`; **Stop** na własnym nieterminalnym); **start** nowego runu (**inline**, ten sam brief co modal na Runach; guest: allowlista); opinia tekstowa. Po udanym `POST /runs` (**202**) **z tego widoku** → nawigacja na **Run (szczegóły)** tego `runId` |
-| **Użytkownicy** | tylko admin | Lista kont (**paginacja HTTP** `page`+`pageSize` + select 10/15/25/50) + kolumna **Akcje** (toggle soft `user` / Usuń hard `guest`) + **zaproszenie (email)**; lista pending (w tym wygasłe); resend/revoke. **Guest: brak nawigacji** (lock) |
+| **Konto** | każdy zalogowany | Własny email (**guest: lock** — bez `PATCH /auth/me/email`); **V1:** confirm e-mail, zmiana hasła, usuwanie własnego konta (self-service — **nie** panel admin); **Moje runy** (wszystkie statusy, live; **paginacja HTTP** jak Runy + select `pageSize`; **Stop** na własnym nieterminalnym); **start** nowego runu (**inline**, ten sam brief co modal na Runach; guest: allowlista); opinia tekstowa. Po udanym `POST /runs` (**202**) **z tego widoku** → nawigacja na **Run (szczegóły)** tego `runId` |
+| **Użytkownicy** | tylko admin | Lista kont (**paginacja HTTP** `page`+`pageSize` + select 10/15/25/50) + kolumna **Akcje** (toggle soft `user` / Usuń hard `guest`) + **zaproszenie (email)**; lista pending (w tym wygasłe); resend/revoke. **Guest: brak nawigacji** (lock). **Nie** przenosić self-service hasła/delete z Konta tutaj |
 
 **Wyloguj się** nie jest pozycją listy nav. **Desktop:** wyłącznie hierarchia przycisku loginu w headerze (wyżej). **Mobile:** stopka sheetu (po `CompletenessChipSlot`) — nie wiersz nav.
 
@@ -486,7 +488,9 @@ Nagłówek widoku (`h1` produktowy) = **Space Grotesk**. Krótki paragraf pomocn
 
 | Blok | Zachowanie |
 |------|------------|
-| **Email** | Formularz nowego adresu → **Zapisz email** → **zawsze** modal: pole email (prefill = draft, **disabled**) + pole aktualnego hasła + Anuluj / Potwierdź. Potwierdź **zawsze** → `PATCH /api/v1/auth/me/email` `{ email, currentPassword }` (brak stanu „już zweryfikowany”). **Guest (`role === guest` i demo on):** blok **zablokowany** (brak PATCH — API **403**). Złe hasło (**401** `INVALID_PASSWORD`) / `VALIDATION_FAILED` hasła → `message` **pod polem hasła**; stan disabled emaila **bez zmian** (przed 409: zostaje **disabled**; **po 409**: zostaje **odblokowany**); **bez** toastu; **bez** refresh/wylogowania przy `INVALID_PASSWORD`. **409** `CONFLICT` → modal **otwarty**; **czyszczenie** pól email + hasło; **odblokowanie** inputu email; błąd **pod polem email**; ponowny Potwierdź znowu z hasłem. Sukces → zamknięcie modala, odświeżenie sesji (`GET /auth/me`), aktualizacja wyświetlanego emaila, **bez** toastu. Anuluj → zamknięcie modala, **zero** API; draft na formularzu Konta bez zmian względem otwarcia (edycja w modalu po 409 nie wraca na formularz). CTA „Zapisz email” **nie** jest disabled wyłącznie dlatego, że adres = obecny (re-auth i tak wymagany). **Bez** self-service zmiany hasła i **bez** usuwania konta na tym widoku |
+| **Email** | Formularz nowego adresu → **Zapisz email** → **zawsze** modal: pole email (prefill = draft, **disabled**) + pole aktualnego hasła + Anuluj / Potwierdź. Potwierdź **zawsze** → `PATCH /api/v1/auth/me/email` `{ email, currentPassword }`. **Guest (`role === guest` i demo on):** blok **zablokowany** (brak PATCH — API **403**). Złe hasło (**401** `INVALID_PASSWORD`) / `VALIDATION_FAILED` → `message` **pod polem hasła**; **bez** toastu; **bez** refresh/wylogowania. **409** `CONFLICT` → modal **otwarty**; clear pól; odblokowanie emaila; błąd pod emailem. **MVP sukces:** zamknięcie modala, `GET /auth/me`, aktualizacja wyświetlanego emaila, **bez** toastu. **V1 (confirm):** sukces PATCH = pending — UI pokazuje aktualny email + stan „czekamy na potwierdzenie” (`pendingEmail` z `/me`); toast / copy o mailu na nowy adres; deep link confirm → toast sukcesu + odświeżenie `/me` (nowy email). Resend confirm gdy pending. Anuluj → zero API. CTA „Zapisz email” **nie** disabled tylko dlatego, że adres = obecny |
+| **Hasło (V1)** | Formularz / modal: aktualne hasło + nowe (+ confirm tylko UI) → `PATCH /auth/me/password`. **401** `INVALID_PASSWORD` → `message` pod polem aktualnego. Sukces → sesja wyczyszczona → landing `/` (ponowny login). **Admin / user / guest** (demo on) |
+| **Usuń konto (V1)** | CTA destrukcyjne + modal re-auth (`currentPassword`) → `DELETE /auth/me` (+ `?purge=true` gdy guest + live po confirm drugim krokiem jak Users). **Admin:** CTA **ukryte/disabled** (API **403**). Sukces → landing. Soft `user` / hard `guest` — copy ostrzega o skutku. **Nie** mylić z Akcjami na widoku Users |
 | **Moje runy** | Źródło tabeli: `GET /api/v1/runs/user/:userId` (`:userId` z `/auth/me`) z **`page` + `pageSize`** — **wszystkie** statusy zalogowanego; **paginacja HTTP** (jak Runy): domyślnie `pageSize=10`, kontrolki **Poprzednia** / `strona / totalPages (total)` / **Następna** **oraz** select **10 / 15 / 25 / 50**. **Zakaz** slice FE jako paginacji listingu. Rejestr SSE / floating box / OwnRuns: **osobne** wywołanie tego samego GET **bez** parametrów paginacji (pełny zbiór live). Live: SSE per `runId` wyłącznie dla `running` \| `awaiting_hitl` \| `interrupted` (rejestr layoutu). `queued` i terminalne: snapshot GET (wejście na Konto, po `POST /runs`, po evencie SSE innego własnego runu, focus okna). Przycisk **Stop** na wierszu **własnego** runu w statusie nieterminalnym (`queued` \| `running` \| `awaiting_hitl` \| `interrupted`) → modal **„Czy na pewno?”** → **Tak** = `POST .../cancel`; **Nie** = zamknięcie modala, **zero** API. Po sukcesie: odświeżenie wiersza (`cancelled`); `queued` bez SSE. Klik wiersza → **Run (szczegóły)**. Status w wierszu = **badge-pill** wg mapy w „Normy wizualne”. Pełny wynik / HITL / przegląd na szczegółach, nie na liście |
 | **Statystyki (KPI)** | Blok **powyżej** „Start runu”. Karty z `GET /api/v1/runs/summary`: `totalLast30d`, `successRateLast30d`, `activeNow`, `topTaskTypeLast30d` + zakres dat (`windowFrom` / `windowTo` → np. `15.06.2026–14.07.2026`). Widoczność: `admin` / `user` — zawsze (w swoim scope HTTP); `guest` — **tylko** gdy `demoMode === true`. Błąd / brak endpointu → blok **ukryty**. Szczegóły: „Normy wizualne” / `dokumentacja_komunikacji.md` |
 | **Start runu** | Formularz startu **inline** (ten sam brief co modal **„Uruchom agenta”** na Runach — nie drugi kontrakt). Select `taskType` obejmuje rolki i page_*; **`contentKind` gdy page_***; **platforma ukryta/disabled gdy page_***; język. **Guest:** typy poza `post_ideas` / `page_copy` / `page_outline_then_copy` **disabled**. Brief **zależny od `taskType`**: post_* / reel_* — temat + opcjonalnie **Grupa**, cel, **liczba pomysłów** (bez kąta/długości); `page_*` — temat + opcjonalnie **Grupa**, cel, **kąt**, **długość słów** (bez liczby pomysłów). Pole **Grupa** = **select** (nie wolny input jako kanon): (1) domyślnie **„Bez wskazania grupy”** → omit `brief.audience`; (2) opcje = `name` profili z odczytu kontekstu firmy; wybór → `brief.audience` = ten `name`; (3) ostatnia opcja **„Wpisz własną grupę…”** → dodatkowe pole tekstowe (opis odbiorcy) → `brief.audience` = ten opis; **bez** dopasowania do katalogu. CTA nie jest polem briefu. **Bez** `selectedIdeaIds`. Start disabled + wyjaśnienie, gdy agenci nieaktywni. Z wiersza **Moje runy**: **nowy** run z prefill `taskType` + brief + platforma/`contentKind` **ze snapshotu** `GET /runs/:runId` (lista user **nie** niesie `brief` / `contentKind`). Prefill **nie** dotyczy wiersza archiwum Runy. Po **202** **z tego widoku**: toast „Run wystartował” **oraz** nawigacja na **Run (szczegóły)** tego `runId`. Błąd startu (4xx / envelope) — **bez** nawigacji; formularz zostaje |
@@ -582,7 +586,7 @@ Zmiana względem: założenie, że FE może rozróżnić kolizję email (**409**
 
 - Brak admina: landing → „Załóż konto” → modal register → opcjonalne CTA „Zarejestruj admina” gdy `available === true` → tryb `bootstrap_admin` → bootstrap → dashboard (logowanie nadal loguje; register nadal dostępny; **bez** CTA bootstrap na logowaniu).
 - Pusty kontekst / po pierwszym wejściu admina: onboarding → uzupełnij kontekst → (przy żywym gateway) „Agenci aktywni”.
-- Błędy API (MVP): pokazać **wyłącznie `message` z envelope** (jak zwraca API; komunikaty są po angielsku). **`code` nie jest treścią UI** — służy logice klienta (gałęzie HTTP), nie etykiecie przy polu. **Bez** stack trace. Chrome i etykiety poza envelope — po polsku. Tłumaczenie UI (np. next-intl) = **V1 — rozbudowa**, nie MVP. Przy formularzu / błędzie GET bloku: `message` **w miejscu błędu** — **nie** toast (sekcja „Feedback zdarzeń”).
+- Błędy API (MVP): pokazać **wyłącznie `message` z envelope** (jak zwraca API; komunikaty są po angielsku). **`code` nie jest treścią UI** — służy logice klienta (gałęzie HTTP), nie etykiecie przy polu. **Bez** stack trace. Chrome i etykiety poza envelope — po polsku. Tłumaczenie UI (np. next-intl) = **cel produktu / osobna paczka chrome** (nie must fali auth); MVP: PL w chrome, w UI błędów wyłącznie `message` z API. Przy formularzu / błędzie GET bloku: `message` **w miejscu błędu** — **nie** toast (sekcja „Feedback zdarzeń”).
   Zmiana względem: wcześniejsza norma wymagała pokazywania **`code` i `message`**. Od tej wersji w UI obowiązuje tylko **`message`**.
 - `failed` run: status + ostatnie logi z powodem (verifier / gateway) **zostają** na szczegółach. Toast terminalu poza szczegółami („Run nieudany”) **nie** jest magazynem powodu.
 - `cancelled` run: status **anulowany przez operatora** — **nie** błąd pipeline. Partial wynik widoczny jak przy `failed`; panel HITL i przegląd (gwiazdki / Edytuj / finalize) niedostępne. Toast mutacji / terminalu: „Run anulowany”.
@@ -590,22 +594,21 @@ Zmiana względem: założenie, że FE może rozróżnić kolizję email (**409**
 
 ## Poza zakresem UX MVP
 
-- Zmiana hasła zalogowanego / usuwanie własnego konta przez użytkownika (pierwsze hasło na accept-invite = onboarding, nie ten punkt). **Zmiana własnego emaila z re-auth hasłem jest w MVP** (widok Konto → `PATCH /auth/me/email`). Wzorzec pod przyszłą zmianę hasła (po SMTP) = poza MVP. **Confirm e-mail** przy zmianie adresu = **V1** (poza MVP)  
-- Edycja roli / emaila z listy Users; dwa przyciski Soft+Hard na `user`; Cancel admin→guest na liście archiwum; reset instancji z UI  
+- Self-service V1 na Koncie (confirm e-mail, zmiana hasła, usuwanie własnego konta) — **must-have po MVP**, nie „nigdy”; szczegóły w „Widok: Konto”. **MVP:** zmiana emaila z re-auth **bez** confirm. Pierwsze hasło = accept-invite / register  
+- Edycja roli / emaila z listy Users; dwa przyciski Soft+Hard na `user`; Cancel admin→guest na liście archiwum; reset instancji z UI; self-service hasła/delete **na** Users zamiast Konta  
 - `selectedIdeaIds` na formularzu **startu** runu (HITL dwuetapowy zostaje)  
 - `conversationId` w UI szczegółów runu (zostaje w API / logach)  
 - Limit **per-user** liczby runów w toku (MVP: tylko globalny `MAX_CONCURRENT_RUNS` na execute) — **obowiązkowy** temat **V1 — rozbudowa**. Slot ×1 i global cap **gościa** to osobny kanon DEMO MODE (nie ten punkt V1)  
 - Przełącznik DEMO w UI admina; awans roli `guest`; uzależnianie signup od `demoMode`  
-- i18n UI / next-intl (**V1 — rozbudowa**; MVP: PL w chrome, w UI błędów wyłącznie `message` z API bez mapy tłumaczeń)  
+- i18n UI / next-intl — **cel produktu / osobna paczka chrome** (nie must fali auth); MVP: PL w chrome, w UI błędów wyłącznie `message` z API bez mapy tłumaczeń  
 - Panel administracyjny opinii / średnich ocen / analityki feedbacku (**V1 — rozbudowa**)  
 - Stopień edycji outputu (diff / procent / historia wersji) — w MVP zapis **zastępuje** wynik i stawia flagę; bez porównywania z outputem agentów  
 - Zmiana oceny po „Zamknij / zapisz przegląd” **albo** po auto-close / expiry TTL  
 - Widoczny deadline / countdown / wiersz „review dostępne do…” na panelu przeglądu (świadomie odłożone; FE używa `reviewExpiresAt` tylko do disable)  
-- Motywy jasny / ciemny — **obowiązkowy** temat **V1 — rozbudowa**: oba tryby w produkcie oraz **dynamiczne** przełączanie przez użytkownika **dedykowanym przełącznikiem** w interfejsie (nie sam `prefers-color-scheme` bez kontrolki). W MVP kanon = **pełny dark shell** (ciemny sidebar **i** ciemny `main`); **bez** przełącznika — dark shell **nie** jest dual-mode  
+- Motywy jasny / ciemny — **cel produktu / osobna paczka chrome** (nie must fali auth): oba tryby + **dedykowany przełącznik**. W MVP kanon = **pełny dark shell**; **bez** przełącznika — dark shell **nie** jest dual-mode  
 
 - Pipeline builder, drag-and-drop agentów  
 - Osobny trwały ekran „Aktywacja…” (świadomie pominięty — deep link od razu pokazuje logowanie + toast)  
-- Confirm e-mail przy `PATCH /auth/me/email` (**V1**; nie mylić z aktywacją przy register)  
 - Automatyczne testy FE (`testy.md` — poza MVP)  
 - Chip / stos chipów „run w toku” w chrome (zastąpiony floating boxem)  
 - SSE na `queued` oraz nowy endpoint „SSE moich runów” (obowiązuje N× istniejące `.../runs/:runId/events`)  
@@ -616,5 +619,6 @@ Zmiana względem: założenie, że FE może rozróżnić kolizję email (**409**
 
 Implementacja wizualna statusu live należy do frontu; ten dokument ustala **wymaganie zachowania** (live + atrakcyjna animacja statusu), nie konkretną bibliotekę motion.
 
-Zmiana względem: „Motywy dark/light jako wymóg” na liście poza MVP, bez fazy i bez sterowania. Od tej wersji dual-mode jest **obowiązkiem V1** z dedykowanym przełącznikiem w UI.
-Zmiana względem wersji 30 / poza MVP: *„W MVP motyw produktowy pozostaje jasny”* / *„MVP bez zmiany locku jasnego”*. Od tej wersji MVP = **dark shell**; V1 = przełącznik light/dark.
+Zmiana względem: „Motywy dark/light jako wymóg” na liście poza MVP, bez fazy i bez sterowania. Od wcześniejszej legalizacji dual-mode = cel z przełącznikiem; **od fali auth P0** dual-mode / i18n = **poza obowiązkową falą** (osobna paczka chrome), żeby nie obiecywać D3/D4 jako must przy legalizacji samego auth.
+Zmiana względem wersji 30 / poza MVP: *„W MVP motyw produktowy pozostaje jasny”* / *„MVP bez zmiany locku jasnego”*. Od tej wersji MVP = **dark shell**; przełącznik light/dark = chrome później.
+Zmiana względem: hasło / delete / confirm e-mail wyłącznie na liście „poza MVP” bez UI Konta. Od tej wersji bloki V1 na Koncie.

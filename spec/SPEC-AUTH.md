@@ -1,14 +1,22 @@
 ---
-wersja: 32
+wersja: 36
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-27
+data_modyfikacji: 2026-11-12
 ---
 
 # SPEC — Auth
 
 ## Cel / zakres względem dokumentacji
 
-Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, **`PATCH /auth/me/email` (własny email + re-auth; nie dla `guest`)**, role `admin` | `user` | **`guest`**, lista kont (**opcjonalna paginacja** `GET /users`), **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite** (rola vs `DEMO_MODE`, mirror register), **otwarta rejestracja** (`POST /auth/register` — rola vs `DEMO_MODE`), **aktywacja konta** (`POST /auth/activate` + `AccountActivation` / `verifiedAt`; także dla `guest`), **powitalny mail `user_welcome` po sukcesie activate (best-effort)**, **resend aktywacji**, **GuestGuard** / martwa sesja `guest` przy demo off, **DELETE użytkowników wg roli** (soft `user` / hard+purge `guest`), **reaktywacja PATCH tylko `user` (z UI)**, check `isActive` / braku wiersza na access JWT, polityka haseł i sesji, **treść maili transakcyjnych** (szablony HTML + plain text, wspólny shell z **logotypem CID** w headerze HTML, język **PL**; kinds `user_invited` \| `user_activation` \| `user_welcome`; invite/activation: ważność = pełne zdanie w `validityLabel` + token tylko w URL).
+Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, **`PATCH /auth/me/email` (własny email + re-auth; nie dla `guest`)**, **V1 must:** confirm e-mail przy zmianie adresu, **`PATCH /auth/me/password`**, **`DELETE /auth/me`** (self-service; soft/hard wg roli; `admin` → **403**), role `admin` | `user` | **`guest`**, lista kont (**opcjonalna paginacja** `GET /users`), **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite** (rola vs `DEMO_MODE`, mirror register), **otwarta rejestracja** (`POST /auth/register` — rola vs `DEMO_MODE`), **aktywacja konta** (`POST /auth/activate` + `AccountActivation` / `verifiedAt`; także dla `guest`), **powitalny mail `user_welcome` po sukcesie activate (best-effort)**, **resend aktywacji**, **GuestGuard** / martwa sesja `guest` przy demo off, **DELETE użytkowników wg roli** (soft `user` / hard+purge `guest`), **reaktywacja PATCH tylko `user` (z UI)**, check `isActive` / braku wiersza na access JWT, polityka haseł i sesji, **treść maili transakcyjnych** (szablony HTML + plain text, wspólny shell z **logotypem CID** w headerze HTML, język **PL**; kinds `user_invited` \| `user_activation` \| `user_welcome` \| **`email_change_confirm`**; invite/activation/confirm: ważność = pełne zdanie w `validityLabel` + token tylko w URL; confirm: deep link `/?emailChangeToken=` + TTL `EMAIL_CHANGE_TTL`).
+
+Zmiana względem wersji 35: default `EMAIL_CHANGE_TTL` = **`7d`**. Od tej wersji default = **`24h`** (krótsze okno pending niż invite/activation) — `docs/deployment.md`, `SPEC-TESTY.md` D-27 / D-90.
+
+Zmiana względem wersji 34: A-3b V1 / A-8 / mailer bez pinu `EMAIL_CHANGE_TTL`, deep linku `emailChangeToken` ani kind `email_change_confirm`. Od wersji 35+: TTL confirm = **`EMAIL_CHANGE_TTL`**; URL **`{APP_PUBLIC_URL}/?emailChangeToken={raw}`**; kind **`email_change_confirm`** (ten sam shell PL + CID co invite/activation); `validityLabel` z `EMAIL_CHANGE_TTL` — `docs/deployment.md`, `SPEC-TESTY.md` D-27 / D-90…D-91.
+
+Zmiana względem wersji 33: nagłówek obiecywał A-3d/A-3e bez pełnych wymagań / DoD / „Poza zakresem”. Od tej wersji normy A-3a–A-3e, tabela ról, DoD i poza zakresem = **V1 must** spójne z docs Fazy 1 (fala auth P0). Dual-mode / i18n poza tą falą.
+
+Zmiana względem wersji 32 / self-service: hasło / delete own / confirm e-mail były „poza MVP (V1)”. Od wersji 33+ = **V1 must-have** — `docs/security.md`, `docs/dokumentacja_komunikacji.md`.
 
 Zmiana względem wersji 31 / lista kont: `GET /users` bez trybu stron / bez wymogu envelope `{ items, page, pageSize, total }`. Od tej wersji **A-10b** — opcjonalna paginacja jak listingi Runs; allowlista `pageSize`; authz admin **bez zmian** — `docs/dokumentacja_komunikacji.md`, `SPEC-KOMUNIKACJA.md` K-2j.
 
@@ -53,7 +61,9 @@ Wiążące (`docs/architektura.md`): klasyczne warstwy Nest — HTTP → applica
 | Zaproszenia: create / lista pending / resend / revoke | tak | nie | nie → `FORBIDDEN` |
 | `DELETE /users/:id` (soft `user` / hard+purge `guest`) | tak (**z UI** — `SPEC-FRONTEND.md` F-8) | nie → `FORBIDDEN` | nie → `FORBIDDEN` |
 | Reaktywacja (`PATCH /users/:id`, `{ isActive: true }`) — tylko target `user` | tak (**z UI** toggle) | nie → `FORBIDDEN` | nie → `FORBIDDEN` |
-| Zmiana własnego emaila (`PATCH /auth/me/email` + `currentPassword`) | tak | tak | nie → `FORBIDDEN` |
+| Zmiana własnego emaila (`PATCH /auth/me/email` + `currentPassword`; V1 + confirm) | tak | tak | nie → `FORBIDDEN` |
+| `PATCH /auth/me/password` (V1) | tak | tak | tak (demo on + `@AllowGuest`) |
+| `DELETE /auth/me` (V1; soft `user` / hard+purge `guest`) | **nie** → `FORBIDDEN` | tak | tak (demo on + `@AllowGuest`) |
 | `GET /auth/me` / refresh / logout | tak | tak | tak (przy demo on + `@AllowGuest`) |
 | Akceptacja zaproszenia (`POST /auth/accept-invite`) | publiczna (bez roli / bez sesji) | publiczna | publiczna |
 | Rejestracja (`POST /auth/register`) | publiczna | publiczna | publiczna |
@@ -98,18 +108,26 @@ Zmiana względem wersji 17 / A-2: brak gałęzi guest przy demo off. Od tej wers
 
 A-3. Refresh (`POST /api/v1/auth/refresh`) na podstawie cookie `cc_refresh`: waliduje sesję w DB, **rotuje** refresh (stary wpis unieważniony, nowy hash + nowe `cc_refresh`), wystawia nowy JWT w `cc_access`. Body bez tokenów (ew. `expiresIn` — opcjonalnie). Przy refresh: brak wiersza `User` **lub** `isActive !== true` → **401** `UNAUTHORIZED` (ten sam sens co A-3c na access). Kanoniczny probe tożsamości UI = A-3a, nie refresh.
 
-A-3a. `GET /api/v1/auth/me` (wymaga ważnego `cc_access`): **200** `{ "id", "email", "role" }` wyłącznie; brak / nieważna sesja → **401** `UNAUTHORIZED`.
+A-3a. `GET /api/v1/auth/me` (wymaga ważnego `cc_access`): **200** `{ "id", "email", "role" }` (MVP). **V1:** te same pola + **`pendingEmail`**: `string` \| `null` (adres oczekujący na confirm po A-3b; `null` gdy brak pending). Brak / nieważna sesja → **401** `UNAUTHORIZED`.
 
 A-3c. **Sesja access / `JwtCookieStrategy.validate` (async):** po zdekodowaniu JWT — `users.findById(sub)`; brak wiersza (**hard-delete** → `null`) **lub** `isActive !== true` → **401** `UNAUTHORIZED` (sesja nieważna). **Bez** blacklisty access JWT. Access TTL nadal ogranicza okno; check DB zamyka lukę soft/hard natychmiast. Źródło: `docs/security.md`, `docs/dictionary.md` (Sesja nieważna).
 
 Zmiana względem wersji 20 / sesja: access JWT bez checku `isActive` / braku wiersza w `validate`. Od tej wersji A-3c obowiązkowe.
 
-A-3b. `PATCH /api/v1/auth/me/email` (ta sama sesja): body `{ "email", "currentPassword" }` (`.strict()`) — zmiana **własnego** adresu po re-auth. **`GET /auth/me` = wyłącznie probe** (A-3a); **bez** mutacji na `PATCH /auth/me`. Kolejność: Zod → bcrypt compare `currentPassword` z hashem użytkownika sesji (jak login, A-2; **bez** polityki A-5 — to weryfikacja istniejącego hasła, nie ustawianie nowego) → zapis emaila gdy różny od obecnego. **200** `{ id, email, role }` także gdy email bez zmian (po udanym re-auth, bez UPDATE). Zajęty email (w tym soft-deleted) → **409** `CONFLICT` (dopiero po udanym re-auth). Brak / pusty `currentPassword` / zły kształt → **400**. Złe hasło → **401** `INVALID_PASSWORD`, `message`: `Invalid password` (**nie** `UNAUTHORIZED`). Brak sesji → **401** `UNAUTHORIZED`. **Nie** `PATCH /users/:id` (tam nadal zakaz `email`). Bez self-service **zmiany** hasła / roli / `isActive`. Bez maila potwierdzającego w MVP (V1). Sesja refresh / cookie **bez** rotacji z powodu A-3b. Wzorzec osobnej ścieżki mutacji + re-auth + `INVALID_PASSWORD` = fundament pod przyszłe `PATCH /auth/me/password` (poza MVP).
+A-3b. `PATCH /api/v1/auth/me/email` (ta sama sesja): body `{ "email", "currentPassword" }` (`.strict()`) — inicjacja zmiany **własnego** adresu po re-auth. **`GET /auth/me` = wyłącznie probe** (A-3a); **bez** mutacji na `PATCH /auth/me`. **`guest` → 403**. Kolejność: Zod → bcrypt compare `currentPassword` (jak A-2; **bez** A-5 na `currentPassword`) → dalej wg fazy. Zajęty email (w tym soft-deleted / kolizja pending) → **409** `CONFLICT` (**po** re-auth). Brak / pusty `currentPassword` / zły kształt → **400**. Złe hasło → **401** `INVALID_PASSWORD`, `message`: `Invalid password`. Brak sesji → **401** `UNAUTHORIZED`. **Nie** `PATCH /users/:id`. Bez zmiany roli / `isActive` / hasła na tej trasie. Sesja refresh / cookie **bez** rotacji z powodu A-3b.
+
+- **MVP:** po re-auth → zapis `User.email` gdy różny; **200** `{ id, email, role }` (także gdy email bez zmian, po re-auth). **Bez** maila confirm.
+- **V1 (confirm — must):** gdy nowy ≠ obecny: zapisz **pending** (nie zmieniaj `User.email`), wyślij mail **`email_change_confirm`** na **nowy** adres (token **tylko** w URL deep linku **`{APP_PUBLIC_URL}/?emailChangeToken={raw}`**; hash w DB; TTL **`EMAIL_CHANGE_TTL`**, default **`24h`**, parser jak `ACTIVATION_TTL` / JWT TTL; **osobny byt od `AccountActivation`**). **200** `{ id, email, role, pendingEmail }` (`email` = stary). Ten sam adres → **200** bez pending/maila. Pad SMTP po pending → **503** `MAIL_DELIVERY_FAILED` (**nie** best-effort). Publiczny **`POST /auth/confirm-email-change`** `{ token }` → stosuje email, czyści pending; **200** `{ id, email, role }` **bez** Set-Cookie; sesja cookie **zostaje**; zły / zużyty / wygasły token → wspólny **401**. Resend (zalogowany, jest pending): **`POST /auth/me/email/resend-confirm`** — rotacja + mail; pad SMTP → **503**; brak pending → **409**. `validityLabel` = pełne „Link jest jednorazowy i wygasa po {X}.” z **`EMAIL_CHANGE_TTL`** (miejscownik). Szablon = ten sam shell HTML+text + logotyp CID co invite/activation (`infrastructure/mail/`). **Nie** mylić z A-12 (activate / `/?activationToken=`).
 
 Zmiana względem: A-3b na `PATCH /auth/me` z body `{ email }` lub `{ email, currentPassword }` i złe hasło jako `UNAUTHORIZED`.
 Zmiana względem wersji 9: self-service email był zakazany. Od tej wersji A-3b jest w MVP (`docs/ux_dashboard.md` widok Konto).
+Zmiana względem: confirm / hasło / delete jako „poza MVP” bez normy. Od tej wersji V1 = A-3b confirm + A-3d + A-3e.
 
-**Uwaga o A-5:** re-auth na A-3b celowo **nie** stosuje polityki haseł (A-5) do `currentPassword` — analogicznie do loginu (A-2). Polityka dotyczy wyłącznie momentu **ustawiania** hasła (`bootstrap-admin`, `accept-invite`, **`register`**); hasło raz zaakceptowane pozostaje ważne do re-auth, nawet gdyby polityka A-5 później się zaostrzyła.
+A-3d. **`PATCH /api/v1/auth/me/password` (V1 must):** body `{ "currentPassword", "newPassword" }` (`.strict()`). Role: `admin` \| `user` \| `guest` (demo on + `@AllowGuest`). `currentPassword` = bcrypt compare (**bez** A-5); `newPassword` = polityka A-5. **200** + Clear-Cookie `cc_access`/`cc_refresh` + unieważnienie **wszystkich** refresh usera → FE landing + ponowny login. Złe `currentPassword` → **401** `INVALID_PASSWORD` (sesja zostaje). Zły kształt / polityka → **400**.
+
+A-3e. **`DELETE /api/v1/auth/me` (V1 must):** body `{ "currentPassword" }` (`.strict()`); opcjonalnie `?purge=true` (skutek jak A-10 — tylko `guest` + live). Semantyka **własnej** roli: `user` = soft (jak A-10); `guest` = hard (+ purge); **`admin` → 403** `FORBIDDEN`. Sukces → **200** + Clear-Cookie → landing. Live guest bez purge → **409** `GUEST_HAS_ACTIVE_RUN`. **Zakaz** self-service przez `DELETE /users/:id` z UI Konto. UI = `SPEC-FRONTEND.md` F-8 / `docs/ux_dashboard.md`.
+
+**Uwaga o A-5:** re-auth na A-3b / A-3d / A-3e celowo **nie** stosuje polityki haseł (A-5) do `currentPassword` — analogicznie do loginu (A-2). Polityka dotyczy wyłącznie momentu **ustawiania** hasła (`bootstrap-admin`, `accept-invite`, **`register`**, **`newPassword` na A-3d**); hasło raz zaakceptowane pozostaje ważne do re-auth, nawet gdyby polityka A-5 później się zaostrzyła.
 
 Zmiana względem wersji 2: wcześniej brak osobnego probe; odczyt `user` z refresh był opcjonalny. Obowiązuje: **`/auth/me`** + flow FE me → (401) refresh → me.
 
@@ -152,7 +170,7 @@ A-7c. Resend (`POST /api/v1/invitations/:id/resend`): rotacja tokenu (nowy raw, 
 
 A-7d. Najwyżej jeden `pending` na `email` — egzekucja indeksem SQL `UNIQUE (email) WHERE status = 'pending'` (Prisma 6 nie wyrazi partial unique; wzorzec jak `User_one_admin`; indeks **bez** `purpose`). `GET /invitations`: wszystkie `pending`, **w tym wygasłe**. Porównanie `email` (**User** i **Invitation**) **case-sensitive** — bez `trim` / `toLowerCase`.
 
-A-8. TTL: **konfigurowalne env**; domyślnie access **15 minut**, refresh **1 dzień**. TTL zaproszenia: `INVITE_TTL`, default **7 dni**. TTL aktywacji konta: `ACTIVATION_TTL`, default **7 dni** (parser jak invite / JWT TTL).
+A-8. TTL: **konfigurowalne env**; domyślnie access **15 minut**, refresh **1 dzień**. TTL zaproszenia: `INVITE_TTL`, default **7 dni**. TTL aktywacji konta: `ACTIVATION_TTL`, default **7 dni** (parser jak invite / JWT TTL). TTL confirm zmiany emaila (V1): **`EMAIL_CHANGE_TTL`**, default **`24h`** (ten sam parser; **nie** reuse `ACTIVATION_TTL` jako nazwy env — osobny byt / token od `AccountActivation`; krótsze okno niż onboarding invite/activation).
 
 A-9. MVP: **zakaz** transportu access przez `Authorization: Bearer` (web, Postman, integracje) — wyłącznie cookie jar / `credentials: 'include'`.
 
@@ -261,10 +279,10 @@ Zmiana względem wersji 26 / drzewo `mail/`: komentarz „nodemailer + adapter l
 | Refresh | hash w DB + cookie `cc_refresh`; rotacja przy każdym refresh |
 | Cookie (production) | `httpOnly`; `Secure` + `SameSite=strict` na **obu** cookie; origin = FE (BFF) |
 | Biblioteki | `@nestjs/jwt`, `@nestjs/passport`, `passport-jwt`, `bcrypt` (lub `bcryptjs`); **nodemailer** wyłącznie jako adapter SMTP w `infrastructure/mail/` |
-| Mailer | Port w Auth (`send({ kind: 'user_invited' \| 'user_activation' \| 'user_welcome', … })`); treść **nie** w porcie — use case przekazuje tylko `kind` + pola wiadomości (w tym `rawToken` gdzie potrzebne do DX / URL oraz etykietę ważności, np. `validityLabel`). `development` / `test`: adapter logujący w `infrastructure/mail/` — DX **bez regresji**: kind, to, id, subject, Open URL, Token raw. `production`: nodemailer SMTP w `infrastructure/mail/` |
+| Mailer | Port w Auth (`send({ kind: 'user_invited' \| 'user_activation' \| 'user_welcome' \| 'email_change_confirm', … })`); treść **nie** w porcie — use case przekazuje tylko `kind` + pola wiadomości (w tym `rawToken` gdzie potrzebne do DX / URL oraz etykietę ważności, np. `validityLabel`). `development` / `test`: adapter logujący w `infrastructure/mail/` — DX **bez regresji**: kind, to, id, subject, Open URL, Token raw. `production`: nodemailer SMTP w `infrastructure/mail/` |
 | Treść maila | Przed `sendMail`: renderer z szablonów w `infrastructure/mail/` buduje **`html` + `text`** (równolegle); wspólny layout (header / footer / CTA). **Header HTML:** slot brandu = **logotyp** PNG dostarczany jako załącznik **CID** (wizualnie tożsamy z assetem FE `content-chain-logo-transparent.png`, intrinsic 530×275); `alt` = nazwa marki („Content Chain”); tło slotu zgodne z dark shell / panelem (`docs/brand_types.md`). **Zakaz** kanonu brandu HTML = wyłącznie tekst w slocie headera. **Plain text:** pierwsza linia / identyfikacja marki = string „Content Chain” (**bez** regresji względem Fazy 25; logo **nie** zastępuje nazwy w prozie). Subject + copy body produktowe: **PL**; string marki dozwolony / wymagany tam, gdzie obraz nie działa. Dane wyłącznie z pól `TransactionalMail` portu — **zakaz** logiki domenowej w szablonach (w tym **zakaz** czytania env / parsowania TTL). Invite / activation: `validityLabel` = **pełne** zdanie **„Link jest jednorazowy i wygasa po {X}.”** zbudowane w application z aktualnego `INVITE_TTL` / `ACTIVATION_TTL` ({X} = ludzki zapis TTL w **miejscowniku**, np. `7d` → **„7 dniach”**); szablon tylko wstrzykuje etykietę — **bez** doklejania drugiego zdania „Link jest jednorazowy.”. Body produktowe **bez** obowiązku osobnej linii raw (np. „Token (np. Postman): …”); raw wyłącznie w deep linku (CTA / „skopiuj link”). Default env TTL **`7d`** / **`7d`** — bez zmian |
 | Kolorystyka maili | Wspólny shell dla wszystkich kinds; role kolorów mapowane z kanonu produktu (`apps/frontend/src/app/globals.css` — dark shell, indigo/violet primary, teal CTA); w HTML **inline** hex/rgb (klienci poczty). Wartości hex = HOW feature-planu — **bez** tabeli hex w SPEC. Źródło ról: `docs/brand_types.md` |
-| Kinds | MVP obowiązkowe: `user_invited` \| `user_activation` \| `user_welcome`. Kolejne kinds = rozszerzenie unii `TransactionalMail` + nowy szablon (dynamicznie według potrzeb / funkcjonalności) |
+| Kinds | Obowiązkowe: `user_invited` \| `user_activation` \| `user_welcome` \| **`email_change_confirm`** (V1 confirm A-3b). Kolejne kinds = rozszerzenie unii `TransactionalMail` + nowy szablon (ten sam shell / CID). |
 | `user_welcome` | Trigger: wyłącznie po udanym `POST /auth/activate` (self-register w `production`). Odbiorcy: `role ∈ { user, guest }` — **nie** `admin`; **niezależnie** od `DEMO_MODE`. Język: **PL**. Injection: `email`, `appPublicUrl`, `login`. Obrazy: załączniki **CID** w adapterze mail I/O (**nie** domain/use-case) — zrzuty welcome **oraz** logotyp shella (jak wszystkie kinds). Best-effort: pad SMTP **nie** zmienia **200** activate — **zakaz** `MAIL_DELIVERY_FAILED` / **503** na tej ścieżce. **Zakaz** welcome przy invite / accept-invite / bootstrap / register (poza skutkiem activate) / soft-delete / reaktywacji |
 | Lokalizacja I/O | Prisma (User / Invitation / AccountActivation / refresh) = `infrastructure/persistence/`; JWT/cookie helpers + `JwtCookieStrategy` = `infrastructure/session/`; SMTP / adapter logujący / **szablony + shell + renderer** / załączniki CID (logotyp shella + zrzuty welcome) = `infrastructure/mail/` (**jedyna** lokalizacja treści i CID maili; **nie** domain / use-case; **nie** React Email / FE) |
 
@@ -290,7 +308,7 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - Port mailera transakcyjnego w Auth (`user_invited` \| `user_activation` \| `user_welcome`; kolejne kinds przez rozszerzenie unii); adapter logujący poza `production` w `infrastructure/mail/`; adapter SMTP = **nodemailer** wyłącznie w `infrastructure/mail/`.
 - Szablony HTML (+ plain text), wspólny shell oraz renderer wstrzykujący pola wiadomości **przed** `sendMail` — wyłącznie w `infrastructure/mail/`; załączniki **CID** (logotyp shella dla wszystkich kinds + zrzuty `user_welcome`) wyłącznie w adapterze mail I/O.
 - Logotyp w headerze shella HTML (CID; wizualnie = `content-chain-logo-transparent.png`; `alt` = nazwa marki) — `docs/brand_types.md`.
-- Pole etykiety ważności (np. `validityLabel`) na `TransactionalMail` dla invite/activation — **pełne** zdanie „Link jest jednorazowy i wygasa po {X}.” wypełniane w application z `INVITE_TTL` / `ACTIVATION_TTL` przed renderem ({X} w miejscowniku); `rawToken` na porcie pod budowę URL i DX logger.
+- Pole etykiety ważności (np. `validityLabel`) na `TransactionalMail` dla invite/activation/**email_change_confirm** — **pełne** zdanie „Link jest jednorazowy i wygasa po {X}.” wypełniane w application z `INVITE_TTL` / `ACTIVATION_TTL` / **`EMAIL_CHANGE_TTL`** przed renderem ({X} w miejscowniku); `rawToken` na porcie pod budowę URL i DX logger.
 - Wysyłkę `user_welcome` **tylko** po udanym `POST /auth/activate` (A-12); best-effort — pad SMTP **nie** zmienia odpowiedzi sukcesu activate.
 - Strategia cookie / JWT (`JwtCookieStrategy` async `validate` + A-3c, helpers cookie) w `infrastructure/session/`.
 - Walidacja DTO auth class-validator + reguły haseł w domain/application (Zod — `SPEC-KOMUNIKACJA.md`).
@@ -314,7 +332,7 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - Hasła w mailu; admin zna hasło `user`; `POST /users` z hasłem.
 - Nodemailera (ani innego klienta SMTP) w domain / use-case — wyłącznie adapter `infrastructure/mail/`; **zakaz** nodemailera w `infrastructure/persistence/` ani `infrastructure/session/`.
 - **React Email** / JSX jako silnika szablonów maili w `apps/api`; szablonów maili we `apps/frontend` albo osobnym package; HTML / plain text / **CID** w use-case / domain (treść i załączniki powstają wyłącznie w adapterze / rendererze I/O `infrastructure/mail/`).
-- Logiki domenowej (reguły ról, TTL, authz, persistencja) w plikach szablonów — szablony tylko renderują dane z pól wiadomości portu; **zakaz** czytania `INVITE_TTL` / `ACTIVATION_TTL` / parsowania TTL w szablonach.
+- Logiki domenowej (reguły ról, TTL, authz, persistencja) w plikach szablonów — szablony tylko renderują dane z pól wiadomości portu; **zakaz** czytania `INVITE_TTL` / `ACTIVATION_TTL` / **`EMAIL_CHANGE_TTL`** / parsowania TTL w szablonach.
 - Obowiązkowej osobnej linii raw tokenu w body produktowym invite/activation (np. „Token (np. Postman): …”) — raw wyłącznie w deep linku; DX = adapter logujący (URL + raw) poza `production`.
 - Wysyłki `user_welcome` przy invite / accept-invite / bootstrap / register (poza skutkiem activate) / soft-delete / reaktywacji.
 - Fail `POST /auth/activate` / **503** `MAIL_DELIVERY_FAILED` przez pad dostawy `user_welcome` (envelope activate **niezależny** od SMTP welcome).
@@ -333,11 +351,12 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 - `Authorization: Bearer` jako modelu auth MVP.
 - OAuth / social login / 2FA w MVP.
 - Egzekucji ról wyłącznie po stronie UI.
-- Self-service w MVP: zmiana hasła **zalogowanego**, usuwanie własnego konta; confirm e-mail przy zmianie adresu (V1) — **nie** mylić z aktywacją po register (A-12).
-  Zmiana względem: „żadnego ustawiania hasła przez użytkownika”. **Wyjątek (D13):** jednorazowe **pierwsze** hasło przy `accept-invite` **oraz** hasło na `register` to onboarding, nie self-service hasła.
-  Zmiana względem wersji 9: zakaz obejmował też zmianę email — od tej wersji A-3b **jest** w MVP (re-auth: `PATCH /auth/me/email` + `currentPassword`).
+- Traktowania A-3d / A-3e / confirm (A-3b V1) jako „poza produktem” — to **V1 must**; **nie** mylić confirm z A-12.
+  Zmiana względem: self-service hasła/delete/confirm wyłącznie „poza MVP”. Od tej wersji normy A-3d/A-3e + confirm V1.
+  Zmiana względem wersji 9: zakaz obejmował też zmianę email — A-3b **jest** w MVP.
   Zmiana względem: A-3b na `PATCH /auth/me` bez re-auth / złe hasło jako `UNAUTHORIZED`.
-- Mutacji wrażliwej email / hasła na `PATCH /auth/me` (miesza probe z update) — obowiązuje osobna ścieżka A-3b.
+- Mutacji wrażliwej email / hasła / delete na `PATCH /auth/me` (miesza probe z update) — obowiązują osobne ścieżki A-3b / A-3d / A-3e.
+- Self-delete `admin` (A-3e → **403**); reuse `AccountActivation` pod confirm zmiany emaila.
 - Soft-delete na `guest` oraz hard-delete na `user` (obowiązuje A-10: soft tylko `user`, hard tylko `guest`).
 - Soft+Hard jako dwa przyciski / dwa czasowniki REST na tym samym `user`; osobnej trasy `/status` / `/role` / drugiego czasownika hard.
 - Reaktywacji `guest` przez `PATCH` (obowiązuje **403**; reclaim = hard).
@@ -363,14 +382,14 @@ Zmiana względem wersji 14 / „Nie wolno”: zakaz otwartego signup unieważnio
 | NestJS + `@nestjs/jwt` + `@nestjs/passport` + `passport-jwt` | obowiązkowe |
 | bcrypt, **cost = 12** | obowiązkowe |
 | Cookie `cc_access` + `cc_refresh` (httpOnly) + refresh hash w DB + rotacja | obowiązkowe |
-| TTL env: access default 15m, refresh default 1d; `INVITE_TTL` default 7d; `ACTIVATION_TTL` default 7d | obowiązkowe |
+| TTL env: access default 15m, refresh default 1d; `INVITE_TTL` default 7d; `ACTIVATION_TTL` default 7d; **`EMAIL_CHANGE_TTL` default 24h** | obowiązkowe |
 | Port mailera + **nodemailer** (adapter SMTP w `production`) | obowiązkowe |
 | Adapter logujący maila w `development` / `test` | obowiązkowe |
-| Kind mailera `user_invited` \| `user_activation` \| `user_welcome` | obowiązkowe |
-| Szablony HTML + plain text + wspólny shell + renderer w `infrastructure/mail/`; język treści **PL**; header HTML = logotyp CID; CID zrzutów `user_welcome` w I/O mail | obowiązkowe |
+| Kind mailera `user_invited` \| `user_activation` \| `user_welcome` \| **`email_change_confirm`** | obowiązkowe |
+| Szablony HTML + plain text + wspólny shell + renderer w `infrastructure/mail/`; język treści **PL**; header HTML = logotyp CID; CID zrzutów `user_welcome` w I/O mail; confirm = ten sam shell | obowiązkowe |
 | React Email / JSX maili; szablony we FE; treść HTML / CID w domain / use-case; kanon brandu HTML = wyłącznie tekst w slocie headera; `MAIL_DELIVERY_FAILED` na ścieżce welcome po activate | zakaz |
-| Bearer access / OAuth / 2FA / zmiana hasła zalogowanego / usuwanie siebie / confirm e-mail przy zmianie adresu | poza MVP (V1 confirm) |
-| `GET /auth/me` + `PATCH /auth/me/email` (`email` + `currentPassword`) + `GET /auth/bootstrap-status` + `POST /auth/accept-invite` + `POST /auth/register` + `POST /auth/activate` + `POST /auth/resend-activation` | obowiązkowe |
+| Bearer access / OAuth / 2FA | poza MVP |
+| `GET /auth/me` (+ V1 `pendingEmail`) + `PATCH /auth/me/email` (+ V1 confirm / resend) + V1 `PATCH /auth/me/password` + V1 `DELETE /auth/me` + `GET /auth/bootstrap-status` + `POST /auth/accept-invite` + `POST /auth/register` + `POST /auth/activate` + `POST /auth/resend-activation` + V1 `POST /auth/confirm-email-change` | obowiązkowe (V1 trasy = must fali auth) |
 | `DELETE /users/:id` (soft `user` / hard+purge `guest`) + `PATCH /users/:id` (reaktywacja tylko `user`) | obowiązkowe |
 | `JwtCookieStrategy.validate` + check `isActive` / brak User (A-3c) | obowiązkowe |
 | Model `User.verifiedAt` + tabela `AccountActivation` | obowiązkowe (`SPEC-PERSISTENCE.md`) |
@@ -384,7 +403,9 @@ Zmiana względem wersji 14 / „Nie wolno”: zakaz otwartego signup unieważnio
 - [ ] `GET /auth/me` / refresh z JWT `guest` przy `DEMO_MODE=false` → **401** (nie 403).
 - [ ] Po soft-delete `user`: kolejne requesty z ważnym access → **401** (A-3c `!isActive`); po hard-delete `guest`: access → **401** (brak wiersza).
 - [ ] Guest bez `@AllowGuest` przy demo on → **403**; `GET /users` / invitations / `PATCH /auth/me/email` dla guest → **403**.
-- [ ] `GET /auth/me` zwraca `{ id, email, role }` albo **401** `UNAUTHORIZED`; `PATCH /auth/me/email` `{ email, currentPassword }` zmienia własny adres po re-auth albo **409** gdy zajęty; złe hasło → **401** `INVALID_PASSWORD` / `Invalid password`; brak / pusty `currentPassword` → **400**; refresh rotuje cookie; logout czyści oba i unieważnia sesję w DB; A-3b **nie** rotuje sesji; **brak** mutacji na `PATCH /auth/me`.
+- [ ] `GET /auth/me` zwraca `{ id, email, role }` (+ V1 `pendingEmail`) albo **401**; `PATCH /auth/me/email` po re-auth: MVP = zapis email / V1 = pending + mail **`email_change_confirm`** (deep link `/?emailChangeToken=`, TTL `EMAIL_CHANGE_TTL`); **409** gdy zajęty; złe hasło → **401** `INVALID_PASSWORD`; A-3b **nie** rotuje sesji; **brak** mutacji na `PATCH /auth/me`.
+- [ ] V1 A-3d: `PATCH /auth/me/password` — sukces Clear-Cookie + unieważnienie wszystkich refresh; złe `currentPassword` → `INVALID_PASSWORD` (sesja zostaje).
+- [ ] V1 A-3e: `DELETE /auth/me` — soft `user` / hard(+purge) `guest`; `admin` → **403**; sukces Clear-Cookie.
 - [ ] Hasło niespełniające polityki → `VALIDATION_FAILED`; spełniające → bcrypt(cost 12) — na accept-invite **oraz** register.
 - [ ] `user` nie przechodzi tras admin-only (`RolesGuard` → `FORBIDDEN`), w tym `POST /invitations` → 403; `user` → `DELETE /users/:id` → **403**.
 - [ ] Admin zaprasza (`POST /invitations`, tylko email, bez `role`) → pending + mail; accept-invite: `DEMO_MODE=false` → `role=user`, `DEMO_MODE=true` → `role=guest`; potem login; raw token nie wraca w JSON admina.
@@ -400,11 +421,11 @@ Zmiana względem wersji 14 / „Nie wolno”: zakaz otwartego signup unieważnio
 - [ ] Kolizja `User.email` (także soft-deleted) przy ważnym tokenie → **401** `UNAUTHORIZED`, ten sam `message` co zły token; Invitation → `revoked`; **nie** **409**; brak `User` z tej próby.
 - [ ] Pad SMTP po zapisie invite create/resend **albo** register (gdy testowany adapter SMTP) → **503** `MAIL_DELIVERY_FAILED` + `details.id` (Invitation albo User) — **nie** dotyczy welcome po activate.
 - [ ] Produktowy send SMTP: body **HTML + plain text**, subject/body **PL**, wspólny shell; kinds `user_invited` \| `user_activation` \| `user_welcome`; CID wyłącznie w `infrastructure/mail/`; deep linki invite/activation / envelope HTTP activate **bez regresji** (A-7a / A-11…A-13).
-- [ ] Invite / activation: `validityLabel` = pełne „Link jest jednorazowy i wygasa po {X}.” ({X} w miejscowniku, np. `7d` → „7 dniach”); body **bez** osobnej linii raw Postman; `rawToken` nadal na porcie pod DX; szablony **bez** logiki TTL/env i **bez** drugiego zdania „Link jest jednorazowy.”.
+- [ ] Invite / activation / **email_change_confirm**: `validityLabel` = pełne „Link jest jednorazowy i wygasa po {X}.” ({X} w miejscowniku, np. invite `7d` → „7 dniach”; confirm default `24h` → „24 godzinach”); body **bez** osobnej linii raw Postman; `rawToken` nadal na porcie pod DX; szablony **bez** logiki TTL/env i **bez** drugiego zdania „Link jest jednorazowy.”; confirm URL = `/?emailChangeToken=` (**nie** `activationToken`).
 - [ ] Brak `user_welcome` przy invite / accept-invite / bootstrap / register poza skutkiem activate; brak tokenu aktywacji / hasła w treści welcome.
 - [ ] PATCH `{ isActive: true }` na soft-deleted `user` → 200 `isActive: true`; **nie** ustawia `verifiedAt`. Target `guest` → **403**. `isActive: false` / `role` w body → 400. `user` woła PATCH → 403. PATCH admina → 403.
 - [ ] Postman / FE bez Bearer — wyłącznie cookie.
-- [ ] Domyślne TTL: access 15m, refresh 1d, invite 7d, activation 7d (nadpisywalne env).
+- [ ] Domyślne TTL: access 15m, refresh 1d, invite 7d, activation 7d, **email-change confirm 24h** (`EMAIL_CHANGE_TTL`; nadpisywalne env).
 
 ## Poza zakresem
 
@@ -415,7 +436,7 @@ Zmiana względem wersji 21 / poza zakresem: „first-run, login, rejestracja” 
 Zmiana względem wersji 7 / poza zakresem: doprecyzowano, że ekrany Users i accept-invite są w zakresie MVP FE, nie „przyszłe”.
 Zmiana względem wersji 14 / poza zakresem: dopisano rejestrację / thank-you / deep link aktywacji jako widoki FE.
 Zmiana względem wersji 20 / poza zakresem: *„Soft-delete / reaktywacja w UI admina (API tak; UI MVP nie)”* oraz *„Zarządzanie / czyszczenie kont guest (osobny plan)”* — **unieważnione** dla per-konto soft/hard/purge + UI toggle/Usuń; reset / bulk / wipe **zostaje** poza.
-- Self-service: zmiana hasła **zalogowanego** / usuwanie własnego konta; OAuth, SSO, 2FA, recovery „lost admin”; confirm e-mail przy zmianie adresu (**V1** — **nie** mylić z A-12). Pierwsze hasło na accept-invite **oraz** hasło na register **są** w zakresie. **Zmiana własnego emaila z re-auth (A-3b) jest w zakresie MVP** — wzorzec ścieżki + `INVALID_PASSWORD` = fundament pod przyszłe `PATCH /auth/me/password` (poza MVP).
+- OAuth, SSO, 2FA, recovery „lost admin” (self-delete `admin` zabronione — A-3e). **V1 must w zakresie:** confirm e-mail (A-3b), `PATCH /auth/me/password` (A-3d), `DELETE /auth/me` (A-3e). **MVP:** A-3b bez confirm. Pierwsze hasło = accept-invite / register. Dual-mode / i18n = poza falą auth (osobna paczka chrome).
 - Reset instancji / factory wipe / CLI / **bulk** purge gości (masowy, nie per-konto).
 - Authz cancel (admin→guest) → `SPEC-RUNY.md` R-11; UI Cancel / Users → `SPEC-FRONTEND.md`.
 - Chip / locki UI DEMO — `SPEC-FRONTEND.md`. Polityka slotów / Redis admit — `SPEC-RUNY.md` R-12 (DEL ratings przy hard = A-10).

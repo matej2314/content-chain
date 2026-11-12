@@ -1,7 +1,7 @@
 ---
-wersja: 20
+wersja: 21
 data_utworzenia: 2026-09-29
-data_modyfikacji: 2026-10-21
+data_modyfikacji: 2026-11-12
 ---
 
 # Bezpieczeństwo — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-10-21
 Norma self-host dla `local` i `production`: auth, sekrety, ekspozycja powierzchni, bootstrap. Bez pełnego modelu STRIDE.
 
 Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, `architektura.md`.
+
+Zmiana względem wersji 20 / self-service: hasło zalogowanego i usuwanie własnego konta oraz confirm e-mail przy `PATCH /auth/me/email` były „poza MVP / V1 odkładalne”. Od tej wersji = **V1 must-have** (UI = widok **Konto**; Users zostaje na `/users`). Semantyka soft/hard delete own = jak kanon Users wg roli; **`admin` nie usuwa siebie** (**403**).
 
 Zmiana względem wersji 19 / „raw w mailu”: sformułowania sugerujące obowiązkowy osobny plaintext token w body (np. pod Postmana). Od tej wersji: raw invite/activation w wiadomości = w **URL** deep linku; **zakaz** raw w JSON; w `development` wolno logować URL + raw (DX). Production nadal **bez** raw w logach. Spójne z `dokumentacja_komunikacji.md` (URL-only + copy ważności).
 
@@ -58,7 +60,9 @@ Zmiana względem: *„guest: detail/logs tylko własne; cudze → 403”* (Faza 
 | Detail / logs (`GET /runs/:id`, `.../logs`) | własne wg kanonu ownership | własne | **własne zawsze**; **cudze tylko** gdy status ∈ `{completed, failed, cancelled}`; cudze nieterminalne → **403** |
 | Events / SSE | własne wg kanonu ownership | własne | **tylko własne**; cudze → **403** (także terminalne — archiwum **bez** EventSource) |
 | `POST .../output-edited` / finalize-review | własne (okno TTL) | własne | **nie** → **403** |
-| `PATCH /auth/me/email` | tak | tak | **nie** → **403** |
+| `PATCH /auth/me/email` (+ confirm V1) | tak | tak | **nie** → **403** |
+| `PATCH /auth/me/password` (V1) | tak | tak | tak |
+| `DELETE /auth/me` (V1; soft `user` / hard+purge `guest`) | **nie** → **403** | tak | tak |
 | `POST /feedback` `application` / `agent` | tak | tak | **tak** (bez limitu Redis) |
 | Panel odczytu / analityka opinii | V1 — rozbudowa | V1 — rozbudowa | V1 — rozbudowa |
 | Lista użytkowników (`GET /users`) | tak | nie | **nie** → **403** |
@@ -80,12 +84,18 @@ Surface FE: `{ available }` z **`GET /api/v1/auth/bootstrap-status`** steruje **
 3. Po utworzeniu pierwszego admina endpoint bootstrap jest **trwale niedostępny** (np. **409** `CONFLICT` / **403**); `bootstrap-status.available === false`.
 4. **Twarda blokada:** tworzenie / awans kolejnych użytkowników z `role = admin` jest **zabronione** w MVP (API odrzuca). W systemie jest **co najwyżej jeden** admin — ten z bootstrapu. Register / activate / resend **nigdy** nie tworzą `admin`.
 5. **Dwie drogi na konto nie-admin:** (a) **zaproszenie** — admin podaje tylko email; aktywne konto powstaje przy `POST /auth/accept-invite` (gotowe do loginu; **`verifiedAt = now()`**); **rola vs `DEMO_MODE`** jak register: **`true` → `guest`**, **`false` → `user`**. Body invite / accept **bez** `role`; invite **nigdy** → `admin`. **Sens:** demo off = pełnoprawny członek zespołu; demo on = gość sandboxu (nie członkostwo zespołu). (b) **otwarta rejestracja** — publiczny `POST /auth/register` (zawsze dostępny; **nie** zależy od `DEMO_MODE`). **Zmiana względem:** po planie register serwer **zawsze** ustawiał **`role = user`**. **Refaktor register:** `DEMO_MODE=true` → **`guest`**; `DEMO_MODE=false` → **`user`**. Body **bez** `role`. Register **nigdy** → `admin`. Przed utworzeniem `User` register **unieważnia** (`revoked`) ewentualne **`Invitation` `pending`** na ten sam email. **Nie** przez `POST /users` z hasłem. **Zakaz permanentny** awansu `guest` → `user` / `admin`.
-6. **Self-service konta w MVP:** zalogowany może zmienić **własny email** (`PATCH /api/v1/auth/me/email`, widok Konto) wyłącznie po podaniu **aktualnego hasła** w body (`currentPassword`). To **re-auth** przy mutacji wrażliwej — **nie** jest self-service zmianą hasła. **`GET /auth/me` = wyłącznie probe** (bez mutacji na `PATCH /auth/me`). **Poza MVP:** zmiana hasła zalogowanego (planowany wzorzec: osobna trasa np. `PATCH /auth/me/password` + re-auth + `INVALID_PASSWORD`, po SMTP), usuwanie własnego konta. **Confirm e-mail przy zmianie adresu = V1** — **nie** mylić z aktywacją konta po rejestracji. **Wyjątek onboarding:** pierwsze hasło przy `POST /auth/accept-invite` oraz hasło przy `POST /auth/register`. MVP: login / logout / bootstrap / register + activate + resend / zaproszenia + accept-invite + zmiana własnego emaila z re-auth.
+6. **Self-service konta:**
+   - **MVP:** zalogowany (`admin` / `user`) zmienia **własny email** (`PATCH /api/v1/auth/me/email`, widok **Konto**) wyłącznie po **`currentPassword`** (re-auth). **`guest` → 403**. **`GET /auth/me` = wyłącznie probe** (bez mutacji na `PATCH /auth/me`). Login / logout / bootstrap / register + activate + resend / zaproszenia + accept-invite — bez zmian.
+   - **V1 must-have (fala auth self-service):** (a) **confirm e-mail** przy zmianie adresu — **nie** mylić z aktywacją po register; (b) **`PATCH /auth/me/password`** + re-auth + polityka na nowe hasło + `INVALID_PASSWORD`; (c) **`DELETE /auth/me`** — usuwanie **własnego** konta (UI = Konto; **nie** panel admin / Users). **Wyjątek onboarding:** pierwsze hasło przy accept-invite / register.
+   - **Confirm e-mail (V1):** po udanym re-auth + check zajętości, gdy nowy adres ≠ obecny: `User.email` **bez zmiany** do potwierdzenia; pending nowego adresu + mail confirm na **nowy** adres (token w URL deep linku; w DB tylko hash; osobny byt od `AccountActivation`). `GET /auth/me` zwraca aktualny `email` oraz opcjonalne `pendingEmail` (lub `null`). Publiczny confirm tokenem stosuje nowy email, czyści pending; **sesja cookie zostaje** (sub = userId). Ten sam adres co obecny → **200** po re-auth, **bez** maila / pending. Pad SMTP po zapisie pending → **503** `MAIL_DELIVERY_FAILED` (jak register), **nie** best-effort. Resend confirm (zalogowany, gdy jest pending) — kontrakt w `dokumentacja_komunikacji.md`.
+   - **Zmiana hasła (V1):** `PATCH /auth/me/password` `{ currentPassword, newPassword }`. Złe `currentPassword` → **401** `INVALID_PASSWORD` (sesja zostaje do sukcesu). Sukces → nowy hash; **unieważnij wszystkie** refresh + Clear-Cookie → FE na landing (ponowny login). Polityka haseł na `newPassword` jak bootstrap / register.
+   - **Usuwanie własnego konta (V1):** `DELETE /auth/me` + `currentPassword` (+ opcjonalnie `?purge=true` dla `guest` z live). Semantyka **jak** `DELETE /users/:id` wg **własnej** roli: `user` = soft; `guest` = hard (+ purge przy live). **`role = admin` → 403** (jedyny admin; recovery lost-admin = poza zakresem). Sukces → Clear-Cookie → landing. **Zakaz** self-service przez `DELETE /users/:id` z widoku Konto.
 
 Zmiana względem: mutacja na `PATCH /auth/me` + złe hasło jako `UNAUTHORIZED`. Powód: rozdział probe vs mutacja; uniknięcie konfliktu z cyklem sesji FE.
 Zmiana względem: self-service email bez re-auth (sam cookie). Powód: skradziona sesja nie może trwale przejąć identyfikatora konta bez znajomości hasła.
 Zmiana względem: „self-service email poza zakresem MVP”.
-7. **`DELETE /api/v1/users/:id`** — **jedna** trasa; semantyka po **`target.role`** (authz: `@Roles('admin')`; target `admin` → **403**). Body puste. Opcjonalny query **`purge=true`** — skutek **tylko** przy `guest` + live (inaczej jak bez flagi).
+Zmiana względem: hasło / delete own / confirm e-mail jako „poza MVP” bez must-have V1 fali auth.
+7. **`DELETE /api/v1/users/:id`** — **jedna** trasa; semantyka po **`target.role`** (authz: `@Roles('admin')`; target `admin` → **403**). Body puste. Opcjonalny query **`purge=true`** — skutek **tylko** przy `guest` + live (inaczej jak bez flagi). **Nie** zastępuje `DELETE /auth/me` (self-service).
 
    - **`role = user` (soft):** `isActive = false`; kasuj refresh + `AccountActivation`; **runy i feedback zostają**. Soft **dozwolony** przy live runie (**bez** 409). Idempotencja: już nieaktywny → **200**. Soft **nie** czyści `verifiedAt`. Email soft-deleted `user` nadal zajęty: `POST /auth/register` → **409** `Email already in use` (reclaim = `PATCH`, nie self-register).
    - **`role = guest` (hard):** usuwa wiersz `User` + sesje + activation + **wszystkie** runy gościa + dzieci + `Feedback` (`authorId` = guest **OR** `runId` ∈ runów gościa). Redis: obowiązkowy DEL **wszystkich** `content-chain:guest:daily:ratings:{userId}:*` (SCAN / równoważnik; pad Redis → **fail-open** + warning). Globalnego `…:guest:daily:runs:{UTC-date}` **nie** ruszać. Email **wolny**. Live bez `purge` → **409** `GUEST_HAS_ACTIVE_RUN` (wspólny `message`, bez listy `runId`). Z `?purge=true`: abort live poza DB → **jedna** tx hard wszystkich runów + konta. Legacy soft-deleted `guest` → kolejny `DELETE` = hard. Brak wiersza → **404**.
@@ -147,7 +157,7 @@ Zmiana względem wersji 5: usunięto **409** na activate; kanoniczny message reg
 
 Niespełnienie → **400** `VALIDATION_FAILED` z czytelnym komunikatem (bez ujawniania hashów). Ta sama polityka obowiązuje przy **pierwszym** haśle na `accept-invite` oraz przy haśle na `POST /auth/register`.
 
-Przy `PATCH /api/v1/auth/me/email` pole `currentPassword` jest weryfikowane **tak samo jak przy logowaniu** — wyłącznie porównaniem bcrypt z hashem sesji, **bez** polityki haseł (polityka obowiązuje wyłącznie przy ustawianiu **nowego** hasła — bootstrap / accept-invite / register). Złe hasło → **401** `INVALID_PASSWORD`, `message`: `Invalid password` (osobny od sesyjnego `UNAUTHORIZED` i od loginu `Invalid credentials`). Plaintext `currentPassword` nigdy w logach ani odpowiedziach.
+Przy `PATCH /api/v1/auth/me/email`, `PATCH /auth/me/password` oraz `DELETE /auth/me` pole `currentPassword` jest weryfikowane **tak samo jak przy logowaniu** — wyłącznie porównaniem bcrypt z hashem sesji, **bez** polityki haseł na `currentPassword` (polityka obowiązuje przy ustawianiu **nowego** hasła — bootstrap / accept-invite / register / **`newPassword` na `PATCH /auth/me/password`**). Złe hasło → **401** `INVALID_PASSWORD`, `message`: `Invalid password` (osobny od sesyjnego `UNAUTHORIZED` i od loginu `Invalid credentials`). Plaintext `currentPassword` / `newPassword` nigdy w logach ani odpowiedziach.
 
 Porównanie i unique `email` (**User** i **Invitation**) są **case-sensitive**, jak `findForAuth` / `User.email` dziś. Świadomie **bez** `trim` / `toLowerCase`. `Ada@x` i `ada@x` to dwa różne adresy.
 
@@ -208,7 +218,7 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 | GuestGuard + `@AllowGuest` (default deny dla guest) | Masowe `@Roles('admin','user')` „żeby zablokować guest”; zaufanie do ukrytych przycisków FE |
 | Redis admit przy `POST /runs` guest + `MAX_CONCURRENT_RUNS` bez zmian | Drugi limit współbieżności „dla guest”; fail open Redis na start runu guest |
 | Switch trybu wyłącznie env + restart | Switch demo w panelu admina |
-| bcrypt + polityka haseł jak wyżej (bootstrap / accept-invite / register) | Przechowywanie haseł plaintext / odwracalne; **hasło w mailu**; admin zna hasło `user` |
+| bcrypt + polityka haseł jak wyżej (bootstrap / accept-invite / register / V1 `PATCH /auth/me/password`) | Przechowywanie haseł plaintext / odwracalne; **hasło w mailu**; admin zna hasło `user` |
 | Cookie httpOnly dla **access i refresh** (`cc_access`, `cc_refresh`) wyłącznie po login / bootstrap | Set-Cookie na register / activate / resend; access/refresh w `localStorage` / Bearer jako model MVP |
 | Token invite / activation: w DB tylko hash SHA-256; raw w **URL** maila (+ log DX poza `production`) | Raw token w JSON-ie admina; obowiązkowa osobna linia plaintext w body „dla Postmana” |
 | Pending = `isActive=true` + `verifiedAt=null` + `AccountActivation` | Pending przez samo `isActive=false`; wymaganie aktywacji poza `production`; register bramkowany `DEMO_MODE` |
@@ -221,8 +231,9 @@ Zmiana względem wcześniejszego zapisu „access w odpowiedzi JSON + tylko refr
 ## Poza zakresem MVP
 
 - OAuth / SSO / 2FA  
-- Self-service: zmiana hasła zalogowanego, usuwanie własnego konta (wyjątek: pierwsze hasło na accept-invite / hasło na register — onboarding). **Zmiana własnego emaila z re-auth hasłem jest w MVP** (`PATCH /auth/me/email` + `currentPassword` + `INVALID_PASSWORD`) — **nie** dla `guest`. Wzorzec osobnej mutacji + re-auth = fundament pod przyszłą zmianę hasła (po SMTP; poza MVP). **Confirm e-mail** przy zmianie adresu = **V1** (poza MVP; **nie** mylić z aktywacją po register)  
-- Rotacja wielu adminów / recovery „lost admin” (osobna procedura później)  
+- Self-service V1 (confirm e-mail, `PATCH /auth/me/password`, `DELETE /auth/me`) — **must-have po MVP**, nie „nigdy”; szczegóły w pkt 6. **MVP:** zmiana własnego emaila z re-auth **bez** confirm maila (`PATCH /auth/me/email`) — **nie** dla `guest`. Pierwsze hasło = accept-invite / register (onboarding).  
+- Dual-mode light/dark z przełącznikiem oraz i18n (next-intl) — **cel produktu / osobna paczka chrome**; **nie** obowiązek fali auth self-service; MVP = dark shell bez switcha  
+- Rotacja wielu adminów / recovery „lost admin” (osobna procedura później); self-delete `admin` zabronione (**403**)  
 - WAF / full pentest report  
 - Szyfrowanie pliku SQLite at-rest (opcjonalnie później)  
 - Reset instancji / factory wipe / CLI / bulk purge gości (masowy, nie per-konto) — **per-konto** hard/purge `guest` jest **w kanonie** (pkt 7)  

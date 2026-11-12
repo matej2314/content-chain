@@ -1,7 +1,7 @@
 ---
-wersja: 45
+wersja: 46
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-09
+data_modyfikacji: 2026-11-12
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -14,6 +14,8 @@ Norma **implementacji obu powierzchni I/O** Content Chain:
 2. klient `apps/api` → `apps/ai-provider-gateway` (natywny chat **oraz** probe liveness health).
 
 Uszczegóławia `docs/dokumentacja_komunikacji.md` oraz korelację ID z `docs/brand_types.md` / `docs/dictionary.md`. **Nie** redefiniuje listy endpointów ani payloadów — odwołuje się do docs; tu obowiązują wzorce warstw, walidacja, envelope, SSE i adapter LLM.
+
+Zmiana względem wersji 45 / K-2d: V1 auth self-service — confirm e-mail, `PATCH /auth/me/password`, `DELETE /auth/me` + kody K-8; `pendingEmail` na `/me` — `docs/dokumentacja_komunikacji.md`, `SPEC-AUTH.md` A-3a…A-3e (fala auth P0).
 
 Zmiana względem wersji 42 / K-2a / K-2b / K-2j: K-2a = `pageSize=10` zawsze-strona; K-2b = bez paginacji HTTP + slice FE; Users GET bez trybu stron / envelope. Od tej wersji: opcjonalna paginacja `page`+`pageSize` na `GET /runs`, `GET /runs/user/:userId`, `GET /users`; allowlista; envelope w obu trybach — `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-3a / R-3c, `SPEC-AUTH.md` A-10b.
 
@@ -69,7 +71,7 @@ Wiążące (`docs/architektura.md`):
 | DX OpenAPI (Swagger UI) | `GET /docs` (poza `/api/v1`) | HTML / OpenAPI JSON |
 | Konfiguracja publiczna (V1) | `GET /api/v1/config` | JSON — wyłącznie `{ "demoMode": boolean }` |
 | Health (readiness produktowa) | `GET /api/v1/health/ready` | JSON — agregat api + gateway liveness |
-| Auth probe / bootstrap status / własny email | `GET /api/v1/auth/me`, `PATCH /api/v1/auth/me/email`, `GET /api/v1/auth/bootstrap-status` | JSON |
+| Auth probe / bootstrap / self-service | `GET /api/v1/auth/me`, `PATCH /api/v1/auth/me/email`, V1 `PATCH .../password`, V1 `DELETE /auth/me`, V1 confirm/resend email-change, `GET .../bootstrap-status` | JSON |
 | Zaproszenia (admin) | `GET`/`POST /api/v1/invitations`, `POST .../:id/resend`, `DELETE .../:id` | JSON |
 | Akceptacja zaproszenia (publiczny) | `POST /api/v1/auth/accept-invite` | JSON |
 | Rejestracja / aktywacja / resend (publiczne) | `POST /api/v1/auth/register`, `POST /api/v1/auth/activate`, `POST /api/v1/auth/resend-activation` | JSON |
@@ -154,9 +156,17 @@ Zmiana względem wersji 24 / K-2b: okno opinii = tylko `completed` \| `failed` (
 
 Zmiana względem wersji 26 / K-2b: przegląd bez limitu czasu / `REVIEW_LOCKED` tylko po finalize. Od tej wersji okno TTL + mutacja po TTL bez CAS.
 
-K-2d. `PATCH /api/v1/auth/me/email` — body `{ email, currentPassword }`; re-auth + zmiana własnego emaila (sesja); **400** (zły kształt / pusty `currentPassword`); **401** `UNAUTHORIZED` (brak sesji); **401** `INVALID_PASSWORD` (`Invalid password`); **409** `CONFLICT` gdy zajęty (po re-auth). **Bez** mutacji na `PATCH /auth/me`. Nie `PATCH /users/:id`. `SPEC-AUTH.md` A-3b.
+K-2d. Auth self-service (payloady = `docs/dokumentacja_komunikacji.md`; semantyka = `SPEC-AUTH.md` A-3a…A-3e):
+
+- `GET /auth/me` — MVP `{ id, email, role }`; V1 + `pendingEmail`.
+- `PATCH /auth/me/email` — body `{ email, currentPassword }`; re-auth; MVP = zapis email; V1 = pending + confirm mail / **503** SMTP; **400** / **401** `UNAUTHORIZED` / **401** `INVALID_PASSWORD` / **409**; **bez** mutacji na `PATCH /auth/me`.
+- V1 `POST /auth/confirm-email-change` `{ token }` — publiczny; sukces **200** bez Set-Cookie; zły token → **401**.
+- V1 `POST /auth/me/email/resend-confirm` — zalogowany; pad SMTP → **503**; brak pending → **409**.
+- V1 `PATCH /auth/me/password` `{ currentPassword, newPassword }` — sukces Clear-Cookie + unieważnienie refresh.
+- V1 `DELETE /auth/me` `{ currentPassword }` (+ `?purge=true`) — soft/hard jak Users; `admin` → **403**; sukces Clear-Cookie; live guest bez purge → **409** `GUEST_HAS_ACTIVE_RUN`.
 
 Zmiana względem wcześniejszego K-2d: trasa `PATCH /auth/me` (z lub bez `currentPassword`) / złe hasło jako `UNAUTHORIZED`.
+Zmiana względem: K-2d tylko email MVP bez tras V1 password/delete/confirm.
 
 K-2e. `POST /api/v1/runs/:runId/cancel` — body puste; sesja cookie. Authz: `startedBy` **lub** (aktor `admin` **i** `startedBy.role === guest`); cudzy run `role = user` → **403** `FORBIDDEN`. Odpowiedzi: **200** + snapshot (`status: cancelled`, `cancelledAt`) przy pierwszym legalnym cancelu **oraz** gdy run już `cancelled` (idempotencja); **404**; **409** `RUN_NOT_CANCELABLE` gdy status już `completed` \| `failed`. **200 nie czeka** na zwinięcie execute (bez regresji MVP). Semantyka CAS / abort in-process (+ abort `fetch` z api) / recovery / log aktora — `SPEC-RUNY.md` R-11. Mapowanie disconnect→`AbortSignal` hopu w gateway **odłożone** (R-11). Pełny kontrakt: `docs/dokumentacja_komunikacji.md`.
 
@@ -255,7 +265,7 @@ K-7. Błędy gateway mapowane na logi runu i ewentualnie `run.failed` / retry wg
 
 Zmiana względem wersji 9 / K-7: wcześniejsza norma mówiła o logach produktowych i frontendzie — bez rozróżnienia dumpa diagnostycznego stdout w `development`.
 
-K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, **`USER_IN_FLIGHT_LIMIT_EXCEEDED`**, `HITL_REQUIRED`, `HITL_INVALID_SELECTION`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, **`RUN_NOT_CANCELABLE`**, **`GUEST_HAS_ACTIVE_RUN`**, `CONFLICT`, `MAIL_DELIVERY_FAILED`, `INTERNAL_ERROR`, **`GUEST_TYPE_NOT_ALLOWED`**, **`GUEST_TYPE_QUOTA_EXCEEDED`**, **`GUEST_GLOBAL_QUOTA_EXCEEDED`**, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach. Skrót: `USER_IN_FLIGHT_LIMIT_EXCEEDED` (**409**) = `POST /runs` gdy użytkownik ma już ≥ `MAX_USER_IN_FLIGHT_RUNS` własnych runów w `queued` \| `running` \| `interrupted` \| `awaiting_hitl` (`SPEC-RUNY.md` R-6a; **nie** ciche `queued`; **nie** kod guest quota); `GUEST_HAS_ACTIVE_RUN` (409) = `DELETE /users/:id` na `guest` z ≥1 live run **bez** `?purge=true` (wspólny `message`; bez `details.runIds` — K-2j / A-10); `RUN_NOT_CANCELABLE` (409) = cancel gdy już `completed` \| `failed`; `RUN_NOT_REVIEWABLE` (409) = przegląd poza `completed` \| `failed` **oraz** opinia `targetType=run` poza `completed` \| `failed` \| (`cancelled`+wynik); `REVIEW_LOCKED` (409) = przegląd zamknięty (`reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL`) — przy samym TTL **bez** side-effect UPDATE locka — szczegóły `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-10 / R-11, `SPEC-FEEDBACK.md` Fbk-3a. Soft limit rating guest = **429** (nie nowy `code` obowiązkowy w V1 — `message` z envelope). `CONFLICT` (409) = m.in. drugi `pending` invite, istniejący `User` przy `POST /invitations`, zajęty email przy `PATCH /auth/me/email`, **zajęty email przy `POST /auth/register`**, niedozwolone przejścia runu / HITL — **nie** kolizja email na `POST /auth/accept-invite` (tam **401** `UNAUTHORIZED`, K-2f). Login przed aktywacją (prod) / soft-delete / złe hasło / **guest przy demo off** oraz activate-fail = wspólny **401** — **bez** `ACCOUNT_NOT_ACTIVATED`. Gdy `VALIDATION_FAILED` pochodzi z application Zod przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, nie lokalna kopia w BC): `details[].path` = `issue.path.join('.')`. Refaktor jakości `parseWithZod` — **bez zmiany** kontraktu I/O envelope. PUT/PATCH `/company-context` przy niespełnionej bramce kompletności też zwraca **400** `VALIDATION_FAILED` (`docs/dokumentacja_komunikacji.md`) — `details` mogą mieć `section` i/lub `path` pozycji; **nie** 409 `CONTEXT_INCOMPLETE` (ten kod zostaje na `POST /runs`). **Brak** nowego kodu envelope „GATEWAY_NOT_READY” / twardego rejectu `POST /runs` za martwy gateway — bramka UX = `SPEC-FRONTEND.md` F-6; hop LLM = istniejąca ścieżka błędu.
+K-8. Kody domenowe z docs (`UNAUTHORIZED`, `FORBIDDEN`, **`INVALID_PASSWORD`**, `VALIDATION_FAILED`, `CONTEXT_INCOMPLETE`, **`USER_IN_FLIGHT_LIMIT_EXCEEDED`**, `HITL_REQUIRED`, `HITL_INVALID_SELECTION`, `RUN_NOT_FOUND`, `REVIEW_LOCKED`, `RUN_NOT_REVIEWABLE`, **`RUN_NOT_CANCELABLE`**, **`GUEST_HAS_ACTIVE_RUN`**, `CONFLICT`, `MAIL_DELIVERY_FAILED`, `INTERNAL_ERROR`, **`GUEST_TYPE_NOT_ALLOWED`**, **`GUEST_TYPE_QUOTA_EXCEEDED`**, **`GUEST_GLOBAL_QUOTA_EXCEEDED`**, …) mapowane spójnie przez wspólny filter — bez ad hoc `res.status` w controllerach. Skrót: `INVALID_PASSWORD` (**401**) = złe `currentPassword` na re-auth (K-2d / A-3b/d/e — **nie** cykl refresh FE); `USER_IN_FLIGHT_LIMIT_EXCEEDED` (**409**) = `POST /runs` gdy użytkownik ma już ≥ `MAX_USER_IN_FLIGHT_RUNS` własnych runów w `queued` \| `running` \| `interrupted` \| `awaiting_hitl` (`SPEC-RUNY.md` R-6a; **nie** ciche `queued`; **nie** kod guest quota); `GUEST_HAS_ACTIVE_RUN` (409) = `DELETE /users/:id` **lub** V1 `DELETE /auth/me` na `guest` z ≥1 live run **bez** `?purge=true` (wspólny `message`; bez `details.runIds` — K-2j / A-10 / A-3e); `MAIL_DELIVERY_FAILED` (503) także V1 pending email-change / resend confirm; `RUN_NOT_CANCELABLE` (409) = cancel gdy już `completed` \| `failed`; `RUN_NOT_REVIEWABLE` (409) = przegląd poza `completed` \| `failed` **oraz** opinia `targetType=run` poza `completed` \| `failed` \| (`cancelled`+wynik); `REVIEW_LOCKED` (409) = przegląd zamknięty (`reviewFinalizedAt` ustawione **albo** minął `REVIEW_TTL`) — przy samym TTL **bez** side-effect UPDATE locka — szczegóły `docs/dokumentacja_komunikacji.md`, `SPEC-RUNY.md` R-10 / R-11, `SPEC-FEEDBACK.md` Fbk-3a. Soft limit rating guest = **429** (nie nowy `code` obowiązkowy w V1 — `message` z envelope). `CONFLICT` (409) = m.in. drugi `pending` invite, istniejący `User` przy `POST /invitations`, zajęty email przy `PATCH /auth/me/email`, **zajęty email przy `POST /auth/register`**, niedozwolone przejścia runu / HITL — **nie** kolizja email na `POST /auth/accept-invite` (tam **401** `UNAUTHORIZED`, K-2f). Login przed aktywacją (prod) / soft-delete / złe hasło / **guest przy demo off** oraz activate-fail = wspólny **401** — **bez** `ACCOUNT_NOT_ACTIVATED`. Gdy `VALIDATION_FAILED` pochodzi z application Zod przez wspólny `parseWithZod` (`apps/api/src/shared/parse-with-zod.ts`, nie lokalna kopia w BC): `details[].path` = `issue.path.join('.')`. Refaktor jakości `parseWithZod` — **bez zmiany** kontraktu I/O envelope. PUT/PATCH `/company-context` przy niespełnionej bramce kompletności też zwraca **400** `VALIDATION_FAILED` (`docs/dokumentacja_komunikacji.md`) — `details` mogą mieć `section` i/lub `path` pozycji; **nie** 409 `CONTEXT_INCOMPLETE` (ten kod zostaje na `POST /runs`). **Brak** nowego kodu envelope „GATEWAY_NOT_READY” / twardego rejectu `POST /runs` za martwy gateway — bramka UX = `SPEC-FRONTEND.md` F-6; hop LLM = istniejąca ścieżka błędu.
 
 Zmiana względem wersji 24 / K-8: brak `RUN_NOT_CANCELABLE`; opis `RUN_NOT_REVIEWABLE` bez rozszczepienia przegląd vs opinia na `cancelled`.
 

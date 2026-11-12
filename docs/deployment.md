@@ -1,7 +1,7 @@
 ---
-wersja: 17
+wersja: 19
 data_utworzenia: 2026-09-30
-data_modyfikacji: 2026-11-10
+data_modyfikacji: 2026-11-12
 ---
 
 # Deployment — Content Chain
@@ -9,6 +9,10 @@ data_modyfikacji: 2026-11-10
 Self-host MVP: jak uruchamiać, konfigurować i utrzymywać jedną instalację (jedna firma = jedna instancja).
 
 Powiązane: `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `testy.md`, `security.md`, `observability.md`.
+
+Zmiana względem wersji 18: default `EMAIL_CHANGE_TTL` = **`7d`**. Od tej wersji default = **`24h`** (krótsze okno niż invite/activation) — `SPEC-AUTH.md` A-8.
+
+Zmiana względem wersji 17 / maile auth: kinds i TTL bez confirm zmiany emaila. Od wersji 18+: kind **`email_change_confirm`**; env **`EMAIL_CHANGE_TTL`**; deep link **`{APP_PUBLIC_URL}/?emailChangeToken={raw}`**; copy ważności jak invite/activation z `EMAIL_CHANGE_TTL`; **503** na pad SMTP przy PATCH email / resend-confirm (jak register) — `SPEC-AUTH.md` A-3b / A-8, `docs/security.md`.
 
 Zmiana względem wersji 16 / `DEMO_MODE` = guest + Redis: przy `DEMO_MODE=true` start procesu api **może** zapełnić **pusty** singleton kontekstu firmy z fixture JSON (**seed-if-empty**); restart **nie** nadpisuje niepustego; **brak** force. DX: komenda `seed:company-context` **bez** wymogu `DEMO_MODE` (też seed-if-empty). Seed **nie** zastępuje ręcznego `PUT` admina na niepustej instancji i **nie** jest toggle UI. Guest / Redis / `GET /config` — **bez zmian**.
 
@@ -113,7 +117,7 @@ Skrypty dokładne (`pnpm dev` / `pnpm --filter …`) doprecyzuje root `package.j
 
 | Obszar | Zmienne |
 |--------|---------|
-| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (**kanon prod:** `file:/app/data/chain.db`), `GATEWAY_BASE_URL` (**kanon prod:** `http://ai-provider-gateway:3100`), `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS`, **`DEMO_MODE`** (`true`\|`false`, default **`false`** — przy starcie procesu; zmiana = restart), **`GUEST_GLOBAL_CAP_PER_DAY`** (default **30**, walidowany), **`GUEST_RATING_CAP_PER_DAY`** (default **10**, walidowany), **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`ACTIVATION_TTL`** (default `7d`, ten sam parser — TTL tokenu aktywacji konta), **`REVIEW_TTL`** (default `2h`, ten sam parser), **`REVIEW_SWEEP_INTERVAL`** (default `5m`, ten sam styl stringa TTL), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`**. Redis (gdy demo on / cap guest): **`REDIS_HOST`**+**`REDIS_PORT`** (wymagane przy `DEMO_MODE=true`; instancja **external** na serwerze — nie kontener w tym compose); opcjonalne **`REDIS_PASSWORD`**. Klucze: `content-chain:guest:daily:runs:{UTC-date}` oraz `content-chain:guest:daily:ratings:{userId}:{UTC-date}` |
+| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (**kanon prod:** `file:/app/data/chain.db`), `GATEWAY_BASE_URL` (**kanon prod:** `http://ai-provider-gateway:3100`), `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS`, **`DEMO_MODE`** (`true`\|`false`, default **`false`** — przy starcie procesu; zmiana = restart), **`GUEST_GLOBAL_CAP_PER_DAY`** (default **30**, walidowany), **`GUEST_RATING_CAP_PER_DAY`** (default **10**, walidowany), **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`ACTIVATION_TTL`** (default `7d`, ten sam parser — TTL tokenu aktywacji konta), **`EMAIL_CHANGE_TTL`** (default `24h`, ten sam parser — TTL tokenu confirm zmiany emaila; **nie** to samo co `ACTIVATION_TTL`), **`REVIEW_TTL`** (default `2h`, ten sam parser), **`REVIEW_SWEEP_INTERVAL`** (default `5m`, ten sam styl stringa TTL), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`**. Redis (gdy demo on / cap guest): **`REDIS_HOST`**+**`REDIS_PORT`** (wymagane przy `DEMO_MODE=true`; instancja **external** na serwerze — nie kontener w tym compose); opcjonalne **`REDIS_PASSWORD`**. Klucze: `content-chain:guest:daily:runs:{UTC-date}` oraz `content-chain:guest:daily:ratings:{userId}:{UTC-date}` |
 | Gateway | klucze providerów, `gateway.config.yaml` (plik + mount), allowlista kluczy, port **3100** (szczegóły: `apps/ai-provider-gateway/.env.example`) |
 | Frontend | **`API_BASE_URL`** (**kanon prod:** `http://api:3001`; tylko proces Next → api; **bez** `NEXT_PUBLIC_*` na ten URL). Przeglądarka nie zna origina api. Port UI prod **3004**. |
 
@@ -123,19 +127,20 @@ Nazwy SMTP / maila są **kanoniczne** (te same w `spec/SPEC-BEZPIECZENSTWO.md` i
 |---------|--------------|------------------------|
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | **obowiązkowe** (fail-fast) | nie wymagane — adapter **logujący** (konsola / Pino), bez prawdziwego SMTP |
 | `MAIL_FROM` | **obowiązkowe** (fail-fast) | nie wymagane przy adapterze logującym |
-| `APP_PUBLIC_URL` | **obowiązkowe** (publiczny URL aplikacji w linku zaproszenia **i** aktywacji) | nie wymagane; w logu dev wystarczy ścieżka / placeholder |
+| `APP_PUBLIC_URL` | **obowiązkowe** (publiczny URL aplikacji w linku zaproszenia, aktywacji **i** confirm zmiany emaila) | nie wymagane; w logu dev wystarczy ścieżka / placeholder |
 | `INVITE_TTL` | opcjonalne, default **`7d`** | to samo |
 | `ACTIVATION_TTL` | opcjonalne, default **`7d`** (jak invite) | to samo — TTL tokenu `AccountActivation` |
+| `EMAIL_CHANGE_TTL` | opcjonalne, default **`24h`** (**osobna** nazwa env; krócej niż `ACTIVATION_TTL`) | to samo — TTL tokenu confirm zmiany emaila (V1) |
 | `REVIEW_TTL` | opcjonalne, default **`2h`** (fail-fast przy złym stringu, jak inne TTL) | to samo — długość **okna przeglądu** od `pipelineFinishedAt` |
 | `REVIEW_SWEEP_INTERVAL` | opcjonalne, default **`5m`** (fail-fast przy złym stringu) | to samo — częstotliwość **okresowego** sweepera; boot api zawsze odpala sweeper **raz** |
 
 `REVIEW_TTL` = jak długo po `completed`/`failed` wolno mutować przegląd. `REVIEW_SWEEP_INTERVAL` = jak często job domyka wygasłe wiersze w DB (`reviewFinalizedAt`); **nie** przedłuża ani nie skraca okna przeglądu.
 
-**Treść maili produktowych (SMTP):** body = **HTML + plain text**; subject i treść w **PL**. Invite / activation: ważność linku w copy — **„Link jest jednorazowy i wygasa po {X}.”** ({X} w miejscowniku z aktualnego `INVITE_TTL` / `ACTIVATION_TTL`, np. `7d` → „7 dniach”) — **bez** nowych env; kanon: `dokumentacja_komunikacji.md`. Raw token tylko w deep linku (nie osobna linia „Token (np. Postman)” w HTML/text). Adapter logujący poza `production` nadal wystarcza do DX (URL + raw) — HTML **nie** zmienia semantyki envelope ani wymagań env. Lokalizacja szablonów / shella — `architektura_katalogi_pliki.md` (Auth `infrastructure/mail/`); kolory — mapowanie ról z `brand_types.md` (wartości = HOW).
+**Treść maili produktowych (SMTP):** body = **HTML + plain text**; subject i treść w **PL**. Invite / activation / **email-change confirm**: ważność linku w copy — **„Link jest jednorazowy i wygasa po {X}.”** ({X} w miejscowniku z aktualnego `INVITE_TTL` / `ACTIVATION_TTL` / **`EMAIL_CHANGE_TTL`**, np. invite `7d` → „7 dniach”; confirm default `24h` → „24 godzinach”) — kanon: `dokumentacja_komunikacji.md` / `SPEC-AUTH.md`. Raw token tylko w deep linku (nie osobna linia „Token (np. Postman)” w HTML/text). Adapter logujący poza `production` nadal wystarcza do DX (URL + raw) — HTML **nie** zmienia semantyki envelope ani wymagań env. Lokalizacja szablonów / shella — `architektura_katalogi_pliki.md` (Auth `infrastructure/mail/`); kolory — mapowanie ról z `brand_types.md` (wartości = HOW). Confirm używa **tego samego** wspólnego shella + logotypu CID co pozostałe kinds.
 
 Bootstrap admina **bez SMTP** nadal możliwy (email + hasło, bez maila).
 
-Create / resend zaproszenia **oraz** mail aktywacji przy **register**: lokalnie (`development` / `test`) send adaptera logującego **zawsze się udaje**. **503** `MAIL_DELIVERY_FAILED` + `details.id` tylko przy padzie **prawdziwego** SMTP (`production`) na invite create/resend **oraz** register. **`POST /auth/resend-activation`:** pad SMTP → **bez** **503** (zawsze **200** + `Wiadomość wysłana ponownie`). **`user_welcome` po `POST /auth/activate`:** best-effort — pad SMTP **nie** daje **503** ani `MAIL_DELIVERY_FAILED` na odpowiedzi activate.
+Create / resend zaproszenia **oraz** mail aktywacji przy **register** **oraz** mail confirm zmiany emaila (`PATCH /auth/me/email` / resend-confirm): lokalnie (`development` / `test`) send adaptera logującego **zawsze się udaje**. **503** `MAIL_DELIVERY_FAILED` + `details.id` tylko przy padzie **prawdziwego** SMTP (`production`) na invite create/resend, register **oraz** confirm/resend-confirm. **`POST /auth/resend-activation`:** pad SMTP → **bez** **503** (zawsze **200** + `Wiadomość wysłana ponownie`). **`user_welcome` po `POST /auth/activate`:** best-effort — pad SMTP **nie** daje **503** ani `MAIL_DELIVERY_FAILED` na odpowiedzi activate.
 
 **Kanon URL / kinds w mailach:**
 
@@ -144,6 +149,7 @@ Create / resend zaproszenia **oraz** mail aktywacji przy **register**: lokalnie 
 | `user_invited` | `{APP_PUBLIC_URL}/invite/accept?token={raw}` |
 | `user_activation` | `{APP_PUBLIC_URL}/?activationToken={raw}` → FE natychmiast widok logowania + activate w tle |
 | `user_welcome` | Po sukcesie `POST /auth/activate` (self-register w `production`); treść PL HTML+text (samouczek / ścieżki UI); obrazy osadzone **CID**; injection `email`, `appPublicUrl`, `login` — **bez** osobnego deep-link tokenu; **bez** nowych env |
+| `email_change_confirm` | Po `PATCH /auth/me/email` (V1 pending) / resend-confirm; `{APP_PUBLIC_URL}/?emailChangeToken={raw}` → FE confirm w tle + toast; TTL = `EMAIL_CHANGE_TTL`; **nie** mylić z `activationToken` / `AccountActivation` |
 
 Aktywacja linkiem wymagana **tylko** gdy `NODE_ENV=production`. Poza prod: `verifiedAt` przy register od razu; opcjonalny log URL. Migracja wprowadzająca `verifiedAt`: **backfill** istniejących `User` → `verifiedAt = createdAt`; bootstrap / accept-invite ustawiają `verifiedAt = now()` przy create.
 

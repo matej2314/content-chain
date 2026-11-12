@@ -1,7 +1,7 @@
 ---
-wersja: 21
+wersja: 22
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-11-10
+data_modyfikacji: 2026-11-12
 ---
 
 # Anty-patterny — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-10
 Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego źle → zamiast tego. Ogólny podręcznik Nest/Next — poza zakresem.
 
 Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `security.md`.
+
+Zmiana względem wersji 21 / auth self-service: wzmocniono wiersz activate ≠ confirm; zakaz trzymania hasła/delete tylko na Users; zakaz obiecywania dual-mode/i18n jako must fali auth przy P0-only.
 
 Zmiana względem wersji 20: doprecyzowano seed kontekstu — dozwolony zapis domenowy (kompletny fixture, seed-if-empty) ≠ surowy seed SQL/Prisma pod E2E; zakazy: force overwrite, cichy odczyt z pliku przy GET, logika seedu w bashu/entrypoint zamiast api.
 
@@ -188,7 +190,9 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | Pending aktywacji przez samo `isActive = false` | Mylenie z soft-delete; reaktywacja „naprawia” weryfikację | Pending = `isActive=true` + `verifiedAt=null` + `AccountActivation` |
 | Set-Cookie na register / activate / resend | Sesja bez weryfikacji / bez świadomego loginu | Sesja tylko po login / bootstrap |
 | `ACCOUNT_NOT_ACTIVATED` / różny message na loginie dla pending | Enumeracja „pending” vs złe hasło | Wspólny **401** jak soft-delete / złe hasło / guest przy demo off |
-| Mylenie aktywacji konta z confirm e-mail przy `PATCH /auth/me/email` | Dwa różne flows; confirm = V1 | Aktywacja = register + mail; confirm przy zmianie adresu = **V1** |
+| Mylenie aktywacji konta (`POST /auth/activate` / `AccountActivation`) z confirm e-mail przy zmianie adresu | Dwa różne flows i tokeny; zły deep link / reuse tabeli | Aktywacja = register + `verifiedAt`; confirm = V1 pending + `confirm-email-change` (osobny byt); UI = Konto |
+| Self-service hasła / delete własnego konta wyłącznie na widoku Users / panelu admin | Łamie D2/D5; myli zarządzanie cudzymi kontami z własnym | Hasło + delete own = widok **Konto**; Users = admin soft/hard cudzych |
+| Obiecywać dual-mode / i18n jako must V1 „przy okazji” fali auth, a odkładać w kodzie | Drift docs↔realizacja; anty-pattern planu D | Albo osobna paczka chrome (P0-only: chrome poza falą), albo brać P1 w tej samej fali |
 | **503** na `POST /auth/resend-activation` przy padzie SMTP | Enumeracja / zły UX thank-you | Zawsze **200** + `Wiadomość wysłana ponownie`; mail best-effort w tle |
 | Fail `POST /auth/activate` / **503** `MAIL_DELIVERY_FAILED` przez pad `user_welcome` | Envelope aktywacji zależy od dostawy powitania; regresja Fazy 16 | Activate **200** niezależnie; welcome = best-effort (`security.md`, `dokumentacja_komunikacji.md`) |
 | `user_welcome` przy invite / accept-invite / bootstrap / register (poza skutkiem activate) / soft-delete / reaktywacji | Rozszerza trigger poza pomysł produktowy; spam / mylenie z activation | Tylko po sukcesie activate; odbiorcy `user` \| `guest` |
@@ -201,7 +205,7 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | Access JWT w body / localStorage / Bearer jako model web | XSS i niespójność z cookie-only | Wyłącznie `cc_access` + `cc_refresh` (httpOnly); Postman = cookie jar |
 | Zmiana własnego emaila samym cookie (bez `currentPassword`) | Skradziona sesja przejmuje identyfikator konta | `PATCH /auth/me/email` wymaga `currentPassword` (bcrypt compare jak przy logowaniu, **bez** polityki haseł); UI = modal re-auth (`ux_dashboard.md`, `security.md`) |
 | Trust FE: „sprawdź hasło” tylko w przeglądarce / osobny endpoint verify bez mutacji | Race i fałszywe poczucie bezpieczeństwa | Jedna mutacja `PATCH /auth/me/email` z re-auth w use-case api |
-| Mutacja wrażliwa na `PATCH /auth/me` (miesza probe z update) | Konflikt z cyklem sesji FE; trudniejszy fundament pod zmianę hasła | `GET /auth/me` = probe; mutacje = osobne ścieżki (`/auth/me/email`, później `/password`) |
+| Mutacja wrażliwa na `PATCH /auth/me` (miesza probe z update) | Konflikt z cyklem sesji FE; trudniejszy fundament pod zmianę hasła | `GET /auth/me` = probe; mutacje = osobne ścieżki (`/auth/me/email`, V1 `/password`, V1 `DELETE /auth/me`) |
 | Traktować **401** `INVALID_PASSWORD` jak wygaśnięcie sesji (refresh → logout) | Wylogowanie przy złym haśle w modalu re-auth | Refresh/logout tylko przy `UNAUTHORIZED`; `INVALID_PASSWORD` → envelope pod polem |
 | Po 409 zajętości emaila: zamykać modal / toast zamiast recovery w Dialogu | Utrata kontekstu; mylenie z sukcesem | Modal zostaje; clear pól; odblokowanie emaila; błąd pod polem email (`ux_dashboard.md`) |
 

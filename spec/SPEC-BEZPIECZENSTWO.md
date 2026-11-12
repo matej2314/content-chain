@@ -1,7 +1,7 @@
 ---
-wersja: 21
+wersja: 22
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-09
+data_modyfikacji: 2026-11-12
 ---
 
 # SPEC — Bezpieczeństwo i self-host ops
@@ -11,6 +11,8 @@ data_modyfikacji: 2026-11-09
 Norma **przekrojowa**: bezpieczeństwo implementacji i ekspozycji self-host (env, powierzchnie sieciowe, cookie, brak wycieku sekretów w logach/metrics) — uszczegółowienie `docs/security.md`, `docs/deployment.md`, `docs/observability.md` oraz spójność z `SPEC-AUTH.md`, `SPEC-KOMUNIKACJA.md`, `SPEC-FRONTEND.md`, `SPEC-PERSISTENCE.md`, `SPEC-RUNY.md`.
 
 Nie zastępuje BC Auth ani pełnego runbooka operatorskiego — spina reguły egzekwowalne w kodzie i przy deployu MVP.
+
+Zmiana względem wersji 21 / B-8a: confirm / zmiana hasła / delete own = **V1 must** (re-auth + sekrety `currentPassword`/`newPassword`); nie „fundament poza MVP” — `docs/security.md`, `SPEC-AUTH.md` A-3b…A-3e (fala auth P0).
 
 Zmiana względem wersji 20 / B-9: zestaw `/metrics` bez źródła liczników Run. Od tej wersji B-9 — odczyt statusów **przez port** (`RunStatsPort` / `countByStatus`); **zakaz** `PrismaService` w `metrics/` (L-11) — `docs/observability.md`, `SPEC-RUNY.md` R-14.
 
@@ -82,9 +84,10 @@ Zmiana względem wersji 4 / B-8: lista sekretów bez hasła SMTP i raw tokenu za
 
 Zmiana względem wersji 10 / B-8: brak register / activate / resend; raw tylko invite. Od tej wersji raw activation token + tabela anti-enum (409 na register świadomie).
 
-B-8a. `currentPassword` w `PATCH /auth/me/email` jest sekretem jak hasło logowania: nigdy w logach, metrics, SSE, envelope sukcesu. Złe hasło → **401** `INVALID_PASSWORD`, `message`: `Invalid password` (nie mylić z sesyjnym `UNAUTHORIZED` ani z loginem `Invalid credentials`). Re-auth przy zmianie emaila jest **obowiązkowy** w MVP; confirm e-mail = V1 (`docs/security.md`). Wzorzec = fundament pod przyszłą zmianę hasła (poza MVP).
+B-8a. `currentPassword` (oraz V1 `newPassword` na `PATCH /auth/me/password`) jest sekretem jak hasło logowania: nigdy w logach, metrics, SSE, envelope sukcesu. Złe `currentPassword` → **401** `INVALID_PASSWORD`, `message`: `Invalid password` (nie mylić z sesyjnym `UNAUTHORIZED` ani z loginem `Invalid credentials`). Re-auth obowiązkowy na: `PATCH /auth/me/email` (MVP), V1 `PATCH /auth/me/password`, V1 `DELETE /auth/me`. Confirm e-mail przy zmianie adresu = **V1 must** (`SPEC-AUTH.md` A-3b; **nie** mylić z activate). Raw token confirm e-mail-change = sekret jak activation (B-8).
 
 Zmiana względem: mutacja email na `PATCH /auth/me` bez re-auth albo z `UNAUTHORIZED` na złe hasło.
+Zmiana względem: B-8a traktowała zmianę hasła / confirm jako „poza MVP”.
 
 B-9. Minimalny zestaw `/metrics` (proces `apps/api`) zgodny z `docs/observability.md`: HTTP (licznik + latencja), uptime/process, liczniki/gauge statusów runów, sygnały błędów wywołań gateway — nazwy mogą mieć prefiks `content_chain_`. **Źródło liczników `RunStatus`:** wyłącznie port Runs (`RunStatsPort` albo `countByStatus`) — **zakaz** bezpośredniego `PrismaService` / `groupBy` / SQL w `apps/api/src/metrics/`. Metrics **nie** zależy od schematu Prisma „na skróty”. Norma obowiązuje **już w MVP (SQLite)** — **nie** dopiero po cutoverze PostgreSQL. Szczegół portu: `SPEC-RUNY.md` R-14.
 
@@ -197,7 +200,8 @@ Zmiana względem wersji 4: B-1 fail-fast SMTP/`MAIL_FROM`/`APP_PUBLIC_URL` w `pr
 
 ## Poza zakresem
 
-- OAuth / SSO / 2FA, rotacja wielu adminów, recovery lost-admin.
+- OAuth / SSO / 2FA, rotacja wielu adminów, recovery lost-admin (self-delete `admin` zabronione w AUTH).
 - WAF, pełny pentest, szyfrowanie pliku SQLite at-rest.
 - Alerty Prometheus YAML, OTel traces, centralny ELK/Loki.
-- Szczegóły BC Auth / Social / Feedback / przegląd runu (odniesienia do właściwych SPEC).
+- Dual-mode / i18n (osobna paczka chrome — nie must fali auth).
+- Szczegóły BC Auth / Social / Feedback / przegląd runu (odniesienia do właściwych SPEC; A-3d/A-3e = AUTH).
