@@ -6,7 +6,8 @@ import { ApiError } from '@/shared/api/envelope';
 import { EnvelopeError } from '@/shared/ui/form-field';
 import { fetchCompanyContext } from '@/modules/company-context/api/company-context.api';
 import { fetchRunSnapshot } from '@/modules/runs/api/runs.api';
-import { AccountEmailForm } from '@/modules/auth/components/account-email-form';
+import { AccountManageMenu } from '@/modules/auth/components/account-manage-menu';
+import { AccountPendingEmailBanner } from '@/modules/auth/components/account-pending-email-banner';
 import {
   draftFromSnapshot,
   EMPTY_START_DRAFT,
@@ -23,6 +24,7 @@ interface PrefillErrorState {
 export function AccountView() {
   const [draft, setDraft] = useState(EMPTY_START_DRAFT);
   const [prefillError, setPrefillError] = useState<PrefillErrorState | null>(null);
+  const [deliveryAlert, setDeliveryAlert] = useState<string | null>(null);
   const prefillRequestRef = useRef(0);
 
   async function onPrefill(runId: RunId): Promise<void> {
@@ -51,16 +53,19 @@ export function AccountView() {
   return (
     <div className="flex flex-col gap-10">
       <AccountKpiCards />
-      <div className="flex max-w-xl flex-col gap-1">
-        <h1 className="text-lg font-medium">Konto</h1>
-        <p className="font-secondary text-sm text-muted-foreground">
-          Email, start runu, Twoje przebiegi i opinia.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex max-w-xl flex-col gap-1">
+          <h1 className="text-lg font-medium">Konto</h1>
+          <p className="font-secondary text-sm text-muted-foreground">
+            Start runów, Twoje przebiegi i ustawienia konta.
+          </p>
+        </div>
+        <AccountManageMenu onMailDeliveryFailed={setDeliveryAlert} />
       </div>
-      <section className="flex max-w-xl flex-col gap-3">
-        <h2 className="text-base font-medium">Email</h2>
-        <AccountEmailForm />
-      </section>
+      <AccountPendingEmailBanner
+        deliveryAlert={deliveryAlert}
+        onClearDeliveryAlert={() => setDeliveryAlert(null)}
+      />
       <div className="max-w-xl">
         <StartRunForm draft={draft} onDraftChange={setDraft} idPrefix="start" heading="visible" />
       </div>

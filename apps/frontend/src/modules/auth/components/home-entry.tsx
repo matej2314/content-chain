@@ -4,7 +4,13 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { Toaster } from '@/shared/ui/sonner';
-import { activateAccount, fetchBootstrapStatus } from '@/modules/auth/api/auth.api';
+import { ApiError } from '@/shared/api/envelope';
+import {
+  activateAccount,
+  confirmEmailChange,
+  fetchBootstrapStatus,
+  fetchUserSession,
+} from '@/modules/auth/api/auth.api';
 import { ACTIVATION_FAILED_HINT } from '@/modules/auth/activation-error';
 import { AuthModal, type AuthMode } from '@/modules/auth/components/auth-modal';
 import { RegistrationThankYou } from '@/modules/auth/components/registration-thank-you';
@@ -44,16 +50,17 @@ function HomeEntryInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activationStarted = useRef(false);
-  const { state } = useSession();
+  const emailChangeStarted = useRef(false);
+  const { state, setAuthenticated } = useSession();
   const [surface, setSurface] = useState<GuestSurface>({ kind: 'landing' });
   const [auth, setAuth] = useState<AuthUi>(initialAuth);
   const [bootstrapAvailable, setBootstrapAvailable] = useState(false);
 
   useEffect(() => {
-    if (state.status === 'authenticated') {
-      router.replace('/account');
-    }
-  }, [router, state.status]);
+    if (state.status !== 'authenticated') return;
+    if (searchParams.get('emailChangeToken')) return;
+    router.replace('/account');
+  }, [router, searchParams, state.status]);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,6 +102,50 @@ function HomeEntryInner() {
         });
       });
   }, [router, searchParams, state.status]);
+
+  useEffect(() => {
+    if (state.status === 'loading') return;
+    if (emailChangeStarted.current) return;
+    const raw = searchParams.get('emailChangeToken');
+    if (raw === null || raw.length === 0) return;
+
+    emailChangeStarted.current = true;
+    const wasAuthenticated = state.status === 'authenticated';
+    router.replace(wasAuthenticated ? '/account' : '/');
+
+    void confirmEmailChange(raw)
+      .then(async (user) => {
+        notifyProduct({
+          kind: 'success',
+          title: 'Adres e-mail potwierdzony.',
+          id: 'email-change-confirmed',
+        });
+        if (wasAuthenticated) {
+          const fresh = await fetchUserSession();
+          setAuthenticated(fresh);
+          return;
+        }
+        // anonymous: confirm applied; no Set-Cookie — leave landing
+        void user;
+      })
+      .catch((reason: unknown) => {
+        const message =
+          reason instanceof ApiError
+            ? reason.envelope.message
+            : 'Nie udało się potwierdzić adresu e-mail.';
+        notifyProduct({
+          kind: 'error',
+          envelope: {
+            code:
+              reason instanceof ApiError
+                ? reason.envelope.code
+                : 'INTERNAL_ERROR',
+            message,
+          },
+          id: 'email-change-confirm-failed',
+        });
+      });
+  }, [router, searchParams, state.status, setAuthenticated]);
 
   if (state.status === 'loading' || state.status === 'authenticated') {
     return <HomeEntrySkeleton />;

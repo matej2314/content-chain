@@ -63,6 +63,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
+      GATEWAY_BASE_URL: http://ai-provider-gateway:3100
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -103,6 +104,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3004
+      API_BASE_URL: http://api:3001
     ports:
       - "0.0.0.0:3303:3004"
     depends_on:

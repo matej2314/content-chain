@@ -41,6 +41,51 @@ export async function patchOwnEmail(input: {
   return parseSessionUser(body);
 }
 
+export const GUEST_HAS_ACTIVE_RUN = 'GUEST_HAS_ACTIVE_RUN' as const;
+
+export async function confirmEmailChange(token: string): Promise<SessionUser> {
+  const body = await apiFetch('/auth/confirm-email-change', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token }),
+    skipAuthRefresh: true,
+  });
+  return parseSessionUser(body);
+}
+
+export async function resendEmailChangeConfirm(): Promise<SessionUser> {
+  const body = await apiFetch('/auth/me/email/resend-confirm', {
+    method: 'POST',
+  });
+  return parseSessionUser(body);
+}
+
+export async function patchOwnPassword(input: {
+  readonly currentPassword: string;
+  readonly newPassword: string;
+}): Promise<void> {
+  await apiFetch('/auth/me/password', {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      currentPassword: input.currentPassword,
+      newPassword: input.newPassword,
+    }),
+  });
+}
+
+export async function deleteOwnAccount(input: {
+  readonly currentPassword: string;
+  readonly purge?: boolean;
+}): Promise<void> {
+  const path = input.purge === true ? '/auth/me?purge=true' : '/auth/me';
+  await apiFetch(path, {
+    method: 'DELETE',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ currentPassword: input.currentPassword }),
+  });
+}
+
 export async function loginWithPassword(credentials: Credentials): Promise<SessionUser> {
   const body = await apiFetch('/auth/login', {
     method: 'POST',

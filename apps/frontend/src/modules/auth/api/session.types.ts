@@ -11,13 +11,15 @@ export type SessionUser = {
   readonly id: UserId;
   readonly email: string;
   readonly role: UserRole;
+  /** Pending address after PATCH /auth/me/email (V1); null when none. */
+  readonly pendingEmail: string | null;
 };
 
 export function parseSessionUser(value: unknown): SessionUser {
   if (!isRecord(value)) {
     throw new Error('Invalid session payload');
   }
-  const { id, email, role } = value;
+  const { id, email, role, pendingEmail } = value;
   if (typeof id !== 'string' || !isUserId(id)) {
     throw new Error('Invalid session user id');
   }
@@ -27,7 +29,22 @@ export function parseSessionUser(value: unknown): SessionUser {
   if (typeof role !== 'string' || !isUserRole(role)) {
     throw new Error('Invalid session role');
   }
-  return { id: createUserId(id), email, role };
+  // /me + resend: string | null; public confirm may omit → null
+  if (
+    !(
+      pendingEmail === undefined ||
+      pendingEmail === null ||
+      typeof pendingEmail === 'string'
+    )
+  ) {
+    throw new Error('Invalid session pendingEmail');
+  }
+  return {
+    id: createUserId(id),
+    email,
+    role,
+    pendingEmail: pendingEmail === undefined ? null : pendingEmail,
+  };
 }
 
 export function parseAuthUserWrapper(value: unknown): SessionUser {
