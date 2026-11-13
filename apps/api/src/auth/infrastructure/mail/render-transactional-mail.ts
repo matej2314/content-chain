@@ -1,4 +1,5 @@
 import { resolveBrandCidAttachments } from './brand-cid-attachments';
+import { renderEmailChangeConfirmMail } from './templates/email-change-confirm.template';
 import { renderUserActivationMail } from './templates/user-activation.template';
 import {
   renderUserInvitedMail,
@@ -29,6 +30,8 @@ export function renderTransactionalMail(
         return renderUserActivationMail(message);
       case 'user_welcome':
         return renderUserWelcomeMail(message);
+      case 'email_change_confirm':
+        return renderEmailChangeConfirmMail(message);
       default:
         return assertNever(message);
     }

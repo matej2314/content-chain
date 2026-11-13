@@ -1,5 +1,5 @@
 ---
-wersja: 36
+wersja: 37
 data_utworzenia: 2026-08-11
 data_modyfikacji: 2026-11-12
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-12
 ## Cel / zakres względem dokumentacji
 
 Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, **`PATCH /auth/me/email` (własny email + re-auth; nie dla `guest`)**, **V1 must:** confirm e-mail przy zmianie adresu, **`PATCH /auth/me/password`**, **`DELETE /auth/me`** (self-service; soft/hard wg roli; `admin` → **403**), role `admin` | `user` | **`guest`**, lista kont (**opcjonalna paginacja** `GET /users`), **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite** (rola vs `DEMO_MODE`, mirror register), **otwarta rejestracja** (`POST /auth/register` — rola vs `DEMO_MODE`), **aktywacja konta** (`POST /auth/activate` + `AccountActivation` / `verifiedAt`; także dla `guest`), **powitalny mail `user_welcome` po sukcesie activate (best-effort)**, **resend aktywacji**, **GuestGuard** / martwa sesja `guest` przy demo off, **DELETE użytkowników wg roli** (soft `user` / hard+purge `guest`), **reaktywacja PATCH tylko `user` (z UI)**, check `isActive` / braku wiersza na access JWT, polityka haseł i sesji, **treść maili transakcyjnych** (szablony HTML + plain text, wspólny shell z **logotypem CID** w headerze HTML, język **PL**; kinds `user_invited` \| `user_activation` \| `user_welcome` \| **`email_change_confirm`**; invite/activation/confirm: ważność = pełne zdanie w `validityLabel` + token tylko w URL; confirm: deep link `/?emailChangeToken=` + TTL `EMAIL_CHANGE_TTL`).
+
+Zmiana względem wersji 36 / A-10: soft/hard DELETE czyścił refresh + `AccountActivation`, **bez** pending confirm e-mail. Od tej wersji ta sama tx soft **oraz** hard/purge usuwa też **`EmailChangeRequest`** (osobny byt od A-12; dotyczy też A-3e przez reuse `DeleteUserUseCase`) — `SPEC-TESTY.md` D-93 / D-94.
 
 Zmiana względem wersji 35: default `EMAIL_CHANGE_TTL` = **`7d`**. Od tej wersji default = **`24h`** (krótsze okno pending niż invite/activation) — `docs/deployment.md`, `SPEC-TESTY.md` D-27 / D-90.
 
@@ -178,11 +180,13 @@ A-10. `DELETE /api/v1/users/:id` — **jedna** trasa; body **puste**; authz `@Ro
 
 | Target | Zachowanie |
 |--------|------------|
-| `role = user` | **Soft:** `isActive = false`; w **jednej** tx: `setActive(false)` + kasuj refresh + usuń `AccountActivation`. **Bez** kasowania Run / Feedback. Soft **dozwolony** także przy live runie (**bez** 409), niezależnie od `DEMO_MODE`. Już `isActive = false` → **200** (idempotencja). Soft **nie** czyści `verifiedAt`. |
+| `role = user` | **Soft:** `isActive = false`; w **jednej** tx: `setActive(false)` + kasuj refresh + usuń `AccountActivation` + usuń **`EmailChangeRequest`** (pending confirm A-3b; **nie** `AccountActivation`). **Bez** kasowania Run / Feedback. Soft **dozwolony** także przy live runie (**bez** 409), niezależnie od `DEMO_MODE`. Już `isActive = false` → **200** (idempotencja). Soft **nie** czyści `verifiedAt`. |
 | `role = guest` + live **bez** `purge` | **409** `GUEST_HAS_ACTIVE_RUN` + wspólny `message` (niezależnie od liczby live; **bez** `details.runIds`) |
-| `role = guest` + live **z** `?purge=true` | **Force purge:** (1) poza DB — abort wszystkich live (`RunAbortRegistry` / równoważnik); (2) **jedna** tx Prisma — skasować **wszystkie** runy gościa (live + historyczne) + dzieci + Feedback (`authorId` = guest **OR** `runId` ∈ runów) + sesje + activation + `User`; (3) po commit — Redis DEL ratings (poniżej) + audyt. SSE cancel = best-effort poza tx. **Nie** jedna ACID tx z abortem in-process. |
-| `role = guest` **bez** live (lub zbędny `purge`) | **Hard:** ta sama tx delete tree + `User` (jak wyżej bez kroku abort). Email **wolny**. |
+| `role = guest` + live **z** `?purge=true` | **Force purge:** (1) poza DB — abort wszystkich live (`RunAbortRegistry` / równoważnik); (2) **jedna** tx Prisma — skasować **wszystkie** runy gościa (live + historyczne) + dzieci + Feedback (`authorId` = guest **OR** `runId` ∈ runów) + sesje + activation + **`EmailChangeRequest`** + `User`; (3) po commit — Redis DEL ratings (poniżej) + audyt. SSE cancel = best-effort poza tx. **Nie** jedna ACID tx z abortem in-process. |
+| `role = guest` **bez** live (lub zbędny `purge`) | **Hard:** ta sama tx delete tree + sesje + activation + **`EmailChangeRequest`** + `User` (jak wyżej bez kroku abort). Email **wolny**. |
 | Legacy soft-deleted `guest` (`isActive=false`, wiersz istnieje) | Kolejny `DELETE` = **hard** (sprzątanie); **nie** 404. |
+
+Zmiana względem wersji 36 / tabela A-10: soft = refresh + `AccountActivation`; hard/purge = sesje + activation + `User` (**bez** pending confirm). Od wersji 37+: w obu gałęziach tx obowiązkowo też **`EmailChangeRequest`** (A-3e dziedziczy przez ten sam use-case).
 
 **Redis (hard / purge `guest`):** obowiązkowy DEL **wszystkich** kluczy `content-chain:guest:daily:ratings:{userId}:*` (SCAN / równoważnik; port `GuestQuotaPort.deleteDailyRatings(userId)` lub równoważny). Globalnego `…:guest:daily:runs:{UTC-date}` **nie** ruszać. Pad Redis → **fail-open** (DB hard i tak przechodzi; log warning + audyt).
 
@@ -261,10 +265,10 @@ apps/api/src/auth/
 ├── users.controller.ts         # GET/PATCH/DELETE users (admin) — bez POST create-z-hasłem
 ├── invitations.controller.ts   # GET/POST invitations, resend, revoke (admin) — lub równoważny podział
 ├── application/                # use-case’y, schemy, limiter — płasko (bez podkatalogów use-case’ów „na siłę”)
-├── domain/                     # reguły ról, polityka haseł, soft-delete, porty invitation + account-activation + mailer
+├── domain/                     # reguły ról, polityka haseł, soft-delete, porty invitation + account-activation + email-change-request + mailer
 ├── http/                       # DTO — bez zmian układu
 └── infrastructure/
-    ├── persistence/            # Prisma User / Invitation / AccountActivation / refresh
+    ├── persistence/            # Prisma User / Invitation / AccountActivation / EmailChangeRequest / refresh
     ├── mail/                   # nodemailer + adapter logujący + szablony HTML/text + wspólny shell (logotyp CID) + renderer
     └── session/                # cookie + JwtCookieStrategy
 ```
@@ -284,7 +288,7 @@ Zmiana względem wersji 26 / drzewo `mail/`: komentarz „nodemailer + adapter l
 | Kolorystyka maili | Wspólny shell dla wszystkich kinds; role kolorów mapowane z kanonu produktu (`apps/frontend/src/app/globals.css` — dark shell, indigo/violet primary, teal CTA); w HTML **inline** hex/rgb (klienci poczty). Wartości hex = HOW feature-planu — **bez** tabeli hex w SPEC. Źródło ról: `docs/brand_types.md` |
 | Kinds | Obowiązkowe: `user_invited` \| `user_activation` \| `user_welcome` \| **`email_change_confirm`** (V1 confirm A-3b). Kolejne kinds = rozszerzenie unii `TransactionalMail` + nowy szablon (ten sam shell / CID). |
 | `user_welcome` | Trigger: wyłącznie po udanym `POST /auth/activate` (self-register w `production`). Odbiorcy: `role ∈ { user, guest }` — **nie** `admin`; **niezależnie** od `DEMO_MODE`. Język: **PL**. Injection: `email`, `appPublicUrl`, `login`. Obrazy: załączniki **CID** w adapterze mail I/O (**nie** domain/use-case) — zrzuty welcome **oraz** logotyp shella (jak wszystkie kinds). Best-effort: pad SMTP **nie** zmienia **200** activate — **zakaz** `MAIL_DELIVERY_FAILED` / **503** na tej ścieżce. **Zakaz** welcome przy invite / accept-invite / bootstrap / register (poza skutkiem activate) / soft-delete / reaktywacji |
-| Lokalizacja I/O | Prisma (User / Invitation / AccountActivation / refresh) = `infrastructure/persistence/`; JWT/cookie helpers + `JwtCookieStrategy` = `infrastructure/session/`; SMTP / adapter logujący / **szablony + shell + renderer** / załączniki CID (logotyp shella + zrzuty welcome) = `infrastructure/mail/` (**jedyna** lokalizacja treści i CID maili; **nie** domain / use-case; **nie** React Email / FE) |
+| Lokalizacja I/O | Prisma (User / Invitation / AccountActivation / **EmailChangeRequest** / refresh) = `infrastructure/persistence/`; JWT/cookie helpers + `JwtCookieStrategy` = `infrastructure/session/`; SMTP / adapter logujący / **szablony + shell + renderer** / załączniki CID (logotyp shella + zrzuty welcome) = `infrastructure/mail/` (**jedyna** lokalizacja treści i CID maili; **nie** domain / use-case; **nie** React Email / FE) |
 
 Zmiana względem wersji 30 / Treść maila + shell: Faza 25 — wspólny layout z tekstowym wordmarkiem w headerze HTML. Od tej wersji: header = logotyp CID (wszystkie kinds); plain text string marki bez regresji — `docs/brand_types.md`.
 Zmiana względem wersji 29 / Treść maila: `validityLabel` jako fragment czasu + wzorzec „Link wygasa po {X}.” / dopełniacz. Od tej wersji: pełne zdanie z „jednorazowy” + miejscownik — jak changelog v30.
@@ -304,16 +308,16 @@ Wzorce zgodne z modelem Nest Authentication ([docs.nestjs.com/security/authentic
 
 ### Wolno
 
-- Port persistence użytkowników, sesji refresh, **zaproszeń** oraz **aktywacji konta** (`AccountActivation`); adapter Prisma w `infrastructure/persistence/`.
-- Port mailera transakcyjnego w Auth (`user_invited` \| `user_activation` \| `user_welcome`; kolejne kinds przez rozszerzenie unii); adapter logujący poza `production` w `infrastructure/mail/`; adapter SMTP = **nodemailer** wyłącznie w `infrastructure/mail/`.
+- Port persistence użytkowników, sesji refresh, **zaproszeń**, **aktywacji konta** (`AccountActivation`) oraz **pending confirm e-mail** (`EmailChangeRequest`, V1; ≠ A-12); adapter Prisma w `infrastructure/persistence/`.
+- Port mailera transakcyjnego w Auth (`user_invited` \| `user_activation` \| `user_welcome` \| **`email_change_confirm`**; kolejne kinds przez rozszerzenie unii); adapter logujący poza `production` w `infrastructure/mail/`; adapter SMTP = **nodemailer** wyłącznie w `infrastructure/mail/`.
 - Szablony HTML (+ plain text), wspólny shell oraz renderer wstrzykujący pola wiadomości **przed** `sendMail` — wyłącznie w `infrastructure/mail/`; załączniki **CID** (logotyp shella dla wszystkich kinds + zrzuty `user_welcome`) wyłącznie w adapterze mail I/O.
 - Logotyp w headerze shella HTML (CID; wizualnie = `content-chain-logo-transparent.png`; `alt` = nazwa marki) — `docs/brand_types.md`.
 - Pole etykiety ważności (np. `validityLabel`) na `TransactionalMail` dla invite/activation/**email_change_confirm** — **pełne** zdanie „Link jest jednorazowy i wygasa po {X}.” wypełniane w application z `INVITE_TTL` / `ACTIVATION_TTL` / **`EMAIL_CHANGE_TTL`** przed renderem ({X} w miejscowniku); `rawToken` na porcie pod budowę URL i DX logger.
 - Wysyłkę `user_welcome` **tylko** po udanym `POST /auth/activate` (A-12); best-effort — pad SMTP **nie** zmienia odpowiedzi sukcesu activate.
 - Strategia cookie / JWT (`JwtCookieStrategy` async `validate` + A-3c, helpers cookie) w `infrastructure/session/`.
 - Walidacja DTO auth class-validator + reguły haseł w domain/application (Zod — `SPEC-KOMUNIKACJA.md`).
-- Soft-delete `user` + flaga aktywności; hard/purge `guest` przez porty (A-10); odrzucenie loginu dla kont nieaktywnych **oraz** (w prod) bez `verifiedAt`; PATCH reaktywacji **tylko `user`**, **bez** odtwarzania sesji refresh i **bez** ustawiania `verifiedAt`.
-- Orkiestracja `DeleteUserUseCase` przez porty purge / Redis ratings (A-10) — bez Prisma Run w controllerze.
+- Soft-delete `user` + flaga aktywności; hard/purge `guest` przez porty (A-10); w tx soft/hard także cleanup **`EmailChangeRequest`** obok `AccountActivation`; odrzucenie loginu dla kont nieaktywnych **oraz** (w prod) bez `verifiedAt`; PATCH reaktywacji **tylko `user`**, **bez** odtwarzania sesji refresh i **bez** ustawiania `verifiedAt`.
+- Orkiestracja `DeleteUserUseCase` przez porty purge / Redis ratings (A-10) — bez Prisma Run w controllerze; A-3e reuse tego samego cleanupu.
 - Publiczny `bootstrap-status`, `accept-invite`, **`register`**, **`activate`**, **`resend-activation`** bez sesji.
 - `UserRole` w `@content-chain/shared`: `admin` \| `user` \| **`guest`**; persistencja `User.role` = **String** (bez wymogu Prisma enum) — `SPEC-MONOREPO.md` / `SPEC-PERSISTENCE.md`.
 - `GuestGuard` + `@AllowGuest` na allowliście; `DEMO_MODE` wyłącznie env przy starcie procesu (default `false`; zmiana = restart; **brak** toggle UI).
@@ -393,6 +397,7 @@ Zmiana względem wersji 14 / „Nie wolno”: zakaz otwartego signup unieważnio
 | `DELETE /users/:id` (soft `user` / hard+purge `guest`) + `PATCH /users/:id` (reaktywacja tylko `user`) | obowiązkowe |
 | `JwtCookieStrategy.validate` + check `isActive` / brak User (A-3c) | obowiązkowe |
 | Model `User.verifiedAt` + tabela `AccountActivation` | obowiązkowe (`SPEC-PERSISTENCE.md`) |
+| Tabela / port pending confirm **`EmailChangeRequest`** (≠ `AccountActivation`; cleanup przy A-10 / A-3e) | obowiązkowe V1 (`SPEC-PERSISTENCE.md`) |
 
 ## Kryteria akceptacji
 
@@ -412,8 +417,8 @@ Zmiana względem wersji 14 / „Nie wolno”: zakaz otwartego signup unieważnio
 - [ ] `POST /auth/register`: nowy email → **201** bez Set-Cookie; prod = pending + mail; poza prod = `verifiedAt` od razu; zajęty email → **409** `CONFLICT` (bez drugiego User); **nie** maskowany 201; `DEMO_MODE=true` → `role=guest`; `false` → `role=user`.
 - [ ] `POST /auth/activate`: sukces → **200** `{ user }` + `verifiedAt` + delete `AccountActivation`; zły token → wspólny **401**; po sukcesie — skutek uboczny `user_welcome` best-effort (**nie** zmienia **200**; **bez** `MAIL_DELIVERY_FAILED` / **503** na tej ścieżce; odbiorcy `user` \| `guest`).
 - [ ] `POST /auth/resend-activation`: zawsze **200** + `Wiadomość wysłana ponownie`; mail tylko przy pending; **bez** **503**.
-- [ ] Soft DELETE `user` usuwa `AccountActivation` + sesje; **nie** kasuje runów/feedback; **nie** czyści `verifiedAt`; live run **nie** daje 409.
-- [ ] Hard DELETE `guest` usuwa wiersz User + runy + dzieci + Feedback + Redis ratings (lub fail-open); email wolny; live bez `purge` → **409** `GUEST_HAS_ACTIVE_RUN`; z `?purge=true` → **200** + brak User/runów.
+- [ ] Soft DELETE `user` usuwa `AccountActivation` + **`EmailChangeRequest`** + sesje; **nie** kasuje runów/feedback; **nie** czyści `verifiedAt`; live run **nie** daje 409.
+- [ ] Hard DELETE `guest` usuwa wiersz User + runy + dzieci + Feedback + activation + **`EmailChangeRequest`** + Redis ratings (lub fail-open); email wolny; live bez `purge` → **409** `GUEST_HAS_ACTIVE_RUN`; z `?purge=true` → **200** + brak User/runów.
 - [ ] Target admin → **403**; legacy soft-guest → hard; register **nigdy** `admin`; bootstrap **nigdy** `guest`; invite **nigdy** `admin`; invite rola vs `DEMO_MODE` (nie pin „zawsze user”).
 - [ ] Brak ścieżki HTTP promocji `guest` → `user`/`admin`.
 - [ ] Drugi `POST /invitations` przy `pending` (także wygasłym) → **409**; `GET` pending obejmuje wygasłe.
@@ -441,6 +446,6 @@ Zmiana względem wersji 20 / poza zakresem: *„Soft-delete / reaktywacja w UI a
 - Authz cancel (admin→guest) → `SPEC-RUNY.md` R-11; UI Cancel / Users → `SPEC-FRONTEND.md`.
 - Chip / locki UI DEMO — `SPEC-FRONTEND.md`. Polityka slotów / Redis admit — `SPEC-RUNY.md` R-12 (DEL ratings przy hard = A-10).
 - Szczegóły ekspozycji sieciowej gateway/metrics / reverse proxy → `SPEC-BEZPIECZENSTWO.md`.
-- Schema Prisma — `SPEC-PERSISTENCE.md` / implementacja, byle port sesji refresh, zaproszeń, aktywacji (`AccountActivation` / `verifiedAt`), flagi aktywności oraz porty purge istniały.
+- Schema Prisma — `SPEC-PERSISTENCE.md` / implementacja, byle port sesji refresh, zaproszeń, aktywacji (`AccountActivation` / `verifiedAt`), pending confirm e-mail (`EmailChangeRequest`, V1), flagi aktywności oraz porty purge istniały.
 - Editor szablonów w produkcie; i18n maili (poza PL); React Email; osobny BC „Email”; zmiana `SMTP_*` / `MAIL_FROM` / `APP_PUBLIC_URL` / kształtu deep linków — poza tą normą treści (ops = `docs/deployment.md`).
 - Wartości hex/rgb kolorów maili w SPEC — HOW feature-planu (odczyt z bieżącego `globals.css`); mapa ról = `docs/brand_types.md`.

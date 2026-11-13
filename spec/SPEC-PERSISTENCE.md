@@ -1,7 +1,7 @@
 ---
-wersja: 21
+wersja: 22
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-10
+data_modyfikacji: 2026-11-12
 ---
 
 # SPEC — Persistence
@@ -11,6 +11,8 @@ data_modyfikacji: 2026-11-10
 Norma warstwy persistence w `apps/api`: port + adapter Prisma, lokalizacja schema/migracji, kanoniczność DB, zakazy ORM w domain oraz **harmonogram silników** SQLite → PostgreSQL.
 
 Uszczegóławia `docs/architektura.md`, `docs/architektura_katalogi_pliki.md`, `docs/deployment.md` (topologia Compose MVP vs V1) oraz brak cichego fallbacku z `docs/dokumentacja_koncepcyjna.md` / `docs/anty_patterny.md`.
+
+Zmiana względem wersji 21 / P-5 Auth: kanon bez pending confirm zmiany emaila. Od tej wersji model **`EmailChangeRequest`** (osobny byt od `AccountActivation`) + soft/hard delete czyści wiersze — `SPEC-AUTH.md` A-3b, `docs/brand_types.md` (`ecr_`).
 
 Zmiana względem wersji 20 / P-5 + CompanyContext: milczenie o seed-if-empty. Od tej wersji **P-9**: singleton kontekstu — seed nie nadpisuje niepustego; `DEMO_MODE` nie przepisuje niepustego kontekstu przy restarcie; **bez** tabeli „seed marker” w MVP (predykat pustego kontekstu). Norma zapisu seedu → `SPEC-KONTEKST-FIRMY.md` C-9.
 
@@ -52,17 +54,18 @@ P-1. Schema i migracje: `apps/api/prisma/`. W MVP obowiązuje **Prisma Migrate**
 
 P-2. Jeden współdzielony **`PrismaClient`** (moduł Nest) używany przez adaptery BC — bez wielu niespójnych instancji bez uzasadnienia.
 
-P-3. Identyfikatory w kolumnach: **brandowane stringi** zgodnie z `docs/brand_types.md` (np. `run_…`, `usr_…`, `inv_…`, `conv_…`) — store w DB w tej postaci.
+P-3. Identyfikatory w kolumnach: **brandowane stringi** zgodnie z `docs/brand_types.md` (np. `run_…`, `usr_…`, `inv_…`, `act_…`, `ecr_…`, `conv_…`) — store w DB w tej postaci.
 
 P-4. ORM / SQL / Prisma **zakazane** w `domain/` oraz w `packages/shared`. Application zależy od **portów**.
 
-P-5. DB jest kanoniczna dla kontekstu firmy, userów, **zaproszeń (Invitation)**, **aktywacji konta (`AccountActivation`)**, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`, **`pipelineFinishedAt`**) **oraz** anulowania (`cancelledAt`, `cancelRequested`). **`reviewExpiresAt` nie jest kolumną** — wyliczane w API (`SPEC-RUNY.md` R-10). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
+P-5. DB jest kanoniczna dla kontekstu firmy, userów, **zaproszeń (Invitation)**, **aktywacji konta (`AccountActivation`)**, **pending confirm zmiany emaila (`EmailChangeRequest`)**, sesji refresh, runów, wyników Social (posty i rolki) i Content, logów runu, **opinii tekstowych** oraz metadanych przeglądu runu (`userRating`, `outputEdited`, `reviewFinalizedAt`, **`pipelineFinishedAt`**) **oraz** anulowania (`cancelledAt`, `cancelRequested`). **`reviewExpiresAt` nie jest kolumną** — wyliczane w API (`SPEC-RUNY.md` R-10). **Zakaz** cichego fallbacku kontekstu z plików `.md` w runtime.
 
 Kanon tabel (Auth):
 
 - Model **`User`**: m.in. `passwordHash` (wymagany), `isActive`, **`role`** = **String** (`admin` \| `user` \| `guest` — unia `UserRole` w shared; **zakaz** wymogu Prisma `enum` roli), **`verifiedAt`** (`DateTime?` — `null` = nieaktywowane linkiem / pending w prod; po sukcesie activate = timestamp; poza `production` ustawiane przy register). Soft-delete (`isActive = false`) **nie** czyści `verifiedAt` (historia). Pending ≠ soft-delete: pending ma `isActive = true` + `verifiedAt = null`. Dump/restore przenosi string roli; `DEMO_MODE` **nie** przepisuje ról w DB.
 - Model **`Invitation`** (lub równoważna nazwa) — `id` (`inv_<uuid>`), `email`, `tokenHash`, `purpose` (`invite` w MVP; rezerwa pod `password_reset` bez zmiany modelu świata), `status` (`pending` \| `accepted` \| `revoked`), `expiresAt`, `invitedByUserId`, timestamps; **bez** kolumny raw tokenu. Invitation **nie** jest „User z pustym hasłem”.
 - Model **`AccountActivation`** (lub równoważna nazwa) — `id` = **`act_<uuid>`**; hash tokenu (`tokenHash`, **unikalny**), `userId` (**unikalny**), `expiresAt` (TTL `ACTIVATION_TTL`, default `7d`); ew. `createdAt`; **bez** kolumny raw tokenu. Po udanym activate: update `User.verifiedAt` + **delete** wierszy activation dla tego usera. Soft-delete `user` **oraz** hard/purge `guest` **usuwają** wiersze activation. Raw wyłącznie w mailu / logu DX. Migracja wprowadzająca `verifiedAt`: **backfill** istniejących `User` → `verifiedAt = createdAt`; bootstrap / accept-invite ustawiają `verifiedAt = now()` przy create.
+- Model **`EmailChangeRequest`** (lub równoważna nazwa) — `id` = **`ecr_<uuid>`**; `userId` (**unikalny**, 1:1 z `User`); `pendingEmail` (indeks; kolizja zajętości = check aplikacyjny, **bez** wymogu unique DB w tym wycinku); `tokenHash` (**unikalny**); `expiresAt` (TTL `EMAIL_CHANGE_TTL`, default `24h`); ew. `createdAt`; **bez** kolumny raw tokenu. **Zakaz** reuse `AccountActivation` / `activationToken`. Po udanym confirm: update `User.email` = pending + **delete** wierszy email-change dla tego usera (jedna tx). Soft-delete `user` **oraz** hard/purge `guest` **usuwają** wiersze email-change. Raw wyłącznie w mailu / logu DX. Semantyka HTTP: `SPEC-AUTH.md` A-3b.
 
 `User.passwordHash` nadal wymagany — wiersz `User` powstaje przy accept-invite **albo** przy register (A-11); **nie** przy samym Invitation pending.
 
@@ -70,8 +73,8 @@ Kanon tabel (Auth):
 
 | Tryb | Tx Prisma (jedna) | Poza tx |
 |------|-------------------|---------|
-| Soft `user` | `isActive=false` + delete refresh sessions + delete `AccountActivation` | — |
-| Hard / purge `guest` | Delete dzieci Run (kolejność aplikacyjna) + Run gościa + Feedback (`authorId` = guest **OR** `runId` ∈ runów gościa) + refresh + activation + `User` | Abort live (purge) **przed** tx; Redis DEL ratings **po** commit (fail-open) |
+| Soft `user` | `isActive=false` + delete refresh sessions + delete `AccountActivation` + delete `EmailChangeRequest` | — |
+| Hard / purge `guest` | Delete dzieci Run (kolejność aplikacyjna) + Run gościa + Feedback (`authorId` = guest **OR** `runId` ∈ runów gościa) + refresh + activation + email-change + `User` | Abort live (purge) **przed** tx; Redis DEL ratings **po** commit (fail-open) |
 
 - Soft **nie** kasuje Run / Feedback; soft **nie** czyści `verifiedAt`.
 - Hard **usuwa wiersz** `User` — email wolny.
@@ -212,7 +215,11 @@ Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/
 - Wymogu migracji Cascade jako jedynej drogi delete tree (obowiązuje jedna tx aplikacyjna — D21).
 - Składania abortu in-process / SSE w tej samej ACID tx co hard/purge (abort poza tx — D21).
 - Drugiego aktywnego wiersza `AccountActivation` per user (jeden pending).
+- Reuse `AccountActivation` / `activationToken` jako pending confirm zmiany emaila (obowiązuje osobny `EmailChangeRequest` / `emailChangeToken` — A-3b).
+- Pozostawiania wierszy `EmailChangeRequest` po udanym confirm (obowiązuje delete w tx z update `User.email`).
+- Drugiego aktywnego wiersza `EmailChangeRequest` per user (`userId` unikalny).
 - Przechowywania raw tokenu aktywacji w DB.
+- Przechowywania raw tokenu confirm email-change w DB.
 - `DELETE` runów / wyników w ramach TTL przeglądu lub auto-finalize (obowiązuje UPDATE `reviewFinalizedAt`).
 - Traktowania `reviewExpiresAt` jako kolumny DB.
 - Używania `updatedAt` jako bieżącej kotwicy TTL po wdrożeniu (wyjątek: jednorazowy backfill B).
@@ -226,6 +233,7 @@ Zmiana względem wersji 7 / „Nie wolno”: dopisano zakaz „User pending z pu
 Zmiana względem wersji 9 / „Nie wolno”: dopisano zakazy DELETE przy TTL oraz `reviewExpiresAt` jako kolumny / `updatedAt` jako bieżącej kotwicy.
 Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz żywego `pending` po P2002 na accept-invite.
 Zmiana względem wersji 11 / „Nie wolno”: dopisano zakazy pending przez `isActive=false`, orphan `AccountActivation`, czyszczenia `verifiedAt` przy soft-delete.
+Zmiana względem wersji 21 / „Nie wolno”: dopisano zakazy reuse activation na email-change, orphan `EmailChangeRequest` po confirm, drugiego wiersza per user, raw tokenu confirm.
 
 ### Zatwierdzony stack (obszar)
 
@@ -253,7 +261,8 @@ Zmiana względem wersji 11 / „Nie wolno”: dopisano zakazy pending przez `isA
 - [ ] Accept-invite D16: happy path = jedna transakcja create User (`role` vs `DEMO_MODE`) + `accepted`; kolizja P2002 → brak User, Invitation `revoked` (nie żywego `pending`).
 - [ ] `User.verifiedAt` (`DateTime?`) w schemie; soft-delete **nie** czyści pola.
 - [ ] `User.role` = String (`admin`/`user`/`guest`); **bez** Prisma enum roli; **brak** tabeli slotów guest.
-- [ ] Soft `user` = jedna tx bez kasowania Run/Feedback; hard/purge `guest` = jedna tx delete tree + User; brak orphan Feedback; abort poza tx.
+- [ ] Soft `user` = jedna tx bez kasowania Run/Feedback; hard/purge `guest` = jedna tx delete tree + User; brak orphan Feedback; abort poza tx; soft/hard kasują też `EmailChangeRequest`.
+- [ ] Model `EmailChangeRequest` (`ecr_…`, `userId` unikalny, `tokenHash` unikalny, **bez** raw); confirm = update email + delete w jednej tx; **nie** reuse `AccountActivation`.
 - [ ] P-9: seed / restart przy `DEMO_MODE=true` nie nadpisuje niepustego singletonu `CompanyContext`; brak tabeli „seed marker”.
 
 ## Poza zakresem

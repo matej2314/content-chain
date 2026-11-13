@@ -1,11 +1,13 @@
 import {
   Body,
+  Query,
   Controller,
   Get,
   HttpCode,
   Inject,
   Post,
   Patch,
+  Delete,
   Req,
   Res,
   UnauthorizedException,
@@ -30,6 +32,10 @@ import { AcceptInviteUseCase } from './application/accept-invite.use-case';
 import { RegisterUserUseCase } from './application/register-user.use-case';
 import { ActivateAccountUseCase } from './application/activate-account.use-case';
 import { ResendActivationUseCase } from './application/resend-activation.use-case';
+import { ConfirmEmailChangeUseCase } from './application/confirm-email-change.use-case';
+import { ChangeMePasswordUseCase } from './application/change-me-password.use-case';
+import { ResendEmailChangeConfirmUseCase } from './application/resend-email-change-confirm.use-case';
+import { DeleteOwnAccountUseCase } from './application/delete-own-account.use-case';
 import { BootstrapAdminDto } from './http/bootstrap-admin.dto';
 import { LoginDto } from './http/login.dto';
 import { AcceptInviteDto } from './http/accept-invite.dto';
@@ -56,6 +62,10 @@ export class AuthController {
     private readonly registerUser: RegisterUserUseCase,
     private readonly activateAccount: ActivateAccountUseCase,
     private readonly resendActivation: ResendActivationUseCase,
+    private readonly confirmEmailChange: ConfirmEmailChangeUseCase,
+    private readonly resendEmailChangeConfirm: ResendEmailChangeConfirmUseCase,
+    private readonly changeMePassword: ChangeMePasswordUseCase,
+    private readonly deleteOwnAccount: DeleteOwnAccountUseCase,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -166,5 +176,50 @@ export class AuthController {
     @Body() body: unknown,
   ) {
     return this.updateMeEmail.execute(user, body);
+  }
+
+  @Public()
+  @Post('confirm-email-change')
+  @HttpCode(200)
+  postConfirmEmailChange(@Body() body: unknown) {
+    return this.confirmEmailChange.execute(body);
+  }
+
+  @ApiCookieAuth(COOKIE_AUTH_NAME)
+  @Post('me/email/resend-confirm')
+  @HttpCode(200)
+  postResendEmailChangeConfirm(@CurrentUser() user: AuthUserContext) {
+    return this.resendEmailChangeConfirm.execute(user);
+  }
+
+  @AllowGuest()
+  @ApiCookieAuth(COOKIE_AUTH_NAME)
+  @Patch('me/password')
+  @HttpCode(200)
+  async patchMePassword(
+    @CurrentUser() user: AuthUserContext,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.changeMePassword.execute(user, body);
+    clearAuthCookies(res, this.env);
+    return result;
+  }
+
+  @AllowGuest()
+  @ApiCookieAuth(COOKIE_AUTH_NAME)
+  @Delete('me')
+  @HttpCode(200)
+  async deleteMe(
+    @CurrentUser() user: AuthUserContext,
+    @Query('purge') purge: string | undefined,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.deleteOwnAccount.execute(user, body, {
+      purge: purge === 'true',
+    });
+    clearAuthCookies(res, this.env);
+    return result;
   }
 }

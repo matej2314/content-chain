@@ -1,5 +1,6 @@
 import {
   createAccountActivationId,
+  createEmailChangeRequestId,
   createInvitationId,
 } from '@content-chain/shared';
 import { escapeHtml } from './escape-html';
@@ -9,7 +10,10 @@ const INVITE_URL =
   'https://app.example/invite/accept?token=tok_invite_raw_1';
 const ACTIVATE_URL =
   'https://app.example/?activationToken=tok_activate_raw_1';
+const CONFIRM_URL =
+  'https://app.example/?emailChangeToken=tok_email_change_raw_1';
 const VALIDITY = 'Link jest jednorazowy i wygasa po 7 dniach.';
+const CONFIRM_VALIDITY = 'Link jest jednorazowy i wygasa po 24 godzinach.';
 
 describe('renderTransactionalMail', () => {
   it('renders PL invite mail with validity label and CTA url (URL-only raw)', () => {
@@ -92,6 +96,39 @@ describe('renderTransactionalMail', () => {
     expect(rendered.html).not.toContain('<script>');
     expect(rendered.html).toContain(escapeHtml(evilUrl));
     expect(rendered.html).toContain(escapeHtml(evilValidity));
+  });
+
+  it('renders PL email-change confirm mail with validity label and CTA url (URL-only raw)', () => {
+    const rendered = renderTransactionalMail({
+      kind: 'email_change_confirm',
+      to: 'new@example.com',
+      requestId: createEmailChangeRequestId(
+        'ecr_11111111-1111-4111-8111-111111111111',
+      ),
+      confirmUrl: CONFIRM_URL,
+      rawToken: 'tok_email_change_raw_1',
+      validityLabel: CONFIRM_VALIDITY,
+    });
+
+    expect(rendered.subject).toBe(
+      'Potwierdź nowy adres e-mail w Content Chain',
+    );
+    expect(rendered.html).toContain('Potwierdź e-mail');
+    expect(rendered.html).toContain(escapeHtml(CONFIRM_URL));
+    expect(rendered.html).toContain('emailChangeToken');
+    expect(rendered.html).not.toMatch(/activationToken/i);
+    expect(rendered.html).toContain(escapeHtml(CONFIRM_VALIDITY));
+    expect(rendered.html).toContain('Link jest jednorazowy i wygasa po');
+    expect(rendered.html).not.toContain('Token (np. Postman)');
+    expect(rendered.text).toContain(CONFIRM_URL);
+    expect(rendered.text).toContain(CONFIRM_VALIDITY);
+    expect(rendered.text).toContain('emailChangeToken');
+    expect(rendered.text).not.toMatch(/activationToken/i);
+    expect(rendered.text).not.toContain('Token (np. Postman)');
+    expect(rendered.html).toContain('cid:brand-logo@content-chain');
+    expect(rendered.text.startsWith('Content Chain')).toBe(true);
+    expect(rendered.attachments).toHaveLength(1);
+    expect(rendered.attachments?.[0]?.cid).toBe('brand-logo@content-chain');
   });
 
   it('renders PL welcome mail with CID refs and without activation token', () => {

@@ -21,6 +21,7 @@ export const envSchema = z
     MAX_USER_IN_FLIGHT_RUNS: z.coerce.number().int().positive().default(3),
     INVITE_TTL: z.string().min(1).default('7d'),
     ACTIVATION_TTL: z.string().min(1).default('7d'),
+    EMAIL_CHANGE_TTL: z.string().min(1).default('24h'),
     REVIEW_TTL: z.string().min(1).default('2h'),
     REVIEW_SWEEP_INTERVAL: z.string().min(1).default('5m'),
     MAIL_FROM: z.string().min(1).optional(),

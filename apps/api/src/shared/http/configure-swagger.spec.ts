@@ -15,6 +15,10 @@ import { RefreshUseCase } from '../../auth/application/refresh.use-case';
 import { ReactivateUserUseCase } from '../../auth/application/reactivate-user.use-case';
 import { RegisterUserUseCase } from '../../auth/application/register-user.use-case';
 import { ResendActivationUseCase } from '../../auth/application/resend-activation.use-case';
+import { ConfirmEmailChangeUseCase } from '../../auth/application/confirm-email-change.use-case';
+import { ResendEmailChangeConfirmUseCase } from '../../auth/application/resend-email-change-confirm.use-case';
+import { ChangeMePasswordUseCase } from '../../auth/application/change-me-password.use-case';
+import { DeleteOwnAccountUseCase } from '../../auth/application/delete-own-account.use-case';
 import { DeleteUserUseCase } from '../../auth/application/delete-user.use-case';
 import { UpdateMeEmailUseCase } from '../../auth/application/update-me-email.use-case';
 import { UsersController } from '../../auth/users.controller';
@@ -149,6 +153,10 @@ describe('SwaggerModule.createDocument (auth + users + health)', () => {
         { provide: RegisterUserUseCase, useValue: stubExecute },
         { provide: ActivateAccountUseCase, useValue: stubExecute },
         { provide: ResendActivationUseCase, useValue: stubExecute },
+        { provide: ConfirmEmailChangeUseCase, useValue: stubExecute },
+        { provide: ResendEmailChangeConfirmUseCase, useValue: stubExecute },
+        { provide: ChangeMePasswordUseCase, useValue: stubExecute },
+        { provide: DeleteOwnAccountUseCase, useValue: stubExecute },
         { provide: ListUsersUseCase, useValue: stubExecute },
         { provide: DeleteUserUseCase, useValue: stubExecute },
         { provide: ReactivateUserUseCase, useValue: stubExecute },
@@ -176,6 +184,16 @@ describe('SwaggerModule.createDocument (auth + users + health)', () => {
     expect(
       getOperation(document, '/api/v1/auth/me/email', 'patch').security,
     ).toEqual([{ [COOKIE_AUTH_NAME]: [] }]);
+    expect(
+      getOperation(document, '/api/v1/auth/me/email/resend-confirm', 'post')
+        .security,
+    ).toEqual([{ [COOKIE_AUTH_NAME]: [] }]);
+    expect(
+      getOperation(document, '/api/v1/auth/me/password', 'patch').security,
+    ).toEqual([{ [COOKIE_AUTH_NAME]: [] }]);
+    expect(
+      getOperation(document, '/api/v1/auth/me', 'delete').security,
+    ).toEqual([{ [COOKIE_AUTH_NAME]: [] }]);
     expect(getOperation(document, '/api/v1/users', 'get').security).toEqual([
       { [COOKIE_AUTH_NAME]: [] },
     ]);
@@ -200,6 +218,12 @@ describe('SwaggerModule.createDocument (auth + users + health)', () => {
     expect(
       requiresCookieAuth(
         getOperation(document, '/api/v1/auth/resend-activation', 'post')
+          .security,
+      ),
+    ).toBe(false);
+    expect(
+      requiresCookieAuth(
+        getOperation(document, '/api/v1/auth/confirm-email-change', 'post')
           .security,
       ),
     ).toBe(false);

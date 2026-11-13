@@ -1,5 +1,12 @@
-import { createUserId } from '@content-chain/shared';
+import {
+  createEmailChangeRequestId,
+  createUserId,
+} from '@content-chain/shared';
 import type { AuthUser, AuthUserContext } from '../domain/auth-user.types';
+import type {
+  EmailChangeRequestRecord,
+  EmailChangeRequestRepository,
+} from '../domain/email-change-request.repository.port';
 import type { UserRepository } from '../domain/user-repository.port';
 import { MeUseCase } from './me.use-case';
 
@@ -26,6 +33,25 @@ function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
     setVerifiedAt: unexpected,
     list: unexpected,
     updateEmail: unexpected,
+    updatePassword: unexpected,
+    ...overrides,
+  };
+}
+
+function unusedEmailChanges(
+  overrides: Partial<EmailChangeRequestRepository> = {},
+): EmailChangeRequestRepository {
+  const unexpected = async () => {
+    throw new Error('unexpected email-change repository call');
+  };
+  return {
+    upsertForUser: unexpected,
+    findByUserId: unexpected,
+    findValidByTokenHash: unexpected,
+    findByPendingEmail: unexpected,
+    rotateToken: unexpected,
+    consumeAndApplyEmail: unexpected,
+    deleteByUserId: unexpected,
     ...overrides,
   };
 }
@@ -43,12 +69,31 @@ function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {
   };
 }
 
+function makePending(
+  overrides: Partial<EmailChangeRequestRecord> = {},
+): EmailChangeRequestRecord {
+  return {
+    id: createEmailChangeRequestId(
+      'ecr_11111111-1111-4111-8111-111111111111',
+    ),
+    userId: USER_ID,
+    pendingEmail: 'next@example.com',
+    tokenHash: 'hash',
+    expiresAt: new Date('2026-01-02T00:00:00.000Z'),
+    createdAt: CREATED_AT,
+    ...overrides,
+  };
+}
+
 describe('MeUseCase', () => {
-  it('returns id, email and role from the stored active user', async () => {
+  it('returns id, email, role and pendingEmail null when no pending change', async () => {
     const user = makeUser({ email: 'from-db@example.com', role: 'admin' });
     const useCase = new MeUseCase(
       unusedUsers({
         findById: async () => user,
+      }),
+      unusedEmailChanges({
+        findByUserId: async () => null,
       }),
     );
 
@@ -56,6 +101,26 @@ describe('MeUseCase', () => {
       id: USER_ID,
       email: 'from-db@example.com',
       role: 'admin',
+      pendingEmail: null,
+    });
+  });
+
+  it('returns pendingEmail string when a pending change exists', async () => {
+    const user = makeUser({ email: 'from-db@example.com' });
+    const useCase = new MeUseCase(
+      unusedUsers({
+        findById: async () => user,
+      }),
+      unusedEmailChanges({
+        findByUserId: async () => makePending({ pendingEmail: 'next@example.com' }),
+      }),
+    );
+
+    await expect(useCase.execute(CONTEXT)).resolves.toEqual({
+      id: USER_ID,
+      email: 'from-db@example.com',
+      role: 'user',
+      pendingEmail: 'next@example.com',
     });
   });
 
@@ -64,6 +129,7 @@ describe('MeUseCase', () => {
       unusedUsers({
         findById: async () => null,
       }),
+      unusedEmailChanges(),
     );
 
     await expect(useCase.execute(CONTEXT)).rejects.toMatchObject({
@@ -79,6 +145,7 @@ describe('MeUseCase', () => {
       unusedUsers({
         findById: async () => makeUser({ isActive: false }),
       }),
+      unusedEmailChanges(),
     );
 
     await expect(useCase.execute(CONTEXT)).rejects.toMatchObject({

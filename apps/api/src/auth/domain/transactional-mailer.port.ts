@@ -1,4 +1,8 @@
-import type { InvitationId, AccountActivationId } from '@content-chain/shared';
+import type {
+  InvitationId,
+  AccountActivationId,
+  EmailChangeRequestId,
+} from '@content-chain/shared';
 
 export const TRANSACTIONAL_MAILER = Symbol('TRANSACTIONAL_MAILER');
 
@@ -28,10 +32,20 @@ export type UserWelcomeMail = {
   login: string;
 };
 
+export type EmailChangeConfirmMail = {
+  kind: 'email_change_confirm';
+  to: string;
+  requestId: EmailChangeRequestId;
+  confirmUrl: string;
+  rawToken: string;
+  validityLabel: string;
+};
+
 export type TransactionalMail =
-| UserInvitedMail 
-| UserActivationMail 
-| UserWelcomeMail;
+  | UserInvitedMail
+  | UserActivationMail
+  | UserWelcomeMail
+  | EmailChangeConfirmMail;
 
 export interface TransactionalMailer {
   send(message: TransactionalMail): Promise<void>;

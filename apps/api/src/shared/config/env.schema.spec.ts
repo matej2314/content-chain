@@ -78,6 +78,10 @@ describe('validateEnv', () => {
     expect(validateEnv(valid).ACTIVATION_TTL).toBe('7d');
   });
 
+  it('defaults EMAIL_CHANGE_TTL to 24h when key is absent', () => {
+    expect(validateEnv(valid).EMAIL_CHANGE_TTL).toBe('24h');
+  });
+
   it('parses production when invite SMTP fields are set', () => {
     const env = validateEnv({
       ...valid,

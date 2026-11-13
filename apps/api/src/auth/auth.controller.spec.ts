@@ -28,6 +28,10 @@ import {
   ResendActivationUseCase,
   type ResendActivationOutput,
 } from './application/resend-activation.use-case';
+import { ConfirmEmailChangeUseCase } from './application/confirm-email-change.use-case';
+import { ResendEmailChangeConfirmUseCase } from './application/resend-email-change-confirm.use-case';
+import { ChangeMePasswordUseCase } from './application/change-me-password.use-case';
+import { DeleteOwnAccountUseCase } from './application/delete-own-account.use-case';
 import type { AuthTokenResult } from './application/bootstrap-admin.use-case';
 import type { AuthUserContext } from './domain/auth-user.types';
 import { type BootstrapAdminDto } from './http/bootstrap-admin.dto';
@@ -98,6 +102,10 @@ describe('AuthController', () => {
   let registerUser: { execute: jest.Mock };
   let activateAccount: { execute: jest.Mock };
   let resendActivation: { execute: jest.Mock };
+  let confirmEmailChange: { execute: jest.Mock };
+  let resendEmailChangeConfirm: { execute: jest.Mock };
+  let changeMePassword: { execute: jest.Mock };
+  let deleteOwnAccount: { execute: jest.Mock };
   const env = { JWT_ACCESS_TTL: ACCESS_TTL } as Env;
   const res = {} as Response;
 
@@ -113,6 +121,10 @@ describe('AuthController', () => {
     registerUser = { execute: jest.fn() };
     activateAccount = { execute: jest.fn() };
     resendActivation = { execute: jest.fn() };
+    confirmEmailChange = { execute: jest.fn() };
+    resendEmailChangeConfirm = { execute: jest.fn() };
+    changeMePassword = { execute: jest.fn() };
+    deleteOwnAccount = { execute: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
@@ -128,6 +140,13 @@ describe('AuthController', () => {
         { provide: RegisterUserUseCase, useValue: registerUser },
         { provide: ActivateAccountUseCase, useValue: activateAccount },
         { provide: ResendActivationUseCase, useValue: resendActivation },
+        { provide: ConfirmEmailChangeUseCase, useValue: confirmEmailChange },
+        {
+          provide: ResendEmailChangeConfirmUseCase,
+          useValue: resendEmailChangeConfirm,
+        },
+        { provide: ChangeMePasswordUseCase, useValue: changeMePassword },
+        { provide: DeleteOwnAccountUseCase, useValue: deleteOwnAccount },
         { provide: ENV, useValue: env },
       ],
     }).compile();
@@ -150,9 +169,13 @@ describe('AuthController', () => {
     expect(isPublic(proto.postResendActivation)).toBe(true);
     expect(isPublic(proto.postAcceptInvite)).toBe(true);
     expect(isPublic(proto.postRefresh)).toBe(true);
+    expect(isPublic(proto.postConfirmEmailChange)).toBe(true);
     expect(isPublic(proto.postLogout)).toBe(false);
     expect(isPublic(proto.getMe)).toBe(false);
     expect(isPublic(proto.patchMeEmail)).toBe(false);
+    expect(isPublic(proto.postResendEmailChangeConfirm)).toBe(false);
+    expect(isPublic(proto.patchMePassword)).toBe(false);
+    expect(isPublic(proto.deleteMe)).toBe(false);
 
     expect(
       Reflect.getMetadata(ALLOW_GUEST_KEY, AuthController),
@@ -162,6 +185,13 @@ describe('AuthController', () => {
     expect(
       Reflect.getMetadata(ALLOW_GUEST_KEY, proto.patchMeEmail),
     ).toBeUndefined();
+    expect(
+      Reflect.getMetadata(ALLOW_GUEST_KEY, proto.postResendEmailChangeConfirm),
+    ).toBeUndefined();
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.patchMePassword)).toBe(
+      true,
+    );
+    expect(Reflect.getMetadata(ALLOW_GUEST_KEY, proto.deleteMe)).toBe(true);
 
     expect(Reflect.getMetadata('path', proto.getBootstrapStatus)).toBe(
       'bootstrap-status',
@@ -182,6 +212,16 @@ describe('AuthController', () => {
     expect(Reflect.getMetadata('path', proto.postLogout)).toBe('logout');
     expect(Reflect.getMetadata('path', proto.getMe)).toBe('me');
     expect(Reflect.getMetadata('path', proto.patchMeEmail)).toBe('me/email');
+    expect(Reflect.getMetadata('path', proto.postConfirmEmailChange)).toBe(
+      'confirm-email-change',
+    );
+    expect(
+      Reflect.getMetadata('path', proto.postResendEmailChangeConfirm),
+    ).toBe('me/email/resend-confirm');
+    expect(Reflect.getMetadata('path', proto.patchMePassword)).toBe(
+      'me/password',
+    );
+    expect(Reflect.getMetadata('path', proto.deleteMe)).toBe('me');
 
     expect(Reflect.getMetadata('method', proto.getBootstrapStatus)).toBe(
       RequestMethod.GET,
@@ -203,6 +243,18 @@ describe('AuthController', () => {
     );
     expect(Reflect.getMetadata('method', proto.patchMeEmail)).toBe(
       RequestMethod.PATCH,
+    );
+    expect(Reflect.getMetadata('method', proto.postConfirmEmailChange)).toBe(
+      RequestMethod.POST,
+    );
+    expect(
+      Reflect.getMetadata('method', proto.postResendEmailChangeConfirm),
+    ).toBe(RequestMethod.POST);
+    expect(Reflect.getMetadata('method', proto.patchMePassword)).toBe(
+      RequestMethod.PATCH,
+    );
+    expect(Reflect.getMetadata('method', proto.deleteMe)).toBe(
+      RequestMethod.DELETE,
     );
   });
 
@@ -406,5 +458,78 @@ describe('AuthController', () => {
     );
     expect(updateMeEmail.execute).toHaveBeenCalledWith(sessionUser, body);
     expect(setAuthCookies).not.toHaveBeenCalled();
+    expect(clearAuthCookies).not.toHaveBeenCalled();
+  });
+
+  it('confirms email change without setting or clearing cookies', async () => {
+    const body = { token: 'email-change.raw' };
+    const confirmed = {
+      id: sessionUser.id,
+      email: 'new@example.com',
+      role: sessionUser.role,
+    };
+    confirmEmailChange.execute.mockResolvedValue(confirmed);
+
+    await expect(controller.postConfirmEmailChange(body)).resolves.toBe(
+      confirmed,
+    );
+    expect(confirmEmailChange.execute).toHaveBeenCalledWith(body);
+    expect(setAuthCookies).not.toHaveBeenCalled();
+    expect(clearAuthCookies).not.toHaveBeenCalled();
+  });
+
+  it('resends email-change confirm without setting or clearing cookies', async () => {
+    const meResult = {
+      id: sessionUser.id,
+      email: sessionUser.email,
+      role: sessionUser.role,
+      pendingEmail: 'new@example.com',
+    };
+    resendEmailChangeConfirm.execute.mockResolvedValue(meResult);
+
+    await expect(
+      controller.postResendEmailChangeConfirm(sessionUser),
+    ).resolves.toBe(meResult);
+    expect(resendEmailChangeConfirm.execute).toHaveBeenCalledWith(sessionUser);
+    expect(setAuthCookies).not.toHaveBeenCalled();
+    expect(clearAuthCookies).not.toHaveBeenCalled();
+  });
+
+  it('changes password and clears auth cookies', async () => {
+    const body = {
+      currentPassword: 'Password12!!',
+      newPassword: 'Password34!!',
+    };
+    changeMePassword.execute.mockResolvedValue({ ok: true });
+
+    await expect(
+      controller.patchMePassword(sessionUser, body, res),
+    ).resolves.toEqual({ ok: true });
+    expect(changeMePassword.execute).toHaveBeenCalledWith(sessionUser, body);
+    expect(clearAuthCookies).toHaveBeenCalledWith(res, env);
+    expect(setAuthCookies).not.toHaveBeenCalled();
+  });
+
+  it('deletes own account and clears auth cookies', async () => {
+    const body = { currentPassword: 'Password12!!' };
+    deleteOwnAccount.execute.mockResolvedValue({ ok: true });
+
+    await expect(
+      controller.deleteMe(sessionUser, 'true', body, res),
+    ).resolves.toEqual({ ok: true });
+    expect(deleteOwnAccount.execute).toHaveBeenCalledWith(sessionUser, body, {
+      purge: true,
+    });
+    expect(clearAuthCookies).toHaveBeenCalledWith(res, env);
+    expect(setAuthCookies).not.toHaveBeenCalled();
+  });
+
+  it('maps purge query to false when not the string true', async () => {
+    deleteOwnAccount.execute.mockResolvedValue({ ok: true });
+
+    await controller.deleteMe(sessionUser, undefined, {}, res);
+    expect(deleteOwnAccount.execute).toHaveBeenCalledWith(sessionUser, {}, {
+      purge: false,
+    });
   });
 });

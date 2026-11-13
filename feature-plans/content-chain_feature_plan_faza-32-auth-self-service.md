@@ -62,7 +62,7 @@ Odpowiada major **Faza 32** (HOW). Unit w każdym `KROK`.
 
 ### KROK 1 — Persistence `EmailChangeRequest` + branded id
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Osobny byt pending confirm (A-3b); port + adapter + migracja. `SPEC-AUTH.md` A-3b, `SPEC-TESTY.md` D-27 / D-90.
 
@@ -330,7 +330,7 @@ export class PrismaEmailChangeRequestAdapter
 
 ### KROK 2 — Mail `email_change_confirm` + `EMAIL_CHANGE_TTL`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Kind + szablon (shell PL/CID jak activation) + env default `24h` + deep link. `docs/deployment.md`, `SPEC-AUTH.md` A-8 / A-3b, D-91 unit renderer.
 
@@ -464,7 +464,7 @@ W `logging-mailer.adapter.ts` — case log jak activation (`Open: confirmUrl`, `
 
 ### KROK 3 — Confirm flow: UpdateMeEmail / Me / confirm / resend
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** A-3b V1 + A-3a `pendingEmail`. D-27 V1, D-90, D-91 (unit).
 
@@ -618,7 +618,7 @@ Preferuj **osobny** `confirmEmailChangeSchema = z.object({ token: z.string().min
 
 ### KROK 4 — `PATCH /auth/me/password`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** A-3d. D-92 (unit).
 
@@ -665,7 +665,7 @@ updatePassword(id: UserId, passwordHash: string): Promise<void>;
 
 ### KROK 5 — `DELETE /auth/me`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** A-3e. D-93 (unit). Reuse `DeleteUserUseCase`.
 
@@ -730,7 +730,7 @@ await tx.emailChangeRequest.deleteMany({ where: { userId } });
 
 ### KROK 6 — HTTP controller + AuthModule wiring
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Trasy K-2d; GuestGuard tabela ról. Unit `auth.controller.spec.ts` rozszerzony.
 

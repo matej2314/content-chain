@@ -1,12 +1,14 @@
 ---
-wersja: 10
+wersja: 11
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-10-22
+data_modyfikacji: 2026-11-12
 ---
 
 # Brand types — Content Chain
 
 Przewodnik po **brandowanych typach** TypeScript w monorepo. Cel: type safety na identyfikatorach i enumach kontraktu — semantycznie różne `string`/`number` nie powinny dać się pomylić w compile time. Dopisek: **norma tokenów semantycznych CSS** pod szatę graficzną dashboardu i landingu na `/` (statusy runów, hero dashboardu / akcenty landingu, chipy, fonty, stany pozycji nawigacji), **mapowanie ról kolorów maili transakcyjnych** z tego samego kanonu oraz **marka wizualna** w wspólnym shellu HTML maili (logotyp CID).
+
+Zmiana względem wersji 10 / identyfikatory: tabela ID bez `AccountActivationId` / `EmailChangeRequestId`. Od tej wersji: **`act_<uuid>`** (aktywacja po register) oraz **`ecr_<uuid>`** (pending confirm zmiany emaila V1) — `SPEC-AUTH.md` A-12 / A-3b; **nie** mylić obu bytów.
 
 Zmiana względem wersji 9 / maile: slot brandu w headerze wspólnego shella HTML = tekstowy wordmark (uppercase „Content Chain”). Od tej wersji: slot = **logotyp** PNG dostarczany jako załącznik **CID** (wizualnie tożsamy z `apps/frontend/public/content-chain-logo-transparent.png`, intrinsic 530×275); `alt` = nazwa marki; plain text / subject / copy body — string „Content Chain” **bez** wymogu obrazu.
 
@@ -75,6 +77,8 @@ Docelowe pliki (propozycja):
 | `ConversationId` | `conv_<uuid>` — `/^conv_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i` | **Jeden na cały run agentowy.** Wspólna oś korelacji wszystkich wywołań LLM; CC tworzy przy starcie runu i przekazuje w body `POST .../chat`. |
 | `UserId` | `usr_<uuid>` | ID użytkownika w DB / JWT po zmapowaniu |
 | `InvitationId` | `inv_<uuid>` | ID zaproszenia (Invitation) — **nie** konto `User` |
+| `AccountActivationId` | `act_<uuid>` | Wiersz tokenu aktywacji konta po register — **nie** confirm zmiany emaila |
+| `EmailChangeRequestId` | `ecr_<uuid>` | Wiersz pending confirm zmiany własnego emaila (V1) — **nie** `AccountActivation` / activate |
 | `RunId` | `run_<uuid>` | Jeden async run pipeline’u (Social albo Content) |
 | `FeedbackId` | `fbk_<uuid>` | Jeden wpis opinii tekstowej |
 | `GatewayModelAlias` | string brand (bez sztywnego prefiksu) | Alias modelu z konfiguracji gateway; walidacja „niepusty” na granicy api→gateway |
@@ -231,7 +235,7 @@ RequestId LLM₃                    ──► z odpowiedzi gateway po kolejnym a
 | Jeden `ConversationId` na run agentowy | Generować i wysyłać `x-request-id` do gateway przy chat/stream |
 | class-validator (HTTP) + Zod (application api) → branded | `as RunId` na `req.params` bez walidacji |
 | Brandów / enumów kontraktu w `packages/shared` **bez Zod** | Zod (lub inny runtime walidator) w `packages/shared`; duplikacja `Brand` w `apps/frontend` |
-| Prefiksy `usr_` / `inv_` / `run_` / `fbk_` dla ID wyłącznie CC | Mylenie `GatewayModelAlias` z vendor `modelId` |
+| Prefiksy `usr_` / `inv_` / `act_` / `ecr_` / `run_` / `fbk_` dla ID wyłącznie CC | Mylenie `GatewayModelAlias` z vendor `modelId`; mylenie `act_` (activate) z `ecr_` (confirm email-change) |
 
 ## Poza zakresem MVP tego dokumentu
 

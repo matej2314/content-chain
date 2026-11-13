@@ -8,19 +8,20 @@ generator client {
 }
 
 model User {
-  id                String             @id
-  email             String             @unique
-  passwordHash      String
+  id                 String              @id
+  email              String              @unique
+  passwordHash       String
   /// Unique index `User_one_admin` (role = 'admin') in SQL migration — SPEC-AUTH A-1. Prisma 6 cannot declare partial unique in schema.
-  role              String
-  isActive          Boolean            @default(true)
-  verifiedAt        DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  refreshSessions   RefreshSession[]
-  startedRuns       Run[]              @relation("RunStartedBy")
-  invitations       Invitation[]
-  accountActivation AccountActivation?
+  role               String
+  isActive           Boolean             @default(true)
+  verifiedAt         DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  refreshSessions    RefreshSession[]
+  startedRuns        Run[]               @relation("RunStartedBy")
+  invitations        Invitation[]
+  accountActivation  AccountActivation?
+  emailChangeRequest EmailChangeRequest?
 }
 
 model AccountActivation {
@@ -30,6 +31,18 @@ model AccountActivation {
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model EmailChangeRequest {
+  id           String   @id
+  userId       String   @unique
+  pendingEmail String   @unique
+  tokenHash    String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
 }

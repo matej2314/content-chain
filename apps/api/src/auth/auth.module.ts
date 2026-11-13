@@ -49,6 +49,12 @@ import {
 } from './domain/transactional-mailer.port';
 import { SoftEmailRateLimiter } from './application/soft-email-rate-limiter';
 import { parseTtlSeconds } from './application/auth.helpers';
+import { EMAIL_CHANGE_REQUEST_REPOSITORY } from './domain/email-change-request.repository.port';
+import { PrismaEmailChangeRequestAdapter } from './infrastructure/persistence/prisma-email-change-request.adapter';
+import { ResendEmailChangeConfirmUseCase } from './application/resend-email-change-confirm.use-case';
+import { ConfirmEmailChangeUseCase } from './application/confirm-email-change.use-case';
+import { ChangeMePasswordUseCase } from './application/change-me-password.use-case';
+import { DeleteOwnAccountUseCase } from './application/delete-own-account.use-case';
 
 @Module({
   imports: [
@@ -75,7 +81,12 @@ import { parseTtlSeconds } from './application/auth.helpers';
     PrismaRefreshSessionAdapter,
     PrismaInvitationAdapter,
     PrismaAccountActivationAdapter,
+    PrismaEmailChangeRequestAdapter,
     { provide: USER_REPOSITORY, useExisting: PrismaUserAdapter },
+    {
+      provide: EMAIL_CHANGE_REQUEST_REPOSITORY,
+      useExisting: PrismaEmailChangeRequestAdapter,
+    },
     {
       provide: ACCOUNT_ACTIVATION_REPOSITORY,
       useExisting: PrismaAccountActivationAdapter,
@@ -117,6 +128,10 @@ import { parseTtlSeconds } from './application/auth.helpers';
     RegisterUserUseCase,
     ActivateAccountUseCase,
     ResendActivationUseCase,
+    ResendEmailChangeConfirmUseCase,
+    ConfirmEmailChangeUseCase,
+    ChangeMePasswordUseCase,
+    DeleteOwnAccountUseCase,
     DeleteUserUseCase,
   ],
   exports: [USER_REPOSITORY, JwtModule],

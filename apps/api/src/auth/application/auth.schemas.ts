@@ -17,6 +17,17 @@ export const updateMeEmailSchema = z
   })
   .strict();
 
+export const changeMePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(1),
+  })
+  .strict();
+
+export const deleteOwnAccountSchema = z
+  .object({ currentPassword: z.string().min(1) })
+  .strict();
+
 export const registerUserSchema = z
   .object({
     email: z.email(),
@@ -42,10 +53,17 @@ export const patchUserSchema = z
   })
   .strict();
 
+export const confirmEmailChangeSchema = z
+  .object({
+    token: z.string().min(1),
+  })
+  .strict();
+
 export type BootstrapAdminInput = z.infer<typeof bootstrapAdminSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterUserInput = z.infer<typeof registerUserSchema>;
 export type ActivateAccountInput = z.infer<typeof activateAccountSchema>;
 export type ResendActivationInput = z.infer<typeof resendActivationSchema>;
 export type UpdateMeEmailInput = z.infer<typeof updateMeEmailSchema>;
+export type ChangeMePasswordInput = z.infer<typeof changeMePasswordSchema>;
 export type PatchUserCommand = z.infer<typeof patchUserSchema>;

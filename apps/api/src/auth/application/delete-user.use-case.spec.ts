@@ -34,6 +34,7 @@ type TxMock = {
   };
   refreshSession: { deleteMany: jest.Mock };
   accountActivation: { deleteMany: jest.Mock };
+  emailChangeRequest: { deleteMany: jest.Mock };
 };
 
 function mockPrisma(tx: TxMock): PrismaService {
@@ -58,6 +59,9 @@ function makeSoftTx(): TxMock {
     accountActivation: {
       deleteMany: jest.fn(async () => ({ count: 1 })),
     },
+    emailChangeRequest: {
+      deleteMany: jest.fn(async () => ({ count: 1 })),
+    },
   };
 }
 
@@ -73,6 +77,9 @@ function makeHardTx(): TxMock {
       deleteMany: jest.fn(async () => ({ count: 1 })),
     },
     accountActivation: {
+      deleteMany: jest.fn(async () => ({ count: 1 })),
+    },
+    emailChangeRequest: {
       deleteMany: jest.fn(async () => ({ count: 1 })),
     },
   };
@@ -92,6 +99,7 @@ function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
     setVerifiedAt: unexpected,
     list: unexpected,
     updateEmail: unexpected,
+    updatePassword: unexpected,
     ...overrides,
   };
 }
@@ -203,6 +211,9 @@ describe('DeleteUserUseCase', () => {
     expect(tx.accountActivation.deleteMany).toHaveBeenCalledWith({
       where: { userId: USER_ID },
     });
+    expect(tx.emailChangeRequest.deleteMany).toHaveBeenCalledWith({
+      where: { userId: USER_ID },
+    });
     expect(tx.user.delete).not.toHaveBeenCalled();
     expect(hasLiveRuns).not.toHaveBeenCalled();
     expect(deleteRunTree).not.toHaveBeenCalled();
@@ -269,6 +280,9 @@ describe('DeleteUserUseCase', () => {
       where: { userId: GUEST_ID },
     });
     expect(tx.accountActivation.deleteMany).toHaveBeenCalledWith({
+      where: { userId: GUEST_ID },
+    });
+    expect(tx.emailChangeRequest.deleteMany).toHaveBeenCalledWith({
       where: { userId: GUEST_ID },
     });
     expect(tx.user.delete).toHaveBeenCalledWith({ where: { id: GUEST_ID } });

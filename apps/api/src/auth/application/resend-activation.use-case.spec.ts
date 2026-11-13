@@ -56,6 +56,7 @@ function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
     setVerifiedAt: unexpected,
     list: unexpected,
     updateEmail: unexpected,
+    updatePassword: unexpected,
     ...overrides,
   };
 }

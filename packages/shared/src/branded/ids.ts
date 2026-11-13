@@ -12,6 +12,7 @@ export type InvitationId = Brand<string, 'InvitationId'>;
 export type AccountActivationId = Brand<string, 'AccountActivationId'>;
 export type GatewayModelAlias = Brand<string, 'GatewayModelAlias'>;
 export type FeedbackId = Brand<string, 'FeedbackId'>;
+export type EmailChangeRequestId = Brand<string, 'EmailChangeRequestId'>;
 
 // ---------------------------------------------------------------------------
 // Wzorce (norma: format zgodny z ai-provider-gateway dla RequestId/ConversationId)
@@ -25,6 +26,7 @@ const RUN_ID_RE = new RegExp(`^run_${UUID_PART}$`, 'i');
 const INVITATION_ID_RE = new RegExp(`^inv_${UUID_PART}$`, 'i');
 const FEEDBACK_ID_RE = new RegExp(`^fbk_${UUID_PART}$`, 'i');
 const ACCOUNT_ACTIVATION_ID_RE = new RegExp(`^act_${UUID_PART}$`, 'i');
+const EMAIL_CHANGE_REQUEST_ID_RE = new RegExp(`^ecr_${UUID_PART}$`, 'i');
 // ---------------------------------------------------------------------------
 // RequestId - nadaje middleware apps/api; klient NIE generuje
 // ---------------------------------------------------------------------------
@@ -106,4 +108,15 @@ export const isAccountActivationId = (value: string): value is AccountActivation
 export const createAccountActivationId = (value: string): AccountActivationId => {
   if (!isAccountActivationId(value)) throw new Error('Invalid AccountActivationId');
   return brand<AccountActivationId>(value);
+};
+
+// ---------------------------------------------------------------------------
+// EmailChangeRequestId
+// ---------------------------------------------------------------------------
+
+export const isEmailChangeRequestId = (value: string): value is EmailChangeRequestId =>
+  EMAIL_CHANGE_REQUEST_ID_RE.test(value);
+export const createEmailChangeRequestId = (value: string): EmailChangeRequestId => {
+  if (!isEmailChangeRequestId(value)) throw new Error('Invalid EmailChangeRequestId');
+  return brand<EmailChangeRequestId>(value);
 };

@@ -44,6 +44,7 @@ export class DeleteUserUseCase {
       });
       await tx.refreshSession.deleteMany({ where: { userId } });
       await tx.accountActivation.deleteMany({ where: { userId } });
+      await tx.emailChangeRequest.deleteMany({ where: { userId } });
     });
   }
 
@@ -108,6 +109,7 @@ export class DeleteUserUseCase {
       );
       await tx.refreshSession.deleteMany({ where: { userId } });
       await tx.accountActivation.deleteMany({ where: { userId } });
+      await tx.emailChangeRequest.deleteMany({ where: { userId } });
       await tx.user.delete({ where: { id: userId } });
       return {
         deletedRuns: tree.deletedRuns,

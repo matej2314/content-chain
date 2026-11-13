@@ -166,4 +166,11 @@ export class PrismaUserAdapter implements UserRepository {
       throw error;
     }
   }
+
+  async updatePassword(id: UserId, passwordHash: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: { passwordHash },
+    });
+  }
 }

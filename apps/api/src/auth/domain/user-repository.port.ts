@@ -42,4 +42,5 @@ export interface UserRepository {
   setVerifiedAt(id: UserId, verifiedAt: Date): Promise<AuthUser>;
   list(pagination: PaginationMode): Promise<ListUsersResult>;
   updateEmail(id: UserId, email: string): Promise<AuthUser>;
+  updatePassword(id: UserId, passwordHash: string): Promise<void>;
 }

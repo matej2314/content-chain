@@ -27,6 +27,11 @@ export class LoggingMailerAdapter implements TransactionalMailer {
           `${message.kind} to=${message.to} email=${message.email} subject=${rendered.subject} Open: ${message.login}`,
         );
         break;
+      case 'email_change_confirm':
+        this.logger.log(
+          `${message.kind} to=${message.to} requestId=${message.requestId} subject=${rendered.subject} Open: ${message.confirmUrl} Token: ${message.rawToken}`,
+        );
+        break;
       default: {
         const _exhaustive: never = message;
         throw new Error(
