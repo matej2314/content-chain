@@ -10,6 +10,8 @@
 		"dev:api": "pnpm --filter api dev",
 		"dev:frontend": "pnpm --filter frontend dev",
 		"dev:gateway": "pnpm --filter ai-provider-gateway dev",
+		"test:gateway": "pnpm --filter ai-provider-gateway test:all",
+		"test:backend": "pnpm test:api && pnpm test:gateway",
 		"build": "pnpm -r build",
 		"gateway:cli": "pnpm --filter ai-provider-gateway run cli",
 		"test:api": "pnpm --filter api test",

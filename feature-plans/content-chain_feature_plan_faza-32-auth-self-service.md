@@ -825,7 +825,7 @@ Domknięcie DoD testowego wycinka (D-27 V1, D-90…D-94) na warstwie e2e/Postman
 
 ### KROK 1 — Przegląd i poprawa unitów FAZY 1
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Wszystkie unit z FAZY 1 zielone i zgodne z D-27 V1 + D-90…D-94 (warstwa application/renderer).
 
@@ -837,7 +837,7 @@ Domknięcie DoD testowego wycinka (D-27 V1, D-90…D-94) na warstwie e2e/Postman
 
 ### KROK 2 — E2E / Postman D-27 V1 + D-90…D-94 + regresja
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** T-5 / kolekcja auth: przebudowa folderu Own email (D-27) na V1; nowe requesty confirm/resend/password/delete-own; regresja activate (D-41…D-46), guest email 403 (D-56), Users DELETE (D-63…D-66).
 
