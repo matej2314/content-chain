@@ -1,11 +1,11 @@
 # Content Chain
 
-![License](https://img.shields.io/badge/license-MIT-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white) ![pnpm](https://img.shields.io/badge/pnpm-9-F69220?logo=pnpm&logoColor=white)
-![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white) ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-blue) ![Node.js](https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white) ![pnpm](https://img.shields.io/badge/pnpm-9-F69220?logo=pnpm&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white) ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs&logoColor=white) ![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?logo=prisma&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 
 **Content Chain** is a self-hosted AI content generation dashboard powered by agent pipelines, a shared company context, and a dedicated LLM gateway.
 
-> 🚧 **Work in progress:** Content Chain is under active development. APIs, UI, deployment details, and product behavior may change. Do not treat this repository as production-ready yet.
+> 🚧 **V1 — work in progress.** APIs, UI, and deployment details may change. The project may still contain bugs — if you find one, please report it.
 
 ## Table Of Contents
 
@@ -46,10 +46,11 @@ One installation is designed for one company and one shared context. It is not a
 - 📡 **Async runs with live updates** through Server-Sent Events.
 - 🧑‍💻 **Human-in-the-loop steps** for two-stage flows such as idea selection or outline approval.
 - 📚 **Readable run logs** persisted in the database and visible in the dashboard.
-- 🔐 **Authentication and first-run bootstrap** for self-hosted installations.
-- 🧪 **Guest/demo mode support** with Redis-backed daily caps when enabled.
+- 🔐 **Authentication**: first-run admin bootstrap, open registration, email invitations, and account self-service (email confirm, password change, account deletion).
+- 🚦 **Per-user in-flight run limit** alongside the global concurrent-run cap.
+- 🧪 **Guest/demo mode support** with Redis-backed daily caps when enabled; optional company-context seed for demo/DX.
 - 🚪 **Dedicated LLM gateway** so the product API never talks directly to model vendors.
-- 🐳 **Compose-first self-host deployment** with frontend, API, and gateway services.
+- 🐳 **Compose-first self-host deployment** with PostgreSQL, frontend, API, and gateway services.
 
 ## Architecture
 
@@ -58,7 +59,7 @@ The repository is a TypeScript monorepo with three runtime applications and one 
 | Application | Role |
 | --- | --- |
 | `apps/frontend` | Next.js dashboard for company context, generation flows, run logs, review, and account interactions. It is a thin UI client with no domain rules and no direct LLM vendor access. |
-| `apps/api` | NestJS product backend. It owns authentication, company context, Social and Content pipelines, async runs, logs, feedback, and persistence. |
+| `apps/api` | NestJS product backend. It owns authentication, company context, Social and Content pipelines, async runs, logs, feedback, and persistence (Prisma + PostgreSQL). |
 | `apps/ai-provider-gateway` | Standalone NestJS LLM gateway. It routes requests to model providers and has no Content Chain product logic. |
 | `packages/shared` | Lightweight shared contracts and public API-facing types. |
 
@@ -87,7 +88,7 @@ flowchart TD
   end
 
   Shared["packages/shared"]
-  DB[(SQLite)]
+  DB[(PostgreSQL)]
   Redis[(Redis for demo caps)]
   SMTP["SMTP"]
   Vendors["LLM providers"]
@@ -247,18 +248,19 @@ Each successful or failed hop appends a readable run log entry. Cancellation is 
 ├── docs/                     # Product, architecture, deployment, UX, security docs
 ├── spec/                     # Enforceable project specifications
 ├── feature-plans/            # Implementation plans and completed slices
-├── docker-compose.yml        # Compose-first production stack
-├── Jenkinsfile               # Production-oriented Jenkins deployment pipeline
-└── Jenkinsfile.lab           # Lab/staging-oriented Jenkins pipeline
+├── docker-compose.yml        # Compose-first production stack (incl. PostgreSQL)
+├── docker-compose.dev.yml    # Full stack for containerized local/dev runs
+├── docker-compose.db.yml     # Standalone PostgreSQL for in-process DX
+└── docker-compose.test.yml   # Test-oriented Compose helpers
 ```
 
 ## Tech Stack
 
 | Area | Tools |
 | --- | --- |
-| Language and workspace | TypeScript, pnpm workspaces |
+| Language and workspace | Node.js 24, TypeScript, pnpm workspaces |
 | Frontend | Next.js 16, React 19, Tailwind CSS, shadcn/Radix-style UI primitives |
-| Backend | NestJS 11, Prisma, SQLite, JWT cookies, Swagger/OpenAPI |
+| Backend | NestJS 11, Prisma 6, PostgreSQL 16, JWT cookies, Swagger/OpenAPI |
 | Agent orchestration | LangChain, LangGraph |
 | Gateway | NestJS, OpenAI/Anthropic/Google provider clients, gateway CLI |
 | Validation | Zod, class-validator |
@@ -269,9 +271,9 @@ Each successful or failed hop appends a readable run log entry. Cancellation is 
 
 For local development:
 
-- Node.js compatible with the project toolchain.
+- Node.js `24.19.0` (see root `package.json` `engines`).
 - `pnpm` 9.
-- SQLite through Prisma for the API.
+- PostgreSQL 16 through Prisma for the API (see Quick Start for DX options).
 - LLM provider credentials and gateway configuration.
 
 For production-like self-hosting:
@@ -297,6 +299,24 @@ cp apps/api/.env.example apps/api/.env
 cp apps/frontend/.env.example apps/frontend/.env
 ```
 
+Ensure `apps/api/.env` has a PostgreSQL `DATABASE_URL` (the example uses `postgresql://cc:cc@localhost:5432/content_chain?schema=public`).
+
+### Database for in-process development
+
+When you run the apps with `pnpm dev:*` (Node processes on the host, not in containers), start a standalone Postgres with:
+
+```bash
+pnpm standalone:db:up
+```
+
+Then apply migrations from the API workspace (for example `pnpm --filter api prisma:migrate:deploy` or `pnpm --filter api prisma:migrate` during schema work).
+
+`pnpm standalone:db:down` tears that DB stack down.
+
+`pnpm standalone:db:*` is **only** for this in-process DX path. If you bring up the containerized stack with `pnpm dev:stack:up` (`docker-compose.dev.yml`), that Compose file already includes PostgreSQL — you do **not** need `standalone:db:up` first.
+
+### Gateway configuration
+
 Configure the AI provider gateway from the repository root through the gateway CLI:
 
 ```bash
@@ -318,7 +338,7 @@ pnpm gateway:cli provider:test
 
 The CLI owns changes to `gateway.config.yaml` and the gateway `.env` values, so provider keys, gateway keys, providers, models, and clients stay configured through one path.
 
-Then run the three development processes:
+### Run the three development processes
 
 ```bash
 pnpm dev:gateway
@@ -328,6 +348,8 @@ pnpm dev:frontend
 
 Open the frontend on port `3004` and complete the first-run admin bootstrap when the UI reports that bootstrap is available.
 
+Optional DX: `pnpm seed:company-context` loads a fixture company context when useful for local work.
+
 ## Environment Configuration
 
 Development uses per-app `.env` files. Production uses one root `.env` file consumed by Docker Compose and generated by the deployment pipeline.
@@ -335,6 +357,7 @@ Development uses per-app `.env` files. Production uses one root `.env` file cons
 Important API variables include:
 
 - `DATABASE_URL`
+- `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` (Compose / standalone DB)
 - `GATEWAY_BASE_URL`
 - `GATEWAY_KEY`
 - `GATEWAY_MODEL_ALIAS`
@@ -343,6 +366,13 @@ Important API variables include:
 - `JWT_REFRESH_TTL`
 - `CORS_ORIGIN`
 - `MAX_CONCURRENT_RUNS`
+- `MAX_USER_IN_FLIGHT_RUNS`
+- `INVITE_TTL`
+- `ACTIVATION_TTL`
+- `EMAIL_CHANGE_TTL`
+- `REVIEW_TTL`
+- `REVIEW_SWEEP_INTERVAL`
+- `SSE_HEARTBEAT_MS`
 - `DEMO_MODE`
 - `GUEST_GLOBAL_CAP_PER_DAY`
 - `GUEST_RATING_CAP_PER_DAY`
@@ -365,15 +395,22 @@ The production-oriented stack is Compose-first:
 docker compose up -d --build
 ```
 
-The root `docker-compose.yml` starts three runtime services:
+The root `docker-compose.yml` starts four services:
 
 | Service | Container | Host Bind | Role |
 | --- | --- | --- | --- |
-| `ai-provider-gateway` | `cc-ai-gateway` | `127.0.0.1:3100` | LLM gateway |
-| `api` | `cc-api` | `127.0.0.1:3001` | Product backend, domain logic, runs, persistence |
-| `frontend` | `cc-frontend` | `0.0.0.0:3004` | Web dashboard |
+| `postgres` | `cc-postgres` | (internal / compose DNS) | PostgreSQL 16 |
+| `ai-provider-gateway` | `cc-ai-gateway` | `127.0.0.1:3301` → `3100` | LLM gateway |
+| `api` | `cc-api` | `127.0.0.1:3300` → `3001` | Product backend, domain logic, runs, persistence |
+| `frontend` | `cc-frontend` | `0.0.0.0:3303` → `3004` | Web dashboard |
 
-SQLite is stored in the named `api-sqlite` volume and mounted into the API container at `/app/data`.
+PostgreSQL data lives in the named `api-postgres` volume. The API container builds `DATABASE_URL` against the `postgres` service hostname on port `5432` and runs Prisma migrations on start.
+
+Related Compose files:
+
+- `docker-compose.dev.yml` — full stack for containerized local/dev (`pnpm dev:stack:up` / `dev:stack:down`); includes its own Postgres.
+- `docker-compose.db.yml` — standalone Postgres for in-process `pnpm dev:*` (`pnpm standalone:db:up` / `standalone:db:down`).
+- `docker-compose.test.yml` — helpers for API e2e DB bring-up.
 
 The stack uses two networks:
 
@@ -414,10 +451,12 @@ Useful quality commands:
 pnpm lint
 pnpm format:check
 pnpm test:api
+pnpm test:e2e:db:up
 pnpm test:e2e:api
+pnpm test:e2e:db:down
 ```
 
-The gateway also includes additional test and type coverage scripts inside `apps/ai-provider-gateway`.
+API e2e expects a PostgreSQL instance (bring it up with `pnpm test:e2e:db:up` before `pnpm test:e2e:api`). The gateway also includes additional test and type coverage scripts inside `apps/ai-provider-gateway`.
 
 ## Observability
 
@@ -441,15 +480,7 @@ Content Chain separates product-level observability from process-level observabi
 
 ## Project Status
 
-Content Chain is not finished yet. It is suitable for development, architecture review, and iterative self-host MVP work, but not for unattended production usage.
-
-Expect changes in:
-
-- API contracts.
-- UI flows.
-- Deployment details.
-- Environment variables.
-- Data model and migrations.
+**V1 — work in progress.** Things may still break. If you hit a bug, please report it.
 
 ## License
 
