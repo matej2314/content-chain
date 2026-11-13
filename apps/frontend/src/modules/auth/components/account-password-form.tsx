@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +16,7 @@ import { ApiError } from '@/shared/api/envelope';
 import { patchOwnPassword } from '@/modules/auth/api/auth.api';
 import { passwordMeetsPolicy } from '@/modules/auth/password-policy';
 import { useSession } from '@/modules/auth/components/session-provider';
+import { notifyProduct } from '@/modules/notifications/notify-product';
 
 const FALLBACK_MESSAGE = 'Nie udało się odczytać odpowiedzi.';
 const POLICY_HINT =
@@ -46,8 +46,7 @@ const INITIAL: PasswordFormState = {
 };
 
 export function AccountPasswordForm({ open, onOpenChange }: AccountPasswordFormProps) {
-  const router = useRouter();
-  const { state, clear } = useSession();
+  const { state } = useSession();
   const [form, setForm] = useState<PasswordFormState>(INITIAL);
 
   useEffect(() => {
@@ -95,10 +94,13 @@ export function AccountPasswordForm({ open, onOpenChange }: AccountPasswordFormP
           currentPassword: form.currentPassword,
           newPassword: form.newPassword,
         });
-        clear();
         onOpenChange(false);
         setForm(INITIAL);
-        router.replace('/');
+        notifyProduct({
+          kind: 'success',
+          title: 'Hasło zostało zmienione.',
+          id: 'account-password-changed',
+        });
       } catch (reason: unknown) {
         if (!(reason instanceof ApiError)) {
           setForm((prev) => ({
@@ -148,7 +150,8 @@ export function AccountPasswordForm({ open, onOpenChange }: AccountPasswordFormP
           <DialogHeader>
             <DialogTitle>Zmiana hasła</DialogTitle>
             <DialogDescription>
-              Podaj aktualne hasło i nowe. Sesja zostanie zakończona po sukcesie.
+              Podaj aktualne hasło i nowe. Po zapisaniu zostaniesz zalogowany na tym
+              urządzeniu; inne sesje wylogują się.
             </DialogDescription>
           </DialogHeader>
 

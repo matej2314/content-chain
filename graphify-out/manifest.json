@@ -1752,9 +1752,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/auth.controller.ts": {
-    "mtime": 1794564363.5656195,
-    "seen": 1794564602.4352574,
-    "ast_hash": "0e475bb790484d7f8a91bdaf5797d09b",
+    "mtime": 1794575906.687734,
+    "seen": 1794576038.8687918,
+    "ast_hash": "bf800ce2a71bac343ed8221e47847d9a",
     "semantic_hash": ""
   },
   "apps/api/src/auth/auth.module.ts": {
@@ -2184,15 +2184,15 @@
     "semantic_hash": ""
   },
   "docs/dictionary.md": {
-    "mtime": 1794475722.3495107,
-    "seen": 1794486627.3074002,
-    "ast_hash": "bbca59e181951961cb9f4b3d527e540a",
+    "mtime": 1794575317.5489852,
+    "seen": 1794576038.8690844,
+    "ast_hash": "0fcd4fa5abf2a36b5181c4572c023fd1",
     "semantic_hash": ""
   },
   "docs/dokumentacja_komunikacji.md": {
-    "mtime": 1794479528.4554038,
-    "seen": 1794486627.3074007,
-    "ast_hash": "8388c9f860b5c0252f7b7366b11cb5bf",
+    "mtime": 1794574586.5053113,
+    "seen": 1794576038.869085,
+    "ast_hash": "7b4be9eafea99ac9f70c342af2d8e746",
     "semantic_hash": ""
   },
   "docs/dokumentacja_koncepcyjna.md": {
@@ -2208,9 +2208,9 @@
     "semantic_hash": ""
   },
   "docs/security.md": {
-    "mtime": 1794475845.5675688,
-    "seen": 1794486627.3074028,
-    "ast_hash": "3ec0940a7d917875562a05296a74d9db",
+    "mtime": 1794574567.1034834,
+    "seen": 1794576038.8690872,
+    "ast_hash": "7497dcbbf701bf574ede5e7c34e964ff",
     "semantic_hash": ""
   },
   "docs/testy.md": {
@@ -2220,15 +2220,15 @@
     "semantic_hash": ""
   },
   "docs/ux_dashboard.md": {
-    "mtime": 1794572560.167997,
-    "seen": 1794572705.2322617,
-    "ast_hash": "54630213c2c3f193123aacdaba3f0233",
+    "mtime": 1794574594.308254,
+    "seen": 1794576038.8690886,
+    "ast_hash": "a0bf02502170c5f4a32d071496b1ecca",
     "semantic_hash": ""
   },
   "spec/SPEC-AUTH.md": {
-    "mtime": 1794494085.7150478,
-    "seen": 1794564602.435602,
-    "ast_hash": "5a7a26602ef3fcac1cf1533123eb49cb",
+    "mtime": 1794574677.9576404,
+    "seen": 1794576038.8690896,
+    "ast_hash": "9972bb59f3277a3c0f2ca305771f6c7e",
     "semantic_hash": ""
   },
   "spec/SPEC-BEZPIECZENSTWO.md": {
@@ -2244,15 +2244,15 @@
     "semantic_hash": ""
   },
   "spec/SPEC-FRONTEND.md": {
-    "mtime": 1794572587.0068045,
-    "seen": 1794572705.2322664,
-    "ast_hash": "228f15fafa358643870a9e24f1bf51a5",
+    "mtime": 1794574750.7571063,
+    "seen": 1794576038.869092,
+    "ast_hash": "1f3317fdb37c455425aa30e516d3caa9",
     "semantic_hash": ""
   },
   "spec/SPEC-KOMUNIKACJA.md": {
-    "mtime": 1794476111.1653888,
-    "seen": 1794486627.3074074,
-    "ast_hash": "2b013867ca4559f5b7c83ab093d8198a",
+    "mtime": 1794574690.5875478,
+    "seen": 1794576038.869093,
+    "ast_hash": "f2c3bbd253d0349f8e2b8ab43f6684ff",
     "semantic_hash": ""
   },
   "spec/SPEC-KONTEKST-FIRMY.md": {
@@ -2274,9 +2274,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-README.md": {
-    "mtime": 1794476181.8558228,
-    "seen": 1794486627.30741,
-    "ast_hash": "2ecf5c39ab0dfeda9dde24982ec49d0e",
+    "mtime": 1794574738.3041975,
+    "seen": 1794576038.8690953,
+    "ast_hash": "6ee6515e5a8a8e2103ca1a2a97488018",
     "semantic_hash": ""
   },
   "spec/SPEC-RUNY.md": {
@@ -2292,9 +2292,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-TESTY.md": {
-    "mtime": 1794479228.2207835,
-    "seen": 1794486627.3074117,
-    "ast_hash": "8fde9a9c4e7b02c3d6952055099a9750",
+    "mtime": 1794574746.980134,
+    "seen": 1794576038.8690977,
+    "ast_hash": "481db7f3b5cc97f5d87c8a77b9da0435",
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/resume-hitl.use-case.ts": {
@@ -4494,9 +4494,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/change-me-password.use-case.ts": {
-    "mtime": 1794491997.1817307,
-    "seen": 1794492059.4164925,
-    "ast_hash": "ea8006121a0b1d6ce48159d5a06b221c",
+    "mtime": 1794575882.688907,
+    "seen": 1794576038.8687735,
+    "ast_hash": "492287165de49ab16acb4ce3e2b4ae38",
     "semantic_hash": ""
   },
   "apps/api/src/auth/application/delete-own-account.use-case.ts": {
@@ -4512,9 +4512,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/account-password-form.tsx": {
-    "mtime": 1794572648.3563645,
-    "seen": 1794572705.232087,
-    "ast_hash": "ffc3ceead0baad74eb07f9277b16e803",
+    "mtime": 1794576047.864715,
+    "seen": 1794576058.7396383,
+    "ast_hash": "cb74c4e4a3ac2d3f5b2c977646a98220",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/auth/components/account-manage-menu.tsx": {

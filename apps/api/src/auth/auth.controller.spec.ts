@@ -495,19 +495,24 @@ describe('AuthController', () => {
     expect(clearAuthCookies).not.toHaveBeenCalled();
   });
 
-  it('changes password and clears auth cookies', async () => {
+  it('changes password and sets rotated auth cookies', async () => {
     const body = {
       currentPassword: 'Password12!!',
       newPassword: 'Password34!!',
     };
-    changeMePassword.execute.mockResolvedValue({ ok: true });
+    changeMePassword.execute.mockResolvedValue(tokenResult);
 
     await expect(
       controller.patchMePassword(sessionUser, body, res),
-    ).resolves.toEqual({ ok: true });
+    ).resolves.toEqual(tokenResult.user);
     expect(changeMePassword.execute).toHaveBeenCalledWith(sessionUser, body);
-    expect(clearAuthCookies).toHaveBeenCalledWith(res, env);
-    expect(setAuthCookies).not.toHaveBeenCalled();
+    expect(setAuthCookies).toHaveBeenCalledWith(
+      res,
+      tokenResult.accessToken,
+      tokenResult.refreshToken,
+      env,
+    );
+    expect(clearAuthCookies).not.toHaveBeenCalled();
   });
 
   it('deletes own account and clears auth cookies', async () => {

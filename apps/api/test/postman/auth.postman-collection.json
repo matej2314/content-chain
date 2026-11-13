@@ -2955,7 +2955,7 @@
     },
     {
       "name": "Password (D-92)",
-      "description": "D-92: `PATCH /auth/me/password`. Złe current → 401 INVALID_PASSWORD (sesja zostaje). Sukces → 200 + Clear-Cookie. Słabe newPassword → 400. Po sukcesie login `newPassword` jako patchedEmail.",
+      "description": "D-92: `PATCH /auth/me/password`. Złe current → 401 INVALID_PASSWORD (sesja zostaje). Sukces → 200 + body `{ id, email, role }` + Set-Cookie (keep-session, nie Clear-Cookie). Słabe newPassword → 400. Po sukcesie opcjonalny login `newPassword` jako patchedEmail.",
       "item": [
         {
           "name": "PATCH me/password wrong current (401)",
@@ -3042,7 +3042,7 @@
           ]
         },
         {
-          "name": "PATCH me/password success (Clear-Cookie)",
+          "name": "PATCH me/password success (Set-Cookie keep-session)",
           "request": {
             "method": "PATCH",
             "header": [
@@ -3052,7 +3052,7 @@
               }
             ],
             "url": "{{baseUrl}}/auth/me/password",
-            "description": "D-92: sukces → Clear-Cookie + unieważnienie refresh.",
+            "description": "D-92 keep-session: sukces → Set-Cookie nowej pary + body id/email/role.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"currentPassword\": \"{{invitePassword}}\",\n  \"newPassword\": \"{{newPassword}}\"\n}\n"
@@ -3066,8 +3066,11 @@
                 "exec": [
                   "pm.test('status 200', function () { pm.response.to.have.status(200); });",
                   "const body = pm.response.json();",
-                  "pm.test('ok true', function () { pm.expect(body).to.eql({ ok: true }); });",
-                  "pm.test('clears auth cookies', function () {",
+                  "pm.test('body id email role', function () {",
+                  "  pm.expect(body).to.have.keys('id', 'email', 'role');",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get('patchedEmail'));",
+                  "});",
+                  "pm.test('sets rotated auth cookies', function () {",
                   "  const cookies = pm.response.headers.all()",
                   "    .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
                   "    .map(function (h) { return h.value; })",
@@ -3081,12 +3084,12 @@
           ]
         },
         {
-          "name": "GET me after password change (401)",
+          "name": "GET me after password change",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/auth/me",
-            "description": "D-92: po Clear-Cookie GET me → 401."
+            "description": "D-92 keep-session → 200 (nie 401)."
           },
           "event": [
             {
@@ -3094,7 +3097,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 401', function () { pm.response.to.have.status(401); });"
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
                 ]
               }
             }

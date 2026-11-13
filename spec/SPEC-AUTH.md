@@ -1,7 +1,7 @@
 ---
-wersja: 37
+wersja: 38
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-12
+data_modyfikacji: 2026-11-13
 ---
 
 # SPEC — Auth
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-12
 ## Cel / zakres względem dokumentacji
 
 Norma implementacji bounded contextu **Auth** w `apps/api`: bootstrap jednego admina (w tym status pod first-run), login/logout/refresh, **`GET /auth/me`**, **`PATCH /auth/me/email` (własny email + re-auth; nie dla `guest`)**, **V1 must:** confirm e-mail przy zmianie adresu, **`PATCH /auth/me/password`**, **`DELETE /auth/me`** (self-service; soft/hard wg roli; `admin` → **403**), role `admin` | `user` | **`guest`**, lista kont (**opcjonalna paginacja** `GET /users`), **zaproszenia** (create/list/resend/revoke), publiczny **accept-invite** (rola vs `DEMO_MODE`, mirror register), **otwarta rejestracja** (`POST /auth/register` — rola vs `DEMO_MODE`), **aktywacja konta** (`POST /auth/activate` + `AccountActivation` / `verifiedAt`; także dla `guest`), **powitalny mail `user_welcome` po sukcesie activate (best-effort)**, **resend aktywacji**, **GuestGuard** / martwa sesja `guest` przy demo off, **DELETE użytkowników wg roli** (soft `user` / hard+purge `guest`), **reaktywacja PATCH tylko `user` (z UI)**, check `isActive` / braku wiersza na access JWT, polityka haseł i sesji, **treść maili transakcyjnych** (szablony HTML + plain text, wspólny shell z **logotypem CID** w headerze HTML, język **PL**; kinds `user_invited` \| `user_activation` \| `user_welcome` \| **`email_change_confirm`**; invite/activation/confirm: ważność = pełne zdanie w `validityLabel` + token tylko w URL; confirm: deep link `/?emailChangeToken=` + TTL `EMAIL_CHANGE_TTL`).
+
+Zmiana względem wersji 37 / A-3d: sukces `PATCH /auth/me/password` = **200** + Clear-Cookie + unieważnienie wszystkich refresh → FE landing + ponowny login. Od tej wersji: **rotacja sesji** — unieważnij **wszystkie** refresh usera, potem **Set-Cookie** nowej pary `cc_access` / `cc_refresh` (jak login); body `{ "id", "email", "role" }`; **to urządzenie zostaje zalogowane**; **zakaz** Clear-Cookie / wymogu ponownego loginu na happy path. A-3e (delete own → Clear-Cookie) oraz confirm (sesja bez rotacji) — **bez zmian** — `docs/security.md`, `docs/dokumentacja_komunikacji.md`, `SPEC-TESTY.md` D-92.
 
 Zmiana względem wersji 36 / A-10: soft/hard DELETE czyścił refresh + `AccountActivation`, **bez** pending confirm e-mail. Od tej wersji ta sama tx soft **oraz** hard/purge usuwa też **`EmailChangeRequest`** (osobny byt od A-12; dotyczy też A-3e przez reuse `DeleteUserUseCase`) — `SPEC-TESTY.md` D-93 / D-94.
 
@@ -125,7 +127,7 @@ Zmiana względem: A-3b na `PATCH /auth/me` z body `{ email }` lub `{ email, curr
 Zmiana względem wersji 9: self-service email był zakazany. Od tej wersji A-3b jest w MVP (`docs/ux_dashboard.md` widok Konto).
 Zmiana względem: confirm / hasło / delete jako „poza MVP” bez normy. Od tej wersji V1 = A-3b confirm + A-3d + A-3e.
 
-A-3d. **`PATCH /api/v1/auth/me/password` (V1 must):** body `{ "currentPassword", "newPassword" }` (`.strict()`). Role: `admin` \| `user` \| `guest` (demo on + `@AllowGuest`). `currentPassword` = bcrypt compare (**bez** A-5); `newPassword` = polityka A-5. **200** + Clear-Cookie `cc_access`/`cc_refresh` + unieważnienie **wszystkich** refresh usera → FE landing + ponowny login. Złe `currentPassword` → **401** `INVALID_PASSWORD` (sesja zostaje). Zły kształt / polityka → **400**.
+A-3d. **`PATCH /api/v1/auth/me/password` (V1 must):** body `{ "currentPassword", "newPassword" }` (`.strict()`). Role: `admin` \| `user` \| `guest` (demo on + `@AllowGuest`). `currentPassword` = bcrypt compare (**bez** A-5); `newPassword` = polityka A-5. Sukces → **200** `{ "id", "email", "role" }` + unieważnienie **wszystkich** refresh usera + **Set-Cookie** nowej pary `cc_access` / `cc_refresh` (jak A-2 login) — **to urządzenie zostaje zalogowane**; inne sesje padają. **Zakaz** Clear-Cookie / wymogu ponownego loginu na happy path. Złe `currentPassword` → **401** `INVALID_PASSWORD` (sesja zostaje; **bez** rotacji). Zły kształt / polityka → **400**.
 
 A-3e. **`DELETE /api/v1/auth/me` (V1 must):** body `{ "currentPassword" }` (`.strict()`); opcjonalnie `?purge=true` (skutek jak A-10 — tylko `guest` + live). Semantyka **własnej** roli: `user` = soft (jak A-10); `guest` = hard (+ purge); **`admin` → 403** `FORBIDDEN`. Sukces → **200** + Clear-Cookie → landing. Live guest bez purge → **409** `GUEST_HAS_ACTIVE_RUN`. **Zakaz** self-service przez `DELETE /users/:id` z UI Konto. UI = `SPEC-FRONTEND.md` F-8 / `docs/ux_dashboard.md`.
 
@@ -409,7 +411,7 @@ Zmiana względem wersji 14 / „Nie wolno”: zakaz otwartego signup unieważnio
 - [ ] Po soft-delete `user`: kolejne requesty z ważnym access → **401** (A-3c `!isActive`); po hard-delete `guest`: access → **401** (brak wiersza).
 - [ ] Guest bez `@AllowGuest` przy demo on → **403**; `GET /users` / invitations / `PATCH /auth/me/email` dla guest → **403**.
 - [ ] `GET /auth/me` zwraca `{ id, email, role }` (+ V1 `pendingEmail`) albo **401**; `PATCH /auth/me/email` po re-auth: MVP = zapis email / V1 = pending + mail **`email_change_confirm`** (deep link `/?emailChangeToken=`, TTL `EMAIL_CHANGE_TTL`); **409** gdy zajęty; złe hasło → **401** `INVALID_PASSWORD`; A-3b **nie** rotuje sesji; **brak** mutacji na `PATCH /auth/me`.
-- [ ] V1 A-3d: `PATCH /auth/me/password` — sukces Clear-Cookie + unieważnienie wszystkich refresh; złe `currentPassword` → `INVALID_PASSWORD` (sesja zostaje).
+- [ ] V1 A-3d: `PATCH /auth/me/password` — sukces **200** + Set-Cookie nowej pary + body `{ id, email, role }` + unieważnienie wszystkich refresh (stare refresh → fail; nowe cookie działają); **bez** Clear-Cookie; złe `currentPassword` → `INVALID_PASSWORD` (sesja zostaje; bez rotacji).
 - [ ] V1 A-3e: `DELETE /auth/me` — soft `user` / hard(+purge) `guest`; `admin` → **403**; sukces Clear-Cookie.
 - [ ] Hasło niespełniające polityki → `VALIDATION_FAILED`; spełniające → bcrypt(cost 12) — na accept-invite **oraz** register.
 - [ ] `user` nie przechodzi tras admin-only (`RolesGuard` → `FORBIDDEN`), w tym `POST /invitations` → 403; `user` → `DELETE /users/:id` → **403**.

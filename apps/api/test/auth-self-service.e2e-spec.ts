@@ -280,7 +280,7 @@ describe('Auth self-service confirm / password / delete-own (e2e)', () => {
     expect(row.email).toBe(PENDING_EMAIL);
   });
 
-  it('D-92: password change clears cookies; wrong current keeps session', async () => {
+  it('D-92: password change rotates cookies; wrong current keeps session', async () => {
     const email = `e2e-selfsvc-pw-${randomUUID()}@content-chain.test`;
     const userId = await createUserRow(prisma, {
       email,
@@ -289,6 +289,13 @@ describe('Auth self-service confirm / password / delete-own (e2e)', () => {
     });
     const agent = request.agent(app.getHttpServer());
     await agent
+      .post('/api/v1/auth/login')
+      .send({ email, password: USER_PASSWORD })
+      .expect(200);
+
+    // druga sesja (inne urządzenie) — po rotacji jej refresh ma paść
+    const other = request.agent(app.getHttpServer());
+    await other
       .post('/api/v1/auth/login')
       .send({ email, password: USER_PASSWORD })
       .expect(200);
@@ -310,18 +317,20 @@ describe('Auth self-service confirm / password / delete-own (e2e)', () => {
         newPassword: NEW_PASSWORD,
       })
       .expect(200);
-    expect(changed.body).toEqual({ ok: true });
-    const cleared = setCookieHeaders(changed);
-    expect(cleared).toMatch(/cc_access=/);
-    expect(cleared).toMatch(/cc_refresh=/);
+    expect(changed.body).toEqual({
+      id: userId,
+      email,
+      role: 'user',
+    });
+    const rotated = setCookieHeaders(changed);
+    expect(rotated).toMatch(/cc_access=/);
+    expect(rotated).toMatch(/cc_refresh=/);
 
-    await agent.get('/api/v1/auth/me').expect(401);
+    // keep-session na tym agencie (nowe cookie)
+    await agent.get('/api/v1/auth/me').expect(200);
 
-    await request
-      .agent(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({ email, password: NEW_PASSWORD })
-      .expect(200);
+    // poprzednia sesja: refresh → 401 (revoke-all)
+    await other.post('/api/v1/auth/refresh').expect(401);
 
     await prisma.refreshSession.deleteMany({ where: { userId } });
     await prisma.user.delete({ where: { id: userId } });

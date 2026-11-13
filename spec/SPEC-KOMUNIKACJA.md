@@ -1,7 +1,7 @@
 ---
-wersja: 46
+wersja: 47
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-12
+data_modyfikacji: 2026-11-13
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -14,6 +14,8 @@ Norma **implementacji obu powierzchni I/O** Content Chain:
 2. klient `apps/api` → `apps/ai-provider-gateway` (natywny chat **oraz** probe liveness health).
 
 Uszczegóławia `docs/dokumentacja_komunikacji.md` oraz korelację ID z `docs/brand_types.md` / `docs/dictionary.md`. **Nie** redefiniuje listy endpointów ani payloadów — odwołuje się do docs; tu obowiązują wzorce warstw, walidacja, envelope, SSE i adapter LLM.
+
+Zmiana względem wersji 46 / K-2d: sukces `PATCH /auth/me/password` = Clear-Cookie + unieważnienie refresh. Od tej wersji: sukces = **Set-Cookie** nowej pary + body `{ id, email, role }` (jak pola usera w loginie) po unieważnieniu **wszystkich** refresh; **zakaz** Clear-Cookie na happy path — `docs/dokumentacja_komunikacji.md` v33, `SPEC-AUTH.md` A-3d.
 
 Zmiana względem wersji 45 / K-2d: V1 auth self-service — confirm e-mail, `PATCH /auth/me/password`, `DELETE /auth/me` + kody K-8; `pendingEmail` na `/me` — `docs/dokumentacja_komunikacji.md`, `SPEC-AUTH.md` A-3a…A-3e (fala auth P0).
 
@@ -162,9 +164,10 @@ K-2d. Auth self-service (payloady = `docs/dokumentacja_komunikacji.md`; semantyk
 - `PATCH /auth/me/email` — body `{ email, currentPassword }`; re-auth; MVP = zapis email; V1 = pending + confirm mail / **503** SMTP; **400** / **401** `UNAUTHORIZED` / **401** `INVALID_PASSWORD` / **409**; **bez** mutacji na `PATCH /auth/me`.
 - V1 `POST /auth/confirm-email-change` `{ token }` — publiczny; sukces **200** bez Set-Cookie; zły token → **401**.
 - V1 `POST /auth/me/email/resend-confirm` — zalogowany; pad SMTP → **503**; brak pending → **409**.
-- V1 `PATCH /auth/me/password` `{ currentPassword, newPassword }` — sukces Clear-Cookie + unieważnienie refresh.
+- V1 `PATCH /auth/me/password` `{ currentPassword, newPassword }` — sukces **200** + Set-Cookie nowej pary `cc_access` / `cc_refresh` (po unieważnieniu **wszystkich** refresh) + body `{ id, email, role }`; **zakaz** Clear-Cookie na happy path; złe `currentPassword` → **401** `INVALID_PASSWORD` (sesja zostaje; bez rotacji).
 - V1 `DELETE /auth/me` `{ currentPassword }` (+ `?purge=true`) — soft/hard jak Users; `admin` → **403**; sukces Clear-Cookie; live guest bez purge → **409** `GUEST_HAS_ACTIVE_RUN`.
 
+Zmiana względem wersji 46 / K-2d password: sukces Clear-Cookie. Od tej wersji: rotacja Set-Cookie + body jak pola usera w loginie.
 Zmiana względem wcześniejszego K-2d: trasa `PATCH /auth/me` (z lub bez `currentPassword`) / złe hasło jako `UNAUTHORIZED`.
 Zmiana względem: K-2d tylko email MVP bez tras V1 password/delete/confirm.
 

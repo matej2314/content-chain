@@ -1,7 +1,7 @@
 ---
-wersja: 21
+wersja: 22
 data_utworzenia: 2026-09-29
-data_modyfikacji: 2026-11-12
+data_modyfikacji: 2026-11-13
 ---
 
 # Bezpieczeństwo — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-12
 Norma self-host dla `local` i `production`: auth, sekrety, ekspozycja powierzchni, bootstrap. Bez pełnego modelu STRIDE.
 
 Powiązane: `dokumentacja_komunikacji.md`, `deployment.md`, `anty_patterny.md`, `architektura.md`.
+
+Zmiana względem wersji 21 / zmiana hasła (V1): sukces `PATCH /auth/me/password` = Clear-Cookie + FE landing + ponowny login. Od tej wersji: **rotacja sesji** — unieważnij **wszystkie** refresh usera, potem **Set-Cookie** nowej pary `cc_access` / `cc_refresh` (jak `POST /auth/login`); **to urządzenie zostaje zalogowane**; pozostałe sesje padają. **Bez** Clear-Cookie / wymogu ponownego loginu na happy path hasła. `DELETE /auth/me` (Clear-Cookie → landing) oraz confirm e-mail (sesja bez rotacji) — **bez zmian**.
 
 Zmiana względem wersji 20 / self-service: hasło zalogowanego i usuwanie własnego konta oraz confirm e-mail przy `PATCH /auth/me/email` były „poza MVP / V1 odkładalne”. Od tej wersji = **V1 must-have** (UI = widok **Konto**; Users zostaje na `/users`). Semantyka soft/hard delete own = jak kanon Users wg roli; **`admin` nie usuwa siebie** (**403**).
 
@@ -88,7 +90,7 @@ Surface FE: `{ available }` z **`GET /api/v1/auth/bootstrap-status`** steruje **
    - **MVP:** zalogowany (`admin` / `user`) zmienia **własny email** (`PATCH /api/v1/auth/me/email`, widok **Konto**) wyłącznie po **`currentPassword`** (re-auth). **`guest` → 403**. **`GET /auth/me` = wyłącznie probe** (bez mutacji na `PATCH /auth/me`). Login / logout / bootstrap / register + activate + resend / zaproszenia + accept-invite — bez zmian.
    - **V1 must-have (fala auth self-service):** (a) **confirm e-mail** przy zmianie adresu — **nie** mylić z aktywacją po register; (b) **`PATCH /auth/me/password`** + re-auth + polityka na nowe hasło + `INVALID_PASSWORD`; (c) **`DELETE /auth/me`** — usuwanie **własnego** konta (UI = Konto; **nie** panel admin / Users). **Wyjątek onboarding:** pierwsze hasło przy accept-invite / register.
    - **Confirm e-mail (V1):** po udanym re-auth + check zajętości, gdy nowy adres ≠ obecny: `User.email` **bez zmiany** do potwierdzenia; pending nowego adresu + mail confirm na **nowy** adres (token w URL deep linku; w DB tylko hash; osobny byt od `AccountActivation`). `GET /auth/me` zwraca aktualny `email` oraz opcjonalne `pendingEmail` (lub `null`). Publiczny confirm tokenem stosuje nowy email, czyści pending; **sesja cookie zostaje** (sub = userId). Ten sam adres co obecny → **200** po re-auth, **bez** maila / pending. Pad SMTP po zapisie pending → **503** `MAIL_DELIVERY_FAILED` (jak register), **nie** best-effort. Resend confirm (zalogowany, gdy jest pending) — kontrakt w `dokumentacja_komunikacji.md`.
-   - **Zmiana hasła (V1):** `PATCH /auth/me/password` `{ currentPassword, newPassword }`. Złe `currentPassword` → **401** `INVALID_PASSWORD` (sesja zostaje do sukcesu). Sukces → nowy hash; **unieważnij wszystkie** refresh + Clear-Cookie → FE na landing (ponowny login). Polityka haseł na `newPassword` jak bootstrap / register.
+   - **Zmiana hasła (V1):** `PATCH /auth/me/password` `{ currentPassword, newPassword }`. Złe `currentPassword` → **401** `INVALID_PASSWORD` (sesja zostaje; **bez** rotacji). Sukces → nowy hash; **unieważnij wszystkie** refresh usera, potem **Set-Cookie** nowej pary `cc_access` / `cc_refresh` (jak login) — **to urządzenie zostaje zalogowane**; inne urządzenia wylogowane. **Zakaz** Clear-Cookie / wymogu ponownego loginu na happy path. Polityka haseł na `newPassword` jak bootstrap / register.
    - **Usuwanie własnego konta (V1):** `DELETE /auth/me` + `currentPassword` (+ opcjonalnie `?purge=true` dla `guest` z live). Semantyka **jak** `DELETE /users/:id` wg **własnej** roli: `user` = soft; `guest` = hard (+ purge przy live). **`role = admin` → 403** (jedyny admin; recovery lost-admin = poza zakresem). Sukces → Clear-Cookie → landing. **Zakaz** self-service przez `DELETE /users/:id` z widoku Konto.
 
 Zmiana względem: mutacja na `PATCH /auth/me` + złe hasło jako `UNAUTHORIZED`. Powód: rozdział probe vs mutacja; uniknięcie konfliktu z cyklem sesji FE.

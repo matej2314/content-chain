@@ -1,7 +1,7 @@
 ---
-wersja: 45
+wersja: 46
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-12
+data_modyfikacji: 2026-11-13
 ---
 
 # SPEC — Testy
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-12
 ## Cel / zakres względem dokumentacji
 
 Norma strategii testów MVP Content Chain: piramida, narzędzia, obowiązkowe przypadki DoD oraz CI — uszczegółowienie `docs/testy.md` pod egzekwowalne reguły przy implementacji `apps/api`.
+
+Zmiana względem wersji 45 / D-92: sukces hasła = **200** + Clear-Cookie + unieważnienie refresh. Od tej wersji: **200** + Set-Cookie nowej pary + body `{ id, email, role }`; poprzednie refresh unieważnione; nowe cookie działają; stare refresh → fail; złe `currentPassword` → **401** bez rotacji — `SPEC-AUTH.md` A-3d, `docs/dokumentacja_komunikacji.md`.
 
 Zmiana względem wersji 44: default `EMAIL_CHANGE_TTL` w D-27 / D-90 = **`7d`**. Od tej wersji default = **`24h`** — `SPEC-AUTH.md` A-8, `docs/deployment.md`.
 
@@ -169,10 +171,11 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-89 | Regresja Setup E2E / Postman kontekstu: Setup kolekcji Social/Content nadal = **`PUT /company-context`** (+ completeness); **nie** zastąpione seedem Prisma ani DX `seed:company-context` jako jedynym Setupem. |
 | D-90 | Confirm happy (A-3b V1): po D-27 z pending — publiczny `POST /auth/confirm-email-change` `{ token }` → **200** `{ id, email, role }` (`email` = nowy adres); **bez** Set-Cookie; pending + token wyczyszczone; `User.email` = nowy. Sesja cookie sprzed confirm **zostaje** (sub = userId). Token z deep linku `{APP_PUBLIC_URL}/?emailChangeToken={raw}` (DX: query URL / log adaptera logującego). TTL z `EMAIL_CHANGE_TTL` (default `24h`). **Zakaz** reuse `AccountActivation` / `POST /auth/activate`. Smoke HTTP **bez** wymogu asercji HTML w T-5 (treść maila = unit renderer). |
 | D-91 | Confirm / resend negatywy: zły / zużyty / wygasły token → wspólny **401** `UNAUTHORIZED` (bez enumeracji). `POST /auth/me/email/resend-confirm` (sesja): brak pending → **409** `CONFLICT`; jest pending → rotacja tokenu + mail na `pendingEmail`; pad SMTP → **503** `MAIL_DELIVERY_FAILED`; brak sesji → **401**. Unit renderer (opcjonalnie poza T-5): kind `email_change_confirm` — deep link z `emailChangeToken`, `validityLabel` = pełne „Link jest jednorazowy i wygasa po {X}.” z `EMAIL_CHANGE_TTL`, shell HTML z logotypem CID (jak invite/activation/welcome). |
-| D-92 | `PATCH /auth/me/password` `{ currentPassword, newPassword }` (A-3d): sukces → **200** + Clear-Cookie `cc_access` / `cc_refresh` + **wszystkie** refresh usera unieważnione. Złe `currentPassword` → **401** `INVALID_PASSWORD` (sesja **zostaje**). `newPassword` poza polityką A-5 → **400** `VALIDATION_FAILED`. Role: `admin` \| `user` \| `guest` (demo on + `@AllowGuest`). Guest + demo off → **401** (jak pozostałe chronione). |
+| D-92 | `PATCH /auth/me/password` `{ currentPassword, newPassword }` (A-3d): sukces → **200** + body `{ id, email, role }` + **Set-Cookie** nowej pary `cc_access` / `cc_refresh`; **wszystkie** poprzednie refresh usera unieważnione; kolejne requesty z **nowymi** cookie działają; stare refresh → fail. **Zakaz** asercji Clear-Cookie na happy path (keep-session ≠ logout). Złe `currentPassword` → **401** `INVALID_PASSWORD` (sesja **zostaje**; **bez** rotacji cookie / refresh). `newPassword` poza polityką A-5 → **400** `VALIDATION_FAILED`. Role: `admin` \| `user` \| `guest` (demo on + `@AllowGuest`). Guest + demo off → **401** (jak pozostałe chronione). |
 | D-93 | `DELETE /auth/me` `{ currentPassword }` (+ opcjonalnie `?purge=true`) (A-3e): `admin` → **403** `FORBIDDEN` (konto zostaje). `user` → soft jak D-25 + Clear-Cookie + **200**. `guest` bez live → hard jak D-63 + Clear-Cookie. Guest + live **bez** purge → **409** `GUEST_HAS_ACTIVE_RUN` (wspólny `message`; bez listy `runId`). Guest + live **z** `purge=true` → jak D-65 + Clear-Cookie. Złe hasło → **401** `INVALID_PASSWORD` (konto zostaje). **Zakaz** self-service przez `DELETE /users/:id` z Konta. |
 | D-94 | Regresja auth self-service vs wcześniejsze fazy: D-56 — guest `PATCH /auth/me/email` → **403**; D-41…D-46 — activate / `AccountActivation` / deep link `/?activationToken=` **bez** zmian sensu (confirm ≠ activate); D-63…D-66 — admin `DELETE /users/:id` (+ purge) kontrakt **bez** zmian; D-27 re-auth / `INVALID_PASSWORD` **bez** cyklu refresh FE. |
 
+Zmiana względem wersji 45 / D-92: Clear-Cookie na sukcesie hasła → **unieważnione**; obowiązuje Set-Cookie + body `{ id, email, role }` (keep-session). D-90…D-91 / D-93…D-94 **bez** regresji normy (delete own nadal Clear-Cookie; confirm bez rotacji).
 Zmiana względem wersji 43: dopisano **D-90…D-94**; **D-27** przepisane na V1 confirm (pending + mail; bez natychmiastowego `User.email`) — `SPEC-AUTH.md` A-3a…A-3e. D-1…D-89 bez kasowania treści (poza refaktorem D-27).
 Zmiana względem wersji 42: dopisano **D-86…D-89** (seed kontekstu auto/DX / no-op / regresja PUT Setup) — `SPEC-KONTEKST-FIRMY.md` C-9. D-1…D-85 bez kasowania treści.
 Zmiana względem wersji 40: dopisano **D-82…D-85** (opcjonalna paginacja trzech GET — tryb all vs strona, allowlista, envelope; Users sort desc); D-28 / D-13 uściślone (odesłanie do trybów). Konsumpcja UI Runy / Users / Moje runy + zakaz FE-slice = `SPEC-FRONTEND.md` F-8 (Faza 29 FE) — **bez** nowych automatów FE w DoD (T-7). D-1…D-81 bez kasowania treści.

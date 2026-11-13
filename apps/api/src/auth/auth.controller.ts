@@ -202,8 +202,8 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.changeMePassword.execute(user, body);
-    clearAuthCookies(res, this.env);
-    return result;
+    setAuthCookies(res, result.accessToken, result.refreshToken, this.env);
+    return result.user;
   }
 
   @AllowGuest()

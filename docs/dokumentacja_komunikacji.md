@@ -1,7 +1,7 @@
 ---
-wersja: 32
+wersja: 33
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-11-12
+data_modyfikacji: 2026-11-13
 ---
 
 # Dokumentacja komunikacji — Content Chain
@@ -12,6 +12,8 @@ Normatywny kontrakt I/O **MVP** (+ jawne trasy **V1** auth self-service poniżej
 2. **Klient `apps/api` → `apps/ai-provider-gateway`** — Content Chain korzysta z gateway’a jak z narzędzia; kontrakt = upstream `ai-provider-gateway`
 
 **Poza zakresem MVP:** webhooki publiczne, broker eventów, CLI użytkownika, fasady OpenAI/Anthropic gateway’a jako domyślna ścieżka z Content Chain, osobne publiczne API gateway dla trzecich klientów.
+
+Zmiana względem wersji 32 / `PATCH /auth/me/password`: sukces = **200** + Clear-Cookie + body `{ ok: true }` → FE landing + ponowny login. Od tej wersji: **200** + **Set-Cookie** nowej pary `cc_access` / `cc_refresh` (po unieważnieniu **wszystkich** refresh) + body `{ "id", "email", "role" }` (jak pola usera w loginie); **zakaz** Clear-Cookie na happy path. Złe `currentPassword` → **401** `INVALID_PASSWORD` (sesja zostaje; bez rotacji) — **bez zmian sensu**. `DELETE /auth/me` nadal Clear-Cookie → landing.
 
 Zmiana względem wersji 31 / confirm e-mail: V1 opisane bez pinu deep linku `emailChangeToken`, kind `email_change_confirm` ani TTL `EMAIL_CHANGE_TTL`. Od tej wersji: URL **`{APP_PUBLIC_URL}/?emailChangeToken={raw}`**; kind **`email_change_confirm`** (shell PL + CID jak pozostałe); TTL **`EMAIL_CHANGE_TTL`** default **`24h`**; `validityLabel` z tego env — `docs/deployment.md`, `SPEC-AUTH.md` A-3b / A-8.
 
@@ -244,11 +246,13 @@ Zalogowany zmienia **własne** hasło. Body: `{ "currentPassword", "newPassword"
 | `currentPassword` | string | tak (niepuste; bcrypt compare, **bez** polityki) |
 | `newPassword` | string | tak (polityka haseł — `security.md`) |
 
-**200** — `{ "ok": true }` (lub puste data równoważne) + **Clear-Cookie** `cc_access` / `cc_refresh`; **wszystkie** refresh usera unieważnione. FE → landing + ponowny login.  
+**200** — `{ "id", "email", "role" }` (pola usera jak w loginie) + **Set-Cookie** nowej pary `cc_access` / `cc_refresh` (jak `POST /auth/login`); wcześniej **unieważnij wszystkie** refresh usera. **To urządzenie zostaje zalogowane**; inne sesje padają. **Zakaz** Clear-Cookie na happy path.  
 **400** `VALIDATION_FAILED` — kształt / polityka `newPassword`.  
 **401** `UNAUTHORIZED` — brak sesji.  
-**401** `INVALID_PASSWORD` — złe `currentPassword` (sesja **zostaje**).  
+**401** `INVALID_PASSWORD` — złe `currentPassword` (sesja **zostaje**; **bez** rotacji cookie / refresh).  
 **403** `FORBIDDEN` — gdy `DEMO_MODE=false` i JWT `guest` (martwa rola — jak inne chronione).
+
+Zmiana względem: sukces hasła = **200** + Clear-Cookie + `{ ok: true }` → FE landing. Od tej wersji: rotacja sesji (revoke all + Set-Cookie) + body jak pola usera w loginie.
 
 #### `DELETE /api/v1/auth/me` (V1)
 

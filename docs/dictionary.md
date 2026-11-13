@@ -1,7 +1,7 @@
 ---
-wersja: 32
+wersja: 33
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-11-12
+data_modyfikacji: 2026-11-13
 ---
 
 # Słownik — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-12
 Kanoniczne definicje pojęć domenowych i technicznych. Identyfikatory typów, kodów i pól API w backtickach; opisy po polsku.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `observability.md`.
+
+Zmiana względem wersji 32 / zmiana hasła (self-service): sukces = Clear-Cookie → ponowny login. Od tej wersji: **rotacja sesji** (unieważnij wszystkie refresh, potem Set-Cookie nowej pary) — to urządzenie zostaje zalogowane; inne sesje padają. Norma: `security.md`, `dokumentacja_komunikacji.md`, `SPEC-AUTH.md` A-3d.
 
 Zmiana względem wersji 31 / auth self-service: **confirm e-mail**, zmiana hasła, usuwanie własnego konta = **V1 must** (UI = Konto); aktywacja ≠ confirm; dual-mode / i18n = cel / osobna paczka chrome (nie must fali auth).
 
@@ -136,7 +138,7 @@ Zmiana względem: hasło `guest` / `FORBIDDEN` bez wyjątku podglądu archiwum c
 | **Otwarta rejestracja** | Publiczny `POST /api/v1/auth/register` `{ email, password }`. Zawsze dostępny (**nie** zależy od `DEMO_MODE` — signup **nie** jest „tylko demo”). **Zmiana względem:** po planie register serwer **zawsze** `role = user`. **Refaktor:** `DEMO_MODE=true` → **`guest`**; `DEMO_MODE=false` → **`user`**. Body **bez** `role`. **Nigdy** `admin`. Przed create **revoke** `Invitation` `pending` na email. **201** `{ user: { id, email, role, verifiedAt } }`. W `production`: pending (`verifiedAt = null` + `AccountActivation` + mail) — **także** dla `guest`; poza prod: `verifiedAt` od razu. Kolizja email (aktywny **lub** soft-deleted) → **409**, `message`: **`Email already in use`**. **Bez** Set-Cookie. |
 | **Aktywacja konta** | Weryfikacja e-mail po register w `production`: `POST /auth/activate` `{ token }` ustawia `User.verifiedAt` i usuwa `AccountActivation`. Deep link FE → widok logowania + toast. Po sukcesie activate — skutek uboczny mail **`user_welcome`** (best-effort). **Nie** mylić z **reaktywacją**, **dezaktywacją**, **usunięciem trwałym gościa** ani z **confirm e-mail** przy zmianie adresu (V1 — osobny flow). `isActive` ≠ `verifiedAt`. |
 | **Confirm e-mail (zmiana adresu)** | V1: po `PATCH /auth/me/email` z nowym adresem — pending + mail na **nowy** adres; `User.email` zmienia się dopiero po `POST /auth/confirm-email-change`. **Nie** `AccountActivation` / activate po register. Sesja cookie po confirm **zostaje**. Norma: `security.md`, `dokumentacja_komunikacji.md`. |
-| **Zmiana hasła (self-service)** | V1: `PATCH /auth/me/password` `{ currentPassword, newPassword }` — UI Konto. Sukces → Clear-Cookie + unieważnienie refresh → ponowny login. **Nie** „forgot password”. |
+| **Zmiana hasła (self-service)** | V1: `PATCH /auth/me/password` `{ currentPassword, newPassword }` — UI Konto. Sukces → unieważnij **wszystkie** refresh usera, potem **Set-Cookie** nowej pary `cc_access` / `cc_refresh` (jak login); body `{ id, email, role }`; **to urządzenie zostaje zalogowane**; inne sesje padają. **Zakaz** Clear-Cookie / wymogu ponownego loginu na happy path. Złe `currentPassword` → **401** `INVALID_PASSWORD` (sesja zostaje; bez rotacji). **Nie** „forgot password”. |
 | **Usuwanie własnego konta** | V1: `DELETE /auth/me` + re-auth — soft `user` / hard(+purge) `guest`; **`admin` → 403**. UI = Konto. **Nie** `DELETE /users/:id`. |
 | **`user_welcome`** | Kind mailera transakcyjnego: powitalna wiadomość **po** udanym `POST /auth/activate` (self-register w `production`). Treść **PL** (HTML + plain text; samouczek / ścieżki UI); obrazy **CID** w warstwie mail I/O; pola `email`, `appPublicUrl`, `login`. Odbiorcy `role ∈ { user, guest }` — **nie** admin. **Best-effort:** pad SMTP **nie** zmienia odpowiedzi sukcesu activate (**bez** `MAIL_DELIVERY_FAILED`). **Nie** przy invite / bootstrap / register poza activate. **Nie** mylić z `user_activation` (link aktywacji). |
 | **Shell maili (marka)** | Wspólny layout HTML+text kinds Auth (`user_invited` \| `user_activation` \| `user_welcome`, …): w **headerze HTML** marka = **logotyp CID** (nie sam tekst w slocie); plain text / subject / copy body — string „Content Chain”. Norma: `brand_types.md`; lokalizacja I/O: `architektura_katalogi_pliki.md`. |
