@@ -8,7 +8,7 @@ import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import type { RunRecord } from '../domain/run.types';
 import { makeContentRun, makeSocialRun } from '../run-record.test-helpers';
 import type { ReelIdea, SocialIdea } from '../../social/domain/social.types';
-import type { InProcessRunWorker } from './lifecycle/in-process-run.worker';
+import type { RunJobEnqueuePort } from '../domain/run-job-enqueue.port';
 import type { RunLifecycleService } from './lifecycle/run-lifecycle.service';
 import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 import { ResumeHitlUseCase } from './resume-hitl.use-case';
@@ -131,12 +131,12 @@ function makeUseCase(args: {
   run: RunRecord;
   reader?: RunResultReader;
   saveSelectedIdeaIds?: jest.Mock;
-  notifyHitlResumed?: jest.Mock;
+  enqueueExecute?: jest.Mock;
   transition?: jest.Mock;
 }) {
   const saveSelectedIdeaIds =
     args.saveSelectedIdeaIds ?? jest.fn().mockResolvedValue(undefined);
-  const notifyHitlResumed = args.notifyHitlResumed ?? jest.fn();
+  const enqueueExecute = args.enqueueExecute ?? jest.fn(async () => undefined);
   const transition =
     args.transition ??
     jest.fn(async (run: RunRecord, to: RunRecord['status']) => ({
@@ -148,12 +148,12 @@ function makeUseCase(args: {
       getById: async () => asSnapshot(args.run),
       saveSelectedIdeaIds,
     }),
-    { notifyHitlResumed } as unknown as InProcessRunWorker,
+    { enqueueExecute } as unknown as RunJobEnqueuePort,
     { transition } as unknown as RunLifecycleService,
     args.reader ?? fakeReader(),
     makeGuestPolicy(),
   );
-  return { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition };
+  return { useCase, saveSelectedIdeaIds, enqueueExecute, transition };
 }
 
 describe('ResumeHitlUseCase', () => {
@@ -162,7 +162,7 @@ describe('ResumeHitlUseCase', () => {
       status: 'awaiting_hitl',
       taskType: 'page_outline_then_copy',
     });
-    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+    const { useCase, saveSelectedIdeaIds, enqueueExecute, transition } =
       makeUseCase({
         run,
         reader: fakeReader({ getPageOutline: async () => outline }),
@@ -179,7 +179,7 @@ describe('ResumeHitlUseCase', () => {
 
     expect(saveSelectedIdeaIds).not.toHaveBeenCalled();
     expect(transition).not.toHaveBeenCalled();
-    expect(notifyHitlResumed).not.toHaveBeenCalled();
+    expect(enqueueExecute).not.toHaveBeenCalled();
   });
 
   it('rejects page HITL when outline is missing with CONFLICT and does not persist', async () => {
@@ -187,7 +187,7 @@ describe('ResumeHitlUseCase', () => {
       status: 'awaiting_hitl',
       taskType: 'page_outline_then_copy',
     });
-    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+    const { useCase, saveSelectedIdeaIds, enqueueExecute, transition } =
       makeUseCase({ run });
 
     await expect(
@@ -200,7 +200,7 @@ describe('ResumeHitlUseCase', () => {
 
     expect(saveSelectedIdeaIds).not.toHaveBeenCalled();
     expect(transition).not.toHaveBeenCalled();
-    expect(notifyHitlResumed).not.toHaveBeenCalled();
+    expect(enqueueExecute).not.toHaveBeenCalled();
   });
 
   it('resumes page HITL when selectedIdeaIds is exactly [outline.id]', async () => {
@@ -208,7 +208,7 @@ describe('ResumeHitlUseCase', () => {
       status: 'awaiting_hitl',
       taskType: 'page_outline_then_copy',
     });
-    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+    const { useCase, saveSelectedIdeaIds, enqueueExecute, transition } =
       makeUseCase({
         run,
         reader: fakeReader({ getPageOutline: async () => outline }),
@@ -223,11 +223,7 @@ describe('ResumeHitlUseCase', () => {
 
     expect(saveSelectedIdeaIds).toHaveBeenCalledWith(run.id, [outline.id]);
     expect(transition).toHaveBeenCalledWith(asSnapshot(run), 'running');
-    expect(notifyHitlResumed).toHaveBeenCalledWith({
-      ...asSnapshot(run),
-      status: 'running',
-      selectedIdeaIds: [outline.id],
-    });
+    expect(enqueueExecute).toHaveBeenCalledWith(run.id);
   });
 
   it('rejects social HITL empty selectedIdeaIds with HITL_INVALID_SELECTION and does not persist', async () => {
@@ -235,7 +231,7 @@ describe('ResumeHitlUseCase', () => {
       status: 'awaiting_hitl',
       taskType: 'post_ideas_then_content',
     });
-    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+    const { useCase, saveSelectedIdeaIds, enqueueExecute, transition } =
       makeUseCase({
         run,
         reader: fakeReader({ listIdeas: async () => socialIdeas }),
@@ -247,7 +243,7 @@ describe('ResumeHitlUseCase', () => {
 
     expect(saveSelectedIdeaIds).not.toHaveBeenCalled();
     expect(transition).not.toHaveBeenCalled();
-    expect(notifyHitlResumed).not.toHaveBeenCalled();
+    expect(enqueueExecute).not.toHaveBeenCalled();
   });
 
   it('rejects social HITL duplicate ids with HITL_INVALID_SELECTION and does not persist', async () => {
@@ -255,7 +251,7 @@ describe('ResumeHitlUseCase', () => {
       status: 'awaiting_hitl',
       taskType: 'post_ideas_then_content',
     });
-    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+    const { useCase, saveSelectedIdeaIds, enqueueExecute, transition } =
       makeUseCase({
         run,
         reader: fakeReader({ listIdeas: async () => socialIdeas }),
@@ -267,7 +263,7 @@ describe('ResumeHitlUseCase', () => {
 
     expect(saveSelectedIdeaIds).not.toHaveBeenCalled();
     expect(transition).not.toHaveBeenCalled();
-    expect(notifyHitlResumed).not.toHaveBeenCalled();
+    expect(enqueueExecute).not.toHaveBeenCalled();
   });
 
   it('rejects social HITL id outside draft with HITL_INVALID_SELECTION and does not persist', async () => {
@@ -275,7 +271,7 @@ describe('ResumeHitlUseCase', () => {
       status: 'awaiting_hitl',
       taskType: 'post_ideas_then_content',
     });
-    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+    const { useCase, saveSelectedIdeaIds, enqueueExecute, transition } =
       makeUseCase({
         run,
         reader: fakeReader({ listIdeas: async () => socialIdeas }),
@@ -287,7 +283,7 @@ describe('ResumeHitlUseCase', () => {
 
     expect(saveSelectedIdeaIds).not.toHaveBeenCalled();
     expect(transition).not.toHaveBeenCalled();
-    expect(notifyHitlResumed).not.toHaveBeenCalled();
+    expect(enqueueExecute).not.toHaveBeenCalled();
   });
 
   it('resumes social HITL without reading a page outline', async () => {
@@ -296,7 +292,7 @@ describe('ResumeHitlUseCase', () => {
       taskType: 'post_ideas_then_content',
     });
     const getPageOutline = jest.fn(async () => outline);
-    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+    const { useCase, saveSelectedIdeaIds, enqueueExecute, transition } =
       makeUseCase({
         run,
         reader: fakeReader({
@@ -313,11 +309,7 @@ describe('ResumeHitlUseCase', () => {
     expect(getPageOutline).not.toHaveBeenCalled();
     expect(saveSelectedIdeaIds).toHaveBeenCalledWith(run.id, ['idea_1']);
     expect(transition).toHaveBeenCalledWith(asSnapshot(run), 'running');
-    expect(notifyHitlResumed).toHaveBeenCalledWith({
-      ...asSnapshot(run),
-      status: 'running',
-      selectedIdeaIds: ['idea_1'],
-    });
+    expect(enqueueExecute).toHaveBeenCalledWith(run.id);
   });
 
   it('resumes social HITL when two distinct ids belong to the draft', async () => {
@@ -326,7 +318,7 @@ describe('ResumeHitlUseCase', () => {
       taskType: 'post_ideas_then_content',
     });
     const selectedIdeaIds = ['idea_1', 'idea_2'];
-    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+    const { useCase, saveSelectedIdeaIds, enqueueExecute, transition } =
       makeUseCase({
         run,
         reader: fakeReader({ listIdeas: async () => socialIdeas }),
@@ -341,11 +333,7 @@ describe('ResumeHitlUseCase', () => {
 
     expect(saveSelectedIdeaIds).toHaveBeenCalledWith(run.id, selectedIdeaIds);
     expect(transition).toHaveBeenCalledWith(asSnapshot(run), 'running');
-    expect(notifyHitlResumed).toHaveBeenCalledWith({
-      ...asSnapshot(run),
-      status: 'running',
-      selectedIdeaIds,
-    });
+    expect(enqueueExecute).toHaveBeenCalledWith(run.id);
   });
 
   it('resumes reel HITL from listReelIdeas without reading post ideas', async () => {
@@ -354,7 +342,7 @@ describe('ResumeHitlUseCase', () => {
       taskType: 'reel_ideas_then_scripts',
     });
     const listIdeas = jest.fn(async () => socialIdeas);
-    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+    const { useCase, saveSelectedIdeaIds, enqueueExecute, transition } =
       makeUseCase({
         run,
         reader: fakeReader({
@@ -376,11 +364,7 @@ describe('ResumeHitlUseCase', () => {
       'idea_2',
     ]);
     expect(transition).toHaveBeenCalledWith(asSnapshot(run), 'running');
-    expect(notifyHitlResumed).toHaveBeenCalledWith({
-      ...asSnapshot(run),
-      status: 'running',
-      selectedIdeaIds: ['idea_1', 'idea_2'],
-    });
+    expect(enqueueExecute).toHaveBeenCalledWith(run.id);
   });
 
   it('allows a guest to resume HITL on their own run', async () => {
@@ -409,7 +393,7 @@ describe('ResumeHitlUseCase', () => {
       taskType: 'page_outline_then_copy',
       startedByUserId: OTHER_ID,
     });
-    const { useCase, saveSelectedIdeaIds, notifyHitlResumed, transition } =
+    const { useCase, saveSelectedIdeaIds, enqueueExecute, transition } =
       makeUseCase({
         run,
         reader: fakeReader({ getPageOutline: async () => outline }),
@@ -424,6 +408,6 @@ describe('ResumeHitlUseCase', () => {
     });
     expect(saveSelectedIdeaIds).not.toHaveBeenCalled();
     expect(transition).not.toHaveBeenCalled();
-    expect(notifyHitlResumed).not.toHaveBeenCalled();
+    expect(enqueueExecute).not.toHaveBeenCalled();
   });
 });

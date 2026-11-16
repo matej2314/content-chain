@@ -18,7 +18,10 @@ import {
   GUEST_QUOTA,
   type GuestQuotaPort,
 } from '../../runs/domain/guest-quota.port';
-import { RunAbortRegistry } from '../../runs/application/lifecycle/run-abort.registry';
+import {
+  RUN_ABORT_SIGNAL,
+  type RunAbortSignalPort,
+} from '../../runs/domain/run-abort-signal.port';
 import type { AuthUserContext } from '../domain/auth-user.types';
 
 export type DeleteUserResult = { ok: true };
@@ -33,7 +36,7 @@ export class DeleteUserUseCase {
     @Inject(GUEST_PURGE) private readonly guestPurge: GuestPurgePort,
     @Inject(FEEDBACK_PURGE) private readonly feedbackPurge: FeedbackPurgePort,
     @Inject(GUEST_QUOTA) private readonly guestQuota: GuestQuotaPort,
-    private readonly abortRegistry: RunAbortRegistry,
+    @Inject(RUN_ABORT_SIGNAL) private readonly abortSignal: RunAbortSignalPort,
   ) {}
 
   private async softDeleteUser(userId: UserId): Promise<void> {
@@ -96,7 +99,7 @@ export class DeleteUserUseCase {
       mode = 'purge';
       const liveIds = await this.guestPurge.listLiveRunIds(userId);
       for (const runId of liveIds) {
-        this.abortRegistry.requestCancel(runId);
+        await this.abortSignal.requestCancel(runId);
       }
     }
 

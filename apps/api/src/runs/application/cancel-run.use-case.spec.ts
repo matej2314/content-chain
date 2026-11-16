@@ -12,7 +12,7 @@ import type { RunRepository, RunSnapshot } from '../domain/run.port';
 import { makeSocialSnapshot } from '../run-record.test-helpers';
 import { CancelRunUseCase } from './cancel-run.use-case';
 import type { GetRunOutput, GetRunUseCase } from './get-run.use-case';
-import type { RunAbortRegistry } from './lifecycle/run-abort.registry';
+import type { RunAbortSignalPort } from '../domain/run-abort-signal.port';
 import type { RunLifecycleService } from './lifecycle/run-lifecycle.service';
 
 const ACTOR: UserId = createUserId('usr_11111111-1111-4111-8111-111111111111');
@@ -155,7 +155,7 @@ function setup(
     }
     return initialSnapshot;
   });
-  const requestCancel = jest.fn((_id: RunId): void => {});
+  const requestCancel = jest.fn(async (_id: RunId): Promise<void> => {});
   const appendLog = jest.fn(async (): Promise<void> => {});
   const publishCancelled = jest.fn((_id: RunId): void => {});
 
@@ -177,7 +177,7 @@ function setup(
       attemptCancel,
       getById,
     }),
-    { requestCancel } as unknown as RunAbortRegistry,
+    { requestCancel } as unknown as RunAbortSignalPort,
     { appendLog, publishCancelled } as unknown as RunLifecycleService,
     { execute: getRunExecute } as unknown as GetRunUseCase,
   );

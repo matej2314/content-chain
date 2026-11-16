@@ -7,6 +7,10 @@ import { PrismaClient } from '@prisma/client';
 import { AppModule } from '../src/app.module';
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { AutoFinalizeExpiredReviewsUseCase } from '../src/runs/application/auto-finalize-expired-reviews.use-case';
+import {
+  RUN_REPOSITORY,
+  type RunRepository,
+} from '../src/runs/domain/run.port';
 import { ENV, type Env } from '../src/shared/config/env';
 import { validateEnv } from '../src/shared/config/env.schema';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
@@ -146,7 +150,11 @@ describe('Runs review TTL (e2e)', () => {
     configureHttpApp(app);
     await app.init();
     prisma = app.get(PrismaService);
-    autoFinalize = app.get(AutoFinalizeExpiredReviewsUseCase);
+    // Use-case lives on worker after K1 cut — construct for e2e until FAZA 3 harness.
+    autoFinalize = new AutoFinalizeExpiredReviewsUseCase(
+      app.get(ENV),
+      app.get<RunRepository>(RUN_REPOSITORY),
+    );
     agent = await createAuthenticatedAgent(app);
 
     const me = await agent.get('/api/v1/auth/me').expect(200);

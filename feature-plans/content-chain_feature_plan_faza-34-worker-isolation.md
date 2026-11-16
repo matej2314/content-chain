@@ -731,7 +731,7 @@ Odpowiada major 34.2 (runtime) + 34.4. Status startowy: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — Worker: AbortRegistry + LISTEN `run.abort`; recovery; review sweep + unit
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jeden owner recovery/sweep/abort mapy = worker (R-9 / R-10 / R-11). Major 34.4. Refaktor względem: Faza 7/12/14 recovery+sweep+abort w `InProcessRunWorker` (api).
 
@@ -814,7 +814,7 @@ export class RunAbortNotifyListener implements OnModuleInit, OnModuleDestroy {
 
 ### KROK 2 — Worker: drain/claim/HITL-A + handlery pg-boss + unit
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Cap claim + HITL A; joby `{ runId }` + load z DB (R-5 / R-6). Major 34.2. **D3** + **D6:** handlery na lokalnym `PgBossWorkerClient`; konstrukcja `PgBoss` wyłącznie przez `await import('pg-boss')` w factory workera.
 
@@ -895,7 +895,7 @@ await boss.work(RUN_EXECUTE_QUEUE, async ([job]) => {
 
 ### KROK 3 — Api: enqueue Start/HITL; NOTIFY abort Cancel/DeleteUser; usunięcie in-process + unit
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `W_TRAKCIE`
 
 **Cel:** Api = admit/cancel/HITL/SSE/enqueue; **bez** pump/execute/sweep (R-5 / R-11). Major 34.2 + 34.4. **Domknięcie D1** (atomic cut z K1–K2).
 
@@ -1179,3 +1179,5 @@ queue, NOTIFY SSE/abort, recovery, and review sweep after the process split.
 - **2026-11-16 — HOW D6 (pg-boss ESM ↔ Nest CJS):** po TS1479 na `import type { PgBoss } from 'pg-boss'` w `apps/api` (`nodenext`, brak `"type":"module"`). Ustalenie: lokalne `PgBossSendClient` / `PgBossWorkerClient` w `pg-boss.tokens.ts`; konstrukcja wyłącznie `await import('pg-boss')` w Nest factory; unit mockuje surface. Odrzucone: migracja Nest na ESM, `.mts`, `@ts-expect-error`, `resolution-mode` (nie usuwa 1479 w tym setupie). Zaktualizowano FAZA 1/K2–K3, FAZA 2/K1–K3, FAZA 3/K2 + meta HOW/założenia/Biblioteki — **bez** edycji FAZA 1/KROK 1 (`WYKONANY`).
 - **2026-11-16 — FAZA 1 / KROK 2 → `WYKONANY`:** porty enqueue/abort, stałe/schema `{ runId }`, adaptery pg-boss send + NOTIFY abort, unit zielone; wire Nest = FAZA 2.
 - **2026-11-16 — FAZA 1 / KROK 3 → `WYKONANY`:** `LocalRunSseHub`, koperta hybrid, `NotifyRunSseHub`, LISTEN+hydrate `getLogById` / `publishLog`, unit zielone; wire worker hub = FAZA 2.
+- **2026-11-16 — FAZA 2 / KROK 1 → `WYKONANY`:** `RunAbortNotifyListener` + `WorkerRecoverySweepBoot` + `WorkerRuntimeModule`; recover/sweep wycięte z `InProcessRunWorker` / `RunsModule`; unit zielone; import `WorkerRuntimeModule` w `WorkerAppModule` odłożony (nest rootDir / `@api`) do K2.
+- **2026-11-16 — FAZA 2 / KROK 2 → `WYKONANY`:** `RunExecutePump` (ex in-process) + `PgBossRunWorker` + `PgBossWorkerClient`; factory `await import('pg-boss')` + `createQueue`/`work`; pipeline Social/Content inline pod Notify hub; unit zielone; api nadal hostuje pump do K3 (D1).

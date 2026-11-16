@@ -1,10 +1,4 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  OnModuleInit,
-  OnModuleDestroy,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ENV, type Env } from '../../../shared/config/env';
 import {
   RUN_EXECUTOR,
@@ -12,60 +6,38 @@ import {
 } from '../../domain/run-executor.port';
 import { RUN_REPOSITORY, type RunRepository } from '../../domain/run.port';
 import { RUN_SSE_HUB, type RunSseHub } from '../../domain/run-sse.port';
-import { RecoverInterruptedRunsUseCase } from '../recover-interrupted-runs.use-case';
-import { RunLifecycleService } from './run-lifecycle.service';
-import { RunAbortRegistry } from './run-abort.registry';
 import type { RunRecord } from '../../domain/run.types';
-import { AutoFinalizeExpiredReviewsUseCase } from '../auto-finalize-expired-reviews.use-case';
-import { parseTtlMs } from '../../../auth/application/auth.helpers';
+import { RunAbortRegistry } from './run-abort.registry';
+import { RunLifecycleService } from './run-lifecycle.service';
 
 const EXECUTOR_FAILED_MESSAGE = 'Run executor failed';
 
+/**
+ * Cap claim + HITL-A execute pump. No OnModuleInit drain — Nest runs hooks in
+ * parallel; first wake is WorkerRecoverySweepBoot after recover (R-9), then
+ * pg-boss run.wake / StartRun until FAZA 2 / KROK 3 cut.
+ */
 @Injectable()
-export class InProcessRunWorker implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(InProcessRunWorker.name);
+export class RunExecutePump {
+  private readonly logger = new Logger(RunExecutePump.name);
   private inFlight = 0;
   private pumpTail: Promise<void> = Promise.resolve();
-  private reviewSweepTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     @Inject(ENV) private readonly env: Env,
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
     @Inject(RUN_EXECUTOR) private readonly executor: RunExecutorPort,
     @Inject(RUN_SSE_HUB) private readonly sseHub: RunSseHub,
-    private readonly recover: RecoverInterruptedRunsUseCase,
     private readonly lifecycle: RunLifecycleService,
     private readonly abortRegistry: RunAbortRegistry,
-    private readonly autoFinalize: AutoFinalizeExpiredReviewsUseCase,
   ) {}
-
-  async onModuleInit() {
-    await this.recover.execute();
-    await this.autoFinalize.execute();
-    this.reviewSweepTimer = setInterval(() => {
-      void this.autoFinalize.execute().catch((err: unknown) => {
-        this.logger.error({ err }, 'review auto-finalize sweep failed');
-      });
-    }, parseTtlMs(this.env.REVIEW_SWEEP_INTERVAL));
-    this.enqueuePump();
-  }
-
-  onModuleDestroy(): void {
-    if (this.reviewSweepTimer !== null) {
-      clearInterval(this.reviewSweepTimer);
-      this.reviewSweepTimer = null;
-    }
-  }
 
   notifyQueued(): void {
     this.enqueuePump();
   }
 
-  notifyHitlResumed(run: RunRecord): void {
-    this.scheduleExistingRunning(run);
-  }
-
-  private scheduleExistingRunning(run: RunRecord): void {
+  /** HITL-A / run.execute path — may bump inFlight above MAX_CONCURRENT_RUNS. */
+  scheduleExistingRunning(run: RunRecord): void {
     this.inFlight += 1;
     void this.executeViaExecutor(run).finally(() => {
       this.inFlight -= 1;
@@ -112,7 +84,7 @@ export class InProcessRunWorker implements OnModuleInit, OnModuleDestroy {
           conversationId: run.conversationId,
           level: 'error',
           message: EXECUTOR_FAILED_MESSAGE,
-          step: 'InProcessRunWorker',
+          step: 'RunExecutePump',
         });
       } catch (logError) {
         this.logger.error(

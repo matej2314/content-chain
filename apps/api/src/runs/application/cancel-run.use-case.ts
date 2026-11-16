@@ -1,7 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DomainException } from '../../shared/exceptions/domain.exception';
+import {
+  RUN_ABORT_SIGNAL,
+  type RunAbortSignalPort,
+} from '../domain/run-abort-signal.port';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import { RunAbortRegistry } from './lifecycle/run-abort.registry';
 import { RunLifecycleService } from './lifecycle/run-lifecycle.service';
 import { GetRunUseCase, type GetRunOutput } from './get-run.use-case';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
@@ -11,7 +14,7 @@ import type { RunId } from '@content-chain/shared';
 export class CancelRunUseCase {
   constructor(
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
-    private readonly abortRegistry: RunAbortRegistry,
+    @Inject(RUN_ABORT_SIGNAL) private readonly abortSignal: RunAbortSignalPort,
     private readonly lifecycle: RunLifecycleService,
     private readonly getRun: GetRunUseCase,
   ) {}
@@ -53,7 +56,7 @@ export class CancelRunUseCase {
       );
     }
 
-    this.abortRegistry.requestCancel(runId);
+    await this.abortSignal.requestCancel(runId);
 
     await this.lifecycle.appendLog({
       runId,

@@ -12,7 +12,7 @@ export class PgNotifyAbortSignal implements RunAbortSignalPort {
 
   async requestCancel(runId: RunId): Promise<void> {
     try {
-      await this.pool.query('SELECT pg_notify($1,$2)', [
+      await this.pool.query('SELECT pg_notify($1, $2)', [
         RUN_ABORT_CHANNEL,
         runId,
       ]);

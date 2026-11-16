@@ -9,7 +9,7 @@ import type { PrismaService } from '../../shared/persistence/prisma.service';
 import type { FeedbackPurgePort } from '../../feedback/domain/feedback-purge.port';
 import type { GuestPurgePort } from '../../runs/domain/guest-purge.port';
 import type { GuestQuotaPort } from '../../runs/domain/guest-quota.port';
-import { RunAbortRegistry } from '../../runs/application/lifecycle/run-abort.registry';
+import type { RunAbortSignalPort } from '../../runs/domain/run-abort-signal.port';
 import type { AuthUser, AuthUserContext } from '../domain/auth-user.types';
 import type { UserRepository } from '../domain/user-repository.port';
 import { DeleteUserUseCase } from './delete-user.use-case';
@@ -172,7 +172,7 @@ function makeUseCase(deps: {
   guestPurge?: GuestPurgePort;
   feedbackPurge?: FeedbackPurgePort;
   guestQuota?: GuestQuotaPort;
-  abortRegistry?: RunAbortRegistry;
+  abortSignal?: RunAbortSignalPort;
 }): DeleteUserUseCase {
   return new DeleteUserUseCase(
     deps.prisma,
@@ -180,7 +180,7 @@ function makeUseCase(deps: {
     deps.guestPurge ?? unusedGuestPurge(),
     deps.feedbackPurge ?? unusedFeedbackPurge(),
     deps.guestQuota ?? unusedGuestQuota(),
-    deps.abortRegistry ?? new RunAbortRegistry(),
+    deps.abortSignal ?? { requestCancel: async () => undefined },
   );
 }
 
@@ -251,8 +251,7 @@ describe('DeleteUserUseCase', () => {
     }));
     const deleteForGuest = jest.fn(async () => 2);
     const deleteDailyRatings = jest.fn(async () => true);
-    const abortRegistry = new RunAbortRegistry();
-    const requestCancel = jest.spyOn(abortRegistry, 'requestCancel');
+    const requestCancel = jest.fn(async () => undefined);
 
     const useCase = makeUseCase({
       prisma: mockPrisma(tx),
@@ -264,7 +263,7 @@ describe('DeleteUserUseCase', () => {
       }),
       feedbackPurge: unusedFeedbackPurge({ deleteForGuest }),
       guestQuota: unusedGuestQuota({ deleteDailyRatings }),
-      abortRegistry,
+      abortSignal: { requestCancel },
     });
 
     await expect(
@@ -330,8 +329,7 @@ describe('DeleteUserUseCase', () => {
     }));
     const deleteForGuest = jest.fn(async () => 0);
     const deleteDailyRatings = jest.fn(async () => false);
-    const abortRegistry = new RunAbortRegistry();
-    const requestCancel = jest.spyOn(abortRegistry, 'requestCancel');
+    const requestCancel = jest.fn(async () => undefined);
 
     const useCase = makeUseCase({
       prisma: mockPrisma(tx),
@@ -343,7 +341,7 @@ describe('DeleteUserUseCase', () => {
       }),
       feedbackPurge: unusedFeedbackPurge({ deleteForGuest }),
       guestQuota: unusedGuestQuota({ deleteDailyRatings }),
-      abortRegistry,
+      abortSignal: { requestCancel },
     });
 
     await expect(

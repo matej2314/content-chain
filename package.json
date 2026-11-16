@@ -12,6 +12,7 @@
 		"dev:gateway": "pnpm --filter ai-provider-gateway dev",
 		"test:gateway": "pnpm --filter ai-provider-gateway test:all",
 		"test:backend": "pnpm test:api && pnpm test:gateway",
+		"test:worker": "pnpm --filter worker test",
 		"build": "pnpm -r build",
 		"gateway:cli": "pnpm --filter ai-provider-gateway run cli",
 		"test:api": "pnpm --filter api test",

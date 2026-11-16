@@ -2,10 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import {
+  RUN_JOB_ENQUEUE,
+  type RunJobEnqueuePort,
+} from '../domain/run-job-enqueue.port';
+import {
   RUN_RESULT_READER,
   type RunResultReader,
 } from '../domain/run-result-reader.port';
-import { InProcessRunWorker } from './lifecycle/in-process-run.worker';
 import { RunLifecycleService } from './lifecycle/run-lifecycle.service';
 import { parseWithZod } from '../../shared/parse-with-zod';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
@@ -17,7 +20,7 @@ import type { RunId } from '@content-chain/shared';
 export class ResumeHitlUseCase {
   constructor(
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
-    private readonly worker: InProcessRunWorker,
+    @Inject(RUN_JOB_ENQUEUE) private readonly jobs: RunJobEnqueuePort,
     private readonly lifeCycle: RunLifecycleService,
     @Inject(RUN_RESULT_READER) private readonly results: RunResultReader,
     private readonly guestPolicy: GuestRunPolicyService,
@@ -82,11 +85,8 @@ export class ResumeHitlUseCase {
       }
     }
     await this.runs.saveSelectedIdeaIds(parsedRunId, parsedSelectedIdeaIds);
-    const running = await this.lifeCycle.transition(run, 'running');
-    this.worker.notifyHitlResumed({
-      ...running,
-      selectedIdeaIds: parsedSelectedIdeaIds,
-    });
+    await this.lifeCycle.transition(run, 'running');
+    await this.jobs.enqueueExecute(parsedRunId);
     return { runId, status: 'running' as const };
   }
 }

@@ -9,7 +9,6 @@ import { PrismaOutputEditedAdapter } from './infrastructure/persistence/prisma-o
 import { PrismaRunAdapter } from './infrastructure/persistence/prisma-run.adapter';
 import { LocalRunSseHub } from './infrastructure/sse/local-run-sse.hub';
 import { RunSseNotifyListener } from './infrastructure/sse/run-sse-notify.listener';
-import { RunAbortRegistry } from './application/lifecycle/run-abort.registry';
 
 @Module({
   providers: [
@@ -21,7 +20,6 @@ import { RunAbortRegistry } from './application/lifecycle/run-abort.registry';
     RunSseNotifyListener,
     RunLifecycleService,
     { provide: RUN_LIFECYCLE, useExisting: RunLifecycleService },
-    RunAbortRegistry,
   ],
   exports: [
     RUN_REPOSITORY,
@@ -30,7 +28,6 @@ import { RunAbortRegistry } from './application/lifecycle/run-abort.registry';
     RUN_SSE_HUB,
     RUN_LIFECYCLE,
     RunLifecycleService,
-    RunAbortRegistry,
   ],
 })
 export class RunLifecycleModule {}

@@ -19,8 +19,11 @@ import type {
   RunRecord,
   SocialRunRecord,
 } from '../domain/run.types';
+import {
+  RUN_JOB_ENQUEUE,
+  type RunJobEnqueuePort,
+} from '../domain/run-job-enqueue.port';
 import { GuestRunPolicyService } from './guest/guest-run-policy.service';
-import { InProcessRunWorker } from './lifecycle/in-process-run.worker';
 import {
   startRunCommandSchema,
   type ParsedStartRunCommand,
@@ -75,7 +78,7 @@ export class StartRunUseCase {
   constructor(
     private readonly completeness: GetCompletenessUseCase,
     @Inject(RUN_REPOSITORY) private readonly runs: RunRepository,
-    private readonly worker: InProcessRunWorker,
+    @Inject(RUN_JOB_ENQUEUE) private readonly jobs: RunJobEnqueuePort,
     private readonly guestPolicy: GuestRunPolicyService,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -171,7 +174,7 @@ export class StartRunUseCase {
       }
       throw error;
     }
-    this.worker.notifyQueued();
+    await this.jobs.enqueueWake(run.id);
     const fresh = await this.runs.getById(run.id);
     return {
       id: run.id,

@@ -14,11 +14,13 @@ import { validateEnv } from '../src/shared/config/env.schema';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 import { PrismaService } from '../src/shared/persistence/prisma.service';
 import { RecoverInterruptedRunsUseCase } from '../src/runs/application/recover-interrupted-runs.use-case';
+import { RunLifecycleService } from '../src/runs/application/lifecycle/run-lifecycle.service';
 import {
   RUN_EXECUTOR,
   type RunExecuteOptions,
   type RunExecutorPort,
 } from '../src/runs/domain/run-executor.port';
+import { RUN_REPOSITORY, type RunRepository } from '../src/runs/domain/run.port';
 import type { RunRecord } from '../src/runs/domain/run.types';
 import { createAuthenticatedAgent, type E2eAgent } from './authenticated-agent';
 import { FakeLlmGateway } from './fake-llm-gateway';
@@ -530,7 +532,11 @@ describe('Runs cancel (e2e)', () => {
         },
       });
 
-      const recover = app.get(RecoverInterruptedRunsUseCase);
+      // Use-case lives on worker after K1 cut — construct for e2e until FAZA 3 harness.
+      const recover = new RecoverInterruptedRunsUseCase(
+        app.get<RunRepository>(RUN_REPOSITORY),
+        app.get(RunLifecycleService),
+      );
       await recover.execute();
 
       const running = await prisma.run.findUniqueOrThrow({

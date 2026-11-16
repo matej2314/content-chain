@@ -10,7 +10,7 @@ import type {
   GuestRunAdmit,
   GuestRunPolicyService,
 } from './guest/guest-run-policy.service';
-import type { InProcessRunWorker } from './lifecycle/in-process-run.worker';
+import type { RunJobEnqueuePort } from '../domain/run-job-enqueue.port';
 import { StartRunUseCase, type StartRunCommand } from './start-run.use-case';
 
 const ACTOR: AuthUserContext = {
@@ -89,26 +89,26 @@ function asSnapshot(run: RunRecord): RunSnapshot {
 function makeUseCase(args: {
   gate?: Completeness;
   runs: RunRepository;
-  notifyQueued?: jest.Mock;
+  enqueueWake?: jest.Mock;
   admitStart?: jest.Mock<Promise<GuestRunAdmit | null>>;
   env?: Env;
 }) {
   const completeness = {
     execute: jest.fn(async () => args.gate ?? { complete: true, missing: [] }),
   };
-  const notifyQueued = args.notifyQueued ?? jest.fn();
+  const enqueueWake = args.enqueueWake ?? jest.fn(async () => undefined);
   const admitStart = args.admitStart ?? jest.fn(async () => null);
   const guestPolicy = { admitStart } as unknown as GuestRunPolicyService;
   return {
     useCase: new StartRunUseCase(
       completeness as unknown as GetCompletenessUseCase,
       args.runs,
-      { notifyQueued } as unknown as InProcessRunWorker,
+      { enqueueWake } as unknown as RunJobEnqueuePort,
       guestPolicy,
       args.env ?? TEST_ENV,
     ),
     completeness,
-    notifyQueued,
+    enqueueWake,
     admitStart,
   };
 }
@@ -116,7 +116,7 @@ function makeUseCase(args: {
 describe('StartRunUseCase', () => {
   it('rejects an invalid command with VALIDATION_FAILED and skips the gate and persist', async () => {
     const create = jest.fn();
-    const { useCase, completeness, notifyQueued } = makeUseCase({
+    const { useCase, completeness, enqueueWake } = makeUseCase({
       runs: unusedRepo({ create }),
     });
 
@@ -136,12 +136,12 @@ describe('StartRunUseCase', () => {
 
     expect(completeness.execute).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
-    expect(notifyQueued).not.toHaveBeenCalled();
+    expect(enqueueWake).not.toHaveBeenCalled();
   });
 
   it('rejects an incomplete company context with CONTEXT_INCOMPLETE and does not persist', async () => {
     const create = jest.fn();
-    const { useCase, completeness, notifyQueued } = makeUseCase({
+    const { useCase, completeness, enqueueWake } = makeUseCase({
       gate: { complete: false, missing: ['identity', 'cta'] },
       runs: unusedRepo({ create }),
     });
@@ -159,7 +159,7 @@ describe('StartRunUseCase', () => {
     });
     expect(completeness.execute).toHaveBeenCalledTimes(1);
     expect(create).not.toHaveBeenCalled();
-    expect(notifyQueued).not.toHaveBeenCalled();
+    expect(enqueueWake).not.toHaveBeenCalled();
   });
 
   it('persists a queued run, notifies the worker, then returns ids and the stored status', async () => {
@@ -171,7 +171,7 @@ describe('StartRunUseCase', () => {
       const run = created.find((row) => row.id === id);
       return run ? asSnapshot(run) : null;
     });
-    const { useCase, notifyQueued } = makeUseCase({
+    const { useCase, enqueueWake } = makeUseCase({
       runs: unusedRepo({ create, getById }),
     });
 
@@ -212,12 +212,13 @@ describe('StartRunUseCase', () => {
     );
     expect(run.createdAt).toBeInstanceOf(Date);
 
-    expect(notifyQueued).toHaveBeenCalledTimes(1);
+    expect(enqueueWake).toHaveBeenCalledTimes(1);
+    expect(enqueueWake).toHaveBeenCalledWith(run.id);
     expect(getById).toHaveBeenCalledWith(run.id);
     expect(create.mock.invocationCallOrder[0]).toBeLessThan(
-      notifyQueued.mock.invocationCallOrder[0],
+      enqueueWake.mock.invocationCallOrder[0],
     );
-    expect(notifyQueued.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(enqueueWake.mock.invocationCallOrder[0]).toBeLessThan(
       getById.mock.invocationCallOrder[0],
     );
 
@@ -239,7 +240,7 @@ describe('StartRunUseCase', () => {
         const run = created.find((row) => row.id === id);
         return run ? asSnapshot(run) : null;
       });
-      const { useCase, completeness, notifyQueued } = makeUseCase({
+      const { useCase, completeness, enqueueWake } = makeUseCase({
         runs: unusedRepo({ create, getById }),
       });
 
@@ -258,7 +259,7 @@ describe('StartRunUseCase', () => {
           status: 'queued',
         }),
       );
-      expect(notifyQueued).toHaveBeenCalledTimes(1);
+      expect(enqueueWake).toHaveBeenCalledTimes(1);
       expect(result).toEqual({
         id: run.id,
         conversationId: run.conversationId,
@@ -269,7 +270,7 @@ describe('StartRunUseCase', () => {
 
   it('rejects a reel command without platform with VALIDATION_FAILED and skips the gate and persist', async () => {
     const create = jest.fn();
-    const { useCase, completeness, notifyQueued } = makeUseCase({
+    const { useCase, completeness, enqueueWake } = makeUseCase({
       runs: unusedRepo({ create }),
     });
 
@@ -291,7 +292,7 @@ describe('StartRunUseCase', () => {
 
     expect(completeness.execute).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
-    expect(notifyQueued).not.toHaveBeenCalled();
+    expect(enqueueWake).not.toHaveBeenCalled();
   });
 
   it('persists page_copy with platform web and contentKind', async () => {
@@ -303,7 +304,7 @@ describe('StartRunUseCase', () => {
       const run = created.find((row) => row.id === id);
       return run ? asSnapshot(run) : null;
     });
-    const { useCase, completeness, notifyQueued } = makeUseCase({
+    const { useCase, completeness, enqueueWake } = makeUseCase({
       runs: unusedRepo({ create, getById }),
     });
 
@@ -332,7 +333,7 @@ describe('StartRunUseCase', () => {
         copyRefineCount: 0,
       }),
     );
-    expect(notifyQueued).toHaveBeenCalledTimes(1);
+    expect(enqueueWake).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       id: run.id,
       conversationId: run.conversationId,
@@ -380,7 +381,7 @@ describe('StartRunUseCase', () => {
 
   it('rejects page_copy with platform with VALIDATION_FAILED and skips the gate and persist', async () => {
     const create = jest.fn();
-    const { useCase, completeness, notifyQueued } = makeUseCase({
+    const { useCase, completeness, enqueueWake } = makeUseCase({
       runs: unusedRepo({ create }),
     });
 
@@ -401,7 +402,7 @@ describe('StartRunUseCase', () => {
 
     expect(completeness.execute).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
-    expect(notifyQueued).not.toHaveBeenCalled();
+    expect(enqueueWake).not.toHaveBeenCalled();
   });
 
   it('stores selectedIdeaIds when the command includes them', async () => {
@@ -499,7 +500,7 @@ describe('StartRunUseCase', () => {
     const create = jest.fn(async () => {
       throw persistError;
     });
-    const { useCase, notifyQueued } = makeUseCase({
+    const { useCase, enqueueWake } = makeUseCase({
       runs: unusedRepo({
         countInFlightByUser: async () => 0,
         create,
@@ -514,13 +515,13 @@ describe('StartRunUseCase', () => {
     expect(admitStart).toHaveBeenCalledTimes(1);
     expect(create).toHaveBeenCalledTimes(1);
     expect(release).toHaveBeenCalledTimes(1);
-    expect(notifyQueued).not.toHaveBeenCalled();
+    expect(enqueueWake).not.toHaveBeenCalled();
   });
 
   it('rejects with USER_IN_FLIGHT_LIMIT_EXCEEDED when in-flight count is at MAX and does not create', async () => {
     const create = jest.fn();
     const countInFlightByUser = jest.fn(async () => 3);
-    const { useCase, notifyQueued, admitStart } = makeUseCase({
+    const { useCase, enqueueWake, admitStart } = makeUseCase({
       runs: unusedRepo({ create, countInFlightByUser }),
       env: { MAX_USER_IN_FLIGHT_RUNS: 3 } as Env,
     });
@@ -535,7 +536,7 @@ describe('StartRunUseCase', () => {
     expect(admitStart).toHaveBeenCalledWith(ACTOR, 'post_ideas');
     expect(countInFlightByUser).toHaveBeenCalledWith(ACTOR.id);
     expect(create).not.toHaveBeenCalled();
-    expect(notifyQueued).not.toHaveBeenCalled();
+    expect(enqueueWake).not.toHaveBeenCalled();
   });
 
   it('creates when in-flight count is below MAX after guest admit', async () => {
@@ -545,7 +546,7 @@ describe('StartRunUseCase', () => {
     });
     const countInFlightByUser = jest.fn(async () => 2);
     const admitStart = jest.fn(async () => null);
-    const { useCase, notifyQueued } = makeUseCase({
+    const { useCase, enqueueWake } = makeUseCase({
       runs: unusedRepo({
         countInFlightByUser,
         create,
@@ -569,7 +570,7 @@ describe('StartRunUseCase', () => {
       create.mock.invocationCallOrder[0],
     );
     expect(created).toHaveLength(1);
-    expect(notifyQueued).toHaveBeenCalledTimes(1);
+    expect(enqueueWake).toHaveBeenCalledTimes(1);
     expect(result.status).toBe('queued');
   });
 
@@ -580,7 +581,7 @@ describe('StartRunUseCase', () => {
     }));
     const create = jest.fn();
     const countInFlightByUser = jest.fn(async () => 3);
-    const { useCase, notifyQueued } = makeUseCase({
+    const { useCase, enqueueWake } = makeUseCase({
       runs: unusedRepo({ create, countInFlightByUser }),
       admitStart,
       env: { MAX_USER_IN_FLIGHT_RUNS: 3 } as Env,
@@ -597,7 +598,7 @@ describe('StartRunUseCase', () => {
     expect(countInFlightByUser).toHaveBeenCalledWith(GUEST_ACTOR.id);
     expect(release).toHaveBeenCalledTimes(1);
     expect(create).not.toHaveBeenCalled();
-    expect(notifyQueued).not.toHaveBeenCalled();
+    expect(enqueueWake).not.toHaveBeenCalled();
   });
 
   it('skips per-user in-flight gate when actor is null', async () => {

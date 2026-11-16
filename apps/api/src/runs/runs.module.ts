@@ -7,8 +7,6 @@ import {
 } from '@nestjs/common';
 import { CompanyContextModule } from '../company-context/company-context.module';
 import { GuestQuotaModule } from './guest-quota.module';
-import { InProcessRunWorker } from './application/lifecycle/in-process-run.worker';
-import { RecoverInterruptedRunsUseCase } from './application/recover-interrupted-runs.use-case';
 import { GetRunLogsUseCase } from './application/get-run-logs.use-case';
 import { GetRunUseCase } from './application/get-run.use-case';
 import { ResumeHitlUseCase } from './application/resume-hitl.use-case';
@@ -22,12 +20,12 @@ import {
   RUN_RESULT_READER,
   type RunResultReader,
 } from './domain/run-result-reader.port';
+import { RunDispatchModule } from './run-dispatch.module';
 import { RunLifecycleModule } from './run-lifecycle.module';
 import { RunsController } from './runs.controller';
 import { RateRunUseCase } from './application/rate-run.use-case';
 import { SaveOutputEditedUseCase } from './application/save-output-edited.use-case';
 import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
-import { AutoFinalizeExpiredReviewsUseCase } from './application/auto-finalize-expired-reviews.use-case';
 import { CancelRunUseCase } from './application/cancel-run.use-case';
 
 export type RunsModuleAsyncOptions = {
@@ -43,12 +41,15 @@ export type RunsModuleAsyncOptions = {
 };
 
 @Module({
-  imports: [CompanyContextModule, RunLifecycleModule, GuestQuotaModule],
+  imports: [
+    CompanyContextModule,
+    RunLifecycleModule,
+    RunDispatchModule,
+    GuestQuotaModule,
+  ],
   controllers: [RunsController],
   providers: [
-    RecoverInterruptedRunsUseCase,
-    AutoFinalizeExpiredReviewsUseCase,
-    InProcessRunWorker,
+    // Pump / recover / sweep → WorkerRuntimeModule (worker-only).
     GuestRunPolicyService,
     StartRunUseCase,
     ResumeHitlUseCase,

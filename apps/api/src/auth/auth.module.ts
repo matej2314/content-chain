@@ -5,7 +5,7 @@ import { PrismaModule } from '../shared/persistence/prisma.module';
 import { GuestPurgeModule } from '../runs/guest-purge.module';
 import { GuestQuotaModule } from '../runs/guest-quota.module';
 import { FeedbackModule } from '../feedback/feedback.module';
-import { RunLifecycleModule } from '../runs/run-lifecycle.module';
+import { RunDispatchModule } from '../runs/run-dispatch.module';
 import { AuthController } from './auth.controller';
 import { UsersController } from './users.controller';
 import { InvitationsController } from './invitations.controller';
@@ -72,7 +72,7 @@ import { DeleteOwnAccountUseCase } from './application/delete-own-account.use-ca
     GuestPurgeModule,
     GuestQuotaModule,
     FeedbackModule,
-    RunLifecycleModule,
+    RunDispatchModule,
   ],
   controllers: [AuthController, UsersController, InvitationsController],
   providers: [
