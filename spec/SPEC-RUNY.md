@@ -1,16 +1,18 @@
 ---
-wersja: 34
+wersja: 35
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-09
+data_modyfikacji: 2026-11-16
 ---
 
 # SPEC — Runy / logi
 
 ## Cel / zakres względem dokumentacji
 
-Norma bounded contextu **Runs / Logs** w `apps/api`: cykl życia async runu, **lista runów instancji** (opcjonalna paginacja / filtry), **agregacja KPI (`GET /runs/summary`)**, polityka statusów, **anulowanie (`cancelled`)**, kanoniczne logi w DB, emisja SSE, kolejka współbieżności, recovery po przerwaniu procesu, **przegląd runu z TTL** (`pipelineFinishedAt` + `REVIEW_TTL`, sweeper auto-finalize) oraz **`GuestRunPolicy`** (sloty / Redis admit — `docs/dokumentacja_komunikacji.md`).
+Norma bounded contextu **Runs / Logs**: cykl życia async runu (HTTP / hub SSE / enqueue w **`apps/api`**; pump/execute / recovery / review sweep / `RunAbortRegistry` w always-on **`apps/worker`**), **lista runów instancji**, **agregacja KPI (`GET /runs/summary`)**, polityka statusów, **anulowanie (`cancelled`)**, kanoniczne logi w DB, emisja SSE (Subjecty w api; most PG NOTIFY z workera), kolejka współbieżności (pg-boss = wake), recovery po przerwaniu procesu **workera**, **przegląd z TTL** (sweeper na workerze) oraz **`GuestRunPolicy`**.
 
-Uszczegóławia `docs/architektura.md` (async run, klej composite, cancel v1), `docs/dokumentacja_komunikacji.md` (lista / SSE / GET / cancel / ocena / lista user / summary / unia startu), `docs/data_flow.md` (ścieżka cancel, recovery + `cancelRequested`, TTL przeglądu), `docs/observability.md` (pola logów vs metrics; **L-11** — metrics przez port) oraz współpracę z `SPEC-SOCIAL.md`, `SPEC-CONTENT.md` i `SPEC-FEEDBACK.md`.
+Uszczegóławia `docs/architektura.md` (izolacja workera, klej composite, cancel + NOTIFY abort), `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md`, `docs/observability.md` oraz współpracę z `SPEC-SOCIAL.md`, `SPEC-CONTENT.md`, `SPEC-FEEDBACK.md`, `SPEC-MONOREPO.md`.
+
+Zmiana względem wersji 34 / R-5 in-process w `apps/api`: owner execute = **`apps/worker`**; R-6 HITL = wariant **A** (poza claim FIFO); R-9 recovery na bootcie workera; R-10 sweep = worker; R-4/R-4a hub Subjectów tylko w api + most NOTIFY; R-11 AbortRegistry w workerze + NOTIFY `run.abort`; job payload `{ runId }`. **Unieważnione:** „osobny worker process = poza MVP” jako zakaz V1; in-process-only jako kanon po izolacji.
 
 Zmiana względem wersji 33 / R-8: `/metrics` bez normy źródła liczników `RunStatus`. Od tej wersji **R-14** — `RunStatsPort` / `countByStatus`; **zakaz** Prisma w `metrics/` — obowiązuje na SQLite (MVP) i po PG; **nie** reuse R-13 `aggregateSummary` — `docs/observability.md`, `SPEC-BEZPIECZENSTWO.md` B-9.
 
@@ -45,7 +47,7 @@ Zmiana względem wersji 8: LangGraph pozostaje poza Runs — w Social **i** Cont
 
 | BC | Odpowiedzialność |
 |----|------------------|
-| **Runs** | Utworzenie runu, lista kolekcji, **agregacja KPI (`GET /runs/summary`)**, statusy, **anulowanie (`cancelled`)**, kolejka slotów, append logów, SSE, recovery, HITL HTTP jako zmiana stanu runu, zapis inicjatora, **ocena gwiazdkowa, zapis edycji wyniku (`result` + `outputEdited`), finalize przeglądu, kotwica `pipelineFinishedAt`, sweeper auto-finalize**, lista `GET /runs/user/:userId`. Porty: lifecycle, **composite** executor, odczyt wycinka wyniku do snapshotu, `attemptCancel` |
+| **Runs** | HTTP w api: utworzenie runu, lista, summary, statusy, **anulowanie**, HITL HTTP, ocena/Edytuj/finalize, hub Subjectów SSE + `LISTEN`, enqueue jobów. Worker: claim/drain/execute, recovery boot, review sweep, `RunAbortRegistry`, hub NOTIFY-only. Porty: lifecycle, **composite** executor, reader, `attemptCancel`, sygnał abort (wspólny cancel + purge) |
 | **Social** | Węzły pipeline’u post/reel; woła **port** lifecycle Runs; wynik we własnym store |
 | **Content** | Węzły pipeline’u page; woła **port** lifecycle Runs; wynik we własnym store (`SPEC-CONTENT.md`) |
 | **Feedback** | Opinie tekstowe — nie statusy runu |
@@ -160,9 +162,11 @@ Zmiana względem wersji 15 / R-3c: endpoint był opisany wyłącznie pod select 
 
 Zmiana względem wersji 2 / R-3a: R-3a (dashboard) **zostaje** osobnym listingiem instancji; R-3c to **osobny** endpoint pod user-runs — **nie** wolno ładować selectu opinii / rejestru live z `GET /runs` (instancja).
 
-R-4. Emisja zdarzeń SSE należy do Runs; Social nie streamuje SSE bezpośrednio z węzłów grafu.
+R-4. Emisja zdarzeń SSE należy do Runs; Social nie streamuje SSE bezpośrednio z węzłów grafu. **FE** łączy się EventSource **wyłącznie** z api. Eventy emitowane z procesu **workera** (execute, recovery, logi, statusy, `complete`) idą mostem **PG NOTIFY → api `LISTEN` → hub Subjectów**. Eventy lokalne api (np. cancel HTTP, transition HITL w api) → hub bezpośrednio, bez obowiązkowego NOTIFY. Kontrakt eventów dla FE **bez zmian kształtu**.
 
-R-4a. Hub SSE (in-memory subject per `runId` w MVP): port ma jawny koniec cyklu życia (`complete` lub równoważne). Po legalnym przejściu do `completed` albo `failed` albo **`cancelled`** hub **kończy** subject i **usuwa** wpis z mapy. Terminal SSE = `completed` \| `failed` \| `cancelled`. `awaiting_hitl` i `interrupted` **nie** kończą subjectu. Sam disconnect klienta (Nest unsubscribe) **nie** evikuje subjectu żyjącego runu. Późny `GET .../events` na runie już terminalnym nie alokuje wiecznego subjectu (ścieżka snapshot + complete w HTTP — `SPEC-KOMUNIKACJA.md` K-3a). Przy cancelu kolejność emisji: `run.status` (`status: cancelled`) → `run.cancelled` → complete huba.
+R-4a. Hub Subjectów SSE **tylko w procesie api** (rename z `InMemoryRunSseHub` na nazwę neutralną — lokalny hub procesu api). Port ma jawny koniec cyklu życia (`complete` lub równoważne). Po legalnym przejściu do `completed` \| `failed` \| **`cancelled`** hub **kończy** subject i **usuwa** wpis z mapy. Terminal SSE = `completed` \| `failed` \| `cancelled`. `awaiting_hitl` i `interrupted` **nie** kończą subjectu. Worker: **adapter NOTIFY-only** na tym samym porcie `RunSseHub` (`publish`/`complete` → NOTIFY; **bez** Subjectów / bez FE). **Zakaz** in-memory Subjectów w workerze; **zakaz** równoległych hubów „na zapas”. Późny `GET .../events` na runie terminalnym — snapshot + complete (`SPEC-KOMUNIKACJA.md` K-3a). Przy cancelu kolejność: `run.status` (`cancelled`) → `run.cancelled` → complete huba.
+
+Zmiana względem wersji 34 / R-4a: hub Subjectów w tym samym procesie co execute (in-process). Od tej wersji Subjecty tylko w api; worker = NOTIFY-only.
 
 Zmiana względem wersji 17 / R-4a: terminal = tylko `completed` \| `failed`. Od tej wersji także `cancelled` + event `run.cancelled`.
 
@@ -174,13 +178,17 @@ Zmiana względem wersji 17 / R-4a: terminal = tylko `completed` \| `failed`. Od 
 
 Zmiana względem wersji 4 / R-4: R-4 mówiło tylko kto emituje; infra „SSE hub / subject” bez evikcji — subject żył z procesem.
 
-R-5. Worker MVP: **in-process** w procesie `apps/api` (po `202` z `POST /runs`). Zakaz spawnu osobnego procesu OS na każdy run oraz osobnego always-on workera w MVP.
+R-5. Worker V1: always-on **`apps/worker`** (jeden proces; nie per BC). Api po `202` / HITL **enqueue** job (pg-boss); worker ładuje `Run` z DB (payload joba = **`{ runId }`** — bez snapshotu rekordu) i prowadzi claim/execute. Api **nie** prowadzi pump/execute ani review sweep. **Zakaz** spawnu procesu OS per run. Pierwszy cut: import executora/lifecycle z drzewa api dopuszczalny (`SPEC-MONOREPO.md`).
 
-R-6. Współbieżność **globalna**: limit `MAX_CONCURRENT_RUNS` (env), domyślnie **3** — maksymalna liczba równoległych **execute** w procesie api. Claim do `running` z `queued` **oraz** z `interrupted` wyłącznie przy wolnym slocie. Nowe runy (`POST /runs`) powyżej limitu pozostają w `queued` i są podejmowane FIFO, gdy zwolni się slot **i** nie ma starszego `interrupted` w drain. Drain: najpierw `interrupted`, potem `queued`. `awaiting_hitl → running` (HITL) jest osobnym use-casem i **nie** podlega temu capowi. Limit **per-user** = osobna norma R-6a (nie zastępuje R-6).
+Zmiana względem wersji 34 / R-5: *„in-process w `apps/api`; zakaz always-on workera w MVP”* — **unieważnione** jako kanon po izolacji.
+
+R-6. Współbieżność **globalna**: limit `MAX_CONCURRENT_RUNS` (env **workera**), domyślnie **3** — cap **claim** `queued`/`interrupted` → `running` (`inFlight < MAX` przed claim). Nowe runy powyżej limitu pozostają `queued` (FIFO). Drain: najpierw `interrupted`, potem `queued`. **HITL wariant A:** `awaiting_hitl → running` + job `run.execute({ runId })` — execute **bez** `claimNext*`; **poza limitem claim FIFO** (płynna kontynuacja; nie czeka na slot); resume bumpuje `inFlight` (może chwilowo > `MAX`); drain nie claimuje, aż zejdzie. „Poza capem” ≠ „HITL nie zajmuje `inFlight`”. Limit **per-user** = R-6a.
+
+Zmiana względem wersji 34 / R-6: *„HITL nie podlega temu capowi”* bez rozróżnienia claim vs `inFlight`; cap w procesie api. Od tej wersji wariant **A** + owner claim = worker.
 
 Zmiana względem wersji 3 / R-6: cap dotyczył wyłącznie nowych runów w `queued`; recovery boot mogło odpalić execute ponad limit (burst).
 
-Zmiana względem wersji 31 / R-6: *„Bez limitu per-user w v1”* w tym samym punkcie. Od tej wersji per-user = R-6a; R-6 pozostaje wyłącznie globalnym capem execute.
+Zmiana względem wersji 31 / R-6: *„Bez limitu per-user w v1”* w tym samym punkcie. Od tej wersji per-user = R-6a; R-6 pozostaje globalnym capem claim.
 
 R-6a. Limit **per-user** runów w toku (**V1 — rozbudowa**; obowiązkowy przy implementacji V1):
 
@@ -206,20 +214,23 @@ R-14. **Liczniki / gauge `RunStatus` dla `/metrics` (L-11):**
 
 Zmiana względem wersji 33: brak egzekwowalnego zakazu Prisma w `metrics/`. Od tej wersji R-14.
 
-R-9. Recovery po brutalnym przerwaniu `running` (restart / crash procesu api):
+R-9. Recovery po brutalnym przerwaniu `running` (restart / crash procesu **`apps/worker`**):
 
-1. Przy starcie api, **zanim** pump claimuje `queued`:
+1. Przy starcie **workera**, **zanim** pump claimuje `queued` (**zakaz** recovery boot w api):
    - leftover `running` **z** `cancelRequested` → `cancelled` (nie `interrupted`, nie ponowne execute; **bez** `recoveryAttempts++`; nie retryable);
-   - leftover `interrupted` **z** `cancelRequested` → `cancelled` (crash między flagą a zapisem statusu; **bez** `recoveryAttempts++`; nie retryable);
+   - leftover `interrupted` **z** `cancelRequested` → `cancelled` (**bez** `recoveryAttempts++`);
    - leftover `running` **bez** flagi → `interrupted` (albo od razu `failed` przy capie);
-   - leftover `interrupted` **bez** flagi → dotychczasowa pompa (bez inkrementu przy samym leftover `interrupted`).
-   `POST` / HITL **nie** ustawiają `interrupted`. Anulowanie użytkownika **nie** zużywa `recoveryAttempts`.
-2. `recoveryAttempts++` tylko gdy leftover był `running` **bez** `cancelRequested` (faktycznie przerwany execute). Leftover już `interrupted` bez flagi (nie zdążył dostać slotu) — **bez** inkrementu; wraca do pompy.
-3. Wznowienie execute wyłącznie przez claim `interrupted → running` pod `MAX_CONCURRENT_RUNS` (R-6) — wyłącznie gdy **brak** `cancelRequested`. Zakaz startu wszystkich leftover naraz z pominięciem semafora. Po powrocie do `running`: do **3** prób wznowienia **fazy** z trwałego stanu w DB (model B z `SPEC-SOCIAL.md` / `SPEC-CONTENT.md` — re-invoke właściwego BC po `taskType`, nie checkpointer).
-4. Przed każdą próbą / przy klasyfikacji błędu: `isRetryable(...)` — retry m.in. dla recovery po crashu, timeoutów / rate-limit gateway (zgodnie z polityką); **bez** retry dla błędów walidacji, wyczerpanego refine verifiera, błędów konfiguracji klucza gateway itd. Cancel / `cancelRequested` **nie** jest retryable.
-5. Po wyczerpaniu 3 prób (`recoveryAttempts >= 3`) → `failed` + czytelny wpis logu (powód recovery / exhausted); bez execute.
-6. Run w `awaiting_hitl` po restarcie **pozostaje** `awaiting_hitl` — bez zużywania puli recovery i bez przejścia do `interrupted` (chyba że operator anuluje — R-11). HITL (`awaiting_hitl → running`) **nie** jest tym wymaganiem.
-7. `cancelRequested` na już-terminalnym statusie (`completed` \| `failed` \| `cancelled`) — **ignorowane** przez recovery (flaga leftover po przegranym wyścigu cancel vs terminal; brak re-procesowania / nadpisu).
+   - leftover `interrupted` **bez** flagi → dotychczasowa pompa (bez inkrementu).
+   `POST` / HITL **nie** ustawiają `interrupted`. Anulowanie **nie** zużywa `recoveryAttempts`.
+2. `recoveryAttempts++` tylko gdy leftover był `running` **bez** `cancelRequested`. Leftover już `interrupted` bez flagi — **bez** inkrementu; wraca do pompy.
+3. Wznowienie execute wyłącznie przez claim `interrupted → running` pod `MAX_CONCURRENT_RUNS` (R-6) — gdy **brak** `cancelRequested`. Zakaz burstu ponad cap. Po powrocie do `running`: do **3** prób wznowienia **fazy** z DB (model B).
+4. Przed każdą próbą: `isRetryable(...)`. Cancel / `cancelRequested` **nie** jest retryable.
+5. Po wyczerpaniu 3 prób → `failed` + log; bez execute.
+6. `awaiting_hitl` po restarcie **pozostaje** `awaiting_hitl` (chyba że cancel — R-11). HITL resume **nie** jest tym wymaganiem.
+7. `cancelRequested` na już-terminalnym — **ignorowane**.
+8. Eventy SSE z recovery idą mostem NOTIFY (R-4).
+
+Zmiana względem wersji 34 / R-9: *„po restarcie api”* — **unieważnione**; owner = worker.
 
 Zmiana względem wersji 3 / R-9: recovery wznawiało leftover `running` przez ponowne `execute` bez statusu `interrupted` i bez twardego capu na claim.
 
@@ -235,7 +246,9 @@ R-10. Przegląd runu (po pipeline; **nie** HITL):
 6. W oknie: autor może wielokrotnie `PATCH .../rating` (w tym z powrotem na `null`) oraz wielokrotnie `POST .../output-edited` z body `{ result }` — zapis **zastępuje** kanoniczny wynik runu (klucze `result` właściwe dla `taskType`, kształt jak snapshot) **oraz** stawia `outputEdited: true` (flaga jednokierunkowa). Pipeline / graf **nie** startują. Kardynalność tablic i `sourceIdeaId` / `id` pozycji bez zmian (edycja treści, nie nowy zestaw id). `characterCount` = `body.length` po stronie api.
 7. `POST .../finalize-review` (tylko w oknie) ustawia `reviewFinalizedAt`. Potem `PATCH` oceny i `POST` edycji → **409** `REVIEW_LOCKED`. Ponowne finalize → `REVIEW_LOCKED`.
 8. Po TTL (`now ≥ pipelineFinishedAt + REVIEW_TTL`), gdy `reviewFinalizedAt` jeszcze `null`: mutacje rating / output-edited / finalize → **409** `REVIEW_LOCKED` **bez** UPDATE `reviewFinalizedAt` i **bez** zmiany `userRating` / `outputEdited` / `result`. Trwały lock w DB poza ręcznym finalize = **tylko sweeper** (pkt 9).
-9. Sweeper auto-finalize (boot api **oraz** okresowo wg `REVIEW_SWEEP_INTERVAL`, default `5m`, ten sam styl stringa TTL): batch UPDATE `reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL` dla wierszy z `pipelineFinishedAt` ustawionym, `reviewFinalizedAt === null` i miniętym oknem. **Bez** zmiany `userRating` / `outputEdited` / `result`. **Bez** `DELETE` runu. Wyłączenie api **nie** przedłuża okna; boot domyka zaległe (także legacy po backfillu kotwicy — `SPEC-PERSISTENCE.md`).
+9. Sweeper auto-finalize — owner = **`apps/worker`** (boot **oraz** okresowo wg `REVIEW_SWEEP_INTERVAL`, default `5m`, 1:1 z dawnym zachowaniem in-process): batch UPDATE `reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL` dla wygasłych otwartych przeglądów. **Bez** zmiany `userRating` / `outputEdited` / `result`. **Bez** `DELETE` runu. Api **nie** uruchamia sweepera. Sweep **nie** idzie przez most SSE. Wyłączenie api/workera **nie** przedłuża okna; boot workera domyka zaległe (`SPEC-PERSISTENCE.md`).
+
+Zmiana względem wersji 34 / R-10 pkt 9: sweeper w procesie api — **unieważnione**; owner = worker.
 10. Snapshot `GET /runs/:id` oraz **sukcesy** mutacji przeglądu niosą `pipelineFinishedAt` i wyliczone **`reviewExpiresAt`**: `null` gdy brak `pipelineFinishedAt` **albo** `reviewFinalizedAt !== null`; inaczej ISO (`pipelineFinishedAt + REVIEW_TTL`) — także **po** TTL, zanim sweeper zapisze lock. GET **bez** side-effectów (zakaz finalize / UPDATE przy odczycie). Lista `GET /runs/user/:userId` **bez** tych pól.
 11. Finalize przy `userRating: null` jest legalne (świadomy brak gwiazdek), o ile okno otwarte.
 12. TTL / auto-finalize przeglądu **nie** blokuje `POST /feedback` (`SPEC-FEEDBACK.md`).
@@ -252,17 +265,19 @@ R-11. Anulowanie runu (`cancelled`) — Stop / decyzja operatora (**nie** błąd
 2. Durable guard: przed / w trakcie wyścigu z executorem api ustawia `cancelRequested` na runie (chroni crash między cancel a zapisem statusu — R-9).
 3. Atomowy zapis statusu: port repozytorium `attemptCancel(id, cancelledAt): Promise<boolean>` (CAS) — warunkowy update tylko ze statusu nieterminalnego; przy wygranej: `status = cancelled`, `cancelledAt`, **zerowanie** `cancelRequested`. `true` = CAS wygrał; `false` przy statusie już `completed` \| `failed` → use-case → **409** `RUN_NOT_CANCELABLE`. Już `cancelled` → **200** + snapshot (**idempotencja**; bez ponownego abortu / logu cancel).
 4. Odpowiedź HTTP **200** + snapshot (`status: cancelled`, `cancelledAt`) **nie czeka** na zwinięcie `execute` (zakaz await execute w requeście cancel).
-5. Abort: (a) **MVP / zostaje** — in-process: po wygranej CAS worker (`InProcessRunWorker`) `requestCancel(runId)` → `AbortController.abort()`; `RunExecutorPort.execute` przyjmuje `AbortSignal`; klient HTTP do gateway przekazuje sygnał i **abortuje własny** `fetch` (jeden proces Node `apps/api`); (b) **odłożone** — mapowanie disconnect klienta HTTP na `AbortSignal` hopu LLM w `apps/ai-provider-gateway` (oraz niezawodne gaszenie vendorów) **nie** jest wymogiem bieżącego V1; odłożone na późniejsze fazy pracy (**bez** pinu numeru fazy). Hop w gateway **może** dobiec mimo cancel. Abort u zewnętrznego providera LLM poza gwarancją, dopóki gateway nie honoruje sygnału. Przy hard/purge gościa (Auth A-10) abort live jest **poza** tx DB — ten sam mechanizm abort in-process; persistence kasuje Run w osobnej tx.
-6. Persist: **bez rollbacku** już zacommitowanego wyniku; hop w locie **nie** jest dopisywany po `cancelled`. Slot `MAX_CONCURRENT_RUNS`: HTTP cancel **nie** dekrementuje; zwalnia `finally` execute. Cancel `queued` / `awaiting_hitl` / `interrupted` nie zajmuje slotu execute.
-7. Log / audyt: append-only wpis informacyjny — **rozróżnić** aktora (`cancelled by admin` vs owner / `startedBy`) (`docs/observability.md`, `docs/security.md`).
-8. SSE: `run.status` → `run.cancelled` → complete huba (R-4a).
-9. HITL po `cancelled` nielegalny (`POST .../hitl` — run nie jest w `awaiting_hitl`; jak docs komunikacji). Panel HITL w UI znika — `SPEC-FRONTEND.md`.
-10. Resume / retry / „dokończ” na tym samym `runId` po `cancelled` — **zakazane**. Nowy przebieg = nowy `POST /runs`.
-11. **Hard / purge gościa** (Auth A-10): port eksportowany z Runs (`GuestPurgePort` / równoważnik) kasuje **wszystkie** runy `startedBy` gościa + dzieci w **jednej** tx z Auth — **bez** Cascade ORM jako wymogu; kolejność aplikacyjna. Soft `user` **nie** kasuje runów.
+5. Abort: (a) **`RunAbortRegistry` tylko w `apps/worker`** — mapa `AbortController` per `runId` przy execute; api po CAS emituje live sygnał **PG NOTIFY kanał `run.abort`** (payload `runId`) → worker `requestCancel` → `abort()`. Durable `cancelRequested` + NOTIFY = soft-stop; zgubiony NOTIFY łata recovery (R-9). `RunExecutorPort.execute` przyjmuje `AbortSignal`; klient HTTP do gateway z **workera** abortuje własny `fetch`. **Jeden port sygnału w api** wspólny dla `CancelRunUseCase` i purge guest (`DeleteUserUseCase`). Kanał abort ≠ most SSE (R-4). (b) **odłożone** — mapowanie disconnect→`AbortSignal` hopu w gateway. Hop w gateway **może** dobiec. Przy hard/purge: abort live **poza** tx DB — ten sam port NOTIFY/`run.abort`; persistence kasuje Run w osobnej tx.
+6. Persist: **bez rollbacku**; hop w locie **nie** jest dopisywany po `cancelled`. Slot `MAX_CONCURRENT_RUNS`: HTTP cancel **nie** dekrementuje `inFlight` w workerze; zwalnia `finally` execute. Cancel `queued` / `awaiting_hitl` / `interrupted` nie zajmuje slotu execute.
+7. Log / audyt: append-only — rozróżnić aktora (`cancelled by admin` vs owner).
+8. SSE: `run.status` → `run.cancelled` → complete huba na **api** (R-4a); lokalnie bez obowiązkowego NOTIFY.
+9. HITL po `cancelled` nielegalny. Panel HITL w UI znika — `SPEC-FRONTEND.md`.
+10. Resume / retry na tym samym `runId` po `cancelled` — **zakazane**.
+11. **Hard / purge gościa** (Auth A-10): port kasuje runy gościa w jednej tx z Auth; abort live przez ten sam port sygnału co cancel.
 
-Zmiana względem wersji 24 / R-11: *„Authz: wyłącznie startedBy; Brak admin-cancel cudzego runu w MVP”*. Od tej wersji wyjątek admin→`guest`; log rozróżnia aktora; hard/purge = port dla Auth.
+Zmiana względem wersji 34 / R-11: abort mapa + `InProcessRunWorker` w `apps/api` — **unieważnione**; registry w workerze + NOTIFY `run.abort`.
 
-Zmiana względem wersji 31 / R-11 pkt 5: *„abort na gateway / providerze poza v1”*. Następnie (v32): V1 obejmowało propagację abort api→gateway. **Od wersji 33:** mapowanie disconnect→`AbortSignal` hopu w gateway **odłożone**; zostaje abort in-process + abort `fetch` z api.
+Zmiana względem wersji 24 / R-11: *„Authz: wyłącznie startedBy”*. Od tej wersji wyjątek admin→`guest`; log rozróżnia aktora; hard/purge = port dla Auth.
+
+Zmiana względem wersji 31 / R-11 pkt 5: *„abort na gateway / providerze poza v1”*. Następnie (v32): V1 obejmowało propagację abort api→gateway. **Od wersji 33:** mapowanie disconnect→hop **odłożone**.
 
 Źródło: `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md`, `docs/architektura.md`, `docs/dictionary.md`, `docs/security.md`.
 
@@ -327,33 +342,34 @@ Wolno wydzielić kernel Nest (lifecycle + repo + hub) od HTTP/workera **w tym sa
 
 | Element | Norma |
 |---------|--------|
-| Kolejka | Stan w DB (`queued` / `interrupted` / `running`); semafor współbieżności w procesie api |
-| SSE | Nest `@Sse()`; subskrypcja po `runId`; auth jak API; **complete + evikcja** subjectu po `completed`/`failed`/`cancelled` (R-4a) |
-| Anulowanie | `attemptCancel` (CAS) + `cancelRequested` + abort in-process (+ abort `fetch`); mapowanie disconnect→`AbortSignal` hopu w gateway **odłożone** (R-11); HTTP **nie** awaituje execute |
+| Kolejka | SoT statusów w DB (`queued` / `interrupted` / `running`); wake = pg-boss; claim/`inFlight` w **workerze** (R-6) |
+| SSE | Nest `@Sse()` na api; Subjecty tylko w api; most NOTIFY z workera; **complete + evikcja** (R-4a) |
+| Anulowanie | `attemptCancel` (CAS) + `cancelRequested` + NOTIFY `run.abort` → registry w workerze (+ abort `fetch`); mapowanie disconnect→hop **odłożone** (R-11); HTTP **nie** awaituje execute |
 | Limit per-user | `MAX_USER_IN_FLIGHT_RUNS` + COUNT statusów w toku przed create (R-6a); **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` |
 | Licznik recovery | Pole / metadane runu (np. `recoveryAttempts`), cap = 3; cancel **nie** zużywa |
 | Idempotencja HITL | Tylko ze statusu `awaiting_hitl` |
-| Przegląd | `userRating` + kanoniczny wynik po Edytuj + `outputEdited` + `reviewFinalizedAt` + `pipelineFinishedAt`; okno `REVIEW_TTL`; mutacja po TTL = 409 bez UPDATE locka; sweeper boot+interval; **bez** `cancelled` |
+| Przegląd | `userRating` + kanoniczny wynik po Edytuj + `outputEdited` + `reviewFinalizedAt` + `pipelineFinishedAt`; okno `REVIEW_TTL`; mutacja po TTL = 409 bez UPDATE locka; sweeper boot+interval **na workerze**; **bez** `cancelled` |
 | Port lifecycle | Token + interfejs `appendLog` + `transition` w `domain/`; graf zależy od portu, nie od klasy `RunLifecycleService` |
 | Port executor | Token `RunExecutorPort` w Runs; **composite** w kleju wpinający Social i Content; **binding w `AppModule` / `registerAsync`**; `execute` z `AbortSignal` |
 | Odczyt snapshotu `result`/`hitl` | Composite reader; **zakaz** wstrzykiwania store Social/Content do use-case’u Runs przez `imports: [SocialModule]` / `ContentModule` |
 | Port stats (metrics) | `RunStatsPort` **albo** `countByStatus` na porcie Run; konsument = `metrics/` — **bez** Prisma w module ops (R-14) |
-| Lokalizacja I/O / kernel | Hub SSE = `infrastructure/sse/`; Prisma run/log/output-edited + mapowania wiersza = `infrastructure/persistence/`; Redis guest quota = `infrastructure/quota/`; stub dispatch = `infrastructure/dispatch/`; kernel worker/abort/dispatch = `application/lifecycle/`; `GuestRunPolicy` = `application/guest/` |
+| Lokalizacja I/O / kernel | Hub Subjectów SSE = `infrastructure/sse/` **w api**; adapter NOTIFY-only w workerze; Prisma = `infrastructure/persistence/`; Redis guest quota = `infrastructure/quota/`; dispatch/pg-boss = `infrastructure/dispatch/`; kernel claim/abort/execute = `application/lifecycle/` (runtime w **workerze**); `GuestRunPolicy` = `application/guest/` |
 
 Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnienia lifecycle vs executor vs reader; binding executora nie był unormowany (feature plan Fazy 4 wstawiał `forwardRef`).
 
 ### Wolno
 
-- Po `POST /runs` od razu `running`, jeśli jest wolny slot; w przeciwnym razie `queued`.
-- Przy starcie api uruchomić use-case recovery (`running` → `interrupted` / `failed`) przed podejmowaniem nowych `queued`.
-- Przy starcie api (boot) oraz okresowo wg `REVIEW_SWEEP_INTERVAL` uruchomić sweeper auto-finalize wygasłych przeglądów (R-10 pkt 9); boot **zawsze** raz niezależnie od interwału.
-- Claim `interrupted → running` pod tym samym capem co `queued`; priorytet `interrupted` w drain.
-- Emitować SSE przy każdym udanym `appendLog` i każdej legalnej zmianie statusu (w tym do/z `interrupted`).
-- Domykać i usuwać subject huba wyłącznie po `completed` / `failed` / `cancelled` (R-4a).
-- `POST .../cancel` z **200** od razu po wygranej CAS (lub idempotencji); abort in-process (+ abort `fetch`) w tle; mapowanie disconnect→`AbortSignal` hopu w gateway **odłożone** (R-11).
-- Przy `POST /runs` egzekwować R-6a przed create (V1); **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` bez cichego `queued` ponad per-user.
+- Po `POST /runs` enqueue wake + `queued` albo claim do `running` gdy wolny slot (w workerze).
+- Przy starcie **workera** uruchomić recovery przed claim `queued` (R-9); api **bez** recovery boot.
+- Przy starcie **workera** (boot) oraz okresowo wg `REVIEW_SWEEP_INTERVAL` uruchomić sweeper (R-10 pkt 9); boot **zawsze** raz; api **bez** timera.
+- Claim `interrupted → running` pod R-6; priorytet `interrupted` w drain; HITL resume bez claim (wariant A).
+- Emitować eventy SSE z workera przez hub NOTIFY-only; api wstrzykuje do Subjectów (R-4).
+- Domykać i usuwać subject huba **w api** wyłącznie po `completed` / `failed` / `cancelled` (R-4a).
+- `POST .../cancel` z **200** po CAS; NOTIFY `run.abort` + abort `fetch` w workerze; mapowanie disconnect→hop **odłożone** (R-11).
+- Przy `POST /runs` egzekwować R-6a przed create (V1); **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED`.
 - Ustawiać `cancelRequested` jako durable guard; zerować przy udanym `attemptCancel`.
-- Leftover z `cancelRequested` finalizować do `cancelled` na bootcie (R-9).
+- Leftover z `cancelRequested` finalizować do `cancelled` na bootcie **workera** (R-9).
+- Joby pg-boss z payloadem wyłącznie `{ runId }` (load `Run` z DB przed claim/execute).
 - `startedBy` nullable wyłącznie dla historycznych / pre-auth przebiegów testowych; po domknięciu auth na api nowe runy zawsze z inicjatorem.
 - Trzymać `userRating: null` jako jawny brak oceny (nie pomijać pola w snapshotcie).
 - Ustawiać `pipelineFinishedAt` raz przy transition → `completed` \| `failed`; wyliczać `reviewExpiresAt` w snapshotcie i sukcesach mutacji przeglądu (R-10).
@@ -385,7 +401,11 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - `PrismaService` / `prisma.*.groupBy` (lub innego ORM/SQL) w `apps/api/src/metrics/` — obowiązuje R-14 (port stats).
 - Podpinania R-13 `aggregateSummary` jako jedynego źródła gauge `RunStatus` w Prometheus.
 - Niedozwolonych skoków statusów.
-- Spawnu procesu per run; always-on worker process w MVP.
+- Spawnu procesu per run; drugiego always-on workera / workera per BC w V1; pump/execute / review sweep w procesie api po izolacji.
+- pg-boss jako SoT statusu runu; snapshotu `RunRecord` w payloadzie joba.
+- Hub Subjectów SSE / EventSource w procesie workera; Redis / polling DB jako default mostu live SSE lub soft-abort.
+- Dual recovery boot (api **i** worker); dual review sweep.
+- HITL czekającego na wolny slot claim (wariant B) jako normy — obowiązuje wariant **A** (R-6).
 - Cichego `queued` ponad `MAX_USER_IN_FLIGHT_RUNS` (R-6a) — przekroczenie = **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED`.
   Zmiana względem wersji 31 / „Nie wolno”: *„Limitu współbieżności per-user w MVP… Refaktor per-user = V1”* jako sama wzmianka bez normy. Od tej wersji R-6a jest egzekwowalne; w MVP przed wdrożeniem R-6a nadal obowiązuje wyłącznie R-6.
 - Checkpoinetera LangGraph jako mechanizmu recovery Runs.
@@ -443,14 +463,14 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 | Hub SSE: `complete` + evikcja subjectu po `completed`/`failed`/`cancelled` (R-4a) | obowiązkowe |
 | `RUN_SSE_SUBJECT_TTL_MS` (env, default `600_000`) — TTL automatu ewikcji Subject | obowiązkowe |
 | `SSE_HEARTBEAT_MS` (env, default `25_000`) — interwał keep-alive SSE | obowiązkowe |
-| In-process worker + `MAX_CONCURRENT_RUNS` (default 3) + `AbortController` per run (R-11) | obowiązkowe |
-| Anulowanie: `POST .../cancel`, `attemptCancel`, `cancelRequested`, `cancelledAt` (R-11) | obowiązkowe w MVP |
-| Recovery: leftover `running` → `interrupted` → claim pod capem; leftover + `cancelRequested` → `cancelled`; max 3 × `isRetryable` → `failed` | obowiązkowe |
-| Pola przeglądu `userRating` / `outputEdited` / `reviewFinalizedAt` / `pipelineFinishedAt` + wyliczone `reviewExpiresAt` + zapis kanonicznego `result` przy Edytuj + `GET /runs/user/:userId` | obowiązkowe w **MVP** (fundament zapisu) |
-| `REVIEW_TTL` (default `2h`) + `REVIEW_SWEEP_INTERVAL` (default `5m`) + sweeper boot+okresowy (R-10) | obowiązkowe w **MVP** |
-| Osobny worker process / TTL logów | poza MVP |
+| Always-on `apps/worker` + pg-boss wake + `MAX_CONCURRENT_RUNS` (default 3) + `RunAbortRegistry` w workerze (R-5 / R-6 / R-11) | obowiązkowe po izolacji (prereq kodu: PG) |
+| Most SSE PG NOTIFY + hub Subjectów tylko w api; adapter NOTIFY-only w workerze (R-4 / R-4a) | obowiązkowe po izolacji |
+| Anulowanie: `POST .../cancel`, `attemptCancel`, `cancelRequested`, `cancelledAt`, NOTIFY `run.abort` (R-11) | obowiązkowe |
+| Recovery na bootcie **workera**: leftover → `interrupted` / `cancelled`; claim pod capem; max 3 × `isRetryable` → `failed` (R-9) | obowiązkowe |
+| Pola przeglądu + sweeper boot+okresowy **na workerze** (R-10) | obowiązkowe |
+| TTL logów | poza MVP |
 | Limit per-user `MAX_USER_IN_FLIGHT_RUNS` (R-6a) | obowiązkowe w **V1**; poza MVP do wdrożenia V1 |
-| Abort api→gateway (R-11) | obowiązkowe w **V1** (in-process = MVP) |
+| Mapowanie disconnect→`AbortSignal` hopu w gateway (R-11) | **odłożone** (poza bieżącym V1) |
 | Abort u vendor LLM (gdy brak haczyka gateway); resume po cancel; rollback wyniku | poza tą paczką / poza MVP |
 | Admin cancel gdy `startedBy.role === guest` (R-11) | obowiązkowe w MVP |
 | Self-register grafów / `@Global()` na BC grafu jako klej | poza MVP (i zakazane jako obejście cyklu) |
@@ -465,17 +485,17 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 - [ ] `GET /runs/user/:userId` — ten sam model paginacji; tryb bez parametrów = cała kolekcja; cudzy id → 403.
 - [ ] Snapshot zawiera `userRating` (`null` \| 1–5), `outputEdited`, `reviewFinalizedAt`, `pipelineFinishedAt`, `reviewExpiresAt`, `cancelledAt` (`null` \| ISO8601).
 - [ ] Ocena i Edytuj (zapis treści + flaga) działają na `completed` i `failed` tylko dla autora w oknie TTL; na `cancelled` → `RUN_NOT_REVIEWABLE`; po finalize **albo** po TTL → `REVIEW_LOCKED` (po samym TTL **bez** UPDATE `reviewFinalizedAt`); GET snapshot po Edytuj zwraca treść użytkownika; GET **nie** ustawia finalize.
-- [ ] Transition → `completed`/`failed` ustawia `pipelineFinishedAt` raz; sweeper (boot / interval) ustawia `reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL` dla zaległych; restart api nie odmraża wygasłego przeglądu.
-- [ ] `POST .../cancel`: `startedBy` → 200 + `cancelled` (+ idempotencja); admin + `startedBy.role=guest` → 200; admin + cudzy `user` → 403; inny obcy → 403; `completed`/`failed` → 409 `RUN_NOT_CANCELABLE`; HTTP nie awaituje execute; abort in-process po CAS (+ abort `fetch`); mapowanie disconnect→`AbortSignal` hopu w gateway **odłożone**; log rozróżnia admin vs owner.
+- [ ] Transition → `completed`/`failed` ustawia `pipelineFinishedAt` raz; sweeper na **workerze** (boot / interval) ustawia `reviewFinalizedAt`; restart nie odmraża wygasłego przeglądu; api bez timera sweep.
+- [ ] `POST .../cancel`: authz jak R-11; HTTP nie awaituje execute; po CAS → SSE hub api + NOTIFY `run.abort` → registry w workerze (+ abort `fetch`); mapowanie disconnect→hop **odłożone**; log rozróżnia admin vs owner.
 - [ ] Snapshot detail niesie `startedBy.role`; lista archiwum bez wymogu `role`.
-- [ ] Przy zajętych slotach globalnych nowy run jest `queued` i startuje po zwolnieniu slotu (`MAX_CONCURRENT_RUNS`, default 3); `interrupted` ma priorytet nad `queued`.
-- [ ] V1 R-6a: przy ≥ `MAX_USER_IN_FLIGHT_RUNS` własnych w toku `POST /runs` → **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` (bez create); guest/DEMO i R-6 bez regresji.
-- [ ] Po restarcie api: `awaiting_hitl` bez zmian; leftover `running` bez flagi → `interrupted` (claim pod `MAX_CONCURRENT_RUNS`); leftover `running`/`interrupted` **z** `cancelRequested` → `cancelled` (bez `recoveryAttempts++`); po 3 przerwanych execute → `failed` z logiem. N leftover przy `MAX=1` → jeden execute naraz, reszta zostaje `interrupted`.
-- [ ] HITL po `cancelled` odrzucony; flaga `cancelRequested` na już-terminalnym ignorowana.
-- [ ] Social / Content nie emitują SSE omijając Runs.
+- [ ] Przy zajętych slotach claim nowy run jest `queued`; `interrupted` ma priorytet; HITL resume (A) bez czekania na slot claim.
+- [ ] V1 R-6a: ≥ limitu → **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED`; guest/DEMO i R-6 bez regresji.
+- [ ] Po restarcie **workera**: `awaiting_hitl` bez zmian; leftover → `interrupted` / `cancelled` wg R-9; claim pod capem; SSE recovery przez most NOTIFY; api **bez** recovery boot.
+- [ ] HITL po `cancelled` odrzucony; flaga na już-terminalnym ignorowana.
+- [ ] Social / Content nie emitują SSE omijając Runs; worker nie trzyma Subjectów.
 - [ ] `/metrics` nie jest używane jako podgląd przebiegu runu.
-- [ ] Liczniki `RunStatus` w `metrics/` idą przez `RunStatsPort` / `countByStatus` — brak `PrismaService` w module metrics (R-14).
-- [ ] Brak cyklu Nest Runs ↔ Social / Content; worker dostaje composite executor z kleju.
+- [ ] Liczniki `RunStatus` w `metrics/` idą przez port (R-14).
+- [ ] Brak cyklu Nest Runs ↔ Social / Content; `apps/worker` dostaje composite executor z kleju; job `{ runId }`.
 - [ ] `POST /runs` z `page_*` bez `platform` i z `contentKind` → 202; page + `platform: linkedin` → 400; `taskType` spoza enumu → 400.
 - [ ] HITL `page_outline_then_copy` z id ≠ `outline.id` → 400 `HITL_INVALID_SELECTION`; run zostaje `awaiting_hitl`.
 - [ ] HITL Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): 0 id / duplikat / obcy id → 400 `HITL_INVALID_SELECTION`; K≥1 legalnych ⊆ options → K artefaktów (`contents[]` / `reelScripts[]`); 1 id → tablica długości 1. Page HITL bez zmian.
@@ -488,8 +508,9 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 - Animacje / EventSource UI / Stop + modal → `SPEC-FRONTEND.md`.
 - Pełny zestaw metryk Prometheus i OTel → docs observability / `SPEC-BEZPIECZENSTWO.md`.
 - Publikacja draftów na API portali SM (**V2**).
-- Osobny always-on worker process, broker kolejek (Redis itd.).
+- Worker per BC; BullMQ / Rabbit / Redis jako most SSE lub soft-abort; extract `packages/*` jako prereq dnia 1.
 - Checkpointer LangGraph.
+- Detail wire nazw kanałów PG / koperty NOTIFY (HOW feature planu).
 - Sterowanie `MAX_USER_IN_FLIGHT_RUNS` z panelu admin (P0 poza — R-6a pkt 5).
   Zmiana względem wersji 31 / poza zakresem: *„Limit współbieżności per użytkownik (V1)”* jako całość poza SPEC. Od tej wersji norma R-6a jest w zakresie; poza = tylko mutacja capu z UI.
 - Mapowanie disconnect→`AbortSignal` hopu w `apps/ai-provider-gateway` oraz abort u vendor LLM (dopóki gateway nie honoruje sygnału); `reason` w body cancel; resume / rollback.

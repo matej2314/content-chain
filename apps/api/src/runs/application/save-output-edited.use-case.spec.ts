@@ -40,6 +40,7 @@ function unusedRuns(overrides: Partial<RunRepository> = {}): RunRepository {
     findInterruptedRunning: unexpected,
     findCancelRequestedLeftovers: unexpected,
     appendLog: unexpected,
+    getLogById: unexpected,
     listLogs: unexpected,
     list: unexpected,
     setCancelRequested: unexpected,

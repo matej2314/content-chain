@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-11-09
+data_modyfikacji: 2026-11-16
 ---
 
 # Observability — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-09
 Co obserwujemy w MVP: **metryki procesu** vs **logi runu** (przebieg domenowy). Nie mylić ze sobą.
 
 Powiązane: `dokumentacja_komunikacji.md`, `data_flow.md`, `deployment.md`, `brand_types.md`, `security.md`, `architektura.md`.
+
+Zmiana względem wersji 2 / izolacja workera: stdout ops obejmuje też proces **`apps/worker`** (crash execute, recovery boot, sweep); kanon przebiegu runu nadal DB + SSE na api (most NOTIFY nie jest osobnym kanałem metryk).
 
 Zmiana względem wersji 1: gauge / liczniki `RunStatus` w `metrics/` czytają stan Run **przez port** (`RunStatsPort` albo `countByStatus` na porcie Run) — **zakaz** bezpośredniego `PrismaService` / `groupBy` w `metrics/`. Norma obowiązuje **już w MVP na SQLite**, nie dopiero po cutoverze PostgreSQL. Bez nowego kanału metryk poza statusem.
 
@@ -20,6 +22,7 @@ Zmiana względem wcześniejszej wersji (bez frontmatteru): gauge / liczniki `Run
 |--------|-------|----------|----------------|
 | Logi runu | DB + SSE / GET logs | Operator treści, debug pipeline SM | Kanoniczne w DB |
 | Stdout/stderr (api) | Proces `apps/api` — **Pino** przez `nestjs-pino` | Ops (crash, start, request HTTP) | Uzupełnienie; **nie** zamiennik logów runu w DB |
+| Stdout/stderr (worker) | Proces `apps/worker` — Pino | Ops (execute, recovery boot, review sweep, abort) | Uzupełnienie; przebieg domenowy nadal w DB + SSE |
 | Stdout/stderr (pozostałe) | Procesy / kontenery | Ops | Uzupełnienie |
 | Metryki Prometheus | `GET /metrics` na `apps/api` | Ops / Grafana | Snapshot procesu |
 | Metryki gateway | opcjonalnie `GET /metrics` gateway | Ops LLM | Upstream; scrape osobno |

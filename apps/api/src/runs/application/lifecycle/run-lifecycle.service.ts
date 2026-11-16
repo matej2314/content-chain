@@ -6,6 +6,18 @@ import { RUN_SSE_HUB, type RunSseHub } from '../../domain/run-sse.port';
 import { assertTransition } from '../../domain/status-transitions';
 import type { RunLogEntry, RunRecord } from '../../domain/run.types';
 
+/** Worker hub (NOTIFY) — publishLog poza portem FE-facing RunSseHub. */
+type RunSseHubWithPublishLog = RunSseHub & {
+  publishLog(logId: string, runId: RunId): void;
+};
+
+function hasPublishLog(hub: RunSseHub): hub is RunSseHubWithPublishLog {
+  return (
+    'publishLog' in hub &&
+    typeof (hub as { publishLog?: unknown }).publishLog === 'function'
+  );
+}
+
 export type TransitionExtras = {
   resultSummary?: string;
   failedCode?: string;
@@ -64,10 +76,14 @@ export class RunLifecycleService implements RunLifecyclePort {
   async appendLog(
     entry: Omit<RunLogEntry, 'at'> & { at?: Date },
   ): Promise<void> {
-    const saved = await this.runs.appendLog({
+    const { id: logId, entry: saved } = await this.runs.appendLog({
       ...entry,
       at: entry.at ?? new Date(),
     });
+    if (hasPublishLog(this.sseHub)) {
+      this.sseHub.publishLog(logId, saved.runId);
+      return;
+    }
     this.sseHub.publish({
       event: 'run.log',
       data: { ...saved, runId: saved.runId },

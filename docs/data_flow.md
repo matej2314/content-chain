@@ -1,12 +1,14 @@
 ---
-wersja: 10
+wersja: 11
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-11-10
+data_modyfikacji: 2026-11-16
 ---
 
 # Przepływy danych — Content Chain
 
 Opis orkiestracji i ruchu danych w MVP. Kontrakty HTTP/SSE: `dokumentacja_komunikacji.md`. Identyfikatory: `brand_types.md`, `dictionary.md`.
+
+Zmiana względem wersji 10 / recovery+cancel+sweep w procesie api: recovery boot, review sweep i execute = **`apps/worker`**; cancel live = NOTIFY `run.abort`; live SSE z workera = most PG NOTIFY → api hub; HITL resume = job `run.execute({ runId })` bez claim (wariant A). Zmiana względem: „Recovery po restarcie api” / abort wyłącznie in-process / sweep w api.
 
 Zmiana względem wersji 9 / sekcja kontekstu: dopisano ścieżkę **seedu** (boot przy `DEMO_MODE` lub skrypt DX) → zapis singletonu gdy pusty → dalej istniejący flow GET/PUT/bramki/runów. Seed = **zapis**, nie podmiana odczytu / overlay przy GET.
 
@@ -294,14 +296,14 @@ Szczegóły: `brand_types.md`.
 
 ---
 
-## 6. Recovery po restarcie api
+## 6. Recovery po restarcie workera
 
-Crash / restart procesu zostawia rekord w DB (status `running`); semafor `inFlight` ginie z pamięcią. Use-case recovery na bootcie **zanim** worker claimuje `queued`:
+Crash / restart procesu **`apps/worker`** zostawia rekord w DB (status `running`); semafor `inFlight` ginie z pamięcią. Use-case recovery na bootcie **workera** **zanim** claim `queued` — **zakaz** drugiego recovery boot w api:
 
 ```mermaid
 flowchart TB
-  Crash[Crash procesu przy running] --> Leftover[DB: leftover running]
-  Leftover --> Boot[onModuleInit recovery]
+  Crash[Crash workera przy running] --> Leftover[DB: leftover running]
+  Leftover --> Boot[worker onModuleInit recovery]
   Boot -->|cancelRequested| Cancelled[cancelled]
   Boot -->|bez flagi i attempts >= 3| Fail[failed + log]
   Boot -->|bez flagi i attempts poniżej capu| Int[status interrupted + recoveryAttempts plus 1]
@@ -311,20 +313,21 @@ flowchart TB
   Slot -->|tak| Claim[interrupted to running]
   Claim --> Pipe[re-invoke fazy z DB model B]
   Wait --> Slot
-  Queued[queued z POST] --> SlotQ{Slot i brak starszego interrupted?}
+  Queued[queued z POST + job wake] --> SlotQ{Slot i brak starszego interrupted?}
   SlotQ -->|tak| QRun[queued to running]
   SlotQ -->|nie| Queued
 ```
 
 | Reguła | Norma |
 |--------|--------|
-| Źródło `interrupted` | wyłącznie leftover `running` **bez** `cancelRequested` na bootcie; nigdy `POST /runs` ani HITL |
+| Źródło `interrupted` | wyłącznie leftover `running` **bez** `cancelRequested` na bootcie **workera**; nigdy `POST /runs` ani HITL |
 | Leftover `running` **z** `cancelRequested` | → `cancelled` (nie `interrupted`, nie ponowne execute; bez `recoveryAttempts++`) |
 | Leftover `interrupted` **z** `cancelRequested` | → `cancelled` (crash między flagą a zapisem statusu; bez `recoveryAttempts++`) |
 | Leftover już `interrupted` bez flagi | bez `recoveryAttempts++`; wraca do pompy |
 | Flaga na już-terminalnym | ignorowana (np. przegrany wyścig cancel vs `completed`/`failed`) |
-| Drain | najpierw `interrupted`, potem FIFO `queued` |
+| Drain | najpierw `interrupted`, potem FIFO `queued` (wake job → load `Run` z DB) |
 | Cap | ten sam `MAX_CONCURRENT_RUNS` co przy `queued → running` |
+| SSE z recovery | przez most NOTIFY → api hub → FE (pełny zakres eventów z workera) |
 | `awaiting_hitl` | bez zmian; nie zużywa puli recovery |
 | Anulowanie użytkownika | nie zużywa `recoveryAttempts`; nie jest retryable |
 
@@ -334,15 +337,16 @@ Szczegóły: `dictionary.md` (hasła `interrupted`, `cancelled`, `cancelRequeste
 
 ## 6a. Anulowanie runu (`cancelled`)
 
-Ścieżka HTTP → CAS → SSE → abort in-process w tle (+ abort `fetch` z api do gateway). Authz: `startedBy` **lub** (admin ∧ `startedBy.role === guest`). Semantyka HTTP **200** bez await execute — **bez regresji** względem MVP. Mapowanie disconnect→`AbortSignal` hopu w gateway — **odłożone**.
+Ścieżka HTTP → CAS → SSE na hubie api → durable `cancelRequested` → **NOTIFY `run.abort`** → `RunAbortRegistry` w workerze (+ abort `fetch` z workera do gateway). Authz: `startedBy` **lub** (admin ∧ `startedBy.role === guest`). Semantyka HTTP **200** bez await execute — **bez regresji**. Mapowanie disconnect→`AbortSignal` hopu w gateway — **odłożone**. Ten sam port sygnału abort dla purge guest.
 
 ```mermaid
 sequenceDiagram
   participant Op as Operator owner or admin
   participant API as apps/api HTTP
   participant Repo as attemptCancel CAS
-  participant Hub as SSE hub
-  participant W as InProcessRunWorker
+  participant Hub as SSE hub api
+  participant PG as PostgreSQL NOTIFY
+  participant W as apps/worker AbortRegistry
   participant GW as ai-provider-gateway
 
   Op->>API: POST /runs/:runId/cancel
@@ -352,8 +356,9 @@ sequenceDiagram
     Repo-->>API: true / idempotent
     API->>Hub: run.status cancelled + run.cancelled + complete
     API-->>Op: 200 + snapshot
-    API->>W: requestCancel abort AbortSignal
-    API->>GW: abort fetch z api (połączenie HTTP)
+    API->>PG: NOTIFY run.abort runId
+    PG->>W: requestCancel AbortSignal
+    W->>GW: abort fetch z workera
     Note over W: execute zwija się w tle; HTTP nie awaituje
     Note over GW: mapowanie disconnect na AbortSignal hopu odłożone; hop LLM może dobiec
   else status już completed / failed
@@ -364,11 +369,32 @@ sequenceDiagram
 
 | Reguła | Norma |
 |--------|--------|
-| Slot `MAX_CONCURRENT_RUNS` | HTTP cancel **nie** dekrementuje licznika in-flight; zwalnia go `finally` execute po aborcie. Cancel `queued` / `awaiting_hitl` / `interrupted` **nie** zajmuje slotu execute |
-| Abort V1 | In-process (MVP) + abort `fetch` z api. Mapowanie disconnect→`AbortSignal` hopu w `apps/ai-provider-gateway` **odłożone** (późniejsze fazy — **bez** pinu numeru). Abort vendora LLM poza gwarancją, dopóki gateway nie honoruje sygnału. Limit per-user (R-6a) = główna tama równoległych hopów |
-| Persist | **Bez rollbacku** wyniku już zacommitowanego. Hop w locie **nie** jest dopisywany po `cancelled` (po stronie api); gateway może dokończyć vendor call bez zapisu wyniku runu |
+| Slot `MAX_CONCURRENT_RUNS` | HTTP cancel **nie** dekrementuje `inFlight` w workerze; zwalnia go `finally` execute po aborcie. Cancel `queued` / `awaiting_hitl` / `interrupted` **nie** zajmuje slotu execute |
+| Abort V1 | Durable flag + NOTIFY `run.abort` → registry **tylko w workerze** + abort `fetch` z workera. Kanał abort ≠ most SSE. Mapowanie disconnect→hop w gateway **odłożone**. Limit per-user (R-6a) = główna tama równoległych hopów |
+| Persist | **Bez rollbacku** wyniku już zacommitowanego. Hop w locie **nie** jest dopisywany po `cancelled` (po stronie workera); gateway może dokończyć vendor call bez zapisu wyniku runu |
 | Logi | Append-only + wpis rozróżniający aktora (`cancelled by admin` vs owner) |
 | Authz | Cudzy `role=user` → **403** także dla admina; admin→guest **dozwolone** |
+
+### Live SSE (worker → api → FE)
+
+```text
+worker lifecycle / hub-NOTIFY-only
+  → PG NOTIFY (wszystkie eventy SSE z procesu workera: execute, recovery, logi, statusy, complete)
+  → api LISTEN → hub Subjectów → EventSource FE
+eventy lokalne api (cancel HTTP, transition HITL w api) → hub bezpośrednio (bez obowiązkowego NOTIFY)
+```
+
+### HITL resume (wariant A)
+
+```text
+POST .../hitl (api) → status running + job run.execute({ runId })
+  → worker ładuje Run z DB → execute bez claimNext*
+  → poza limitem claim FIFO; bumpuje inFlight; drain nie claimuje aż zejdzie
+```
+
+### Review sweep
+
+Owner = **`apps/worker`**: raz na boot + `setInterval(REVIEW_SWEEP_INTERVAL)`. Api **nie** odpala sweepa. Semantyka DB bez zmian; sweep **nie** emituje przez most SSE.
 
 ---
 
@@ -409,7 +435,7 @@ Admin PATCH /users/:id { isActive: true }
 | HITL na runie nie w `awaiting_hitl` (w tym po `cancelled`) | **409** `HITL_REQUIRED` / `CONFLICT` |
 | `taskType` spoza enumu HTTP | **400** `VALIDATION_FAILED` (composite nie wołany) |
 | Nieznany `taskType` w composite (wewnętrznie) | status `failed` + `UNKNOWN_TASK_TYPE` |
-| Crash procesu przy `running` | Boot: `interrupted` (lub `failed` przy capie) **albo** `cancelled` gdy `cancelRequested`; claim pod `MAX_CONCURRENT_RUNS`; SSE `run.status` |
+| Crash **workera** przy `running` | Boot workera: `interrupted` (lub `failed` przy capie) **albo** `cancelled` gdy `cancelRequested`; claim pod `MAX_CONCURRENT_RUNS`; SSE `run.status` przez most NOTIFY |
 | Cancel vs `completed`/`failed` (wyścig) | **409** `RUN_NOT_CANCELABLE` |
 | Ocena / Edytuj / finalize gdy nie `completed`/`failed` (w tym `cancelled`) | **409** `RUN_NOT_REVIEWABLE` |
 | Opinia `targetType=run` gdy nie `completed`/`failed` i nie (`cancelled` z wynikiem) | **409** `RUN_NOT_REVIEWABLE` |
@@ -434,12 +460,12 @@ status completed | failed  →  pipelineFinishedAt = now (raz)
   → okno otwarte iff reviewFinalizedAt === null AND now < pipelineFinishedAt + REVIEW_TTL
   → autor: gwiazdki 1–5 albo zostaw null; opcjonalnie Edytuj → zapis nowej treści result + outputEdited=true
   → Zamknij/zapisz przegląd (ręczne) → reviewFinalizedAt; dalsze zmiany zablokowane
-  → po TTL: mutacje → 409 REVIEW_LOCKED (bez UPDATE); sweeper (boot / REVIEW_SWEEP_INTERVAL)
+  → po TTL: mutacje → 409 REVIEW_LOCKED (bez UPDATE); sweeper na apps/worker (boot / REVIEW_SWEEP_INTERVAL)
        → UPDATE reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL
        → bez DELETE; bez zmiany result / userRating / outputEdited
 ```
 
-Wyłączenie api **nie** przedłuża okna. Po starcie boot sweeper domyka zaległe (także legacy po backfillu kotwicy z migracji: `updatedAt` → fallback `createdAt`). Restart **nie** otwiera przeglądu na nowo.
+Wyłączenie api **ani** workera **nie** przedłuża okna TTL. Po starcie **workera** boot sweeper domyka zaległe (także legacy po backfillu kotwicy z migracji: `updatedAt` → fallback `createdAt`). Restart **nie** otwiera przeglądu na nowo. Api **nie** uruchamia sweepera.
 
 `cancelled` **nie** otwiera przeglądu (gwiazdki / Edytuj / finalize → **409** `RUN_NOT_REVIEWABLE`; `pipelineFinishedAt` zawsze `null`). Partial wynik na snapshotcie jest widoczny jak przy `failed`.
 

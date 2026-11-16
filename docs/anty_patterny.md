@@ -1,7 +1,7 @@
 ---
-wersja: 22
+wersja: 23
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-11-12
+data_modyfikacji: 2026-11-16
 ---
 
 # Anty-patterny — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-12
 Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego źle → zamiast tego. Ogólny podręcznik Nest/Next — poza zakresem.
 
 Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `security.md`.
+
+Zmiana względem wersji 22 / izolacja workera: zakazy pg-boss jako SoT; Redis/HTTP/polling DB jako default most SSE lub soft-abort; dual recovery / dual review sweep; hub Subjectów w workerze; pomijanie recovery/logów w moście; snapshot `Run` w jobie; worker per BC; HITL czekający na slot (B) jako norma.
 
 Zmiana względem wersji 21 / auth self-service: wzmocniono wiersz activate ≠ confirm; zakaz trzymania hasła/delete tylko na Users; zakaz obiecywania dual-mode/i18n jako must fali auth przy P0-only.
 
@@ -75,6 +77,15 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | Rollback wyniku po cancel | Kasuje już zacommitowane artefakty; rozjazd z kanonem persist | Bez rollbacku; hop w locie nie jest dopisywany (`data_flow.md`) |
 | Await `execute` w requeście HTTP cancel | Timeouty; UI czeka na zwinięcie hopu | CAS + **200** od razu + abort w tle (`architektura.md`) |
 | Mapa Subject SSE per `runId` bez `complete` / evikcji po terminalu | Wyciek pamięci przez życie procesu; wiszące sockety | Po `completed`/`failed`/`cancelled`: complete Observable + usunięcie wpisu; late-join na skończonym runie też kończy stream (`dokumentacja_komunikacji.md`) |
+| pg-boss / kolejka jobów jako SoT statusu runu | Drugi lifecycle; drift claim / recovery / `cancelRequested` | SoT = tabela `Run`; pg-boss = wake/dispatch; payload `{ runId }` + load z DB |
+| Redis / HTTP sync / polling tabeli Run jako default mostu live SSE lub soft-abort | Łamie EventSource-na-api; race i obciążenie | Most SSE = PG NOTIFY → api LISTEN → hub; abort live = NOTIFY `run.abort` (osobny kanał) |
+| Recovery boot w api **i** w workerze | Podwójne `interrupted` / podwójny claim | Recovery wyłącznie na bootcie **`apps/worker`** |
+| Dual review sweep (timer w api + worker) | Wyścigi UPDATE `reviewFinalizedAt` | Owner = worker (boot + interval); api bez timera |
+| Hub Subjectów / EventSource w procesie workera | FE nie łączy się z workerem; dwa huby | Subjecty tylko w api; worker = adapter NOTIFY-only na `RunSseHub` |
+| Pomijanie recovery / logów / `complete` w moście SSE z workera | FE ślepe na część eventów | Most = **wszystkie** eventy SSE emitowane z procesu workera |
+| Snapshot całego `RunRecord` w payloadzie joba | Stale data; drugi SoT | Tylko `{ runId }`; worker ładuje z DB przed claim/execute |
+| Osobny worker per BC (YouTube / publish / Workspace) w V1 | Rozrost topologii bez potrzeby | Jeden always-on `apps/worker` |
+| HITL czekający na wolny slot claim (wariant B) jako norma | Blokuje płynną kontynuację po selekcji | Wariant **A**: poza claim FIFO; resume bumpuje `inFlight` (`dictionary.md`) |
 | Nieskończona pętla refine | Koszt LLM, zawieszony run | Twardy limit `max N=2` |
 | Osobne „mikroserwisy agentów” w MVP | Overengineering względem modularnego monolitu | Węzły w grafie BC w `apps/api` |
 | `forwardRef` Runs ↔ Social / Content (albo `RunsModule` importuje każdy graf) jako klej pipeline’u | Cykl Nest; orkiestrator zna katalog agentów | Graf woła port lifecycle Runs; composite `RUN_EXECUTOR` wiązany w `AppModule` / `registerAsync`; bez self-register w MVP |

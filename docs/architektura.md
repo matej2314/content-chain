@@ -1,14 +1,16 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-11-09
+data_modyfikacji: 2026-11-16
 ---
 
 # Architektura — Content Chain
 
 ## Widok systemu
 
-Content Chain to **modularny monolit w monorepo** z trzema osobnymi procesami runtime oraz wspólnym pakietem kontraktów.
+Content Chain to **modularny monolit w monorepo** z **czterema** osobnymi procesami runtime oraz wspólnym pakietem kontraktów.
+
+Zmiana względem wersji 8 / in-process worker w `apps/api`: execute runów, recovery boot, review sweep (boot + interval) oraz mapa abortu żyją w always-on **`apps/worker`**. Api zostaje właścicielem HTTP (admit, cancel, HITL, SSE subscribe, enqueue), hubu Subjectów SSE oraz `LISTEN` (most PG NOTIFY → FE). Kolejka wake/dispatch = **pg-boss** na PostgreSQL; SoT statusów / claim / recovery / `cancelRequested` = tabela `Run`. Abort live = NOTIFY kanał `run.abort` (osobny od mostu SSE). Cap / HITL = **wariant A** (poza claim FIFO; resume płynny). Szczegóły: `data_flow.md`, `dictionary.md`.
 
 Zmiana względem wersji 7 / observability: `metrics/` czyta liczniki `RunStatus` **przez port** (`RunStatsPort` / `countByStatus`) — **zakaz** Prisma w module ops; obowiązuje na SQLite (MVP) i po PG. Szczegół → `observability.md`.
 
@@ -28,7 +30,8 @@ Zmiana względem: warstwy BC bez normy podkatalogów I/O poza Social/Content. Od
 
 | Element                    | Rola                                                                                                        |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `apps/api`                 | Jedyny właściciel domeny i orchestracji: auth, kontekst firmy, pipeline Social i Content, runy, logi, persistence         |
+| `apps/api`                 | HTTP / domena produktu: auth, kontekst, admit, cancel, HITL, enqueue jobów, hub Subjectów SSE (`LISTEN` ← PG NOTIFY), persistence; **bez** pump/execute runów i **bez** review sweep |
+| `apps/worker`              | Always-on: recovery boot, review sweep (boot + interval), drain/claim, execute, `RunAbortRegistry`, lifecycle → hub NOTIFY-only; **bez** publicznej powierzchni REST runów operatora |
 | `apps/frontend`            | Cienki klient UI (dashboard, flow’y Social i Content, podgląd logów); bez reguł domenowych i bez dostępu do vendorów LLM  |
 | `apps/ai-provider-gateway` | Osobny deployable: routing / providery LLM; **zero** logiki Content Chain (Social, kontekst, auth produktu) |
 | `packages/shared`          | Lekkie, współdzielone typy publicznego kontraktu API (bez logiki biznesowej, **bez Zod**) |
@@ -38,20 +41,24 @@ flowchart LR
   subgraph monorepo["Monorepo Content Chain"]
     FE["apps/frontend"]
     API["apps/api"]
+    WK["apps/worker"]
     GW["apps/ai-provider-gateway"]
     SH["packages/shared"]
   end
 
   User["Admin / User"] --> FE
-  FE -->|"HTTP + cookies cc_access/cc_refresh"| API
-  API -->|"port LLM"| GW
+  FE -->|"HTTP + cookies + EventSource SSE"| API
+  API -->|"enqueue / LISTEN SSE + run.abort"| PG[(PostgreSQL)]
+  WK -->|"claim / execute / NOTIFY SSE + abort"| PG
+  WK -->|"port LLM"| GW
+  API -->|"port LLM (gdy lokalny hop)"| GW
   GW -->|"vendors LLM"| Vendors["Dostawcy modeli"]
-  API --> DB[(SQLite)]
   FE -.-> SH
   API -.-> SH
+  WK -.-> SH
 ```
 
-**Zasada zależności:** `apps/frontend` → `apps/api` → (porty) → adaptery (Prisma/SQLite, klient gateway). `apps/api` **nie** woła vendorów LLM bezpośrednio. Gateway nie zależy od domeny `apps/api`.
+**Zasada zależności:** `apps/frontend` → `apps/api` (HTTP/SSE). Execute i recovery: `apps/worker` → PG (SoT + pg-boss + NOTIFY) oraz → gateway (LLM). `apps/api` **nie** woła vendorów LLM bezpośrednio. Gateway nie zależy od domeny produktu. Pierwszy cut: worker może importować executor / lifecycle z drzewa api — extract do `packages/*` **nie** jest prereq dnia 1.
 
 Content Chain jest też **realnym use-case’em** projektu `ai-provider-gateway` (instancja dostosowana w `apps/ai-provider-gateway`), a nie tylko izolowanym demo samego gateway’a.
 
@@ -59,7 +66,7 @@ Content Chain jest też **realnym use-case’em** projektu `ai-provider-gateway`
 
 ### Styl globalny
 
-- **Modularny monolit** (trzy aplikacje w jednym repo, jasne granice procesów).
+- **Modularny monolit** (cztery aplikacje runtime w jednym repo: `api`, `frontend`, `ai-provider-gateway`, `worker` — jasne granice procesów).
 - **Porty i adaptery** na granicach I/O: persistence, LLM (przez gateway), ewentualnie inne zewnętrzne zależności.
 - **Strategiczne DDD „lekko”:** bounded contexty i wspólny język (`CompanyContext`, `Run`, `PostIdeas`, `PostContent`, `ReelIdea`, `PageDocument`, …) — **bez** narzucania pełnej taktyki DDD (bogate agregaty / event sourcing wszędzie) w MVP.
 
@@ -105,13 +112,13 @@ Zmiana względem wersji 5: etykiety YouTube / publikacja / audytorzy-6 jako V1 �
 
 ### Zależności między BC w `apps/api`
 
-Runs jest orkiestratorem **procesu** (kolejka, statusy, logi, SSE, recovery). Social i Content są orkiestratorami **treści** swojego kanału.
+Runs jest orkiestratorem **procesu** (statusy, logi, SSE, recovery, claim). Social i Content są orkiestratorami **treści** swojego kanału. Po izolacji: HTTP / hub Subjectów / enqueue = `apps/api`; pump/execute / recovery boot / review sweep / AbortRegistry = `apps/worker`.
 
 Kierunek współpracy:
 
 - Graf agenta **woła porty Runs** (`appendLog`, `transition`) — bez omijania cyklu życia runu i bez emisji SSE z węzłów.
-- Worker Runs woła jeden port `RunExecutorPort` („wykonaj ten run”). Implementacja: **composite** w kleju (`taskType` → `SocialRunExecutor` \| `ContentRunExecutor`; nieznany → `failed` / `UNKNOWN_TASK_TYPE`).
-- **Spięcie** tokenów executora i readera z konkretnymi klasami należy do **kleju procesu** (`AppModule` / `registerAsync`) — nie do wzajemnego importu modułów Nest (`forwardRef` Runs ↔ Social / Content). Social **nie** importuje Content i odwrotnie. `RunsModule` **nie** importuje żadnego grafu.
+- Worker (`apps/worker`) woła jeden port `RunExecutorPort` („wykonaj ten run”). Implementacja: **composite** w kleju (`taskType` → `SocialRunExecutor` \| `ContentRunExecutor`; nieznany → `failed` / `UNKNOWN_TASK_TYPE`).
+- **Spięcie** tokenów executora i readera z konkretnymi klasami należy do **kleju procesu** (composition root api i/lub worker) — nie do wzajemnego importu modułów Nest (`forwardRef` Runs ↔ Social / Content). Social **nie** importuje Content i odwrotnie. `RunsModule` **nie** importuje żadnego grafu.
 - Nowy folder BC w MVP (Content) + nowy wpis w kleju — **ręczny**. Self-register grafów (`OnModuleInit` do rejestru) **nie** jest wzorcem MVP.
 - Reader snapshotu: composite składa pola addytywne (social i/lub reel i/lub content), w tym tablice `contents` / `reelScripts` (pusta tablica gdy brak kanału).
 
@@ -149,27 +156,29 @@ flowchart TB
 Pipeline produktowy działa jako **asynchroniczny run**:
 
 1. Klient tworzy run (brief **w kształcie kanału** — `SocialBrief` albo `ContentBrief` wg `taskType`, typ tasku, `platform` **albo** `contentKind`, język) → otrzymuje `runId`. Nie ma jednego uniwersalnego obiektu briefu SM na `page_*` (`dokumentacja_komunikacji.md`).
-2. Worker / kontynuacja w `apps/api` wykonuje graf (Social albo Content wg `taskType`); każdy istotny krok dopisuje **czytelny wpis logu** w DB.
-3. Live postęp (status, logi przyrostowe, sygnał HITL, completed/failed/**cancelled**) idzie do klienta przez **SSE** (`GET /api/v1/runs/:runId/events`). Po `run.completed` / `run.failed` / **`run.cancelled`** serwer **kończy** strumień (complete huba jak R-4a); dalszy odczyt = GET. **GET** równolegle: snapshot logów runu oraz `GET /api/v1/health` — bez pollingu statusu jako kanału live. Szczegóły cyklu życia SSE: `dokumentacja_komunikacji.md`.
-4. Przy tasku dwuetapowym run przechodzi w stan oczekiwania na **HITL** (wybór z listy pomysłów / rolek / outline’u); wznowienie osobnym wywołaniem API. Anulowanie w `awaiting_hitl` ma tę samą semantykę `cancelled` (porzucenie wyboru).
+2. Api enqueue job wake/dispatch (**pg-boss**, payload `{ runId }`); **`apps/worker`** ładuje `Run` z DB, claimuje pod `MAX_CONCURRENT_RUNS` i wykonuje graf (Social albo Content wg `taskType`). Każdy istotny krok dopisuje **czytelny wpis logu** w DB. **Zakaz** spawnu procesu per run; V1 = jeden always-on `apps/worker`.
+3. Live postęp (status, logi przyrostowe, sygnał HITL, completed/failed/**cancelled**) idzie do klienta przez **SSE** na api (`GET /api/v1/runs/:runId/events`). Eventy z procesu workera: lifecycle → hub NOTIFY-only → PG `NOTIFY` → api `LISTEN` → hub Subjectów → FE. Eventy lokalne api (np. cancel HTTP, transition HITL w api) → hub bezpośrednio, bez obowiązkowego NOTIFY. Po `run.completed` / `run.failed` / **`run.cancelled`** serwer **kończy** strumień (complete huba jak R-4a); dalszy odczyt = GET. **Bez** pollingu tabeli Run jako kanału live; **bez** Redis jako mostu SSE. Szczegóły: `dokumentacja_komunikacji.md`, `data_flow.md`.
+4. Przy tasku dwuetapowym run przechodzi w stan oczekiwania na **HITL**; wznowienie osobnym wywołaniem API. Api ustawia `running` + job `run.execute({ runId })`; worker ładuje z DB i execute **bez** claim. **Wariant A:** HITL jest **poza limitem claim FIFO** — kontynuacja leci od razu (nie czeka na wolny slot); resume bumpuje `inFlight` (może chwilowo przekroczyć `MAX`); drain nie claimuje, aż zejdzie. Anulowanie w `awaiting_hitl` = `cancelled`.
 5. Task jednoetapowy kończy się bez pauzy selekcji.
 6. Wynik (addytywny snapshot: ideas / content / **contents** / reelIdeas / reelScript / **reelScripts** / pageOutline / pageDocument) i werdykt weryfikacji spójności są zapisane w DB i dostępne przez API / UI.
-7. Po `completed` albo `failed` autor runu (`startedBy`) może: zapisać edycję wyniku (`POST .../output-edited` z `{ result }` — zastępuje kanoniczny wynik **oraz** stawia `outputEdited`), ustawić ocenę `1–5` albo zostawić `null`, potem **zatwierdzić / zamknąć przegląd** — od tej chwili ocena i treść/`outputEdited` są niemutowalne. Opinia tekstowa (aplikacja / agent / run) jest osobnym zapisem (BC Feedback), niezależnym od grafu. Na `cancelled` przegląd (gwiazdki/Edytuj/finalize) jest zakazany; opinia o runie — gdy jest partial wynik.
-8. **Anulowanie (Stop) V1:** autor (lub admin→guest) woła `POST .../cancel` → CAS statusu (`attemptCancel`) + `cancelledAt` + SSE + **200** od razu; execute **nie** jest awaitowane w tym requeście. Abort = in-process `AbortSignal` w `apps/api` (niżej). Mapowanie disconnect→`AbortSignal` hopu w gateway — **odłożone**.
-9. **Admit startu (V1):** po bramce kompletności (i polityce guest, gdy dotyczy) — limit per-user runów w toku (`MAX_USER_IN_FLIGHT_RUNS`); dopiero potem create / enqueue pod globalnym `MAX_CONCURRENT_RUNS`. Przekroczenie per-user = błąd domenowy, nie ciche `queued` ponad cap użytkownika (`data_flow.md`). Limit per-user jest **główną tamą** kosztów równoległych hopów, dopóki abort hopu w gateway jest odłożony.
+7. Po `completed` albo `failed` autor runu (`startedBy`) może: zapisać edycję wyniku (`POST .../output-edited` z `{ result }` — zastępuje kanoniczny wynik **oraz** stawia `outputEdited`), ustawić ocenę `1–5` albo zostawić `null`, potem **zatwierdzić / zamknąć przegląd** — od tej chwili ocena i treść/`outputEdited` są niemutowalne. Opinia tekstowa (aplikacja / agent / run) jest osobnym zapisem (BC Feedback), niezależnym od grafu. Na `cancelled` przegląd (gwiazdki/Edytuj/finalize) jest zakazany; opinia o runie — gdy jest partial wynik. **Review sweep** (auto-finalize po `REVIEW_TTL`): owner = **`apps/worker`** (boot + `REVIEW_SWEEP_INTERVAL`); api **nie** uruchamia timera.
+8. **Anulowanie (Stop) V1:** autor (lub admin→guest) woła `POST .../cancel` → CAS (`attemptCancel`) + `cancelledAt` + SSE na hubie api + **200** od razu; execute **nie** jest awaitowane. Soft-stop live: durable `cancelRequested` **oraz** PG `NOTIFY` kanał `run.abort` (payload `runId`) → worker `requestCancel` na `RunAbortRegistry`. Ten sam port sygnału dla `CancelRunUseCase` i purge guest (`DeleteUserUseCase`). Mapowanie disconnect→`AbortSignal` hopu w gateway — **odłożone**.
+9. **Admit startu (V1):** po bramce kompletności (i polityce guest, gdy dotyczy) — limit per-user (`MAX_USER_IN_FLIGHT_RUNS`); potem create / enqueue pod globalnym `MAX_CONCURRENT_RUNS` (claim w workerze). Przekroczenie per-user = błąd domenowy (`data_flow.md`).
 
 ### Anulowanie runu — mechanizm V1 (wysoki poziom)
 
-- **`InProcessRunWorker`:** `Map<RunId, AbortController>` — przy starcie `execute` tworzy controller i wpisuje do mapy; po zakończeniu usuwa.
-- Cancel use-case → `requestCancel(runId)` → `controller.abort()`.
-- **`RunExecutorPort.execute`** przyjmuje `AbortSignal`; klient HTTP do `apps/ai-provider-gateway` przekazuje sygnał — api **przerywa własny** `fetch` (**MVP**, zostaje).
-- **Abort hopu w gateway / u vendora — odłożone:** mapowanie disconnect klienta HTTP na `AbortSignal` hopu LLM w `apps/ai-provider-gateway` **nie** jest kanonem bieżącego V1 (odłożone na późniejsze fazy pracy — **bez** pinu numeru). Po cancel hop w gateway **może** dobiec do końca mimo abortu `fetch` z api. Abort u zewnętrznego providera LLM pozostaje poza gwarancją, dopóki gateway nie honoruje sygnału.
-- **Port `attemptCancel` (CAS)** na repozytorium Runs: warunkowy zapis `cancelled` tylko ze statusu nieterminalnego; spójnie z kanonem — szczegóły egzekwowalne w `spec/SPEC-RUNY.md`.
-- **Ograniczenie procesu:** mapa abortu in-process = jeden proces Node `apps/api`. Durable `cancelRequested` w DB zostaje guardem recovery po crashu — niezależnie od mapy in-memory.
+- **`RunAbortRegistry` tylko w `apps/worker`:** `Map<RunId, AbortController>` — przy starcie `execute` tworzy controller; po zakończeniu usuwa. **Zakaz** trzymania tej mapy w procesie api.
+- Cancel / purge w api → durable flag + **NOTIFY `run.abort`** → worker `requestCancel(runId)` → `controller.abort()`. Zgubiony NOTIFY łata recovery / leftover jak dziś po crashu.
+- **`RunExecutorPort.execute`** przyjmuje `AbortSignal`; klient HTTP do gateway (z workera) przekazuje sygnał — worker **przerywa własny** `fetch` (MVP, zostaje).
+- **Abort hopu w gateway / u vendora — odłożone:** mapowanie disconnect klienta HTTP na `AbortSignal` hopu LLM w gateway **nie** jest kanonem bieżącego V1. Po cancel hop w gateway **może** dobiec. Abort u zewnętrznego providera LLM poza gwarancją, dopóki gateway nie honoruje sygnału.
+- **Port `attemptCancel` (CAS)** na repozytorium Runs: warunkowy zapis `cancelled` tylko ze statusu nieterminalnego — `SPEC-RUNY.md`.
+- **Hub SSE:** Subjecty / mapa Observable **tylko w api** (rename z `InMemoryRunSseHub` na nazwę neutralną — lokalny hub procesu api). Worker: adapter **NOTIFY-only** na porcie `RunSseHub` (`publish`/`complete` → NOTIFY; **bez** Subjectów / bez FE). **Zakaz** równoległych implementacji „na zapas”; **zakaz** in-memory Subjectów w workerze.
 
-Zmiana względem wcześniejszego zapisu w tym dokumencie: zamiast opierania obserwacji runu na samym pollingu HTTP — **SSE od MVP** (szczegóły kontraktu: `dokumentacja_komunikacji.md`). Dopisano fundament feedbacku (zapis w MVP; panel analityczny = V1 — rozbudowa). Dopisano, że strumień SSE kończy się po evencie terminalnym (wcześniej tylko „live przez SSE”, bez końca połączenia). Snapshot addytywny obejmuje `contents` / `reelScripts` (pusta tablica gdy brak kanału) — nie tylko skalary `content` / `reelScript`. **Edytuj:** pkt 7 wcześniej opisywał wyłącznie flagę; od tej wersji `POST .../output-edited` nadpisuje kanoniczny `result` (`dokumentacja_komunikacji.md`). Tablice pipeline Social: `clear`+`append` na porcie wyniku; zapis Edytuj = `OutputEditedWriter` w Runs (nie `replaceContents` / `replaceReelScripts` na `SocialResultStore`). Dopisano trzeci terminal `cancelled` i mechanizm cancel v1.
+Zmiana względem wersji 8: execute + abort mapa + recovery boot + review sweep wyłącznie w `apps/api` / `InProcessRunWorker` — **unieważnione** na rzecz `apps/worker` + pg-boss + most NOTIFY + abort `run.abort` (wariant HITL **A**).
 
-Zmiana względem: „Abort na gateway / providerze LLM **poza** v1”; brak bramki per-user przy starcie. Następnie (v6): abort V1 = api→gateway + limit per-user. **Od wersji 7:** mapowanie disconnect→`AbortSignal` hopu w gateway **odłożone**; limit per-user + abort in-process w api pozostają kanonem V1.
+Zmiana względem wcześniejszego zapisu w tym dokumencie: zamiast opierania obserwacji runu na samym pollingu HTTP — **SSE od MVP** (szczegóły kontraktu: `dokumentacja_komunikacji.md`). Dopisano fundament feedbacku (zapis w MVP; panel analityczny = V1 — rozbudowa). Dopisano, że strumień SSE kończy się po evencie terminalnym. Snapshot addytywny obejmuje `contents` / `reelScripts`. **Edytuj:** `POST .../output-edited` nadpisuje kanoniczny `result`. Dopisano trzeci terminal `cancelled` i mechanizm cancel v1.
+
+Zmiana względem: „Abort na gateway / providerze LLM **poza** v1”; brak bramki per-user przy starcie. Następnie (v6): abort V1 = api→gateway + limit per-user. **Od wersji 7:** mapowanie disconnect→`AbortSignal` hopu w gateway **odłożone**.
 
 ## Auth
 
@@ -203,7 +212,8 @@ Norma egzekwowalna: `spec/SPEC-PERSISTENCE.md`.
 
 | Decyzja         | Wybór                                           | Odrzucone / odłożone                           |
 | --------------- | ----------------------------------------------- | ---------------------------------------------- |
-| Forma systemu   | Modularny monolit, 3 app + shared               | Mikroserwisy domenowe w MVP                    |
+| Forma systemu   | Modularny monolit, **4** app (`api` / `frontend` / `gateway` / `worker`) + shared | Mikroserwisy domenowe; worker per BC; in-process execute w api jako kanon po izolacji |
+| Execute / queue | `apps/worker` + pg-boss (wake) + SoT = `Run`    | pg-boss jako SoT statusu; BullMQ/Redis most SSE; spawn per run |
 | Styl domeny     | Port/adapter + lekkie BC; nie pure tactical DDD | Full DDD / ES / CQRS                           |
 | LLM             | Tylko przez gateway w monorepo                  | Bezpośrednie SDK vendorów w `apps/api`         |
 | Pipeline        | Async run + LangGraph za fasadą                 | Synchroniczny request = cały LLM               |

@@ -149,4 +149,70 @@ describe('RunLifecycleService', () => {
     const completeOrder = sseHub.complete.mock.invocationCallOrder[0];
     expect(completeOrder).toBeGreaterThan(secondPublishOrder);
   });
+
+  it('appendLog publishes run.log via Local hub', async () => {
+    const run = makeRun('running');
+    const entry = {
+      runId: run.id,
+      conversationId: null,
+      at: new Date('2026-11-16T12:00:00.000Z'),
+      level: 'info' as const,
+      message: 'hello',
+    };
+    const runs = {
+      appendLog: jest.fn().mockResolvedValue({ id: 'log_1', entry }),
+    } as unknown as RunRepository;
+    const sseHub = {
+      publish: jest.fn(),
+      subscribe: jest.fn(),
+      complete: jest.fn(),
+    } as unknown as RunSseHub & { publish: jest.Mock };
+    const service = new RunLifecycleService(runs, sseHub);
+
+    await service.appendLog({
+      runId: run.id,
+      conversationId: null,
+      level: 'info',
+      message: 'hello',
+    });
+
+    expect(sseHub.publish).toHaveBeenCalledWith({
+      event: 'run.log',
+      data: { ...entry, runId: run.id },
+    });
+  });
+
+  it('appendLog uses publishLog when hub supports it', async () => {
+    const run = makeRun('running');
+    const entry = {
+      runId: run.id,
+      conversationId: null,
+      at: new Date('2026-11-16T12:00:00.000Z'),
+      level: 'info' as const,
+      message: 'hello',
+    };
+    const runs = {
+      appendLog: jest.fn().mockResolvedValue({ id: 'log_1', entry }),
+    } as unknown as RunRepository;
+    const sseHub = {
+      publish: jest.fn(),
+      publishLog: jest.fn(),
+      subscribe: jest.fn(),
+      complete: jest.fn(),
+    } as unknown as RunSseHub & {
+      publish: jest.Mock;
+      publishLog: jest.Mock;
+    };
+    const service = new RunLifecycleService(runs, sseHub);
+
+    await service.appendLog({
+      runId: run.id,
+      conversationId: null,
+      level: 'info',
+      message: 'hello',
+    });
+
+    expect(sseHub.publishLog).toHaveBeenCalledWith('log_1', run.id);
+    expect(sseHub.publish).not.toHaveBeenCalled();
+  });
 });

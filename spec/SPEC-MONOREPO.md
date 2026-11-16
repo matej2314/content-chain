@@ -1,7 +1,7 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-09
+data_modyfikacji: 2026-11-16
 ---
 
 # SPEC — Monorepo
@@ -12,21 +12,23 @@ Norma **granic procesów, workspaces i zależności** w monorepo Content Chain p
 
 Ten SPEC **nie** opisuje reguł domenowych BC, kontraktów HTTP/SSE ani schematu Prisma — tylko układ repo i dozwolone powiązania między pakietami.
 
+Zmiana względem wersji 9 / M-1 „dokładnie trzy aplikacje”: cztery runtime — dopisano **`apps/worker`**. Worker → PG / gateway (jak api); **zakaz** publicznego REST runów operatora na workerze; hub NOTIFY w workerze vs Subjecty w api (`SPEC-RUNY.md`); import TS z drzewa api na pierwszy cut **dopuszczalny** (extract `packages/*` nie jest prereq dnia 1).
+
 Zmiana względem wersji 8: brak normy buildu obrazów Docker. Od tej wersji M-9 — kontekst **root** monorepo + **pnpm** (`docs/deployment.md`).
 
 ## Powiązanie ze stylem z docs
 
 Wiążące:
 
-- styl globalny: **modularny monolit** (trzy aplikacje w jednym repo) + **porty/adaptery** na granicach I/O (`docs/architektura.md`);
+- styl globalny: **modularny monolit** (cztery aplikacje runtime w jednym repo) + **porty/adaptery** na granicach I/O (`docs/architektura.md`);
 - docelowe drzewo i mapowanie styl → katalogi (`docs/architektura_katalogi_pliki.md`);
-- zasada zależności: `apps/frontend` → `apps/api` (HTTP) → porty → adaptery; gateway bez domeny Content Chain.
+- zasada zależności: `apps/frontend` → `apps/api` (HTTP/SSE); `apps/worker` → PG + gateway; gateway bez domeny Content Chain.
 
 **Wyjątek względem stylu globalnego:** brak — ten obszar egzekwuje styl globalny na poziomie layoutu i zależności.
 
 ## Wymagania (egzekwowalne)
 
-M-1. W rootcie monorepo istnieją dokładnie trzy aplikacje runtime: `apps/api`, `apps/frontend`, `apps/ai-provider-gateway`, oraz pakiet `packages/shared`.
+M-1. W rootcie monorepo istnieją **cztery** aplikacje runtime: `apps/api`, `apps/frontend`, `apps/ai-provider-gateway`, `apps/worker`, oraz pakiet `packages/shared`.
 
 M-2. Workspace jest zarządzany przez **pnpm** (`package.json` + `pnpm-workspace.yaml` w rootcie). Definicja członków workspace obejmuje `apps/*` i `packages/*` (lub równoważne globy zgodne z drzewem docs).
 
@@ -44,7 +46,9 @@ M-8. `apps/api/src/shared/` (jeśli używany) służy wyłącznie cross-cuttingo
 
 Zmiana względem wersji 5 / M-8: wcześniejsze brzmienie dopuszczało cross-cutting bez dublowania `packages/shared` regułami domenowymi, ale **nie** wymieniało jawnie helpera `parse-with-zod.ts`. Od tej wersji lokalizacja wspólnego `parseWithZod` w api shared jest legalna i kanoniczna.
 
-M-9. Obrazy Docker usług workspace (`api`, `frontend`; gateway gdy zależy od `workspace:` / shared) buduje się z **kontekstu roota** monorepo przez **pnpm** (zachowanie protokołu `workspace:` / `pnpm-lock.yaml`). Dockerfile wskazuje ścieżkę `apps/<svc>/Dockerfile` (lub równoważną), `context: .` (root). **Zakaz** zakładania samodzielnego `npm ci` / `npm install` w izolowanym `apps/<svc>` jako kanonu produkcji przy zależnościach `workspace:` — łamie shared / lockfile (`docs/deployment.md`).
+M-9. Obrazy Docker usług workspace (`api`, `frontend`, `worker`; gateway gdy zależy od `workspace:` / shared) buduje się z **kontekstu roota** monorepo przez **pnpm** (zachowanie protokołu `workspace:` / `pnpm-lock.yaml`). Dockerfile wskazuje ścieżkę `apps/<svc>/Dockerfile` (lub równoważną), `context: .` (root). **Zakaz** zakładania samodzielnego `npm ci` / `npm install` w izolowanym `apps/<svc>` jako kanonu produkcji przy zależnościach `workspace:` — łamie shared / lockfile (`docs/deployment.md`).
+
+M-10. `apps/worker`: cienki bootstrap Nest; **bez** publicznej powierzchni REST runów operatora (EventSource / `POST /runs` zostają na api). Zależności runtime: ten sam store PG (po cutoverze) + gateway jak api. Adapter hub SSE = NOTIFY-only; Subjecty hub wyłącznie w api (`SPEC-RUNY.md` R-4a).
 
 Zmiana względem wersji 8: brak normy Docker/pnpm przy buildzie obrazów. Od tej wersji M-9.
 
@@ -54,7 +58,7 @@ Zmiana względem wersji 8: brak normy Docker/pnpm przy buildzie obrazów. Od tej
 
 | Element | Norma |
 |---------|--------|
-| Forma systemu | Modularny monolit w monorepo — trzy procesy + shared typy |
+| Forma systemu | Modularny monolit w monorepo — **cztery** procesy + shared typy |
 | Granica pakietów | 1 workspace package = 1 `package.json`; brak rootowego `src/apps/` |
 | Shared kontrakt | `packages/shared` → nazwa npm `@content-chain/shared` |
 | Komunikacja FE↔API | wyłącznie HTTP/SSE (klient sieciowy), bez importu źródeł api |
@@ -69,7 +73,8 @@ Zmiana względem wersji 8: brak normy Docker/pnpm przy buildzie obrazów. Od tej
 - Trzymać w `packages/shared` typy request/response, enumy ról (`UserRole` = `admin` \| `user` \| **`guest`**) / statusów runu / `RunTaskType` (post_*, reel_*, page_*) / `SocialPlatform` / `RunPlatform` / `ContentKind` / języków oraz brand types zgodne z `docs/brand_types.md`.
 - Trzymać `SocialBrief` / `ContentBrief` w BC Runs (`run.types.ts`) — to payload agregatu, nie publiczny enum FE/BE.
 - Uruchamiać pakiety skryptami root (`pnpm --filter api …`, `pnpm -r …`).
-- Rozszerzać drzewo wewnątrz `apps/*/src` zgodnie z BC i warstwami — w tym `apps/api/src/content/` (nie łamie M-1: nadal trzy aplikacje runtime). Szczegóły BC w osobnych SPEC.
+- Rozszerzać drzewo wewnątrz `apps/*/src` zgodnie z BC i warstwami — w tym `apps/api/src/content/` oraz `apps/worker/` (nie łamie M-1: cztery aplikacje runtime). Szczegóły BC w osobnych SPEC.
+- Na pierwszy cut izolacji: import TS lifecycle/executor z drzewa `apps/api` do `apps/worker` (decyzja cutoveru; extract do `packages/*` **nie** jest prereq dnia 1).
 - Podkatalogi I/O / kernel **wewnątrz** warstwy BC (Runs, Auth; Social/Content już: `graph/` / `prompts/` / `persistence/`) — nie łamie M-1; nie tworzy nowego workspace package ani nowego BC (`docs/architektura_katalogi_pliki.md`, `SPEC-RUNY.md`, `SPEC-AUTH.md`).
 - Trzymać w `apps/api/src/shared/` cienki helper `parse-with-zod.ts` (Zod → `VALIDATION_FAILED`) współdzielony przez BC — bez przenoszenia reguł domenowych ani Zod do `packages/shared`.
 
@@ -85,6 +90,8 @@ Zmiana względem wersji 7 / Wolno: drzewo warstw bez normy podkatalogów I/O. Od
 - Umieszczać `SocialBrief` / `ContentBrief` w `packages/shared` albo `apps/api/src/shared/types`.
 - Importować kod źródłowy `apps/ai-provider-gateway` z `apps/api` (lub odwrotnie) jako moduł TS.
 - Importować kod źródłowy `apps/api` z `apps/frontend` (tylko HTTP do API).
+- Wystawiać publiczny REST / SSE runów operatora z procesu `apps/worker` (M-10).
+- Trzymać hub Subjectów SSE w workerze (Subjecty = api; worker = NOTIFY-only).
 - Tworzyć drugiego pakietu „shared” z logiką biznesową poza `packages/shared`.
 - Opakowywać aplikacje w rootowy katalog `src/apps/`.
 - Wprowadzać Nx lub Turborepo jako wymóg DX w MVP.
@@ -110,7 +117,7 @@ Zmiana względem wersji 8 / „Nie wolno”: dopisano zakaz `npm` w izolowanym a
 ## Kryteria akceptacji
 
 - [ ] Root ma `pnpm-workspace.yaml` obejmujący `apps/*` i `packages/*` (lub równoważne globy).
-- [ ] Istnieją dokładnie ścieżki `apps/api`, `apps/frontend`, `apps/ai-provider-gateway`, `packages/shared`.
+- [ ] Istnieją ścieżki `apps/api`, `apps/frontend`, `apps/ai-provider-gateway`, `apps/worker`, `packages/shared` (M-1); worker bez publicznego REST runów (M-10).
 - [ ] `apps/api` i `apps/frontend` zależą od `@content-chain/shared` przez `workspace:` i importują wyłącznie nazwą pakietu; `UserRole` obejmuje `guest`.
 - [ ] W `packages/shared` brak ORM, use-case’ów, promptów i walidatorów runtime.
 - [ ] Brak importów TS między `apps/api` a `apps/ai-provider-gateway` oraz z `apps/frontend` do źródeł `apps/api`.

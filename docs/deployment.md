@@ -1,7 +1,7 @@
 ---
-wersja: 19
+wersja: 20
 data_utworzenia: 2026-09-30
-data_modyfikacji: 2026-11-12
+data_modyfikacji: 2026-11-16
 ---
 
 # Deployment — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-12
 Self-host MVP: jak uruchamiać, konfigurować i utrzymywać jedną instalację (jedna firma = jedna instancja).
 
 Powiązane: `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `testy.md`, `security.md`, `observability.md`.
+
+Zmiana względem wersji 19 / „wyłącznie trzy usługi aplikacyjne”: Compose-first V1 po izolacji = **cztery** usługi (`ai-provider-gateway` + `api` + `frontend` + **`worker`**); wspólna sieć i ten sam PG; env workera: DB, gateway, `MAX_CONCURRENT_RUNS`, `REVIEW_TTL` / `REVIEW_SWEEP_INTERVAL`. Review sweep i execute = worker. Dual-deploy AWS poza. Zmiana względem: trzy-only + sweep wyłącznie w api.
 
 Zmiana względem wersji 18: default `EMAIL_CHANGE_TTL` = **`7d`**. Od tej wersji default = **`24h`** (krótsze okno niż invite/activation) — `SPEC-AUTH.md` A-8.
 
@@ -60,9 +62,9 @@ Bez osobnego „SaaS multi-tenant cloud” w MVP. Staging opcjonalny później =
 ### DX — pnpm (`local`)
 
 1. `pnpm install` w rootcie (workspaces).
-2. Skopiować **per-app** `.env.example` → `.env` dla `apps/api`, `apps/ai-provider-gateway`, `apps/frontend` (DX / dokumentacja kluczy). W `production` te same klucze lądują w **jednym** root `.env` — patrz niżej.
-3. Migracje Prisma (api) na SQLite (`prisma migrate deploy` / skrypt DX).
-4. Uruchomić procesy: gateway → api → frontend (kolejność: najpierw gateway, potem api zależne od niego).
+2. Skopiować **per-app** `.env.example` → `.env` dla `apps/api`, `apps/ai-provider-gateway`, `apps/frontend`, `apps/worker` (DX / dokumentacja kluczy). W `production` te same klucze lądują w **jednym** root `.env` — patrz niżej.
+3. Migracje Prisma (api) na SQLite (`prisma migrate deploy` / skrypt DX). Po cutoverze PG — wspólny `DATABASE_URL` dla api i workera.
+4. Uruchomić procesy: gateway → api → **worker** → frontend (kolejność: najpierw gateway, potem api/worker zależne od DB/gateway).
 5. First-run w UI: landing `/` → **„Załóż konto”** → modal register; przy `bootstrap-status.available === true` — opcjonalne CTA **„Zarejestruj admina”** na formularzu register → tryb `bootstrap_admin` → `POST /api/v1/auth/bootstrap-admin` (logowanie nadal submituje wyłącznie `POST /auth/login`; CTA wejścia **„Załóż konto”** zawsze dostępne; **bez** CTA bootstrap na logowaniu — `ux_dashboard.md`). Równoważnie bootstrap z Postmana przy pustej DB (ops).
 
 Skrypty dokładne (`pnpm dev` / `pnpm --filter …`) doprecyzuje root `package.json` przy implementacji.
@@ -71,22 +73,23 @@ Skrypty dokładne (`pnpm dev` / `pnpm --filter …`) doprecyzuje root `package.j
 
 **Model: Compose-first.** Źródło prawdy runtime: root `docker-compose.yml`. Job Jenkins (gdy wdrożony) woła `docker compose up -d --build` w katalogu projektu.
 
-**Zakres usług stacku** — wyłącznie trzy:
+**Zakres usług stacku** — cztery aplikacyjne (+ store V1):
 
 | Usługa | Dockerfile (context = **root** monorepo) | Rola | Host bind | Kontener |
 |--------|------------------------------------------|------|-----------|----------|
 | `ai-provider-gateway` | `apps/ai-provider-gateway/…` (ścieżka w compose) | LLM | `127.0.0.1:3100` | `3100` |
-| `api` | `apps/api/Dockerfile` | Domena, runy, SSE, `/metrics` | `127.0.0.1:3001` | `3001` |
+| `api` | `apps/api/Dockerfile` | HTTP/domena, SSE hub + LISTEN, `/metrics`; **bez** execute/sweep | `127.0.0.1:3001` | `3001` |
+| `worker` | `apps/worker/Dockerfile` | Always-on: claim/execute, recovery, review sweep, AbortRegistry → NOTIFY | — (bez publicznego HTTP runów) | — |
 | `frontend` | `apps/frontend/Dockerfile` | UI (Next) | `127.0.0.1:3004` | `3004` |
-| Volume `api-sqlite` | — | Plik SQLite | — | `/app/data` → DB `file:/app/data/chain.db` |
+| Volume `api-sqlite` (MVP) / Postgres (V1) | — | SoT + pg-boss + kanały NOTIFY | — | wspólny store api **i** worker |
 
-**Poza bazowym `up`:** Redis, Ollama, Prometheus/Grafana i inne compose z `apps/ai-provider-gateway/deployment/` **nie** wchodzą w ten stack. Redis na serwerze jest **external** — api łączy się przez `REDIS_HOST` / `REDIS_PORT` (+ opcjonalne `REDIS_PASSWORD`) z env.
+**Poza bazowym `up`:** Redis, Ollama, Prometheus/Grafana i inne compose z `apps/ai-provider-gateway/deployment/` **nie** wchodzą w ten stack. Redis na serwerze jest **external** — api łączy się przez `REDIS_HOST` / `REDIS_PORT` (+ opcjonalne `REDIS_PASSWORD`) z env. **Bez** Redis jako mostu SSE / abort.
 
-**Sieci (wszystkie trzy usługi):**
+**Sieci (wszystkie usługi aplikacyjne):**
 
 | Sieć | Typ | Rola |
 |------|-----|------|
-| `cc-network` | tworzona w compose | DNS między serwisami (`api` ↔ `ai-provider-gateway` ↔ `frontend`) |
+| `cc-network` | tworzona w compose | DNS między serwisami (`api` ↔ `worker` ↔ `ai-provider-gateway` ↔ `frontend`) |
 | `main_network` | **external** (już na serwerze) | Podpięcie pod edge / reverse proxy na hoście |
 
 **Publish:** FE, api i gateway → wyłącznie **`127.0.0.1:<port>:<port>`** (nie `0.0.0.0`). Dostęp z internetu tylko przez edge na hoście / `main_network` (reverse proxy poza tym dokumentem jako pełny guide). Gateway **nie** jest publicznym originem.
@@ -109,15 +112,16 @@ Skrypty dokładne (`pnpm dev` / `pnpm --filter …`) doprecyzuje root `package.j
 ## Konfiguracja i sekrety
 
 - **Production:** **jeden** root `.env` w katalogu projektu (Jenkins generuje z Vault AppRole → flat map kluczy pod `secret/data/${CONT_NAME}/${VAULT_ENV}`). Compose podaje go wszystkim usługom (`env_file: ./.env` lub równoważne).
-- **DX / dokumentacja kluczy:** w repo nadal **per-app `.env.example`** (`apps/api`, `apps/ai-provider-gateway`, `apps/frontend`) oraz root `.env.example` (suma kluczy prod) — placeholdery; **nie** kanon runtime production.
+- **DX / dokumentacja kluczy:** w repo nadal **per-app `.env.example`** (`apps/api`, `apps/ai-provider-gateway`, `apps/frontend`, `apps/worker`) oraz root `.env.example` (suma kluczy prod) — placeholdery; **nie** kanon runtime production.
 - **Zakaz** commitowania `.env`, kluczy vendorów, `X-Gateway-Key`, JWT secrets; **zakaz** bake sekretów w warstwach obrazu.
-- Fail-fast: brak wymaganych zmiennych → proces nie wstaje (szczególnie api i gateway).
-- Nazwy zmiennych api = `apps/api/.env.example` (i walidacja przy starcie). Gateway / frontend — wg ich `.env.example` (te same nazwy w root `.env` w prod).
+- Fail-fast: brak wymaganych zmiennych → proces nie wstaje (szczególnie api, worker i gateway).
+- Nazwy zmiennych api = `apps/api/.env.example` (i walidacja przy starcie). Worker / gateway / frontend — wg ich `.env.example` (te same nazwy w root `.env` w prod).
 - W `production`: `CORS_ORIGIN` nie może być `*`.
 
 | Obszar | Zmienne |
 |--------|---------|
-| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (**kanon prod:** `file:/app/data/chain.db`), `GATEWAY_BASE_URL` (**kanon prod:** `http://ai-provider-gateway:3100`), `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, `MAX_CONCURRENT_RUNS`, **`DEMO_MODE`** (`true`\|`false`, default **`false`** — przy starcie procesu; zmiana = restart), **`GUEST_GLOBAL_CAP_PER_DAY`** (default **30**, walidowany), **`GUEST_RATING_CAP_PER_DAY`** (default **10**, walidowany), **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`ACTIVATION_TTL`** (default `7d`, ten sam parser — TTL tokenu aktywacji konta), **`EMAIL_CHANGE_TTL`** (default `24h`, ten sam parser — TTL tokenu confirm zmiany emaila; **nie** to samo co `ACTIVATION_TTL`), **`REVIEW_TTL`** (default `2h`, ten sam parser), **`REVIEW_SWEEP_INTERVAL`** (default `5m`, ten sam styl stringa TTL), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`**. Redis (gdy demo on / cap guest): **`REDIS_HOST`**+**`REDIS_PORT`** (wymagane przy `DEMO_MODE=true`; instancja **external** na serwerze — nie kontener w tym compose); opcjonalne **`REDIS_PASSWORD`**. Klucze: `content-chain:guest:daily:runs:{UTC-date}` oraz `content-chain:guest:daily:ratings:{userId}:{UTC-date}` |
+| Api | `NODE_ENV`, `PORT`, `DATABASE_URL` (**kanon prod MVP:** `file:/app/data/chain.db`; **V1:** Postgres shared z workerem), `GATEWAY_BASE_URL` (**kanon prod:** `http://ai-provider-gateway:3100`), `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, `JWT_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `CORS_ORIGIN`, **`DEMO_MODE`** (`true`\|`false`, default **`false`** — przy starcie procesu; zmiana = restart), **`GUEST_GLOBAL_CAP_PER_DAY`** (default **30**, walidowany), **`GUEST_RATING_CAP_PER_DAY`** (default **10**, walidowany), **`INVITE_TTL`** (default `7d`, ten sam parser co JWT TTL), **`ACTIVATION_TTL`** (default `7d`, ten sam parser — TTL tokenu aktywacji konta), **`EMAIL_CHANGE_TTL`** (default `24h`, ten sam parser — TTL tokenu confirm zmiany emaila; **nie** to samo co `ACTIVATION_TTL`), **`REVIEW_TTL`** (default `2h` — okno mutacji przeglądu w HTTP), **`MAIL_FROM`**, **`APP_PUBLIC_URL`**, **`SMTP_HOST`**, **`SMTP_PORT`**, **`SMTP_USER`**, **`SMTP_PASS`**. Redis (gdy demo on / cap guest): **`REDIS_HOST`**+**`REDIS_PORT`** (wymagane przy `DEMO_MODE=true`; instancja **external**); opcjonalne **`REDIS_PASSWORD`**. Klucze: `content-chain:guest:daily:runs:{UTC-date}` oraz `content-chain:guest:daily:ratings:{userId}:{UTC-date}`. Api **nie** wymaga `REVIEW_SWEEP_INTERVAL` / `MAX_CONCURRENT_RUNS` do pump execute (owner = worker). |
+| Worker | `NODE_ENV`, `DATABASE_URL` (ten sam PG/SQLite co api), `GATEWAY_BASE_URL`, `GATEWAY_KEY`, `GATEWAY_MODEL_ALIAS`, **`MAX_CONCURRENT_RUNS`**, **`REVIEW_TTL`**, **`REVIEW_SWEEP_INTERVAL`** (boot + interval na workerze). **Bez** publicznej powierzchni REST runów operatora. |
 | Gateway | klucze providerów, `gateway.config.yaml` (plik + mount), allowlista kluczy, port **3100** (szczegóły: `apps/ai-provider-gateway/.env.example`) |
 | Frontend | **`API_BASE_URL`** (**kanon prod:** `http://api:3001`; tylko proces Next → api; **bez** `NEXT_PUBLIC_*` na ten URL). Przeglądarka nie zna origina api. Port UI prod **3004**. |
 
@@ -132,9 +136,9 @@ Nazwy SMTP / maila są **kanoniczne** (te same w `spec/SPEC-BEZPIECZENSTWO.md` i
 | `ACTIVATION_TTL` | opcjonalne, default **`7d`** (jak invite) | to samo — TTL tokenu `AccountActivation` |
 | `EMAIL_CHANGE_TTL` | opcjonalne, default **`24h`** (**osobna** nazwa env; krócej niż `ACTIVATION_TTL`) | to samo — TTL tokenu confirm zmiany emaila (V1) |
 | `REVIEW_TTL` | opcjonalne, default **`2h`** (fail-fast przy złym stringu, jak inne TTL) | to samo — długość **okna przeglądu** od `pipelineFinishedAt` |
-| `REVIEW_SWEEP_INTERVAL` | opcjonalne, default **`5m`** (fail-fast przy złym stringu) | to samo — częstotliwość **okresowego** sweepera; boot api zawsze odpala sweeper **raz** |
+| `REVIEW_SWEEP_INTERVAL` | opcjonalne, default **`5m`** (fail-fast przy złym stringu) | to samo — częstotliwość **okresowego** sweepera na **`apps/worker`**; boot workera zawsze odpala sweeper **raz**; api **bez** timera |
 
-`REVIEW_TTL` = jak długo po `completed`/`failed` wolno mutować przegląd. `REVIEW_SWEEP_INTERVAL` = jak często job domyka wygasłe wiersze w DB (`reviewFinalizedAt`); **nie** przedłuża ani nie skraca okna przeglądu.
+`REVIEW_TTL` = jak długo po `completed`/`failed` wolno mutować przegląd. `REVIEW_SWEEP_INTERVAL` = jak często job na workerze domyka wygasłe wiersze w DB (`reviewFinalizedAt`); **nie** przedłuża ani nie skraca okna przeglądu.
 
 **Treść maili produktowych (SMTP):** body = **HTML + plain text**; subject i treść w **PL**. Invite / activation / **email-change confirm**: ważność linku w copy — **„Link jest jednorazowy i wygasa po {X}.”** ({X} w miejscowniku z aktualnego `INVITE_TTL` / `ACTIVATION_TTL` / **`EMAIL_CHANGE_TTL`**, np. invite `7d` → „7 dniach”; confirm default `24h` → „24 godzinach”) — kanon: `dokumentacja_komunikacji.md` / `SPEC-AUTH.md`. Raw token tylko w deep linku (nie osobna linia „Token (np. Postman)” w HTML/text). Adapter logujący poza `production` nadal wystarcza do DX (URL + raw) — HTML **nie** zmienia semantyki envelope ani wymagań env. Lokalizacja szablonów / shella — `architektura_katalogi_pliki.md` (Auth `infrastructure/mail/`); kolory — mapowanie ról z `brand_types.md` (wartości = HOW). Confirm używa **tego samego** wspólnego shella + logotypu CID co pozostałe kinds.
 
@@ -153,7 +157,7 @@ Create / resend zaproszenia **oraz** mail aktywacji przy **register** **oraz** m
 
 Aktywacja linkiem wymagana **tylko** gdy `NODE_ENV=production`. Poza prod: `verifiedAt` przy register od razu; opcjonalny log URL. Migracja wprowadzająca `verifiedAt`: **backfill** istniejących `User` → `verifiedAt = createdAt`; bootstrap / accept-invite ustawiają `verifiedAt = now()` przy create.
 
-`MAX_CONCURRENT_RUNS` ogranicza liczbę równoległych execute: claim `queued → running` **oraz** `interrupted → running` (wznowienia po restarcie). Nie dotyczy wyłącznie nowych `POST /runs`. **Nie** jest drugim capem gościa — global guest cap to Redis (doba UTC), **przed** create Run.
+`MAX_CONCURRENT_RUNS` (env **workera**) ogranicza claim `queued → running` **oraz** `interrupted → running` (wznowienia po restarcie workera). HITL resume (wariant A) jest poza limitem claim FIFO — `data_flow.md`. **Nie** jest drugim capem gościa — global guest cap to Redis (doba UTC), **przed** create Run.
 
 | Zmienna | Semantyka |
 |---------|-----------|
@@ -201,7 +205,7 @@ Cutover V1 **zmienia topologię store’a**, nie tylko string `DATABASE_URL`. Ni
 | Historia migracji SQLite w `apps/api/prisma/migrations` | **Nowa** historia Migrate pod provider Postgres; baza startuje **pusta** |
 | Entrypoint api: `prisma migrate deploy` | Bez zmiany sensu: `migrate deploy` **na PG** przed startem Node; pad migracji = pad kontenera |
 
-Trzy usługi aplikacyjne (`ai-provider-gateway` + `api` + `frontend`), sieci (`cc-network` + `main_network`) i publish `127.0.0.1` — **bez zmian** względem modelu Compose-first. Postgres (gdy w compose) należy do topologii store’a V1; Redis nadal **external**.
+Cztery usługi aplikacyjne (`ai-provider-gateway` + `api` + `worker` + `frontend`), sieci (`cc-network` + `main_network`) i publish `127.0.0.1` — Compose-first. Postgres (gdy w compose) = wspólny SoT + pg-boss + kanały NOTIFY dla api **i** workera; Redis nadal **external** (guest/demo — **nie** most SSE/abort).
 
 ### Checklist cutover (operator)
 
@@ -218,11 +222,11 @@ Norma silnika i pustej bazy: `architektura.md`, `spec/SPEC-PERSISTENCE.md`. Licz
 
 Zgodna z docs koncepcyjnymi:
 
-1. api + gateway + **oba** pipeline’y (Social posty/rolki + Content) + SQLite (`apps/api/test/postman/` — kolekcja Social A–D i Content A–B)  
+1. api + **worker** + gateway + **oba** pipeline’y (Social posty/rolki + Content) + store (`apps/api/test/postman/` — kolekcja Social A–D i Content A–B)  
 2. auth  
 3. frontend  
 
-Compose od początku definiuje wszystkie trzy usługi; „puste” UI do czasu gotowości api jest OK.
+Compose od początku definiuje cztery usługi aplikacyjne; „puste” UI do czasu gotowości api jest OK.
 
 ## Checklist operatora (`production`)
 

@@ -20,6 +20,7 @@ import {
   type ListRunsQuery,
   type ListRunsResult,
   type ListLightRunsResult,
+  type PersistedRunLog,
   type RunRepository,
   type RunSnapshot,
   type RunSummaryAggregate,
@@ -152,7 +153,7 @@ export class PrismaRunAdapter implements RunRepository, RunStatsPort {
     return rows.map((row) => this.toSnapshot({ ...row, startedBy: null }));
   }
 
-  async appendLog(entry: RunLogEntry): Promise<RunLogEntry> {
+  async appendLog(entry: RunLogEntry): Promise<PersistedRunLog> {
     const saved = await this.prisma.runLog.create({
       data: {
         id: `log_${uuidv4()}`,
@@ -165,7 +166,14 @@ export class PrismaRunAdapter implements RunRepository, RunStatsPort {
         requestId: entry.requestId,
       },
     });
-    return this.toLog(saved);
+    return { id: saved.id, entry: this.toLog(saved) };
+  }
+
+  async getLogById(logId: string): Promise<RunLogEntry | null> {
+    const saved = await this.prisma.runLog.findUnique({
+      where: { id: logId },
+    });
+    return saved ? this.toLog(saved) : null;
   }
 
   async listLogs(id: RunId): Promise<RunLogEntry[]> {

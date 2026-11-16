@@ -66,6 +66,12 @@ export type RunSummaryAggregate = {
   topTaskTypeLast30d: RunTaskType | null;
 };
 
+/** Wynik zapisu logu — `id` wiersza PG tylko dla mostu NOTIFY (nie w SSE FE). */
+export type PersistedRunLog = {
+  id: string;
+  entry: RunLogEntry;
+};
+
 export interface RunRepository {
   create(run: RunRecord): Promise<void>;
   getById(id: RunId): Promise<RunSnapshot | null>;
@@ -76,7 +82,8 @@ export interface RunRepository {
   findInterruptedRunning(): Promise<RunRecord[]>;
   /** Boot R-9: running | interrupted with cancelRequested === true. */
   findCancelRequestedLeftovers(): Promise<RunRecord[]>;
-  appendLog(entry: RunLogEntry): Promise<RunLogEntry>;
+  appendLog(entry: RunLogEntry): Promise<PersistedRunLog>;
+  getLogById(logId: string): Promise<RunLogEntry | null>;
   listLogs(id: RunId): Promise<RunLogEntry[]>;
   list(query: ListRunsQuery): Promise<ListRunsResult>;
   setCancelRequested(id: RunId): Promise<void>;

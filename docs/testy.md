@@ -1,7 +1,7 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-11-10
+data_modyfikacji: 2026-11-16
 ---
 
 # Testy — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-10
 Strategia testów **MVP**. Cel: szybka pewność na domenie i granicach `apps/api` + kontrakt z gateway (przez port), bez rozdmuchanego E2E UI.
 
 Powiązane: `architektura.md`, `data_flow.md`, `anty_patterny.md`, `spec/SPEC-TESTY.md`.
+
+Zmiana względem wersji 8 / izolacja workera: oczekiwania recovery / cancel / SSE / sweep przy osobnym procesie `apps/worker` (execute poza api; SSE z workera przez most; HITL A bez czekania na slot; sweep boot+interval na workerze). Pełne D-* → `spec/SPEC-TESTY.md`.
 
 Zmiana względem wersji 7: pokrycie seedu kontekstu (auto + DX, seed-if-empty / no-op). Setup Postman / E2E kontekstu **nadal** `PUT /company-context` — seed nie zastępuje Setupu kolekcji ani seedu Prisma.
 
@@ -88,10 +90,10 @@ Unit uzupełniające (nie zastępują D-4…D-8 ani D-15…D-19): redakcja `GATE
 - Orkiestracja: `taskType` spoza enumu HTTP → `400` `VALIDATION_FAILED`; nieznany typ wewnętrzny composite → `failed` / `UNKNOWN_TASK_TYPE` (D-19).
 - Verifier + refine: sukces po poprawce; fail po `max N=2`.
 - Błąd gateway (stub): run `failed` / retry wg polityki — czytelny log bez wycieku `X-Gateway-Key`.
-- Kolejka współbieżności i recovery runu — wg `spec/SPEC-RUNY.md` / `spec/SPEC-TESTY.md`: nowy run ponad cap → `queued`; leftover `running` → `interrupted` → claim pod `MAX_CONCURRENT_RUNS` (priorytet nad `queued`); 3× przerwany execute → `failed` + log; leftover z `cancelRequested` → `cancelled` (bez `recoveryAttempts++`).
-- Anulowanie (`cancelled`) — skrót oczekiwań (pełne D-* w `spec/SPEC-TESTY.md`): happy path cancel (owner); admin cancel gdy `startedBy.role=guest` → **200**; admin cancel cudzego `user` → **403**; idempotencja **200** gdy już `cancelled`; **409** `RUN_NOT_CANCELABLE` przy wyścigu z `completed`/`failed`; HITL po cancel nielegalny; feedback `cancelled` ± wynik; SSE `run.cancelled` + complete huba; `startedBy.role` na detail.
-- Feedback: zapis opinii z metadanymi; ocena `null`/`1–5`; `POST .../output-edited` z `{ result }` (nadpis kanonicznego wyniku + `outputEdited`); lock po finalize **oraz** po `REVIEW_TTL` (mutacja → `REVIEW_LOCKED` **bez** UPDATE `reviewFinalizedAt`); auto-finalize sweepera (boot + interval) ustawia `reviewFinalizedAt = pipelineFinishedAt + TTL`; GET bez side-effect finalize; `POST /feedback` nadal dozwolone po auto-close przeglądu; `403` na cudzy run; `targetType=run` w toku → `409` `RUN_NOT_REVIEWABLE`; `GET /runs/user/:id` tylko własny id. Pełne D-* (w tym D-35+) → `spec/SPEC-TESTY.md`.
-- SSE: hub nie zatrzymuje subjectu po `completed`/`failed`/`cancelled`; `GET .../events` na skończonym runie emituje snapshot statusu i **kończy** stream (nie wisi).
+- Kolejka współbieżności i recovery runu — wg `spec/SPEC-RUNY.md` / `spec/SPEC-TESTY.md`: execute w **`apps/worker`**; nowy run ponad cap → `queued`; leftover `running` po kill/restarcie **workera** → `interrupted` → claim pod `MAX_CONCURRENT_RUNS` (priorytet nad `queued`); 3× przerwany execute → `failed` + log; leftover z `cancelRequested` → `cancelled` (bez `recoveryAttempts++`); HITL resume bez czekania na slot claim (wariant A).
+- Anulowanie (`cancelled`) — skrót (pełne D-* w `spec/SPEC-TESTY.md`): happy path cancel (owner); admin→guest **200**; admin→cudzy `user` **403**; idempotencja; **409** `RUN_NOT_CANCELABLE`; sygnał abort do workera (NOTIFY `run.abort`); SSE `run.cancelled` + complete huba na api.
+- Feedback / przegląd: jak wcześniej + auto-finalize sweepera (**boot + interval na workerze**, nie na api).
+- SSE: hub Subjectów na api; eventy z execute **i** recovery workera dochodzą przez most NOTIFY; po terminalu stream się kończy (nie wisi).
 
 ## CI (MVP)
 

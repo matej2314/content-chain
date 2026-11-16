@@ -1,12 +1,14 @@
 ---
-wersja: 10
+wersja: 11
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-11-10
+data_modyfikacji: 2026-11-16
 ---
 
 # Architektura katalogów i plików — Content Chain
 
-Propozycja **docelowego drzewa** monorepo (greenfield). Odzwierciedla style i granice z `architektura.md`: trzy aplikacje pod `apps/`, wspólne typy w `packages/shared`, `docs/` w rootcie. **Bez** rootowego katalogu `src/` opakowującego aplikacje.
+Propozycja **docelowego drzewa** monorepo (greenfield). Odzwierciedla style i granice z `architektura.md`: **cztery** aplikacje pod `apps/` (w tym always-on `worker`), wspólne typy w `packages/shared`, `docs/` w rootcie. **Bez** rootowego katalogu `src/` opakowującego aplikacje.
+
+Zmiana względem wersji 10 / trzy app: dopisano `apps/worker` (cienki bootstrap Nest; execute / recovery / sweep / AbortRegistry; **bez** publicznej powierzchni REST runów operatora). Deployables = `{api,frontend,ai-provider-gateway,worker}`.
 
 Zmiana względem wersji 9: kanon lokalizacji uniwersalnego seedu w `apps/api` — `SeedModule` / `SeedService` (bez brandu „Demo*”), fixture JSON kontekstu, `scripts/` + komenda `seed:company-context`. Nie-BC jak `health/` / `llm/`.
 
@@ -66,6 +68,10 @@ content-chain/
 │   │   ├── Dockerfile               # build: context = root + pnpm; port prod 3004
 │   │   ├── package.json
 │   │   └── src/                     # App Router (`app/`) + moduły UI (`modules/`) + `shared/`
+│   ├── worker/                      # always-on Nest — execute / recovery / sweep / abort; bez REST runów
+│   │   ├── Dockerfile               # build: context = root monorepo + pnpm
+│   │   ├── package.json
+│   │   └── src/                     # cienki bootstrap; import lifecycle/executor z drzewa api (cut 1)
 │   └── ai-provider-gateway/         # gateway LLM — bez domeny Content Chain
 │       ├── Dockerfile               # (ścieżka w root compose; port 3100)
 │       ├── gateway.config.yaml      # w repo; COPY do obrazu + volume mount (host wygrywa)
@@ -83,14 +89,14 @@ content-chain/
 └── pnpm-workspace.yaml
 ```
 
-**Deployables (skrót):** kanon ops = root `docker-compose.yml` + `Jenkinsfile` + Dockerfile’e w `apps/{api,frontend,ai-provider-gateway}/` budowane z **kontekstu roota**. Porty, sieci (`cc-network` + `main_network`), volume `api-sqlite`, sekrety i smoke — `deployment.md`.
+**Deployables (skrót):** kanon ops = root `docker-compose.yml` + `Jenkinsfile` + Dockerfile’e w `apps/{api,frontend,ai-provider-gateway,worker}/` budowane z **kontekstu roota**. Porty, sieci (`cc-network` + `main_network`), volume / PG, sekrety i smoke — `deployment.md`.
 
 
 ## Mapowanie stylów → katalogi
 
 | Ustalenie z `architektura.md` | Konsekwencja w drzewie |
 |-------------------------------|-------------------------|
-| Modularny monolit, 3 procesy | `apps/api`, `apps/frontend`, `apps/ai-provider-gateway` |
+| Modularny monolit, 4 procesy | `apps/api`, `apps/frontend`, `apps/ai-provider-gateway`, `apps/worker` |
 | Port/adapter (persistence, LLM) | Porty w `domain` / `application`; adaptery w `infrastructure` (+ Prisma w `apps/api/prisma`); klient gateway w `apps/api/src/llm/` |
 | Health / metrics / seed (ops) | `apps/api/src/health/`, `apps/api/src/metrics/`, `apps/api/src/seed/` — nie BC; DX w `apps/api/scripts/` |
 | Social = LangGraph za fasadą | `apps/api/src/social/infrastructure/graph/` |
@@ -118,7 +124,7 @@ apps/api/src/<context>/
 
 **Podkatalogi w warstwie** — tylko gdy warstwa miesza różne granice I/O albo kernel procesu z use-case’ami HTTP. Podział jest po **granicy I/O / kernel**, nie po rodzaju pliku (`helpers` / `adapters` / `mappers`). Małe BC (Feedback, Company Context) **mogą** zostać płaskie w `infrastructure/` (jeden adapter Prisma). Social/Content już mają `graph/` / `prompts/` / `persistence/` — to wzorzec, nie cel przepisania tych BC w tej zmianie.
 
-**1 BC ≠ obowiązkowo 1 plik `*.module.ts`.** Wolno wydzielić kernel lifecycle (port `appendLog` / `transition` + hub SSE + repozytorium runu) od HTTP/workera, jeśli to zamyka cykl importów Nest. To nadal ten sam BC Runs — nie nowy bounded context. Klej `RUN_EXECUTOR` w `app.module.ts` (albo `registerAsync`) **nie** jest BC; analogia: `health/` / `llm/` to też nie-BC, ale ops — klej pipeline’u zostaje przy starcie procesu, nie w `llm/`. Worker in-process (cancel v1): `Map<RunId, AbortController>` przy execute + `attemptCancel` na repo — norma w `architektura.md` / `SPEC-RUNY.md`; **bez** osobnego katalogu BC. `RunLifecycleModule` / `GuestQuotaModule` zostają w **korzeniu** `runs/` (nie nowe BC).
+**1 BC ≠ obowiązkowo 1 plik `*.module.ts`.** Wolno wydzielić kernel lifecycle (port `appendLog` / `transition` + hub SSE + repozytorium runu) od HTTP, jeśli to zamyka cykl importów Nest. To nadal ten sam BC Runs — nie nowy bounded context. Klej `RUN_EXECUTOR` w composition root **nie** jest BC. **`RunAbortRegistry` / pump execute** żyją w procesie `apps/worker` (mapa abortu tylko tam); hub Subjectów SSE + `LISTEN` — w `apps/api`; adapter NOTIFY-only w workerze. Norma: `architektura.md` / `SPEC-RUNY.md`. `RunLifecycleModule` / `GuestQuotaModule` zostają w **korzeniu** `runs/` (nie nowe BC). Pierwszy cut: worker importuje z drzewa api — extract `packages/*` nie jest prereq.
 
 ### Social (wyjątek orchestracji)
 

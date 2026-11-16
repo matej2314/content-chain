@@ -1,16 +1,18 @@
 ---
-wersja: 22
+wersja: 23
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-12
+data_modyfikacji: 2026-11-16
 ---
 
 # SPEC — Persistence
 
 ## Cel / zakres względem dokumentacji
 
-Norma warstwy persistence w `apps/api`: port + adapter Prisma, lokalizacja schema/migracji, kanoniczność DB, zakazy ORM w domain oraz **harmonogram silników** SQLite → PostgreSQL.
+Norma warstwy persistence w `apps/api` (oraz wspólnego store’a z `apps/worker`): port + adapter Prisma, lokalizacja schema/migracji, kanoniczność DB, zakazy ORM w domain oraz **harmonogram silników** SQLite → PostgreSQL. Po izolacji workera: **PostgreSQL** = SoT tabeli `Run` (+ logi) **oraz** nośnik jobów **pg-boss** **oraz** kanałów **NOTIFY** (most SSE + `run.abort`); Redis **nie** jest wymogiem epiku workera (zostaje guest/demo).
 
-Uszczegóławia `docs/architektura.md`, `docs/architektura_katalogi_pliki.md`, `docs/deployment.md` (topologia Compose MVP vs V1) oraz brak cichego fallbacku z `docs/dokumentacja_koncepcyjna.md` / `docs/anty_patterny.md`.
+Uszczegóławia `docs/architektura.md`, `docs/architektura_katalogi_pliki.md`, `docs/deployment.md` oraz brak cichego fallbacku z docs.
+
+Zmiana względem wersji 22 / izolacja workera: P-6b / P-10 — PG jako SoT + pg-boss + NOTIFY; job payload `{ runId }`; bez Redis jako mostu SSE/abort.
 
 Zmiana względem wersji 21 / P-5 Auth: kanon bez pending confirm zmiany emaila. Od tej wersji model **`EmailChangeRequest`** (osobny byt od `AccountActivation`) + soft/hard delete czyści wiersze — `SPEC-AUTH.md` A-3b, `docs/brand_types.md` (`ecr_`).
 
@@ -145,7 +147,11 @@ P-6a. **Ścieżka pliku SQLite w production (Compose) — MVP:** `DATABASE_URL=f
 
 Zmiana względem wersji 17 / P-6: brak pinu ścieżki / volume w SPEC. Od tej wersji P-6a (kanon prod + odwołanie do deployment).
 
-P-6b. **Topologia store’a V1 (Compose / managed):** po wejściu w **V1 — rozbudowa** kanonem jest **PostgreSQL** — usługa w compose (named volume danych PG) **albo** managed Postgres; `DATABASE_URL` = connection string PG; entrypoint api nadal `prisma migrate deploy` **na pustej bazie** z **nową** historią migracji. Volume `api-sqlite` **przestaje** być kanonem V1. Cutover ≠ sama podmiana URL na te same migracje SQLite. Import SQLite→PG = osobna procedura ops. Checklist / szczegóły sieci: `docs/deployment.md` (sekcja V1). Semantyka silników C1/C2 w tabeli wyżej — **bez** redefinicji.
+P-6b. **Topologia store’a V1 (Compose / managed):** po wejściu w **V1 — rozbudowa** kanonem jest **PostgreSQL** — usługa w compose (named volume danych PG) **albo** managed Postgres; `DATABASE_URL` = connection string PG **współdzielony** przez `apps/api` i `apps/worker`; entrypoint api nadal `prisma migrate deploy` **na pustej bazie** z **nową** historią migracji. Volume `api-sqlite` **przestaje** być kanonem V1. Cutover ≠ sama podmiana URL na te same migracje SQLite. Import SQLite→PG = osobna procedura ops. Checklist: `docs/deployment.md`. Semantyka C1/C2 — **bez** redefinicji.
+
+P-10. **Joby / NOTIFY (po izolacji workera, prereq = PG):** tabele/joby **pg-boss** żyją w tym samym Postgresie co SoT; payload jobów wake/execute = **`{ runId }`** (worker ładuje `Run` z DB — **zakaz** snapshotu rekordu w jobie). Kanały PG `NOTIFY`/`LISTEN`: most SSE (worker→api) oraz abort `run.abort` — **nie** są SoT statusu. **Zakaz** traktowania pg-boss jako SoT lifecycle runu. Redis **nie** jest wymogiem tego epiku (guest/demo bez zmian).
+
+Zmiana względem wersji 22: brak normy pg-boss/NOTIFY w PERSISTENCE. Od tej wersji P-10.
 
 Zmiana względem wersji 19: brak pinu topologii Compose pod PG. Od tej wersji P-6b (odesłanie do deployment; bez ETL w produkcie).
 
@@ -177,7 +183,7 @@ Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/
 | Adapter | Prisma implementuje porty; lokalizacja = `<bc>/infrastructure/` **albo** `<bc>/infrastructure/persistence/` (gdy BC ma kilka I/O) |
 | SQLite ops (WAL, busy_timeout) | **poza** sztywną normą SPEC — decyzja implementacyjna pod współbieżność runów |
 | Plik SQLite (production MVP) | volume `api-sqlite` → `/app/data/chain.db` (P-6a); szczegóły compose — `docs/deployment.md` |
-| Store V1 | Postgres compose/managed (P-6b); nie reuse migracji SQLite; import = ops |
+| Store V1 | Postgres compose/managed (P-6b) shared api+worker; pg-boss + NOTIFY (P-10); nie reuse migracji SQLite; import = ops |
 | Kolumny kontekstu firmy | per sekcja — `SPEC-KONTEKST-FIRMY.md` |
 | Sesje refresh (hash) | `SPEC-AUTH.md` |
 
@@ -201,6 +207,8 @@ Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/
 - Pozostawania przy SQLite jako kanonie po wejściu w V1 — rozbudowę (ops/skala; **nie** mylić z „po dodaniu Content” — Content jest w MVP na SQLite).
 - Obiecywać w kodzie/docs wewnętrznych, że te same pliki migracji SQLite zadziałają na PostgreSQL bez nowej historii.
 - Traktowania cutoveru V1 jako wyłącznie zmiany `DATABASE_URL` przy zachowaniu volume `api-sqlite` / historii SQLite (P-6b).
+- Traktowania pg-boss jako SoT statusu / claim / recovery / `cancelRequested` (P-10); snapshotu `Run` w payloadzie joba zamiast `{ runId }`.
+- Redis jako wymogu mostu SSE lub soft-abort epiku workera (guest/demo Redis **zostaje** osobno).
 - Drugiego ORM równolegle do Prisma.
 - Przenoszenia reguł domenowych do UI przy zmianie silnika.
 - Zapisu refine outline/copy (BC Content) do `Run.ideasRefineCount` / `Run.contentRefineCount`.
@@ -213,7 +221,7 @@ Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/
 - Czyszczenia `verifiedAt` przy soft-delete.
 - Orphan `Feedback` po hard/purge `guest` (obowiązuje jawne delete — D21).
 - Wymogu migracji Cascade jako jedynej drogi delete tree (obowiązuje jedna tx aplikacyjna — D21).
-- Składania abortu in-process / SSE w tej samej ACID tx co hard/purge (abort poza tx — D21).
+- Składania abortu live (NOTIFY `run.abort`) / SSE w tej samej ACID tx co hard/purge (abort poza tx — D21).
 - Drugiego aktywnego wiersza `AccountActivation` per user (jeden pending).
 - Reuse `AccountActivation` / `activationToken` jako pending confirm zmiany emaila (obowiązuje osobny `EmailChangeRequest` / `emailChangeToken` — A-3b).
 - Pozostawiania wierszy `EmailChangeRequest` po udanym confirm (obowiązuje delete w tx z update `User.email`).

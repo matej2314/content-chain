@@ -1,14 +1,16 @@
 ---
-wersja: 46
+wersja: 47
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-13
+data_modyfikacji: 2026-11-16
 ---
 
 # SPEC — Testy
 
 ## Cel / zakres względem dokumentacji
 
-Norma strategii testów MVP Content Chain: piramida, narzędzia, obowiązkowe przypadki DoD oraz CI — uszczegółowienie `docs/testy.md` pod egzekwowalne reguły przy implementacji `apps/api`.
+Norma strategii testów MVP Content Chain: piramida, narzędzia, obowiązkowe przypadki DoD oraz CI — uszczegółowienie `docs/testy.md` pod egzekwowalne reguły przy implementacji `apps/api` **oraz** (po izolacji) oczekiwań względem `apps/worker`.
+
+Zmiana względem wersji 46 / izolacja workera: D-9 / D-9b / D-10 / D-14 / D-30…D-34 / D-35…D-40 uściślone — execute poza api; SSE z workera (execute **i** recovery) przez most; recovery po kill **workera**; HITL bez czekania na slot (A); sweep boot+interval na workerze; abort signal do workera. **Bez** nowych numerów D-* (wystarczy rozszerzenie istniejących).
 
 Zmiana względem wersji 45 / D-92: sukces hasła = **200** + Clear-Cookie + unieważnienie refresh. Od tej wersji: **200** + Set-Cookie nowej pary + body `{ id, email, role }`; poprzednie refresh unieważnione; nowe cookie działają; stare refresh → fail; złe `currentPassword` → **401** bez rotacji — `SPEC-AUTH.md` A-3d, `docs/dokumentacja_komunikacji.md`.
 
@@ -85,13 +87,13 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-6 | Verifier + refine: sukces po poprawce; fail po `max N=2` → `failed` |
 | D-7 | Stub błędu gateway: run `failed` / retry wg polityki; log bez wycieku `X-Gateway-Key` |
 | D-8 | Korelacja: stały `conversationId`; `requestId` z „odpowiedzi” stubu gateway w logu kroku |
-| D-9 | Kolejka: przy limicie współbieżności nowy run zostaje `queued`, potem startuje (`SPEC-RUNY.md`) |
+| D-9 | Kolejka: execute w **`apps/worker`**; przy limicie claim nowy run zostaje `queued`, potem startuje (`SPEC-RUNY.md` R-5/R-6); HITL resume (A) **nie** czeka na wolny slot claim |
 | D-9b | Drain: przy `MAX=1` dwa `interrupted` + jeden `queued` → kolejność execute: interrupted, interrupted, queued |
-| D-10 | Recovery: leftover `running` → `interrupted`; claim pod `MAX_CONCURRENT_RUNS`; leftover już `interrupted` bez inkrementu `recoveryAttempts`; 3× przerwany execute → `failed` + log |
+| D-10 | Recovery po kill/restarcie **workera**: leftover `running` → `interrupted`; claim pod `MAX_CONCURRENT_RUNS`; leftover już `interrupted` bez inkrementu; 3× przerwany execute → `failed` + log; api **bez** recovery boot; SSE recovery przez most NOTIFY |
 | D-11 | `POST /feedback`: zapis z `authorId`+`createdAt`; cudzy `runId` → `FORBIDDEN`; własny run w toku (`queued` / `running` / `awaiting_hitl` / `interrupted`) → **409** `RUN_NOT_REVIEWABLE` (bez zapisu); `completed` \| `failed` → 201; `cancelled` **bez** wyniku → 409; `cancelled` **z** wynikiem → 201; drugi wpis = nowy wiersz (także po finalize) |
 | D-12 | Ocena `null` \| 1–5 na `completed`/`failed` tylko autora; na `cancelled` → **409** `RUN_NOT_REVIEWABLE`; po finalize → `REVIEW_LOCKED`; `POST .../output-edited` z `{ result }` zastępuje kanoniczny wynik i stawia `outputEdited`; GET snapshot zwraca treść po edycji; snapshot / sukces mutacji niosą `pipelineFinishedAt` + `reviewExpiresAt` (lista usera **bez** tych pól) |
 | D-13 | `GET /runs/user/:userId`: własne wszystkie; cudzy id → `403`. **Envelope / tryby paginacji** — D-84 (ten case = authz + pełny zbiór własnych w trybie bez parametrów lub równoważny). |
-| D-14 | SSE: hub nie zatrzymuje subjectu po `completed`/`failed`/`cancelled`; po cancel kolejność `run.status` → `run.cancelled` → complete; `GET .../events` na skończonym runie emituje `run.status` i kończy stream |
+| D-14 | SSE na api: hub Subjectów; eventy z execute **i** recovery workera dochodzą (most NOTIFY); hub nie zatrzymuje subjectu po terminalu; po cancel kolejność `run.status` → `run.cancelled` → complete; late-join kończy stream |
 | D-15 | `reel_ideas` full-auto: `running` → `completed`; `result.reelIdeas[0].id` |
 | D-16 | `reel_ideas_then_scripts`: `awaiting_hitl` (`options` = reelIdeas) → resume → `result.reelScripts[]` (każdy element + `sourceIdeaId`); skalar `result.reelScript` = `null` po completed fazy 2 |
 | D-17 | `page_copy` full-auto: completed + `pageDocument`; body **bez** `ideaCount` (`ContentBrief`) |
@@ -109,14 +111,14 @@ Minimum do uznania jakości api za spełnioną (unit i/lub integration; E2E API 
 | D-27 | `PATCH /auth/me/email` `{ email, currentPassword }` (sesja): Zod → re-auth (`currentPassword` **bez** A-5). Złe hasło → **401** `INVALID_PASSWORD` / `Invalid password`; `User.email` **bez** zmiany; **bez** pending/maila. Pusty / brak `currentPassword` → **400** `VALIDATION_FAILED`. Brak sesji → **401** `UNAUTHORIZED`. Ten sam email co obecny + poprawne hasło → **200** `{ id, email, role, pendingEmail }` (`pendingEmail` = `null` lub brak pending) **bez** maila / bez zmiany wiersza. **V1 (nowy adres ≠ obecny):** po re-auth + check zajętości — **nie** zmienia `User.email`; zapis **pending** (osobny byt ≠ `AccountActivation`) + mail confirm na **nowy** adres (token w URL `/?emailChangeToken=`; hash w DB; TTL `EMAIL_CHANGE_TTL`, default **`24h`**); **200** `{ id, email, role, pendingEmail }` (`email` = stary, `pendingEmail` = nowy); `GET /auth/me` zgadza się. Zajęty email / kolizja z innym pending (**po** re-auth) → **409** `CONFLICT`. Pad SMTP po zapisie pending → **503** `MAIL_DELIVERY_FAILED` (pending zostaje; **nie** best-effort). Sesja cookie **bez** rotacji. `PATCH /users/:id` z `email` → **400**. Brak mutacji na `PATCH /auth/me`. Confirm / resend — D-90…D-91. **Zmiana względem:** D-27 = natychmiastowy zapis `User.email` (MVP bez confirm). |
 | D-28 | `GET /runs?status=completed,failed,cancelled&page=1&pageSize=10` (tryb stron; `pageSize` ∈ allowlisty): tylko te statusy w `items`; envelope `{ items, page, pageSize, total }` z `page=1`, `pageSize=10`; sort `createdAt` desc (mieszane); pojedynczy `status=interrupted` bez regresji; nieznana wartość w liście → **400** `VALIDATION_FAILED`. Allowlista / tryb all / inne listingi — D-82…D-85. **Zmiana względem:** D-28 v40 — pin `pageSize=10` bez jawnego trybu stron / bez odesłania do allowlisty |
 | D-29 | PUT/PATCH `/company-context` przy niekompletnej bramce (w tym kaleka oferta: brak opisu / pusta korzyść / druga niepełna pozycja) → **400** `VALIDATION_FAILED`; singleton w DB **bez zmiany** (brak upsert). D-1 (start → 409 `CONTEXT_INCOMPLETE`) **zostaje**. |
-| D-30 | Cancel happy: `startedBy` woła `POST .../cancel` na nieterminalnym → **200**, `status=cancelled`, `cancelledAt` ustawione; log append; SSE `run.status` + `run.cancelled` + complete huba |
+| D-30 | Cancel happy: `startedBy` → **200**, `cancelled` + `cancelledAt`; log; SSE hub api + sygnał abort do workera (NOTIFY `run.abort`); `run.status` + `run.cancelled` + complete |
 | D-31 | Cancel idempotencja: drugi `POST .../cancel` na już `cancelled` → **200** (bez błędu) |
 | D-32 | Cancel race: status już `completed` \| `failed` → **409** `RUN_NOT_CANCELABLE`; obcy `startedBy` (nie admin→guest) → **403** |
-| D-33 | Recovery + flaga: leftover `running` lub `interrupted` z `cancelRequested` na bootcie → `cancelled` (bez `recoveryAttempts++`); flaga na już-terminalnym ignorowana |
+| D-33 | Recovery + flaga: leftover `running`/`interrupted` z `cancelRequested` na bootcie **workera** → `cancelled` (bez `recoveryAttempts++`); flaga na już-terminalnym ignorowana |
 | D-34 | HITL po cancel: `POST .../hitl` na `cancelled` → odrzucenie (nielegalny status; bez wznowienia pipeline) |
 | D-35 | Po TTL (`now ≥ pipelineFinishedAt + REVIEW_TTL`), `reviewFinalizedAt` jeszcze `null`: mutacja rating / output-edited / finalize → **409** `REVIEW_LOCKED`; `userRating` / `result` / `outputEdited` / `reviewFinalizedAt` **bez zmian** przy tej mutacji (brak CAS / side-effect UPDATE locka) |
 | D-36 | Sweeper (boot **lub** tick okresowy): dla zaległych otwartych przeglądów ustawia `reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL`; **bez** zmiany `userRating` / `outputEdited` / `result`; **bez** DELETE |
-| D-37 | Restart api nie odmraża wygasłego przeglądu: po boot sweeperze (lub gdy okno już minęło) mutacja nadal `REVIEW_LOCKED`; okno **nie** otwiera się na nowo |
+| D-37 | Restart nie odmraża wygasłego przeglądu: sweeper boot+interval na **workerze**; api bez timera; po boot sweeperze mutacja nadal `REVIEW_LOCKED` |
 | D-38 | GET snapshot **nie** ustawia `reviewFinalizedAt` (4a — czysty odczyt); po TTL przed sweeperem `reviewExpiresAt` nadal ISO, `reviewFinalizedAt` nadal `null` |
 | D-39 | Backfill B: kotwica z `updatedAt` (fallback `createdAt`); stary run `completed`/`failed` bez finalize, z kotwicą starszą niż TTL → po boot sweeperze locked (`reviewFinalizedAt = pipelineFinishedAt + REVIEW_TTL`) |
 | D-40 | Regresja: ręczne finalize **przed** TTL → `REVIEW_LOCKED` na kolejnych mutacjach; `cancelled` → przegląd `RUN_NOT_REVIEWABLE` (`pipelineFinishedAt` null); `POST /feedback` nadal **201** po auto-close / TTL przeglądu (append; nie `REVIEW_LOCKED`) |

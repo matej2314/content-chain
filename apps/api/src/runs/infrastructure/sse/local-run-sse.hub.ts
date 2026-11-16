@@ -6,7 +6,7 @@ import { ENV, type Env } from '../../../shared/config/env';
 import type { RunSseEvent, RunSseHub } from '../../domain/run-sse.port';
 
 @Injectable()
-export class InMemoryRunSseHub implements RunSseHub {
+export class LocalRunSseHub implements RunSseHub {
   private readonly subjects = new Map<RunId, Subject<RunSseEvent>>();
   private readonly ttlTimers = new Map<RunId, ReturnType<typeof setTimeout>>();
 

@@ -7,7 +7,8 @@ import { RUN_STATS_PORT } from './domain/run-stats.port';
 import { RUN_SSE_HUB } from './domain/run-sse.port';
 import { PrismaOutputEditedAdapter } from './infrastructure/persistence/prisma-output-edited.adapter';
 import { PrismaRunAdapter } from './infrastructure/persistence/prisma-run.adapter';
-import { InMemoryRunSseHub } from './infrastructure/sse/run-sse.hub';
+import { LocalRunSseHub } from './infrastructure/sse/local-run-sse.hub';
+import { RunSseNotifyListener } from './infrastructure/sse/run-sse-notify.listener';
 import { RunAbortRegistry } from './application/lifecycle/run-abort.registry';
 
 @Module({
@@ -16,7 +17,8 @@ import { RunAbortRegistry } from './application/lifecycle/run-abort.registry';
     { provide: RUN_REPOSITORY, useExisting: PrismaRunAdapter },
     { provide: RUN_STATS_PORT, useExisting: PrismaRunAdapter },
     { provide: OUTPUT_EDITED_WRITER, useClass: PrismaOutputEditedAdapter },
-    { provide: RUN_SSE_HUB, useClass: InMemoryRunSseHub },
+    { provide: RUN_SSE_HUB, useClass: LocalRunSseHub },
+    RunSseNotifyListener,
     RunLifecycleService,
     { provide: RUN_LIFECYCLE, useExisting: RunLifecycleService },
     RunAbortRegistry,

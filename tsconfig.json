@@ -10,9 +10,20 @@
     },
     "files": [],
     "references": [
-        { "path": "./apps/api/tsconfig.json" },
-        { "path": "./apps/api/tsconfig.test.json" },
-        { "path": "./apps/ai-provider-gateway/tsconfig.json" },
-        { "path": "./apps/frontend/tsconfig.json" }
+        {
+            "path": "./apps/api/tsconfig.json"
+        },
+        {
+            "path": "./apps/api/tsconfig.test.json"
+        },
+        {
+            "path": "./apps/ai-provider-gateway/tsconfig.json"
+        },
+        {
+            "path": "./apps/frontend/tsconfig.json"
+        },
+        {
+            "path": "./apps/worker/tsconfig.json"
+        }
     ]
 }

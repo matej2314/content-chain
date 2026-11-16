@@ -1,10 +1,12 @@
 ---
-wersja: 45
+wersja: 46
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-13
+data_modyfikacji: 2026-11-16
 ---
 
 # SPEC — README
+
+Zmiana względem wersji 45 / izolacja workera: indeks wskazuje `apps/worker` (MONOREPO M-1/M-10), RUNY R-5/R-6(A)/R-9/R-10/R-11 (NOTIFY abort + most SSE), KOMUNIKACJA/PERSISTENCE/TESTY — most NOTIFY / pg-boss / PG.
 
 ## Docs vs SPEC
 
@@ -26,17 +28,17 @@ SPEC **uszczegóławia** docs; nie zastępuje ich i nie tworzy równoległej dok
 
 | Plik | Obszar |
 |------|--------|
-| `SPEC-MONOREPO.md` | Granice apps/*, `packages/shared`, pnpm, importy; **M-9** build obrazów = kontekst **root** + **pnpm** |
-| `SPEC-KOMUNIKACJA.md` | HTTP/SSE api + klient → gateway; snapshot TTL; publiczne auth: register / activate / resend; **activate: envelope niezależny od `user_welcome`**; **K-2d V1:** confirm e-mail / **`PATCH /auth/me/password` = Set-Cookie + body jak login (nie Clear-Cookie)** / `DELETE /auth/me` + `INVALID_PASSWORD`; **`GET /config`**; **`GET /health` + `/health/ready`**; lista user (**opcjonalna paginacja** K-2b); **`GET /runs` opcjonalna paginacja (K-2a)**; **`GET /runs/summary` (K-2k)**; **Users GET + DELETE + `purge`**; **`GUEST_HAS_ACTIVE_RUN`** (także self-delete); cancel admin→guest; **`startedBy.role` na detail**; **guest: detail/logs cudzy tylko archiwum**; **`brief.audience?`** |
+| `SPEC-MONOREPO.md` | Granice apps/* (**cztery** runtime: `api` / `frontend` / `ai-provider-gateway` / **`worker`** — M-1/M-10), `packages/shared`, pnpm, importy; **M-9** build = kontekst **root** + **pnpm** |
+| `SPEC-KOMUNIKACJA.md` | HTTP/SSE api (kształt bez zmian; most NOTIFY z workera; abort ≠ SSE); klient api/worker → gateway; K-2e cancel + NOTIFY abort; K-3/K-3a SSE; auth/self-service; health; paginacja; summary; Users purge; guest archiwum; `brief.audience?` |
 | `SPEC-AUTH.md` | Auth, cookie `cc_access`/`cc_refresh`, role `admin`\|`user`\|**`guest`**; register / accept-invite + aktywacja; **`user_welcome` best-effort**; GuestGuard; **DELETE Users** soft/hard; **A-3a…A-3e:** `/me` (+ V1 `pendingEmail`), email (+ V1 confirm), **V1 A-3d `PATCH /auth/me/password` = rotacja sesji (Set-Cookie, nie Clear-Cookie/landing)**, **V1 `DELETE /auth/me`** (`admin` → 403); A-10a/A-10b; A-3c; maile HTML+plain + shell CID; **dual-mode/i18n poza falą auth** |
 | `SPEC-KONTEKST-FIRMY.md` | Company context, bramka kompletności (`isComplete` **bez** sieci / gateway); **AudienceProfile `name` + `description`**; unikalność `name`; GET dla guest; zapis tylko admin; **C-9 seed-if-empty** (auto=`DEMO_MODE`; DX=`seed:company-context` / `seedCompanyContext`; zakaz overlay GET; `SeedModule`/`SeedService`) |
 | `SPEC-SOCIAL.md` | Pipeline Social (posty **i** rolki), LangGraph, HITL model B; **effective audience scoping (S-10)** |
 | `SPEC-CONTENT.md` | Pipeline Content (page copy / outline), LangGraph, HITL model B; **effective audience scoping (Ctn-12)** |
-| `SPEC-RUNY.md` | Cykl życia runu (`completed` / `failed` / **`cancelled`**), logi, SSE, kolejka, recovery, anulowanie (R-11 — **admin→guest**), **`startedBy.role` na detail**, **przegląd z `REVIEW_TTL` / sweeper auto-finalize (R-10)**, **GuestRunPolicy (R-12)**, **agregacja KPI R-13 (`GET /runs/summary`)**, **R-14 port stats pod `/metrics` (L-11; bez Prisma w `metrics/`)** — w tym **guest detail/logs cudzy tylko przy statusie archiwalnym** + Redis **`REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`**, ocena / edycja outputu, composite executor, unia `SocialBrief` / `ContentBrief` na `RunRecord` (**`brief.audience?` — 3 tryby**); **R-3a / R-3c opcjonalna paginacja** (tryb all vs strona; allowlista) |
+| `SPEC-RUNY.md` | Cykl życia runu; **R-5** always-on `apps/worker` (nie in-process-only); **R-6** claim + HITL wariant **A**; **R-9** recovery na workerze; **R-10** sweep na workerze; **R-4/R-4a** hub Subjectów w api + most NOTIFY; **R-11** AbortRegistry w workerze + NOTIFY `run.abort`; job `{ runId }`; cancel admin→guest; przegląd TTL; GuestRunPolicy; summary R-13; metrics R-14; paginacja R-3a/R-3c |
 | `SPEC-FEEDBACK.md` | Opinie tekstowe (zapis MVP; panel odczytu = V1; okno `cancelled`+wynik; **nie** blokowane TTL przeglądu; guest: application/agent + run własny; **Fbk-9 wyjątek append-only przy hard guest**) |
-| `SPEC-PERSISTENCE.md` | Prisma; SQLite w MVP; PostgreSQL od V1 — rozbudowa; **P-6a** MVP prod: volume `api-sqlite` → `/app/data/chain.db`; **P-6b** V1: topologia Postgres (compose/managed) — `docs/deployment.md`; **P-9** singleton kontekstu seed-if-empty (bez seed marker); pola Run `cancelledAt` / `cancelRequested` / **`pipelineFinishedAt`** (+ indeks sweepera, backfill B); **`User.verifiedAt`** + **`AccountActivation`**; `User.role` String (`guest`); **D21 soft vs hard/purge tree** |
+| `SPEC-PERSISTENCE.md` | Prisma; SQLite w MVP; PostgreSQL od V1; **P-6b** PG shared api+worker; **P-10** pg-boss + NOTIFY (SSE/abort), job `{ runId }`; P-6a volume SQLite MVP; P-9 seed-if-empty; pola Run cancel/TTL; Auth activation / email-change; soft vs hard/purge |
 | `SPEC-FRONTEND.md` | Next.js; **`/` = landing + modal auth**; **F-8 Konto V1:** confirm e-mail / **hasło = toast + zostań na `/account` (nie landing)** / delete own (self-service; nie Users); **F-7** i18n = paczka chrome (nie must fali auth); **F-14 dark shell** (dual-mode = paczka chrome); Users toggle/Usuń/purge; Stop admin→guest na detail; F-11…F-19 normy wizualne; viewport shell + paginacja HTTP; **F-2** BFF prod |
-| `SPEC-TESTY.md` | Jest, supertest, piramida, DoD (w tym D-30…D-34 cancel, **D-35…D-40 TTL / sweeper**, **D-41…D-46 register / activate / resend** — activate **bez** wymogu SMTP welcome, **D-47…D-49 health/ready**, **D-50…D-62 guest / DEMO** — **D-55: cudzy detail/logs terminalny → 200**, **D-63…D-72 Users delete/purge / cancel admin→guest / isActive**, **D-73…D-77 audience name / scoping**, **D-78…D-81 summary KPI**, **D-82…D-85 paginacja**, **D-86…D-89 seed kontekstu**, **D-92: keep-session Set-Cookie (nie Clear-Cookie)**); HTML/CID/copy maili **nie** zmienia D-* HTTP (unit renderer poza T-5: pełne zdanie ważności + deep link; **logotyp CID w headerze HTML** vs string marki w plain text; **bez** linii Postman w body) |
+| `SPEC-TESTY.md` | Jest/supertest; DoD D-* w tym D-9/D-10/D-14 (worker/most), D-30…D-34 cancel+abort do workera, D-35…D-40 sweep na workerze, auth/guest/Users/summary/paginacja/seed; HTML maili poza D-* HTTP |
 | `SPEC-BEZPIECZENSTWO.md` | Env, ekspozycja, Helmet, CORS, metrics/logi bez sekretów; **B-8a** re-auth + sekrety na email/password/delete (V1); **B-9 L-11**; Compose-first `127.0.0.1` + root `.env`; anti-enum; GuestGuard; Redis HOST/PORT/PASSWORD; health/ready; **B-12** Users/cancel/sesja |
 
 ## Terminologia faz (skrót)

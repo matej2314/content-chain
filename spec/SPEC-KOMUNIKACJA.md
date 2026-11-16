@@ -1,7 +1,7 @@
 ---
-wersja: 47
+wersja: 48
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-13
+data_modyfikacji: 2026-11-16
 ---
 
 # SPEC — Komunikacja (HTTP / SSE / gateway)
@@ -10,8 +10,10 @@ data_modyfikacji: 2026-11-13
 
 Norma **implementacji obu powierzchni I/O** Content Chain:
 
-1. HTTP API + SSE `apps/api` (konsumenci: `apps/frontend`, Postman),
-2. klient `apps/api` → `apps/ai-provider-gateway` (natywny chat **oraz** probe liveness health).
+1. HTTP API + SSE `apps/api` (konsumenci: `apps/frontend`, Postman) — **kształt kontraktu operatora bez zmian** po izolacji workera; źródło eventów z procesu `apps/worker` (execute **i** recovery) = most PG NOTIFY → api hub Subjectów → EventSource na api; abort live ≠ most SSE (osobny kanał `run.abort` — `SPEC-RUNY.md` R-11),
+2. klient `apps/api` / `apps/worker` → `apps/ai-provider-gateway` (natywny chat **oraz** probe liveness health z api).
+
+Zmiana względem wersji 47 / izolacja workera: nota mostu NOTIFY + kanał abort; FE nadal EventSource na api.
 
 Uszczegóławia `docs/dokumentacja_komunikacji.md` oraz korelację ID z `docs/brand_types.md` / `docs/dictionary.md`. **Nie** redefiniuje listy endpointów ani payloadów — odwołuje się do docs; tu obowiązują wzorce warstw, walidacja, envelope, SSE i adapter LLM.
 
@@ -171,7 +173,7 @@ Zmiana względem wersji 46 / K-2d password: sukces Clear-Cookie. Od tej wersji: 
 Zmiana względem wcześniejszego K-2d: trasa `PATCH /auth/me` (z lub bez `currentPassword`) / złe hasło jako `UNAUTHORIZED`.
 Zmiana względem: K-2d tylko email MVP bez tras V1 password/delete/confirm.
 
-K-2e. `POST /api/v1/runs/:runId/cancel` — body puste; sesja cookie. Authz: `startedBy` **lub** (aktor `admin` **i** `startedBy.role === guest`); cudzy run `role = user` → **403** `FORBIDDEN`. Odpowiedzi: **200** + snapshot (`status: cancelled`, `cancelledAt`) przy pierwszym legalnym cancelu **oraz** gdy run już `cancelled` (idempotencja); **404**; **409** `RUN_NOT_CANCELABLE` gdy status już `completed` \| `failed`. **200 nie czeka** na zwinięcie execute (bez regresji MVP). Semantyka CAS / abort in-process (+ abort `fetch` z api) / recovery / log aktora — `SPEC-RUNY.md` R-11. Mapowanie disconnect→`AbortSignal` hopu w gateway **odłożone** (R-11). Pełny kontrakt: `docs/dokumentacja_komunikacji.md`.
+K-2e. `POST /api/v1/runs/:runId/cancel` — body puste; sesja cookie. Authz: `startedBy` **lub** (aktor `admin` **i** `startedBy.role === guest`); cudzy run `role = user` → **403** `FORBIDDEN`. Odpowiedzi: **200** + snapshot (`status: cancelled`, `cancelledAt`) przy pierwszym legalnym cancelu **oraz** gdy run już `cancelled` (idempotencja); **404**; **409** `RUN_NOT_CANCELABLE` gdy status już `completed` \| `failed`. **200 nie czeka** na zwinięcie execute (bez regresji). Semantyka CAS / SSE hub api / durable flag / live abort = NOTIFY `run.abort` → worker (+ abort `fetch` z workera) / recovery / log aktora — `SPEC-RUNY.md` R-11. Mapowanie disconnect→`AbortSignal` hopu w gateway **odłożone** (R-11). Pełny kontrakt: `docs/dokumentacja_komunikacji.md`.
 
 Zmiana względem wersji 36 / K-2e: authz wyłącznie `startedBy`. Od tej wersji wyjątek admin→`guest`.
 Zmiana względem wersji 43 / K-2e: skrót milczał o abort→gateway. Następnie (v44): odsyłacz do R-11 V1 abort api→gateway. **Od wersji 45:** odsyłacz do R-11 z **odłożonym** mapowaniem hopu w gateway.
@@ -229,7 +231,7 @@ Zmiana względem wersji 4: dopisano fundament zapisu feedbacku (wcześniej tylko
 
 Zmiana względem wersji 2: dopisano obowiązek listingu kolekcji runów pod FE (wcześniej tylko POST + GET by id / SSE).
 
-K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed/**cancelled**) idzie wyłącznie przez **SSE** `GET /api/v1/runs/:runId/events`. Zdarzenia i statusy jak w docs komunikacji — `run.status` może nieść `interrupted` / `cancelled`; event terminalny cancelu: **`run.cancelled`** `{ runId }`. Dashboard **może** zareagować na `run.completed` / `run.failed` / **`run.cancelled`** toasteem wg `SPEC-FRONTEND.md` / `docs/ux_dashboard.md` (dedup względem toasta mutacji cancel); to **nie** jest polling. Cancel **nie** wprowadza pollingu jako live. Źródło prawdy statusu i powodu po reloadzie: GET run / GET logs — nie pamięć toasta. Payload `run.failed` `{ code?, message }` **nie** zastępuje `run.log` (`SPEC-RUNY.md` R-2). **Brak** nowego eventu SSE dla auto-finalize przeglądu (UI odświeża stan z GET / mutacji — `SPEC-RUNY.md` R-10).
+K-3. Live postęp runu (status, logi przyrostowe, HITL, completed/failed/**cancelled**) idzie wyłącznie przez **SSE** `GET /api/v1/runs/:runId/events` **na api** (EventSource FE — kształt bez zmian). Eventy z procesu **workera** (execute **i** recovery) trafiają do huba api mostem PG NOTIFY (`SPEC-RUNY.md` R-4); eventy lokalne api (cancel, HITL transition) → hub bezpośrednio. Zdarzenia jak w docs — `run.status` może nieść `interrupted` / `cancelled`; terminal cancelu: **`run.cancelled`**. To **nie** jest polling tabeli Run. Cancel **nie** wprowadza pollingu jako live. Abort soft-stop = osobny kanał `run.abort` (nie event SSE). Źródło prawdy po reloadzie: GET run / GET logs. **Brak** nowego eventu SSE dla auto-finalize przeglądu (R-10).
 
 Zmiana względem wersji 5: zbiór statusów SSE / filtra listy rozszerzony o `interrupted`; K-2 (POST `queued` \| `running`) **bez** zmiany statusów startowych.
 
@@ -246,7 +248,7 @@ Zmiana względem wersji 24 / K-3a: koniec SSE tylko na `completed` \| `failed`. 
 K-3b. Heartbeat keep-alive i TTL Subject:
 
 1. Handler `@Sse()` **merguje** live Observable ze strumieniem `interval(SSE_HEARTBEAT_MS)` emitującym `{ type: 'heartbeat', data: '' }`. Klient **ignoruje** tę wartość. Heartbeat **nie** jest emitowany w ścieżce `of(snapshot)` (terminal late-join) — wyłącznie przy otwartym połączeniu live.
-2. Subject w `InMemoryRunSseHub` otworzony przez `subscribe()` jest domykany z błędem i usuwany z mapy po `RUN_SSE_SUBJECT_TTL_MS`. Timer musi mieć `timer.unref()`.
+2. Subject w hubie api (rename z `InMemoryRunSseHub` na nazwę neutralną — lokalny hub procesu api) otworzony przez `subscribe()` jest domykany z błędem i usuwany z mapy po `RUN_SSE_SUBJECT_TTL_MS`. Timer musi mieć `timer.unref()`. **Zakaz** Subjectów w procesie workera.
 3. Wartości `SSE_HEARTBEAT_MS` (default `25_000`) i `RUN_SSE_SUBJECT_TTL_MS` (default `600_000`) są walidowane przez Zod w `env.schema.ts`. Zakaz hardkodowania.
 
 Zmiana względem wersji 7: dopisano K-3b (heartbeat + TTL Subject — ochrona przed zombie Subject przy hung runie i przed ciszą TCP przy długich runach).
@@ -354,10 +356,12 @@ Zmiana względem wersji 8 / wiersz Application: odczyt snapshotu był milcząco 
 
 ### Nie wolno
 
-- Pollingu statusu runu jako kanału **live** (zamiast SSE).
+- Pollingu statusu runu / tabeli Run jako kanału **live** (zamiast SSE + most NOTIFY).
+- Redis / HTTP sync jako default mostu worker→api dla SSE lub soft-abort.
+- EventSource / Subjectów SSE w procesie `apps/worker` (FE łączy się z api).
 - Traktowania payloadu `run.failed` (`code?`, `message`) jako zamiennika kanonicznych `run.log` (`SPEC-RUNY.md` R-2).
 - Zostawiania otwartego SSE po evencie terminalnym albo na runie już `completed` \| `failed` \| `cancelled`.
-- Pollingu statusu jako live w związku z cancel (obowiązuje SSE + GET snapshot).
+- Pollingu statusu jako live w związku z cancel (obowiązuje SSE + GET snapshot; abort = NOTIFY `run.abort`).
 - Synchronicznego await execute w handlerze `POST .../cancel` (K-2e / `SPEC-RUNY.md` R-11).
 - Ad hoc statusów / kodów limitu per-user poza **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` (K-8 / R-6a).
 - Cichego `queued` ponad per-user zamiast rejectu envelope.

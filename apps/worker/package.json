@@ -1,0 +1,50 @@
+{
+    "name": "worker",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "dev": "nest start --watch",
+        "build": "nest build",
+        "start": "node dist/main",
+        "test": "jest",
+        "typecheck:tests": "tsc -p tsconfig.json --noEmit"
+    },
+    "dependencies": {
+        "@content-chain/shared": "workspace:*",
+        "@nestjs/common": "^11.0.0",
+        "@nestjs/config": "^4.0.0",
+        "@nestjs/core": "^11.0.0",
+        "@prisma/client": "^6",
+        "dotenv": "^17.4.2",
+        "nestjs-pino": "^4.6.1",
+        "pg": "^8.23.1",
+        "pg-boss": "^12.38.2",
+        "pino": "^9.14.0",
+        "reflect-metadata": "^0.2.0",
+        "rxjs": "^7.8.0",
+        "zod": "^4.4.3"
+    },
+    "devDependencies": {
+        "@nestjs/cli": "^11.0.0",
+        "@nestjs/testing": "^11.0.0",
+        "@types/jest": "^30.0.0",
+        "@types/node": "^22.0.0",
+        "@types/pg": "^8.15.0",
+        "jest": "^30.4.2",
+        "ts-jest": "^29.2.5",
+        "typescript": "^5.7.0"
+    },
+    "jest": {
+        "moduleFileExtensions": [
+            "js",
+            "json",
+            "ts"
+        ],
+        "rootDir": "src",
+        "testRegex": ".*\\.spec\\.ts$",
+        "transform": {
+            "^.+\\.(t|j)s$": "ts-jest"
+        },
+        "testEnvironment": "node"
+    }
+}

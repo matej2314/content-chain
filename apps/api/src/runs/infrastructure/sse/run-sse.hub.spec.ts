@@ -1,7 +1,7 @@
 import { firstValueFrom, toArray } from 'rxjs';
 import type { Env } from '../../../shared/config/env';
 import { newRunId } from '../../../shared/http/new-ids';
-import { InMemoryRunSseHub } from './run-sse.hub';
+import { LocalRunSseHub } from './local-run-sse.hub';
 
 const TTL_MS = 1_000;
 
@@ -9,13 +9,13 @@ function testEnv(overrides: Partial<Env> = {}): Env {
   return { RUN_SSE_SUBJECT_TTL_MS: 600_000, ...overrides } as Env;
 }
 
-describe('InMemoryRunSseHub', () => {
+describe('LocalRunSseHub', () => {
   afterEach(() => {
     jest.useRealTimers();
   });
 
   it('complete emits to subscriber, deletes the map entry, and is idempotent', async () => {
-    const hub = new InMemoryRunSseHub(testEnv());
+    const hub = new LocalRunSseHub(testEnv());
     const runId = newRunId();
     const seen = firstValueFrom(hub.subscribe(runId).pipe(toArray()));
 
@@ -35,7 +35,7 @@ describe('InMemoryRunSseHub', () => {
   });
 
   it('publish after complete does not recreate a subject', () => {
-    const hub = new InMemoryRunSseHub(testEnv());
+    const hub = new LocalRunSseHub(testEnv());
     const runId = newRunId();
     hub.subscribe(runId).subscribe();
     hub.complete(runId);
@@ -49,7 +49,7 @@ describe('InMemoryRunSseHub', () => {
   });
 
   it('unsubscribe of a client does not evict a living subject', () => {
-    const hub = new InMemoryRunSseHub(testEnv());
+    const hub = new LocalRunSseHub(testEnv());
     const runId = newRunId();
     const sub = hub.subscribe(runId).subscribe();
     expect(hub.has(runId)).toBe(true);
@@ -60,7 +60,7 @@ describe('InMemoryRunSseHub', () => {
   it('closes the subject with an error after TTL and deletes the map entry', () => {
     jest.useFakeTimers();
 
-    const hub = new InMemoryRunSseHub(
+    const hub = new LocalRunSseHub(
       testEnv({ RUN_SSE_SUBJECT_TTL_MS: TTL_MS }),
     );
     const runId = newRunId();
@@ -83,7 +83,7 @@ describe('InMemoryRunSseHub', () => {
 
   it('TTL timer does not error a subject already completed', () => {
     jest.useFakeTimers();
-    const hub = new InMemoryRunSseHub(
+    const hub = new LocalRunSseHub(
       testEnv({ RUN_SSE_SUBJECT_TTL_MS: TTL_MS }),
     );
     const runId = newRunId();

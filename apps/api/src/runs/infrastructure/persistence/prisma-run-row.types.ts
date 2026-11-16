@@ -28,6 +28,7 @@ export type RunRow = {
 };
 
 export type RunLogRow = {
+  id: string;
   runId: string;
   conversationId: string | null;
   at: Date;
