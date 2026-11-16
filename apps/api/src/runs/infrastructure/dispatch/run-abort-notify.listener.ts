@@ -29,13 +29,14 @@ export class RunAbortNotifyListener implements OnModuleInit, OnModuleDestroy {
       this.abortRegistry.requestCancel(createRunId(msg.payload));
     });
     await client.connect();
-    await client.query(`LISTEN ${RUN_ABORT_CHANNEL}`);
+    // Channel has a dot (SPEC run.abort) — must be a quoted identifier for LISTEN.
+    await client.query(`LISTEN "${RUN_ABORT_CHANNEL}"`);
   }
 
   async onModuleDestroy(): Promise<void> {
     if (!this.client) return;
     try {
-      await this.client.query(`UNLISTEN ${RUN_ABORT_CHANNEL}`);
+      await this.client.query(`UNLISTEN "${RUN_ABORT_CHANNEL}"`);
       await this.client.end();
     } catch (err) {
       this.logger.warn({ err }, 'abort LISTEN shutdown failed');

@@ -1,12 +1,15 @@
 import { execFileSync } from 'child_process';
 import { randomUUID } from 'node:crypto';
 import { join } from 'path';
-import { type INestApplication } from '@nestjs/common';
+import {
+  type INestApplication,
+  type INestApplicationContext,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { isUserRole, type UserRole } from '@content-chain/shared';
 import { AppModule } from '../src/app.module';
-import { RUN_EXECUTOR } from '../src/runs/domain/run-executor.port';
+import { PG_BOSS } from '../src/runs/infrastructure/dispatch/pg-boss.tokens';
 import { StubRunExecutor } from '../src/runs/infrastructure/dispatch/stub-run.executor';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 import { PrismaService } from '../src/shared/persistence/prisma.service';
@@ -15,6 +18,11 @@ import {
   E2E_ADMIN_CREDENTIALS,
   type E2eAgent,
 } from './authenticated-agent';
+import {
+  bootWorkerE2e,
+  closeWorkerE2e,
+  createInProcessPgBoss,
+} from './boot-worker-e2e';
 
 const completeContextBody = {
   identity: { name: 'Acme', description: 'Robimy X.' },
@@ -294,6 +302,7 @@ function readLightUserRunsBody(body: unknown): LightUserRunsBody {
 
 describe('Runs list (e2e)', () => {
   let app: INestApplication;
+  let worker: INestApplicationContext;
   let agent: E2eAgent;
   let prisma: PrismaService;
   let sessionUser: SessionIdentity;
@@ -305,16 +314,21 @@ describe('Runs list (e2e)', () => {
 
   beforeAll(async () => {
     deployTestDb();
+    const pgBoss = createInProcessPgBoss();
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })
-      .overrideProvider(RUN_EXECUTOR)
-      .useClass(StubRunExecutor)
+      .overrideProvider(PG_BOSS)
+      .useValue(pgBoss)
       .compile();
     app = moduleRef.createNestApplication();
     configureHttpApp(app);
     await app.init();
+    worker = await bootWorkerE2e({
+      pgBoss,
+      runExecutorClass: StubRunExecutor,
+    });
     prisma = app.get(PrismaService);
     agent = await createAuthenticatedAgent(app);
 
@@ -406,15 +420,16 @@ describe('Runs list (e2e)', () => {
         rows.every((row) => row.status === 'completed')
       );
     }, 'all seeded runs to complete');
-  }, 30_000);
+  }, 60_000);
 
   afterAll(async () => {
     if (prisma) {
       await wipeRuns(prisma);
       await prisma.user.deleteMany({ where: { email: OTHER_USER_EMAIL } });
     }
+    await closeWorkerE2e(worker);
     await app?.close();
-  }, 15_000);
+  }, 30_000);
 
   it('rejects GET /api/v1/runs without a session cookie', async () => {
     const response = await request(app.getHttpServer())

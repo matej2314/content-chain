@@ -20,5 +20,25 @@ export type PgBossWorkerClient = PgBossSendClient & {
   ): Promise<string>;
 };
 
+type PgBossCtor = new (options: {
+  connectionString: string;
+}) => PgBossWorkerClient;
+
+type PgBossModule = { PgBoss: PgBossCtor };
+
+/**
+ * D6: no static `from 'pg-boss'`.
+ * Jest CJS blocks `await import()` unless --experimental-vm-modules —
+ * `new Function` keeps a real dynamic import that works in Node + Jest.
+ */
+export async function loadPgBoss(): Promise<PgBossCtor> {
+  const importer = new Function(
+    'specifier',
+    'return import(specifier)',
+  ) as (specifier: string) => Promise<PgBossModule>;
+  const mod = await importer('pg-boss');
+  return mod.PgBoss;
+}
+
 export const PG_BOSS = Symbol('PG_BOSS');
 export const PG_NOTIFY_POOL = Symbol('PG_NOTIFY_POOL');

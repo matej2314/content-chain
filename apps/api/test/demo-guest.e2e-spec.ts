@@ -1,7 +1,10 @@
 import { execFileSync } from 'child_process';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import { type INestApplication } from '@nestjs/common';
+import {
+  type INestApplication,
+  type INestApplicationContext,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -18,6 +21,8 @@ import {
   E2E_ADMIN_CREDENTIALS,
   type E2eAgent,
 } from './authenticated-agent';
+import { bootWorkerE2e, closeWorkerE2e, createInProcessPgBoss } from './boot-worker-e2e';
+import { PG_BOSS } from '../src/runs/infrastructure/dispatch/pg-boss.tokens';
 import { FakeLlmGateway, ideasJson, verifierOk } from './fake-llm-gateway';
 
 const completeContextBody = {
@@ -76,6 +81,7 @@ function restoreEnv(
 
 describe('DEMO MODE guest HTTP (e2e)', () => {
   let app: INestApplication;
+  let worker: INestApplicationContext;
   let admin: E2eAgent;
   let guest: E2eAgent;
   let prisma: PrismaService;
@@ -101,10 +107,13 @@ describe('DEMO MODE guest HTTP (e2e)', () => {
     process.env.REDIS_HOST = '127.0.0.1';
     process.env.REDIS_PORT = '6379';
     deployTestDb();
+    const pgBoss = createInProcessPgBoss();
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })
+      .overrideProvider(PG_BOSS)
+      .useValue(pgBoss)
       .overrideProvider(GUEST_QUOTA)
       .useValue(quota)
       .overrideProvider(LLM_GATEWAY_PORT)
@@ -118,6 +127,7 @@ describe('DEMO MODE guest HTTP (e2e)', () => {
     app = moduleRef.createNestApplication();
     configureHttpApp(app);
     await app.init();
+    worker = await bootWorkerE2e({ llm: fakeLlm, pgBoss });
     prisma = app.get(PrismaService);
     admin = await createAuthenticatedAgent(app);
     await admin
@@ -138,12 +148,13 @@ describe('DEMO MODE guest HTTP (e2e)', () => {
       .send(GUEST_CREDENTIALS)
       .expect(200);
     expect(login.body.user.role).toBe('guest');
-  }, 30_000);
+  }, 60_000);
 
   afterAll(async () => {
+    await closeWorkerE2e(worker);
     await app?.close();
     restoreEnv(envSnapshot);
-  }, 15_000);
+  }, 30_000);
 
   it('GET /config is public and returns only demoMode (D-60)', async () => {
     const response = await request(app.getHttpServer())

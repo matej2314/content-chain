@@ -1,7 +1,10 @@
 import { execFileSync } from 'child_process';
 import type { IncomingMessage } from 'http';
 import { join } from 'path';
-import { type INestApplication } from '@nestjs/common';
+import {
+  type INestApplication,
+  type INestApplicationContext,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import { AppModule } from '../src/app.module';
@@ -9,14 +12,14 @@ import { GATE_SECTIONS } from '../src/company-context/domain/company-context.con
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { ENV, type Env } from '../src/shared/config/env';
 import { validateEnv } from '../src/shared/config/env.schema';
+import { validateWorkerEnv } from '../src/shared/config/worker-env.schema';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 import { PrismaService } from '../src/shared/persistence/prisma.service';
-import {
-  RUN_EXECUTOR,
-  type RunExecutorPort,
-} from '../src/runs/domain/run-executor.port';
+import type { RunExecutorPort } from '../src/runs/domain/run-executor.port';
 import type { RunRecord } from '../src/runs/domain/run.types';
 import { createAuthenticatedAgent, type E2eAgent } from './authenticated-agent';
+import { bootWorkerE2e, closeWorkerE2e, createInProcessPgBoss } from './boot-worker-e2e';
+import { PG_BOSS } from '../src/runs/infrastructure/dispatch/pg-boss.tokens';
 import { FakeLlmGateway } from './fake-llm-gateway';
 
 const completeContextBody = {
@@ -277,6 +280,7 @@ async function collectSseUntilServerCloses(
 describe('Runs lifecycle (e2e)', () => {
   describe('pipeline (fake LLM)', () => {
     let app: INestApplication;
+    let worker: INestApplicationContext;
     let agent: E2eAgent;
     let prisma: PrismaService;
     let fakeLlm: FakeLlmGateway;
@@ -284,20 +288,24 @@ describe('Runs lifecycle (e2e)', () => {
     beforeAll(async () => {
       deployTestDb();
       fakeLlm = new FakeLlmGateway();
+      const pgBoss = createInProcessPgBoss();
 
       const moduleRef = await Test.createTestingModule({
         imports: [AppModule],
       })
+        .overrideProvider(PG_BOSS)
+        .useValue(pgBoss)
         .overrideProvider(LLM_GATEWAY_PORT)
         .useValue(fakeLlm)
         .compile();
       app = moduleRef.createNestApplication();
       configureHttpApp(app);
       await app.init();
+      worker = await bootWorkerE2e({ llm: fakeLlm, pgBoss });
       prisma = app.get(PrismaService);
       agent = await createAuthenticatedAgent(app);
       await wipeRuns(prisma);
-    }, 30_000);
+    }, 60_000);
 
     beforeEach(async () => {
       fakeLlm.reset();
@@ -316,8 +324,9 @@ describe('Runs lifecycle (e2e)', () => {
       if (prisma) {
         await wipeRuns(prisma);
       }
+      await closeWorkerE2e(worker);
       await app?.close();
-    }, 15_000);
+    }, 30_000);
 
     it('POST /api/v1/runs without complete context returns 409 CONTEXT_INCOMPLETE and does not persist a run', async () => {
       await prisma.companyContext.deleteMany();
@@ -429,6 +438,7 @@ describe('Runs lifecycle (e2e)', () => {
 
   describe('queue (D-9) with holding fake executor', () => {
     let app: INestApplication;
+    let worker: INestApplicationContext;
     let agent: E2eAgent;
     let prisma: PrismaService;
     let holding: HoldingRunExecutor;
@@ -448,23 +458,31 @@ describe('Runs lifecycle (e2e)', () => {
       previousMax = process.env.MAX_CONCURRENT_RUNS;
       process.env.MAX_CONCURRENT_RUNS = '1';
       const env: Env = validateEnv(process.env);
+      const workerEnv = validateWorkerEnv(process.env);
       holding = new HoldingRunExecutor();
+      const pgBoss = createInProcessPgBoss();
 
       const moduleRef = await Test.createTestingModule({
         imports: [AppModule],
       })
         .overrideProvider(ENV)
         .useValue(env)
-        .overrideProvider(RUN_EXECUTOR)
-        .useValue(holding)
+        .overrideProvider(PG_BOSS)
+        .useValue(pgBoss)
         .compile();
 
       app = moduleRef.createNestApplication();
       configureHttpApp(app);
       await app.init();
+      worker = await bootWorkerE2e({
+        env: workerEnv,
+        runExecutor: holding,
+        llm: new FakeLlmGateway(),
+        pgBoss,
+      });
       prisma = app.get(PrismaService);
       agent = await createAuthenticatedAgent(app);
-    }, 30_000);
+    }, 60_000);
 
     afterAll(async () => {
       try {
@@ -472,11 +490,12 @@ describe('Runs lifecycle (e2e)', () => {
         if (prisma) {
           await wipeRuns(prisma);
         }
+        await closeWorkerE2e(worker);
         await app?.close();
       } finally {
         process.env.MAX_CONCURRENT_RUNS = previousMax;
       }
-    }, 15_000);
+    }, 30_000);
 
     it('keeps the second run queued while MAX_CONCURRENT_RUNS=1 is occupied, then starts it after release', async () => {
       await putCompleteContext(agent);

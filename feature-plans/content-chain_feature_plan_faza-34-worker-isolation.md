@@ -1006,7 +1006,7 @@ Odpowiada major 34.5 + DoD testowe. Status startowy: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — Compose usługa `worker` + `.env.example` + skrypty DX
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Compose-first V1 z czterema usługami aplikacyjnymi; wspólny PG (`docs/deployment.md`, M-9). Major 34.5. Obsługa race **D3** (kolejki tworzy worker).
 
@@ -1063,7 +1063,7 @@ Odpowiada major 34.5 + DoD testowe. Status startowy: `NIE_ROZPOCZĘTY`.
 
 ### KROK 2 — Weryfikacja wcześniej utworzonych testów jednostkowych
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Domknąć spójność unitów FAZA 1–2 po wycięciu in-process: mapa przypadków → plik; brak orphanów; zielony suite; regresja **D6** (brak static import `pg-boss`).
 
@@ -1110,7 +1110,7 @@ Odpowiada major 34.5 + DoD testowe. Status startowy: `NIE_ROZPOCZĘTY`.
 
 ### KROK 3 — E2e / Postman: D-9 / D-9b / D-10 / D-14 / D-30…D-34 / D-35…D-40
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Regresja kontraktu operatora przy osobnym workerze (`SPEC-TESTY.md`). **Bez** nowych numerów D-*.
 
@@ -1137,6 +1137,108 @@ chore(deploy): add Compose worker service and verify isolation tests
 
 Ship the always-on worker container and close unit/e2e coverage for
 queue, NOTIFY SSE/abort, recovery, and review sweep after the process split.
+```
+
+---
+
+## FAZA 4 — Naprawa bootu workera (core Company Context + entry Nest)
+
+Status startowy fazy / kroków: `NIE_ROZPOCZĘTY`.
+
+**Cel:** Proces `apps/worker` wstaje lokalnie i w Compose. Unit/e2e api mogą być zielone przy padającym workerze — ta faza domyka lukę runtime (M-10: worker bez powierzchni HTTP company-context).
+
+**Kontekst (zaobserwowane błędy):**
+
+1. `Cannot find module 'class-transformer'` — require stack: `company-context.dto` → controller → `CompanyContextModule` → `WorkerRuntimeModule` → `main` (lokalnie `pnpm --filter worker start` **oraz** kontener `cc-worker` — ten sam łańcuch).
+2. `Cannot find module '.../apps/worker/dist/main'` przy `pnpm dev:worker` / `nest start --watch` — Nest domyślnie szuka `dist/main`, a emit day-1 (import `../../api/src/...`) ląduje w `dist/worker/src/main.js`.
+
+**Refaktor względem:** FAZA 2 / KROK 1–2 (`WorkerRuntimeModule` importuje pełny `CompanyContextModule`); FAZA 1 / KROK 1 (bootstrap Nest / layout `dist`); FAZA 3 (Compose worker — obraz nie bootuje past DTO).
+
+**Decyzje HOW (zatwierdzone 2026-11-16):**
+
+| Temat | Wartość |
+|-------|---------|
+| Company Context | Cienki `CompanyContextCoreModule` (repo only) w workerze; pełny `CompanyContextModule` + HTTP **bez regresji api** |
+| Nest entry | `nest-cli.json` → `"entryFile": "worker/src/main"`; spójne `dev` / `start` / Docker `CMD` |
+| Hotfix `@nestjs/swagger` w `apps/worker` | Usunąć po splocie core (gdy nie jest już wymagany do bootu) |
+| Kolejne `MODULE_NOT_FOUND` po K1–K2 | **Nowy KROK** w tej FAZA 4 (dopisek planu), nie ciche rozszerzenie DoD K1/K2 |
+| Ślad major | **Bez zmian** — faza naprawcza bootu; nie dopisywać 34.x / nie edytować sekcji „Ślad do major” |
+| Testy bootu | **Wykonuje użytkownik** ręcznie po implementacji; agent nie traktuje ich jako auto-CI w tej fazie |
+
+**Zasada rozbudowy zakresu:** jeśli po K1–K2 boot nadal pada na innym `MODULE_NOT_FOUND` / analogicznym pullu HTTP z drzewa api — **dopisać nowy KROK** `NIE_ROZPOCZĘTY` na końcu FAZA 4 (HOW + DoD), potem implementacja na jawne `/feature-implementation`. Zakaz whack-a-mole deps HTTP „na zapas” w `apps/worker` bez kroku w planie.
+
+---
+
+### KROK 1 — `CompanyContextCoreModule` + wire workera (bez regresji HTTP api)
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Cel:** Worker nie ładuje controller/DTO company-context; pipeline nadal dostaje `COMPANY_CONTEXT_REPOSITORY`.
+
+**Artefakty:**
+
+- Nowy: `apps/api/src/company-context/company-context-core.module.ts` — providers/exports wyłącznie `COMPANY_CONTEXT_REPOSITORY` → `PrismaCompanyContextAdapter`; **bez** `controllers`, **bez** DTO swagger/class-validator.
+- Zmiana: `company-context.module.ts` — `imports: [CompanyContextCoreModule]`; controller + use-case’y Get/Put/Patch/Completeness; `exports` jak dziś dla Seed/Runs/App (**albo** re-export core + use-case’y — HTTP api i seed bez regresji kontraktu).
+- Zmiana: `apps/api/src/runs/worker-runtime.module.ts` — `CompanyContextModule` → `CompanyContextCoreModule`.
+- Unit: istniejące testy company-context / fasad Social|Content zależnych od repo — zielone; brak nowego wymogu e2e w tym kroku.
+
+**DoD kroku:**
+
+- `WorkerRuntimeModule` nie importuje modułu z `CompanyContextController` / `company-context.dto`.
+- Api: GET/PUT/PATCH company-context oraz seed (Put + repo) działają jak przed refaktorem (regresja = fail kroku).
+- Po rebuildzie workera: require stack **nie** przechodzi przez `company-context.dto.js` przy starcie (lokalny `node dist/worker/src/main.js` / Compose — weryfikacja użytkownika w KROK 3).
+
+---
+
+### KROK 2 — Entry Nest (`dist/worker/src/main`) + cleanup deps workera
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Cel:** `pnpm dev:worker` / `nest start --watch` uruchamia faktyczny emit; usunąć hotfix HTTP deps zbędne po K1.
+
+**Artefakty:**
+
+- Zmiana: `apps/worker/nest-cli.json` — `"entryFile": "worker/src/main"` (względem `dist/`).
+- Spójność: `apps/worker/package.json` skrypty `dev` / `start` oraz Docker `CMD` / Compose command wskazują ten sam entry (`dist/worker/src/main.js`).
+- Cleanup: usunąć `@nestjs/swagger` z `dependencies` workera, jeśli po K1 nie jest wymagany do bootu; **nie** dodawać `class-transformer` / `class-validator` do workera w tym kroku.
+- Unit opcjonalny: asercja `nest-cli.json` zawiera `entryFile` (lekki spec jak Dockerfile) — wolno pominąć, jeśli DoD K3 pokrywa boot.
+
+**DoD kroku:**
+
+- `nest start --watch` / `pnpm dev:worker` nie szuka `dist/main` (brak błędu z terminala FAZA 3 DX).
+- `start` i obraz Compose używają tej samej ścieżki co emit day-1.
+- Brak `@nestjs/swagger` w worker deps **albo** jawna nota w raporcie implementacji dlaczego jeszcze zostaje (tylko gdy boot bez niego niemożliwy — wtedy nowy KROK wg zasady rozbudowy).
+
+---
+
+### KROK 3 — Domknięcie DoD bootu (weryfikacja użytkownika)
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Cel:** Potwierdzić, że worker wstaje w obu środowiskach DX/Compose. **Testy uruchomienia wykonuje użytkownik** (nie agent jako bramka CI tej fazy).
+
+**Artefakty:** brak wymogu nowego kodu produkcyjnego — checklista + ewentualne poprawki z raportu K1–K2.
+
+**Checklist (MUST — użytkownik):**
+
+| # | Komenda / akcja | Oczekiwanie |
+|---|-----------------|-------------|
+| 1 | `pnpm --filter worker start` (po `build` jeśli trzeba) | Proces startuje; log boot Nest / „Worker started”; **brak** `MODULE_NOT_FOUND` na `class-transformer` / `dist/main` / swagger DTO company-context |
+| 2 | `pnpm dev:stack:up` (lub równoważny Compose DX) | Kontener `cc-worker` nie restart-loopuje; logi past entrypoint + Nest boot |
+
+**Adnotacja planu:** agent po implementacji K1–K2 raportuje diff i prosi użytkownika o odpalenie checklisty; status `WYKONANY` na K3 / fazie — dopiero po akceptacji wyniku bootu przez użytkownika (jak w `/feature-implementation`).
+
+**DoD kroku:** obie pozycje checklisty spełnione wg użytkownika; przy nowym `MODULE_NOT_FOUND` — **nie** oznaczać K3 `WYKONANY`; dopisać KROK 4+ do FAZA 4 i wrócić do implementacji.
+
+---
+
+#### Propozycja commit message (FAZA 4)
+
+```text
+fix(worker): boot without company-context HTTP deps
+
+Split CompanyContextCoreModule for WorkerRuntimeModule and point Nest
+entry at dist/worker/src/main so local and Compose worker processes start.
 ```
 
 ---
@@ -1181,3 +1283,4 @@ queue, NOTIFY SSE/abort, recovery, and review sweep after the process split.
 - **2026-11-16 — FAZA 1 / KROK 3 → `WYKONANY`:** `LocalRunSseHub`, koperta hybrid, `NotifyRunSseHub`, LISTEN+hydrate `getLogById` / `publishLog`, unit zielone; wire worker hub = FAZA 2.
 - **2026-11-16 — FAZA 2 / KROK 1 → `WYKONANY`:** `RunAbortNotifyListener` + `WorkerRecoverySweepBoot` + `WorkerRuntimeModule`; recover/sweep wycięte z `InProcessRunWorker` / `RunsModule`; unit zielone; import `WorkerRuntimeModule` w `WorkerAppModule` odłożony (nest rootDir / `@api`) do K2.
 - **2026-11-16 — FAZA 2 / KROK 2 → `WYKONANY`:** `RunExecutePump` (ex in-process) + `PgBossRunWorker` + `PgBossWorkerClient`; factory `await import('pg-boss')` + `createQueue`/`work`; pipeline Social/Content inline pod Notify hub; unit zielone; api nadal hostuje pump do K3 (D1).
+- **2026-11-16 — FAZA 4 (naprawcza) dopisana:** boot workera pada lokalnie i w Compose (`class-transformer` via company-context DTO; Nest `dist/main` vs `dist/worker/src/main`). HOW: `CompanyContextCoreModule` + `entryFile`; cleanup swagger; kolejne `MODULE_NOT_FOUND` = nowy KROK w FAZA 4; DoD bootu (`pnpm --filter worker start` + `dev:stack:up`) weryfikuje **użytkownik**. Ślad major / mapa 34.x **bez zmian**.

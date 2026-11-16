@@ -21,14 +21,17 @@ Kontrakt sesji, bootstrap i 401/403 auth są w **`auth.postman-collection.json`*
 1. Skopiować `apps/api/.env.example` → `apps/api/.env` oraz analogicznie env gateway (`apps/ai-provider-gateway/.env.example`). Uzupełnić sekrety lokalnie — **nie** wklejać ich do kolekcji. Dla przeglądu: `REVIEW_TTL` (default `2h`) i `REVIEW_SWEEP_INTERVAL` (default `5m`) — patrz `apps/api/.env.example`. Kolekcja **DEMO guest** wymaga `DEMO_MODE=true` oraz Redis (`REDIS_HOST`+`REDIS_PORT`, opcjonalnie `REDIS_PASSWORD`) — bez tego api nie wstanie (fail-fast env). Przy `DEMO_MODE=false` `GET /config` wraca `{ demoMode: false }` i resztę runnera **pomiń** (register da `role=user`). Redis **nie** wchodzi do `health`/`ready`.
 2. Migracje Prisma api (SQLite), w tym tabela `Feedback` i kolumny przeglądu na `Run` (`userRating`, `outputEdited`, `reviewFinalizedAt`, `pipelineFinishedAt`).
 3. **Istniejący admin w bazie.** Zmienne `adminEmail` / `adminPassword` w kolekcjach Social, Content i Review są te same co w `auth.postman-collection.json`. Pipeline nie woła `bootstrap-admin`. Pusta baza → login **401**; jednorazowo odpal Bootstrap w kolekcji auth (albo ręczny `POST /auth/bootstrap-admin`).
-4. Uruchomić procesy (kolejność: najpierw gateway, potem api):
+4. Uruchomić procesy (kolejność: gateway → **worker** → api; po cutoverze execute/recovery/sweep = worker):
 
 ```bash
 pnpm dev:gateway
+pnpm dev:worker
 pnpm dev:api
 ```
 
-Api nasłuchuje na `http://localhost:3001` (prefix HTTP: `/api/v1`). Gateway musi odpowiadać — to dowód pośredni ops, nie CI PR.
+Albo Compose DX (`pnpm dev:stack:up`) — podnosi api **i** worker razem. Samo api bez workera **nie** wykona runów.
+
+Api nasłuchuje na `http://localhost:3001` (prefix HTTP: `/api/v1`). Gateway musi odpowiadać — to dowód pośredni ops, nie CI PR. Worker bez publicznego portu runów.
 
 PUT/PATCH `/company-context` i start runów wymagają sesji **admina** (`cc_access` / `cc_refresh`, httpOnly). Cookie jar w Postmanie jest **włączony domyślnie** (Collection Runner i Newman też go trzymają w ramach jednego runu). Pod **Send** → **Cookies** po loginie ma być `localhost` z `cc_access` i `cc_refresh`. W Settings requestu **nie** zaznaczaj **Disable cookie jar**. Interceptor / sync z przeglądarki nie jest potrzebny.
 

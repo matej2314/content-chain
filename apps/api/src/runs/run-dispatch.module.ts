@@ -12,7 +12,9 @@ import { RUN_ABORT_SIGNAL } from './domain/run-abort-signal.port';
 import { RUN_JOB_ENQUEUE } from './domain/run-job-enqueue.port';
 import { PgBossRunJobEnqueue } from './infrastructure/dispatch/pg-boss.run-job.enqueue';
 import { PgNotifyAbortSignal } from './infrastructure/dispatch/pg-notify-abort.signal';
+import { createInProcessPgBossClient } from './infrastructure/dispatch/in-process-pg-boss.client';
 import {
+  loadPgBoss,
   PG_BOSS,
   PG_NOTIFY_POOL,
   type PgBossSendClient,
@@ -51,11 +53,17 @@ class RunDispatchShutdown implements OnModuleDestroy {
     {
       provide: PG_BOSS,
       useFactory: async (env: Env): Promise<PgBossSendClient> => {
-        const { PgBoss } = await import('pg-boss');
+        // Jest e2e: avoid ESM pg-boss under ts-jest (multi-suite teardown).
+        if (env.NODE_ENV === 'test') {
+          const boss = createInProcessPgBossClient();
+          await boss.start();
+          return boss;
+        }
+        const PgBoss = await loadPgBoss();
         const boss = new PgBoss({ connectionString: env.DATABASE_URL });
         await boss.start();
         // D3: send only — no createQueue / work
-        return boss as unknown as PgBossSendClient;
+        return boss;
       },
       inject: [ENV],
     },

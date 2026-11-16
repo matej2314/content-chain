@@ -1,21 +1,23 @@
 import { execFileSync } from 'child_process';
 import { join } from 'path';
 import { randomUUID } from 'node:crypto';
-import { type INestApplication } from '@nestjs/common';
+import {
+  type INestApplication,
+  type INestApplicationContext,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import { AppModule } from '../src/app.module';
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { AutoFinalizeExpiredReviewsUseCase } from '../src/runs/application/auto-finalize-expired-reviews.use-case';
-import {
-  RUN_REPOSITORY,
-  type RunRepository,
-} from '../src/runs/domain/run.port';
 import { ENV, type Env } from '../src/shared/config/env';
 import { validateEnv } from '../src/shared/config/env.schema';
+import { validateWorkerEnv } from '../src/shared/config/worker-env.schema';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 import { PrismaService } from '../src/shared/persistence/prisma.service';
 import { createAuthenticatedAgent, type E2eAgent } from './authenticated-agent';
+import { bootWorkerE2e, closeWorkerE2e, createInProcessPgBoss } from './boot-worker-e2e';
+import { PG_BOSS } from '../src/runs/infrastructure/dispatch/pg-boss.tokens';
 import { FakeLlmGateway } from './fake-llm-gateway';
 
 /** REVIEW_TTL default 2h - anchors older than this are past the review window. */
@@ -112,6 +114,7 @@ function expectedAutoFinalizeIso(pipelineFinishedAt: Date): string {
 
 describe('Runs review TTL (e2e)', () => {
   let app: INestApplication;
+  let worker: INestApplicationContext;
   let agent: E2eAgent;
   let prisma: PrismaService;
   let autoFinalize: AutoFinalizeExpiredReviewsUseCase;
@@ -136,25 +139,27 @@ describe('Runs review TTL (e2e)', () => {
     process.env.REVIEW_SWEEP_INTERVAL = '1h';
     process.env.REVIEW_TTL = '2h';
     const env: Env = validateEnv(process.env);
+    const workerEnv = validateWorkerEnv(process.env);
+    const fakeLlm = new FakeLlmGateway();
+    const pgBoss = createInProcessPgBoss();
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideProvider(ENV)
       .useValue(env)
+      .overrideProvider(PG_BOSS)
+      .useValue(pgBoss)
       .overrideProvider(LLM_GATEWAY_PORT)
-      .useValue(new FakeLlmGateway())
+      .useValue(fakeLlm)
       .compile();
 
     app = moduleRef.createNestApplication();
     configureHttpApp(app);
     await app.init();
+    worker = await bootWorkerE2e({ env: workerEnv, llm: fakeLlm, pgBoss });
     prisma = app.get(PrismaService);
-    // Use-case lives on worker after K1 cut — construct for e2e until FAZA 3 harness.
-    autoFinalize = new AutoFinalizeExpiredReviewsUseCase(
-      app.get(ENV),
-      app.get<RunRepository>(RUN_REPOSITORY),
-    );
+    autoFinalize = worker.get(AutoFinalizeExpiredReviewsUseCase);
     agent = await createAuthenticatedAgent(app);
 
     const me = await agent.get('/api/v1/auth/me').expect(200);
@@ -164,7 +169,7 @@ describe('Runs review TTL (e2e)', () => {
       .put('/api/v1/company-context')
       .send(completeContextBody)
       .expect(200);
-  }, 30_000);
+  }, 60_000);
 
   beforeEach(async () => {
     await wipeRuns(prisma);
@@ -175,12 +180,13 @@ describe('Runs review TTL (e2e)', () => {
       if (prisma) {
         await wipeRuns(prisma);
       }
+      await closeWorkerE2e(worker);
       await app?.close();
     } finally {
       process.env.REVIEW_SWEEP_INTERVAL = previousSweep;
       process.env.REVIEW_TTL = previousTtl;
     }
-  }, 15_000);
+  }, 30_000);
 
   async function seedCompletedReview(options: {
     pipelineFinishedAt: Date | null;

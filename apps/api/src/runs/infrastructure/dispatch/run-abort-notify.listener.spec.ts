@@ -49,7 +49,7 @@ describe('RunAbortNotifyListener', () => {
     await listener.onModuleInit();
 
     expect(Client.prototype.query).toHaveBeenCalledWith(
-      `LISTEN ${RUN_ABORT_CHANNEL}`,
+      `LISTEN "${RUN_ABORT_CHANNEL}"`,
     );
 
     const runId = newRunId();
@@ -58,7 +58,7 @@ describe('RunAbortNotifyListener', () => {
 
     await listener.onModuleDestroy();
     expect(Client.prototype.query).toHaveBeenCalledWith(
-      `UNLISTEN ${RUN_ABORT_CHANNEL}`,
+      `UNLISTEN "${RUN_ABORT_CHANNEL}"`,
     );
     expect(Client.prototype.end).toHaveBeenCalled();
   });

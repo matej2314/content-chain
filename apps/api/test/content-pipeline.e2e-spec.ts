@@ -1,6 +1,9 @@
 import { execFileSync } from 'child_process';
 import { join } from 'path';
-import { type INestApplication } from '@nestjs/common';
+import {
+  type INestApplication,
+  type INestApplicationContext,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
@@ -10,6 +13,8 @@ import {
   createAuthenticatedAgent,
   type E2eAgent,
 } from './authenticated-agent';
+import { bootWorkerE2e, closeWorkerE2e, createInProcessPgBoss } from './boot-worker-e2e';
+import { PG_BOSS } from '../src/runs/infrastructure/dispatch/pg-boss.tokens';
 import {
   FAKE_LLM_REQUEST_ID,
   FakeLlmGateway,
@@ -196,6 +201,7 @@ function assertNoGatewaySecret(serialized: string): void {
 
 describe('Content pipeline (e2e, fake LLM)', () => {
   let app: INestApplication;
+  let worker: INestApplicationContext;
   let agent: E2eAgent;
   let prisma: PrismaService;
   let fakeLlm: FakeLlmGateway;
@@ -203,10 +209,13 @@ describe('Content pipeline (e2e, fake LLM)', () => {
   beforeAll(async () => {
     deployTestDb();
     fakeLlm = new FakeLlmGateway();
+    const pgBoss = createInProcessPgBoss();
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })
+      .overrideProvider(PG_BOSS)
+      .useValue(pgBoss)
       .overrideProvider(LLM_GATEWAY_PORT)
       .useValue(fakeLlm)
       .compile();
@@ -214,17 +223,19 @@ describe('Content pipeline (e2e, fake LLM)', () => {
     app = moduleRef.createNestApplication();
     configureHttpApp(app);
     await app.init();
+    worker = await bootWorkerE2e({ llm: fakeLlm, pgBoss });
     prisma = app.get(PrismaService);
     agent = await createAuthenticatedAgent(app);
     await putCompleteContext(agent);
-  }, 30_000);
+  }, 60_000);
 
   afterAll(async () => {
     if (prisma) {
       await wipeRuns(prisma);
     }
+    await closeWorkerE2e(worker);
     await app?.close();
-  }, 15_000);
+  }, 30_000);
 
   beforeEach(async () => {
     fakeLlm.reset();

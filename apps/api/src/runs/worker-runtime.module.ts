@@ -1,4 +1,10 @@
-import { Module } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  Module,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { Pool } from 'pg';
 import { ContentPipelineFacade } from '../content/application/content-pipeline.facade';
 import { ContentRunExecutor } from '../content/application/content-run.executor';
@@ -10,7 +16,7 @@ import { SocialPipelineFacade } from '../social/application/social-pipeline.faca
 import { SocialRunExecutor } from '../social/application/social-run.executor';
 import { SOCIAL_RESULT_STORE } from '../social/domain/social-result.port';
 import { PrismaSocialResultAdapter } from '../social/infrastructure/persistence/prisma-social-result.adapter';
-import { EnvModule } from '../shared/config/env.module';
+import { WorkerEnvModule } from '../shared/config/worker-env.module';
 import { ENV, type Env } from '../shared/config/env';
 import { LlmHopService } from '../shared/llm/llm-hop';
 import { PrismaModule } from '../shared/persistence/prisma.module';
@@ -30,6 +36,7 @@ import { RUN_REPOSITORY } from './domain/run.port';
 import { RUN_SSE_HUB } from './domain/run-sse.port';
 import { PgBossRunWorker } from './infrastructure/dispatch/pg-boss-run.worker';
 import {
+  loadPgBoss,
   PG_BOSS,
   PG_NOTIFY_POOL,
   type PgBossWorkerClient,
@@ -42,6 +49,30 @@ import {
 import { PrismaRunAdapter } from './infrastructure/persistence/prisma-run.adapter';
 import { NotifyRunSseHub } from './infrastructure/sse/notify-run-sse.hub';
 
+/** Stop pg-boss + notify pool on worker context close (e2e / process shutdown). */
+@Injectable()
+class WorkerDispatchShutdown implements OnModuleDestroy {
+  private readonly logger = new Logger(WorkerDispatchShutdown.name);
+
+  constructor(
+    @Inject(PG_BOSS) private readonly boss: PgBossWorkerClient,
+    @Inject(PG_NOTIFY_POOL) private readonly pool: Pool,
+  ) {}
+
+  async onModuleDestroy(): Promise<void> {
+    try {
+      await this.boss.stop({ graceful: true });
+    } catch (err) {
+      this.logger.warn({ err }, 'worker pg-boss stop failed');
+    }
+    try {
+      await this.pool.end();
+    } catch (err) {
+      this.logger.warn({ err }, 'worker notify pool end failed');
+    }
+  }
+}
+
 /**
  * Runtime DI workera: abort LISTEN, recovery, review sweep, execute pump, pg-boss work.
  * Pipeline providers are registered here (not via SocialModule/ContentModule) so
@@ -49,7 +80,7 @@ import { NotifyRunSseHub } from './infrastructure/sse/notify-run-sse.hub';
  * Wired from apps/worker (not HTTP AppModule).
  */
 @Module({
-  imports: [EnvModule, PrismaModule, LlmModule, CompanyContextModule],
+  imports: [WorkerEnvModule, PrismaModule, LlmModule, CompanyContextModule],
   providers: [
     PrismaRunAdapter,
     { provide: RUN_REPOSITORY, useExisting: PrismaRunAdapter },
@@ -90,7 +121,7 @@ import { NotifyRunSseHub } from './infrastructure/sse/notify-run-sse.hub';
     {
       provide: PG_BOSS,
       useFactory: async (env: Env): Promise<PgBossWorkerClient> => {
-        const { PgBoss } = await import('pg-boss');
+        const PgBoss = await loadPgBoss();
         const boss = new PgBoss({ connectionString: env.DATABASE_URL });
         await boss.start();
         await boss.createQueue(RUN_WAKE_QUEUE);
@@ -101,6 +132,7 @@ import { NotifyRunSseHub } from './infrastructure/sse/notify-run-sse.hub';
     },
     PgBossRunWorker,
     WorkerRecoverySweepBoot,
+    WorkerDispatchShutdown,
   ],
 })
 export class WorkerRuntimeModule {}

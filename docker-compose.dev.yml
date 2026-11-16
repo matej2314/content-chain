@@ -50,6 +50,33 @@ services:
     volumes:
       - ./apps/ai-provider-gateway/logs:/app/logs
 
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+      target: production
+    container_name: cc-worker
+    restart: unless-stopped
+    env_file:
+      - ./apps/worker/.env
+      - .env.dev
+    environment:
+      NODE_ENV: production
+      GATEWAY_BASE_URL: http://ai-provider-gateway:3100
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        export DATABASE_URL="postgresql://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}?schema=public"
+        exec /app/docker-entrypoint.sh node dist/worker/src/main.js
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-provider-gateway:
+        condition: service_healthy
+    networks:
+      - cc-network
+      - main_network
+
   api:
     build:
       context: .
@@ -88,6 +115,8 @@ services:
         condition: service_healthy
       ai-provider-gateway:
         condition: service_healthy
+      worker:
+        condition: service_started
     networks:
       - cc-network
       - main_network

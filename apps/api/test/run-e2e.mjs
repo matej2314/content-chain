@@ -16,19 +16,25 @@ const dbScript = join(here, 'e2e-db.mjs');
 /**
  * @param {string} command
  * @param {string[]} args
+ * @param {NodeJS.ProcessEnv} [env]
  * @returns {number}
  */
-function run(command, args) {
+function run(command, args, env = process.env) {
   const result = spawnSync(command, args, {
     cwd: apiRoot,
     stdio: 'inherit',
-    env: process.env,
+    env,
   });
   if (result.error) {
     console.error(result.error.message);
     return 1;
   }
   return result.status ?? 1;
+}
+
+/** Pass-through env for Jest (pg-boss ESM avoided in test via in-process fake). */
+function jestEnv() {
+  return { ...process.env };
 }
 
 const ci = isCi();
@@ -47,9 +53,15 @@ try {
     throw new Error('e2e migrate failed');
   }
 
+  const jestArgs = process.argv.slice(2).filter((arg) => arg !== '--');
+  // pg-boss / LISTEN clients can leave handles; forceExit keeps local/CI from hanging.
+  if (!jestArgs.includes('--forceExit')) {
+    jestArgs.push('--forceExit');
+  }
   exitCode = run(
     join(apiRoot, 'node_modules', '.bin', 'jest'),
-    ['--config', './test/jest-e2e.json', ...process.argv.slice(2)],
+    ['--config', './test/jest-e2e.json', ...jestArgs],
+    jestEnv(),
   );
 } catch {
   if (exitCode === 0) {

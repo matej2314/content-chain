@@ -7,7 +7,9 @@
 	},
 	"scripts": {
 		"build:api": "pnpm --filter api build",
+		"build:worker": "pnpm --filter worker build",
 		"dev:api": "pnpm --filter api dev",
+		"dev:worker": "pnpm --filter worker dev",
 		"dev:frontend": "pnpm --filter frontend dev",
 		"dev:gateway": "pnpm --filter ai-provider-gateway dev",
 		"test:gateway": "pnpm --filter ai-provider-gateway test:all",

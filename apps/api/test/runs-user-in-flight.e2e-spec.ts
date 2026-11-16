@@ -1,21 +1,26 @@
 import { execFileSync } from 'child_process';
 import { join } from 'path';
-import { type INestApplication } from '@nestjs/common';
+import {
+  type INestApplication,
+  type INestApplicationContext,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import { AppModule } from '../src/app.module';
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { ENV, type Env } from '../src/shared/config/env';
 import { validateEnv } from '../src/shared/config/env.schema';
+import { validateWorkerEnv } from '../src/shared/config/worker-env.schema';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 import { PrismaService } from '../src/shared/persistence/prisma.service';
-import {
-  RUN_EXECUTOR,
-  type RunExecuteOptions,
-  type RunExecutorPort,
+import type {
+  RunExecuteOptions,
+  RunExecutorPort,
 } from '../src/runs/domain/run-executor.port';
 import type { RunRecord } from '../src/runs/domain/run.types';
 import { createAuthenticatedAgent, type E2eAgent } from './authenticated-agent';
+import { bootWorkerE2e, closeWorkerE2e, createInProcessPgBoss } from './boot-worker-e2e';
+import { PG_BOSS } from '../src/runs/infrastructure/dispatch/pg-boss.tokens';
 import { FakeLlmGateway } from './fake-llm-gateway';
 
 const completeContextBody = {
@@ -171,6 +176,7 @@ class HoldingRunExecutor implements RunExecutorPort {
 describe('Runs per-user in-flight limit (e2e)', () => {
   describe('R-6a 409 at MAX_USER_IN_FLIGHT_RUNS', () => {
     let app: INestApplication;
+    let worker: INestApplicationContext;
     let agent: E2eAgent;
     let prisma: PrismaService;
     let holding: HoldingRunExecutor;
@@ -193,26 +199,35 @@ describe('Runs per-user in-flight limit (e2e)', () => {
       process.env.MAX_USER_IN_FLIGHT_RUNS = '1';
       process.env.MAX_CONCURRENT_RUNS = '3';
       const env: Env = validateEnv(process.env);
+      const workerEnv = validateWorkerEnv(process.env);
       holding = new HoldingRunExecutor();
+      const fakeLlm = new FakeLlmGateway();
+      const pgBoss = createInProcessPgBoss();
 
       const moduleRef = await Test.createTestingModule({
         imports: [AppModule],
       })
         .overrideProvider(ENV)
         .useValue(env)
-        .overrideProvider(RUN_EXECUTOR)
-        .useValue(holding)
+        .overrideProvider(PG_BOSS)
+        .useValue(pgBoss)
         .overrideProvider(LLM_GATEWAY_PORT)
-        .useValue(new FakeLlmGateway())
+        .useValue(fakeLlm)
         .compile();
 
       app = moduleRef.createNestApplication();
       configureHttpApp(app);
       await app.init();
+      worker = await bootWorkerE2e({
+        env: workerEnv,
+        runExecutor: holding,
+        llm: fakeLlm,
+        pgBoss,
+      });
       prisma = app.get(PrismaService);
       agent = await createAuthenticatedAgent(app);
       await putCompleteContext(agent);
-    }, 30_000);
+    }, 60_000);
 
     beforeEach(async () => {
       await wipeRuns(prisma);
@@ -226,6 +241,7 @@ describe('Runs per-user in-flight limit (e2e)', () => {
         if (prisma) {
           await wipeRuns(prisma);
         }
+        await closeWorkerE2e(worker);
         await app?.close();
       } finally {
         if (previousMaxUser === undefined) {
@@ -239,7 +255,7 @@ describe('Runs per-user in-flight limit (e2e)', () => {
           process.env.MAX_CONCURRENT_RUNS = previousMaxConcurrent;
         }
       }
-    }, 15_000);
+    }, 30_000);
 
     it('rejects POST /runs with 409 USER_IN_FLIGHT_LIMIT_EXCEEDED when at cap', async () => {
       const first = await agent
@@ -270,6 +286,7 @@ describe('Runs per-user in-flight limit (e2e)', () => {
 
   describe('R-6 global cap still queues when user under per-user limit', () => {
     let app: INestApplication;
+    let worker: INestApplicationContext;
     let agent: E2eAgent;
     let prisma: PrismaService;
     let holding: HoldingRunExecutor;
@@ -292,26 +309,35 @@ describe('Runs per-user in-flight limit (e2e)', () => {
       process.env.MAX_USER_IN_FLIGHT_RUNS = '5';
       process.env.MAX_CONCURRENT_RUNS = '1';
       const env: Env = validateEnv(process.env);
+      const workerEnv = validateWorkerEnv(process.env);
       holding = new HoldingRunExecutor();
+      const fakeLlm = new FakeLlmGateway();
+      const pgBoss = createInProcessPgBoss();
 
       const moduleRef = await Test.createTestingModule({
         imports: [AppModule],
       })
         .overrideProvider(ENV)
         .useValue(env)
-        .overrideProvider(RUN_EXECUTOR)
-        .useValue(holding)
+        .overrideProvider(PG_BOSS)
+        .useValue(pgBoss)
         .overrideProvider(LLM_GATEWAY_PORT)
-        .useValue(new FakeLlmGateway())
+        .useValue(fakeLlm)
         .compile();
 
       app = moduleRef.createNestApplication();
       configureHttpApp(app);
       await app.init();
+      worker = await bootWorkerE2e({
+        env: workerEnv,
+        runExecutor: holding,
+        llm: fakeLlm,
+        pgBoss,
+      });
       prisma = app.get(PrismaService);
       agent = await createAuthenticatedAgent(app);
       await putCompleteContext(agent);
-    }, 30_000);
+    }, 60_000);
 
     beforeEach(async () => {
       await wipeRuns(prisma);
@@ -325,6 +351,7 @@ describe('Runs per-user in-flight limit (e2e)', () => {
         if (prisma) {
           await wipeRuns(prisma);
         }
+        await closeWorkerE2e(worker);
         await app?.close();
       } finally {
         if (previousMaxUser === undefined) {

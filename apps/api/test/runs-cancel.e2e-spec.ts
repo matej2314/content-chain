@@ -3,7 +3,10 @@ import type { IncomingMessage } from 'http';
 import { join } from 'path';
 import { randomUUID } from 'node:crypto';
 import { hash as bcryptHash } from 'bcrypt';
-import { type INestApplication } from '@nestjs/common';
+import {
+  type INestApplication,
+  type INestApplicationContext,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
@@ -11,18 +14,18 @@ import { AppModule } from '../src/app.module';
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { ENV, type Env } from '../src/shared/config/env';
 import { validateEnv } from '../src/shared/config/env.schema';
+import { validateWorkerEnv } from '../src/shared/config/worker-env.schema';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 import { PrismaService } from '../src/shared/persistence/prisma.service';
 import { RecoverInterruptedRunsUseCase } from '../src/runs/application/recover-interrupted-runs.use-case';
-import { RunLifecycleService } from '../src/runs/application/lifecycle/run-lifecycle.service';
 import {
-  RUN_EXECUTOR,
   type RunExecuteOptions,
   type RunExecutorPort,
 } from '../src/runs/domain/run-executor.port';
-import { RUN_REPOSITORY, type RunRepository } from '../src/runs/domain/run.port';
 import type { RunRecord } from '../src/runs/domain/run.types';
 import { createAuthenticatedAgent, type E2eAgent } from './authenticated-agent';
+import { bootWorkerE2e, closeWorkerE2e, createInProcessPgBoss } from './boot-worker-e2e';
+import { PG_BOSS } from '../src/runs/infrastructure/dispatch/pg-boss.tokens';
 import { FakeLlmGateway } from './fake-llm-gateway';
 
 const OTHER_USER_EMAIL = 'e2e-cancel-other@content-chain.test';
@@ -248,6 +251,7 @@ function eventOrder(payload: string, eventName: string): number {
 describe('Runs cancel (e2e)', () => {
   describe('HTTP cancel + SSE (holding executor)', () => {
     let app: INestApplication;
+    let worker: INestApplicationContext;
     let agent: E2eAgent;
     let otherAgent: E2eAgent;
     let prisma: PrismaService;
@@ -269,22 +273,31 @@ describe('Runs cancel (e2e)', () => {
       previousMax = process.env.MAX_CONCURRENT_RUNS;
       process.env.MAX_CONCURRENT_RUNS = '1';
       const env: Env = validateEnv(process.env);
+      const workerEnv = validateWorkerEnv(process.env);
       holding = new HoldingRunExecutor();
+      const fakeLlm = new FakeLlmGateway();
+      const pgBoss = createInProcessPgBoss();
 
       const moduleRef = await Test.createTestingModule({
         imports: [AppModule],
       })
         .overrideProvider(ENV)
         .useValue(env)
-        .overrideProvider(RUN_EXECUTOR)
-        .useValue(holding)
+        .overrideProvider(PG_BOSS)
+        .useValue(pgBoss)
         .overrideProvider(LLM_GATEWAY_PORT)
-        .useValue(new FakeLlmGateway())
+        .useValue(fakeLlm)
         .compile();
 
       app = moduleRef.createNestApplication();
       configureHttpApp(app);
       await app.init();
+      worker = await bootWorkerE2e({
+        env: workerEnv,
+        runExecutor: holding,
+        llm: fakeLlm,
+        pgBoss,
+      });
       prisma = app.get(PrismaService);
       agent = await createAuthenticatedAgent(app);
 
@@ -340,11 +353,12 @@ describe('Runs cancel (e2e)', () => {
             await prisma.user.delete({ where: { id: other.id } });
           }
         }
+        await closeWorkerE2e(worker);
         await app?.close();
       } finally {
         process.env.MAX_CONCURRENT_RUNS = previousMax;
       }
-    }, 15_000);
+    }, 30_000);
 
     it('D-30: POST cancel on running → 200 cancelled + log + SSE status→cancelled→end', async () => {
       const created = await agent
@@ -532,12 +546,8 @@ describe('Runs cancel (e2e)', () => {
         },
       });
 
-      // Use-case lives on worker after K1 cut — construct for e2e until FAZA 3 harness.
-      const recover = new RecoverInterruptedRunsUseCase(
-        app.get<RunRepository>(RUN_REPOSITORY),
-        app.get(RunLifecycleService),
-      );
-      await recover.execute();
+      // Recovery ownership = worker (FAZA 3 harness).
+      await worker.get(RecoverInterruptedRunsUseCase).execute();
 
       const running = await prisma.run.findUniqueOrThrow({
         where: { id: runningId },
