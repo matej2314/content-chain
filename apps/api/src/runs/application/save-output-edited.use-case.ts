@@ -4,7 +4,7 @@ import { DomainException, RUN_REPOSITORY, assertRunReviewable, computeReviewExpi
 import {
   CONTENT_RESULT_STORE,
   type ContentResultStore,
-} from '../../content/domain/content-result.port';
+} from '@content-chain/run-pipelines';
 import { parseTtlMs } from '@content-chain/shared';
 
 import {
@@ -23,13 +23,13 @@ import {
   reelIdeasArraySchema,
   reelScriptsArraySchema,
 } from './output-edited-result.schemas';
-import { reelScriptOutputSchema as reelScriptShape } from '../../social/application/social.schemas';
+import { reelScriptOutputSchema as reelScriptShape } from '@content-chain/run-pipelines';
 import { ENV, type Env } from '../../shared/config/env';
 
 import {
   SOCIAL_RESULT_STORE,
   type SocialResultStore,
-} from '../../social/domain/social-result.port';
+} from '@content-chain/run-pipelines';
 import type {
   SocialContent,
   SocialContentItem,
@@ -38,10 +38,10 @@ import type {
   ReelScript,
   ReelScriptItem,
   VerifierVerdict,
-} from '../../social/domain/social.types';
+} from '@content-chain/run-pipelines';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { RunId } from '@content-chain/shared';
-import type { PageOutline } from '../../content/domain/content.types';
+import type { PageOutline } from '@content-chain/run-pipelines';
 
 const EMPTY_VERDICT: VerifierVerdict = {
   ok: true,

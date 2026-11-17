@@ -1,4 +1,4 @@
-import type { CompanyContext } from './company-context.types';
+import type { CompanyContext } from '@content-chain/run-pipelines';
 
 export function isEmptyCompanyContext(context: CompanyContext): boolean {
   return (

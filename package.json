@@ -13,7 +13,7 @@
 		"dev:frontend": "pnpm --filter frontend dev",
 		"dev:gateway": "pnpm --filter ai-provider-gateway dev",
 		"test:gateway": "pnpm --filter ai-provider-gateway test:all",
-		"test:backend": "pnpm test:api && pnpm test:runs-kernel && pnpm test:gateway",
+		"test:backend": "pnpm test:api && pnpm test:runs-kernel && pnpm test:gateway && pnpm --filter @content-chain/run-pipelines test",
 		"test:worker": "pnpm --filter worker test",
 		"build": "pnpm -r build",
 		"gateway:cli": "pnpm --filter ai-provider-gateway run cli",

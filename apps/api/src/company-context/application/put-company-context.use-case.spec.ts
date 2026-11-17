@@ -1,5 +1,5 @@
-import { emptyCompanyContext } from '../domain/company-context.types';
-import type { CompanyContextRepository } from '../domain/company-context.port';
+import { emptyCompanyContext } from '@content-chain/run-pipelines';
+import type { CompanyContextRepository } from '@content-chain/run-pipelines';
 import { PutCompanyContextUseCase } from './put-company-context.use-case';
 
 const complete = {

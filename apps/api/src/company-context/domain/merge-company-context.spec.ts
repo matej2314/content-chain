@@ -1,4 +1,4 @@
-import { emptyCompanyContext } from './company-context.types';
+import { emptyCompanyContext } from '@content-chain/run-pipelines';
 import { mergeCompanyContext } from './merge-company-context';
 
 const current = {

@@ -708,7 +708,7 @@ Odpowiada major **35.2**. Status startowy: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — Slice Social+Content + assets w `run-pipelines`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Fasady / executory / graph / prompty / result stores (+ LLM hop, company-context **repo-only**) w jednym pakiecie (S-2 / Ctn-2 / decyzja „nie osobne social/content packages”).
 
@@ -814,7 +814,7 @@ export class RunPipelineResultStoresModule {}
 
 ### KROK 2 — Composition root workera + api result stores
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Worker wiąże `RUN_EXECUTOR` przez `run-pipelines` (model A); api czyta/zapisuje wyniki przez stores z pakietu — **bez** importu execute z `apps/api` (R-5 / R-5a).
 

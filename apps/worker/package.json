@@ -10,10 +10,9 @@
         "typecheck:tests": "tsc -p tsconfig.json --noEmit"
     },
     "dependencies": {
+        "@content-chain/run-pipelines": "workspace:*",
         "@content-chain/runs-kernel": "workspace:*",
         "@content-chain/shared": "workspace:*",
-        "@langchain/core": "^1.2.8",
-        "@langchain/langgraph": "^1.4.10",
         "@nestjs/common": "^11.0.0",
         "@nestjs/config": "^4.0.0",
         "@nestjs/core": "^11.0.0",
@@ -53,6 +52,8 @@
         },
         "testEnvironment": "node",
         "moduleNameMapper": {
+            "^@content-chain/run-pipelines$": "<rootDir>/../../packages/run-pipelines/src/index.ts",
+            "^@content-chain/run-pipelines/(.*)$": "<rootDir>/../../packages/run-pipelines/src/$1",
             "^@content-chain/runs-kernel$": "<rootDir>/../../packages/runs-kernel/src/index.ts",
             "^@content-chain/runs-kernel/(.*)$": "<rootDir>/../../packages/runs-kernel/src/$1"
         }

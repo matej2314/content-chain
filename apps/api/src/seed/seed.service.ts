@@ -3,7 +3,7 @@ import { PutCompanyContextUseCase } from '../company-context/application/put-com
 import {
   COMPANY_CONTEXT_REPOSITORY,
   type CompanyContextRepository,
-} from '../company-context/domain/company-context.port';
+} from '@content-chain/run-pipelines';
 import { isEmptyCompanyContext } from '../company-context/domain/is-empty-company-context';
 import { ENV, type Env } from '../shared/config/env';
 import { loadCompanyContextFixture } from './load-company-context-fixture';

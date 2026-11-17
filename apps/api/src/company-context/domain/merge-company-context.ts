@@ -1,5 +1,5 @@
-import type { PartialCompanyContext } from './company-context.port';
-import type { CompanyContext } from './company-context.types';
+import type { PartialCompanyContext } from '@content-chain/run-pipelines';
+import type { CompanyContext } from '@content-chain/run-pipelines';
 
 export function mergeCompanyContext(
   current: CompanyContext,

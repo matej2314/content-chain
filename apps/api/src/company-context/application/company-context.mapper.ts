@@ -3,8 +3,8 @@ import { companyContextExtrasInputSchema } from './company-context.schemas';
 import type {
   Completeness,
   CompanyContext,
-} from '../domain/company-context.types';
-import type { PartialCompanyContext } from '../domain/company-context.port';
+} from '@content-chain/run-pipelines';
+import type { PartialCompanyContext } from '@content-chain/run-pipelines';
 import type {
   PatchCompanyContextDto,
   PutCompanyContextDto,

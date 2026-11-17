@@ -25,7 +25,7 @@ import type {
 import type {
   PageDocument,
   PageOutline,
-} from '../../content/domain/content.types';
+} from '@content-chain/run-pipelines';
 import type {
   ReelIdea,
   ReelScript,
@@ -33,7 +33,7 @@ import type {
   SocialContent,
   SocialContentItem,
   SocialIdea,
-} from '../../social/domain/social.types';
+} from '@content-chain/run-pipelines';
 
 export interface GetRunOutput {
   runId: RunId;

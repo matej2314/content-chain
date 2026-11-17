@@ -4,8 +4,8 @@ import type {
   Completeness,
   CtaItem,
   OfferItem,
-} from './company-context.types';
-import { GATE_SECTIONS, type GateSection } from './company-context.constants';
+} from '@content-chain/run-pipelines';
+import { GATE_SECTIONS, type GateSection } from '@content-chain/run-pipelines';
 
 const nonEmpty = (value: string): boolean => value.trim().length > 0;
 

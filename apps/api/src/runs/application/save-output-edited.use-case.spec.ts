@@ -1,8 +1,8 @@
 import { createUserId, type RunId } from '@content-chain/shared';
 import type { Env } from '../../shared/config/env';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
-import type { ContentResultStore } from '../../content/domain/content-result.port';
-import type { SocialResultStore } from '../../social/domain/social-result.port';
+import type { ContentResultStore } from '@content-chain/run-pipelines';
+import type { SocialResultStore } from '@content-chain/run-pipelines';
 import type {
   OutputEditedWrite,
   OutputEditedWriter,

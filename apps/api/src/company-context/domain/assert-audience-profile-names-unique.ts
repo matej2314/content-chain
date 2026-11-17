@@ -1,6 +1,6 @@
 import { DomainException } from '@content-chain/runs-kernel';
-import { normalizeAudienceName } from './normalize-audience-name';
-import type { CompanyContext } from './company-context.types';
+import { normalizeAudienceName } from '@content-chain/run-pipelines';
+import type { CompanyContext } from '@content-chain/run-pipelines';
 
 export function assertAudienceProfileNamesUnique(
   context: CompanyContext,

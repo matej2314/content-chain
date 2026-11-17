@@ -210,6 +210,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@content-chain/run-pipelines':
+        specifier: workspace:*
+        version: link:../../packages/run-pipelines
       '@content-chain/runs-kernel':
         specifier: workspace:*
         version: link:../../packages/runs-kernel
@@ -431,18 +434,15 @@ importers:
 
   apps/worker:
     dependencies:
+      '@content-chain/run-pipelines':
+        specifier: workspace:*
+        version: link:../../packages/run-pipelines
       '@content-chain/runs-kernel':
         specifier: workspace:*
         version: link:../../packages/runs-kernel
       '@content-chain/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@langchain/core':
-        specifier: ^1.2.8
-        version: 1.2.8(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3)
-      '@langchain/langgraph':
-        specifier: ^1.4.10
-        version: 1.4.10(@langchain/core@1.2.8(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
       '@nestjs/common':
         specifier: ^11.0.0
         version: 11.1.29(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -543,13 +543,25 @@ importers:
       rxjs:
         specifier: ^7.8.0
         version: 7.8.2
+      uuid:
+        specifier: ^11.1.1
+        version: 11.1.1
       zod:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@types/jest':
+        specifier: ^30.0.0
+        version: 30.0.0
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.1
+      jest:
+        specifier: ^30.4.2
+        version: 30.4.2(@types/node@22.20.1)(ts-node@10.9.2(@types/node@22.20.1)(typescript@5.9.3))
+      ts-jest:
+        specifier: ^29.2.5
+        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@30.4.1)(@jest/types@30.4.1)(babel-jest@30.4.1(@babel/core@7.29.7))(jest-util@30.4.1)(jest@30.4.2(@types/node@22.20.1)(ts-node@10.9.2(@types/node@22.20.1)(typescript@5.9.3)))(typescript@5.9.3)
       typescript:
         specifier: ^5.7.0
         version: 5.9.3

@@ -4,7 +4,7 @@ import { collectGateItemPaths, isComplete } from './is-complete';
 import type {
   CompanyContext,
   CompanyContextWriteDetail,
-} from './company-context.types';
+} from '@content-chain/run-pipelines';
 
 export function assertCompanyContextWritable(context: CompanyContext): void {
   const { complete, missing } = isComplete(context);

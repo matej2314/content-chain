@@ -3,7 +3,7 @@ import { GetCompanyContextUseCase } from './application/get-company-context.use-
 import { GetCompletenessUseCase } from './application/get-completeness.use-case';
 import { PatchCompanyContextUseCase } from './application/patch-company-context.use-case';
 import { PutCompanyContextUseCase } from './application/put-company-context.use-case';
-import { CompanyContextCoreModule } from './company-context-core.module';
+import { CompanyContextCoreModule } from '@content-chain/run-pipelines';
 import { CompanyContextController } from './company-context.controller';
 
 @Module({

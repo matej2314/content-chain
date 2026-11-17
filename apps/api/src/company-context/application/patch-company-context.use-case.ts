@@ -3,7 +3,7 @@ import {
   COMPANY_CONTEXT_REPOSITORY,
   type PartialCompanyContext,
   type CompanyContextRepository,
-} from '../domain/company-context.port';
+} from '@content-chain/run-pipelines';
 import { assertCompanyContextWritable } from '../domain/assert-company-context-writable';
 import { isComplete } from '../domain/is-complete';
 import { mergeCompanyContext } from '../domain/merge-company-context';

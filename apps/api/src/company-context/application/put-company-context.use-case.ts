@@ -2,11 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   COMPANY_CONTEXT_REPOSITORY,
   type CompanyContextRepository,
-} from '../domain/company-context.port';
+} from '@content-chain/run-pipelines';
 import { assertCompanyContextWritable } from '../domain/assert-company-context-writable';
 import { isComplete } from '../domain/is-complete';
 import { toPublicCompanyContext } from './company-context.mapper';
-import type { CompanyContext } from '../domain/company-context.types';
+import type { CompanyContext } from '@content-chain/run-pipelines';
 
 @Injectable()
 export class PutCompanyContextUseCase {

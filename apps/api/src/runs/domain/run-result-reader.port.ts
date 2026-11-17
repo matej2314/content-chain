@@ -2,7 +2,7 @@ import type { RunId } from '@content-chain/shared';
 import type {
   PageDocument,
   PageOutline,
-} from '../../content/domain/content.types';
+} from '@content-chain/run-pipelines';
 import type {
   ReelIdea,
   ReelScript,
@@ -11,7 +11,7 @@ import type {
   SocialContentItem,
   SocialIdea,
   VerifierVerdict,
-} from '../../social/domain/social.types';
+} from '@content-chain/run-pipelines';
 
 export const RUN_RESULT_READER = Symbol('RUN_RESULT_READER');
 

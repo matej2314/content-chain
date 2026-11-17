@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { companyContextExtrasInputSchema } from '../company-context/application/company-context.schemas';
 import { isComplete } from '../company-context/domain/is-complete';
-import type { CompanyContext } from '../company-context/domain/company-context.types';
+import type { CompanyContext } from '@content-chain/run-pipelines';
 
 const offerItemSchema = z
   .object({

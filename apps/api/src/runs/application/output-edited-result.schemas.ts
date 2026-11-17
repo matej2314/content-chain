@@ -4,11 +4,11 @@ import {
   reelIdeaSchema,
   reelScriptOutputSchema,
   socialIdeaSchema,
-} from '../../social/application/social.schemas';
+} from '@content-chain/run-pipelines';
 import {
   pageDocumentOutputSchema,
   pageOutlineOutputSchema,
-} from '../../content/application/content.schemas';
+} from '@content-chain/run-pipelines';
 import type { RunTaskType } from '@content-chain/shared';
 
 export const RESULT_KEYS_BY_TASK_TYPE: Record<

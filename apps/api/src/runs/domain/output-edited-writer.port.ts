@@ -3,7 +3,7 @@ import type {
   PageDocument,
   PageOutline,
   VerifierVerdict as ContentVerifierVerdict,
-} from '../../content/domain/content.types';
+} from '@content-chain/run-pipelines';
 import type {
   ReelIdea,
   ReelScript,
@@ -12,7 +12,7 @@ import type {
   SocialContentItem,
   SocialIdea,
   VerifierVerdict as SocialVerifierVerdict,
-} from '../../social/domain/social.types';
+} from '@content-chain/run-pipelines';
 
 export const OUTPUT_EDITED_WRITER = Symbol('OUTPUT_EDITED_WRITER');
 

@@ -1,4 +1,5 @@
 import {
+  Global,
   Inject,
   Injectable,
   Logger,
@@ -6,6 +7,11 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { Pool } from 'pg';
+import {
+  ContentRunExecutor,
+  RunPipelinesModule,
+  SocialRunExecutor,
+} from '@content-chain/run-pipelines';
 import {
   AFTER_RECOVER_WAKE,
   AutoFinalizeExpiredReviewsUseCase,
@@ -24,9 +30,9 @@ import {
   RUN_WAKE_QUEUE,
   RunAbortNotifyListener,
   RunAbortRegistry,
+  RunDispatchExecutor,
   RunExecutePump,
   RunLifecycleService,
-  UnsupportedRunExecutor,
   WorkerEnvModule,
   WorkerRecoverySweepBoot,
   PgBossRunWorker,
@@ -60,15 +66,15 @@ class WorkerDispatchShutdown implements OnModuleDestroy {
 }
 
 /**
- * FAZA 2 composition root: kernel providers only.
- * RUN_EXECUTOR = UnsupportedRunExecutor until FAZA 3 wires RunPipelinesModule.
+ * Lifecycle + repo + NOTIFY hub for worker host.
+ * @Global so RunPipelinesModule can inject RUN_LIFECYCLE (Nest encapsulation;
+ * historical SocialModule imported RunLifecycleModule for the same reason).
  */
+@Global()
 @Module({
-  imports: [WorkerEnvModule, PrismaModule],
   providers: [
     PrismaRunAdapter,
     { provide: RUN_REPOSITORY, useExisting: PrismaRunAdapter },
-    RunAbortRegistry,
     {
       provide: PG_NOTIFY_POOL,
       useFactory: (env: RuntimeEnv): Pool =>
@@ -78,7 +84,39 @@ class WorkerDispatchShutdown implements OnModuleDestroy {
     { provide: RUN_SSE_HUB, useClass: NotifyRunSseHub },
     RunLifecycleService,
     { provide: RUN_LIFECYCLE, useExisting: RunLifecycleService },
-    { provide: RUN_EXECUTOR, useClass: UnsupportedRunExecutor },
+  ],
+  exports: [
+    PrismaRunAdapter,
+    RUN_REPOSITORY,
+    PG_NOTIFY_POOL,
+    RUN_SSE_HUB,
+    RunLifecycleService,
+    RUN_LIFECYCLE,
+  ],
+})
+class WorkerLifecycleModule {}
+
+/**
+ * Composition root: kernel + run-pipelines; RUN_EXECUTOR = model A dispatch.
+ */
+@Module({
+  imports: [
+    WorkerEnvModule,
+    PrismaModule,
+    WorkerLifecycleModule,
+    RunPipelinesModule,
+  ],
+  providers: [
+    RunAbortRegistry,
+    {
+      provide: RUN_EXECUTOR,
+      useFactory: (
+        social: SocialRunExecutor,
+        content: ContentRunExecutor,
+        lifecycle: RunLifecycleService,
+      ) => new RunDispatchExecutor(social, content, lifecycle),
+      inject: [SocialRunExecutor, ContentRunExecutor, RunLifecycleService],
+    },
     RecoverInterruptedRunsUseCase,
     AutoFinalizeExpiredReviewsUseCase,
     RunAbortNotifyListener,

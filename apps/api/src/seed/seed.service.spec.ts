@@ -1,7 +1,7 @@
-import { emptyCompanyContext } from '../company-context/domain/company-context.types';
+import { emptyCompanyContext } from '@content-chain/run-pipelines';
 import { SeedService } from './seed.service';
 import * as loadFixture from './load-company-context-fixture';
-import type { CompanyContextRepository } from '../company-context/domain/company-context.port';
+import type { CompanyContextRepository } from '@content-chain/run-pipelines';
 import type { PutCompanyContextUseCase } from '../company-context/application/put-company-context.use-case';
 import type { Env } from '../shared/config/env';
 

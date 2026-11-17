@@ -13,11 +13,13 @@ import { GuestGuard } from './shared/guards/guest.guard';
 import { AuthModule } from './auth/auth.module';
 import { CompanyContextModule } from './company-context/company-context.module';
 import { HealthModule } from './health/health.module';
-import { SocialModule } from './social/social.module';
 import {
+  CONTENT_RESULT_STORE,
+  RunPipelineResultStoresModule,
   SOCIAL_RESULT_STORE,
+  type ContentResultStore,
   type SocialResultStore,
-} from './social/domain/social-result.port';
+} from '@content-chain/run-pipelines';
 import { RunsModule } from './runs/runs.module';
 import {
   PrismaModule,
@@ -30,18 +32,12 @@ import { validateEnv } from './shared/config/env.schema';
 import { HttpExceptionFilter } from './shared/http/http-exception.filter';
 import { RequestIdMiddleware } from './shared/http/request-id.middleware';
 
-import { LlmModule } from './llm/llm.module';
 import { MetricsModule } from './metrics/metrics.module';
-import { ContentModule } from './content/content.module';
 import { SeedModule } from './seed/seed.module';
 import { RunLifecycleModule } from './runs/run-lifecycle.module';
 import { PublicConfigModule } from './public-config/public-config.module';
 import { FeedbackModule } from './feedback/feedback.module';
 
-import {
-  CONTENT_RESULT_STORE,
-  ContentResultStore,
-} from './content/domain/content-result.port';
 import { CompositeRunResultReader } from './runs/application/composite-run-result.reader';
 
 @Module({
@@ -70,11 +66,9 @@ import { CompositeRunResultReader } from './runs/application/composite-run-resul
     }),
     AuthModule,
     CompanyContextModule,
-    SocialModule,
-    ContentModule,
+    RunPipelineResultStoresModule,
     RunsModule.registerAsync({
-      // Social/Content stay for resultReader until FAZA 3 extracts pipeline stores.
-      imports: [SocialModule, ContentModule, RunLifecycleModule],
+      imports: [RunPipelineResultStoresModule, RunLifecycleModule],
       inject: [],
       useFactory: (): RunExecutorPort => new UnsupportedRunExecutor(),
       resultReader: {
@@ -87,7 +81,6 @@ import { CompositeRunResultReader } from './runs/application/composite-run-resul
     }),
     PrismaModule,
     HealthModule,
-    LlmModule,
     MetricsModule,
     FeedbackModule,
     PublicConfigModule,

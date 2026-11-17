@@ -1,5 +1,5 @@
 import { DomainException } from '@content-chain/runs-kernel';
-import { emptyCompanyContext } from './company-context.types';
+import { emptyCompanyContext } from '@content-chain/run-pipelines';
 import { assertCompanyContextWritable } from './assert-company-context-writable';
 
 const complete = {

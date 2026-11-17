@@ -1,10 +1,10 @@
 import type { RunId } from '@content-chain/shared';
-import type { ContentResultStore } from '../../content/domain/content-result.port';
+import type { ContentResultStore } from '@content-chain/run-pipelines';
 import type {
   PageDocument,
   PageOutline,
-} from '../../content/domain/content.types';
-import type { SocialResultStore } from '../../social/domain/social-result.port';
+} from '@content-chain/run-pipelines';
+import type { SocialResultStore } from '@content-chain/run-pipelines';
 import type {
   ReelIdea,
   ReelScript,
@@ -13,7 +13,7 @@ import type {
   SocialContentItem,
   SocialIdea,
   VerifierVerdict,
-} from '../../social/domain/social.types';
+} from '@content-chain/run-pipelines';
 import type { RunResultReader } from '../domain/run-result-reader.port';
 
 export class CompositeRunResultReader implements RunResultReader {

@@ -11,14 +11,14 @@ import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 import type {
   PageDocument,
   PageOutline,
-} from '../../content/domain/content.types';
+} from '@content-chain/run-pipelines';
 import type {
   ReelIdea,
   ReelScript,
   ReelScriptItem,
   SocialContentItem,
   SocialIdea,
-} from '../../social/domain/social.types';
+} from '@content-chain/run-pipelines';
 import { GetRunUseCase } from './get-run.use-case';
 
 const ideas: SocialIdea[] = [
