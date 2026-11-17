@@ -1,5 +1,5 @@
 import type { UserRole } from '@content-chain/shared';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
 
 export function rejectDeadGuestSession(
   role: UserRole,

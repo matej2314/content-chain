@@ -1,13 +1,12 @@
 import { createUserId } from '@content-chain/shared';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException, makeContentRun, makeSocialRun } from '@content-chain/runs-kernel';
+import type { RunRecord, RunRepository, RunSnapshot, SocialRunRecord } from '@content-chain/runs-kernel';
 import type { Env } from '../../shared/config/env';
 import { newRunId } from '../../shared/http/new-ids';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { GuestQuotaPort } from '../domain/guest-quota.port';
 import type { RunResultReader } from '../domain/run-result-reader.port';
-import type { RunRepository, RunSnapshot } from '../domain/run.port';
-import type { RunRecord, SocialRunRecord } from '../domain/run.types';
-import { makeContentRun, makeSocialRun } from '../run-record.test-helpers';
+
 import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 import type {
   PageDocument,

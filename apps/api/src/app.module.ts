@@ -14,19 +14,22 @@ import { AuthModule } from './auth/auth.module';
 import { CompanyContextModule } from './company-context/company-context.module';
 import { HealthModule } from './health/health.module';
 import { SocialModule } from './social/social.module';
-import { SocialRunExecutor } from './social/application/social-run.executor';
 import {
   SOCIAL_RESULT_STORE,
   type SocialResultStore,
 } from './social/domain/social-result.port';
 import { RunsModule } from './runs/runs.module';
-import type { RunExecutorPort } from './runs/domain/run-executor.port';
+import {
+  PrismaModule,
+  UnsupportedRunExecutor,
+} from '@content-chain/runs-kernel';
+import type { RunExecutorPort } from '@content-chain/runs-kernel';
 import type { RunResultReader } from './runs/domain/run-result-reader.port';
 import { EnvModule } from './shared/config/env.module';
 import { validateEnv } from './shared/config/env.schema';
 import { HttpExceptionFilter } from './shared/http/http-exception.filter';
 import { RequestIdMiddleware } from './shared/http/request-id.middleware';
-import { PrismaModule } from './shared/persistence/prisma.module';
+
 import { LlmModule } from './llm/llm.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { ContentModule } from './content/content.module';
@@ -34,12 +37,7 @@ import { SeedModule } from './seed/seed.module';
 import { RunLifecycleModule } from './runs/run-lifecycle.module';
 import { PublicConfigModule } from './public-config/public-config.module';
 import { FeedbackModule } from './feedback/feedback.module';
-import { ContentRunExecutor } from './content/application/content-run.executor';
-import {
-  RUN_LIFECYCLE,
-  RunLifecyclePort,
-} from './runs/domain/run-lifecycle.port';
-import { RunDispatchExecutor } from './runs/application/lifecycle/run-dispatch.executor';
+
 import {
   CONTENT_RESULT_STORE,
   ContentResultStore,
@@ -75,13 +73,10 @@ import { CompositeRunResultReader } from './runs/application/composite-run-resul
     SocialModule,
     ContentModule,
     RunsModule.registerAsync({
+      // Social/Content stay for resultReader until FAZA 3 extracts pipeline stores.
       imports: [SocialModule, ContentModule, RunLifecycleModule],
-      inject: [SocialRunExecutor, ContentRunExecutor, RUN_LIFECYCLE],
-      useFactory: (
-        social: SocialRunExecutor,
-        content: ContentRunExecutor,
-        lifecycle: RunLifecyclePort,
-      ): RunExecutorPort => new RunDispatchExecutor(social, content, lifecycle),
+      inject: [],
+      useFactory: (): RunExecutorPort => new UnsupportedRunExecutor(),
       resultReader: {
         inject: [SOCIAL_RESULT_STORE, CONTENT_RESULT_STORE],
         useFactory: (

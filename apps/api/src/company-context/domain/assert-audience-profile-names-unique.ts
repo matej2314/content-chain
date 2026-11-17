@@ -1,4 +1,4 @@
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
 import { normalizeAudienceName } from './normalize-audience-name';
 import type { CompanyContext } from './company-context.types';
 

@@ -3,7 +3,7 @@ import { Subject, type Observable } from 'rxjs';
 import { createRunId, type RunId } from '@content-chain/shared';
 import { ENV, type Env } from '../../../shared/config/env';
 
-import type { RunSseEvent, RunSseHub } from '../../domain/run-sse.port';
+import type { RunSseEvent, RunSseHub } from '@content-chain/runs-kernel';
 
 @Injectable()
 export class LocalRunSseHub implements RunSseHub {

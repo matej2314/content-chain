@@ -1,11 +1,9 @@
 import { createUserId, type RunId } from '@content-chain/shared';
 import type { Env } from '../../shared/config/env';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
-import type { RunRepository } from '../domain/run.port';
-import {
-  makeSocialSnapshot,
-  type SocialRunSnapshot,
-} from '../run-record.test-helpers';
+import { makeSocialSnapshot, type SocialRunSnapshot } from '@content-chain/runs-kernel';
+import type { RunRepository } from '@content-chain/runs-kernel';
+
 import { FinalizeReviewUseCase } from './finalize-review.use-case';
 
 const ACTOR: AuthUserContext = {

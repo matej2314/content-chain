@@ -25,6 +25,7 @@
     "seed:company-context": "node ./scripts/seed-company-context.mjs"
   },
   "dependencies": {
+    "@content-chain/runs-kernel": "workspace:*",
     "@content-chain/shared": "workspace:*",
     "@langchain/core": "^1.2.8",
     "@langchain/langgraph": "^1.4.10",
@@ -95,6 +96,10 @@
     "testEnvironment": "node",
     "transformIgnorePatterns": [
       "/node_modules/(?!.*(?:uuid|@langchain|langsmith|langgraph)/)"
-    ]
+    ],
+    "moduleNameMapper": {
+      "^@content-chain/runs-kernel$": "<rootDir>/../../../packages/runs-kernel/src/index.ts",
+      "^@content-chain/runs-kernel/(.*)$": "<rootDir>/../../../packages/runs-kernel/src/$1"
+    }
   }
 }

@@ -1,10 +1,8 @@
 import type { CompanyContextRepository } from '../../company-context/domain/company-context.port';
-import type { RunLifecyclePort } from '../../runs/domain/run-lifecycle.port';
-import type { RunRecord } from '../../runs/domain/run.types';
-import {
-  makeContentRun,
-  makeSocialRun,
-} from '../../runs/run-record.test-helpers';
+import { makeContentRun, makeSocialRun } from '@content-chain/runs-kernel';
+import type { RunLifecyclePort, RunRecord } from '@content-chain/runs-kernel';
+
+
 import type { ContentResultStore } from '../domain/content-result.port';
 import type { PageDocument, PageOutline } from '../domain/content.types';
 import type { ContentGraphState } from '../infrastructure/graph/state';

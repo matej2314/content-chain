@@ -2,8 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { v4 as uuidv4 } from 'uuid';
 import { createUserId, parseTtlMs } from '@content-chain/shared';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import { parseWithZod } from '../../shared/parse-with-zod';
+import { DomainException, parseWithZod } from '@content-chain/runs-kernel';
+
 import { validatePasswordPolicy } from '../domain/password.policy';
 import {
   USER_REPOSITORY,

@@ -1,15 +1,15 @@
 import { Test } from '@nestjs/testing';
-import { RunExecutePump } from '../../api/src/runs/application/lifecycle/run-execute.pump';
-import { WorkerRecoverySweepBoot } from '../../api/src/runs/application/lifecycle/worker-recovery-sweep.boot';
-import { RUN_EXECUTOR } from '../../api/src/runs/domain/run-executor.port';
-import { PgBossRunWorker } from '../../api/src/runs/infrastructure/dispatch/pg-boss-run.worker';
 import {
+  ENV,
   PG_BOSS,
   PG_NOTIFY_POOL,
-} from '../../api/src/runs/infrastructure/dispatch/pg-boss.tokens';
-import { RunAbortNotifyListener } from '../../api/src/runs/infrastructure/dispatch/run-abort-notify.listener';
-import { ENV } from '../../api/src/shared/config/env';
-import { PrismaService } from '../../api/src/shared/persistence/prisma.service';
+  PrismaService,
+  PgBossRunWorker,
+  RUN_EXECUTOR,
+  RunAbortNotifyListener,
+  RunExecutePump,
+  WorkerRecoverySweepBoot,
+} from '@content-chain/runs-kernel';
 import { WorkerAppModule } from './worker-app.module';
 
 const testEnv = {
@@ -18,8 +18,6 @@ const testEnv = {
   GATEWAY_BASE_URL: 'http://127.0.0.1:9',
   GATEWAY_KEY: 'test-key',
   GATEWAY_MODEL_ALIAS: 'chat-default',
-  JWT_SECRET: 'test-secret',
-  CORS_ORIGIN: 'http://127.0.0.1:3000',
   REVIEW_TTL: '2h',
   REVIEW_SWEEP_INTERVAL: '5m',
   MAX_CONCURRENT_RUNS: 3,

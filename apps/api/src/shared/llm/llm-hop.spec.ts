@@ -2,7 +2,7 @@ import { createConversationId, createRequestId } from '@content-chain/shared';
 import { LlmGatewayError } from '../../llm/llm-gateway.errors';
 import type { LlmGatewayPort } from '../../llm/llm-gateway.port';
 import type { LlmChatResult } from '../../llm/llm-gateway.types';
-import type { RunLifecyclePort } from '../../runs/domain/run-lifecycle.port';
+import type { RunLifecyclePort } from '@content-chain/runs-kernel';
 import { verifierOutputSchema } from '../../social/application/social.schemas';
 import type { Env } from '../config/env.schema';
 import { newConversationId, newRunId } from '../http/new-ids';

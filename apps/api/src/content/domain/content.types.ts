@@ -1,5 +1,5 @@
 import type { CompanyContext } from '../../company-context/domain/company-context.types';
-import type { ContentBrief } from '../../runs/domain/run.types';
+import type { ContentBrief } from '@content-chain/runs-kernel';
 import type {
   ContentKind,
   ContentLanguage,

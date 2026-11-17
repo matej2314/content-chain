@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import { parseWithZod } from '../../shared/parse-with-zod';
+import { DomainException, parseWithZod } from '@content-chain/runs-kernel';
+
 import { hashRefreshToken } from './auth.helpers';
 import { confirmEmailChangeSchema } from './auth.schemas';
 import {

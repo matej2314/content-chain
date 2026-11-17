@@ -9,15 +9,15 @@ import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import { AppModule } from '../src/app.module';
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
-import { AutoFinalizeExpiredReviewsUseCase } from '../src/runs/application/auto-finalize-expired-reviews.use-case';
+import { AutoFinalizeExpiredReviewsUseCase, PG_BOSS, PrismaService, validateWorkerEnv } from '@content-chain/runs-kernel';
 import { ENV, type Env } from '../src/shared/config/env';
 import { validateEnv } from '../src/shared/config/env.schema';
-import { validateWorkerEnv } from '../src/shared/config/worker-env.schema';
+
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
-import { PrismaService } from '../src/shared/persistence/prisma.service';
+
 import { createAuthenticatedAgent, type E2eAgent } from './authenticated-agent';
 import { bootWorkerE2e, closeWorkerE2e, createInProcessPgBoss } from './boot-worker-e2e';
-import { PG_BOSS } from '../src/runs/infrastructure/dispatch/pg-boss.tokens';
+
 import { FakeLlmGateway } from './fake-llm-gateway';
 
 /** REVIEW_TTL default 2h - anchors older than this are past the review window. */

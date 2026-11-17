@@ -8,12 +8,12 @@ import {
 import { LLM_GATEWAY_PORT } from '../../llm/llm.tokens';
 import { LlmGatewayError } from '../../llm/llm-gateway.errors';
 import { ENV, type Env } from '../config/env';
-import { isRetryable } from '../../runs/domain/is-retryable';
 import {
+  DomainException,
   RUN_LIFECYCLE,
+  isRetryable,
   type RunLifecyclePort,
-} from '../../runs/domain/run-lifecycle.port';
-import { DomainException } from '../exceptions/domain.exception';
+} from '@content-chain/runs-kernel';
 import { isAbortError } from './is-abort-error';
 import { parseLlmJson } from './parse-llm-json';
 import type { RunId } from '@content-chain/shared';

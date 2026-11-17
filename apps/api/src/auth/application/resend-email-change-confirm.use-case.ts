@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
 import { ENV, type Env } from '../../shared/config/env';
 import {
   EMAIL_CHANGE_REQUEST_REPOSITORY,

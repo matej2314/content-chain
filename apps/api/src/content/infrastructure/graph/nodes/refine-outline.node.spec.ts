@@ -1,6 +1,6 @@
 import { createRequestId } from '@content-chain/shared';
 import { emptyCompanyContext } from '../../../../company-context/domain/company-context.types';
-import { DomainException } from '../../../../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
 import { newConversationId, newRunId } from '../../../../shared/http/new-ids';
 import { pageOutlineOutputSchema } from '../../../application/content.schemas';
 import type { ContentResultStore } from '../../../domain/content-result.port';

@@ -8,17 +8,12 @@ import {
 import { Pool } from 'pg';
 import { EnvModule } from '../shared/config/env.module';
 import { ENV, type Env } from '../shared/config/env';
-import { RUN_ABORT_SIGNAL } from './domain/run-abort-signal.port';
-import { RUN_JOB_ENQUEUE } from './domain/run-job-enqueue.port';
-import { PgBossRunJobEnqueue } from './infrastructure/dispatch/pg-boss.run-job.enqueue';
-import { PgNotifyAbortSignal } from './infrastructure/dispatch/pg-notify-abort.signal';
-import { createInProcessPgBossClient } from './infrastructure/dispatch/in-process-pg-boss.client';
-import {
-  loadPgBoss,
-  PG_BOSS,
-  PG_NOTIFY_POOL,
-  type PgBossSendClient,
-} from './infrastructure/dispatch/pg-boss.tokens';
+import { PG_BOSS, PG_NOTIFY_POOL, PgBossRunJobEnqueue, PgNotifyAbortSignal, RUN_ABORT_SIGNAL, RUN_JOB_ENQUEUE, createInProcessPgBossClient, loadPgBoss, type PgBossSendClient } from '@content-chain/runs-kernel';
+
+
+
+
+
 
 /**
  * Api-only: pg-boss send + abort NOTIFY. No createQueue / work (D3).

@@ -20,7 +20,7 @@ import { SaveOutputEditedUseCase } from './application/save-output-edited.use-ca
 import { FinalizeReviewUseCase } from './application/finalize-review.use-case';
 import { CancelRunUseCase } from './application/cancel-run.use-case';
 import { StartRunUseCase } from './application/start-run.use-case';
-import { RUN_SSE_HUB, type RunSseEvent } from './domain/run-sse.port';
+import { RUN_SSE_HUB, type RunSseEvent } from '@content-chain/runs-kernel';
 import { type ListRunsQueryDto } from './http/dto/list-runs-query.dto';
 import { type HitlDto } from './http/dto/hitl.dto';
 import { type PatchRunRatingDto } from './http/dto/patch-run-rating.dto';

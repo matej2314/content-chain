@@ -9,20 +9,12 @@ import {
 } from '@content-chain/shared';
 import { GetCompletenessUseCase } from '../../company-context/application/get-completeness.use-case';
 import { ENV, type Env } from '../../shared/config/env';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException, RUN_JOB_ENQUEUE, RUN_REPOSITORY, parseWithZod, type RunJobEnqueuePort, type RunRepository } from '@content-chain/runs-kernel';
+import type { ContentRunRecord, RunRecord, SocialRunRecord } from '@content-chain/runs-kernel';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
-import { parseWithZod } from '../../shared/parse-with-zod';
+
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import type {
-  ContentRunRecord,
-  RunRecord,
-  SocialRunRecord,
-} from '../domain/run.types';
-import {
-  RUN_JOB_ENQUEUE,
-  type RunJobEnqueuePort,
-} from '../domain/run-job-enqueue.port';
+
 import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 import {
   startRunCommandSchema,

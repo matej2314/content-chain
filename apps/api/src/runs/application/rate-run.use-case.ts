@@ -1,11 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import { parseWithZod } from '../../shared/parse-with-zod';
-import { assertRunReviewable } from '../domain/assert-run-reviewable';
+import { DomainException, RUN_REPOSITORY, assertRunReviewable, computeReviewExpiresAt, parseWithZod, type RunRepository } from '@content-chain/runs-kernel';
+
 import { GUEST_QUOTA, type GuestQuotaPort } from '../domain/guest-quota.port';
-import { computeReviewExpiresAt } from '../domain/review-window';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
+
 import { ENV, type Env } from '../../shared/config/env';
 import { parseTtlMs } from '@content-chain/shared';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';

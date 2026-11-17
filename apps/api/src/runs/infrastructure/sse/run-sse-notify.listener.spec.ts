@@ -1,20 +1,17 @@
 import { Client } from 'pg';
 import { newRunId } from '../../../shared/http/new-ids';
 import type { Env } from '../../../shared/config/env';
-import type { RunRepository } from '../../domain/run.port';
-import type { RunSseHub } from '../../domain/run-sse.port';
-import { RUN_SSE_CHANNEL } from '../dispatch/run-job.constants';
 import {
+  RUN_SSE_CHANNEL,
   encodeComplete,
   encodePublish,
   encodePublishLog,
-} from './run-sse-notify.envelope';
+  type RunRepository,
+  type RunSseHub,
+} from '@content-chain/runs-kernel';
 import { RunSseNotifyListener } from './run-sse-notify.listener';
 
-type NotificationHandler = (msg: {
-  channel: string;
-  payload?: string;
-}) => void;
+type NotificationHandler = (msg: { channel: string; payload?: string }) => void;
 
 describe('RunSseNotifyListener', () => {
   const handlers: NotificationHandler[] = [];
@@ -41,10 +38,12 @@ describe('RunSseNotifyListener', () => {
     jest.restoreAllMocks();
   });
 
-  function makeListener(overrides: {
-    hub?: RunSseHub & { publish: jest.Mock; complete: jest.Mock };
-    getLogById?: jest.Mock;
-  } = {}) {
+  function makeListener(
+    overrides: {
+      hub?: RunSseHub & { publish: jest.Mock; complete: jest.Mock };
+      getLogById?: jest.Mock;
+    } = {},
+  ) {
     const hub =
       overrides.hub ??
       ({

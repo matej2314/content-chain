@@ -8,7 +8,7 @@ import {
   GATE_SECTIONS,
 } from '../src/company-context/domain/company-context.constants';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
-import { PrismaService } from '../src/shared/persistence/prisma.service';
+import { PrismaService } from '@content-chain/runs-kernel';
 import {
   createAuthenticatedAgent,
   type E2eAgent,

@@ -11,7 +11,7 @@ import {
   httpRequestsTotal,
 } from './metrics.registry';
 import type { Request, Response } from 'express';
-import { DomainException } from '../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
 
 export const UNMAPPED_HTTP_ROUTE = 'unmapped';
 

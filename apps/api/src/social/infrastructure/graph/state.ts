@@ -1,5 +1,5 @@
 import type { CompanyContext } from '../../../company-context/domain/company-context.types';
-import type { SocialBrief } from '../../../runs/domain/run.types';
+import type { SocialBrief } from '@content-chain/runs-kernel';
 import type {
   PipelinePhase,
   ReelIdea,

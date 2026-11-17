@@ -1,6 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { ArgumentsHost } from '@nestjs/common';
-import { DomainException } from '../exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
 import { HttpExceptionFilter } from './http-exception.filter';
 import { createRequestId } from '@content-chain/shared';
 

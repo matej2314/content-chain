@@ -1,12 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import { parseWithZod } from '../../shared/parse-with-zod';
+import { DomainException, RUN_REPOSITORY, parseWithZod, type RunRepository } from '@content-chain/runs-kernel';
+import type { RunLogLevel } from '@content-chain/runs-kernel';
+
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 import { runIdSchema } from './run.schemas';
 import type { ConversationId, RunId } from '@content-chain/shared';
-import type { RunLogLevel } from '../domain/run.types';
 
 export interface GetRunLogsOutput {
   items: {

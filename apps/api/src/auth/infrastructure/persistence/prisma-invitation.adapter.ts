@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../../shared/persistence/prisma.service';
+import { DomainException, PrismaService } from '@content-chain/runs-kernel';
 import {
   createInvitationId,
   createUserId,
   isUserRole,
 } from '@content-chain/shared';
-import { DomainException } from '../../../shared/exceptions/domain.exception';
+
 import type { AuthUser } from '../../domain/auth-user.types';
 import type {
   AcceptInviteAndCreateUserInput,

@@ -3,17 +3,15 @@ import {
   COMPANY_CONTEXT_REPOSITORY,
   type CompanyContextRepository,
 } from '../../company-context/domain/company-context.port';
-import {
-  RUN_LIFECYCLE,
-  type RunLifecyclePort,
-} from '../../runs/domain/run-lifecycle.port';
-import type { ContentRunRecord, RunRecord } from '../../runs/domain/run.types';
+import { RUN_LIFECYCLE, isContentRunRecord, type RunLifecyclePort } from '@content-chain/runs-kernel';
+import type { ContentRunRecord, RunRecord } from '@content-chain/runs-kernel';
+
 import { LlmHopService } from '../../shared/llm/llm-hop';
 import {
   CONTENT_RESULT_STORE,
   type ContentResultStore,
 } from '../domain/content-result.port';
-import { isContentRunRecord } from '../../runs/domain/run.types';
+
 import type {
   ContentPipelineOutcome,
   ContentPipelinePhase,

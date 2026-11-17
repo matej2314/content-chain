@@ -8,10 +8,14 @@ import {
 import { Client } from 'pg';
 import { createRunId } from '@content-chain/shared';
 import { ENV, type Env } from '../../../shared/config/env';
-import { RUN_REPOSITORY, type RunRepository } from '../../domain/run.port';
-import { RUN_SSE_HUB, type RunSseHub } from '../../domain/run-sse.port';
-import { RUN_SSE_CHANNEL } from '../dispatch/run-job.constants';
-import { parseRunSseNotifyPayload } from './run-sse-notify.envelope';
+import {
+  RUN_REPOSITORY,
+  RUN_SSE_CHANNEL,
+  RUN_SSE_HUB,
+  parseRunSseNotifyPayload,
+  type RunRepository,
+  type RunSseHub,
+} from '@content-chain/runs-kernel';
 
 @Injectable()
 export class RunSseNotifyListener implements OnModuleInit, OnModuleDestroy {
@@ -38,9 +42,7 @@ export class RunSseNotifyListener implements OnModuleInit, OnModuleDestroy {
       }
       if (envelope.kind === 'publish') {
         // Zod → domain: payload mostu ma plain stringi; hub oczekuje RunSseEvent.
-        this.hub.publish(
-          envelope.event as Parameters<RunSseHub['publish']>[0],
-        );
+        this.hub.publish(envelope.event as Parameters<RunSseHub['publish']>[0]);
         return;
       }
       if (envelope.kind === 'complete') {

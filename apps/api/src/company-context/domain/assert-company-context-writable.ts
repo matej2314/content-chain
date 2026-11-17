@@ -1,4 +1,4 @@
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
 import { assertAudienceProfileNamesUnique } from './assert-audience-profile-names-unique';
 import { collectGateItemPaths, isComplete } from './is-complete';
 import type {

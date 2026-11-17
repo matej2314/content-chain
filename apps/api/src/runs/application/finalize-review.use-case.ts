@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import { assertRunReviewable } from '../domain/assert-run-reviewable';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
+import { DomainException, RUN_REPOSITORY, assertRunReviewable, type RunRepository } from '@content-chain/runs-kernel';
+
+
 import { ENV, type Env } from '../../shared/config/env';
 import { parseTtlMs } from '@content-chain/shared';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';

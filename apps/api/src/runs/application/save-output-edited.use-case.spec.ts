@@ -7,11 +7,9 @@ import type {
   OutputEditedWrite,
   OutputEditedWriter,
 } from '../domain/output-edited-writer.port';
-import type { RunRepository } from '../domain/run.port';
-import {
-  makeSocialSnapshot,
-  type SocialRunSnapshot,
-} from '../run-record.test-helpers';
+import { makeSocialSnapshot, type SocialRunSnapshot } from '@content-chain/runs-kernel';
+import type { RunRepository } from '@content-chain/runs-kernel';
+
 import { SaveOutputEditedUseCase } from './save-output-edited.use-case';
 
 const ACTOR: AuthUserContext = {

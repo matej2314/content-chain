@@ -1,18 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { parseTtlMs } from '@content-chain/shared';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException, RUN_REPOSITORY, RunStartedBy, computeReviewExpiresAt, parseWithZod, type RunRepository } from '@content-chain/runs-kernel';
+import type { ContentBrief, SocialBrief } from '@content-chain/runs-kernel';
 import { ENV, type Env } from '../../shared/config/env';
-import {
-  RUN_REPOSITORY,
-  RunStartedBy,
-  type RunRepository,
-} from '../domain/run.port';
-import { computeReviewExpiresAt } from '../domain/review-window';
+
 import {
   RUN_RESULT_READER,
   type RunResultReader,
 } from '../domain/run-result-reader.port';
-import { parseWithZod } from '../../shared/parse-with-zod';
+
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 import { runIdSchema } from './run.schemas';
@@ -25,7 +21,7 @@ import type {
   RunStatus,
   RunTaskType,
 } from '@content-chain/shared';
-import type { ContentBrief, SocialBrief } from '../domain/run.types';
+
 import type {
   PageDocument,
   PageOutline,

@@ -1,5 +1,5 @@
 ---
-wersja: 10
+wersja: 11
 data_utworzenia: 2026-09-27
 data_modyfikacji: 2026-11-17
 ---
@@ -8,7 +8,9 @@ data_modyfikacji: 2026-11-17
 
 ## Widok systemu
 
-Content Chain to **modularny monolit w monorepo** z **czterema** osobnymi procesami runtime oraz wspólnymi pakietami kontraktów i kernela (`packages/shared`, `@content-chain/runs-kernel`, `@content-chain/run-pipelines`).
+Content Chain to **modularny monolit w monorepo** z **czterema** osobnymi procesami runtime oraz wspólnymi pakietami kontraktów, platformy i kernela (`packages/shared`, `@content-chain/domain-kit`, `@content-chain/persistence`, `@content-chain/runs-kernel`, `@content-chain/run-pipelines`).
+
+Zmiana względem wersji 10 / platform packages: `DomainException` / `parseWithZod` / pagination helpers = `@content-chain/domain-kit`; Nest `PrismaModule` = `@content-chain/persistence` (schema nadal `apps/api/prisma`). Kernel Runs **nie** jest SoT platformy; Auth nie zależy od `runs-kernel` wyłącznie po wyjątki/parse.
 
 Zmiana względem wersji 9 / day-1 import workera z drzewa api: **granica procesu** (api vs worker) ≠ **granica pakietu** (`packages/runs-kernel`, `packages/run-pipelines`). **Zakaz** importów TS między `apps/api` a `apps/worker` (obie strony); komunikacja runtime bez zmian (HTTP/SSE, PG, NOTIFY, pg-boss). Worker = host execute + lifecycle — **nie** drugi monolit HTTP/Auth. Execute lokalnie w workerze (model A); model B (execute przez HTTP/RPC do api) **nie** jest kanonem. Day-1 import z `apps/api/src` — **unieważniony**.
 
@@ -37,7 +39,9 @@ Zmiana względem: warstwy BC bez normy podkatalogów I/O poza Social/Content. Od
 | `apps/frontend`            | Cienki klient UI (dashboard, flow’y Social i Content, podgląd logów); bez reguł domenowych i bez dostępu do vendorów LLM  |
 | `apps/ai-provider-gateway` | Osobny deployable: routing / providery LLM; **zero** logiki Content Chain (Social, kontekst, auth produktu) |
 | `packages/shared`          | Lekkie, współdzielone typy publicznego kontraktu API (bez logiki biznesowej, **bez Zod**) |
-| `packages/runs-kernel`     | `@content-chain/runs-kernel` — współdzielony kernel lifecycle Runs (porty / recovery / sweep / abort / pump); bez HTTP / FE / Auth |
+| `packages/domain-kit`      | `@content-chain/domain-kit` — `DomainException`, `parseWithZod`, helpery pagination (runtime współdzielony api+worker; **bez** reguł BC) |
+| `packages/persistence`     | `@content-chain/persistence` — Nest `PrismaModule` / `PrismaService`; schema/migracje nadal w `apps/api/prisma` |
+| `packages/runs-kernel`     | `@content-chain/runs-kernel` — współdzielony kernel lifecycle Runs (porty / recovery / sweep / abort / pump); bez HTTP / FE / Auth / platform dump |
 | `packages/run-pipelines`   | `@content-chain/run-pipelines` — slice execute Social+Content + prompty/assets; wire `RUN_EXECUTOR` w workerze |
 
 ```mermaid
@@ -48,6 +52,8 @@ flowchart LR
     WK["apps/worker"]
     GW["apps/ai-provider-gateway"]
     SH["packages/shared"]
+    DK["packages/domain-kit"]
+    PS["packages/persistence"]
     RK["packages/runs-kernel"]
     RP["packages/run-pipelines"]
   end
@@ -62,13 +68,20 @@ flowchart LR
   FE -.-> SH
   API -.-> SH
   WK -.-> SH
+  API -.-> DK
+  WK -.-> DK
+  API -.-> PS
+  WK -.-> PS
   API -.-> RK
   WK -.-> RK
   WK -.-> RP
   API -.-> RP
+  RK -.-> DK
+  RK -.-> PS
+  RP -.-> PS
 ```
 
-**Zasada zależności:** `apps/frontend` → `apps/api` (HTTP/SSE). Execute i recovery: `apps/worker` → PG (SoT + pg-boss + NOTIFY) oraz → gateway (LLM). Oba hosty → `@content-chain/runs-kernel` (+ worker → `@content-chain/run-pipelines` na execute). **Zakaz** importów TS `apps/worker` ↔ `apps/api`. `apps/api` **nie** woła vendorów LLM bezpośrednio. Gateway nie zależy od domeny produktu. **Jawna zmiana** względem day-1: import workera z drzewa api — **unieważniony**.
+**Zasada zależności:** `apps/frontend` → `apps/api` (HTTP/SSE). Execute i recovery: `apps/worker` → PG (SoT Prisma + pg-boss + NOTIFY przez `pg` Pool) oraz → gateway (LLM). Oba hosty → `@content-chain/runs-kernel` (+ worker → `@content-chain/run-pipelines` na execute) oraz → `@content-chain/domain-kit` / `@content-chain/persistence` gdy potrzeba. **Zakaz** importów TS `apps/worker` ↔ `apps/api`. `apps/api` **nie** woła vendorów LLM bezpośrednio. Gateway nie zależy od domeny produktu. **Jawna zmiana** względem day-1: import workera z drzewa api — **unieważniony**.
 
 Content Chain jest też **realnym use-case’em** projektu `ai-provider-gateway` (instancja dostosowana w `apps/ai-provider-gateway`), a nie tylko izolowanym demo samego gateway’a.
 

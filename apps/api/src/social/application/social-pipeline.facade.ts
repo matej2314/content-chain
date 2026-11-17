@@ -13,10 +13,7 @@ import {
 } from '../infrastructure/graph/social.graph';
 import { LlmHopService } from '../../shared/llm/llm-hop';
 import { isSocialPlatform } from '@content-chain/shared';
-import {
-  RUN_LIFECYCLE,
-  type RunLifecyclePort,
-} from '../../runs/domain/run-lifecycle.port';
+import { RUN_LIFECYCLE, isSocialRunRecord, type RunLifecyclePort, type RunRecord, type SocialRunRecord } from '@content-chain/runs-kernel';
 import { isReelTaskType } from '../domain/reel-task';
 import {
   isTwoStageSocialTask,
@@ -25,11 +22,7 @@ import {
   type SocialIdea,
   type SocialPipelineOutcome,
 } from '../domain/social.types';
-import {
-  isSocialRunRecord,
-  type RunRecord,
-  type SocialRunRecord,
-} from '../../runs/domain/run.types';
+
 import type { SocialGraphState } from '../infrastructure/graph/state';
 
 @Injectable()

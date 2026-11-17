@@ -4,12 +4,11 @@ import type { Env } from '../../shared/config/env';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { GuestQuotaPort } from '../domain/guest-quota.port';
 import type { RunResultReader } from '../domain/run-result-reader.port';
-import type { RunRepository, RunSnapshot } from '../domain/run.port';
-import type { RunRecord } from '../domain/run.types';
-import { makeContentRun, makeSocialRun } from '../run-record.test-helpers';
+import { makeContentRun, makeSocialRun, RunLifecycleService } from '@content-chain/runs-kernel';
+import type { RunJobEnqueuePort, RunRecord, RunRepository, RunSnapshot } from '@content-chain/runs-kernel';
+
 import type { ReelIdea, SocialIdea } from '../../social/domain/social.types';
-import type { RunJobEnqueuePort } from '../domain/run-job-enqueue.port';
-import type { RunLifecycleService } from './lifecycle/run-lifecycle.service';
+
 import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 import { ResumeHitlUseCase } from './resume-hitl.use-case';
 

@@ -2,7 +2,7 @@ import {
   createAccountActivationId,
   createUserId,
 } from '@content-chain/shared';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
 import { validateEnv } from '../../shared/config/env.schema';
 import type {
   AccountActivationRecord,

@@ -1,5 +1,9 @@
 {
-  "moduleFileExtensions": ["js", "json", "ts"],
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
   "rootDir": ".",
   "testEnvironment": "node",
   "maxWorkers": 1,
@@ -10,5 +14,11 @@
   "transformIgnorePatterns": [
     "/node_modules/(?!.*(?:uuid|@langchain|langsmith|langgraph|@nestjs/passport|@nestjs/jwt|passport)/)"
   ],
-  "setupFiles": ["<rootDir>/setup-env.ts"]
+  "setupFiles": [
+    "<rootDir>/setup-env.ts"
+  ],
+  "moduleNameMapper": {
+    "^@content-chain/runs-kernel$": "<rootDir>/../../../packages/runs-kernel/src/index.ts",
+    "^@content-chain/runs-kernel/(.*)$": "<rootDir>/../../../packages/runs-kernel/src/$1"
+  }
 }

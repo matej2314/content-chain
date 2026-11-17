@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../shared/persistence/prisma.service';
+import { PrismaService, toInputJson } from '@content-chain/runs-kernel';
 import { COMPANY_CONTEXT_SINGLETON_ID } from '../domain/company-context.constants';
-import { toInputJson } from '../../shared/persistence/to-input-json';
+
 import type {
   CompanyContextRepository,
 } from '../domain/company-context.port';

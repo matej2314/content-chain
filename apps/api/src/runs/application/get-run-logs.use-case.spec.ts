@@ -3,9 +3,9 @@ import type { Env } from '../../shared/config/env';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { GuestQuotaPort } from '../domain/guest-quota.port';
-import type { RunRepository } from '../domain/run.port';
-import type { RunLogEntry } from '../domain/run.types';
-import { makeSocialRun } from '../run-record.test-helpers';
+import { makeSocialRun } from '@content-chain/runs-kernel';
+import type { RunLogEntry, RunRepository } from '@content-chain/runs-kernel';
+
 import { GetRunLogsUseCase } from './get-run-logs.use-case';
 import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 

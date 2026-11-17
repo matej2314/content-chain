@@ -2,15 +2,15 @@ import { createUserId } from '@content-chain/shared';
 import type { GetCompletenessUseCase } from '../../company-context/application/get-completeness.use-case';
 import type { Completeness } from '../../company-context/domain/company-context.types';
 import type { Env } from '../../shared/config/env';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
+import type { RunJobEnqueuePort, RunRecord, RunRepository, RunSnapshot } from '@content-chain/runs-kernel';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
-import type { RunRepository, RunSnapshot } from '../domain/run.port';
-import type { RunRecord } from '../domain/run.types';
+
 import type {
   GuestRunAdmit,
   GuestRunPolicyService,
 } from './guest/guest-run-policy.service';
-import type { RunJobEnqueuePort } from '../domain/run-job-enqueue.port';
+
 import { StartRunUseCase, type StartRunCommand } from './start-run.use-case';
 
 const ACTOR: AuthUserContext = {

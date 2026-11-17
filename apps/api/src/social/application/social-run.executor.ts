@@ -1,27 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException, RUN_LIFECYCLE, isSocialRunRecord, type RunLifecyclePort, type RunRecord, type SocialRunRecord } from '@content-chain/runs-kernel';
+import type { RunExecuteOptions, RunExecutorPort } from '@content-chain/runs-kernel';
 import { LlmGatewayError } from '../../llm/llm-gateway.errors';
 import { isAbortError } from '../../shared/llm/is-abort-error';
 import {
   SOCIAL_RESULT_STORE,
   type SocialResultStore,
 } from '../domain/social-result.port';
-import {
-  RUN_LIFECYCLE,
-  type RunLifecyclePort,
-} from '../../runs/domain/run-lifecycle.port';
+
 import { isReelTaskType } from '../domain/reel-task';
 import { SocialPipelineFacade } from './social-pipeline.facade';
 import type { PipelinePhase } from '../domain/social.types';
-import type {
-  RunExecutorPort,
-  RunExecuteOptions,
-} from '../../runs/domain/run-executor.port';
-import {
-  isSocialRunRecord,
-  type RunRecord,
-  type SocialRunRecord,
-} from '../../runs/domain/run.types';
+
+
 
 @Injectable()
 export class SocialRunExecutor implements RunExecutorPort {

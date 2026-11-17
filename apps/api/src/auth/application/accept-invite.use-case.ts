@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import type { UserId, UserRole } from '@content-chain/shared';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import { parseWithZod } from '../../shared/parse-with-zod';
+import { DomainException, parseWithZod } from '@content-chain/runs-kernel';
+
 import { newUserId } from '../../shared/http/new-ids';
 import { ENV, type Env } from '../../shared/config/env';
 import { validatePasswordPolicy } from '../domain/password.policy';

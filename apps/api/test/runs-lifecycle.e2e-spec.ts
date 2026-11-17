@@ -12,14 +12,13 @@ import { GATE_SECTIONS } from '../src/company-context/domain/company-context.con
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { ENV, type Env } from '../src/shared/config/env';
 import { validateEnv } from '../src/shared/config/env.schema';
-import { validateWorkerEnv } from '../src/shared/config/worker-env.schema';
+import { PG_BOSS, PrismaService, validateWorkerEnv } from '@content-chain/runs-kernel';
+import type { RunExecutorPort, RunRecord } from '@content-chain/runs-kernel';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
-import { PrismaService } from '../src/shared/persistence/prisma.service';
-import type { RunExecutorPort } from '../src/runs/domain/run-executor.port';
-import type { RunRecord } from '../src/runs/domain/run.types';
+
 import { createAuthenticatedAgent, type E2eAgent } from './authenticated-agent';
 import { bootWorkerE2e, closeWorkerE2e, createInProcessPgBoss } from './boot-worker-e2e';
-import { PG_BOSS } from '../src/runs/infrastructure/dispatch/pg-boss.tokens';
+
 import { FakeLlmGateway } from './fake-llm-gateway';
 
 const completeContextBody = {

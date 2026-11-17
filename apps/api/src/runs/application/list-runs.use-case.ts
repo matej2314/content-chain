@@ -1,10 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import {
-  RUN_REPOSITORY,
-  RunStartedBy,
-  type ListRunsQuery,
-  type RunRepository,
-} from '../domain/run.port';
+import { RUN_REPOSITORY, RunStartedBy, type ListRunsQuery, type RunRepository } from '@content-chain/runs-kernel';
 import type {
   ContentKind,
   ContentLanguage,

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import type { RunId } from '@content-chain/shared';
-import { PrismaService } from '../../../shared/persistence/prisma.service';
-import { toInputJson } from '../../../shared/persistence/to-input-json';
+import { PrismaService, toInputJson } from '@content-chain/runs-kernel';
+
 import type { SocialResultStore } from '../../domain/social-result.port';
 import type {
   PipelineState,

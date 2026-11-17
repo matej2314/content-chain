@@ -1,5 +1,5 @@
 ---
-wersja: 24
+wersja: 25
 data_utworzenia: 2026-09-18
 data_modyfikacji: 2026-11-17
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-17
 Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego źle → zamiast tego. Ogólny podręcznik Nest/Next — poza zakresem.
 
 Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `security.md`.
+
+Zmiana względem wersji 24 / platform packages: kanon `parseWithZod` / `DomainException` / pagination = `@content-chain/domain-kit`; Nest Prisma = `@content-chain/persistence`; zakaz Auth→`runs-kernel` po platformę; zakaz dwóch SoT pagination.
 
 Zmiana względem wersji 23 / niezależność procesów przez packages: zakazy importu TS `apps/worker` ↔ `apps/api`; whack-a-mole deps Auth/HTTP w workerze przy `MODULE_NOT_FOUND`; util TTL/hasła w module z `bcrypt` ciągnionym do workera; prompty SoT tylko w dist / nest-cli api; day-1 import z drzewa api jako trwały kształt.
 
@@ -51,11 +53,14 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | Logika SM / Content / bramki kontekstu w `apps/frontend` | UI staje się drugim źródłem prawdy; trudny test i self-host | Reguły i graf tylko w `apps/api`; frontend = cienki klient |
 | Domena Content Chain w `apps/ai-provider-gateway` | Miesza produkt z infrastrukturą LLM; psuje reuse gateway | Gateway = routing/providery; CC woła natywny chat |
 | Use-case’y / Prisma / **Zod** w `packages/shared` | Shared przestaje być czystym kontraktem typów | W `shared` tylko typy / brand / enumy kontraktu (**bez Zod**) |
-| Lokalna kopia `parseWithZod` / osobny adapter Zod→`VALIDATION_FAILED` w każdym BC | Drift separatora `details[].path` i duplikat mapowania błędów | Jeden helper: `apps/api/src/shared/parse-with-zod.ts` (`path` = `issue.path.join('.')`) |
-| Rootowy `src/apps/` albo rozjechane ścieżki app | Drift względem docs i DX monorepo | `apps/{api,frontend,ai-provider-gateway,worker}` + `packages/{shared,runs-kernel,run-pipelines}` |
-| Import TS `apps/worker` ↔ `apps/api` (day-1 z drzewa api jako kanon) | Sprzęga procesy; whack-a-mole `MODULE_NOT_FOUND`; ciągnie Auth/HTTP do workera | Oba → `@content-chain/runs-kernel` (+ worker → `@content-chain/run-pipelines`); komunikacja runtime = PG / NOTIFY / pg-boss / HTTP api |
+| Lokalna kopia `parseWithZod` / osobny adapter Zod→`VALIDATION_FAILED` w każdym BC | Drift separatora `details[].path` i duplikat mapowania błędów | Jeden helper: `@content-chain/domain-kit` (`path` = `issue.path.join('.')`) |
+| Dwa SoT pagination (`apps/api/src/shared/http/pagination` **i** kopia w `runs-kernel`) | Drift list Users vs Runs; `instanceof`/import chaos | Jedno SoT helperów w `@content-chain/domain-kit`; HTTP DTO zostaje w api |
+| Auth / metrics → `@content-chain/runs-kernel` wyłącznie po `DomainException` / parse / pagination | Fałszywa zależność BC od kernela Runs; puchnięcie platformy w „runs” | Import z `@content-chain/domain-kit`; Nest Prisma z `@content-chain/persistence` |
+| Nest `PrismaModule` trwale w `runs-kernel` albo tylko w api `shared/persistence` przy dwóch procesach | Kernel ≠ platforma DB; day-1 / dual module | `@content-chain/persistence`; schema nadal `apps/api/prisma` |
+| Rootowy `src/apps/` albo rozjechane ścieżki app | Drift względem docs i DX monorepo | `apps/{api,frontend,ai-provider-gateway,worker}` + `packages/{shared,domain-kit,persistence,runs-kernel,run-pipelines}` |
+| Import TS `apps/worker` ↔ `apps/api` (day-1 z drzewa api jako kanon) | Sprzęga procesy; whack-a-mole `MODULE_NOT_FOUND`; ciągnie Auth/HTTP do workera | Oba → `@content-chain/runs-kernel` (+ worker → `@content-chain/run-pipelines`) + platform packages; komunikacja runtime = PG / NOTIFY / pg-boss / HTTP api |
 | Dokładanie deps Auth/HTTP do `apps/worker` przy `MODULE_NOT_FOUND` z drzewa api (`bcrypt`, swagger, mail, …) | Worker staje się drugim monolitem; bloated boot | Dependency closure: host + `workspace:*` + deps faktycznie potrzebne hostowi; extract do packages zamiast kopiować drzewo api |
-| Shared helpers (np. `parseTtlMs`) w `auth/` obok `bcrypt` / hash haseł, importowane przez worker/kernel | Side-effect `require` Auth w grafie workera | Util w `runs-kernel` albo małym utilu `packages/shared` — **bez** Auth |
+| Shared helpers (np. `parseTtlMs`) w `auth/` obok `bcrypt` / hash haseł, importowane przez worker/kernel | Side-effect `require` Auth w grafie workera | Util TTL w `packages/shared`; wyjątki/parse w `domain-kit` — **bez** Auth |
 | Prompty / `*.prompt.md` SoT tylko w dist api / nest-cli assets api dla workera | Worker zależy od drzewa/build api; padające assets poza api | Assets w `packages/run-pipelines` (pakiet, który je czyta) |
 | Katalog `postman/` na rootcie `apps/api` (sibling `src/`) albo seed SQL/Prisma kontekstu pod E2E zamiast `PUT /company-context` | Kolekcja wygląda jak BC/moduł produktu; seed omija bramkę HTTP (`CONTEXT_INCOMPLETE`) | `apps/api/test/postman/`; Setup = `PUT /company-context`. **Dozwolony** osobno: seed demo/DX przez warstwę zapisu domenowego (kompletny fixture, seed-if-empty) — **nie** zastępuje Setupu Postman |
 

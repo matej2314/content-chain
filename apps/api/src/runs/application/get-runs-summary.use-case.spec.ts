@@ -3,7 +3,7 @@ import {
   GetRunsSummaryUseCase,
   RUNS_SUMMARY_CACHE_TTL_MS,
 } from './get-runs-summary.use-case';
-import type { RunRepository, RunSummaryAggregate } from '../domain/run.port';
+import type { RunRepository, RunSummaryAggregate } from '@content-chain/runs-kernel';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 
 function unusedRepo(overrides: Partial<RunRepository>): RunRepository {

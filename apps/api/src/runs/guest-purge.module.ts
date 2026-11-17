@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '../shared/persistence/prisma.module';
+import { PrismaModule } from '@content-chain/runs-kernel';
 import { GUEST_PURGE } from './domain/guest-purge.port';
 import { PrismaGuestPurgeAdapter } from './infrastructure/persistence/prisma-guest-purge.adapter';
 

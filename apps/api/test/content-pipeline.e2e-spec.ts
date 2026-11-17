@@ -8,13 +8,13 @@ import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
-import { PrismaService } from '../src/shared/persistence/prisma.service';
+import { PG_BOSS, PrismaService } from '@content-chain/runs-kernel';
 import {
   createAuthenticatedAgent,
   type E2eAgent,
 } from './authenticated-agent';
 import { bootWorkerE2e, closeWorkerE2e, createInProcessPgBoss } from './boot-worker-e2e';
-import { PG_BOSS } from '../src/runs/infrastructure/dispatch/pg-boss.tokens';
+
 import {
   FAKE_LLM_REQUEST_ID,
   FakeLlmGateway,

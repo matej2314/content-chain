@@ -1,11 +1,9 @@
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException, makeContentRun, makeSocialRun } from '@content-chain/runs-kernel';
+import type { ContentRunRecord, RunLifecyclePort, RunRecord } from '@content-chain/runs-kernel';
 import { LlmGatewayError } from '../../llm/llm-gateway.errors';
-import type { RunLifecyclePort } from '../../runs/domain/run-lifecycle.port';
-import type { ContentRunRecord, RunRecord } from '../../runs/domain/run.types';
-import {
-  makeContentRun,
-  makeSocialRun,
-} from '../../runs/run-record.test-helpers';
+
+
+
 import type { ContentResultStore } from '../domain/content-result.port';
 import type {
   ContentPipelineOutcome,

@@ -1,16 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
-import {
-  RUN_JOB_ENQUEUE,
-  type RunJobEnqueuePort,
-} from '../domain/run-job-enqueue.port';
+import { DomainException, RUN_JOB_ENQUEUE, RUN_REPOSITORY, parseWithZod, type RunJobEnqueuePort, type RunRepository, RunLifecycleService } from '@content-chain/runs-kernel';
+
 import {
   RUN_RESULT_READER,
   type RunResultReader,
 } from '../domain/run-result-reader.port';
-import { RunLifecycleService } from './lifecycle/run-lifecycle.service';
-import { parseWithZod } from '../../shared/parse-with-zod';
+
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import { GuestRunPolicyService } from './guest/guest-run-policy.service';
 import { runIdSchema, hitlSelectedIdeaIdsSchema } from './run.schemas';

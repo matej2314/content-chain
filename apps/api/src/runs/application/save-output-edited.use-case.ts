@@ -1,13 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import { parseWithZod } from '../../shared/parse-with-zod';
+import { DomainException, RUN_REPOSITORY, assertRunReviewable, computeReviewExpiresAt, parseWithZod, type RunRepository } from '@content-chain/runs-kernel';
+
 import {
   CONTENT_RESULT_STORE,
   type ContentResultStore,
 } from '../../content/domain/content-result.port';
 import { parseTtlMs } from '@content-chain/shared';
-import { assertRunReviewable } from '../domain/assert-run-reviewable';
-import { computeReviewExpiresAt } from '../domain/review-window';
+
 import {
   OUTPUT_EDITED_WRITER,
   type OutputEditedWrite,
@@ -26,7 +25,7 @@ import {
 } from './output-edited-result.schemas';
 import { reelScriptOutputSchema as reelScriptShape } from '../../social/application/social.schemas';
 import { ENV, type Env } from '../../shared/config/env';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
+
 import {
   SOCIAL_RESULT_STORE,
   type SocialResultStore,

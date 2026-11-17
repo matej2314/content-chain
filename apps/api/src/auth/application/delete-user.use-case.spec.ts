@@ -5,11 +5,11 @@ import {
   type RunId,
   type UserId,
 } from '@content-chain/shared';
-import type { PrismaService } from '../../shared/persistence/prisma.service';
+import type { PrismaService, RunAbortSignalPort } from '@content-chain/runs-kernel';
 import type { FeedbackPurgePort } from '../../feedback/domain/feedback-purge.port';
 import type { GuestPurgePort } from '../../runs/domain/guest-purge.port';
 import type { GuestQuotaPort } from '../../runs/domain/guest-quota.port';
-import type { RunAbortSignalPort } from '../../runs/domain/run-abort-signal.port';
+
 import type { AuthUser, AuthUserContext } from '../domain/auth-user.types';
 import type { UserRepository } from '../domain/user-repository.port';
 import { DeleteUserUseCase } from './delete-user.use-case';

@@ -5,7 +5,7 @@ import type {
   ConversationId,
   RunId,
 } from '@content-chain/shared';
-import type { ContentBrief } from '../../../runs/domain/run.types';
+import type { ContentBrief } from '@content-chain/runs-kernel';
 import type {
   ContentPipelinePhase,
   PageOutline,

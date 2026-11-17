@@ -5,13 +5,14 @@ import {
 } from '@content-chain/shared';
 import { validateEnv } from '../../../shared/config/env.schema';
 import type { Env } from '../../../shared/config/env';
-import { DomainException } from '../../../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
+import type { RunRepository } from '@content-chain/runs-kernel';
 import type { AuthUserContext } from '../../../shared/types/auth-user-context';
 import type {
   GuestQuotaAdmitResult,
   GuestQuotaPort,
 } from '../../domain/guest-quota.port';
-import type { RunRepository } from '../../domain/run.port';
+
 import { GuestRunPolicyService } from './guest-run-policy.service';
 
 const GUEST_ID = createUserId('usr_11111111-1111-4111-8111-111111111111');

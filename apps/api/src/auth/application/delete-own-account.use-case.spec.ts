@@ -1,6 +1,6 @@
 import { hash as bcryptHash } from 'bcrypt';
 import { createUserId } from '@content-chain/shared';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
 import type { AuthUserContext } from '../domain/auth-user.types';
 import type {
   UserForAuth,

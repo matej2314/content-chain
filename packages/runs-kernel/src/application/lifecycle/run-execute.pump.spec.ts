@@ -1,0 +1,566 @@
+import { Logger } from '@nestjs/common';
+import type { RuntimeEnv } from '../../config/env.token';
+import type { RunExecutorPort } from '../../domain/run-executor.port';
+import type { RunRepository, RunSnapshot } from '../../domain/run.port';
+import type { RunSseHub } from '../../domain/run-sse.port';
+import type { RunRecord } from '../../domain/run.types';
+import { makeSocialRun } from '../../testing/run-record.test-helpers';
+import { RunExecutePump } from './run-execute.pump';
+import { RunAbortRegistry } from './run-abort.registry';
+import type { RunLifecycleService } from './run-lifecycle.service';
+
+const TEST_ENV_BASE = {
+  MAX_CONCURRENT_RUNS: 1,
+  REVIEW_TTL: '2h',
+  REVIEW_SWEEP_INTERVAL: '5m',
+} as RuntimeEnv;
+
+function deferred(): {
+  promise: Promise<void>;
+  resolve: () => void;
+} {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+async function waitUntil(
+  predicate: () => boolean,
+  label: string,
+): Promise<void> {
+  for (let i = 0; i < 200; i++) {
+    if (predicate()) return;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  throw new Error(`timed out waiting for ${label}`);
+}
+
+function asSnapshot(run: RunRecord): RunSnapshot {
+  return {
+    ...run,
+    startedBy: null,
+    userRating: null,
+    outputEdited: false,
+    reviewFinalizedAt: null,
+    pipelineFinishedAt: null,
+    cancelledAt: null,
+  };
+}
+
+function unusedRepo(overrides: Partial<RunRepository>): RunRepository {
+  const unexpected = async () => {
+    throw new Error('unexpected repository call');
+  };
+  return {
+    create: unexpected,
+    getById: unexpected,
+    saveStatus: unexpected,
+    saveRecoveryAttempt: unexpected,
+    claimNextQueued: unexpected,
+    claimNextInterrupted: unexpected,
+    findInterruptedRunning: unexpected,
+    findCancelRequestedLeftovers: unexpected,
+    appendLog: unexpected,
+    getLogById: unexpected,
+    listLogs: unexpected,
+    list: unexpected,
+    setCancelRequested: unexpected,
+    attemptCancel: unexpected,
+    saveSelectedIdeaIds: unexpected,
+    listByUser: unexpected,
+    saveRating: unexpected,
+    saveOutputEdited: unexpected,
+    saveFinalizedAt: unexpected,
+    setPipelineFinishedAt: unexpected,
+    finalizeExpiredReviews: unexpected,
+    countByUserAndType: unexpected,
+    countInFlightByUser: unexpected,
+    aggregateSummary: unexpected,
+    ...overrides,
+  };
+}
+
+function makePump(args: {
+  maxConcurrent?: number;
+  runs: RunRepository;
+  executor: RunExecutorPort;
+  lifecycle?: Pick<RunLifecycleService, 'appendLog' | 'transition'>;
+  abortRegistry?: RunAbortRegistry;
+  env?: RuntimeEnv;
+}): RunExecutePump {
+  return new RunExecutePump(
+    {
+      ...TEST_ENV_BASE,
+      MAX_CONCURRENT_RUNS: args.maxConcurrent ?? 1,
+      ...args.env,
+    } as RuntimeEnv,
+    args.runs,
+    args.executor,
+    { publish: jest.fn(), subscribe: jest.fn() } as unknown as RunSseHub,
+    {
+      appendLog: jest.fn(),
+      transition: jest.fn(),
+      ...args.lifecycle,
+    } as unknown as RunLifecycleService,
+    args.abortRegistry ?? new RunAbortRegistry(),
+  );
+}
+
+describe('RunExecutePump', () => {
+  it('serializes pump so two notifyQueued at MAX=1 claim at most one run while first is inflight', async () => {
+    const queued = [
+      makeSocialRun({ status: 'queued' }),
+      makeSocialRun({ status: 'queued' }),
+    ];
+    let claimDepth = 0;
+    let maxClaimDepth = 0;
+    let claimsWithResult = 0;
+
+    const holdFirst = deferred();
+    const started: string[] = [];
+
+    const runs = unusedRepo({
+      claimNextInterrupted: async () => null,
+      claimNextQueued: async () => {
+        claimDepth += 1;
+        maxClaimDepth = Math.max(maxClaimDepth, claimDepth);
+        try {
+          await Promise.resolve();
+          const next = queued.shift();
+          if (!next) return null;
+          claimsWithResult += 1;
+          return { ...next, status: 'running' };
+        } finally {
+          claimDepth -= 1;
+        }
+      },
+    });
+
+    const executor: RunExecutorPort = {
+      async execute(run) {
+        started.push(run.id);
+        if (started.length === 1) {
+          await holdFirst.promise;
+        }
+      },
+    };
+
+    const worker = makePump({
+      maxConcurrent: 1,
+      runs,
+      executor,
+    });
+
+    worker.notifyQueued();
+    worker.notifyQueued();
+
+    await waitUntil(() => started.length === 1, 'first execute');
+    expect(claimsWithResult).toBe(1);
+    expect(maxClaimDepth).toBe(1);
+
+    holdFirst.resolve();
+    await waitUntil(
+      () => started.length === 2,
+      'second execute after slot frees',
+    );
+    expect(claimsWithResult).toBe(2);
+    expect(maxClaimDepth).toBe(1);
+  });
+
+  it('starts HITL resume execute even when inflight is already at MAX', async () => {
+    const queued = [
+      makeSocialRun({ status: 'queued' }),
+      makeSocialRun({ status: 'queued' }),
+    ];
+    let claimsWithResult = 0;
+    const holdClaimed = deferred();
+    const started: string[] = [];
+    const hitlRun = makeSocialRun({ status: 'running' });
+
+    const runs = unusedRepo({
+      claimNextInterrupted: async () => null,
+      claimNextQueued: async () => {
+        const next = queued.shift();
+        if (!next) return null;
+        claimsWithResult += 1;
+        return { ...next, status: 'running' };
+      },
+    });
+
+    const executor: RunExecutorPort = {
+      async execute(run) {
+        started.push(run.id);
+        if (run.id !== hitlRun.id) {
+          await holdClaimed.promise;
+        }
+      },
+    };
+
+    const worker = makePump({ maxConcurrent: 1, runs, executor });
+
+    worker.notifyQueued();
+    await waitUntil(() => started.length === 1, 'queued run occupying the cap');
+    expect(claimsWithResult).toBe(1);
+
+    worker.scheduleExistingRunning(hitlRun);
+    await waitUntil(
+      () => started.includes(hitlRun.id),
+      'HITL execute despite full cap',
+    );
+    expect(claimsWithResult).toBe(1);
+
+    holdClaimed.resolve();
+  });
+
+  it('starts HITL execute while drain is blocked in claimNextQueued so queued does not fill remaining slots first', async () => {
+    const queued = [
+      makeSocialRun({ status: 'queued' }),
+      makeSocialRun({ status: 'queued' }),
+    ];
+    let claimStarted = 0;
+    let claimsWithResult = 0;
+    const holdFirstClaim = deferred();
+    const holdHitl = deferred();
+    const holdClaimed = deferred();
+    const started: string[] = [];
+    const hitlRun = makeSocialRun({ status: 'running' });
+
+    const runs = unusedRepo({
+      claimNextInterrupted: async () => null,
+      claimNextQueued: async () => {
+        claimStarted += 1;
+        if (claimStarted === 1) {
+          await holdFirstClaim.promise;
+        }
+        const next = queued.shift();
+        if (!next) return null;
+        claimsWithResult += 1;
+        return { ...next, status: 'running' };
+      },
+    });
+
+    const executor: RunExecutorPort = {
+      async execute(run) {
+        started.push(run.id);
+        if (run.id === hitlRun.id) {
+          await holdHitl.promise;
+          return;
+        }
+        await holdClaimed.promise;
+      },
+    };
+
+    const worker = makePump({ maxConcurrent: 2, runs, executor });
+
+    worker.notifyQueued();
+    await waitUntil(() => claimStarted === 1, 'drain entered first claim');
+
+    worker.scheduleExistingRunning(hitlRun);
+    await waitUntil(
+      () => started.includes(hitlRun.id),
+      'HITL execute before claim resolves',
+    );
+    expect(claimsWithResult).toBe(0);
+
+    holdFirstClaim.resolve();
+    await waitUntil(
+      () => started.length >= 2,
+      'claimed run starts after HITL occupied a slot',
+    );
+    expect(claimsWithResult).toBe(1);
+    expect(started).toContain(hitlRun.id);
+
+    holdClaimed.resolve();
+    holdHitl.resolve();
+  });
+
+  it('logs and transitions to failed when the executor throws while the run is still running', async () => {
+    const run = makeSocialRun({ status: 'running' });
+    const appendLog = jest.fn().mockResolvedValue(undefined);
+    const transition = jest
+      .fn()
+      .mockResolvedValue({ ...run, status: 'failed' });
+    const getById = jest.fn().mockResolvedValue(asSnapshot(run));
+
+    const worker = makePump({
+      runs: unusedRepo({ getById }),
+      executor: {
+        async execute() {
+          throw new Error('boom');
+        },
+      },
+      lifecycle: { appendLog, transition },
+    });
+
+    worker.scheduleExistingRunning(run);
+    await waitUntil(
+      () => transition.mock.calls.length === 1,
+      'failed transition after executor throw',
+    );
+
+    expect(appendLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: run.id,
+        conversationId: run.conversationId,
+        level: 'error',
+        step: 'RunExecutePump',
+      }),
+    );
+    expect(transition).toHaveBeenCalledWith(
+      expect.objectContaining({ id: run.id, status: 'running' }),
+      'failed',
+      expect.objectContaining({ failedMessage: expect.any(String) }),
+    );
+  });
+
+  it('does not fail a run that already left running after the executor threw', async () => {
+    const run = makeSocialRun({ status: 'running' });
+    const appendLog = jest.fn().mockResolvedValue(undefined);
+    const transition = jest.fn();
+    const getById = jest
+      .fn()
+      .mockResolvedValue(asSnapshot({ ...run, status: 'completed' }));
+
+    const worker = makePump({
+      runs: unusedRepo({ getById }),
+      executor: {
+        async execute() {
+          throw new Error('boom after complete');
+        },
+      },
+      lifecycle: { appendLog, transition },
+    });
+
+    worker.scheduleExistingRunning(run);
+    await waitUntil(
+      () => getById.mock.calls.length === 1,
+      'status re-read after throw',
+    );
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(appendLog).toHaveBeenCalled();
+    expect(transition).not.toHaveBeenCalled();
+  });
+
+  it('still transitions to failed when appendLog throws', async () => {
+    const run = makeSocialRun({ status: 'running' });
+    const loggerError = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    const appendLog = jest
+      .fn()
+      .mockRejectedValue(new Error('log write failed'));
+    const transition = jest
+      .fn()
+      .mockResolvedValue({ ...run, status: 'failed' });
+    const saveStatus = jest.fn();
+    const getById = jest.fn().mockResolvedValue(asSnapshot(run));
+
+    const worker = makePump({
+      runs: unusedRepo({ getById, saveStatus }),
+      executor: {
+        async execute() {
+          throw new Error('boom');
+        },
+      },
+      lifecycle: { appendLog, transition },
+    });
+
+    worker.scheduleExistingRunning(run);
+    try {
+      await waitUntil(
+        () => transition.mock.calls.length === 1,
+        'failed transition after appendLog throw',
+      );
+
+      expect(transition).toHaveBeenCalledWith(
+        expect.objectContaining({ id: run.id, status: 'running' }),
+        'failed',
+        expect.objectContaining({ failedMessage: expect.any(String) }),
+      );
+      expect(saveStatus).not.toHaveBeenCalled();
+      expect(loggerError).toHaveBeenCalled();
+    } finally {
+      loggerError.mockRestore();
+    }
+  });
+
+  it('does not bypass lifecycle with saveStatus when transition throws', async () => {
+    const run = makeSocialRun({ status: 'running' });
+    const loggerError = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    const transition = jest.fn().mockRejectedValue(new Error('sse/db failed'));
+    const saveStatus = jest.fn();
+    const getById = jest.fn().mockResolvedValue(asSnapshot(run));
+
+    const worker = makePump({
+      runs: unusedRepo({ getById, saveStatus }),
+      executor: {
+        async execute() {
+          throw new Error('boom');
+        },
+      },
+      lifecycle: {
+        appendLog: jest.fn().mockResolvedValue(undefined),
+        transition,
+      },
+    });
+
+    worker.scheduleExistingRunning(run);
+    try {
+      await waitUntil(
+        () => transition.mock.calls.length === 1,
+        'failed transition attempted after executor throw',
+      );
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(saveStatus).not.toHaveBeenCalled();
+      expect(loggerError).toHaveBeenCalled();
+    } finally {
+      loggerError.mockRestore();
+    }
+  });
+
+  it('D-9b: at MAX=1 executes two interrupted before one queued', async () => {
+    const firstInterrupted = makeSocialRun({ status: 'interrupted' });
+    const secondInterrupted = makeSocialRun({ status: 'interrupted' });
+    const queued = makeSocialRun({ status: 'queued' });
+    const interruptedQueue = [firstInterrupted, secondInterrupted];
+    const queuedQueue = [queued];
+    const holdFirst = deferred();
+    const started: string[] = [];
+
+    const runs = unusedRepo({
+      claimNextInterrupted: async () => {
+        const next = interruptedQueue.shift();
+        return next ? { ...next, status: 'running' } : null;
+      },
+      claimNextQueued: async () => {
+        const next = queuedQueue.shift();
+        return next ? { ...next, status: 'running' } : null;
+      },
+    });
+
+    const worker = makePump({
+      maxConcurrent: 1,
+      runs,
+      executor: {
+        async execute(run) {
+          started.push(run.id);
+          if (started.length === 1) {
+            await holdFirst.promise;
+          }
+        },
+      },
+    });
+
+    worker.notifyQueued();
+
+    await waitUntil(() => started.length === 1, 'first interrupted execute');
+    expect(started).toEqual([firstInterrupted.id]);
+
+    holdFirst.resolve();
+    await waitUntil(
+      () => started.length === 3,
+      'second interrupted then queued',
+    );
+    expect(started).toEqual([
+      firstInterrupted.id,
+      secondInterrupted.id,
+      queued.id,
+    ]);
+  });
+
+  it('D-10: notifyQueued drains interrupted without bursting beyond MAX', async () => {
+    const first = makeSocialRun({ status: 'interrupted' });
+    const second = makeSocialRun({ status: 'interrupted' });
+    const pending = [first, second];
+    const holdFirst = deferred();
+    const started: string[] = [];
+
+    const runs = unusedRepo({
+      claimNextInterrupted: async () => {
+        const next = pending.shift();
+        return next ? { ...next, status: 'running' } : null;
+      },
+      claimNextQueued: async () => null,
+    });
+
+    const worker = makePump({
+      maxConcurrent: 1,
+      runs,
+      executor: {
+        async execute(run) {
+          started.push(run.id);
+          if (started.length === 1) {
+            await holdFirst.promise;
+          }
+        },
+      },
+    });
+
+    worker.notifyQueued();
+    await waitUntil(() => started.length === 1, 'first interrupted execute');
+    expect(started).toEqual([first.id]);
+
+    holdFirst.resolve();
+    await waitUntil(() => started.length === 2, 'second after slot frees');
+    expect(started).toEqual([first.id, second.id]);
+  });
+
+  it('does not drain until notifyQueued (recover/sweep owned by worker boot)', async () => {
+    const order: string[] = [];
+    const runs = unusedRepo({
+      claimNextInterrupted: async () => {
+        order.push('pump');
+        return null;
+      },
+      claimNextQueued: async () => null,
+    });
+
+    const worker = makePump({
+      runs,
+      executor: { async execute() {} },
+    });
+
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(order).toEqual([]);
+
+    worker.notifyQueued();
+    await waitUntil(() => order.includes('pump'), 'pump after wake');
+    expect(order).toEqual(['pump']);
+  });
+
+  it('passes AbortSignal to execute and does not mark failed when abort leaves status cancelled', async () => {
+    const run = makeSocialRun({ status: 'running' });
+    const appendLog = jest.fn().mockResolvedValue(undefined);
+    const transition = jest.fn();
+    const getById = jest
+      .fn()
+      .mockResolvedValue(asSnapshot({ ...run, status: 'cancelled' }));
+    const seenSignals: AbortSignal[] = [];
+
+    const worker = makePump({
+      runs: unusedRepo({ getById }),
+      executor: {
+        async execute(_run, options) {
+          if (options?.signal) {
+            seenSignals.push(options.signal);
+          }
+          throw new DOMException('The operation was aborted', 'AbortError');
+        },
+      },
+      lifecycle: { appendLog, transition },
+    });
+
+    worker.scheduleExistingRunning(run);
+    await waitUntil(() => appendLog.mock.calls.length === 1, 'abort log');
+
+    expect(seenSignals).toHaveLength(1);
+    expect(seenSignals[0]?.aborted).toBe(false);
+    expect(transition).not.toHaveBeenCalled();
+  });
+});

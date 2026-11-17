@@ -1,9 +1,9 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { MODULE_METADATA } from '@nestjs/common/constants';
-import { RecoverInterruptedRunsUseCase } from './application/recover-interrupted-runs.use-case';
-import { AutoFinalizeExpiredReviewsUseCase } from './application/auto-finalize-expired-reviews.use-case';
-import { RunExecutePump } from './application/lifecycle/run-execute.pump';
+import { AutoFinalizeExpiredReviewsUseCase, RecoverInterruptedRunsUseCase, RunExecutePump } from '@content-chain/runs-kernel';
+
+
 import { RunsModule } from './runs.module';
 
 function providerToken(provider: unknown): unknown {

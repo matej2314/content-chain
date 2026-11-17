@@ -1,12 +1,14 @@
 ---
-wersja: 12
+wersja: 13
 data_utworzenia: 2026-09-27
 data_modyfikacji: 2026-11-17
 ---
 
 # Architektura katalogów i plików — Content Chain
 
-Propozycja **docelowego drzewa** monorepo (greenfield). Odzwierciedla style i granice z `architektura.md`: **cztery** aplikacje pod `apps/` (w tym always-on `worker`), wspólne typy w `packages/shared`, kernel Runs i slice execute w `packages/runs-kernel` + `packages/run-pipelines`, `docs/` w rootcie. **Bez** rootowego katalogu `src/` opakowującego aplikacje.
+Propozycja **docelowego drzewa** monorepo (greenfield). Odzwierciedla style i granice z `architektura.md`: **cztery** aplikacje pod `apps/` (w tym always-on `worker`), wspólne typy w `packages/shared`, platforma w `packages/domain-kit` + `packages/persistence`, kernel Runs i slice execute w `packages/runs-kernel` + `packages/run-pipelines`, `docs/` w rootcie. **Bez** rootowego katalogu `src/` opakowującego aplikacje.
+
+Zmiana względem wersji 12 / platform packages: `domain-kit` (`DomainException` / `parseWithZod` / pagination) + `persistence` (Nest Prisma); api `shared/` bez SoT tych symboli; `runs-kernel` bez platform dump.
 
 Zmiana względem wersji 11 / day-1 import workera z drzewa api: kanon = **zero importów TS** `apps/worker` ↔ `apps/api`; wspólny kod lifecycle = `@content-chain/runs-kernel`; slice execute Social+Content (fasady / executory / graph / prompty + assets) = `@content-chain/run-pipelines`. Api i worker = cienkie hosty Nest (HTTP tylko w api) + composition root. Import TS workera z `apps/api/src` — **unieważniony**. Prompty runtime SoT = assets pakietu `run-pipelines` (nie `nest-cli` api dla workera).
 
@@ -83,6 +85,12 @@ content-chain/
 │   ├── shared/                      # typy publicznego kontraktu API
 │   │   ├── package.json
 │   │   └── src/
+│   ├── domain-kit/                  # @content-chain/domain-kit — DomainException / parseWithZod / pagination
+│   │   ├── package.json
+│   │   └── src/
+│   ├── persistence/                 # @content-chain/persistence — Nest PrismaModule / PrismaService
+│   │   ├── package.json
+│   │   └── src/
 │   ├── runs-kernel/                 # @content-chain/runs-kernel — lifecycle / recovery / sweep / abort / pump
 │   │   ├── package.json
 │   │   └── src/
@@ -117,6 +125,8 @@ content-chain/
 | Cienki frontend | Moduły UI w `apps/frontend/src/modules/`; brak `domain/` SM |
 | Gateway bez domeny CC | Tylko kod providerów / routingu w `apps/ai-provider-gateway` |
 | Shared typy kontraktu | `packages/shared` — bez use-case’ów i bez Prisma; **nie** puchnąć Auth/HTTP ani typami kernela Runs |
+| Platform runtime (wyjątki / parse / pagination) | `packages/domain-kit` — **bez** reguł BC; HTTP DTO paginacji zostaje w api |
+| Nest PrismaModule | `packages/persistence`; schema `apps/api/prisma`; adaptery w `infrastructure` BC / pakietach |
 | Cienkie hosty api / worker | `apps/api` = HTTP + hub SSE + LISTEN + enqueue + Auth/guest + composition root; `apps/worker` = bootstrap + LISTEN abort + pg-boss `work` + wire `RUN_EXECUTOR` z `run-pipelines` — **bez** importu TS z `apps/api` |
 
 ## `apps/api` — bounded contexty (~1 poziom w głąb)
@@ -239,17 +249,19 @@ Ten sam szkielet warstw co inne BC; **bez** wymogu podkatalogów w `infrastructu
 
 ### Persistence (Prisma + SQLite w MVP)
 
+- Nest `PrismaModule` / `PrismaService`: `@content-chain/persistence` (`packages/persistence`) — wspólny api+worker (`SPEC-PERSISTENCE.md` P-2).
 - Schema i migracje: `apps/api/prisma/`.
-- Użycie ORM **tylko** w `infrastructure` BC — albo płasko w `infrastructure/`, albo w `infrastructure/persistence/` gdy warstwa ma kilka granic I/O. Nadal **jedyne** miejsce `PrismaClient` w danym BC; application/domain zależą od **portów**, nie od klienta Prisma bezpośrednio.
+- Użycie ORM **tylko** w `infrastructure` BC — albo płasko w `infrastructure/`, albo w `infrastructure/persistence/` gdy warstwa ma kilka granic I/O. Nadal **jedyne** miejsce użycia ORM w danym BC; application/domain zależą od **portów**, nie od klienta Prisma bezpośrednio.
 - Mapowania wiersza Prisma (`to-*`, `map-stored-*`) żyją **przy** adapterze persistence — nie w osobnym `mappers/` warstwy.
+- Raw `pg` Pool (NOTIFY/LISTEN, abort) **obok** Prisma — nie zastępuje SoT tabel.
 - **SQLite** jako jedyny provider **MVP**.
 - **PostgreSQL** — od fazy **V1 — rozbudowa** (ops / skala, **nie** warunek dodania Content): zmiana providera + nowa historia Migrate; nie przenoszenie reguł do UI. Szczegóły: `spec/SPEC-PERSISTENCE.md`.
 
 ### `apps/api/src/shared/`
 
-Pomocnicze elementy wyłącznie API (np. konfiguracja, interceptory, mapping błędów, `parse-with-zod.ts`). **Nie** dublować `packages/shared` i **nie** umieszczać tu reguł Social / kontekstu firmy.
+Pomocnicze elementy **tylko hosta api** (config env HTTP, interceptory, filtry, decorators, `PaginationQueryDto`). **Nie** dublować `packages/shared` / `domain-kit` / `persistence` i **nie** umieszczać tu reguł Social / kontekstu firmy.
 
-`parse-with-zod.ts` — cienki helper cross-cutting: application Zod → `DomainException` (`VALIDATION_FAILED`, 400); `details[].path` = segmenty Zod `issue.path` połączone `'.'`. Używany przez BC (Runs, company-context) — **bez** reguł domenowych w tym pliku. Obok: `config/`, `http/`, `exceptions/`, `llm/`, `persistence/`.
+`DomainException`, `parseWithZod` oraz helpery pagination (`resolvePaginationMode` / `paginationMeta` / `prismaPageArgs`) żyją w **`@content-chain/domain-kit`** — **bez** reguł domenowych. Obok w api `shared/`: `config/`, `http/` (DTO), `llm/` (gdy jeszcze w api), bez SoT `exceptions/` / `parse-with-zod` / Nest Prisma po cutoverze platformy.
 
 ### `apps/api/src/health/`, `metrics/`, `llm/`, `seed/`
 
@@ -324,6 +336,20 @@ packages/shared/src/
 
 Tylko kontrakt typów/enumów/brand; **bez** Zod, Nest/Next/Prisma/LangGraph, use-case’ów. **Nie** trzyma kernela Runs ani execute Social/Content.
 
+## `packages/domain-kit`
+
+`@content-chain/domain-kit` — cienka platforma runtime współdzielona api+worker:
+
+- `DomainException`;
+- `parseWithZod` (Zod → `VALIDATION_FAILED`; `details[].path` = `issue.path.join('.')`);
+- helpery pagination (`PaginationMode`, `resolvePaginationMode`, `paginationMeta`, `prismaPageArgs`).
+
+**Bez** reguł BC, **bez** Nest HTTP/Auth, **bez** Prisma. **Nie** puchnąć do „drugiego shared” z logiką Social/Content.
+
+## `packages/persistence`
+
+`@content-chain/persistence` — Nest `PrismaModule` / `PrismaService` (+ `toInputJson` gdy współdzielone). Schema/migracje **poza** pakietem (`apps/api/prisma`). Adaptery wierszy zostają przy BC / `run-pipelines`.
+
 ## `packages/runs-kernel`
 
 `@content-chain/runs-kernel` — współdzielony kernel BC Runs między procesami api i worker:
@@ -332,7 +358,7 @@ Tylko kontrakt typów/enumów/brand; **bez** Zod, Nest/Next/Prisma/LangGraph, us
 - recovery / sweep / `RunAbortRegistry`;
 - pump i adaptery dispatch.
 
-**Bez** HTTP controllers, **bez** FE, **bez** Auth. Shared helpers używane przez worker/kernel (np. `parseTtlMs`) żyją tu albo w małym utilu `packages/shared` — **nie** w `auth/` obok `bcrypt`.
+**Bez** HTTP controllers, **bez** FE, **bez** Auth. **Bez** trwałego SoT `DomainException` / `parseWithZod` / pagination / Nest Prisma (to `domain-kit` / `persistence`). TTL util = `packages/shared` (`parseTtlMs`) — **nie** w `auth/` obok `bcrypt`.
 
 ## `packages/run-pipelines`
 
@@ -353,7 +379,8 @@ Tylko kontrakt typów/enumów/brand; **bez** Zod, Nest/Next/Prisma/LangGraph, us
 | Podkatalogi I/O w `infrastructure/` (Runs, Auth; Social/Content: `graph` / `prompts` / `persistence` w pakiecie pipelines) oraz kernel w `runs-kernel` | `helpers/` / `adapters/` / `mappers/` jako kanon warstwy BC; mappery wiersza Prisma poza katalogiem persistence; porty w `infrastructure/`; kernel lifecycle jako nowe BC produktowe |
 | Prompty i graf w `packages/run-pipelines` (assets pakietu) | Prompty i wywołania LLM w controllerze; SoT promptów wyłącznie w dist / nest-cli api dla workera |
 | Typy publiczne w `packages/shared` (**bez Zod**) | Use-case’y, DB, Zod/runtime w `packages/shared`; Auth/HTTP w `runs-kernel` |
-| Aplikacje pod `apps/` jako cienkie hosty + `workspace:*` na kernel/pipelines | Rootowy katalog `src/` opakowujący wszystkie app; import TS `apps/worker` ↔ `apps/api` |
+| `DomainException` / `parseWithZod` / pagination w `@content-chain/domain-kit`; Nest Prisma w `@content-chain/persistence` | Duplikat tych SoT w api `shared/` albo w `runs-kernel`; Auth→`runs-kernel` tylko po wyjątki/parse |
+| Aplikacje pod `apps/` jako cienkie hosty + `workspace:*` na kernel/pipelines/platform | Rootowy katalog `src/` opakowujący wszystkie app; import TS `apps/worker` ↔ `apps/api` |
 | Kernel lifecycle w `@content-chain/runs-kernel` + klej `RUN_EXECUTOR` w composition root hosta | `forwardRef` Runs ↔ Social / Content; port lifecycle w `packages/shared`; fat Social (page copy w `social/`); `'web'` jako `SocialPlatform`; day-1 import z drzewa api jako kanon |
 | Kolekcja E2E pod `apps/api/test/postman/` | `apps/api/postman/` ani `apps/api/src/postman/` (wygląda jak moduł produktu) |
 | Małe BC (Feedback, Company Context) płaskie w `infrastructure/` | Podkatalogi w `health/` / `metrics/` / `llm/` na wzór BC; podkatalogi use-case’ów Auth „na siłę”; deps Auth/HTTP w `apps/worker` „bo MODULE_NOT_FOUND” |

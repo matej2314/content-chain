@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../shared/persistence/prisma.service';
+import { PrismaService } from '@content-chain/runs-kernel';
 import { createRunId, type RunId, type UserId } from '@content-chain/shared';
 import {
   LIVE_RUN_STATUSES,

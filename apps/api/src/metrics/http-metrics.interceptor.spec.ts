@@ -4,7 +4,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { DomainException } from '../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
 import { HttpMetricsInterceptor } from './http-metrics.interceptor';
 import {
   httpRequestDurationSeconds,

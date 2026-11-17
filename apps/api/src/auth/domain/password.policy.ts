@@ -1,4 +1,4 @@
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
 
 const MIN_LENGTH = 12;
 const MAX_BYTES = 72;

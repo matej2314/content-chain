@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { createInvitationId, isInvitationId } from '@content-chain/shared';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
 import {
   INVITATION_REPOSITORY,
   type InvitationRepository,

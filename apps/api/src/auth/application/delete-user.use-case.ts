@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { createUserId, isUserId, type UserId } from '@content-chain/shared';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import { PrismaService } from '../../shared/persistence/prisma.service';
+import { DomainException, PrismaService, RUN_ABORT_SIGNAL, type RunAbortSignalPort } from '@content-chain/runs-kernel';
+
 import {
   USER_REPOSITORY,
   type UserRepository,
@@ -18,10 +18,7 @@ import {
   GUEST_QUOTA,
   type GuestQuotaPort,
 } from '../../runs/domain/guest-quota.port';
-import {
-  RUN_ABORT_SIGNAL,
-  type RunAbortSignalPort,
-} from '../../runs/domain/run-abort-signal.port';
+
 import type { AuthUserContext } from '../domain/auth-user.types';
 
 export type DeleteUserResult = { ok: true };

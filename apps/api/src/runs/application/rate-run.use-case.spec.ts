@@ -6,11 +6,9 @@ import type {
   GuestQuotaAdmitResult,
   GuestQuotaPort,
 } from '../domain/guest-quota.port';
-import type { RunRepository } from '../domain/run.port';
-import {
-  makeSocialSnapshot,
-  type SocialRunSnapshot,
-} from '../run-record.test-helpers';
+import { makeSocialSnapshot, type SocialRunSnapshot } from '@content-chain/runs-kernel';
+import type { RunRepository } from '@content-chain/runs-kernel';
+
 import { RateRunUseCase } from './rate-run.use-case';
 
 const ACTOR: AuthUserContext = {

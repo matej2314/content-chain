@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
+import { DomainException, RUN_REPOSITORY, type RunRepository } from '@content-chain/runs-kernel';
+
 import type { UserId } from '@content-chain/shared';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { PaginationMode } from '../../shared/http/pagination';

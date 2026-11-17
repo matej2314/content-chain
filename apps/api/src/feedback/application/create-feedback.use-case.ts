@@ -7,8 +7,8 @@ import {
   type FeedbackAgentKey,
   type RunId,
 } from '@content-chain/shared';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import { parseWithZod } from '../../shared/parse-with-zod';
+import { DomainException, parseWithZod } from '@content-chain/runs-kernel';
+
 import {
   FEEDBACK_REPOSITORY,
   type FeedbackEntry,

@@ -3,7 +3,7 @@ import { coercePassNoteVerdict } from '../../../application/coerce-pass-note-ver
 import { verifierOutputSchema } from '../../../application/social.schemas';
 import { isReelTaskType } from '../../../domain/reel-task';
 import { loadPrompt, renderPrompt } from '../../prompts/load-prompt';
-import type { RunLifecyclePort } from '../../../../runs/domain/run-lifecycle.port';
+import type { RunLifecyclePort } from '@content-chain/runs-kernel';
 import type { SocialGraphState } from '../state';
 import type { LlmHopService } from '../../../../shared/llm/llm-hop';
 import type { VerifierVerdict } from '../../../domain/social.types';

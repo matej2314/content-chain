@@ -1,12 +1,10 @@
 import { Module } from '@nestjs/common';
-import { RunLifecycleService } from './application/lifecycle/run-lifecycle.service';
-import { RUN_LIFECYCLE } from './domain/run-lifecycle.port';
+import { PrismaRunAdapter, RUN_LIFECYCLE, RUN_REPOSITORY, RUN_SSE_HUB, RUN_STATS_PORT, RunLifecycleService } from '@content-chain/runs-kernel';
+
 import { OUTPUT_EDITED_WRITER } from './domain/output-edited-writer.port';
-import { RUN_REPOSITORY } from './domain/run.port';
-import { RUN_STATS_PORT } from './domain/run-stats.port';
-import { RUN_SSE_HUB } from './domain/run-sse.port';
+
 import { PrismaOutputEditedAdapter } from './infrastructure/persistence/prisma-output-edited.adapter';
-import { PrismaRunAdapter } from './infrastructure/persistence/prisma-run.adapter';
+
 import { LocalRunSseHub } from './infrastructure/sse/local-run-sse.hub';
 import { RunSseNotifyListener } from './infrastructure/sse/run-sse-notify.listener';
 

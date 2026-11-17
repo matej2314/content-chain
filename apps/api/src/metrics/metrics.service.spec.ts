@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { RUN_STATUSES } from '@content-chain/shared';
-import { RUN_STATS_PORT } from '../runs/domain/run-stats.port';
+import { RUN_STATS_PORT } from '@content-chain/runs-kernel';
 import { MetricsService } from './metrics.service';
 
 describe('MetricsService', () => {

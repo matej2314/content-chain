@@ -42,11 +42,8 @@ import {
   ListRunsUserUseCase,
   type ListRunsUserOutput,
 } from './application/list-runs-user.use-case';
-import {
-  RUN_SSE_HUB,
-  type RunSseEvent,
-  type RunSseHub,
-} from './domain/run-sse.port';
+import { RUN_SSE_HUB, type RunSseEvent, type RunSseHub } from '@content-chain/runs-kernel';
+import type { ListRunsQuery } from '@content-chain/runs-kernel';
 import { ENV, type Env } from '../shared/config/env';
 import { HitlDto } from './http/dto/hitl.dto';
 import { StartRunDto } from './http/dto/start-run.dto';
@@ -56,7 +53,7 @@ import { resolvePaginationMode } from '../shared/http/pagination';
 import { PaginationQueryDto } from '../shared/http/pagination-query.dto';
 import { createUserId, isUserId } from '@content-chain/shared';
 import type { RunId, RunStatus } from '@content-chain/shared';
-import type { ListRunsQuery } from './domain/run.port';
+
 import type { AuthUserContext } from '../auth/domain/auth-user.types';
 
 function isTerminalStatus(status: RunStatus): boolean {

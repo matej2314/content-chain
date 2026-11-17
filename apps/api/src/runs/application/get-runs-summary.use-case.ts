@@ -1,9 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import {
-  RUN_REPOSITORY,
-  type RunRepository,
-  type RunSummaryScope,
-} from '../domain/run.port';
+import { RUN_REPOSITORY, type RunRepository, type RunSummaryScope } from '@content-chain/runs-kernel';
 import type { RunsSummaryResponse } from '@content-chain/shared';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 

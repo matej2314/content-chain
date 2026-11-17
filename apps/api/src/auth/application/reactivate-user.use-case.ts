@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { createUserId, isUserId } from '@content-chain/shared';
-import { DomainException } from '../../shared/exceptions/domain.exception';
-import { parseWithZod } from '../../shared/parse-with-zod';
+import { DomainException, parseWithZod } from '@content-chain/runs-kernel';
+
 import type { UserListItem } from '../domain/auth-user.types';
 import {
   USER_REPOSITORY,

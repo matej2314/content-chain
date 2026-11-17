@@ -9,14 +9,14 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { GatewayLivenessProbe } from '../src/health/gateway-liveness.probe';
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
-import { RUN_EXECUTOR } from '../src/runs/domain/run-executor.port';
+import { PrismaService, RUN_EXECUTOR, StubRunExecutor } from '@content-chain/runs-kernel';
 import {
   GUEST_QUOTA,
   type GuestQuotaPort,
 } from '../src/runs/domain/guest-quota.port';
-import { StubRunExecutor } from '../src/runs/infrastructure/dispatch/stub-run.executor';
+
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
-import { PrismaService } from '../src/shared/persistence/prisma.service';
+
 import {
   createAuthenticatedAgent,
   E2E_ADMIN_CREDENTIALS,

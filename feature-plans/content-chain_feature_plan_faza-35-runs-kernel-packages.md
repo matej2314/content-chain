@@ -3,8 +3,8 @@
 **Lokalizacja:** `feature-plans/content-chain_feature_plan_faza-35-runs-kernel-packages.md`  
 **Kotwica major:** Faza 35 w `content-chain-backend_major_plan.md` (`NIE_ROZPOCZĘTY`, **bez** MILESTONE 35).  
 **Refaktor względem:** Faza 34 / 34.1–34.5 (`WYKONANY`) — day-1 import TS `apps/worker` → `apps/api/src`; ownership runtime **bez zmian**.  
-**Źródła:** `docs/architektura.md`, `docs/architektura_katalogi_pliki.md`, `docs/dictionary.md`, `docs/anty_patterny.md`, `docs/deployment.md`, `SPEC-MONOREPO.md` M-1/M-10/M-11, `SPEC-RUNY.md` R-5/R-5a (+ R-9/R-10/R-11 bez regresji), `SPEC-SOCIAL.md` S-2, `SPEC-CONTENT.md` Ctn-2, `SPEC-README.md`.  
-**Pass rozwojowy:** `parseTtlMs` poza Auth **przed** extractem kernela; szkielet obu packages na starcie; `runs-kernel` **przed** `run-pipelines`; assets w pakiecie **przed** DoD bootu; closure/audit na końcu.
+**Źródła:** `docs/architektura.md`, `docs/architektura_katalogi_pliki.md`, `docs/dictionary.md`, `docs/anty_patterny.md`, `docs/deployment.md`, `SPEC-MONOREPO.md` M-1/M-8/M-10/M-11, `SPEC-PERSISTENCE.md` P-2, `SPEC-RUNY.md` R-5/R-5a (+ R-9/R-10/R-11 bez regresji), `SPEC-SOCIAL.md` S-2, `SPEC-CONTENT.md` Ctn-2, `SPEC-README.md`.  
+**Pass rozwojowy:** `parseTtlMs` poza Auth **przed** extractem kernela; szkielet obu packages na starcie; `runs-kernel` **przed** `run-pipelines`; assets w pakiecie **przed** DoD bootu; closure/audit R-5a; **FAZA 5** platform extract **po** R-5a.
 
 **Statusy kroków feature:** `NIE_ROZPOCZĘTY` | `W_TRAKCIE` | `WYKONANY`
 
@@ -14,26 +14,29 @@
 
 | Pole | Wartość |
 |------|---------|
-| Wycinek | Cała Faza 35: `@content-chain/runs-kernel` + `@content-chain/run-pipelines`; zakaz TS app↔app; cienkie hosty; assets; closure; DoD R-5a |
-| Major | Faza 35 / 35.1 / 35.2 → po implementacji `WYKONANY`; **bez** MILESTONE 35 |
-| Poza zakresem | Major FE; extract Auth do osobnego pakietu; osobne `@content-chain/social` / `@content-chain/content`; model B (execute przez HTTP/RPC do api); przepisywanie Fazy 34; przenoszenie Prisma schema poza `apps/api` |
-| Po implementacji (informacyjnie) | Major Faza 35 / 35.1 / 35.2 → `WYKONANY`. Brak `OSIĄGNIĘTY`. Edycja major **poza** tym skillem |
+| Wycinek | Faza 35: `@content-chain/runs-kernel` + `@content-chain/run-pipelines`; zakaz TS app↔app; cienkie hosty; assets; closure; DoD R-5a; **FAZA 5** = `@content-chain/domain-kit` + `@content-chain/persistence` (platform extract po R-5a) |
+| Major | Faza 35 / 35.1 / 35.2 → po FAZACH 1–4 `WYKONANY`; **bez** MILESTONE 35; FAZA 5 = follow-up **poza** 35.1/35.2 |
+| Poza zakresem | Major FE; extract Auth do osobnego pakietu; osobne `@content-chain/social` / `@content-chain/content`; model B (execute przez HTTP/RPC do api); przepisywanie Fazy 34; przenoszenie Prisma schema poza `apps/api`; nowy major krok 35.3 |
+| Po implementacji (informacyjnie) | Major Faza 35 / 35.1 / 35.2 → `WYKONANY` po FAZACH 1–4. Brak `OSIĄGNIĘTY`. FAZA 5 nie oznacza major. Edycja major **poza** tym skillem |
 
 **Mapa major → ten plik**
 
 | Major | Feature | Zakres |
 |-------|---------|--------|
-| 35.1 pakiety + zakaz app↔app | FAZA 1–2 | szkielet, TTL, extract kernela, wire hostów bez day-1 |
+| 35.1 pakiety + zakaz app↔app | FAZA 1–2 | szkielet, TTL, extract kernela, wire hostów bez day-1, **jeden token `ENV` (Symbol)** |
 | 35.2 execute slice + assets + closure + DoD | FAZA 3–4 | `run-pipelines`, assets, `RUN_EXECUTOR`, Dockerfile/deps, audit bootu |
+| *(poza major 35.x)* platform extract | FAZA 5 | `domain-kit` + `persistence`; hard cut platformy z `runs-kernel` / duplikatów api |
 
 **Pass rozwojowy (sesja planu):**
 
 1. `parseTtlMs` / `parseTtlSeconds` → `packages/shared` **przed** przeniesieniem plików kernela (worker-env / sweep / review importują dziś `auth.helpers` → ryzyko `bcrypt` w grafie workera).
 2. Szkielet **obu** packages (pusty export) **przed** move — `workspace:*` i kolejność build.
 3. `runs-kernel` **przed** `run-pipelines` (porty `RUN_*` / lifecycle).
-4. Assets `*.prompt.md` w `run-pipelines` **przed** DoD bootu workera.
-5. Closure `package.json` / Dockerfile + audit `rg` **na końcu**.
-6. **Brak przesunięć między fazami major.**
+4. Po wire hostów (FAZA 2 / KROK 2): **KROK 3** — jeden `ENV` = `Symbol` z kernela w api + worker + e2e (zanim FAZA 3 pipelines).
+5. Assets `*.prompt.md` w `run-pipelines` **przed** DoD bootu workera.
+6. Closure `package.json` / Dockerfile + audit `rg` **na końcu** FAZY 4 (R-5a).
+7. FAZA 5 **po** zielonym R-5a — platform extract (`domain-kit` / `persistence`).
+8. **Brak przesunięć między fazami major.**
 
 **Decyzje HOW (zamknięte w sesji):**
 
@@ -41,18 +44,20 @@
 |-------|---------|
 | Forma pakietów | Jak `packages/shared`: `tsc` + `package.json` `main`/`types`/`exports` — **nie** Nest `libs/` / nest-cli library |
 | `parseTtlMs` | `packages/shared/src/ttl.ts` (bez Nest, bez Auth); Auth/rejestry importują z `@content-chain/shared` |
-| `DomainException` + `parseWithZod` | → `runs-kernel` (shared **bez Zod** zostaje); api/auth importują z `@content-chain/runs-kernel` |
-| `ENV` token + `WorkerEnvModule` + `worker-env.schema` | → `runs-kernel`; api `EnvModule` / `env.schema` zostają w `apps/api` |
-| `PrismaModule` / `PrismaService` | → `runs-kernel`; schema Prisma **zostaje** w `apps/api/prisma` (generate jak dziś) |
+| `DomainException` + `parseWithZod` + pagination helpers | **Docelowo (FAZA 5):** `@content-chain/domain-kit`. *Interim FAZY 2–4:* mogą żyć w `runs-kernel` / api `shared/` do cutoveru — **hard cut** w FAZIE 5 |
+| `ENV` token + `WorkerEnvModule` + `worker-env.schema` | → `runs-kernel` (`Symbol('ENV')`); api `EnvModule` / `env.schema` zostają w `apps/api`; **jeden** token DI w obu hostach (FAZA 2 / KROK 3) — **zakaz** lokalnego `ENV = 'ENV'` (string) obok Symbola kernela |
+| `PrismaModule` / `PrismaService` / `toInputJson` | **Docelowo (FAZA 5):** `@content-chain/persistence`; schema Prisma **zostaje** w `apps/api/prisma`. *Interim FAZY 2–4:* mogą żyć w `runs-kernel` / api `shared/persistence` |
+| `PaginationQueryDto` | zostaje w `apps/api/src/shared/http/` (HTTP-only) |
 | Local hub SSE + LISTEN | zostają w **api** (`LocalRunSseHub`, `RunSseNotifyListener`) — nie w workerze |
 | Notify hub + abort LISTEN + pg-boss work + pump | → `runs-kernel` |
 | Social+Content execute + prompty + result stores + LLM hop + `CompanyContextCoreModule` | → `run-pipelines` |
 | Api `RUN_EXECUTOR` | **bez** Social/Content executors; `UnsupportedRunExecutor` (throw) — pump tylko w workerze |
 | Api result reader | `RunPipelineResultStoresModule` z `run-pipelines` |
-| Hard cut | **bez** długowiecznych re-exportów drzewa `apps/api/src/social|content` po move; update importów |
+| Hard cut | **bez** długowiecznych re-exportów drzewa `apps/api/src/social|content` po move; update importów; FAZA 5: **bez** re-exportów platformy z `runs-kernel` |
 | Composition root workera | `apps/worker/src/worker-runtime.module.ts` — klej DI; pakiety eksportują klasy/tokeny/moduły cząstkowe, **nie** finalny moduł z pipelines wewnątrz kernela |
 | Model execute | **A** (lokalnie w workerze); model B odrzucony |
-| Docker worker | COPY `packages/{shared,runs-kernel,run-pipelines}` + `apps/worker`; **bez** COPY całego drzewa źródeł `apps/api` jako SoT kodu (schema prisma: wyjątek generate/copy) |
+| Docker worker | COPY `packages/{shared,domain-kit,persistence,runs-kernel,run-pipelines}` + `apps/worker`; **bez** COPY całego drzewa źródeł `apps/api` jako SoT kodu (schema prisma: wyjątek generate/copy) |
+| Powrót platformy tylko do api | **odrzucony** (łamie izolację workera) |
 
 ---
 
@@ -363,7 +368,7 @@ Odpowiada major **35.1**. Status startowy: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — Przeniesienie kernela Runs do `packages/runs-kernel`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Współdzielony kod lifecycle / recovery / sweep / abort / pump / dispatch (+ Prisma run + Notify SSE) w pakiecie; **bez** HTTP controllers / Auth / FE (M-1 / R-5).
 
@@ -496,7 +501,7 @@ Eksportuj minimum potrzebne hostom:
 
 ### KROK 2 — Wire api + worker na `runs-kernel`; skasuj day-1 import
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Oba hosty zależą od `@content-chain/runs-kernel` przez `workspace:*`; **zakaz** TS `apps/worker` ↔ `apps/api` (M-10). Day-1 unieważniony w kodzie.
 
@@ -587,6 +592,95 @@ useFactory: (lifecycle: RunLifecyclePort): RunExecutorPort =>
 - Day-1 import usunięty z `worker-app.module.ts` i `main.spec.ts`.
 - Api kompiluje się z kernela.
 - Semantyka ownership bez zmian w kodzie ścieżek HTTP.
+- Token `ENV`: domknięcie w **KROK 3** (ten krok nie zostawia string `'ENV'` jako SoT DI).
+
+---
+
+### KROK 3 — Jeden token DI `ENV` = `Symbol` z `runs-kernel` (api + worker + e2e)
+
+**Status:** `WYKONANY`
+
+**Refaktor względem:** FAZA 2 / KROK 1 (WYKONANY) — `packages/runs-kernel/src/config/env.token.ts` (`Symbol('ENV')` + `RuntimeEnv`). Cel: usunąć footgun Nest DI (string `'ENV'` w api vs `Symbol` w kernela), żeby `@Inject(ENV)` w providerach z pakietu resolvował ten sam provider co `EnvModule` / `WorkerEnvModule`.
+
+**Cel:** W obu hostach i w testach e2e topologii workera istnieje **dokładnie jeden** token `ENV` — eksportowany z `@content-chain/runs-kernel`. Api nadal waliduje pełne `Env` (`env.schema` + `EnvModule`); obiekt `Env` jest **nadzbiorem** `RuntimeEnv` i jest providowany pod ten sam Symbol. **Zakaz** drugiego SoT (`export const ENV = 'ENV'` albo osobny Symbol lokalny).
+
+**Artefakty (zmiany):**
+
+- `apps/api/src/shared/config/env.ts` — bez własnej definicji tokenu
+- `apps/api/src/shared/config/env.module.ts` — `provide: ENV` z importu kernela
+- Call-site’y api importujące `ENV` z `shared/config/env` — albo przez cienki re-export w `env.ts`, albo bezpośrednio z `@content-chain/runs-kernel` (jedna konwencja w całym api)
+- `apps/api/test/boot-worker-e2e.ts` — `ENV` / `overrideProvider(ENV)` z `@content-chain/runs-kernel` (nie ze stringowego tokenu api)
+- Specs / override’y Jest, które rejestrują `ENV` — ten sam Symbol
+- Worker: potwierdź, że composition root już injectuje Symbol z kernela (bez regresji do stringa)
+
+#### `apps/api/src/shared/config/env.ts` — `teraz` → `zamień na`
+
+```typescript
+// teraz
+import type { Env } from './env.schema';
+export const ENV = 'ENV';
+export type { Env };
+
+// zamień na — token wyłącznie z kernela; typ Env zostaje lokalny (pełne api schema)
+export type { Env } from './env.schema';
+export { ENV } from '@content-chain/runs-kernel';
+```
+
+> Alternatywa równoważna (też OK): usuń plik `env.ts` i wszędzie `import { ENV } from '@content-chain/runs-kernel'` + `import type { Env } from './env.schema'`. Preferencja ponytail: **re-export** jak wyżej — mniejszy diff call-site’ów.
+
+#### `EnvModule` — bez zmiany kształtu providera, inny token
+
+```typescript
+import { Global, Module } from '@nestjs/common';
+import { ENV } from './env'; // re-export Symbol z @content-chain/runs-kernel
+import { validateEnv } from './env.schema';
+
+@Global()
+@Module({
+  providers: [
+    {
+      provide: ENV,
+      useFactory: () => validateEnv(process.env),
+    },
+  ],
+  exports: [ENV],
+})
+export class EnvModule {}
+```
+
+`validateEnv` zwraca pełne `Env`; providerzy kernela typują `RuntimeEnv` — structural typing / nadzbiór pól wystarcza (bez castów „na siłę” i bez drugiego providera).
+
+#### `boot-worker-e2e.ts` — kierunek
+
+```typescript
+// teraz (przykład problematyczny)
+import { ENV, type Env } from '../src/shared/config/env';
+// po KROK 3 — ENV musi być tym samym symbolem co w WorkerRuntimeModule:
+import { ENV } from '@content-chain/runs-kernel';
+// type Env: zostaw z api schema albo użyj RuntimeEnv w worker e2e, jeśli wystarczy wąski surface
+```
+
+`overrideProvider(ENV).useValue(...)` w e2e **musi** używać Symbola z kernela — inaczej override nie trafia w `@Inject(ENV)` pump/abort/sweep.
+
+**Kolejność w kroku:**
+
+1. Przepnij `env.ts` / importy tokenu (api).
+2. Przepnij `boot-worker-e2e` + inne override’y testowe.
+3. `rg` audit (DoD) → build api + worker.
+
+**Testy:**
+
+- Unit / boot Nest api: providerzy z `@Inject(ENV)` (Auth, Runs HTTP, dispatch) dostają `Env` po starcie `AppModule`.
+- Providerzy przeniesieni do kernela używani w api (`RunLifecycleService` itd.) resolvują env **bez** `UnknownDependenciesException` dla `ENV`.
+- `bootWorkerE2e` / worker unit: `overrideProvider(ENV)` działa na pump / recovery.
+- `rg -n "export const ENV = 'ENV'|export const ENV = \\\"ENV\\\"" apps packages` → **0** (poza ewentualnym komentarzem historycznym w planie — nie w kodzie).
+
+**DoD kroku:**
+
+- [ ] Jedyny runtime token `ENV` = `Symbol` z `@content-chain/runs-kernel` (api `EnvModule`, worker `WorkerEnvModule`, e2e overrides).
+- [ ] Brak stringowego SoT `ENV = 'ENV'` w `apps/` / `packages/`.
+- [ ] Api i worker kompilują się; smoke DI: lifecycle / dispatch w api + worker context bez braku `ENV`.
+- [ ] Semantyka walidacji: api = pełne `env.schema`; worker = `validateWorkerEnv` → `RuntimeEnv` — bez zmiany ownership env hostów.
 
 ---
 
@@ -596,6 +690,12 @@ useFactory: (lifecycle: RunLifecyclePort): RunExecutorPort =>
 refactor(runs): extract runs-kernel package and drop worker→api imports
 
 Shared lifecycle, recovery, sweep, abort, and pump live in workspace package; hosts depend via workspace protocol.
+```
+
+```text
+fix(api): bind EnvModule to runs-kernel ENV Symbol
+
+Stop Nest DI miss between string 'ENV' in api and Symbol token used by kernel providers and worker e2e overrides.
 ```
 
 ---
@@ -949,18 +1049,182 @@ Worker image and package.json no longer treat apps/api source as the execute SoT
 
 ---
 
+## FAZA 5 — Platform extract: `domain-kit` + `persistence`
+
+**Poza major 35.1 / 35.2** (follow-up debt po R-5a). Status startowy kroków: `NIE_ROZPOCZĘTY`.
+
+**Cel:** Wyciągnąć platformę (`DomainException`, `parseWithZod`, pagination helpers, Nest `PrismaModule`) z `runs-kernel` i z duplikatów `apps/api/src/shared/`, żeby Auth/metrics **nie** zależały od pakietu „runs”. Schema Prisma zostaje w `apps/api/prisma`. Prisma = SoT CRUD/claim; raw `pg` = NOTIFY/LISTEN (bez zmiany P-10).
+
+**Nota:** Docs/SPEC (M-1 / M-8 / P-2, `architektura*`, `anty_patterny`) zaktualizowane **przed** implementacją tej fazy (legalność cutu).
+
+**Kolejność:** dopiero po zielonym DoD FAZY 4 (R-5a).
+
+---
+
+### KROK 1 — Szkielet `packages/domain-kit` + `packages/persistence`
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Cel:** Puste (export-only) pakiety workspace; root `tsconfig` `references`; forma jak `shared` (M-1 / M-6).
+
+#### `packages/domain-kit/package.json` — kierunek
+
+```json
+{
+  "name": "@content-chain/domain-kit",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch"
+  },
+  "dependencies": {
+    "@content-chain/shared": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
+```
+
+> **Bez** Nest, Prisma, bcrypt, swagger. `tsconfig`: CJS + `strict` (decorators **nie** wymagane).
+
+#### `packages/persistence/package.json` — kierunek
+
+```json
+{
+  "name": "@content-chain/persistence",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@prisma/client": "^6",
+    "reflect-metadata": "^0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
+```
+
+> `tsconfig`: CJS + `emitDecoratorMetadata` / `experimentalDecorators` + `strict`. **Bez** Zod/Auth.
+
+**Artefakty:** `src/index.ts` export-only w obu; dopisek `references` w root `tsconfig.json`.
+
+**Testy:** `pnpm --filter @content-chain/domain-kit build` oraz `pnpm --filter @content-chain/persistence build` → exit 0.
+
+**DoD kroku:**
+
+- Katalogi istnieją; build zielony.
+- Brak deps Auth/HTTP w obu `package.json`.
+
+---
+
+### KROK 2 — Move + rewire; hard cut platformy z `runs-kernel` i api `shared`
+
+**Status:** `NIE_ROZPOCZĘTY`
+
+**Cel:** Jedno SoT platformy; Auth/metrics → `domain-kit` / `persistence`; `runs-kernel` = lifecycle Runs.
+
+#### Mapa przeniesień
+
+| Z | Do |
+|---|---|
+| `packages/runs-kernel/src/shared/domain.exception.ts` | `packages/domain-kit/src/domain.exception.ts` |
+| `packages/runs-kernel/src/shared/parse-with-zod.ts` (+ spec) | `packages/domain-kit/src/parse-with-zod.ts` |
+| `packages/runs-kernel/src/shared/pagination.ts` | `packages/domain-kit/src/pagination.ts` |
+| `apps/api/src/shared/http/pagination.ts` (+ spec) | **usuń** po rewire (logika = domain-kit; **zostaw** `PaginationQueryDto`) |
+| `apps/api/src/shared/exceptions/domain.exception.ts` (jeśli jeszcze jest) | **usuń** |
+| `apps/api/src/shared/parse-with-zod.ts` (jeśli jeszcze jest) | **usuń** |
+| `packages/runs-kernel/src/persistence/prisma.*` + `to-input-json.ts` (+ specs) | `packages/persistence/src/…` |
+| `apps/api/src/shared/persistence/prisma.*` + `to-input-json` (jeśli jeszcze) | **usuń** |
+
+**Audyt przed merge treści pagination:** `diff` api `shared/http/pagination.ts` vs kernel `shared/pagination.ts` — wygrywa zachowanie pokryte specami; jedna kopia + przeniesiony/scalone `.spec.ts`.
+
+**Importy (kierunek):**
+
+```typescript
+import {
+  DomainException,
+  parseWithZod,
+  resolvePaginationMode,
+  paginationMeta,
+  prismaPageArgs,
+  type PaginationMode,
+} from '@content-chain/domain-kit';
+import { PrismaModule, PrismaService, toInputJson } from '@content-chain/persistence';
+```
+
+- `runs-kernel` / `run-pipelines` / api Auth, Runs HTTP, Feedback, metrics, CC → powyższe.
+- `apps/worker` composition: `PrismaModule` z `@content-chain/persistence`.
+- `apps/*/package.json` + Dockerfile: `workspace:*` + `COPY packages/{domain-kit,persistence}`.
+- `runs-kernel` `index.ts`: **usuń** eksporty `DomainException` / `parseWithZod` / `pagination*` / `PrismaModule` / `PrismaService` / `toInputJson` (hard cut; **bez** re-exportów legacy).
+
+**Testy:**
+
+- Unit pagination (jedna kopia w domain-kit).
+- Unit Auth list users + Runs list (`prisma-user` / `prisma-run`).
+- `rg "DomainException|parseWithZod|resolvePaginationMode" apps/api/src/auth apps/api/src/metrics` → importy z `@content-chain/domain-kit`, **0** z `runs-kernel`.
+- `rg "export \\{ DomainException|PrismaModule|paginationMeta" packages/runs-kernel/src/index.ts` → **0**.
+- Regresja bootu workera (smoke z FAZY 4): `pnpm --filter worker start` past Nest + pg-boss.
+
+**DoD kroku:**
+
+- [ ] Jedno SoT: `domain-kit` + `persistence`
+- [ ] Auth/metrics **bez** importu `@content-chain/runs-kernel` wyłącznie po platformę
+- [ ] Brak app↔app; Dockerfile z nowymi packages
+- [ ] Api + worker + kernel + pipelines build; R-5a bez regresji
+
+#### Propozycja commit message
+
+```text
+refactor(platform): extract domain-kit and persistence out of runs-kernel
+
+Stop Auth and list helpers from depending on the Runs package; keep one pagination SoT.
+```
+
+---
+
 ## Weryfikacja wycinka
 
 | Kryterium | Jak sprawdzić |
 |-----------|----------------|
-| M-1 drzewo | `packages/runs-kernel`, `packages/run-pipelines` obok `shared` |
+| M-1 drzewo | `packages/{shared,domain-kit,persistence,runs-kernel,run-pipelines}` |
+| M-8 / P-2 | wyjątki/parse/pagination = domain-kit; Nest Prisma = persistence |
 | M-10 zakaz app↔app | `rg` z FAZY 4 / KROK 2 (a) |
-| M-11 closure + assets | worker deps; prompts w `run-pipelines` dist; Dockerfile |
+| FAZA 2 / KROK 3 token `ENV` | jeden `Symbol` z `runs-kernel`; brak `ENV = 'ENV'`; `EnvModule` + e2e overrides na tym Symbolu |
+| M-11 closure + assets | worker deps; prompts w `run-pipelines` dist; Dockerfile (+ domain-kit/persistence) |
 | R-5 / model A | `RUN_EXECUTOR` bound w workerze przez pipelines; api = `UnsupportedRunExecutor` |
-| R-5a | checklist (a)(b)(c) |
+| R-5a | checklist (a)(b)(c) — **przed** FAZĄ 5 |
 | S-2 / Ctn-2 | graph/prompty w `run-pipelines` |
 | R-9 / R-10 / R-11 | recovery/sweep/AbortRegistry nadal tylko worker path |
-| Docs/SPEC | bez sprzeczności; plan nie cytuje aux |
+| FAZA 5 | Auth↛runs-kernel po platformę; jedno SoT pagination |
+| Docs/SPEC | zsynchronizowane z M-1/M-8/P-2; plan nie cytuje aux |
 | Faza 34 | nietknięta historycznie |
 
 ---
@@ -969,10 +1233,11 @@ Worker image and package.json no longer treat apps/api source as the execute SoT
 
 | Element | Po implementacji |
 |---------|------------------|
-| Faza 35 | `WYKONANY` |
+| Faza 35 | `WYKONANY` (po FAZACH 1–4) |
 | Krok 35.1 | `WYKONANY` |
 | Krok 35.2 | `WYKONANY` |
 | MILESTONE 35 | **brak** — nic nie oznaczać `OSIĄGNIĘTY` |
+| FAZA 5 | **nie** mapuje się na major 35.x |
 | Faza 34 / 34.1–34.5 | **bez zmian** (`WYKONANY`) |
 
 Edycja major = poza tym skillem (ręcznie / sesja implementacji na życzenie).
@@ -982,6 +1247,6 @@ Edycja major = poza tym skillem (ręcznie / sesja implementacji na życzenie).
 ## Nota sesji planu
 
 - Grandfathering docs: `docs/README.md` bez kompletnego frontmatteru (potwierdzone) — **nie** dopisywany.
-- SPEC: frontmatter kompletny.
-- Pass rozwojowy: TTL → shared najpierw; kernel przed pipelines; **composition root zawsze w `apps/worker`** (anti-cykl kernela ↔ pipelines).
+- SPEC: frontmatter kompletny; bump legalności FAZY 5: `SPEC-MONOREPO` M-1/M-8, `SPEC-PERSISTENCE` P-2, `SPEC-README`, docs `architektura*` / `anty_patterny`.
+- Pass rozwojowy: TTL → shared najpierw; kernel przed pipelines; **composition root zawsze w `apps/worker`** (anti-cykl kernela ↔ pipelines); FAZA 2 / KROK 3 = jeden `ENV` Symbol; FAZA 5 po R-5a.
 - Implementacja kodu / `/feature-implementation` — **nie** startuje z tej sesji.

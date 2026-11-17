@@ -1,8 +1,9 @@
 import { createRequestId } from '@content-chain/shared';
 import { emptyCompanyContext } from '../../../../company-context/domain/company-context.types';
-import { DomainException } from '../../../../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
+import type { RunLifecyclePort } from '@content-chain/runs-kernel';
 import { newConversationId, newRunId } from '../../../../shared/http/new-ids';
-import type { RunLifecyclePort } from '../../../../runs/domain/run-lifecycle.port';
+
 import { verifierOutputSchema } from '../../../application/social.schemas';
 import type { LlmHopService } from '../../../../shared/llm/llm-hop';
 import type { SocialGraphState } from '../state';

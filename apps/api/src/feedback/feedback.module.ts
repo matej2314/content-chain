@@ -7,7 +7,7 @@ import { PrismaFeedbackPurgeAdapter } from './infrastructure/prisma-feedback-pur
 import { FEEDBACK_REPOSITORY } from './domain/feedback.types';
 import { FEEDBACK_RUN_READER } from './domain/feedback-run.reader.port';
 import { FEEDBACK_PURGE } from './domain/feedback-purge.port';
-import { PrismaModule } from '../shared/persistence/prisma.module';
+import { PrismaModule } from '@content-chain/runs-kernel';
 
 @Module({
   imports: [PrismaModule],

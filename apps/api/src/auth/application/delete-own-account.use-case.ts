@@ -1,13 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AuthUserContext } from '../domain/auth-user.types';
 import { DeleteUserUseCase } from './delete-user.use-case';
-import { parseWithZod } from '../../shared/parse-with-zod';
+import { DomainException, parseWithZod } from '@content-chain/runs-kernel';
 import { deleteOwnAccountSchema } from './auth.schemas';
 import {
   USER_REPOSITORY,
   type UserRepository,
 } from '../domain/user-repository.port';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+
 import { comparePassword } from './auth.helpers';
 
 @Injectable()

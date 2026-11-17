@@ -5,8 +5,8 @@ import {
   createUserId,
   isUserRole,
 } from '@content-chain/shared';
-import { PrismaService } from '../../../shared/persistence/prisma.service';
-import { DomainException } from '../../../shared/exceptions/domain.exception';
+import { DomainException, PrismaService } from '@content-chain/runs-kernel';
+
 import type { UserId } from '@content-chain/shared';
 import type {
   EmailChangeRequestRecord,

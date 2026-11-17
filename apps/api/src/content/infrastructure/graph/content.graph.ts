@@ -11,7 +11,7 @@ import { createRefineDocumentNode } from './nodes/refine-document.node';
 import { createPersistOutlineNode } from './nodes/persist-outline.node';
 import { createPersistDocumentNode } from './nodes/persist-document.node';
 import { createFailRunNode } from './nodes/fail-run.node';
-import type { RunLifecyclePort } from '../../../runs/domain/run-lifecycle.port';
+import type { RunLifecyclePort } from '@content-chain/runs-kernel';
 import type { ContentGraphState } from './state';
 import type { CompanyContextRepository } from '../../../company-context/domain/company-context.port';
 import type { LlmHopService } from '../../../shared/llm/llm-hop';

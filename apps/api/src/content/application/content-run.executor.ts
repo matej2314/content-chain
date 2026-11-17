@@ -1,30 +1,21 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { isContentTaskType, type ContentKind } from '@content-chain/shared';
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException, RUN_LIFECYCLE, isContentRunRecord, type ContentRunRecord, type RunLifecyclePort, type RunRecord } from '@content-chain/runs-kernel';
+import type { RunExecuteOptions, RunExecutorPort } from '@content-chain/runs-kernel';
 import { LlmGatewayError } from '../../llm/llm-gateway.errors';
 import { isAbortError } from '../../shared/llm/is-abort-error';
 import {
   CONTENT_RESULT_STORE,
   type ContentResultStore,
 } from '../domain/content-result.port';
-import {
-  RUN_LIFECYCLE,
-  type RunLifecyclePort,
-} from '../../runs/domain/run-lifecycle.port';
+
 import { ContentPipelineFacade } from './content-pipeline.facade';
 import type {
   ContentPipelinePhase,
   PageOutline,
 } from '../domain/content.types';
-import type {
-  RunExecutorPort,
-  RunExecuteOptions,
-} from '../../runs/domain/run-executor.port';
-import {
-  isContentRunRecord,
-  type ContentRunRecord,
-  type RunRecord,
-} from '../../runs/domain/run.types';
+
+
 
 function isMissingContentKind(run: {
   taskType: string;

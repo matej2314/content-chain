@@ -1,4 +1,4 @@
-import { DomainException } from '../../shared/exceptions/domain.exception';
+import { DomainException } from '@content-chain/runs-kernel';
 import { emptyCompanyContext } from './company-context.types';
 import { assertCompanyContextWritable } from './assert-company-context-writable';
 

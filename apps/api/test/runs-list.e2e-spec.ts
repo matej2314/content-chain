@@ -9,10 +9,10 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { isUserRole, type UserRole } from '@content-chain/shared';
 import { AppModule } from '../src/app.module';
-import { PG_BOSS } from '../src/runs/infrastructure/dispatch/pg-boss.tokens';
-import { StubRunExecutor } from '../src/runs/infrastructure/dispatch/stub-run.executor';
+import { PG_BOSS, PrismaService, StubRunExecutor } from '@content-chain/runs-kernel';
+
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
-import { PrismaService } from '../src/shared/persistence/prisma.service';
+
 import {
   createAuthenticatedAgent,
   E2E_ADMIN_CREDENTIALS,

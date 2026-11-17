@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createUserId, isUserRole, type UserId } from '@content-chain/shared';
-import { PrismaService } from '../../../shared/persistence/prisma.service';
+import { DomainException, PrismaService } from '@content-chain/runs-kernel';
 import {
   paginationMeta,
   prismaPageArgs,
   type PaginationMode,
 } from '../../../shared/http/pagination';
-import { DomainException } from '../../../shared/exceptions/domain.exception';
+
 import type { AuthUser } from '../../domain/auth-user.types';
 import type {
   CreateAdminIfNoneData,

@@ -8,12 +8,12 @@ import {
 } from '@content-chain/shared';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
-import type { RunRepository, RunSnapshot } from '../domain/run.port';
-import { makeSocialSnapshot } from '../run-record.test-helpers';
+import { makeSocialSnapshot, RunLifecycleService } from '@content-chain/runs-kernel';
+import type { RunAbortSignalPort, RunRepository, RunSnapshot } from '@content-chain/runs-kernel';
+
 import { CancelRunUseCase } from './cancel-run.use-case';
 import type { GetRunOutput, GetRunUseCase } from './get-run.use-case';
-import type { RunAbortSignalPort } from '../domain/run-abort-signal.port';
-import type { RunLifecycleService } from './lifecycle/run-lifecycle.service';
+
 
 const ACTOR: UserId = createUserId('usr_11111111-1111-4111-8111-111111111111');
 const OTHER: UserId = createUserId('usr_22222222-2222-4222-8222-222222222222');

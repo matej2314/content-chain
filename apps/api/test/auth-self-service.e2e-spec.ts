@@ -10,7 +10,7 @@ import { AppModule } from '../src/app.module';
 import { GatewayLivenessProbe } from '../src/health/gateway-liveness.probe';
 import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
-import { PrismaService } from '../src/shared/persistence/prisma.service';
+import { PrismaService } from '@content-chain/runs-kernel';
 import {
   TRANSACTIONAL_MAILER,
   type TransactionalMail,

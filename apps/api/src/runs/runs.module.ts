@@ -15,7 +15,7 @@ import { StartRunUseCase } from './application/start-run.use-case';
 import { ListRunsUseCase } from './application/list-runs.use-case';
 import { ListRunsUserUseCase } from './application/list-runs-user.use-case';
 import { GetRunsSummaryUseCase } from './application/get-runs-summary.use-case';
-import { RUN_EXECUTOR, type RunExecutorPort } from './domain/run-executor.port';
+import { RUN_EXECUTOR, type RunExecutorPort } from '@content-chain/runs-kernel';
 import {
   RUN_RESULT_READER,
   type RunResultReader,

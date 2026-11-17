@@ -1,7 +1,7 @@
 ---
-wersja: 23
+wersja: 24
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-16
+data_modyfikacji: 2026-11-17
 ---
 
 # SPEC — Persistence
@@ -11,6 +11,8 @@ data_modyfikacji: 2026-11-16
 Norma warstwy persistence w `apps/api` (oraz wspólnego store’a z `apps/worker`): port + adapter Prisma, lokalizacja schema/migracji, kanoniczność DB, zakazy ORM w domain oraz **harmonogram silników** SQLite → PostgreSQL. Po izolacji workera: **PostgreSQL** = SoT tabeli `Run` (+ logi) **oraz** nośnik jobów **pg-boss** **oraz** kanałów **NOTIFY** (most SSE + `run.abort`); Redis **nie** jest wymogiem epiku workera (zostaje guest/demo).
 
 Uszczegóławia `docs/architektura.md`, `docs/architektura_katalogi_pliki.md`, `docs/deployment.md` oraz brak cichego fallbacku z docs.
+
+Zmiana względem wersji 23 / platform packages: **P-2** — Nest `PrismaModule` / `PrismaService` = `@content-chain/persistence` (współdzielony api+worker); schema/migracje nadal `apps/api/prisma/` (P-1); adaptery BC nadal w `infrastructure` / `infrastructure/persistence/`. **Zakaz** trzymania platformowego modułu Prisma w `runs-kernel` albo w `packages/shared` (M-5).
 
 Zmiana względem wersji 22 / izolacja workera: P-6b / P-10 — PG jako SoT + pg-boss + NOTIFY; job payload `{ runId }`; bez Redis jako mostu SSE/abort.
 
@@ -54,7 +56,7 @@ Zmiana względem wersji 18: V1 w tym SPEC = PG + ops (zgodnie ze słownikiem); p
 
 P-1. Schema i migracje: `apps/api/prisma/`. W MVP obowiązuje **Prisma Migrate** (nie opierać produkcji MVP wyłącznie na `db push`).
 
-P-2. Jeden współdzielony **`PrismaClient`** (moduł Nest) używany przez adaptery BC — bez wielu niespójnych instancji bez uzasadnienia.
+P-2. Jeden współdzielony **`PrismaClient`** przez Nest `PrismaModule` / `PrismaService` w pakiecie **`@content-chain/persistence`** (`packages/persistence`) — używany przez adaptery BC w procesach api i worker. Schema i migracje: **P-1** (`apps/api/prisma/`). **Bez** wielu niespójnych instancji bez uzasadnienia. **Zakaz** umieszczania tego modułu w `packages/shared` (M-5) oraz jako trwałego SoT w `packages/runs-kernel` (kernel = lifecycle Runs, nie platforma DB).
 
 P-3. Identyfikatory w kolumnach: **brandowane stringi** zgodnie z `docs/brand_types.md` (np. `run_…`, `usr_…`, `inv_…`, `act_…`, `ecr_…`, `conv_…`) — store w DB w tej postaci.
 
@@ -166,21 +168,25 @@ P-9. **Singleton `CompanyContext` — seed-if-empty.** Persistencja seedu (auto 
 ### Wzorce / struktura
 
 ```text
+packages/persistence/          # @content-chain/persistence — Nest PrismaModule / PrismaService (+ toInputJson)
 apps/api/
 ├── prisma/
 │   ├── schema.prisma
 │   └── migrations/          # historia pod aktualny provider
 └── src/
     └── <bc>/infrastructure/              # albo …
-        └── persistence/                  # gdy BC ma kilka granic I/O — jedyne miejsce PrismaClient w BC
+        └── persistence/                  # adaptery BC — jedyne miejsce użycia ORM w danym BC
 ```
 
-Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/infrastructure/` bez `persistence/`. Od tej wersji Prisma w BC = `infrastructure/` **albo** `infrastructure/persistence/` gdy warstwa miesza kilka I/O — nadal **jedyne** miejsce `PrismaClient` w BC (`docs/architektura_katalogi_pliki.md`).
+Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/infrastructure/` bez `persistence/`. Od tej wersji Prisma w BC = `infrastructure/` **albo** `infrastructure/persistence/` gdy warstwa miesza kilka I/O — nadal **jedyne** miejsce użycia ORM w BC (`docs/architektura_katalogi_pliki.md`).
+
+Zmiana względem wersji 23 / struktura: brak pinu lokalizacji Nest `PrismaModule`. Od tej wersji moduł klienta = `packages/persistence`; adaptery BC bez zmian lokalizacji.
 
 | Element | Norma |
 |---------|--------|
+| Nest PrismaModule / PrismaService | `@content-chain/persistence` (P-2); hosty api/worker importują `workspace:*` |
 | Port persistence | interfejsy per potrzeba BC (users, **invitations**, **account-activation**, sessions, context, runs, logs, wyniki SM, feedback) |
-| Adapter | Prisma implementuje porty; lokalizacja = `<bc>/infrastructure/` **albo** `<bc>/infrastructure/persistence/` (gdy BC ma kilka I/O) |
+| Adapter | Prisma implementuje porty; lokalizacja = `<bc>/infrastructure/` **albo** `<bc>/infrastructure/persistence/` (gdy BC ma kilka I/O); w pakietach execute (`run-pipelines`) — analogicznie przy adapterze wyniku |
 | SQLite ops (WAL, busy_timeout) | **poza** sztywną normą SPEC — decyzja implementacyjna pod współbieżność runów |
 | Plik SQLite (production MVP) | volume `api-sqlite` → `/app/data/chain.db` (P-6a); szczegóły compose — `docs/deployment.md` |
 | Store V1 | Postgres compose/managed (P-6b) shared api+worker; pg-boss + NOTIFY (P-10); nie reuse migracji SQLite; import = ops |
@@ -189,8 +195,9 @@ Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/
 
 ### Wolno
 
-- Współdzielić jednego `PrismaClient` między adapterami.
+- Współdzielić jednego `PrismaClient` między adapterami przez `@content-chain/persistence` (P-2).
 - Trzymać adapter Prisma w `infrastructure/persistence/`, gdy BC ma kilka granic I/O (Runs, Auth; wzorzec Social/Content).
+- Używać raw `pg` Pool **obok** Prisma wyłącznie na NOTIFY/LISTEN / kanały abort·SSE (P-10) — to nie zastępuje SoT tabel.
 - Archiwizować katalog migracji SQLite przy starcie historii PostgreSQL.
 - Traktować cutover na PostgreSQL jako zaplanowany krok fazy V1 — rozbudowa (nie jako wymóg dnia 1 MVP).
 - W DX lokalnym używać innej ścieżki pliku SQLite niż `/app/data/chain.db` (P-6a pinuje **production** Compose).
@@ -199,6 +206,7 @@ Zmiana względem wersji 15 / struktura: norma wskazywała wyłącznie `…/<bc>/
 ### Nie wolno
 
 - Prisma / SQL w `domain/` lub w `packages/shared`.
+- Trwałego SoT Nest `PrismaModule` / `PrismaService` w `packages/runs-kernel` albo w `apps/api/src/shared/persistence/` po cutoverze na `@content-chain/persistence` (P-2).
 - Prisma w `infrastructure/sse` \| `quota` \| `mail` \| `session` \| `graph` (te podkatalogi = inne I/O; ORM wyłącznie w `infrastructure/` lub `infrastructure/persistence/`).
 - Cichego odczytu kontekstu z `.md` przy dziurawej DB.
 - Force overwrite niepustego `CompanyContext` seedem / restartem przy `DEMO_MODE=true` (P-9).

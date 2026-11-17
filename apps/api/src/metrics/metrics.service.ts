@@ -1,9 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { RUN_STATUSES } from '@content-chain/shared';
-import {
-  RUN_STATS_PORT,
-  type RunStatsPort,
-} from '../runs/domain/run-stats.port';
+import { RUN_STATS_PORT, type RunStatsPort } from '@content-chain/runs-kernel';
 import { metricsRegistry, runsByStatus } from './metrics.registry';
 
 @Injectable()
