@@ -1171,7 +1171,7 @@ Status startowy fazy / kroków: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — `CompanyContextCoreModule` + wire workera (bez regresji HTTP api)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `W_TRAKCIE`
 
 **Cel:** Worker nie ładuje controller/DTO company-context; pipeline nadal dostaje `COMPANY_CONTEXT_REPOSITORY`.
 
@@ -1192,7 +1192,7 @@ Status startowy fazy / kroków: `NIE_ROZPOCZĘTY`.
 
 ### KROK 2 — Entry Nest (`dist/worker/src/main`) + cleanup deps workera
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `W_TRAKCIE`
 
 **Cel:** `pnpm dev:worker` / `nest start --watch` uruchamia faktyczny emit; usunąć hotfix HTTP deps zbędne po K1.
 
@@ -1213,7 +1213,7 @@ Status startowy fazy / kroków: `NIE_ROZPOCZĘTY`.
 
 ### KROK 3 — Domknięcie DoD bootu (weryfikacja użytkownika)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `W_TRAKCIE`
 
 **Cel:** Potwierdzić, że worker wstaje w obu środowiskach DX/Compose. **Testy uruchomienia wykonuje użytkownik** (nie agent jako bramka CI tej fazy).
 

@@ -1770,9 +1770,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/company-context/company-context.module.ts": {
-    "mtime": 1794577096.3409972,
-    "seen": 1794832151.3117824,
-    "ast_hash": "7c7aa8ae956d142b5e86a6c02dd1ee4e",
+    "mtime": 1794906149.7314932,
+    "seen": 1794906180.4152472,
+    "ast_hash": "1604d603b020f6e7d3dcd9c1f76b07ba",
     "semantic_hash": ""
   },
   "apps/api/src/main.ts": {
@@ -4596,9 +4596,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/worker-runtime.module.ts": {
-    "mtime": 1794843462.188121,
-    "seen": 1794843797.10598,
-    "ast_hash": "19a5697f365373e9d5ce2dc0716a8543",
+    "mtime": 1794906151.3469498,
+    "seen": 1794906180.4153984,
+    "ast_hash": "276074a33f8c08f596028251e2296214",
     "semantic_hash": ""
   },
   "apps/api/src/runs/application/lifecycle/run-execute.pump.ts": {
@@ -4614,9 +4614,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/runs/run-dispatch.module.ts": {
-    "mtime": 1794843192.2610624,
-    "seen": 1794843797.1059756,
-    "ast_hash": "09aa01f8b39f17b2c7d8ba7e5a6f1e8d",
+    "mtime": 1794843842.048389,
+    "seen": 1794906180.415393,
+    "ast_hash": "b608a6b0cd12e71a7eec185617fdfe7f",
     "semantic_hash": ""
   },
   "apps/api/src/shared/config/worker-env.module.ts": {
@@ -4629,6 +4629,18 @@
     "mtime": 1794842626.3012364,
     "seen": 1794843797.1059902,
     "ast_hash": "430f3524afae7d0654a722165343db3a",
+    "semantic_hash": ""
+  },
+  "apps/api/src/company-context/company-context-core.module.ts": {
+    "mtime": 1794906147.2184103,
+    "seen": 1794906180.4152431,
+    "ast_hash": "cf6e6edb9cbffb6317b61aa95ac9842b",
+    "semantic_hash": ""
+  },
+  "apps/api/src/runs/infrastructure/dispatch/in-process-pg-boss.client.ts": {
+    "mtime": 1794843842.0214384,
+    "seen": 1794906180.415367,
+    "ast_hash": "3ba5e819b9cb3398b2fccf2ea01acd82",
     "semantic_hash": ""
   }
 }

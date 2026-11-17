@@ -10,7 +10,7 @@ import { ContentPipelineFacade } from '../content/application/content-pipeline.f
 import { ContentRunExecutor } from '../content/application/content-run.executor';
 import { CONTENT_RESULT_STORE } from '../content/domain/content-result.port';
 import { PrismaContentResultAdapter } from '../content/infrastructure/persistence/prisma-content-result.adapter';
-import { CompanyContextModule } from '../company-context/company-context.module';
+import { CompanyContextCoreModule } from '../company-context/company-context-core.module';
 import { LlmModule } from '../llm/llm.module';
 import { SocialPipelineFacade } from '../social/application/social-pipeline.facade';
 import { SocialRunExecutor } from '../social/application/social-run.executor';
@@ -80,7 +80,7 @@ class WorkerDispatchShutdown implements OnModuleDestroy {
  * Wired from apps/worker (not HTTP AppModule).
  */
 @Module({
-  imports: [WorkerEnvModule, PrismaModule, LlmModule, CompanyContextModule],
+  imports: [WorkerEnvModule, PrismaModule, LlmModule, CompanyContextCoreModule],
   providers: [
     PrismaRunAdapter,
     { provide: RUN_REPOSITORY, useExisting: PrismaRunAdapter },
