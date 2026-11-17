@@ -1,5 +1,5 @@
 ---
-wersja: 25
+wersja: 26
 data_utworzenia: 2026-09-18
 data_modyfikacji: 2026-11-17
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-17
 Krótka lista pułapek **tego** projektu i stacku. Format: objaw → dlaczego źle → zamiast tego. Ogólny podręcznik Nest/Next — poza zakresem.
 
 Powiązane: `architektura.md`, `data_flow.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `security.md`.
+
+Zmiana względem wersji 25 / SSE: `EventSource` na `queued` jako anty-pattern. Od tej wersji **brak** SSE na własnym `queued` = anty-pattern (worker claim); nadal zakaz drugiego socketa na ten sam `runId`.
 
 Zmiana względem wersji 24 / platform packages: kanon `parseWithZod` / `DomainException` / pagination = `@content-chain/domain-kit`; Nest Prisma = `@content-chain/persistence`; zakaz Auth→`runs-kernel` po platformę; zakaz dwóch SoT pagination.
 
@@ -118,8 +120,8 @@ Zmiana względem: Faza 18 — `guest` = wyłącznie register przy demo on; accep
 | Sekrety LLM / `X-Gateway-Key` w `NEXT_PUBLIC_*` | Wyciek kluczy | Tylko `apps/api` ↔ gateway |
 | FE → gateway (`/health`, `/health/ready`, chat) | Łamie BFF; wyciek topologii / kluczy; rozjazd z SPEC | Wyłącznie `apps/api` (chip: `GET /api/v1/health/ready`) |
 | Interval polling completeness / `/health/ready` | Zbędne obciążenie; kanon = mount + refetch przy okazji | Refetch przy mount i po zapisie kontekstu (`ux_dashboard.md`) |
-| Polling statusu **konkretnego** runu zamiast SSE | Obciążenie, gorszy UX, rozjazd z kontraktem | SSE `.../events` dla `running` / `awaiting_hitl` / `interrupted`; GET logów = historia. GET archiwum co 15 min **nie** zastępuje SSE |
-| `EventSource` na `queued` albo drugi socket na ten sam `runId` (szczegóły + box) | Nadmiar połączeń; auto-reconnect na kolejce | Rejestr layoutu: max jedno połączenie na `runId`; `queued` tylko GET |
+| Polling statusu **konkretnego** runu zamiast SSE | Obciążenie, gorszy UX, rozjazd z kontraktem | SSE `.../events` dla `queued` / `running` / `awaiting_hitl` / `interrupted`; GET logów = historia. GET archiwum co 15 min **nie** zastępuje SSE |
+| Brak `EventSource` na własnym `queued` **albo** drugi socket na ten sam `runId` (szczegóły + box) | Po izolacji workera UI gubi `queued → running`; drugi socket = nadmiar | Rejestr layoutu: max jedno połączenie na `runId`; własne `queued` ∈ live (jak pozostałe nieterminalne) |
 | Zostawianie `EventSource` po `completed`/`failed`/`cancelled` (auto-reconnect) | Pętla GET `.../events` na skończonym runie | `close()` po evencie terminalnym; nie otwierać SSE, gdy snapshot już terminalny (`ux_dashboard.md`) |
 | Buforowanie SSE w BFF Next (rewrite zbiera cały stream) | Live „stoi”, potem wali się naraz | Proxy strumieniowe; `text/event-stream` bez pełnego bufora |
 | `NEXT_PUBLIC_API_BASE_URL` i bezpośredni fetch przeglądarki na port api | Cookie na złym originie; psuje `SameSite=strict` | BFF: same-origin `/api/v1`; `API_BASE_URL` tylko na serwerze Next |

@@ -11,18 +11,24 @@ RUN apk add --no-cache libc6-compat openssl python3 make g++
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.json .npmrc ./
 COPY packages/shared ./packages/shared
-COPY apps/api ./apps/api
+COPY packages/runs-kernel ./packages/runs-kernel
+COPY packages/run-pipelines ./packages/run-pipelines
 COPY apps/worker ./apps/worker
+# Prisma schema SoT nadal w api — kopiuj TYLKO schema (nie całe src api)
+COPY apps/api/prisma ./apps/api/prisma
+COPY apps/api/package.json ./apps/api/package.json
 
 RUN pnpm install --frozen-lockfile --filter worker...
-RUN pnpm --filter @content-chain/shared build
-# Prisma client for worker (schema lives under apps/api)
-RUN pnpm --filter api exec prisma generate
+RUN pnpm --filter @content-chain/shared build \
+ && pnpm --filter @content-chain/runs-kernel build \
+ && pnpm --filter @content-chain/run-pipelines build
+# prisma CLI z deps workera; cwd filtra = apps/worker → schema względnie ../api/prisma
+RUN pnpm --filter worker exec prisma generate --schema=../api/prisma/schema.prisma
 RUN pnpm --filter worker build
 RUN pnpm --filter worker deploy --prod /prod/worker \
   && mkdir -p /prod/worker/prisma \
   && cp apps/api/prisma/schema.prisma /prod/worker/prisma/schema.prisma \
-  && test -f /prod/worker/dist/worker/src/main.js
+  && test -f /prod/worker/dist/main.js
 
 FROM node:24.19.0-alpine AS production
 WORKDIR /app
@@ -42,4 +48,4 @@ USER worker
 # No EXPOSE — worker has no public runs HTTP (M-10 / D1).
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
-CMD ["node", "dist/worker/src/main.js"]
+CMD ["node", "dist/main.js"]

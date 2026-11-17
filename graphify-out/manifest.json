@@ -2016,9 +2016,9 @@
     "semantic_hash": "7a69357bb31830d407c539fe9b9eab6d"
   },
   "docs/anty_patterny.md": {
-    "mtime": 1794914412.2845244,
-    "seen": 1794915499.1578753,
-    "ast_hash": "43f843202da7a170934c8114f61affcc",
+    "mtime": 1794924248.8858957,
+    "seen": 1794924261.740711,
+    "ast_hash": "2e746633fbc52624fd88a9e93ac66dcf",
     "semantic_hash": ""
   },
   "docs/architektura.md": {
@@ -2052,9 +2052,9 @@
     "semantic_hash": ""
   },
   "docs/dictionary.md": {
-    "mtime": 1794908902.4378417,
-    "seen": 1794911324.7604992,
-    "ast_hash": "5579ed337067a444a88bb191c2d48824",
+    "mtime": 1794924238.8239703,
+    "seen": 1794924261.7407153,
+    "ast_hash": "c1ddeec5591ab464f7071dee17d6b082",
     "semantic_hash": ""
   },
   "docs/dokumentacja_komunikacji.md": {
@@ -2088,9 +2088,9 @@
     "semantic_hash": ""
   },
   "docs/ux_dashboard.md": {
-    "mtime": 1794577096.3481488,
-    "seen": 1794832151.3120344,
-    "ast_hash": "a0bf02502170c5f4a32d071496b1ecca",
+    "mtime": 1794924232.4870174,
+    "seen": 1794924261.7407196,
+    "ast_hash": "c6bf43ceffc80002f6b1d4b258e64a8a",
     "semantic_hash": ""
   },
   "spec/SPEC-AUTH.md": {
@@ -2112,9 +2112,9 @@
     "semantic_hash": ""
   },
   "spec/SPEC-FRONTEND.md": {
-    "mtime": 1794577096.3721485,
-    "seen": 1794832151.3120377,
-    "ast_hash": "1f3317fdb37c455425aa30e516d3caa9",
+    "mtime": 1794924186.3213599,
+    "seen": 1794924261.740723,
+    "ast_hash": "bb326c0b1f431d0f13a9e54dc7eb0b22",
     "semantic_hash": ""
   },
   "spec/SPEC-KOMUNIKACJA.md": {
@@ -2964,9 +2964,9 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/api/runs.types.ts": {
-    "mtime": 1793188188.6148024,
-    "seen": 1793273423.4949272,
-    "ast_hash": "0bff97c2eb2d000f8e7e53af809e6d7b",
+    "mtime": 1794924249.6988897,
+    "seen": 1794924261.7406504,
+    "ast_hash": "8925cf66ef09135fb001b05b24081970",
     "semantic_hash": ""
   },
   "apps/frontend/src/modules/runs/components/own-runs-provider.tsx": {
@@ -3555,12 +3555,6 @@
     "mtime": 1794914880.1569366,
     "seen": 1794915499.157717,
     "ast_hash": "06dbf01c70c07caedd7d787c32444688",
-    "semantic_hash": ""
-  },
-  "apps/api/src/runs/infrastructure/persistence/empty-run-result.reader.ts": {
-    "mtime": 1794917548.5983787,
-    "seen": 1794917899.726424,
-    "ast_hash": "f7010ff3395b7302ee2a833e9af5f8cc",
     "semantic_hash": ""
   },
   "apps/api/src/runs/infrastructure/persistence/prisma-output-edited.adapter.ts": {

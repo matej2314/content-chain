@@ -11,10 +11,14 @@ RUN apk add --no-cache libc6-compat openssl python3 make g++
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.json .npmrc ./
 COPY packages/shared ./packages/shared
+COPY packages/runs-kernel ./packages/runs-kernel
+COPY packages/run-pipelines ./packages/run-pipelines
 COPY apps/api ./apps/api
 
 RUN pnpm install --frozen-lockfile --filter api...
-RUN pnpm --filter @content-chain/shared build
+RUN pnpm --filter @content-chain/shared build \
+ && pnpm --filter @content-chain/runs-kernel build \
+ && pnpm --filter @content-chain/run-pipelines build
 RUN pnpm --filter api build
 RUN pnpm --filter api deploy --prod /prod/api \
   && test -f /prod/api/dist/main.js \

@@ -34,7 +34,7 @@ import {
   type RunReviewFields,
 } from '@/modules/runs/api/runs-result.types';
 
-export const LIVE_RUN_STATUSES = ['running', 'awaiting_hitl', 'interrupted'] as const;
+export const LIVE_RUN_STATUSES = ['queued', 'running', 'awaiting_hitl', 'interrupted'] as const;
 export type LiveRunStatus = (typeof LIVE_RUN_STATUSES)[number];
 
 export const SSE_TERMINAL_STATUSES = ['completed', 'failed', 'cancelled'] as const;

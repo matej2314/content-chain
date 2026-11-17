@@ -1,5 +1,5 @@
 ---
-wersja: 35
+wersja: 36
 data_utworzenia: 2026-09-18
 data_modyfikacji: 2026-11-17
 ---
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-17
 Kanoniczne definicje pojęć domenowych i technicznych. Identyfikatory typów, kodów i pól API w backtickach; opisy po polsku.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `observability.md`.
+
+Zmiana względem wersji 35 / Floating box: `queued` poza boxem. Od tej wersji własne `queued` ∈ live (box + SSE) — spójnie z worker claim.
 
 Zmiana względem wersji 34 / day-1 import workera z drzewa api: kanon = zależność od `@content-chain/runs-kernel` + `@content-chain/run-pipelines` (nie od źródeł api); composition root + nasłuch (boss / abort); execute lokalnie (model A). Hasła **runs-kernel**, **run-pipelines**, **dependency closure** workera. Import TS z `apps/api` — **unieważniony**.
 
@@ -114,7 +116,7 @@ Zmiana względem: hasło `guest` / `FORBIDDEN` bez wyjątku podglądu archiwum c
 | **Konto (widok)** | Osobna pozycja sidebara (admin / `user` / `guest`): **MVP** — zmiana własnego emaila (**modal re-auth** → `PATCH /auth/me/email`; guest lock); **V1** — confirm e-mail (pending + deep link), `PATCH /auth/me/password`, `DELETE /auth/me` (self-service; **nie** Users / panel admin; admin bez self-delete). Lista **własnych** runów (live; **paginacja HTTP** + select), **start** inline, **Stop**, opinia. Prefill startu z „Moje runy”. **Nie** mylić z **Runy** (archiwum). Wylogowanie w **headerze**. Po `POST /runs` **202** → szczegóły runu. |
 | **Runy (widok)** | Archiwum firmy: tylko `completed` \| `failed` \| `cancelled`, `GET /runs?status=completed,failed,cancelled&page=&pageSize=` (tabela **zawsze** z parametrami; select 10/15/25/50), odświeżanie przy wejściu i co **15 min**. CTA **„Uruchom agenta”** otwiera modal z tym samym briefem co na Koncie (pusty draft; bez prefillu z archiwum). **Bez** SSE i **bez** runów w toku na liście. Po `POST /runs` **202** **z modalu** → modal zamknięty + nawigacja na szczegóły tego runu; live poza Kontem = floating box. Zmiana względem: „po `POST /runs` z modalu operator zostaje na Runach”; oraz względem stałego `pageSize=10` bez selectu. |
 | **Użytkownicy (widok)** | Admin: lista kont `GET /users` z opcjonalną paginacją HTTP (w UI **zawsze** `page`+`pageSize` + select 10/15/25/50; envelope `{ items, page, pageSize, total }`), kolumna Akcje, zaproszenia. Zmiana względem: listing bez trybu stron / bez selectu `pageSize`. |
-| **Floating box** | Sygnał własnych runów w toku poza widokiem Konto; zwiniecie/rozwinięcie. N× EventSource per `runId` (bez nowego hubu). `queued` poza boxem. **Bez** przycisku Stop (Stop tylko na Moich runach / szczegółach). Po `cancelled` — krótko label „Anulowany”, potem ukrycie pozycji (delay **200 ms**). |
+| **Floating box** | Sygnał własnych runów w toku poza widokiem Konto; zwiniecie/rozwinięcie. N× EventSource per `runId` (bez nowego hubu) dla `queued` \| `running` \| `awaiting_hitl` \| `interrupted`. **Bez** przycisku Stop (Stop tylko na Moich runach / szczegółach). Po `cancelled` — krótko label „Anulowany”, potem ukrycie pozycji (delay **200 ms**). |
 | **Agenci aktywni** (`agentsActive`) | Sygnał UX + disable CTA startu: `completeness.complete === true` **∧** `gatewayAlive` (api `GET /api/v1/health/ready` → `checks.gateway` healthy; upstream = liveness procesu gateway). **Nie** oznacza „run w toku”, „konfiguracja gateway OK” ani „hop LLM na pewno się uda”. Odwrotnie: agenci nieaktywni = brak kontekstu **i/lub** gateway unreachable / nie odpowiada w timeoutcie. Copy nieaktywnego: „Agenci nieaktywni. Sprawdź kontekst i stan gatewaya.” Norma UX: `ux_dashboard.md`. |
 | **MVP** | Pierwszy kompletny slice produktowy: auth, dashboard, gateway, **SQLite**, logi, SSE, fundament feedbacku, **Social (posty i rolki)** oraz **Content (BC) w podstawowej formie**; w kontrakcie slice’u także typowane `extras`, HITL Social dwuetapowy (min. 1 unikalne id ⊆ draftu, N→N), pola wyniku SM (`cta?`, `characterCount`, `contents[]` / `reelScripts[]`, `sourceIdeaId`) oraz opcjonalne `role` outline — **nie** kolejne workflowy. Zmiana względem: „HITL SM = 1 id” jako kanon slice’u. |
 | **V1 — rozbudowa** | Faza **po MVP** (bez publikacji SM / YouTube / pack / Stories): cutover **PostgreSQL**; panel admin P0 (odczyt); **limit per-user** runów w toku; **auth self-service must:** confirm e-mail, zmiana hasła, usuwanie własnego konta (UI = Konto); abort/cancel V1; **Playwright**; split `ConsistencyVerifier`; model per node; uczenie na HITL; GenAI Observability (**TBD**); artifact diff. **Dual-mode** + **i18n** (next-intl) = **cel produktu / osobna paczka chrome** — nie must fali auth. **Nie** łańcuch 6 audytorów. Nie mylić z `/api/v1`. SQLite = silnik MVP. |

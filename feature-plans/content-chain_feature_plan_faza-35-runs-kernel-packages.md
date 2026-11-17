@@ -923,7 +923,7 @@ Odpowiada major **35.2** (domknięcie). Status startowy: `NIE_ROZPOCZĘTY`.
 
 ### KROK 1 — `package.json` workera + Dockerfile bez drzewa źródeł api jako SoT
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Dependency closure workera = host + `workspace:*` + deps faktycznie potrzebne; obraz nie opiera się o skopiowane źródła api (M-11 / deployment).
 
@@ -976,7 +976,7 @@ Usuń z builda: `COPY apps/api ./apps/api` jako pełne drzewo źródeł.
 
 ### KROK 2 — Audit importów + DoD bootu (R-5a)
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Weryfikowalne (a)(b)(c) z `SPEC-RUNY.md` R-5a.
 

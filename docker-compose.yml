@@ -65,7 +65,7 @@ services:
     command:
       - |
         export DATABASE_URL="postgresql://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}?schema=public"
-        exec /app/docker-entrypoint.sh node dist/worker/src/main.js
+        exec /app/docker-entrypoint.sh node dist/main.js
     depends_on:
       postgres:
         condition: service_healthy
