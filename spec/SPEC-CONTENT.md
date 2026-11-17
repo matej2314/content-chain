@@ -1,18 +1,20 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-08-31
-data_modyfikacji: 2026-10-28
+data_modyfikacji: 2026-11-17
 ---
 
 # SPEC — Content (BC)
 
 ## Cel / zakres względem dokumentacji
 
-Norma bounded contextu **Content** w `apps/api`: generowanie copy stron / long-form w **podstawowej formie** (`page_copy`, `page_outline_then_copy`), weryfikacja spójności, refine, HITL vs full-auto.
+Norma bounded contextu **Content**: generowanie copy stron / long-form w **podstawowej formie** (`page_copy`, `page_outline_then_copy`), weryfikacja spójności, refine, HITL vs full-auto.
 
 Uszczegóławia BC Content z `docs/architektura.md`, przepływy z `docs/data_flow.md` (§4d / §4e) oraz unię startu z `docs/dokumentacja_komunikacji.md`. **Nie** mylić z nazwą produktu Content Chain (`docs/dictionary.md`).
 
 Content jest **jednym bounded contextem** pipeline’u stron w monoliticie — nie orkiestratorem cyklu życia runu (to Runs) i **nie** częścią Social.
+
+Zmiana względem wersji 8 / lokalizacja execute: fasada / executor / graph / prompty używane przez worker = `@content-chain/run-pipelines` (wspólny pakiet z Social) po extract; **zakaz** importu z `apps/api/src/...` w procesie workera (`SPEC-MONOREPO.md` M-10). HTTP Content (jeśli jest) zostaje w api albo bez regresji. **Nie** osobny package `@content-chain/content` na ten cut.
 
 Zmiana względem wersji 6 / Ctn-4 / LoadContext: fallback „brak `brief.audience` → pełny katalog `audience.profiles`”. Od tej wersji **effective** audience (scoped) przed LLM i verifierem — `docs/data_flow.md`, jak Social S-10.
 Zmiana względem wersji 7: „łańcuch 6 specjalistów — V1”; WordPress bez etykiety „porzucone”. Od tej wersji: łańcuch 6 **nie** w V1; split `ConsistencyVerifier` = **V1**; pass narracja/CRO/SEO = **V2**; WordPress = **porzucone** — `docs/dictionary.md`.
@@ -44,7 +46,7 @@ Wiążące:
 
 Ctn-1. Start / wznowienie pipeline’u wyłącznie przez **application service** (fasada). `ContentModule` **nie** rejestruje controllera HTTP. Wejście produktowe to trasy Runs (`POST /runs`, `POST .../hitl`). Żaden controller nie woła LangGraph ani nie ładuje promptów.
 
-Ctn-2. Graf i węzły żyją w `apps/api/src/content/infrastructure/graph/`. Szablony promptów w `.../infrastructure/prompts/` — **wymagane** jako pliki szablonów.
+Ctn-2. Graf i węzły (slice execute) żyją w `@content-chain/run-pipelines` po extract (historycznie: `apps/api/src/content/infrastructure/graph/`). Szablony promptów = assets pakietu `run-pipelines` — **wymagane** jako pliki szablonów (SoT **nie** wyłącznie nest-cli api dla workera).
 
 Ctn-3. Każdy węzeł LLM produkuje **structured output** walidowany schemą Zod przed dalszym krokiem. Porażka parse = błąd kroku / refine / `failed` — nie cichy tekst do UI. Semantyka jak S-3 w `SPEC-SOCIAL.md`. Domain `PageOutlineSection`: opcjonalne **`role?`** z enumem `audience_world` \| `pain` \| `challenger` \| `insight` \| `proof` \| `objection` \| `cta` \| `other`. Nieznana wartość → fail parse. OutlineAgent / refine outline / PageWriter respektują `role` gdy obecne; **nie** wymagać wszystkich ról w każdym outline; brak `role` = OK.
 
@@ -128,7 +130,7 @@ page_copy:
 - Współdzielić wzorzec verifiera / refine `max N=2` ze Social (osobna instancja węzła w tym grafie).
 - Importować kernel / token lifecycle Runs (jednokierunkowo) oraz eksportować `ContentRunExecutor` do kleju procesu.
 - Importować `ContentBrief` z `runs/domain` (nie definiować drugiego literału w `content/domain`; nie importować `SocialBrief` w węzłach).
-- Implementować `RunExecutorPort` klasą w `content/application/` — bez rejestracji tokenu `RUN_EXECUTOR` **w** `RunsModule` przez import Content.
+- Implementować `RunExecutorPort` klasą w slice Content (`run-pipelines` / historycznie `content/application/`) — bez rejestracji tokenu `RUN_EXECUTOR` **w** `RunsModule` przez import Content; wire w composition root **workera**.
 
 ### Nie wolno
 
@@ -140,6 +142,7 @@ page_copy:
 - Pola `ideaCount` w briefie / stanie grafu Content oraz defaultu `ideaCount` w `NormalizeBrief` Content.
 - CTA jako pola `ContentBrief` (źródło: kontekst firmy).
 - Importu `SocialModule` / `RunsModule` (pełnego HTTP+worker) z `ContentModule`.
+- Importu execute slice Content z `apps/api/src/...` w procesie `apps/worker` (obowiązuje `@content-chain/run-pipelines`).
 - `forwardRef` Content ↔ Runs / Social.
 - Rejestrować controller HTTP w `ContentModule`.
 - Wołać LangGraph / ładować prompty z controllera.

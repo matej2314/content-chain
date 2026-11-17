@@ -5,7 +5,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { parseTtlMs } from '../../../auth/application/auth.helpers';
+import { parseTtlMs } from '@content-chain/shared';
 import { ENV, type Env } from '../../../shared/config/env';
 import { AutoFinalizeExpiredReviewsUseCase } from '../auto-finalize-expired-reviews.use-case';
 import { RecoverInterruptedRunsUseCase } from '../recover-interrupted-runs.use-case';

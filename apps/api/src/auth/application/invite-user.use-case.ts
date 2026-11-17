@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { newInvitationId } from '../../shared/http/new-ids';
-import type { InvitationId, UserId } from '@content-chain/shared';
+import { parseTtlMs, type InvitationId, type UserId } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { parseWithZod } from '../../shared/parse-with-zod';
 import { ENV, type Env } from '../../shared/config/env';
@@ -16,7 +16,7 @@ import {
   TRANSACTIONAL_MAILER,
   type TransactionalMailer,
 } from '../domain/transactional-mailer.port';
-import { generateRefreshToken, parseTtlMs } from './auth.helpers';
+import { generateRefreshToken } from './auth.helpers';
 import { formatMailValidityLabel } from './format-mail-validity-label';
 import { z } from 'zod';
 

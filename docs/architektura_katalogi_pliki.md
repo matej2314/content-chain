@@ -1,12 +1,14 @@
 ---
-wersja: 11
+wersja: 12
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-11-16
+data_modyfikacji: 2026-11-17
 ---
 
 # Architektura katalogów i plików — Content Chain
 
-Propozycja **docelowego drzewa** monorepo (greenfield). Odzwierciedla style i granice z `architektura.md`: **cztery** aplikacje pod `apps/` (w tym always-on `worker`), wspólne typy w `packages/shared`, `docs/` w rootcie. **Bez** rootowego katalogu `src/` opakowującego aplikacje.
+Propozycja **docelowego drzewa** monorepo (greenfield). Odzwierciedla style i granice z `architektura.md`: **cztery** aplikacje pod `apps/` (w tym always-on `worker`), wspólne typy w `packages/shared`, kernel Runs i slice execute w `packages/runs-kernel` + `packages/run-pipelines`, `docs/` w rootcie. **Bez** rootowego katalogu `src/` opakowującego aplikacje.
+
+Zmiana względem wersji 11 / day-1 import workera z drzewa api: kanon = **zero importów TS** `apps/worker` ↔ `apps/api`; wspólny kod lifecycle = `@content-chain/runs-kernel`; slice execute Social+Content (fasady / executory / graph / prompty + assets) = `@content-chain/run-pipelines`. Api i worker = cienkie hosty Nest (HTTP tylko w api) + composition root. Import TS workera z `apps/api/src` — **unieważniony**. Prompty runtime SoT = assets pakietu `run-pipelines` (nie `nest-cli` api dla workera).
 
 Zmiana względem wersji 10 / trzy app: dopisano `apps/worker` (cienki bootstrap Nest; execute / recovery / sweep / AbortRegistry; **bez** publicznej powierzchni REST runów operatora). Deployables = `{api,frontend,ai-provider-gateway,worker}`.
 
@@ -68,19 +70,27 @@ content-chain/
 │   │   ├── Dockerfile               # build: context = root + pnpm; port prod 3004
 │   │   ├── package.json
 │   │   └── src/                     # App Router (`app/`) + moduły UI (`modules/`) + `shared/`
-│   ├── worker/                      # always-on Nest — execute / recovery / sweep / abort; bez REST runów
+│   ├── worker/                      # always-on Nest — host: composition root + boss/abort; bez REST runów
 │   │   ├── Dockerfile               # build: context = root monorepo + pnpm
-│   │   ├── package.json
-│   │   └── src/                     # cienki bootstrap; import lifecycle/executor z drzewa api (cut 1)
+│   │   ├── package.json             # host + workspace:* packages; bez deps Auth/HTTP „na MODULE_NOT_FOUND”
+│   │   └── src/                     # cienki bootstrap; zależność od packages — **bez** importu z apps/api
 │   └── ai-provider-gateway/         # gateway LLM — bez domeny Content Chain
 │       ├── Dockerfile               # (ścieżka w root compose; port 3100)
 │       ├── gateway.config.yaml      # w repo; COPY do obrazu + volume mount (host wygrywa)
 │       ├── package.json
 │       └── src/
 ├── packages/
-│   └── shared/                      # typy publicznego kontraktu API
+│   ├── shared/                      # typy publicznego kontraktu API
+│   │   ├── package.json
+│   │   └── src/
+│   ├── runs-kernel/                 # @content-chain/runs-kernel — lifecycle / recovery / sweep / abort / pump
+│   │   ├── package.json
+│   │   └── src/
+│   └── run-pipelines/               # @content-chain/run-pipelines — execute Social+Content + prompty/assets
 │       ├── package.json
-│       └── src/
+│       ├── src/
+│       └── assets/                  # m.in. *.prompt.md ładowane w runtime przez pakiet
+
 ├── docs/
 ├── docker-compose.yml               # Źródło prawdy runtime production (Compose-first)
 ├── Jenkinsfile                      # Job deploy: Vault → root .env → compose up → smoke
@@ -99,15 +109,15 @@ content-chain/
 | Modularny monolit, 4 procesy | `apps/api`, `apps/frontend`, `apps/ai-provider-gateway`, `apps/worker` |
 | Port/adapter (persistence, LLM) | Porty w `domain` / `application`; adaptery w `infrastructure` (+ Prisma w `apps/api/prisma`); klient gateway w `apps/api/src/llm/` |
 | Health / metrics / seed (ops) | `apps/api/src/health/`, `apps/api/src/metrics/`, `apps/api/src/seed/` — nie BC; DX w `apps/api/scripts/` |
-| Social = LangGraph za fasadą | `apps/api/src/social/infrastructure/graph/` |
-| Prompty przy BC Social (posty **i** rolki) | `apps/api/src/social/infrastructure/prompts/` |
-| Content = LangGraph za fasadą | `apps/api/src/content/infrastructure/graph/` |
-| Prompty przy BC Content | `apps/api/src/content/infrastructure/prompts/` |
+| Social / Content = LangGraph za fasadą (execute) | Slice w `packages/run-pipelines` (fasady / executory / graph); HTTP BC w api jeśli jest — bez importu workera z `apps/api` |
+| Prompty Social + Content (runtime) | Assets `packages/run-pipelines` (SoT dla workera); **nie** wyłącznie dist / nest-cli api |
+| Kernel lifecycle Runs (współdzielony) | `packages/runs-kernel` — porty lifecycle / repo / SSE abstrakcje; recovery / sweep / AbortRegistry; pump + adaptery dispatch; **bez** HTTP / FE / Auth |
 | Podział `infrastructure/` po I/O (Runs, Auth; wzorzec Social/Content) | Podkatalogi `persistence/` / `sse/` / `quota/` / `dispatch/` / `mail/` / `session/` / `graph/` / `prompts/` — **nie** nowe BC; kierunek zależności warstw bez zmian |
 | Kernel procesu w `application/` (Runs) | `application/lifecycle/` (+ `application/guest/` na politykę); use-case’y HTTP zostają płasko w `application/` |
 | Cienki frontend | Moduły UI w `apps/frontend/src/modules/`; brak `domain/` SM |
 | Gateway bez domeny CC | Tylko kod providerów / routingu w `apps/ai-provider-gateway` |
-| Shared typy kontraktu | `packages/shared` — bez use-case’ów i bez Prisma |
+| Shared typy kontraktu | `packages/shared` — bez use-case’ów i bez Prisma; **nie** puchnąć Auth/HTTP ani typami kernela Runs |
+| Cienkie hosty api / worker | `apps/api` = HTTP + hub SSE + LISTEN + enqueue + Auth/guest + composition root; `apps/worker` = bootstrap + LISTEN abort + pg-boss `work` + wire `RUN_EXECUTOR` z `run-pipelines` — **bez** importu TS z `apps/api` |
 
 ## `apps/api` — bounded contexty (~1 poziom w głąb)
 
@@ -124,18 +134,20 @@ apps/api/src/<context>/
 
 **Podkatalogi w warstwie** — tylko gdy warstwa miesza różne granice I/O albo kernel procesu z use-case’ami HTTP. Podział jest po **granicy I/O / kernel**, nie po rodzaju pliku (`helpers` / `adapters` / `mappers`). Małe BC (Feedback, Company Context) **mogą** zostać płaskie w `infrastructure/` (jeden adapter Prisma). Social/Content już mają `graph/` / `prompts/` / `persistence/` — to wzorzec, nie cel przepisania tych BC w tej zmianie.
 
-**1 BC ≠ obowiązkowo 1 plik `*.module.ts`.** Wolno wydzielić kernel lifecycle (port `appendLog` / `transition` + hub SSE + repozytorium runu) od HTTP, jeśli to zamyka cykl importów Nest. To nadal ten sam BC Runs — nie nowy bounded context. Klej `RUN_EXECUTOR` w composition root **nie** jest BC. **`RunAbortRegistry` / pump execute** żyją w procesie `apps/worker` (mapa abortu tylko tam); hub Subjectów SSE + `LISTEN` — w `apps/api`; adapter NOTIFY-only w workerze. Norma: `architektura.md` / `SPEC-RUNY.md`. `RunLifecycleModule` / `GuestQuotaModule` zostają w **korzeniu** `runs/` (nie nowe BC). Pierwszy cut: worker importuje z drzewa api — extract `packages/*` nie jest prereq.
+**1 BC ≠ obowiązkowo 1 plik `*.module.ts`.** Współdzielony kod lifecycle Runs = `@content-chain/runs-kernel` (porty / recovery / sweep / abort / pump-dispatch) — **nie** nowe BC produktowe. Klej `RUN_EXECUTOR` w composition root hosta **nie** jest BC; binding execute w workerze przez `@content-chain/run-pipelines` (model A: execute lokalnie w procesie workera). **`RunAbortRegistry` / pump execute** żyją w procesie `apps/worker` (mapa abortu tylko tam); hub Subjectów SSE + `LISTEN` — w `apps/api`; adapter NOTIFY-only w workerze. Norma: `architektura.md` / `SPEC-RUNY.md`. HTTP / Auth / guest zostają w hostcie api. **Jawna zmiana** względem day-1: import TS `apps/worker` → `apps/api/src` — **unieważniony**; kanon = `workspace:*` na `runs-kernel` + `run-pipelines`.
 
 ### Social (wyjątek orchestracji)
 
+Po extract: fasada / executor / graph / prompty używane przez worker = `packages/run-pipelines` (nie import z `apps/api/src/social` w procesie workera). Poniżej — historyczny układ BC w api (HTTP / composition bez regresji kontraktu):
+
 ```text
-apps/api/src/social/
+apps/api/src/social/                 # host api / legacy layout przed pełnym extractem
 ├── social.module.ts                 # bez controllers[] — HTTP start/HITL jest w Runs
-├── application/                     # fasada invoke fazy + SocialRunExecutor
+├── application/                     # fasada invoke fazy + SocialRunExecutor (docelowo w run-pipelines)
 ├── domain/
 └── infrastructure/
-    ├── graph/                       # LangGraph — definicja i węzły pipeline’u
-    ├── prompts/                     # szablony promptów SM (posty **i** rolki)
+    ├── graph/                       # LangGraph — definicja i węzły pipeline’u → run-pipelines
+    ├── prompts/                     # szablony SM → assets run-pipelines (SoT runtime)
     └── persistence/                 # adaptery zapisu wyników SM (via Prisma)
 ```
 
@@ -143,14 +155,16 @@ Zmiana względem wcześniejszego drzewa z `social.controller.ts`: plik i rejestr
 
 ### Content (wyjątek orchestracji — analogicznie do Social)
 
+Po extract: execute slice Content = `packages/run-pipelines` (wspólny pakiet z Social). Poniżej — układ BC w api (bez regresji kontraktu HTTP):
+
 ```text
-apps/api/src/content/
+apps/api/src/content/                # host api / legacy layout przed pełnym extractem
 ├── content.module.ts                # bez controllers[] — HTTP start/HITL jest w Runs
-├── application/                     # fasada invoke fazy + ContentRunExecutor
+├── application/                     # fasada + ContentRunExecutor (docelowo w run-pipelines)
 ├── domain/                          # PageOutline, PageDocument, refine, port store
 └── infrastructure/
-    ├── graph/                       # LangGraph — węzły outline / writer / verifier
-    ├── prompts/                     # page-outline, page-writer, refine-*, verifier
+    ├── graph/                       # LangGraph → run-pipelines
+    ├── prompts/                     # page-* → assets run-pipelines (SoT runtime)
     └── persistence/                 # ContentOutline / ContentDocument via Prisma
 ```
 
@@ -308,21 +322,41 @@ packages/shared/src/
 └── ...                              # typy request/response, enumy publiczne (role, statusy runu, platformy SM)
 ```
 
-Tylko kontrakt typów/enumów/brand; **bez** Zod, Nest/Next/Prisma/LangGraph, use-case’ów.
+Tylko kontrakt typów/enumów/brand; **bez** Zod, Nest/Next/Prisma/LangGraph, use-case’ów. **Nie** trzyma kernela Runs ani execute Social/Content.
+
+## `packages/runs-kernel`
+
+`@content-chain/runs-kernel` — współdzielony kernel BC Runs między procesami api i worker:
+
+- porty lifecycle / repo / abstrakcje SSE;
+- recovery / sweep / `RunAbortRegistry`;
+- pump i adaptery dispatch.
+
+**Bez** HTTP controllers, **bez** FE, **bez** Auth. Shared helpers używane przez worker/kernel (np. `parseTtlMs`) żyją tu albo w małym utilu `packages/shared` — **nie** w `auth/` obok `bcrypt`.
+
+## `packages/run-pipelines`
+
+`@content-chain/run-pipelines` — jeden workspace package na slice execute Social + Content:
+
+- fasady / executory / graph / prompty;
+- zależności execute potrzebne do wire (np. LLM hop używany przez pipeline, company-context **repo-only**);
+- pliki runtime (`*.prompt.md` itd.) jako **assets pakietu**.
+
+**Nie** osobne packages `@content-chain/social` / `@content-chain/content` na ten cut. Worker **nie** zależy od `apps/api/nest-cli` `assets` jako SoT promptów. Execute = lokalnie w procesie workera (model A); **odrzucone** na V1: execute przez HTTP/RPC do api (model B).
 
 ## Zasady lokalizacji (do/don’t)
 
 | Wolno | Nie wolno |
 |-------|-----------|
-| Reguły domenowe i pipeline w `apps/api/src/<bc>/` | Logika SM / bramki kontekstu w `apps/frontend` lub gateway |
+| Reguły domenowe i pipeline execute w `packages/run-pipelines` (+ HTTP BC w `apps/api` gdy jest) | Logika SM / bramki kontekstu w `apps/frontend` lub gateway; import TS workera z `apps/api/src` |
 | Prisma wyłącznie jako adapter w `infrastructure` albo `infrastructure/persistence/` (+ `prisma/`) | Import Prisma w `domain/` lub w `packages/shared`; Prisma w `infrastructure/sse` \| `quota` \| `mail` \| `session` \| `graph` |
-| Podkatalogi I/O w `infrastructure/` (Runs, Auth; już Social/Content: `graph` / `prompts` / `persistence`) oraz kernel w `application/lifecycle` / `guest` | `helpers/` / `adapters/` / `mappers/` jako kanon warstwy BC; mappery wiersza Prisma poza katalogiem persistence; porty w `infrastructure/`; kernel lifecycle jako nowy BC |
-| Prompty i graf w `social/infrastructure/` | Prompty i wywołania LLM w controllerze |
-| Typy publiczne w `packages/shared` (**bez Zod**) | Use-case’y, DB, Zod/runtime w `packages/shared` |
-| Aplikacje pod `apps/` | Rootowy katalog `src/` opakowujący wszystkie app |
-| Kernel lifecycle Runs + klej composite `RUN_EXECUTOR` w `AppModule` | `forwardRef` Runs ↔ Social / Content; port lifecycle w `packages/shared`; fat Social (page copy w `social/`); `'web'` jako `SocialPlatform` |
+| Podkatalogi I/O w `infrastructure/` (Runs, Auth; Social/Content: `graph` / `prompts` / `persistence` w pakiecie pipelines) oraz kernel w `runs-kernel` | `helpers/` / `adapters/` / `mappers/` jako kanon warstwy BC; mappery wiersza Prisma poza katalogiem persistence; porty w `infrastructure/`; kernel lifecycle jako nowe BC produktowe |
+| Prompty i graf w `packages/run-pipelines` (assets pakietu) | Prompty i wywołania LLM w controllerze; SoT promptów wyłącznie w dist / nest-cli api dla workera |
+| Typy publiczne w `packages/shared` (**bez Zod**) | Use-case’y, DB, Zod/runtime w `packages/shared`; Auth/HTTP w `runs-kernel` |
+| Aplikacje pod `apps/` jako cienkie hosty + `workspace:*` na kernel/pipelines | Rootowy katalog `src/` opakowujący wszystkie app; import TS `apps/worker` ↔ `apps/api` |
+| Kernel lifecycle w `@content-chain/runs-kernel` + klej `RUN_EXECUTOR` w composition root hosta | `forwardRef` Runs ↔ Social / Content; port lifecycle w `packages/shared`; fat Social (page copy w `social/`); `'web'` jako `SocialPlatform`; day-1 import z drzewa api jako kanon |
 | Kolekcja E2E pod `apps/api/test/postman/` | `apps/api/postman/` ani `apps/api/src/postman/` (wygląda jak moduł produktu) |
-| Małe BC (Feedback, Company Context) płaskie w `infrastructure/` | Podkatalogi w `health/` / `metrics/` / `llm/` na wzór BC; podkatalogi use-case’ów Auth „na siłę” |
+| Małe BC (Feedback, Company Context) płaskie w `infrastructure/` | Podkatalogi w `health/` / `metrics/` / `llm/` na wzór BC; podkatalogi use-case’ów Auth „na siłę”; deps Auth/HTTP w `apps/worker` „bo MODULE_NOT_FOUND” |
 
 ## Poza zakresem tego dokumentu
 

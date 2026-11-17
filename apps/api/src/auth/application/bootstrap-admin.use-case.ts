@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { v4 as uuidv4 } from 'uuid';
-import { createUserId } from '@content-chain/shared';
+import { createUserId, parseTtlMs } from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { parseWithZod } from '../../shared/parse-with-zod';
 import { validatePasswordPolicy } from '../domain/password.policy';
@@ -13,7 +13,7 @@ import {
   REFRESH_SESSION_REPOSITORY,
   type RefreshSessionRepository,
 } from '../domain/refresh-session.repository.port';
-import { hashPassword, generateRefreshToken, parseTtlMs } from './auth.helpers';
+import { hashPassword, generateRefreshToken } from './auth.helpers';
 import { bootstrapAdminSchema } from './auth.schemas';
 import { ENV, type Env } from '../../shared/config/env';
 import type { AuthUser } from '../domain/auth-user.types';

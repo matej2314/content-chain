@@ -1,4 +1,4 @@
-import { parseTtlMs } from '../../application/auth.helpers';
+import { parseTtlMs } from '@content-chain/shared';
 import type { CookieOptions, Response, Request } from 'express';
 import type { Env } from '../../../shared/config/env';
 

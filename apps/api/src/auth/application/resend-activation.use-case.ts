@@ -13,7 +13,8 @@ import {
   type TransactionalMailer,
 } from '../domain/transactional-mailer.port';
 import { ENV, type Env } from '../../shared/config/env';
-import { generateRefreshToken, parseTtlMs } from './auth.helpers';
+import { parseTtlMs } from '@content-chain/shared';
+import { generateRefreshToken } from './auth.helpers';
 import { formatMailValidityLabel } from './format-mail-validity-label';
 import { resendActivationSchema } from './auth.schemas';
 import { SoftEmailRateLimiter } from './soft-email-rate-limiter';

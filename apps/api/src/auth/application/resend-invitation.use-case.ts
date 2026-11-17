@@ -1,5 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { createInvitationId, isInvitationId } from '@content-chain/shared';
+import {
+  createInvitationId,
+  isInvitationId,
+  parseTtlMs,
+} from '@content-chain/shared';
 import { DomainException } from '../../shared/exceptions/domain.exception';
 import { ENV, type Env } from '../../shared/config/env';
 import {
@@ -10,7 +14,7 @@ import {
   TRANSACTIONAL_MAILER,
   type TransactionalMailer,
 } from '../domain/transactional-mailer.port';
-import { generateRefreshToken, parseTtlMs } from './auth.helpers';
+import { generateRefreshToken } from './auth.helpers';
 import { formatMailValidityLabel } from './format-mail-validity-label';
 import type { InviteUserResult } from './invite-user.use-case';
 

@@ -2,11 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { v4 as uuidv4 } from 'uuid';
 import { DomainException } from '../../shared/exceptions/domain.exception';
-import {
-  generateRefreshToken,
-  hashRefreshToken,
-  parseTtlMs,
-} from './auth.helpers';
+import { parseTtlMs } from '@content-chain/shared';
+import { generateRefreshToken, hashRefreshToken } from './auth.helpers';
 import {
   REFRESH_SESSION_REPOSITORY,
   type RefreshSessionRepository,

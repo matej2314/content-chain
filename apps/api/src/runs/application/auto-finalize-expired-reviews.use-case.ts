@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { parseTtlMs } from '../../auth/application/auth.helpers';
+import { parseTtlMs } from '@content-chain/shared';
 import { ENV, type Env } from '../../shared/config/env';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 

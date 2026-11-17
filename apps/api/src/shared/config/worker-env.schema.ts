@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parseTtlMs } from '../../auth/application/auth.helpers';
+import { parseTtlMs } from '@content-chain/shared';
 import type { Env } from './env.schema';
 
 /**

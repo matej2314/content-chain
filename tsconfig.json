@@ -11,6 +11,15 @@
     "files": [],
     "references": [
         {
+            "path": "./packages/shared/tsconfig.json"
+        },
+        {
+            "path": "./packages/runs-kernel/tsconfig.json"
+        },
+        {
+            "path": "./packages/run-pipelines/tsconfig.json"
+        },
+        {
             "path": "./apps/api/tsconfig.json"
         },
         {

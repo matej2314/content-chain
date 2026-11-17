@@ -1,7 +1,7 @@
 ---
-wersja: 35
+wersja: 36
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-11-16
+data_modyfikacji: 2026-11-17
 ---
 
 # SPEC — Runy / logi
@@ -11,6 +11,8 @@ data_modyfikacji: 2026-11-16
 Norma bounded contextu **Runs / Logs**: cykl życia async runu (HTTP / hub SSE / enqueue w **`apps/api`**; pump/execute / recovery / review sweep / `RunAbortRegistry` w always-on **`apps/worker`**), **lista runów instancji**, **agregacja KPI (`GET /runs/summary`)**, polityka statusów, **anulowanie (`cancelled`)**, kanoniczne logi w DB, emisja SSE (Subjecty w api; most PG NOTIFY z workera), kolejka współbieżności (pg-boss = wake), recovery po przerwaniu procesu **workera**, **przegląd z TTL** (sweeper na workerze) oraz **`GuestRunPolicy`**.
 
 Uszczegóławia `docs/architektura.md` (izolacja workera, klej composite, cancel + NOTIFY abort), `docs/dokumentacja_komunikacji.md`, `docs/data_flow.md`, `docs/observability.md` oraz współpracę z `SPEC-SOCIAL.md`, `SPEC-CONTENT.md`, `SPEC-FEEDBACK.md`, `SPEC-MONOREPO.md`.
+
+Zmiana względem wersji 35 / day-1 import z drzewa api: R-5 — współdzielony kernel = `@content-chain/runs-kernel`; bind `RUN_EXECUTOR` w workerze przez `@content-chain/run-pipelines` (**bez** importu z `apps/api`); DoD niezależności procesów (R-5a). Ownership runtime **bez zmian** (R-9 / R-10 / R-11). Day-1 import — **unieważniony**.
 
 Zmiana względem wersji 34 / R-5 in-process w `apps/api`: owner execute = **`apps/worker`**; R-6 HITL = wariant **A** (poza claim FIFO); R-9 recovery na bootcie workera; R-10 sweep = worker; R-4/R-4a hub Subjectów tylko w api + most NOTIFY; R-11 AbortRegistry w workerze + NOTIFY `run.abort`; job payload `{ runId }`. **Unieważnione:** „osobny worker process = poza MVP” jako zakaz V1; in-process-only jako kanon po izolacji.
 
@@ -178,9 +180,12 @@ Zmiana względem wersji 17 / R-4a: terminal = tylko `completed` \| `failed`. Od 
 
 Zmiana względem wersji 4 / R-4: R-4 mówiło tylko kto emituje; infra „SSE hub / subject” bez evikcji — subject żył z procesem.
 
-R-5. Worker V1: always-on **`apps/worker`** (jeden proces; nie per BC). Api po `202` / HITL **enqueue** job (pg-boss); worker ładuje `Run` z DB (payload joba = **`{ runId }`** — bez snapshotu rekordu) i prowadzi claim/execute. Api **nie** prowadzi pump/execute ani review sweep. **Zakaz** spawnu procesu OS per run. Pierwszy cut: import executora/lifecycle z drzewa api dopuszczalny (`SPEC-MONOREPO.md`).
+R-5. Worker V1: always-on **`apps/worker`** (jeden proces; nie per BC). Api po `202` / HITL **enqueue** job (pg-boss); worker ładuje `Run` z DB (payload joba = **`{ runId }`** — bez snapshotu rekordu) i prowadzi claim/execute lokalnie (model A). Api **nie** prowadzi pump/execute ani review sweep. **Zakaz** spawnu procesu OS per run. Współdzielony kod lifecycle = `@content-chain/runs-kernel`; binding `RUN_EXECUTOR` w composition root **workera** przez `@content-chain/run-pipelines` — **bez** importu TS z `apps/api` (`SPEC-MONOREPO.md` M-10). Execute **nie** wraca do procesu api (model B odrzucony na V1).
 
 Zmiana względem wersji 34 / R-5: *„in-process w `apps/api`; zakaz always-on workera w MVP”* — **unieważnione** jako kanon po izolacji.
+Zmiana względem wersji 35 / R-5: *„Pierwszy cut: import executora/lifecycle z drzewa api dopuszczalny”* — **unieważnione**; obowiązują pakiety.
+
+R-5a. **DoD niezależności procesów** (weryfikowalne po implementacji extractu / Fazy 35 major): (a) audit / `rg`: brak importów TS `apps/worker` ↔ `apps/api`; (b) `pnpm --filter worker start` (po build) past Nest boot + start pg-boss `work` / recovery; (c) require stack bootu workera **bez** auth controllers, swagger, mail, `bcrypt`. Semantyka ownership R-9 / R-10 / R-11 **bez regresji**.
 
 R-6. Współbieżność **globalna**: limit `MAX_CONCURRENT_RUNS` (env **workera**), domyślnie **3** — cap **claim** `queued`/`interrupted` → `running` (`inFlight < MAX` przed claim). Nowe runy powyżej limitu pozostają `queued` (FIFO). Drain: najpierw `interrupted`, potem `queued`. **HITL wariant A:** `awaiting_hitl → running` + job `run.execute({ runId })` — execute **bez** `claimNext*`; **poza limitem claim FIFO** (płynna kontynuacja; nie czeka na slot); resume bumpuje `inFlight` (może chwilowo > `MAX`); drain nie claimuje, aż zejdzie. „Poza capem” ≠ „HITL nie zajmuje `inFlight`”. Limit **per-user** = R-6a.
 
@@ -338,7 +343,7 @@ apps/api/src/runs/
 
 Zmiana względem wersji 23 / drzewo: wcześniej płaskie `infrastructure/` (Prisma + SSE w jednym komentarzu) oraz płaskie `application/` (kernel + use-case’y razem). Od tej wersji podkatalogi po granicy I/O (`persistence/` / `sse/` / `quota/` / `dispatch/`) oraz kernel w `application/lifecycle/` + polityka w `application/guest/` — `docs/architektura_katalogi_pliki.md`. Semantyka HTTP / guest / review / portów **bez zmian**.
 
-Wolno wydzielić kernel Nest (lifecycle + repo + hub) od HTTP/workera **w tym samym** BC, gdy zamyka to cykl importów. To nie nowy bounded context.
+Współdzielony kernel lifecycle = `@content-chain/runs-kernel` (nie nowe BC produktowe). HTTP / hub Subjectów / Auth / guest zostają w hostcie api. Binding execute = composition root workera przez `@content-chain/run-pipelines`.
 
 | Element | Norma |
 |---------|--------|
@@ -349,11 +354,12 @@ Wolno wydzielić kernel Nest (lifecycle + repo + hub) od HTTP/workera **w tym sa
 | Licznik recovery | Pole / metadane runu (np. `recoveryAttempts`), cap = 3; cancel **nie** zużywa |
 | Idempotencja HITL | Tylko ze statusu `awaiting_hitl` |
 | Przegląd | `userRating` + kanoniczny wynik po Edytuj + `outputEdited` + `reviewFinalizedAt` + `pipelineFinishedAt`; okno `REVIEW_TTL`; mutacja po TTL = 409 bez UPDATE locka; sweeper boot+interval **na workerze**; **bez** `cancelled` |
-| Port lifecycle | Token + interfejs `appendLog` + `transition` w `domain/`; graf zależy od portu, nie od klasy `RunLifecycleService` |
-| Port executor | Token `RunExecutorPort` w Runs; **composite** w kleju wpinający Social i Content; **binding w `AppModule` / `registerAsync`**; `execute` z `AbortSignal` |
+| Port lifecycle | Token + interfejs `appendLog` + `transition` w kernelu (`runs-kernel` / domain); graf zależy od portu, nie od klasy serwisu |
+| Port executor | Token `RunExecutorPort`; **composite** w kleju workera z `@content-chain/run-pipelines` (Social + Content); **binding w composition root workera**; `execute` z `AbortSignal`; **zakaz** importu executorów z `apps/api` |
 | Odczyt snapshotu `result`/`hitl` | Composite reader; **zakaz** wstrzykiwania store Social/Content do use-case’u Runs przez `imports: [SocialModule]` / `ContentModule` |
 | Port stats (metrics) | `RunStatsPort` **albo** `countByStatus` na porcie Run; konsument = `metrics/` — **bez** Prisma w module ops (R-14) |
-| Lokalizacja I/O / kernel | Hub Subjectów SSE = `infrastructure/sse/` **w api**; adapter NOTIFY-only w workerze; Prisma = `infrastructure/persistence/`; Redis guest quota = `infrastructure/quota/`; dispatch/pg-boss = `infrastructure/dispatch/`; kernel claim/abort/execute = `application/lifecycle/` (runtime w **workerze**); `GuestRunPolicy` = `application/guest/` |
+| Lokalizacja I/O / kernel | Hub Subjectów SSE = api; adapter NOTIFY-only w workerze; Prisma persistence; Redis guest quota = api; dispatch/pg-boss; kernel claim/abort/execute = `runs-kernel` (runtime w **workerze**); slice execute = `run-pipelines`; `GuestRunPolicy` = api |
+| DoD niezależności | R-5a — audit app↔app, boot workera, stack bez Auth/HTTP |
 
 Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnienia lifecycle vs executor vs reader; binding executora nie był unormowany (feature plan Fazy 4 wstawiał `forwardRef`).
 
@@ -374,7 +380,8 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Trzymać `userRating: null` jako jawny brak oceny (nie pomijać pola w snapshotcie).
 - Ustawiać `pipelineFinishedAt` raz przy transition → `completed` \| `failed`; wyliczać `reviewExpiresAt` w snapshotcie i sukcesach mutacji przeglądu (R-10).
 - Zapis edycji wyniku przez `POST .../output-edited` (nadpis store wyniku Social/Content przez porty odczytu/zapisu wyniku — **nie** przez graf).
-- `RunsModule.registerAsync` (lub równoważny klej w `AppModule`) wpinające **composite** `RunExecutorPort` (Social + Content) — bez `forwardRef`.
+- Composition root **workera** wpinający **composite** `RunExecutorPort` z `@content-chain/run-pipelines` (Social + Content) — bez `forwardRef` i bez importu z `apps/api`.
+- Spełnienie DoD R-5a po extractcie pakietów (audit + boot + stack bez Auth/HTTP).
 - Domyślną (pustą) implementację portu odczytu wyniku w `infrastructure/persistence/`, podmienianą w kleju na composite reader.
 - Podkatalogi I/O w `infrastructure/` (`persistence/` / `sse/` / `quota/` / `dispatch/`) oraz kernel w `application/lifecycle/` + `GuestRunPolicy` w `application/guest/` — gdy warstwa miesza granice I/O / kernel vs use-case.
 - Trzymać `SocialBrief` / `ContentBrief` w `runs/domain/run.types.ts` (payload Run, nie shared kernel).
@@ -402,6 +409,7 @@ Zmiana względem wersji 6 / drzewo `domain/`: wcześniej porty bez rozróżnieni
 - Podpinania R-13 `aggregateSummary` jako jedynego źródła gauge `RunStatus` w Prometheus.
 - Niedozwolonych skoków statusów.
 - Spawnu procesu per run; drugiego always-on workera / workera per BC w V1; pump/execute / review sweep w procesie api po izolacji.
+- Importu TS lifecycle/executor z `apps/api` do `apps/worker` (day-1) jako kanonu; execute przez HTTP/RPC do api (model B) na V1.
 - pg-boss jako SoT statusu runu; snapshotu `RunRecord` w payloadzie joba.
 - Hub Subjectów SSE / EventSource w procesie workera; Redis / polling DB jako default mostu live SSE lub soft-abort.
 - Dual recovery boot (api **i** worker); dual review sweep.
@@ -495,7 +503,7 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 - [ ] Social / Content nie emitują SSE omijając Runs; worker nie trzyma Subjectów.
 - [ ] `/metrics` nie jest używane jako podgląd przebiegu runu.
 - [ ] Liczniki `RunStatus` w `metrics/` idą przez port (R-14).
-- [ ] Brak cyklu Nest Runs ↔ Social / Content; `apps/worker` dostaje composite executor z kleju; job `{ runId }`.
+- [ ] Brak cyklu Nest Runs ↔ Social / Content; `apps/worker` dostaje composite executor z `@content-chain/run-pipelines` (klej hosta); job `{ runId }`; brak importu TS z `apps/api` (R-5 / R-5a).
 - [ ] `POST /runs` z `page_*` bez `platform` i z `contentKind` → 202; page + `platform: linkedin` → 400; `taskType` spoza enumu → 400.
 - [ ] HITL `page_outline_then_copy` z id ≠ `outline.id` → 400 `HITL_INVALID_SELECTION`; run zostaje `awaiting_hitl`.
 - [ ] HITL Social (`post_ideas_then_content` / `reel_ideas_then_scripts`): 0 id / duplikat / obcy id → 400 `HITL_INVALID_SELECTION`; K≥1 legalnych ⊆ options → K artefaktów (`contents[]` / `reelScripts[]`); 1 id → tablica długości 1. Page HITL bez zmian.
@@ -508,7 +516,7 @@ Zmiana względem wersji 18 / „Nie wolno”: brak zakazów TTL / sweeper / GET 
 - Animacje / EventSource UI / Stop + modal → `SPEC-FRONTEND.md`.
 - Pełny zestaw metryk Prometheus i OTel → docs observability / `SPEC-BEZPIECZENSTWO.md`.
 - Publikacja draftów na API portali SM (**V2**).
-- Worker per BC; BullMQ / Rabbit / Redis jako most SSE lub soft-abort; extract `packages/*` jako prereq dnia 1.
+- Worker per BC; BullMQ / Rabbit / Redis jako most SSE lub soft-abort; day-1 import TS z drzewa api jako kanon (obowiązują `runs-kernel` / `run-pipelines`).
 - Checkpointer LangGraph.
 - Detail wire nazw kanałów PG / koperty NOTIFY (HOW feature planu).
 - Sterowanie `MAX_USER_IN_FLIGHT_RUNS` z panelu admin (P0 poza — R-6a pkt 5).

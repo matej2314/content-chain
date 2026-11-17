@@ -1,7 +1,7 @@
 ---
-wersja: 34
+wersja: 35
 data_utworzenia: 2026-09-18
-data_modyfikacji: 2026-11-16
+data_modyfikacji: 2026-11-17
 ---
 
 # Słownik — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-16
 Kanoniczne definicje pojęć domenowych i technicznych. Identyfikatory typów, kodów i pól API w backtickach; opisy po polsku.
 
 Powiązane: `dokumentacja_koncepcyjna.md`, `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `brand_types.md`, `observability.md`.
+
+Zmiana względem wersji 34 / day-1 import workera z drzewa api: kanon = zależność od `@content-chain/runs-kernel` + `@content-chain/run-pipelines` (nie od źródeł api); composition root + nasłuch (boss / abort); execute lokalnie (model A). Hasła **runs-kernel**, **run-pipelines**, **dependency closure** workera. Import TS z `apps/api` — **unieważniony**.
 
 Zmiana względem wersji 33 / Worker in-process w api: po izolacji kanon = always-on **`apps/worker`** + pg-boss (wake) + most SSE PG NOTIFY + abort NOTIFY `run.abort`; hub Subjectów tylko w api; review sweep = worker; HITL wariant **A** (poza claim FIFO). Hasła niżej — jawna zmiana względem execute/abort/sweep wyłącznie w `apps/api`.
 
@@ -159,7 +161,7 @@ Zmiana względem: hasło `guest` / `FORBIDDEN` bez wyjątku podglądu archiwum c
 
 | Pojęcie | Definicja |
 |---------|-----------|
-| **Modularny monolit** | Cztery procesy runtime w jednym monorepo (`apps/api`, `apps/frontend`, `apps/ai-provider-gateway`, `apps/worker`) ze wspólnym `packages/shared`. Zmiana względem: „trzy procesy” (in-process worker w api). |
+| **Modularny monolit** | Cztery procesy runtime w jednym monorepo (`apps/api`, `apps/frontend`, `apps/ai-provider-gateway`, `apps/worker`) ze wspólnym `packages/shared` oraz pakietami `@content-chain/runs-kernel` i `@content-chain/run-pipelines`. Zmiana względem: „trzy procesy” (in-process worker w api). |
 | **Cienki klient** | `apps/frontend`: UI + HTTP/SSE; **bez** reguł bramki, grafu Social / Content, Prisma i sekretów LLM. |
 | **Port / adapter** | Granica I/O: domain/application zależą od portu. Prisma = adapter w `infrastructure` BC **albo** w `infrastructure/persistence/`, gdy warstwa ma kilka granic I/O; mapowanie wiersza przy tym adapterze. Inne I/O (SSE, Redis quota, SMTP, cookie/JWT) — osobne podkatalogi tej samej warstwy `infrastructure/`, gdy katalog puchnie. Klient gateway = adapter HTTP w `apps/api/src/llm/` (port `LlmGateway`). **Nie** redefiniuje pojęcia portu. Zmiana względem: lokalizacja wyłącznie „w `infrastructure`” bez podkatalogów I/O. |
 | **Port `LlmGateway`** | Port chat (i opcjonalnie stream) do `apps/ai-provider-gateway`; jedyna droga `apps/api` do LLM. Wołają go BC (np. Social), nie kontrolery HTTP. |
@@ -173,12 +175,15 @@ Zmiana względem: hasło `guest` / `FORBIDDEN` bez wyjątku podglądu archiwum c
 | **Feedback (BC)** | Bounded context zapisu opinii tekstowych (`application` \| `agent` \| `run`). Bez LangGraph; panel odczytu = **V1 — rozbudowa**. **Nie** ocena gwiazdkowa, flaga edycji ani finalize (to Runs). |
 | **LangGraph / graf** | Orchestracja pipeline’u za fasadą application service (nie w controllerze). MVP: osobny graf Social i osobny graf Content; **zakaz** fat Social (strony w `social/`). |
 | **Async run** | Asynchroniczne wykonanie pipeline’u; klient dostaje `RunId`, postęp przez SSE na api. |
-| **Worker (`apps/worker`)** | Always-on proces: recovery boot, review sweep (boot + interval), drain/claim, execute, `RunAbortRegistry`, emisja SSE przez adapter NOTIFY-only. **Zakaz** spawnu procesu per run; V1 = jeden worker (nie per BC). Pierwszy cut: import executora/lifecycle z drzewa api dopuszczalny. Zmiana względem hasła **Worker in-process** (execute wyłącznie w `apps/api`; zakaz always-on workera). |
+| **Worker (`apps/worker`)** | Always-on proces-host: recovery boot, review sweep (boot + interval), drain/claim, execute lokalnie, `RunAbortRegistry`, emisja SSE przez adapter NOTIFY-only. Zależy od `@content-chain/runs-kernel` + `@content-chain/run-pipelines` (`workspace:*`) — **nie** od źródeł `apps/api`. Composition root + nasłuch (pg-boss `work` / abort). **Zakaz** spawnu procesu per run; V1 = jeden worker (nie per BC); **nie** drugi monolit HTTP/Auth. **Jawna zmiana** względem day-1: import TS z drzewa api — **unieważniony**. Zmiana względem hasła **Worker in-process** (execute wyłącznie w `apps/api`). |
+| **`runs-kernel` (`@content-chain/runs-kernel`)** | Współdzielony kod kernela BC Runs między api i workerem: porty lifecycle / repo / abstrakcje SSE; recovery / sweep / `RunAbortRegistry`; pump i adaptery dispatch. **Nie** nowe BC produktowe; **bez** HTTP controllers, FE, Auth. |
+| **`run-pipelines` (`@content-chain/run-pipelines`)** | Jeden workspace package: slice execute Social + Content (fasady / executory / graph / prompty + assets). Wire `RUN_EXECUTOR` w workerze **bez** importu z `apps/api`. **Nie** osobne packages social/content na ten cut; **nie** pełne Auth/HTTP. |
+| **Dependency closure (worker)** | `apps/worker/package.json` = host + `workspace:*` packages + deps faktycznie wymagane przez host. **Zakaz** dokładania deps Auth/HTTP (`bcrypt`, swagger, mail, …) „bo `MODULE_NOT_FOUND` z drzewa api”. Shared helpers (np. `parseTtlMs`) **nie** żyją w `auth/` obok hash haseł. |
 | **pg-boss** | Kolejka jobów na PostgreSQL: wake/dispatch (`run.wake`, `run.execute`). Payload obu = **`{ runId }`** — worker **zawsze** ładuje `Run` z DB (bez snapshotu rekordu w jobie). **Nie** jest SoT statusów / claim / recovery / `cancelRequested` (to tabela `Run`). |
 | **Limit współbieżności** | Globalny `MAX_CONCURRENT_RUNS` (domyślnie **3**) = cap **claim** `queued`/`interrupted` → `running` w workerze (`inFlight < MAX` przed claim). Nowe POST ponad limit zostają `queued` (FIFO). W drain: najpierw `interrupted`, potem `queued`. **HITL wariant A:** `awaiting_hitl → running` + job `run.execute` **poza limitem claim FIFO** — kontynuacja od razu (nie czeka na slot); resume bumpuje `inFlight` (może chwilowo > `MAX`); drain nie claimuje, aż zejdzie. „Poza capem” = poza FIFO claim, **nie** „HITL nie zajmuje `inFlight`”. **Osobno** (V1): limit per-user — hasło niżej. Zmiana względem: cap wyłącznie w procesie api / „HITL nie podlega capowi” bez uściślenia claim vs `inFlight`. |
 | **Limit per-user (w toku)** | V1 — rozbudowa: twardy limit **własnych** runów użytkownika w statusach `queued` \| `running` \| `interrupted` \| `awaiting_hitl`. Env `MAX_USER_IN_FLIGHT_RUNS` (domyślnie **3**). Bramka przy `POST /runs` **przed** create: przekroczenie → błąd domenowy **409** `USER_IN_FLIGHT_LIMIT_EXCEEDED` (**nie** ciche `queued` ponad per-user). Globalny `MAX_CONCURRENT_RUNS` **zostaje** (FIFO execute). Limity guest/DEMO (slot typu, Redis global cap, soft rating) **bez zmian**. Sterowanie capem z panelu admin — poza P0. Zmiana względem: „brak limitu per-user w MVP” jako jedyna norma / per-user tylko hasło fazy bez admit. |
 | **Gateway** (`ai-provider-gateway`) | Osobna aplikacja — jedyna droga `apps/api` do vendorów LLM; bez domeny Content Chain. |
-| **`packages/shared`** | Współdzielone typy kontraktu API i brand types (**bez** logiki biznesowej, **bez Zod** / runtime walidatorów). **Nie** mylić z `apps/api/src/shared/`. |
+| **`packages/shared`** | Współdzielone typy kontraktu API i brand types (**bez** logiki biznesowej, **bez Zod** / runtime walidatorów). **Nie** mylić z `apps/api/src/shared/`; **nie** puchnąć kernela Runs ani Auth/HTTP (osobne: `runs-kernel` / `run-pipelines`). |
 | **`apps/api/src/shared/`** | Cross-cutting wyłącznie wewnątrz api (env, envelope, interceptory, m.in. `parseWithZod` — runtime Zod **tylko** w api shared; `details[].path` = segmenty Zod `issue.path` połączone `'.'`). **Nie** zastępuje `packages/shared` i **nie** trzyma reguł Social / kontekstu firmy. |
 | **Moduły ops / LLM (nie-BC)** | `apps/api/src/health/`, `metrics/`, `llm/` — powierzchnia ops i klient gateway. **Nie** bounded contexty: brak układu `application` / `domain` / `infrastructure` jak w BC. |
 | **Prisma / SQLite** | Adapter persistence **MVP**; ORM tylko w infrastructure. |

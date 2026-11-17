@@ -11,11 +11,8 @@ import {
   REFRESH_SESSION_REPOSITORY,
   type RefreshSessionRepository,
 } from '../domain/refresh-session.repository.port';
-import {
-  comparePassword,
-  generateRefreshToken,
-  parseTtlMs,
-} from './auth.helpers';
+import { parseTtlMs } from '@content-chain/shared';
+import { comparePassword, generateRefreshToken } from './auth.helpers';
 import { loginSchema } from './auth.schemas';
 import { ENV, type Env } from '../../shared/config/env';
 import type { AuthTokenResult } from './bootstrap-admin.use-case';

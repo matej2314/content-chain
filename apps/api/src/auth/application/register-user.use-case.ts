@@ -21,10 +21,10 @@ import {
   type TransactionalMailer,
 } from '../domain/transactional-mailer.port';
 import { ENV, type Env } from '../../shared/config/env';
-import { generateRefreshToken, hashPassword, parseTtlMs } from './auth.helpers';
+import { generateRefreshToken, hashPassword } from './auth.helpers';
 import { formatMailValidityLabel } from './format-mail-validity-label';
 import { registerUserSchema } from './auth.schemas';
-import type { UserId, UserRole } from '@content-chain/shared';
+import { parseTtlMs, type UserId, type UserRole } from '@content-chain/shared';
 
 function isUniqueConstraintViolation(
   error: unknown,

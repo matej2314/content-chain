@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { parseTtlSeconds } from '@content-chain/shared';
 import { PrismaModule } from '../shared/persistence/prisma.module';
 import { GuestPurgeModule } from '../runs/guest-purge.module';
 import { GuestQuotaModule } from '../runs/guest-quota.module';
@@ -48,7 +49,6 @@ import {
   TransactionalMailer,
 } from './domain/transactional-mailer.port';
 import { SoftEmailRateLimiter } from './application/soft-email-rate-limiter';
-import { parseTtlSeconds } from './application/auth.helpers';
 import { EMAIL_CHANGE_REQUEST_REPOSITORY } from './domain/email-change-request.repository.port';
 import { PrismaEmailChangeRequestAdapter } from './infrastructure/persistence/prisma-email-change-request.adapter';
 import { ResendEmailChangeConfirmUseCase } from './application/resend-email-change-confirm.use-case';

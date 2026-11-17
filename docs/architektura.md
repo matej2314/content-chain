@@ -1,14 +1,16 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-09-27
-data_modyfikacji: 2026-11-16
+data_modyfikacji: 2026-11-17
 ---
 
 # Architektura — Content Chain
 
 ## Widok systemu
 
-Content Chain to **modularny monolit w monorepo** z **czterema** osobnymi procesami runtime oraz wspólnym pakietem kontraktów.
+Content Chain to **modularny monolit w monorepo** z **czterema** osobnymi procesami runtime oraz wspólnymi pakietami kontraktów i kernela (`packages/shared`, `@content-chain/runs-kernel`, `@content-chain/run-pipelines`).
+
+Zmiana względem wersji 9 / day-1 import workera z drzewa api: **granica procesu** (api vs worker) ≠ **granica pakietu** (`packages/runs-kernel`, `packages/run-pipelines`). **Zakaz** importów TS między `apps/api` a `apps/worker` (obie strony); komunikacja runtime bez zmian (HTTP/SSE, PG, NOTIFY, pg-boss). Worker = host execute + lifecycle — **nie** drugi monolit HTTP/Auth. Execute lokalnie w workerze (model A); model B (execute przez HTTP/RPC do api) **nie** jest kanonem. Day-1 import z `apps/api/src` — **unieważniony**.
 
 Zmiana względem wersji 8 / in-process worker w `apps/api`: execute runów, recovery boot, review sweep (boot + interval) oraz mapa abortu żyją w always-on **`apps/worker`**. Api zostaje właścicielem HTTP (admit, cancel, HITL, SSE subscribe, enqueue), hubu Subjectów SSE oraz `LISTEN` (most PG NOTIFY → FE). Kolejka wake/dispatch = **pg-boss** na PostgreSQL; SoT statusów / claim / recovery / `cancelRequested` = tabela `Run`. Abort live = NOTIFY kanał `run.abort` (osobny od mostu SSE). Cap / HITL = **wariant A** (poza claim FIFO; resume płynny). Szczegóły: `data_flow.md`, `dictionary.md`.
 
@@ -30,11 +32,13 @@ Zmiana względem: warstwy BC bez normy podkatalogów I/O poza Social/Content. Od
 
 | Element                    | Rola                                                                                                        |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `apps/api`                 | HTTP / domena produktu: auth, kontekst, admit, cancel, HITL, enqueue jobów, hub Subjectów SSE (`LISTEN` ← PG NOTIFY), persistence; **bez** pump/execute runów i **bez** review sweep |
-| `apps/worker`              | Always-on: recovery boot, review sweep (boot + interval), drain/claim, execute, `RunAbortRegistry`, lifecycle → hub NOTIFY-only; **bez** publicznej powierzchni REST runów operatora |
+| `apps/api`                 | Cienki host HTTP: auth, kontekst, admit, cancel, HITL, enqueue jobów, hub Subjectów SSE (`LISTEN` ← PG NOTIFY), persistence + composition root; **bez** pump/execute runów i **bez** review sweep |
+| `apps/worker`              | Cienki host always-on: composition root + pg-boss `work` / abort; recovery, review sweep, drain/claim, execute lokalnie, `RunAbortRegistry`, lifecycle → hub NOTIFY-only; **bez** REST runów; **bez** importu TS z `apps/api` |
 | `apps/frontend`            | Cienki klient UI (dashboard, flow’y Social i Content, podgląd logów); bez reguł domenowych i bez dostępu do vendorów LLM  |
 | `apps/ai-provider-gateway` | Osobny deployable: routing / providery LLM; **zero** logiki Content Chain (Social, kontekst, auth produktu) |
 | `packages/shared`          | Lekkie, współdzielone typy publicznego kontraktu API (bez logiki biznesowej, **bez Zod**) |
+| `packages/runs-kernel`     | `@content-chain/runs-kernel` — współdzielony kernel lifecycle Runs (porty / recovery / sweep / abort / pump); bez HTTP / FE / Auth |
+| `packages/run-pipelines`   | `@content-chain/run-pipelines` — slice execute Social+Content + prompty/assets; wire `RUN_EXECUTOR` w workerze |
 
 ```mermaid
 flowchart LR
@@ -44,6 +48,8 @@ flowchart LR
     WK["apps/worker"]
     GW["apps/ai-provider-gateway"]
     SH["packages/shared"]
+    RK["packages/runs-kernel"]
+    RP["packages/run-pipelines"]
   end
 
   User["Admin / User"] --> FE
@@ -56,9 +62,13 @@ flowchart LR
   FE -.-> SH
   API -.-> SH
   WK -.-> SH
+  API -.-> RK
+  WK -.-> RK
+  WK -.-> RP
+  API -.-> RP
 ```
 
-**Zasada zależności:** `apps/frontend` → `apps/api` (HTTP/SSE). Execute i recovery: `apps/worker` → PG (SoT + pg-boss + NOTIFY) oraz → gateway (LLM). `apps/api` **nie** woła vendorów LLM bezpośrednio. Gateway nie zależy od domeny produktu. Pierwszy cut: worker może importować executor / lifecycle z drzewa api — extract do `packages/*` **nie** jest prereq dnia 1.
+**Zasada zależności:** `apps/frontend` → `apps/api` (HTTP/SSE). Execute i recovery: `apps/worker` → PG (SoT + pg-boss + NOTIFY) oraz → gateway (LLM). Oba hosty → `@content-chain/runs-kernel` (+ worker → `@content-chain/run-pipelines` na execute). **Zakaz** importów TS `apps/worker` ↔ `apps/api`. `apps/api` **nie** woła vendorów LLM bezpośrednio. Gateway nie zależy od domeny produktu. **Jawna zmiana** względem day-1: import workera z drzewa api — **unieważniony**.
 
 Content Chain jest też **realnym use-case’em** projektu `ai-provider-gateway` (instancja dostosowana w `apps/ai-provider-gateway`), a nie tylko izolowanym demo samego gateway’a.
 
@@ -212,8 +222,8 @@ Norma egzekwowalna: `spec/SPEC-PERSISTENCE.md`.
 
 | Decyzja         | Wybór                                           | Odrzucone / odłożone                           |
 | --------------- | ----------------------------------------------- | ---------------------------------------------- |
-| Forma systemu   | Modularny monolit, **4** app (`api` / `frontend` / `gateway` / `worker`) + shared | Mikroserwisy domenowe; worker per BC; in-process execute w api jako kanon po izolacji |
-| Execute / queue | `apps/worker` + pg-boss (wake) + SoT = `Run`    | pg-boss jako SoT statusu; BullMQ/Redis most SSE; spawn per run |
+| Forma systemu   | Modularny monolit, **4** app (`api` / `frontend` / `gateway` / `worker`) + shared + `runs-kernel` + `run-pipelines` | Mikroserwisy domenowe; worker per BC; in-process execute w api; worker jako drugi monolit HTTP/Auth |
+| Execute / queue | `apps/worker` + pg-boss (wake) + SoT = `Run`; execute lokalnie (model A) przez `run-pipelines` | pg-boss jako SoT statusu; BullMQ/Redis most SSE; spawn per run; execute przez HTTP/RPC do api (model B); day-1 import TS z `apps/api` |
 | Styl domeny     | Port/adapter + lekkie BC; nie pure tactical DDD | Full DDD / ES / CQRS                           |
 | LLM             | Tylko przez gateway w monorepo                  | Bezpośrednie SDK vendorów w `apps/api`         |
 | Pipeline        | Async run + LangGraph za fasadą                 | Synchroniczny request = cały LLM               |
@@ -221,8 +231,8 @@ Norma egzekwowalna: `spec/SPEC-PERSISTENCE.md`.
 | Logi produktowe | Kanonicznie w DB per `runId`                    | Tylko stdout / tylko pliki                     |
 | Auth            | JWT w `cc_access` + refresh w `cc_refresh` (oba httpOnly), 2 role | OAuth w MVP; Bearer / access w body jako model web |
 | DB              | Prisma + **SQLite w MVP**; **PostgreSQL od V1 — rozbudowa** (ops/skala) | Postgres w MVP; SQLite po wejściu w V1; Postgres jako warunek Content |
-| Layout monorepo | `apps/*` + `packages/shared` w rootcie          | Rootowy `src/apps/` (porzucone)                |
-| Shared          | `packages/shared` typy/enumy/brand (**bez Zod**) | Duplikacja DTO; Zod/runtime w shared; `'web'` w `SocialPlatform` |
+| Layout monorepo | `apps/*` + `packages/{shared,runs-kernel,run-pipelines}`; **zakaz** TS app↔app | Rootowy `src/apps/`; import TS `apps/worker` ↔ `apps/api` jako kanon |
+| Shared          | `packages/shared` typy/enumy/brand (**bez Zod**); kernel/execute poza shared | Duplikacja DTO; Zod/runtime w shared; Auth/HTTP w shared; `'web'` w `SocialPlatform` |
 | Feedback        | Osobny BC + tabela opinii; ocena/edycja na Run   | Feedback w LangGraph; panel admina w MVP       |
 | Zależności Nest BC | Social i Content → porty lifecycle Runs; composite `RUN_EXECUTOR` w kleju (`AppModule` / `registerAsync`) | `forwardRef` Runs ↔ graf; zlewanie `social/` z `runs/`; fat Social (strony w `social/`); self-register grafów w MVP; jeden executor Social jako jedyny model MVP |
 

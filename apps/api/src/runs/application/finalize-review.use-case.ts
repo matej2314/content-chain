@@ -3,7 +3,7 @@ import { DomainException } from '../../shared/exceptions/domain.exception';
 import { assertRunReviewable } from '../domain/assert-run-reviewable';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { ENV, type Env } from '../../shared/config/env';
-import { parseTtlMs } from '../../auth/application/auth.helpers';
+import { parseTtlMs } from '@content-chain/shared';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { RunId } from '@content-chain/shared';
 

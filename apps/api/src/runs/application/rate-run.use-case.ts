@@ -7,7 +7,7 @@ import { GUEST_QUOTA, type GuestQuotaPort } from '../domain/guest-quota.port';
 import { computeReviewExpiresAt } from '../domain/review-window';
 import { RUN_REPOSITORY, type RunRepository } from '../domain/run.port';
 import { ENV, type Env } from '../../shared/config/env';
-import { parseTtlMs } from '../../auth/application/auth.helpers';
+import { parseTtlMs } from '@content-chain/shared';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { RunId } from '@content-chain/shared';
 

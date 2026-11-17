@@ -1,16 +1,18 @@
 ---
-wersja: 13
+wersja: 14
 data_utworzenia: 2026-08-11
-data_modyfikacji: 2026-10-13
+data_modyfikacji: 2026-11-17
 ---
 
 # SPEC — Social
 
 ## Cel / zakres względem dokumentacji
 
-Norma bounded contextu **Social** w `apps/api`: pipeline post ideas / post content **oraz** reel ideas / reel script, weryfikacja spójności, refine, HITL vs full-auto.
+Norma bounded contextu **Social**: pipeline post ideas / post content **oraz** reel ideas / reel script, weryfikacja spójności, refine, HITL vs full-auto.
 
 Uszczegóławia wyjątek orchestracji z `docs/architektura.md`, przepływy z `docs/data_flow.md` oraz taski/platformy z `docs/dokumentacja_komunikacji.md`. Social jest **jednym bounded contextem** pipeline’u SM w monoliticie — nie uniwersalnym orkiestratorem firmowym i **nie** orkiestratorem cyklu życia runu (to Runs). Blog / page copy **nie** należą do tego SPEC (`SPEC-CONTENT.md`).
+
+Zmiana względem wersji 13 / lokalizacja execute: fasada / executor / graph / prompty używane przez worker = `@content-chain/run-pipelines` po extract; **zakaz** importu tych BC z `apps/api/src/...` w procesie workera (`SPEC-MONOREPO.md` M-10). HTTP Social (jeśli jest) zostaje w api albo bez regresji kontraktu. **Nie** osobny package `@content-chain/social` na ten cut.
 
 Zmiana względem wersji 5: **zakaz** „rolki w tym SPEC” unieważniony — rolki **są** w Social (MVP). YouTube i blog nadal nie w tym pliku.
 Zmiana względem wersji 12 / S-4 / LoadContext: fallback „brak `brief.audience` → pełny katalog `audience.profiles`”. Od tej wersji **effective** audience (scoped) przed LLM i verifierem — `docs/data_flow.md`.
@@ -48,7 +50,7 @@ S-1. Start / wznowienie pipeline’u wyłącznie przez **application service** (
 
 Zmiana względem wersji 4 / S-1: wcześniejsza norma zakładała cienki `social.controller.ts` bez nowych tras. W kodzie plik i `controllers[]` nie istnieją — HTTP zostaje w Runs.
 
-S-2. Graf i węzły żyją w `apps/api/src/social/infrastructure/graph/`. Szablony promptów w `.../infrastructure/prompts/` — **wymagane** jako pliki szablonów (nie stringi hardcoded w controllerze).
+S-2. Graf i węzły (slice execute) żyją w `@content-chain/run-pipelines` po extract (historycznie: `apps/api/src/social/infrastructure/graph/`). Szablony promptów = assets pakietu `run-pipelines` — **wymagane** jako pliki szablonów (nie stringi hardcoded w controllerze; SoT **nie** wyłącznie nest-cli api dla workera).
 
 S-3. Każdy węzeł LLM produkuje **structured output** walidowany schemą (Zod lub równoważny JSON Schema → parse) przed dalszym krokiem. Porażka parse = błąd kroku / refine / `failed` wg polityki — nie „cichy” tekst do UI. Dla verifiera domena `contextIssues` / `languageIssues` pozostaje **`string[]`**. Parser **może** spłaszczyć element `{ itemId | item, quote?, issue }` do jednego stringa; liczba, pusta `{}` i obiekt bez tych pól nadal są nieważne.
 
@@ -171,7 +173,7 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 - Logować w `run.log` rozróżnienie faila verifiera: kontekst vs język.
 - Importować kernel / token lifecycle Runs (jednokierunkowo) oraz eksportować `SocialRunExecutor` do kleju procesu.
 - Importować `SocialBrief` z `runs/domain`; po `isSocialTaskType` traktować run jako `SocialRunRecord` (narrowing). Domain / graf: `brief: SocialBrief` — **nie** płaski `RunBrief`, **nie** `ContentBrief`.
-- Implementować `RunExecutorPort` klasą w `social/application/` — bez rejestracji tokenu `RUN_EXECUTOR` **w** `RunsModule` przez import Social.
+- Implementować `RunExecutorPort` klasą w slice Social (`run-pipelines` / historycznie `social/application/`) — bez rejestracji tokenu `RUN_EXECUTOR` **w** `RunsModule` przez import Social; wire w composition root **workera**.
 
 ### Nie wolno
 
@@ -194,6 +196,7 @@ Application odpowiada za wybór fazy, złożenie inputu z DB i zakaz ponownego o
 - Importu `ContentBrief` / `ContentRunRecord` w węzłach grafu Social (wyjątek: test guarda executora na obcym `taskType` — fixture `makeContentRun`).
 - Pola `brief: RunBrief` (jeden kształt SM bez unii) w `social.types.ts` / `SocialGraphState`.
 - Eksportu `{ provide: RUN_EXECUTOR }` z Social **jako** powodu, by `RunsModule` robił `imports: [SocialModule]`.
+- Importu execute slice Social z `apps/api/src/...` w procesie `apps/worker` (obowiązuje `@content-chain/run-pipelines`).
 - Zależności węzłów / hopu / fasady od klasy `RunLifecycleService` zamiast portu (`SPEC-RUNY.md`).
 - Zlepiać wielu wybranych pomysłów w jeden `SocialContent` / `ReelScript` (jeden `body` / jeden skrypt na K id).
 - Fan-out HITL → N child runów (`post_content` / `reel_script`) — orkiestracja = pętla w **tym samym** runie.
@@ -209,7 +212,7 @@ Zmiana względem wersji 10 / „Nie wolno”: dopisano zakaz zlepiania K pomysł
 | Element | Status |
 |---------|--------|
 | **LangGraph.js** + **LangChain.js** | obowiązkowe (wersje major przy scaffoldzie; bez pinu w SPEC) |
-| Prompty jako pliki w `infrastructure/prompts/` | obowiązkowe |
+| Prompty jako pliki / assets w `run-pipelines` (SoT runtime) | obowiązkowe |
 | Structured output (Zod) na wyjściach LLM | obowiązkowe |
 | HITL model **B** (stan w Run/DB, bez checkpoinetera) | obowiązkowe |
 | ConsistencyVerifier (1 węzeł, 2 obszary) | obowiązkowe |

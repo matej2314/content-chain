@@ -13,11 +13,11 @@ import {
   type RefreshSessionRepository,
 } from '../domain/refresh-session.repository.port';
 import { validatePasswordPolicy } from '../domain/password.policy';
+import { parseTtlMs } from '@content-chain/shared';
 import {
   comparePassword,
   generateRefreshToken,
   hashPassword,
-  parseTtlMs,
 } from './auth.helpers';
 import { changeMePasswordSchema } from './auth.schemas';
 import type { AuthTokenResult } from './bootstrap-admin.use-case';

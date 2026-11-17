@@ -5,7 +5,7 @@ import {
   CONTENT_RESULT_STORE,
   type ContentResultStore,
 } from '../../content/domain/content-result.port';
-import { parseTtlMs } from '../../auth/application/auth.helpers';
+import { parseTtlMs } from '@content-chain/shared';
 import { assertRunReviewable } from '../domain/assert-run-reviewable';
 import { computeReviewExpiresAt } from '../domain/review-window';
 import {

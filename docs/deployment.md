@@ -1,7 +1,7 @@
 ---
-wersja: 20
+wersja: 21
 data_utworzenia: 2026-09-30
-data_modyfikacji: 2026-11-16
+data_modyfikacji: 2026-11-17
 ---
 
 # Deployment — Content Chain
@@ -9,6 +9,8 @@ data_modyfikacji: 2026-11-16
 Self-host MVP: jak uruchamiać, konfigurować i utrzymywać jedną instalację (jedna firma = jedna instancja).
 
 Powiązane: `architektura.md`, `architektura_katalogi_pliki.md`, `dokumentacja_komunikacji.md`, `testy.md`, `security.md`, `observability.md`.
+
+Zmiana względem wersji 20 / day-1 import z api: obraz i proces **worker** opierają się o packages (`runs-kernel`, `run-pipelines`) + własne deps hosta — **nie** o skopiowane drzewo źródeł api; assets promptów z pakietu pipelines.
 
 Zmiana względem wersji 19 / „wyłącznie trzy usługi aplikacyjne”: Compose-first V1 po izolacji = **cztery** usługi (`ai-provider-gateway` + `api` + `frontend` + **`worker`**); wspólna sieć i ten sam PG; env workera: DB, gateway, `MAX_CONCURRENT_RUNS`, `REVIEW_TTL` / `REVIEW_SWEEP_INTERVAL`. Review sweep i execute = worker. Dual-deploy AWS poza. Zmiana względem: trzy-only + sweep wyłącznie w api.
 
@@ -94,7 +96,9 @@ Skrypty dokładne (`pnpm dev` / `pnpm --filter …`) doprecyzuje root `package.j
 
 **Publish:** FE, api i gateway → wyłącznie **`127.0.0.1:<port>:<port>`** (nie `0.0.0.0`). Dostęp z internetu tylko przez edge na hoście / `main_network` (reverse proxy poza tym dokumentem jako pełny guide). Gateway **nie** jest publicznym originem.
 
-**Build obrazów:** kontekst **root** monorepo + **pnpm** (workspace / `packages/shared`). Zakaz zakładania samodzielnego `npm ci` w `apps/<svc>` bez shared.
+**Build obrazów:** kontekst **root** monorepo + **pnpm** (workspace / `packages/{shared,runs-kernel,run-pipelines}`). Zakaz zakładania samodzielnego `npm ci` w `apps/<svc>` bez packages.
+
+**Obraz / proces worker:** opiera się o `apps/worker` jako cienki host + zależności `workspace:*` na `@content-chain/runs-kernel` i `@content-chain/run-pipelines` oraz własne deps hosta — **nie** o skopiowane drzewo źródeł `apps/api`. Assets promptów idą z pakietu `run-pipelines`, nie z nest-cli api.
 
 **`gateway.config.yaml`:** w remote repo; **COPY do obrazu** oraz **volume mount** z hosta (`./apps/ai-provider-gateway/gateway.config.yaml` → kontener, typowo `:ro`). Host nadpisuje runtime; **bez sekretów w YAML**.
 

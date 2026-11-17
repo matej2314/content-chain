@@ -9,7 +9,8 @@ import {
   TRANSACTIONAL_MAILER,
   type TransactionalMailer,
 } from '../domain/transactional-mailer.port';
-import { generateRefreshToken, parseTtlMs } from './auth.helpers';
+import { parseTtlMs } from '@content-chain/shared';
+import { generateRefreshToken } from './auth.helpers';
 import { formatMailValidityLabel } from './format-mail-validity-label';
 import type { AuthUserContext } from '../domain/auth-user.types';
 import type { MeResult } from './me.use-case';
