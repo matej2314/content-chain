@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainException, RUN_JOB_ENQUEUE, RUN_REPOSITORY, parseWithZod, type RunJobEnqueuePort, type RunRepository, RunLifecycleService } from '@content-chain/runs-kernel';
+import { DomainException, parseWithZod } from '@content-chain/domain-kit';
+import { RUN_JOB_ENQUEUE, RUN_REPOSITORY, type RunJobEnqueuePort, type RunRepository, RunLifecycleService } from '@content-chain/runs-kernel';
 
 import {
   RUN_RESULT_READER,

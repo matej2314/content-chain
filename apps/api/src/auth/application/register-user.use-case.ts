@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { DomainException, parseWithZod } from '@content-chain/runs-kernel';
+import { DomainException, parseWithZod } from '@content-chain/domain-kit';
 
 import { newAccountActivationId, newUserId } from '../../shared/http/new-ids';
 import { validatePasswordPolicy } from '../domain/password.policy';

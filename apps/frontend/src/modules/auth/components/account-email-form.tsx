@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -49,18 +49,6 @@ export function AccountEmailForm({
     emailError: null,
     passwordError: null,
   });
-
-  useEffect(() => {
-    if (!open) return;
-    setForm({
-      modalEmail: current,
-      modalPassword: '',
-      emailLocked: false,
-      pending: false,
-      emailError: null,
-      passwordError: null,
-    });
-  }, [open, current]);
 
   if (state.status !== 'authenticated') return null;
 

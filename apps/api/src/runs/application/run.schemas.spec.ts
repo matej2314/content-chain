@@ -1,4 +1,4 @@
-import { parseWithZod } from '@content-chain/runs-kernel';
+import { parseWithZod } from '@content-chain/domain-kit';
 import { startRunCommandSchema } from './run.schemas';
 
 const pageCommand = {

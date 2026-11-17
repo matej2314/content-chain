@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { CompanyContextModule } from '../company-context/company-context.module';
 import { EnvModule } from '../shared/config/env.module';
 import { validateEnv } from '../shared/config/env.schema';
-import { PrismaModule } from '@content-chain/runs-kernel';
+import { PrismaModule } from '@content-chain/persistence';
 import { SeedModule } from './seed.module';
 
 @Module({

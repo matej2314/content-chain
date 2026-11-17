@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createUserId, isUserRole, type UserId } from '@content-chain/shared';
-import { DomainException, PrismaService } from '@content-chain/runs-kernel';
 import {
+  DomainException,
   paginationMeta,
   prismaPageArgs,
   type PaginationMode,
-} from '../../../shared/http/pagination';
+} from '@content-chain/domain-kit';
+import { PrismaService } from '@content-chain/persistence';
 
 import type { AuthUser } from '../../domain/auth-user.types';
 import type {

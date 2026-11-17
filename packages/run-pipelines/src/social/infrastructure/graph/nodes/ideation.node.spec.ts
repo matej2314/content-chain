@@ -1,6 +1,6 @@
 import { createRequestId } from '@content-chain/shared';
 import { emptyCompanyContext } from '../../../../company-context/domain/company-context.types';
-import { DomainException } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
 import { newConversationId, newRunId } from '../../../../testing/new-ids';
 import { ideasOutputSchema, reelIdeasOutputSchema } from '../../../application/social.schemas';
 import type { LlmHopService } from '../../../../llm/llm-hop';

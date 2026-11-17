@@ -1,4 +1,4 @@
-import { parseWithZod } from '@content-chain/runs-kernel';
+import { parseWithZod } from '@content-chain/domain-kit';
 import { companyContextExtrasInputSchema } from './company-context.schemas';
 import type {
   Completeness,

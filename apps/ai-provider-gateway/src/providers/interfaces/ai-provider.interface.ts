@@ -109,14 +109,7 @@ export interface ProviderCallOptions {
   };
   thinkingEnabled?: boolean;
   thinkingBudget?:
-    | 'none'
-    | 'minimal'
-    | 'low'
-    | 'medium'
-    | 'high'
-    | 'xhigh'
-    | 'max'
-    | number;
+    'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | number;
   parallelToolCalls?: boolean;
   signal?: AbortSignal;
 }

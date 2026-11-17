@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService, toInputJson } from '@content-chain/runs-kernel';
+import { PrismaService, toInputJson } from '@content-chain/persistence';
 import { COMPANY_CONTEXT_SINGLETON_ID } from '../domain/company-context.constants';
 
 import type {

@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainException, RUN_REPOSITORY, assertRunReviewable, type RunRepository } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
+import { RUN_REPOSITORY, assertRunReviewable, type RunRepository } from '@content-chain/runs-kernel';
 
 
 import { ENV, type Env } from '../../shared/config/env';

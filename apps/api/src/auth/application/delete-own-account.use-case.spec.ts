@@ -1,13 +1,16 @@
 import { hash as bcryptHash } from 'bcrypt';
 import { createUserId } from '@content-chain/shared';
-import { DomainException } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
 import type { AuthUserContext } from '../domain/auth-user.types';
 import type {
   UserForAuth,
   UserRepository,
 } from '../domain/user-repository.port';
 import { DeleteOwnAccountUseCase } from './delete-own-account.use-case';
-import type { DeleteUserUseCase } from './delete-user.use-case';
+import type {
+  DeleteUserResult,
+  DeleteUserUseCase,
+} from './delete-user.use-case';
 
 const ID = createUserId('usr_11111111-1111-4111-8111-111111111111');
 const ADMIN_ID = createUserId('usr_22222222-2222-4222-8222-222222222222');
@@ -69,8 +72,18 @@ function unusedUsers(overrides: Partial<UserRepository> = {}): UserRepository {
   };
 }
 
+function okDeleteResult(): Promise<DeleteUserResult> {
+  return Promise.resolve({ ok: true });
+}
+
 function mockDeleteUser(
-  execute: DeleteUserUseCase['execute'] = jest.fn(async () => ({ ok: true })),
+  execute: DeleteUserUseCase['execute'] = jest.fn(
+    (
+      _idParam: string,
+      _actor: AuthUserContext,
+      _options: { purge: boolean },
+    ) => okDeleteResult(),
+  ),
 ): DeleteUserUseCase {
   return { execute } as unknown as DeleteUserUseCase;
 }
@@ -78,7 +91,13 @@ function mockDeleteUser(
 describe('DeleteOwnAccountUseCase', () => {
   it('D-93: user soft → calls deleteUser with self id and options', async () => {
     const current = await userForAuth();
-    const execute = jest.fn(async () => ({ ok: true }));
+    const execute = jest.fn(
+      (
+        _idParam: string,
+        _actor: AuthUserContext,
+        _options: { purge: boolean },
+      ) => okDeleteResult(),
+    );
     const uc = new DeleteOwnAccountUseCase(
       unusedUsers({
         findForAuth: async (email) =>
@@ -129,7 +148,13 @@ describe('DeleteOwnAccountUseCase', () => {
 
   it('D-93: wrong password → INVALID_PASSWORD without deleteUser', async () => {
     const current = await userForAuth();
-    const execute = jest.fn(async () => ({ ok: true }));
+    const execute = jest.fn(
+      (
+        _idParam: string,
+        _actor: AuthUserContext,
+        _options: { purge: boolean },
+      ) => okDeleteResult(),
+    );
     const uc = new DeleteOwnAccountUseCase(
       unusedUsers({
         findForAuth: async (email) =>

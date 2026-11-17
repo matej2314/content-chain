@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { parseTtlMs } from '@content-chain/shared';
-import { DomainException, RUN_REPOSITORY, RunStartedBy, computeReviewExpiresAt, parseWithZod, type RunRepository } from '@content-chain/runs-kernel';
+import { DomainException, parseWithZod } from '@content-chain/domain-kit';
+import { RUN_REPOSITORY, RunStartedBy, computeReviewExpiresAt, type RunRepository } from '@content-chain/runs-kernel';
 import type { ContentBrief, SocialBrief } from '@content-chain/runs-kernel';
 import { ENV, type Env } from '../../shared/config/env';
 

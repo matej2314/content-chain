@@ -6,9 +6,9 @@ import { AppModule } from '../src/app.module';
 import {
   COMPANY_CONTEXT_SINGLETON_ID,
   GATE_SECTIONS,
-} from '../src/company-context/domain/company-context.constants';
+} from '@content-chain/run-pipelines';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
-import { PrismaService } from '@content-chain/runs-kernel';
+import { PrismaService } from '@content-chain/persistence';
 import {
   createAuthenticatedAgent,
   type E2eAgent,

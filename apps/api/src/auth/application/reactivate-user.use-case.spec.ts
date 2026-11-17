@@ -1,5 +1,5 @@
 import { createUserId, type UserId } from '@content-chain/shared';
-import { DomainException } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
 import type { AuthUser } from '../domain/auth-user.types';
 import type { UserRepository } from '../domain/user-repository.port';
 import { ReactivateUserUseCase } from './reactivate-user.use-case';

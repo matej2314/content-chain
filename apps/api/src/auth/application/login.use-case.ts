@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { v4 as uuidv4 } from 'uuid';
-import { DomainException, parseWithZod } from '@content-chain/runs-kernel';
+import { DomainException, parseWithZod } from '@content-chain/domain-kit';
 
 import {
   USER_REPOSITORY,

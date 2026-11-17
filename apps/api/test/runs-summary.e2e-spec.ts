@@ -8,8 +8,9 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { GatewayLivenessProbe } from '../src/health/gateway-liveness.probe';
-import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
-import { PrismaService, RUN_EXECUTOR, StubRunExecutor } from '@content-chain/runs-kernel';
+import { PrismaService } from '@content-chain/persistence';
+import { LLM_GATEWAY_PORT } from '@content-chain/run-pipelines';
+import { RUN_EXECUTOR, StubRunExecutor } from '@content-chain/runs-kernel';
 import {
   GUEST_QUOTA,
   type GuestQuotaPort,
@@ -19,7 +20,6 @@ import { configureHttpApp } from '../src/shared/http/configure-http-app';
 
 import {
   createAuthenticatedAgent,
-  E2E_ADMIN_CREDENTIALS,
   type E2eAgent,
 } from './authenticated-agent';
 import { FakeLlmGateway } from './fake-llm-gateway';

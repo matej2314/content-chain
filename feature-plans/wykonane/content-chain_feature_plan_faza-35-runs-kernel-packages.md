@@ -1063,7 +1063,7 @@ Worker image and package.json no longer treat apps/api source as the execute SoT
 
 ### KROK 1 — Szkielet `packages/domain-kit` + `packages/persistence`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Puste (export-only) pakiety workspace; root `tsconfig` `references`; forma jak `shared` (M-1 / M-6).
 
@@ -1147,7 +1147,7 @@ Worker image and package.json no longer treat apps/api source as the execute SoT
 
 ### KROK 2 — Move + rewire; hard cut platformy z `runs-kernel` i api `shared`
 
-**Status:** `NIE_ROZPOCZĘTY`
+**Status:** `WYKONANY`
 
 **Cel:** Jedno SoT platformy; Auth/metrics → `domain-kit` / `persistence`; `runs-kernel` = lifecycle Runs.
 

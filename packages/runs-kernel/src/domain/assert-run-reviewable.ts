@@ -1,4 +1,4 @@
-import { DomainException } from '../shared/domain.exception';
+import { DomainException } from '@content-chain/domain-kit';
 import { isReviewWindowOpen } from './review-window';
 import type { UserId } from '@content-chain/shared';
 import type { RunSnapshot } from './run.port';

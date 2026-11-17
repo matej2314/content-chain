@@ -11,10 +11,11 @@ import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { ENV, type Env } from '../src/shared/config/env';
 import { validateEnv } from '../src/shared/config/env.schema';
-import { PG_BOSS, PrismaService, RecoverInterruptedRunsUseCase, validateWorkerEnv, type RunExecuteOptions, type RunExecutorPort } from '@content-chain/runs-kernel';
+import { PrismaService } from '@content-chain/persistence';
+import { LLM_GATEWAY_PORT } from '@content-chain/run-pipelines';
+import { PG_BOSS, RecoverInterruptedRunsUseCase, validateWorkerEnv, type RunExecuteOptions, type RunExecutorPort } from '@content-chain/runs-kernel';
 import type { RunRecord } from '@content-chain/runs-kernel';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 

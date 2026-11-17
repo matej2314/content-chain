@@ -11,6 +11,8 @@ RUN apk add --no-cache libc6-compat openssl python3 make g++
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.json .npmrc ./
 COPY packages/shared ./packages/shared
+COPY packages/domain-kit ./packages/domain-kit
+COPY packages/persistence ./packages/persistence
 COPY packages/runs-kernel ./packages/runs-kernel
 COPY packages/run-pipelines ./packages/run-pipelines
 COPY apps/worker ./apps/worker
@@ -20,6 +22,8 @@ COPY apps/api/package.json ./apps/api/package.json
 
 RUN pnpm install --frozen-lockfile --filter worker...
 RUN pnpm --filter @content-chain/shared build \
+ && pnpm --filter @content-chain/domain-kit build \
+ && pnpm --filter @content-chain/persistence build \
  && pnpm --filter @content-chain/runs-kernel build \
  && pnpm --filter @content-chain/run-pipelines build
 # prisma CLI z deps workera; cwd filtra = apps/worker → schema względnie ../api/prisma

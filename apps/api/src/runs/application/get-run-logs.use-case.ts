@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainException, RUN_REPOSITORY, parseWithZod, type RunRepository } from '@content-chain/runs-kernel';
+import { DomainException, parseWithZod } from '@content-chain/domain-kit';
+import { RUN_REPOSITORY, type RunRepository } from '@content-chain/runs-kernel';
 import type { RunLogLevel } from '@content-chain/runs-kernel';
 
 import type { AuthUserContext } from '../../shared/types/auth-user-context';

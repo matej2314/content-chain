@@ -7,8 +7,8 @@ import {
 } from '@content-chain/shared';
 import { LLM_GATEWAY_PORT } from '../llm-gateway/llm.tokens';
 import { LlmGatewayError } from '../llm-gateway/llm-gateway.errors';
+import { DomainException } from '@content-chain/domain-kit';
 import {
-  DomainException,
   ENV,
   RUN_LIFECYCLE,
   isRetryable,

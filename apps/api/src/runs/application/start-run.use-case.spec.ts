@@ -1,8 +1,8 @@
 import { createUserId } from '@content-chain/shared';
 import type { GetCompletenessUseCase } from '../../company-context/application/get-completeness.use-case';
-import type { Completeness } from '../../company-context/domain/company-context.types';
+import type { Completeness } from '@content-chain/run-pipelines';
 import type { Env } from '../../shared/config/env';
-import { DomainException } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
 import type { RunJobEnqueuePort, RunRecord, RunRepository, RunSnapshot } from '@content-chain/runs-kernel';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 

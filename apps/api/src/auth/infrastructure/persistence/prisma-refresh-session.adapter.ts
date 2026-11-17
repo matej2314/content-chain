@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@content-chain/runs-kernel';
+import { PrismaService } from '@content-chain/persistence';
 import { createUserId, type UserId } from '@content-chain/shared';
 import type {
   RefreshSessionRecord,

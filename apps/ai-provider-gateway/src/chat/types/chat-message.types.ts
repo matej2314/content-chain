@@ -19,9 +19,7 @@ export type ChatToolMessage = {
 };
 
 export type ChatMessage =
-  | ChatUserMessage
-  | ChatAssistantMessage
-  | ChatToolMessage;
+  ChatUserMessage | ChatAssistantMessage | ChatToolMessage;
 
 export function isChatUserMessage(m: ChatMessageDto): m is ChatUserMessage {
   return m.role === 'user';

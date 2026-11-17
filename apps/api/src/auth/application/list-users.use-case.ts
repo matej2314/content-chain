@@ -4,7 +4,7 @@ import {
   type UserRepository,
 } from '../domain/user-repository.port';
 import type { UserListItem } from '../domain/auth-user.types';
-import type { PaginationMode } from '../../shared/http/pagination';
+import type { PaginationMode } from '@content-chain/domain-kit';
 
 @Injectable()
 export class ListUsersUseCase {

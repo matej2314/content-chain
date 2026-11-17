@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -49,11 +49,6 @@ export function AccountDeleteForm({ open, onOpenChange }: AccountDeleteFormProps
   const router = useRouter();
   const { state, clear } = useSession();
   const [phase, setPhase] = useState<DeletePhase>({ kind: 'confirm' });
-
-  useEffect(() => {
-    if (!open) return;
-    setPhase({ kind: 'confirm' });
-  }, [open]);
 
   if (state.status !== 'authenticated') return null;
   if (state.user.role === 'admin') return null;

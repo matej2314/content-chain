@@ -1,5 +1,5 @@
 import { createUserId } from '@content-chain/shared';
-import { DomainException } from '../shared/domain.exception';
+import { DomainException } from '@content-chain/domain-kit';
 import {
   makeSocialSnapshot,
   type SocialRunSnapshot,

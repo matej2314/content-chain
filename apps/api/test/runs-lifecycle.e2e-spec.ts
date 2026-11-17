@@ -8,11 +8,11 @@ import {
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import { AppModule } from '../src/app.module';
-import { GATE_SECTIONS } from '../src/company-context/domain/company-context.constants';
-import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { ENV, type Env } from '../src/shared/config/env';
 import { validateEnv } from '../src/shared/config/env.schema';
-import { PG_BOSS, PrismaService, validateWorkerEnv } from '@content-chain/runs-kernel';
+import { PrismaService } from '@content-chain/persistence';
+import { PG_BOSS, validateWorkerEnv } from '@content-chain/runs-kernel';
+import { GATE_SECTIONS, LLM_GATEWAY_PORT } from '@content-chain/run-pipelines';
 import type { RunExecutorPort, RunRecord } from '@content-chain/runs-kernel';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 

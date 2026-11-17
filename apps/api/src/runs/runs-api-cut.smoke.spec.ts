@@ -9,7 +9,7 @@ import { RunsModule } from './runs.module';
 function providerToken(provider: unknown): unknown {
   if (typeof provider === 'function') return provider;
   if (typeof provider === 'object' && provider !== null && 'provide' in provider) {
-    return (provider as { provide: unknown }).provide;
+    return (provider).provide;
   }
   return provider;
 }

@@ -8,8 +8,9 @@ import {
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import { AppModule } from '../src/app.module';
-import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
-import { AutoFinalizeExpiredReviewsUseCase, PG_BOSS, PrismaService, validateWorkerEnv } from '@content-chain/runs-kernel';
+import { PrismaService } from '@content-chain/persistence';
+import { LLM_GATEWAY_PORT } from '@content-chain/run-pipelines';
+import { AutoFinalizeExpiredReviewsUseCase, PG_BOSS, validateWorkerEnv } from '@content-chain/runs-kernel';
 import { ENV, type Env } from '../src/shared/config/env';
 import { validateEnv } from '../src/shared/config/env.schema';
 

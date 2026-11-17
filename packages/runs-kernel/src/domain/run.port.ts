@@ -5,7 +5,7 @@ import type {
 } from '@content-chain/shared';
 import type { RunId, RunStatus, UserId, UserRole } from '@content-chain/shared';
 import type { RunLogEntry, RunRecord } from './run.types';
-import type { PaginationMode } from '../shared/pagination';
+import type { PaginationMode } from '@content-chain/domain-kit';
 
 export const RUN_REPOSITORY = Symbol('RUN_REPOSITORY');
 

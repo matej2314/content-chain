@@ -21,10 +21,8 @@ import {
   type SocialResultStore,
 } from '@content-chain/run-pipelines';
 import { RunsModule } from './runs/runs.module';
-import {
-  PrismaModule,
-  UnsupportedRunExecutor,
-} from '@content-chain/runs-kernel';
+import { PrismaModule } from '@content-chain/persistence';
+import { UnsupportedRunExecutor } from '@content-chain/runs-kernel';
 import type { RunExecutorPort } from '@content-chain/runs-kernel';
 import type { RunResultReader } from './runs/domain/run-result-reader.port';
 import { EnvModule } from './shared/config/env.module';

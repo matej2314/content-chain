@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import type { Prisma } from '@prisma/client';
 import type { RunId } from '@content-chain/shared';
-import { PrismaService, toInputJson } from '@content-chain/runs-kernel';
+import { PrismaService, toInputJson } from '@content-chain/persistence';
 
 import type {
   OutputEditedWrite,

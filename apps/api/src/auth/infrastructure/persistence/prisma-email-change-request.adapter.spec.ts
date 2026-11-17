@@ -4,7 +4,7 @@ import {
   createUserId,
 } from '@content-chain/shared';
 import { PrismaEmailChangeRequestAdapter } from './prisma-email-change-request.adapter';
-import type { PrismaService } from '@content-chain/runs-kernel';
+import type { PrismaService } from '@content-chain/persistence';
 import type { UpsertEmailChangeRequestInput } from '../../domain/email-change-request.repository.port';
 
 const USER_ID = createUserId('usr_11111111-1111-4111-8111-111111111111');
@@ -54,9 +54,14 @@ function row(
   };
 }
 
+/** Interactive-tx shape only — Prisma `$transaction` is overloaded (batch | callback). */
+type InteractiveTransaction = (
+  fn: (client: Prisma.TransactionClient) => Promise<unknown>,
+) => Promise<unknown>;
+
 function mockPrisma(opts: {
   emailChangeRequest?: Partial<EmailChangeRequestMock>;
-  $transaction?: PrismaService['$transaction'];
+  $transaction?: InteractiveTransaction;
 }): PrismaService {
   return {
     emailChangeRequest: {

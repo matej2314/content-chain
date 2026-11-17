@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import type { RunId } from '@content-chain/shared';
-import { PrismaService, toInputJson } from '@content-chain/runs-kernel';
+import { PrismaService, toInputJson } from '@content-chain/persistence';
 
 import type { ContentResultStore } from '../../domain/content-result.port';
 import type {

@@ -1,7 +1,9 @@
 import type { INestApplicationContext, Type } from '@nestjs/common';
 import { Test, type TestingModuleBuilder } from '@nestjs/testing';
-import type { LlmGatewayPort } from '../src/llm/llm-gateway.port';
-import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
+import {
+  LLM_GATEWAY_PORT,
+  type LlmGatewayPort,
+} from '@content-chain/run-pipelines';
 import {
   ENV,
   PG_BOSS,
@@ -38,7 +40,7 @@ export async function bootWorkerE2e(
   options: BootWorkerE2eOptions = {},
 ): Promise<INestApplicationContext> {
   const env =
-    options.env ?? validateWorkerEnv(process.env as Record<string, unknown>);
+    options.env ?? validateWorkerEnv(process.env);
   const pgBoss = options.pgBoss ?? createInProcessPgBoss();
 
   let builder: TestingModuleBuilder = Test.createTestingModule({

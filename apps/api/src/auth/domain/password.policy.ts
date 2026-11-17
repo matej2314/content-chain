@@ -1,4 +1,4 @@
-import { DomainException } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
 
 const MIN_LENGTH = 12;
 const MAX_BYTES = 72;

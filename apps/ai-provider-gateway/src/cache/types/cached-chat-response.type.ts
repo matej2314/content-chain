@@ -9,10 +9,7 @@ import type {
 } from '../../common/types/branded.types';
 
 export type CachedFinishReason =
-  | 'stop'
-  | 'tool_calls'
-  | 'length'
-  | 'content_filter';
+  'stop' | 'tool_calls' | 'length' | 'content_filter';
 
 export type CachedChatWarning = {
   code: string;

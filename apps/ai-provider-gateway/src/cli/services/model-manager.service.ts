@@ -40,11 +40,7 @@ import type {
 } from '../types/cli-apply.types';
 
 type ModelEditField =
-  | 'modelId'
-  | 'providerInstance'
-  | 'fallback'
-  | 'streaming'
-  | 'policy';
+  'modelId' | 'providerInstance' | 'fallback' | 'streaming' | 'policy';
 
 export function defaultModelPolicy(
   modelId?: string,

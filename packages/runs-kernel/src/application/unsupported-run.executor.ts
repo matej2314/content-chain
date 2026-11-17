@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DomainException } from '../shared/domain.exception';
+import { DomainException } from '@content-chain/domain-kit';
 import type { RunExecutorPort } from '../domain/run-executor.port';
 import type { RunRecord } from '../domain/run.types';
 

@@ -1,6 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { PrismaService } from '@content-chain/runs-kernel';
+import { PrismaService } from '@content-chain/persistence';
 
 /** Cookie-jar agent - SPEC-TESTY T-3 (cc_access / cc_refresh, bez Bearer). */
 export type E2eAgent = ReturnType<typeof request.agent>;

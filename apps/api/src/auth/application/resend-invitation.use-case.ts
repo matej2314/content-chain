@@ -4,7 +4,7 @@ import {
   isInvitationId,
   parseTtlMs,
 } from '@content-chain/shared';
-import { DomainException } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
 import { ENV, type Env } from '../../shared/config/env';
 import {
   INVITATION_REPOSITORY,

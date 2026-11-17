@@ -25,6 +25,8 @@
     "seed:company-context": "node ./scripts/seed-company-context.mjs"
   },
   "dependencies": {
+    "@content-chain/domain-kit": "workspace:*",
+    "@content-chain/persistence": "workspace:*",
     "@content-chain/run-pipelines": "workspace:*",
     "@content-chain/runs-kernel": "workspace:*",
     "@content-chain/shared": "workspace:*",
@@ -99,6 +101,10 @@
       "/node_modules/(?!.*(?:uuid|@langchain|langsmith|langgraph)/)"
     ],
     "moduleNameMapper": {
+      "^@content-chain/domain-kit$": "<rootDir>/../../../packages/domain-kit/src/index.ts",
+      "^@content-chain/domain-kit/(.*)$": "<rootDir>/../../../packages/domain-kit/src/$1",
+      "^@content-chain/persistence$": "<rootDir>/../../../packages/persistence/src/index.ts",
+      "^@content-chain/persistence/(.*)$": "<rootDir>/../../../packages/persistence/src/$1",
       "^@content-chain/run-pipelines$": "<rootDir>/../../../packages/run-pipelines/src/index.ts",
       "^@content-chain/run-pipelines/(.*)$": "<rootDir>/../../../packages/run-pipelines/src/$1",
       "^@content-chain/runs-kernel$": "<rootDir>/../../../packages/runs-kernel/src/index.ts",

@@ -3,9 +3,9 @@ import {
   createRunId,
   createUserId,
   type RunId,
-  type UserId,
 } from '@content-chain/shared';
-import type { PrismaService, RunAbortSignalPort } from '@content-chain/runs-kernel';
+import type { PrismaService } from '@content-chain/persistence';
+import type { RunAbortSignalPort } from '@content-chain/runs-kernel';
 import type { FeedbackPurgePort } from '../../feedback/domain/feedback-purge.port';
 import type { GuestPurgePort } from '../../runs/domain/guest-purge.port';
 import type { GuestQuotaPort } from '../../runs/domain/guest-quota.port';

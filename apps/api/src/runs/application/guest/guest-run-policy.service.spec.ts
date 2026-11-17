@@ -5,7 +5,7 @@ import {
 } from '@content-chain/shared';
 import { validateEnv } from '../../../shared/config/env.schema';
 import type { Env } from '../../../shared/config/env';
-import { DomainException } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
 import type { RunRepository } from '@content-chain/runs-kernel';
 import type { AuthUserContext } from '../../../shared/types/auth-user-context';
 import type {

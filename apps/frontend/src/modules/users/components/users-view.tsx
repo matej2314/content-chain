@@ -116,8 +116,23 @@ function UsersAdminView() {
   }, []);
 
   useEffect(() => {
-    void loadInvites();
-  }, [loadInvites]);
+    let cancelled = false;
+    async function loadInvitesOnMount(): Promise<void> {
+      try {
+        const nextInvites = await fetchInvitations();
+        if (cancelled) return;
+        setLists((prev) => ({ ...prev, invites: nextInvites, loadError: null }));
+      } catch (reason: unknown) {
+        if (cancelled) return;
+        const nextError = reason instanceof ApiError ? reason.envelope : FALLBACK;
+        setLists((prev) => ({ ...prev, loadError: nextError }));
+      }
+    }
+    void loadInvitesOnMount();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

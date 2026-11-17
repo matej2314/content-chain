@@ -9,7 +9,8 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { isUserRole, type UserRole } from '@content-chain/shared';
 import { AppModule } from '../src/app.module';
-import { PG_BOSS, PrismaService, StubRunExecutor } from '@content-chain/runs-kernel';
+import { PrismaService } from '@content-chain/persistence';
+import { PG_BOSS, StubRunExecutor } from '@content-chain/runs-kernel';
 
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 

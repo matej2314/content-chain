@@ -8,20 +8,6 @@ export {
 } from './config/worker-env.schema';
 export { WorkerEnvModule } from './config/worker-env.module';
 
-export { DomainException } from './shared/domain.exception';
-export { parseWithZod } from './shared/parse-with-zod';
-export {
-  resolvePaginationMode,
-  paginationMeta,
-  prismaPageArgs,
-  type PaginationMode,
-  type PaginationQueryFields,
-} from './shared/pagination';
-
-export { PrismaService } from './persistence/prisma.service';
-export { PrismaModule } from './persistence/prisma.module';
-export { toInputJson } from './persistence/to-input-json';
-
 export {
   RUN_EXECUTOR,
   type RunExecutorPort,

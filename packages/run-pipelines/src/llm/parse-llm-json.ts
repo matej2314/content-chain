@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { DomainException } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
 
 export function extractJsonText(raw: string): string {
   const trimmed = raw.trim();

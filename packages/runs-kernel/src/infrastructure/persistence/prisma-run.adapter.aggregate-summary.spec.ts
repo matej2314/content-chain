@@ -1,4 +1,4 @@
-import type { PrismaService } from '../../persistence/prisma.service';
+import type { PrismaService } from '@content-chain/persistence';
 import { PrismaRunAdapter } from './prisma-run.adapter';
 
 describe('PrismaRunAdapter.aggregateSummary', () => {

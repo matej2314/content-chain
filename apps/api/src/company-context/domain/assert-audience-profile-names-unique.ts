@@ -1,4 +1,4 @@
-import { DomainException } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
 import { normalizeAudienceName } from '@content-chain/run-pipelines';
 import type { CompanyContext } from '@content-chain/run-pipelines';
 

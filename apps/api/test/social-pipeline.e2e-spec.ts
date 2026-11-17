@@ -7,9 +7,10 @@ import {
 import { Test } from '@nestjs/testing';
 import type { Response } from 'supertest';
 import { AppModule } from '../src/app.module';
-import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
-import { PG_BOSS, PrismaService } from '@content-chain/runs-kernel';
+import { PrismaService } from '@content-chain/persistence';
+import { LLM_GATEWAY_PORT } from '@content-chain/run-pipelines';
+import { PG_BOSS } from '@content-chain/runs-kernel';
 import {
   createAuthenticatedAgent,
   type E2eAgent,

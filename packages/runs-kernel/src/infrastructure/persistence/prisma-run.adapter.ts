@@ -13,9 +13,8 @@ import {
   type RunId,
   type RunStatus,
 } from '@content-chain/shared';
-import { PrismaService } from '../../persistence/prisma.service';
+import { PrismaService, toInputJson } from '@content-chain/persistence';
 import { assertTransition } from '../../domain/status-transitions';
-import { toInputJson } from '../../persistence/to-input-json';
 import {
   type ListRunsQuery,
   type ListRunsResult,
@@ -50,7 +49,7 @@ import {
   PaginationMode,
   paginationMeta,
   prismaPageArgs,
-} from '../../shared/pagination';
+} from '@content-chain/domain-kit';
 
 @Injectable()
 export class PrismaRunAdapter implements RunRepository, RunStatsPort {

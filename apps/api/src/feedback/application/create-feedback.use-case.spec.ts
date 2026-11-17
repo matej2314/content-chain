@@ -6,7 +6,7 @@ import {
   type RunStatus,
   type UserId,
 } from '@content-chain/shared';
-import { DomainException } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type {
   FeedbackEntry,

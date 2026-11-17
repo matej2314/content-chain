@@ -1,5 +1,6 @@
 import { createUserId } from '@content-chain/shared';
-import { DomainException, makeContentRun, makeSocialRun } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
+import { makeContentRun, makeSocialRun } from '@content-chain/runs-kernel';
 import type { RunRecord, RunRepository, RunSnapshot, SocialRunRecord } from '@content-chain/runs-kernel';
 import type { Env } from '../../shared/config/env';
 import { newRunId } from '../../shared/http/new-ids';

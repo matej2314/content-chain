@@ -18,7 +18,15 @@
     "<rootDir>/setup-env.ts"
   ],
   "moduleNameMapper": {
+    "^@content-chain/domain-kit$": "<rootDir>/../../../packages/domain-kit/src/index.ts",
+    "^@content-chain/domain-kit/(.*)$": "<rootDir>/../../../packages/domain-kit/src/$1",
+    "^@content-chain/persistence$": "<rootDir>/../../../packages/persistence/src/index.ts",
+    "^@content-chain/persistence/(.*)$": "<rootDir>/../../../packages/persistence/src/$1",
+    "^@content-chain/run-pipelines$": "<rootDir>/../../../packages/run-pipelines/src/index.ts",
+    "^@content-chain/run-pipelines/(.*)$": "<rootDir>/../../../packages/run-pipelines/src/$1",
     "^@content-chain/runs-kernel$": "<rootDir>/../../../packages/runs-kernel/src/index.ts",
-    "^@content-chain/runs-kernel/(.*)$": "<rootDir>/../../../packages/runs-kernel/src/$1"
+    "^@content-chain/runs-kernel/(.*)$": "<rootDir>/../../../packages/runs-kernel/src/$1",
+    "^@content-chain/shared$": "<rootDir>/../../../packages/shared/src/index.ts",
+    "^@content-chain/shared/(.*)$": "<rootDir>/../../../packages/shared/src/$1"
   }
 }

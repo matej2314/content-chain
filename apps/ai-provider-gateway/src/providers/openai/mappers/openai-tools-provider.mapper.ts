@@ -15,8 +15,7 @@ type ChatCompletionTool = OpenAI.Chat.Completions.ChatCompletionTool;
 type ChatCompletionMessageToolCall =
   OpenAI.Chat.Completions.ChatCompletionMessageToolCall;
 type ResponsesToolChoice =
-  | OpenAI.Responses.ToolChoiceOptions
-  | OpenAI.Responses.ToolChoiceFunction;
+  OpenAI.Responses.ToolChoiceOptions | OpenAI.Responses.ToolChoiceFunction;
 
 export function mapToolsToResponses(
   tools: ProviderToolDefinition[],

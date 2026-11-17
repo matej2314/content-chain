@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainException, RUN_REPOSITORY, assertRunReviewable, computeReviewExpiresAt, parseWithZod, type RunRepository } from '@content-chain/runs-kernel';
+import { DomainException, parseWithZod } from '@content-chain/domain-kit';
+import { RUN_REPOSITORY, assertRunReviewable, computeReviewExpiresAt, type RunRepository } from '@content-chain/runs-kernel';
 
 import {
   CONTENT_RESULT_STORE,

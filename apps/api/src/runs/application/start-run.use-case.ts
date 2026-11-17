@@ -9,7 +9,8 @@ import {
 } from '@content-chain/shared';
 import { GetCompletenessUseCase } from '../../company-context/application/get-completeness.use-case';
 import { ENV, type Env } from '../../shared/config/env';
-import { DomainException, RUN_JOB_ENQUEUE, RUN_REPOSITORY, parseWithZod, type RunJobEnqueuePort, type RunRepository } from '@content-chain/runs-kernel';
+import { DomainException, parseWithZod } from '@content-chain/domain-kit';
+import { RUN_JOB_ENQUEUE, RUN_REPOSITORY, type RunJobEnqueuePort, type RunRepository } from '@content-chain/runs-kernel';
 import type { ContentRunRecord, RunRecord, SocialRunRecord } from '@content-chain/runs-kernel';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
 

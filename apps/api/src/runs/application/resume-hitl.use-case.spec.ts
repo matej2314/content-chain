@@ -4,7 +4,7 @@ import type { Env } from '../../shared/config/env';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
 import type { GuestQuotaPort } from '../domain/guest-quota.port';
 import type { RunResultReader } from '../domain/run-result-reader.port';
-import { makeContentRun, makeSocialRun, RunLifecycleService } from '@content-chain/runs-kernel';
+import { makeContentRun, makeSocialRun, type RunLifecycleService } from '@content-chain/runs-kernel';
 import type { RunJobEnqueuePort, RunRecord, RunRepository, RunSnapshot } from '@content-chain/runs-kernel';
 
 import type { ReelIdea, SocialIdea } from '@content-chain/run-pipelines';

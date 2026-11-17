@@ -1,10 +1,10 @@
 import { createRequestId } from '@content-chain/shared';
-import { LlmGatewayError } from '../src/llm/llm-gateway.errors';
-import type { LlmGatewayPort } from '../src/llm/llm-gateway.port';
-import type {
-  LlmChatCommand,
-  LlmChatResult,
-} from '../src/llm/llm-gateway.types';
+import {
+  LlmGatewayError,
+  type LlmChatCommand,
+  type LlmChatResult,
+  type LlmGatewayPort,
+} from '@content-chain/run-pipelines';
 
 export const FAKE_LLM_REQUEST_ID = 'req_123e4567-e89b-12d3-a456-426614174000';
 

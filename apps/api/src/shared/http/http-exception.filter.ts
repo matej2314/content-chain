@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { newRequestId } from './new-ids';
-import { DomainException } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
 import type { ErrorEnvelope } from './error-envelope';
 import type { Request, Response } from 'express';
 

@@ -4,7 +4,7 @@ import {
   createEmailChangeRequestId,
   parseTtlMs,
 } from '@content-chain/shared';
-import { DomainException, parseWithZod } from '@content-chain/runs-kernel';
+import { DomainException, parseWithZod } from '@content-chain/domain-kit';
 
 import { ENV, type Env } from '../../shared/config/env';
 import {

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { parseWithZod } from '@content-chain/runs-kernel';
+import { parseWithZod } from '@content-chain/domain-kit';
 import {
   USER_REPOSITORY,
   type UserRepository,

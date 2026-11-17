@@ -5,7 +5,8 @@ import {
   createUserId,
   isUserRole,
 } from '@content-chain/shared';
-import { DomainException, PrismaService } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
+import { PrismaService } from '@content-chain/persistence';
 
 import type { UserId } from '@content-chain/shared';
 import type {

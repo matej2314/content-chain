@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -48,11 +48,6 @@ const INITIAL: PasswordFormState = {
 export function AccountPasswordForm({ open, onOpenChange }: AccountPasswordFormProps) {
   const { state } = useSession();
   const [form, setForm] = useState<PasswordFormState>(INITIAL);
-
-  useEffect(() => {
-    if (!open) return;
-    setForm(INITIAL);
-  }, [open]);
 
   if (state.status !== 'authenticated') return null;
 

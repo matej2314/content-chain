@@ -4,7 +4,7 @@ import {
   CANCELABLE_RUN_STATUSES,
 } from './status-transitions';
 import { isRunStatus, RUN_STATUSES } from '@content-chain/shared';
-import { DomainException } from '../shared/domain.exception';
+import { DomainException } from '@content-chain/domain-kit';
 
 describe('assertTransition', () => {
   it('allows queued => running', () => {

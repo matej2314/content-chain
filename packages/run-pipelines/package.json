@@ -17,6 +17,8 @@
     "test": "jest"
   },
   "dependencies": {
+    "@content-chain/domain-kit": "workspace:*",
+    "@content-chain/persistence": "workspace:*",
     "@content-chain/runs-kernel": "workspace:*",
     "@content-chain/shared": "workspace:*",
     "@langchain/core": "^1.2.8",
@@ -48,6 +50,10 @@
       "/node_modules/(?!.*(?:uuid|@langchain|langsmith|langgraph)/)"
     ],
     "moduleNameMapper": {
+      "^@content-chain/domain-kit$": "<rootDir>/../../domain-kit/src/index.ts",
+      "^@content-chain/domain-kit/(.*)$": "<rootDir>/../../domain-kit/src/$1",
+      "^@content-chain/persistence$": "<rootDir>/../../persistence/src/index.ts",
+      "^@content-chain/persistence/(.*)$": "<rootDir>/../../persistence/src/$1",
       "^@content-chain/runs-kernel$": "<rootDir>/../../runs-kernel/src/index.ts",
       "^@content-chain/runs-kernel/(.*)$": "<rootDir>/../../runs-kernel/src/$1",
       "^@content-chain/shared$": "<rootDir>/../../shared/src/index.ts",

@@ -12,6 +12,7 @@ import {
   RunPipelinesModule,
   SocialRunExecutor,
 } from '@content-chain/run-pipelines';
+import { PrismaModule } from '@content-chain/persistence';
 import {
   AFTER_RECOVER_WAKE,
   AutoFinalizeExpiredReviewsUseCase,
@@ -19,7 +20,6 @@ import {
   NotifyRunSseHub,
   PG_BOSS,
   PG_NOTIFY_POOL,
-  PrismaModule,
   PrismaRunAdapter,
   RecoverInterruptedRunsUseCase,
   RUN_EXECUTOR,

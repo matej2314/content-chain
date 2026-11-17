@@ -7,10 +7,11 @@ import {
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import { AppModule } from '../src/app.module';
-import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
 import { ENV, type Env } from '../src/shared/config/env';
 import { validateEnv } from '../src/shared/config/env.schema';
-import { PG_BOSS, PrismaService, validateWorkerEnv } from '@content-chain/runs-kernel';
+import { PrismaService } from '@content-chain/persistence';
+import { LLM_GATEWAY_PORT } from '@content-chain/run-pipelines';
+import { PG_BOSS, validateWorkerEnv } from '@content-chain/runs-kernel';
 import type { RunExecuteOptions, RunExecutorPort, RunRecord } from '@content-chain/runs-kernel';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
 
@@ -276,7 +277,11 @@ describe('Runs per-user in-flight limit (e2e)', () => {
       expect(await prisma.run.count()).toBe(beforeCount);
 
       await agent.post(`/api/v1/runs/${firstId}/cancel`).expect(200);
-      expect(holding.lastSignal?.aborted).toBe(true);
+      // Cancel abort reaches the worker via PG NOTIFY (async).
+      await waitUntil(
+        () => holding.lastSignal?.aborted === true,
+        'abort signal after cancel (per-user cap)',
+      );
     });
   });
 
@@ -391,7 +396,10 @@ describe('Runs per-user in-flight limit (e2e)', () => {
       expect(holding.startedIds).toEqual([firstId]);
 
       await agent.post(`/api/v1/runs/${firstId}/cancel`).expect(200);
-      expect(holding.lastSignal?.aborted).toBe(true);
+      await waitUntil(
+        () => holding.lastSignal?.aborted === true,
+        'abort signal after cancel (global cap)',
+      );
     });
   });
 });

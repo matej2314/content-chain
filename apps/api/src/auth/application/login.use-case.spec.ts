@@ -11,6 +11,7 @@ import type {
   UserRepository,
 } from '../domain/user-repository.port';
 import { comparePassword } from './auth.helpers';
+import type * as AuthHelpers from './auth.helpers';
 import { LoginUseCase } from './login.use-case';
 
 jest.mock('@nestjs/jwt', () => ({
@@ -18,8 +19,7 @@ jest.mock('@nestjs/jwt', () => ({
 }));
 
 jest.mock('./auth.helpers', () => {
-  const actual =
-    jest.requireActual<typeof import('./auth.helpers')>('./auth.helpers');
+  const actual: typeof AuthHelpers = jest.requireActual('./auth.helpers');
   return {
     ...actual,
     comparePassword: jest.fn((plain: string, hash: string) =>

@@ -11,7 +11,7 @@ import {
   type GuestQuotaPort,
 } from '../src/runs/domain/guest-quota.port';
 import { configureHttpApp } from '../src/shared/http/configure-http-app';
-import { PrismaService } from '@content-chain/runs-kernel';
+import { PrismaService } from '@content-chain/persistence';
 import {
   createAuthenticatedAgent,
   type E2eAgent,
@@ -223,13 +223,13 @@ describe('Users list pagination (e2e)', () => {
       createdAt: new Date('2026-01-03T10:00:00.000Z'),
     });
     await createUserRow(prisma, {
-      email: seededEmails[2]!,
+      email: seededEmails[2],
       password: 'E2eUsersListExtraA12!',
       role: 'user',
       createdAt: new Date('2026-01-01T10:00:00.000Z'),
     });
     await createUserRow(prisma, {
-      email: seededEmails[3]!,
+      email: seededEmails[3],
       password: 'E2eUsersListExtraB12!',
       role: 'user',
       createdAt: new Date('2026-01-04T10:00:00.000Z'),

@@ -14,6 +14,12 @@
             "path": "./packages/shared/tsconfig.json"
         },
         {
+            "path": "./packages/domain-kit/tsconfig.json"
+        },
+        {
+            "path": "./packages/persistence/tsconfig.json"
+        },
+        {
             "path": "./packages/runs-kernel/tsconfig.json"
         },
         {

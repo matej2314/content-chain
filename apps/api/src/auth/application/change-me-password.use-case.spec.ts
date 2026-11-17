@@ -105,7 +105,10 @@ describe('ChangeMePasswordUseCase', () => {
     const current = await userForAuth();
     const updatePassword = jest.fn(async () => undefined);
     const deleteByUser = jest.fn(async () => undefined);
-    const create = jest.fn(async () => undefined);
+    const create = jest.fn(
+      async (_session: Parameters<RefreshSessionRepository['create']>[0]) =>
+        undefined,
+    );
     const jwt = makeJwt();
     const uc = new ChangeMePasswordUseCase(
       unusedUsers({
@@ -133,7 +136,9 @@ describe('ChangeMePasswordUseCase', () => {
     expect(updatePassword).toHaveBeenCalledWith(ID, expect.any(String));
     expect(deleteByUser).toHaveBeenCalledWith(ID);
     expect(create).toHaveBeenCalledTimes(1);
-    expect(create.mock.calls[0]?.[0]).toMatchObject({ userId: ID });
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: ID }),
+    );
     expect(jwt.signAsync).toHaveBeenCalledWith({
       sub: ID,
       email: 'me@example.com',

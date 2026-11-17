@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AuthUserContext } from '../domain/auth-user.types';
 import { DeleteUserUseCase } from './delete-user.use-case';
-import { DomainException, parseWithZod } from '@content-chain/runs-kernel';
+import { DomainException, parseWithZod } from '@content-chain/domain-kit';
 import { deleteOwnAccountSchema } from './auth.schemas';
 import {
   USER_REPOSITORY,

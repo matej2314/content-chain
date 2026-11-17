@@ -163,14 +163,7 @@ export class ChatParamsDto {
   @IsOptional()
   @IsThinkingBudget()
   thinkingBudget?:
-    | 'none'
-    | 'minimal'
-    | 'low'
-    | 'medium'
-    | 'high'
-    | 'xhigh'
-    | 'max'
-    | number;
+    'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | number;
 
   @ApiPropertyOptional({
     description:

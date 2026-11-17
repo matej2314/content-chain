@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { DomainException, RUN_REPOSITORY, assertRunReviewable, computeReviewExpiresAt, parseWithZod, type RunRepository } from '@content-chain/runs-kernel';
+import { DomainException, parseWithZod } from '@content-chain/domain-kit';
+import { RUN_REPOSITORY, assertRunReviewable, computeReviewExpiresAt, type RunRepository } from '@content-chain/runs-kernel';
 
 import { GUEST_QUOTA, type GuestQuotaPort } from '../domain/guest-quota.port';
 

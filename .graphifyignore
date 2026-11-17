@@ -9,6 +9,9 @@
 !/docs/**
 !/spec/
 !/spec/**
+feature-plans/
+deprecated/
+aux-plans/
 !/apps/
 !/apps/api/
 !/apps/api/src/

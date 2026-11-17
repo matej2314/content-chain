@@ -15,7 +15,4 @@
  * @see OpenAiChatCompletionResponseDto (OpenAI facade)
  */
 export type GatewayFinishReason =
-  | 'stop'
-  | 'tool_calls'
-  | 'length'
-  | 'content_filter';
+  'stop' | 'tool_calls' | 'length' | 'content_filter';

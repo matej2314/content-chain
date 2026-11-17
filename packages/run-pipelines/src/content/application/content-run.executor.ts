@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { isContentTaskType, type ContentKind } from '@content-chain/shared';
-import { DomainException, RUN_LIFECYCLE, isContentRunRecord, type ContentRunRecord, type RunLifecyclePort, type RunRecord } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
+import { RUN_LIFECYCLE, isContentRunRecord, type ContentRunRecord, type RunLifecyclePort, type RunRecord } from '@content-chain/runs-kernel';
 import type { RunExecuteOptions, RunExecutorPort } from '@content-chain/runs-kernel';
 import { LlmGatewayError } from '../../llm-gateway/llm-gateway.errors';
 import { isAbortError } from '../../llm/is-abort-error';

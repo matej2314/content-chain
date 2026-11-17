@@ -1,9 +1,9 @@
 import { Test } from '@nestjs/testing';
+import { PrismaService } from '@content-chain/persistence';
 import {
   ENV,
   PG_BOSS,
   PG_NOTIFY_POOL,
-  PrismaService,
   PgBossRunWorker,
   RUN_EXECUTOR,
   RunAbortNotifyListener,

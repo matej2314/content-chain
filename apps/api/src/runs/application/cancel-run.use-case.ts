@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainException, RUN_ABORT_SIGNAL, RUN_REPOSITORY, type RunAbortSignalPort, type RunRepository, RunLifecycleService } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
+import { RUN_ABORT_SIGNAL, RUN_REPOSITORY, type RunAbortSignalPort, type RunRepository, RunLifecycleService } from '@content-chain/runs-kernel';
 
 import { GetRunUseCase, type GetRunOutput } from './get-run.use-case';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';

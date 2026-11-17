@@ -50,9 +50,6 @@ describe('RunSseNotifyListener', () => {
         publish: jest.fn(),
         complete: jest.fn(),
         subscribe: jest.fn(),
-      } as unknown as RunSseHub & {
-        publish: jest.Mock;
-        complete: jest.Mock;
       });
     const getLogById =
       overrides.getLogById ?? jest.fn().mockResolvedValue(null);
@@ -77,7 +74,7 @@ describe('RunSseNotifyListener', () => {
     );
 
     const runId = newRunId();
-    handlers[0]!({
+    handlers[0]({
       channel: RUN_SSE_CHANNEL,
       payload: encodePublish({
         event: 'run.status',
@@ -89,7 +86,7 @@ describe('RunSseNotifyListener', () => {
       data: { runId, status: 'running' },
     });
 
-    handlers[0]!({
+    handlers[0]({
       channel: RUN_SSE_CHANNEL,
       payload: encodeComplete(runId),
     });
@@ -115,7 +112,7 @@ describe('RunSseNotifyListener', () => {
     const { listener, hub } = makeListener({ getLogById });
 
     await listener.onModuleInit();
-    handlers[0]!({
+    handlers[0]({
       channel: RUN_SSE_CHANNEL,
       payload: encodePublishLog('log_1', runId),
     });
@@ -156,11 +153,11 @@ describe('RunSseNotifyListener', () => {
     const { listener } = makeListener({ hub, getLogById });
     await listener.onModuleInit();
 
-    handlers[0]!({
+    handlers[0]({
       channel: RUN_SSE_CHANNEL,
       payload: encodePublishLog('log_a', runId),
     });
-    handlers[0]!({
+    handlers[0]({
       channel: RUN_SSE_CHANNEL,
       payload: encodePublishLog('log_b', runId),
     });
@@ -181,7 +178,7 @@ describe('RunSseNotifyListener', () => {
       getLogById: jest.fn().mockResolvedValue(null),
     });
     await listener.onModuleInit();
-    handlers[0]!({
+    handlers[0]({
       channel: RUN_SSE_CHANNEL,
       payload: encodePublishLog('missing', newRunId()),
     });
@@ -193,7 +190,7 @@ describe('RunSseNotifyListener', () => {
   it('ignores garbage payload', async () => {
     const { listener, hub } = makeListener();
     await listener.onModuleInit();
-    handlers[0]!({ channel: RUN_SSE_CHANNEL, payload: 'not-json' });
+    handlers[0]({ channel: RUN_SSE_CHANNEL, payload: 'not-json' });
     expect(hub.publish).not.toHaveBeenCalled();
     expect(hub.complete).not.toHaveBeenCalled();
     await listener.onModuleDestroy();

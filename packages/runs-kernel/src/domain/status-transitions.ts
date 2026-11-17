@@ -1,5 +1,5 @@
 import type { RunStatus } from '@content-chain/shared';
-import { DomainException } from '../shared/domain.exception';
+import { DomainException } from '@content-chain/domain-kit';
 
 const ALLOWED_RUN_STATES: Record<RunStatus, readonly RunStatus[]> = {
   queued: ['running', 'cancelled'],

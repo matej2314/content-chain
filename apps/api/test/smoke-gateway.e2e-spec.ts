@@ -1,16 +1,21 @@
 import { createGatewayModelAlias } from '@content-chain/shared';
 import { Test } from '@nestjs/testing';
-import { AppModule } from '../src/app.module';
-import type { LlmGatewayPort } from '../src/llm/llm-gateway.port';
-import { LLM_GATEWAY_PORT } from '../src/llm/llm.tokens';
+import {
+  LLM_GATEWAY_PORT,
+  LlmModule,
+  type LlmGatewayPort,
+} from '@content-chain/run-pipelines';
+import { ENV, validateWorkerEnv } from '@content-chain/runs-kernel';
 import { newConversationId } from '../src/shared/http/new-ids';
 
 const enabled = process.env.SMOKE_GATEWAY === '1';
 
-(enabled ? describe : describe.skip)('smoke api → gateway', () => {
+(enabled ? describe : describe.skip)('smoke worker LLM → gateway', () => {
   it('completes native chat through LlmGatewayPort', async () => {
+    const env = validateWorkerEnv(process.env);
     const moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [LlmModule],
+      providers: [{ provide: ENV, useValue: env }],
     }).compile();
     const port = moduleRef.get<LlmGatewayPort>(LLM_GATEWAY_PORT);
     const result = await port.chat({

@@ -3,7 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { createUserId, isUserId, isUserRole } from '@content-chain/shared';
 import { ENV, type Env } from '../../../shared/config/env';
-import { DomainException } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
 import { readCookie } from './cookie.helper';
 import {
   USER_REPOSITORY,

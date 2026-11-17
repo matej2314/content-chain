@@ -49,7 +49,7 @@ import { HitlDto } from './http/dto/hitl.dto';
 import { StartRunDto } from './http/dto/start-run.dto';
 import { ListRunsQueryDto } from './http/dto/list-runs-query.dto';
 import { ParseRunIdPipe } from './http/parse-run-id.pipe';
-import { resolvePaginationMode } from '../shared/http/pagination';
+import { resolvePaginationMode } from '@content-chain/domain-kit';
 import { PaginationQueryDto } from '../shared/http/pagination-query.dto';
 import { createUserId, isUserId } from '@content-chain/shared';
 import type { RunId, RunStatus } from '@content-chain/shared';

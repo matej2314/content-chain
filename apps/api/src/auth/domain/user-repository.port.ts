@@ -1,6 +1,6 @@
 import type { UserId, UserRole } from '@content-chain/shared';
 import type { AuthUser } from './auth-user.types';
-import type { PaginationMode } from '../../shared/http/pagination';
+import type { PaginationMode } from '@content-chain/domain-kit';
 
 export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
 

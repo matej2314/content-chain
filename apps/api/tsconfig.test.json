@@ -2,9 +2,14 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    "rootDir": ".",
+    "rootDir": "..",
     "types": ["jest", "node"]
   },
-  "include": ["src/**/*.spec.ts", "src/**/*.d.ts", "test/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*.spec.ts",
+    "src/**/*.d.ts",
+    "test/**/*.ts",
+    "../worker/src/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "../worker/dist", "../worker/node_modules"]
 }

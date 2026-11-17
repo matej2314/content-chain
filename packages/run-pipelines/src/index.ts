@@ -68,3 +68,15 @@ export {
   pageOutlineOutputSchema,
   verifierOutputSchema as contentVerifierOutputSchema,
 } from './content/application/content.schemas';
+
+export { LlmModule } from './llm-gateway/llm.module';
+export { LLM_GATEWAY_PORT } from './llm-gateway/llm.tokens';
+export { LlmGatewayError } from './llm-gateway/llm-gateway.errors';
+export type { LlmGatewayPort } from './llm-gateway/llm-gateway.port';
+export type {
+  LlmChatCommand,
+  LlmChatMessage,
+  LlmChatParams,
+  LlmChatResult,
+  LlmUsage,
+} from './llm-gateway/llm-gateway.types';

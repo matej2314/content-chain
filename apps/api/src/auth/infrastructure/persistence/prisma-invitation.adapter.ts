@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { DomainException, PrismaService } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
+import { PrismaService } from '@content-chain/persistence';
 import {
   createInvitationId,
   createUserId,

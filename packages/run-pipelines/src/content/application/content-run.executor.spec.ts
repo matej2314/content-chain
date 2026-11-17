@@ -1,4 +1,5 @@
-import { DomainException, makeContentRun, makeSocialRun } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
+import { makeContentRun, makeSocialRun } from '@content-chain/runs-kernel';
 import type { ContentRunRecord, RunLifecyclePort, RunRecord } from '@content-chain/runs-kernel';
 import { LlmGatewayError } from '../../llm-gateway/llm-gateway.errors';
 

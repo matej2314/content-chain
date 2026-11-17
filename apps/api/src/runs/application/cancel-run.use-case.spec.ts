@@ -8,8 +8,8 @@ import {
 } from '@content-chain/shared';
 import { newConversationId, newRunId } from '../../shared/http/new-ids';
 import type { AuthUserContext } from '../../shared/types/auth-user-context';
-import { makeSocialSnapshot, RunLifecycleService } from '@content-chain/runs-kernel';
-import type { RunAbortSignalPort, RunRepository, RunSnapshot } from '@content-chain/runs-kernel';
+import { makeSocialSnapshot, type RunLifecycleService } from '@content-chain/runs-kernel';
+import type { RunRepository, RunSnapshot } from '@content-chain/runs-kernel';
 
 import { CancelRunUseCase } from './cancel-run.use-case';
 import type { GetRunOutput, GetRunUseCase } from './get-run.use-case';
@@ -177,7 +177,7 @@ function setup(
       attemptCancel,
       getById,
     }),
-    { requestCancel } as unknown as RunAbortSignalPort,
+    { requestCancel },
     { appendLog, publishCancelled } as unknown as RunLifecycleService,
     { execute: getRunExecute } as unknown as GetRunUseCase,
   );

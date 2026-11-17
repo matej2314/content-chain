@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { RunStatus, RunTaskType, UserId } from '@content-chain/shared';
 import type { AuthUserContext } from '../../../shared/types/auth-user-context';
-import { DomainException, RUN_REPOSITORY, type RunRepository } from '@content-chain/runs-kernel';
+import { DomainException } from '@content-chain/domain-kit';
+import { RUN_REPOSITORY, type RunRepository } from '@content-chain/runs-kernel';
 import { ENV, type Env } from '../../../shared/config/env';
 import {
   GUEST_QUOTA,

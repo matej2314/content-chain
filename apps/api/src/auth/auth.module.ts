@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { parseTtlSeconds } from '@content-chain/shared';
-import { PrismaModule } from '@content-chain/runs-kernel';
+import { PrismaModule } from '@content-chain/persistence';
 import { GuestPurgeModule } from '../runs/guest-purge.module';
 import { GuestQuotaModule } from '../runs/guest-quota.module';
 import { FeedbackModule } from '../feedback/feedback.module';

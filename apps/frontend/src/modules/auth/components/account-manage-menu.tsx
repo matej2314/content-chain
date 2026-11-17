@@ -60,19 +60,29 @@ export function AccountManageMenu({ onMailDeliveryFailed }: AccountManageMenuPro
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AccountEmailForm
-        open={dialog === 'email'}
-        onOpenChange={(open) => setDialog(open ? 'email' : null)}
-        onMailDeliveryFailed={onMailDeliveryFailed}
-      />
-      <AccountPasswordForm
-        open={dialog === 'password'}
-        onOpenChange={(open) => setDialog(open ? 'password' : null)}
-      />
-      {showDelete ? (
+      {dialog === 'email' ? (
+        <AccountEmailForm
+          open
+          onOpenChange={(open) => {
+            if (!open) setDialog(null);
+          }}
+          onMailDeliveryFailed={onMailDeliveryFailed}
+        />
+      ) : null}
+      {dialog === 'password' ? (
+        <AccountPasswordForm
+          open
+          onOpenChange={(open) => {
+            if (!open) setDialog(null);
+          }}
+        />
+      ) : null}
+      {showDelete && dialog === 'delete' ? (
         <AccountDeleteForm
-          open={dialog === 'delete'}
-          onOpenChange={(open) => setDialog(open ? 'delete' : null)}
+          open
+          onOpenChange={(open) => {
+            if (!open) setDialog(null);
+          }}
         />
       ) : null}
     </>
