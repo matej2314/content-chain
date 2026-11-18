@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { WorkerRuntimeModule } from './worker-runtime.module';
 
 /**
- * Thin runtime shell. WorkerRuntimeModule is the worker composition root
+ * WorkerRuntimeModule is the worker composition root
  * (kernel providers; pipelines land in FAZA 3).
  */
 @Module({
