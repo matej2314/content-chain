@@ -11,7 +11,7 @@
 export type Brand<K, T> = K & { readonly __brand: T };
 
 /**
- * Utility to extract base type from branded type
+ * Utility function to extract base type from branded type
  */
 
 export type UnBrand<T> = T extends Brand<infer K, unknown> ? K : T;
