@@ -1,7 +1,7 @@
 /**
  * Inline hex for transactional mail shell.
  * Roles mapped from apps/frontend/src/app/globals.css (dark shell / primary / CTA).
- * Clients do not honor CSS variables - values are frozen at render time.
+ * Clients do not honor CSS variables - values are frozen at render.
  */
 export const MAIL_PALETTE = {
   background: '#10101c',
