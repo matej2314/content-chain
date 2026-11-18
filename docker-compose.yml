@@ -91,7 +91,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        export DATABASE_URL="postgresql://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}?schema=public"
+        export DATABASE_URL="postgresql://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@cc-postgres:5432/$${POSTGRES_DB}?schema=public"
         exec /app/docker-entrypoint.sh node dist/main.js
     ports:
       - "127.0.0.1:3300:3001"
