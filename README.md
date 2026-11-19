@@ -5,7 +5,7 @@
 
 **Content Chain** is a self-hosted AI content generation dashboard powered by agent pipelines, a shared company context, and a dedicated LLM gateway.
 
-> 🚧 **V1 — work in progress.** APIs, UI, and deployment details may change. The project may still contain bugs — if you find one, please report it.
+> ✅ **V1 — maintained.** The current product slice is stable for self-host use (local, homelab, and Compose). Further features may be added over time; if you find a bug, please report it.
 
 ## Table Of Contents
 
@@ -50,18 +50,23 @@ One installation is designed for one company and one shared context. It is not a
 - 🚦 **Per-user in-flight run limit** alongside the global concurrent-run cap.
 - 🧪 **Guest/demo mode support** with Redis-backed daily caps when enabled; optional company-context seed for demo/DX.
 - 🚪 **Dedicated LLM gateway** so the product API never talks directly to model vendors.
-- 🐳 **Compose-first self-host deployment** with PostgreSQL, frontend, API, and gateway services.
+- 🐳 **Compose-first self-host deployment** with PostgreSQL, frontend, API, worker, and gateway services.
 
 ## Architecture
 
-The repository is a TypeScript monorepo with three runtime applications and one shared package.
+The repository is a TypeScript monorepo with four runtime applications and shared packages.
 
-| Application | Role |
+| Path | Role |
 | --- | --- |
 | `apps/frontend` | Next.js dashboard for company context, generation flows, run logs, review, and account interactions. It is a thin UI client with no domain rules and no direct LLM vendor access. |
-| `apps/api` | NestJS product backend. It owns authentication, company context, Social and Content pipelines, async runs, logs, feedback, and persistence (Prisma + PostgreSQL). |
+| `apps/api` | NestJS product backend. It owns authentication, company context, HTTP/SSE, feedback, and persistence (Prisma + PostgreSQL). |
+| `apps/worker` | Always-on NestJS run executor. It claims and runs Social/Content pipelines, recovery, review sweep, and abort handling (shared Postgres with the API). |
 | `apps/ai-provider-gateway` | Standalone NestJS LLM gateway. It routes requests to model providers and has no Content Chain product logic. |
 | `packages/shared` | Lightweight shared contracts and public API-facing types. |
+| `packages/domain-kit` | Shared domain helpers (exceptions, Zod parse, pagination). |
+| `packages/persistence` | Nest Prisma module/service used by API and worker. |
+| `packages/runs-kernel` | Run lifecycle kernel shared by API and worker (no app↔app TS imports). |
+| `packages/run-pipelines` | Social/Content pipeline execute slice (LangGraph) used by the worker. |
 
 ```mermaid
 %%{init: {"themeVariables": {"fontSize": "18px"}, "flowchart": {"nodeSpacing": 60, "rankSpacing": 110}}}%%
@@ -78,7 +83,11 @@ flowchart TD
     direction TB
     API["NestJS API"]
     Runs["Runs + SSE + HITL"]
-    Agents["Social / Content pipelines"]
+  end
+
+  subgraph WorkerApp["apps/worker"]
+    direction TB
+    Worker["Run executor"]
   end
 
   subgraph Gateway["apps/ai-provider-gateway"]
@@ -87,7 +96,15 @@ flowchart TD
     Providers["Provider adapters"]
   end
 
-  Shared["packages/shared"]
+  subgraph Packages["packages/"]
+    direction TB
+    Shared["shared"]
+    DomainKit["domain-kit"]
+    Persistence["persistence"]
+    RunsKernel["runs-kernel"]
+    RunPipelines["run-pipelines"]
+  end
+
   DB[(PostgreSQL)]
   Redis[(Redis for demo caps)]
   SMTP["SMTP"]
@@ -97,21 +114,31 @@ flowchart TD
   FE --> BFF
   BFF -->|"cookies + HTTP/SSE"| API
   API --> Runs
-  Runs --> Agents
-  Agents -->|"structured JSON hops"| GW
+  Runs -->|"enqueue job"| Worker
+  Worker -->|"Social / Content pipelines"| RunPipelines
+  RunPipelines -->|"structured JSON hops"| GW
   GW --> Providers
   Providers --> Vendors
   API --> DB
+  Worker --> DB
   API -.-> Redis
   API -.-> SMTP
   FE -.-> Shared
   API -.-> Shared
+  API -.-> DomainKit
+  API -.-> Persistence
+  API -.-> RunsKernel
+  Worker -.-> Shared
+  Worker -.-> DomainKit
+  Worker -.-> Persistence
+  Worker -.-> RunsKernel
+  Worker -.-> RunPipelines
 
   classDef largeText font-size:18px
-  class User,FE,BFF,API,Runs,Agents,GW,Providers,Shared,DB,Redis,SMTP,Vendors largeText
+  class User,FE,BFF,API,Runs,Worker,GW,Providers,Shared,DomainKit,Persistence,RunsKernel,RunPipelines,DB,Redis,SMTP,Vendors largeText
 ```
 
-The global shape is a modular monolith: clear process boundaries, a single repository, and explicit ownership of domain logic inside `apps/api`.
+The global shape is a modular monolith: clear process boundaries, a single repository, thin API/worker hosts, and shared domain/pipeline code in `packages/`.
 
 ## Agent Run Flows
 
@@ -132,13 +159,13 @@ Content Chain uses LLMs through controlled agent runs, not through direct free-f
 
 ### Run Lifecycle
 
-Every run starts in `apps/api/src/runs`. The API validates the command, checks company context completeness, creates a queued run, and lets the in-process worker dispatch it to the Social or Content executor.
+Every run starts in `apps/api`. The API validates the command, checks company context completeness, creates a queued run, and enqueues work for `apps/worker`, which dispatches it to the Social or Content executor.
 
 ```mermaid
 flowchart TD
   A["POST /api/v1/runs"] --> B["Validate command + company context gate"]
   B --> C["Create Run: queued"]
-  C --> D["InProcessRunWorker"]
+  C --> D["apps/worker"]
   D --> E["Transition: running"]
   E --> F{"taskType"}
   F -->|SocialTaskType| G["SocialRunExecutor"]
@@ -240,14 +267,20 @@ Each successful or failed hop appends a readable run log entry. Cancellation is 
 ```text
 .
 ├── apps/
-│   ├── api/                  # Product backend: auth, runs, pipelines, persistence
+│   ├── api/                  # Product backend: auth, HTTP/SSE, persistence
+│   ├── worker/               # Always-on run executor (pipelines, recovery, abort)
 │   ├── frontend/             # Next.js dashboard and BFF-style proxy
 │   └── ai-provider-gateway/  # LLM provider gateway and gateway CLI
 ├── packages/
-│   └── shared/               # Shared public contracts/types
+│   ├── shared/               # Shared public contracts/types
+│   ├── domain-kit/           # Domain helpers (exceptions, Zod parse, pagination)
+│   ├── persistence/          # Nest Prisma module/service (API + worker)
+│   ├── runs-kernel/          # Run lifecycle kernel (API + worker)
+│   └── run-pipelines/        # Social/Content LangGraph execute slice
 ├── docs/                     # Product, architecture, deployment, UX, security docs
 ├── spec/                     # Enforceable project specifications
 ├── feature-plans/            # Implementation plans and completed slices
+├── graphify-out/             # Local knowledge graph for codebase navigation
 ├── docker-compose.yml        # Compose-first production stack (incl. PostgreSQL)
 ├── docker-compose.dev.yml    # Full stack for containerized local/dev runs
 ├── docker-compose.db.yml     # Standalone PostgreSQL for in-process DX
@@ -480,7 +513,7 @@ Content Chain separates product-level observability from process-level observabi
 
 ## Project Status
 
-**V1 — work in progress.** Things may still break. If you hit a bug, please report it.
+**V1 — maintained.** The current self-host slice is stable; further features may be added over time. If you hit a bug, please report it.
 
 ## License
 

@@ -29,10 +29,15 @@ RUN pnpm --filter @content-chain/shared build \
 # prisma CLI z deps workera; cwd filtra = apps/worker → schema względnie ../api/prisma
 RUN pnpm --filter worker exec prisma generate --schema=../api/prisma/schema.prisma
 RUN pnpm --filter worker build
+# deploy respektuje package.json "files" (dist) — bez src/tsconfig/nest-cli w obrazie
 RUN pnpm --filter worker deploy --prod /prod/worker \
   && mkdir -p /prod/worker/prisma \
   && cp apps/api/prisma/schema.prisma /prod/worker/prisma/schema.prisma \
-  && test -f /prod/worker/dist/main.js
+  && test -f /prod/worker/dist/main.js \
+  && test ! -d /prod/worker/src \
+  && test ! -f /prod/worker/tsconfig.json \
+  && test ! -f /prod/worker/tsconfig.build.json \
+  && test ! -f /prod/worker/nest-cli.json
 
 FROM node:24.19.0-alpine AS production
 WORKDIR /app
