@@ -5,6 +5,7 @@ import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { EnvelopeError, FormField } from '@/shared/ui/form-field';
 import { registerAccount } from '@/modules/auth/api/auth.api';
+import { PasswordInput } from '@/modules/auth/components/password-input';
 import { passwordMeetsPolicy } from '@/modules/auth/password-policy';
 import {
   toRegisterFieldErrors,
@@ -123,10 +124,9 @@ export function RegisterForm({
         hint="Min. 12 znaków, wielka litera, cyfra i znak specjalny."
         error={registerState.fieldErrors.password ?? registerState.localHint}
       >
-        <Input
+        <PasswordInput
           id="register-password"
           name="password"
-          type="password"
           autoComplete="new-password"
           value={registerState.password}
           onChange={(event) =>
@@ -136,10 +136,9 @@ export function RegisterForm({
         />
       </FormField>
       <FormField label="Powtórz hasło" htmlFor="register-confirm">
-        <Input
+        <PasswordInput
           id="register-confirm"
           name="confirmPassword"
-          type="password"
           autoComplete="new-password"
           value={registerState.confirm}
           onChange={(event) =>

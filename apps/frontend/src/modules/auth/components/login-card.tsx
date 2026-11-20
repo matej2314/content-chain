@@ -7,6 +7,7 @@ import { Input } from '@/shared/ui/input';
 import { EnvelopeError, FormField } from '@/shared/ui/form-field';
 import { ApiError } from '@/shared/api/envelope';
 import { loginWithPassword } from '@/modules/auth/api/auth.api';
+import { PasswordInput } from '@/modules/auth/components/password-input';
 import { useSession } from '@/modules/auth/components/session-provider';
 import type { ApiErrorEnvelope } from '@/shared/api/envelope';
 
@@ -81,10 +82,9 @@ export function LoginCard({
         />
       </FormField>
       <FormField label="Hasło" htmlFor="login-password">
-        <Input
+        <PasswordInput
           id="login-password"
           name="password"
-          type="password"
           autoComplete="current-password"
           value={loginState.password}
           onChange={(event) => setLoginState((prev) => ({ ...prev, password: event.target.value }))}
